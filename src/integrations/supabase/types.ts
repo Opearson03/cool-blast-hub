@@ -503,6 +503,7 @@ export type Database = {
           slump: string | null
           status: string | null
           updated_at: string | null
+          visit_type: string | null
         }
         Insert: {
           actual_m3?: number | null
@@ -519,6 +520,7 @@ export type Database = {
           slump?: string | null
           status?: string | null
           updated_at?: string | null
+          visit_type?: string | null
         }
         Update: {
           actual_m3?: number | null
@@ -535,6 +537,7 @@ export type Database = {
           slump?: string | null
           status?: string | null
           updated_at?: string | null
+          visit_type?: string | null
         }
         Relationships: [
           {
@@ -713,6 +716,42 @@ export type Database = {
           role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: []
+      }
+      pour_employees: {
+        Row: {
+          created_at: string
+          employee_id: string
+          id: string
+          pour_id: string
+        }
+        Insert: {
+          created_at?: string
+          employee_id: string
+          id?: string
+          pour_id: string
+        }
+        Update: {
+          created_at?: string
+          employee_id?: string
+          id?: string
+          pour_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pour_employees_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pour_employees_pour_id_fkey"
+            columns: ["pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
