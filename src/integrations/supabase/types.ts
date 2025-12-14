@@ -66,6 +66,7 @@ export type Database = {
           notes: string | null
           passed: boolean | null
           pour_date: string | null
+          pour_id: string | null
           sample_count: number | null
           supplier: string | null
           target_strength: number | null
@@ -83,6 +84,7 @@ export type Database = {
           notes?: string | null
           passed?: boolean | null
           pour_date?: string | null
+          pour_id?: string | null
           sample_count?: number | null
           supplier?: string | null
           target_strength?: number | null
@@ -100,6 +102,7 @@ export type Database = {
           notes?: string | null
           passed?: boolean | null
           pour_date?: string | null
+          pour_id?: string | null
           sample_count?: number | null
           supplier?: string | null
           target_strength?: number | null
@@ -114,6 +117,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "concrete_tests_pour_id_fkey"
+            columns: ["pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
             referencedColumns: ["id"]
           },
         ]
@@ -473,6 +483,65 @@ export type Database = {
             columns: ["template_id"]
             isOneToOne: false
             referencedRelation: "itp_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_pours: {
+        Row: {
+          actual_m3: number | null
+          concrete_supplier: string | null
+          created_at: string | null
+          estimated_m3: number | null
+          id: string
+          job_id: string
+          mpa_strength: string | null
+          notes: string | null
+          pour_date: string | null
+          pour_name: string
+          scheduled_time: string | null
+          slump: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          actual_m3?: number | null
+          concrete_supplier?: string | null
+          created_at?: string | null
+          estimated_m3?: number | null
+          id?: string
+          job_id: string
+          mpa_strength?: string | null
+          notes?: string | null
+          pour_date?: string | null
+          pour_name: string
+          scheduled_time?: string | null
+          slump?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          actual_m3?: number | null
+          concrete_supplier?: string | null
+          created_at?: string | null
+          estimated_m3?: number | null
+          id?: string
+          job_id?: string
+          mpa_strength?: string | null
+          notes?: string | null
+          pour_date?: string | null
+          pour_name?: string
+          scheduled_time?: string | null
+          slump?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_pours_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
             referencedColumns: ["id"]
           },
         ]
