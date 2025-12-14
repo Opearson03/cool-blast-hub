@@ -65,18 +65,34 @@ export function EquipmentFormDialog({ open, onOpenChange, editEquipment }: Equip
   const mutation = useMutation({
     mutationFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
-      if (!userData.user?.id) {
+      const userId = userData.user?.id;
+
+      if (!userId) {
         throw new Error("You must be logged in to add equipment");
       }
-      
-      const { data: profile, error: profileError } = await supabase
+
+      // Try to resolve business from profile first (staff users)
+      const { data: profile } = await supabase
         .from("profiles")
         .select("business_id")
-        .eq("id", userData.user.id)
-        .single();
+        .eq("id", userId)
+        .maybeSingle();
 
-      if (profileError || !profile?.business_id) {
-        throw new Error("Could not find your business. Please ensure you're properly logged in.");
+      let businessId = profile?.business_id as string | null | undefined;
+
+      // If no profile business found, fall back to business where user is the owner (admin users)
+      if (!businessId) {
+        const { data: business } = await supabase
+          .from("businesses")
+          .select("id")
+          .eq("owner_id", userId)
+          .maybeSingle();
+
+        businessId = business?.id;
+      }
+
+      if (!businessId) {
+        throw new Error("Could not find your business record. Please contact support.");
       }
 
       const interval = serviceIntervalDays ? parseInt(serviceIntervalDays) : null;
@@ -90,9 +106,8 @@ export function EquipmentFormDialog({ open, onOpenChange, editEquipment }: Equip
         last_service_date: lastServiceDate || null,
         next_service_date: nextService,
         service_notes: serviceNotes || null,
-        business_id: profile.business_id,
+        business_id: businessId,
       };
-
       if (editEquipment) {
         const { error } = await supabase
           .from("equipment")
