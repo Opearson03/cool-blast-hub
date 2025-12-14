@@ -4,13 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ClipboardList, Plus, FileCheck, Clock } from "lucide-react";
+import { ClipboardList, Plus, FileCheck, Clock, User } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { ITPFormDialog } from "../itps/ITPFormDialog";
 import { ITPDetailSheet } from "../itps/ITPDetailSheet";
 
 type JobITP = Tables<"job_itps">;
+
+interface ITPWithRelations extends JobITP {
+  pour?: { id: string; pour_name: string; pour_date: string | null; visit_type: string | null } | null;
+  assignee?: { id: string; full_name: string } | null;
+}
 
 interface JobITPsTabProps {
   jobId: string;
@@ -30,20 +35,50 @@ const itpTypeLabels: Record<string, string> = {
   custom: "Custom",
 };
 
+const visitTypeLabels: Record<string, string> = {
+  pour: "Pour",
+  earthworks: "Earthworks",
+  formwork_place: "Place Formwork",
+  formwork_strip: "Strip Formwork",
+  cure: "Curing",
+  seal: "Sealing",
+  other: "Other",
+};
+
 export function JobITPsTab({ jobId }: JobITPsTabProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [selectedItp, setSelectedItp] = useState<JobITP | null>(null);
+  const [selectedItp, setSelectedItp] = useState<ITPWithRelations | null>(null);
 
   const { data: itps = [], isLoading } = useQuery({
     queryKey: ["job-itps", jobId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("job_itps")
-        .select("*")
+        .select(`
+          *,
+          pour:job_pours(id, pour_name, pour_date, visit_type)
+        `)
         .eq("job_id", jobId)
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return data as JobITP[];
+
+      // Fetch assignee names separately
+      const itpData = data || [];
+      const assignedToIds = itpData.filter(i => i.assigned_to).map(i => i.assigned_to);
+      
+      let assigneeMap: Record<string, string> = {};
+      if (assignedToIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", assignedToIds);
+        assigneeMap = (profiles || []).reduce((acc, p) => ({ ...acc, [p.id]: p.full_name }), {});
+      }
+
+      return itpData.map(itp => ({
+        ...itp,
+        assignee: itp.assigned_to ? { id: itp.assigned_to, full_name: assigneeMap[itp.assigned_to] || "Unknown" } : null,
+      })) as ITPWithRelations[];
     },
   });
 
@@ -74,7 +109,7 @@ export function JobITPsTab({ jobId }: JobITPsTabProps) {
     );
   }
 
-  const getProgress = (itp: JobITP) => {
+  const getProgress = (itp: ITPWithRelations) => {
     const checklist = itp.checklist_data as unknown as Array<{ checked: boolean }>;
     if (!checklist || checklist.length === 0) return 0;
     const completed = checklist.filter((item) => item.checked).length;
@@ -119,6 +154,18 @@ export function JobITPsTab({ jobId }: JobITPsTabProps) {
                         <p className="text-sm text-muted-foreground">
                           {itpTypeLabels[itp.itp_type] || itp.itp_type} • {progress}% complete
                         </p>
+                        {itp.pour && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {itp.pour.pour_name} • {visitTypeLabels[itp.pour.visit_type || "pour"]}
+                            {itp.pour.pour_date && ` • ${format(new Date(itp.pour.pour_date), "d MMM")}`}
+                          </p>
+                        )}
+                        {itp.assignee && (
+                          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                            <User className="w-3 h-3" />
+                            Assigned to: {itp.assignee.full_name}
+                          </p>
+                        )}
                         {itp.completed_at && (
                           <p className="text-xs text-muted-foreground mt-1">
                             Completed: {format(new Date(itp.completed_at), "d MMM yyyy")}

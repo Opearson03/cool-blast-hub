@@ -417,6 +417,7 @@ export type Database = {
       }
       job_itps: {
         Row: {
+          assigned_to: string | null
           checklist_data: Json
           completed_at: string | null
           completed_by: string | null
@@ -428,6 +429,7 @@ export type Database = {
           job_id: string
           name: string
           notes: string | null
+          pour_id: string | null
           status: string | null
           supervisor_signature: string | null
           supervisor_signed_at: string | null
@@ -435,6 +437,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          assigned_to?: string | null
           checklist_data?: Json
           completed_at?: string | null
           completed_by?: string | null
@@ -446,6 +449,7 @@ export type Database = {
           job_id: string
           name: string
           notes?: string | null
+          pour_id?: string | null
           status?: string | null
           supervisor_signature?: string | null
           supervisor_signed_at?: string | null
@@ -453,6 +457,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          assigned_to?: string | null
           checklist_data?: Json
           completed_at?: string | null
           completed_by?: string | null
@@ -464,6 +469,7 @@ export type Database = {
           job_id?: string
           name?: string
           notes?: string | null
+          pour_id?: string | null
           status?: string | null
           supervisor_signature?: string | null
           supervisor_signed_at?: string | null
@@ -476,6 +482,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_itps_pour_id_fkey"
+            columns: ["pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
             referencedColumns: ["id"]
           },
           {
