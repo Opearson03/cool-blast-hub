@@ -106,7 +106,7 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-warning">0</p>
+              <p className="text-2xl font-bold text-amber-500">0</p>
             </CardContent>
           </Card>
         </div>

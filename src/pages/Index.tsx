@@ -19,9 +19,7 @@ const Index = () => {
           <div className="max-w-4xl mx-auto">
             {/* Logo */}
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-16 h-16 rounded-xl overflow-hidden">
-                <Logo className="w-full h-full" />
-              </div>
+              <Logo size="xl" className="w-16 h-16 rounded-xl" />
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary-foreground">
                 Pour<span className="text-primary">Hub</span>
               </h1>
@@ -31,7 +29,7 @@ const Index = () => {
               Run Your Concreting<br />Business Like a Pro
             </h2>
             
-            <p className="text-xl text-muted-foreground mb-8 max-w-xl">
+            <p className="text-xl text-primary-foreground/80 mb-8 max-w-xl">
               Jobs, crews, schedules, compliance, and test results — all in one place. Built for NSW concreters who want to work smarter.
             </p>
             
@@ -43,7 +41,7 @@ const Index = () => {
                 </Button>
               </Link>
               <Link to="/auth">
-                <Button size="lg" variant="outline" className="text-lg px-8 py-6 touch-target w-full sm:w-auto bg-background/10 border-border/30 hover:bg-background/20">
+                <Button size="lg" variant="outline" className="text-lg px-8 py-6 touch-target w-full sm:w-auto bg-primary-foreground/10 border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/20">
                   Sign In
                 </Button>
               </Link>
