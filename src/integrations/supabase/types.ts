@@ -1109,7 +1109,14 @@ export type Database = {
       job_status: "scheduled" | "in_progress" | "completed" | "cancelled"
       job_type: "retail" | "industrial"
       service_type: "industrial" | "automotive" | "restoration" | "other"
-      test_type: "7_day" | "28_day" | "slump" | "cylinder" | "air" | "other"
+      test_type:
+        | "7_day"
+        | "14_day"
+        | "28_day"
+        | "slump"
+        | "cylinder"
+        | "air"
+        | "other"
       timesheet_status: "draft" | "submitted" | "approved" | "rejected"
     }
     CompositeTypes: {
@@ -1263,7 +1270,15 @@ export const Constants = {
       job_status: ["scheduled", "in_progress", "completed", "cancelled"],
       job_type: ["retail", "industrial"],
       service_type: ["industrial", "automotive", "restoration", "other"],
-      test_type: ["7_day", "28_day", "slump", "cylinder", "air", "other"],
+      test_type: [
+        "7_day",
+        "14_day",
+        "28_day",
+        "slump",
+        "cylinder",
+        "air",
+        "other",
+      ],
       timesheet_status: ["draft", "submitted", "approved", "rejected"],
     },
   },
