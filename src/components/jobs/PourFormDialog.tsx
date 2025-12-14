@@ -43,7 +43,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { toast } from "sonner";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Check, ChevronsUpDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -101,6 +101,7 @@ export function PourFormDialog({
 }: PourFormDialogProps) {
   const queryClient = useQueryClient();
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const hasInitializedEmployees = useRef(false);
 
   // Fetch employees for the business
   const { data: employees = [] } = useQuery({
@@ -116,7 +117,7 @@ export function PourFormDialog({
   });
 
   // Fetch assigned employees if editing
-  const { data: assignedEmployees = [] } = useQuery({
+  const { data: assignedEmployees } = useQuery({
     queryKey: ["pour-employees", editPour?.id],
     enabled: !!editPour?.id,
     queryFn: async () => {
@@ -129,13 +130,21 @@ export function PourFormDialog({
     },
   });
 
+  // Initialize selected employees once when data loads
   useEffect(() => {
-    if (assignedEmployees.length > 0) {
+    if (editPour?.id && assignedEmployees && !hasInitializedEmployees.current) {
       setSelectedEmployees(assignedEmployees);
-    } else if (!editPour) {
+      hasInitializedEmployees.current = true;
+    }
+  }, [editPour?.id, assignedEmployees]);
+
+  // Reset when dialog closes or opens for new pour
+  useEffect(() => {
+    if (!open) {
+      hasInitializedEmployees.current = false;
       setSelectedEmployees([]);
     }
-  }, [assignedEmployees, editPour]);
+  }, [open]);
 
   const form = useForm<PourFormData>({
     resolver: zodResolver(pourSchema),
