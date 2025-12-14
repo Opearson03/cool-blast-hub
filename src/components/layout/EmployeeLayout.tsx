@@ -28,7 +28,7 @@ export function EmployeeLayout({ children }: { children: ReactNode }) {
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         <Link to="/employee" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
+          <div className="w-8 h-8 rounded-lg overflow-hidden">
             <Logo className="w-full h-full" />
           </div>
           <span className="font-bold">PourHub</span>

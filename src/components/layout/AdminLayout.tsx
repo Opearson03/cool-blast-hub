@@ -32,7 +32,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         <Link to="/admin" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
+          <div className="w-8 h-8 rounded-lg overflow-hidden">
             <Logo className="w-full h-full" />
           </div>
           <span className="font-bold">PourHub</span>
@@ -72,7 +72,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex-col">
         <div className="p-4 border-b border-border">
           <Link to="/admin" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center p-1.5">
+            <div className="w-10 h-10 rounded-lg overflow-hidden">
               <Logo className="w-full h-full" />
             </div>
             <span className="text-xl font-bold">PourHub</span>
