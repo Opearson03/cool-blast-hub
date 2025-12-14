@@ -6,13 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, HardHat, ArrowLeft } from "lucide-react";
+import { Loader2, HardHat, ArrowLeft, Building2, UserPlus } from "lucide-react";
+
+type AuthMode = "login" | "employee_signup" | "business_signup";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [isLogin, setIsLogin] = useState(true);
+  const [businessName, setBusinessName] = useState("");
+  const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -24,7 +27,6 @@ export default function Auth() {
       }
     });
 
-    // Check if already logged in
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
         await redirectBasedOnRole(session.user.id);
@@ -46,7 +48,6 @@ export default function Auth() {
       } else if (isStaff) {
         navigate("/employee");
       } else {
-        // User has no role assigned - sign them out and show error
         await supabase.auth.signOut();
         toast({
           title: "Access Denied",
@@ -71,7 +72,7 @@ export default function Auth() {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (authMode === "login") {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password,
@@ -87,8 +88,34 @@ export default function Auth() {
         if (data.user) {
           await redirectBasedOnRole(data.user.id);
         }
+      } else if (authMode === "business_signup") {
+        // Business owner signup - no invite required
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            emailRedirectTo: `${window.location.origin}/admin`,
+            data: { 
+              full_name: fullName,
+              business_name: businessName,
+              signup_type: "business_owner"
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Account created!",
+          description: "You can now log in with your credentials.",
+        });
+        setAuthMode("login");
+        setEmail("");
+        setPassword("");
+        setFullName("");
+        setBusinessName("");
       } else {
-        // Check for pending invite
+        // Employee signup - requires invite
         const { data: inviteData, error: inviteError } = await supabase
           .from("pending_invites")
           .select("*")
@@ -116,7 +143,7 @@ export default function Auth() {
           title: "Account created!",
           description: "You can now log in with your credentials.",
         });
-        setIsLogin(true);
+        setAuthMode("login");
       }
     } catch (error: any) {
       toast({
@@ -126,6 +153,22 @@ export default function Auth() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const getTitle = () => {
+    switch (authMode) {
+      case "login": return "Sign In";
+      case "business_signup": return "Start Your Business";
+      case "employee_signup": return "Employee Sign Up";
+    }
+  };
+
+  const getDescription = () => {
+    switch (authMode) {
+      case "login": return "Enter your credentials to access your account";
+      case "business_signup": return "Create your business account to get started";
+      case "employee_signup": return "Sign up with your invite to join your team";
     }
   };
 
@@ -149,18 +192,29 @@ export default function Auth() {
                 Pour<span className="text-primary">Hub</span>
               </span>
             </div>
-            <CardTitle>{isLogin ? "Sign In" : "Create Account"}</CardTitle>
-            <CardDescription>
-              {isLogin
-                ? "Enter your credentials to access your account"
-                : "Sign up with your invite to get started"}
-            </CardDescription>
+            <CardTitle>{getTitle()}</CardTitle>
+            <CardDescription>{getDescription()}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {!isLogin && (
+              {authMode === "business_signup" && (
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="businessName">Business Name</Label>
+                  <Input
+                    id="businessName"
+                    type="text"
+                    value={businessName}
+                    onChange={(e) => setBusinessName(e.target.value)}
+                    placeholder="e.g. Smith Concreting"
+                    required
+                    disabled={loading}
+                    className="touch-target"
+                  />
+                </div>
+              )}
+              {authMode !== "login" && (
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Your Full Name</Label>
                   <Input
                     id="fullName"
                     type="text"
@@ -199,21 +253,55 @@ export default function Auth() {
               </div>
               <Button type="submit" className="w-full touch-target" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {isLogin ? "Sign In" : "Create Account"}
+                {authMode === "login" ? "Sign In" : authMode === "business_signup" ? "Create Business" : "Create Account"}
               </Button>
             </form>
-            <div className="mt-4 text-center text-sm">
-              <button
-                type="button"
-                onClick={() => setIsLogin(!isLogin)}
-                className="text-primary hover:underline"
-                disabled={loading}
-              >
-                {isLogin
-                  ? "Have an invite? Create account"
-                  : "Already have an account? Sign in"}
-              </button>
-            </div>
+            
+            {authMode === "login" && (
+              <div className="mt-6 space-y-3">
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">Or</span>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full touch-target"
+                  onClick={() => setAuthMode("business_signup")}
+                  disabled={loading}
+                >
+                  <Building2 className="mr-2 h-4 w-4" />
+                  Start a New Business
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full touch-target"
+                  onClick={() => setAuthMode("employee_signup")}
+                  disabled={loading}
+                >
+                  <UserPlus className="mr-2 h-4 w-4" />
+                  Have an invite? Join your team
+                </Button>
+              </div>
+            )}
+            
+            {authMode !== "login" && (
+              <div className="mt-4 text-center text-sm">
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("login")}
+                  className="text-primary hover:underline"
+                  disabled={loading}
+                >
+                  Already have an account? Sign in
+                </button>
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
