@@ -28,6 +28,7 @@ import { ArrowLeft, Pencil, Trash2, Loader2 } from "lucide-react";
 import { JobFormDialog } from "@/components/jobs/JobFormDialog";
 import { JobOverviewTab } from "@/components/jobs/tabs/JobOverviewTab";
 import { JobProjectStartupTab } from "@/components/jobs/tabs/JobProjectStartupTab";
+import { JobPoursTab } from "@/components/jobs/tabs/JobPoursTab";
 import { JobITPsTab } from "@/components/jobs/tabs/JobITPsTab";
 import { JobSWMSTab } from "@/components/jobs/tabs/JobSWMSTab";
 import { JobTestResultsTab } from "@/components/jobs/tabs/JobTestResultsTab";
@@ -213,6 +214,9 @@ export default function AdminJobDetail() {
             <TabsTrigger value="startup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Project Startup
             </TabsTrigger>
+            <TabsTrigger value="pours" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Pours
+            </TabsTrigger>
             <TabsTrigger value="itps" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               ITPs
             </TabsTrigger>
@@ -236,6 +240,9 @@ export default function AdminJobDetail() {
             </TabsContent>
             <TabsContent value="startup" className="m-0">
               <JobProjectStartupTab jobId={job.id} />
+            </TabsContent>
+            <TabsContent value="pours" className="m-0">
+              <JobPoursTab jobId={job.id} />
             </TabsContent>
             <TabsContent value="itps" className="m-0">
               <JobITPsTab jobId={job.id} />
