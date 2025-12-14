@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Save, ClipboardCheck } from "lucide-react";
@@ -42,26 +43,31 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
     }
   }, [startup]);
 
+  // Items with just checkboxes (not yes/no)
   const checklistItems = [
-    { key: "communication_setup", label: "Communication Setup (Teams/Chat)" },
+    { key: "communication_setup", label: "Connect / Teams Setup" },
     { key: "plans_printed", label: "Plans Printed" },
     { key: "itps_prepared", label: "ITPs Prepared & Approved" },
     { key: "swms_prepared", label: "SWMS Prepared" },
     { key: "risk_assessment_completed", label: "Risk Assessment Completed" },
-    { key: "concrete_supply", label: "Concrete Supply Confirmed" },
-    { key: "concrete_testing", label: "Concrete Testing Required" },
-    { key: "mix_design_approval", label: "Mix Design Approval" },
-    { key: "reo_supply", label: "REO Supply Confirmed" },
-    { key: "reo_fixing_subcontractor", label: "REO Fixing by Subcontractor" },
+  ] as const;
+
+  // Items with YES/NO selection
+  const yesNoItems = [
+    { key: "concrete_supply", label: "Concrete Supply", supplierKey: "concrete_supplier" },
+    { key: "concrete_testing", label: "Concrete Testing" },
+    { key: "mix_design_approval", label: "Mix Design Approved", notesKey: "mix_design_approval_notes" },
+    { key: "reo_supply", label: "REO Supply", supplierKey: "reo_supplier" },
+    { key: "reo_fixing_subcontractor", label: "REO Fixing", subcontractorKey: "reo_fixing_who" },
     { key: "curing_required", label: "Curing Required" },
     { key: "caulking_required", label: "Caulking Required" },
     { key: "long_longs_required", label: "Long Longs Required" },
   ] as const;
 
   const calculateProgress = () => {
-    const checks = checklistItems.map((item) => formData[item.key as keyof ProjectStartup]);
-    const completed = checks.filter(Boolean).length;
-    return Math.round((completed / checks.length) * 100);
+    const allKeys = [...checklistItems.map(i => i.key), ...yesNoItems.map(i => i.key)];
+    const completed = allKeys.filter((key) => formData[key as keyof ProjectStartup] !== null && formData[key as keyof ProjectStartup] !== undefined).length;
+    return Math.round((completed / allKeys.length) * 100);
   };
 
   const saveMutation = useMutation({
@@ -97,6 +103,10 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
     setFormData((prev) => ({ ...prev, [key]: checked }));
   };
 
+  const handleYesNoChange = (key: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [key]: value === "yes" }));
+  };
+
   const handleInputChange = (key: string, value: string) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
@@ -130,7 +140,7 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
       {/* Project Setup & Documentation */}
       <Card>
         <CardHeader>
-          <CardTitle>Project Setup & Documentation</CardTitle>
+          <CardTitle>1. Project Setup & Documentation</CardTitle>
           <CardDescription>Client and site information</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -154,7 +164,7 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
               />
             </div>
             <div>
-              <Label>Client Contact Name</Label>
+              <Label>Primary Contact Name</Label>
               <Input
                 value={formData.client_contact_name || ""}
                 onChange={(e) => handleInputChange("client_contact_name", e.target.value)}
@@ -163,7 +173,7 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
               />
             </div>
             <div>
-              <Label>Client Contact Phone</Label>
+              <Label>Contact Phone</Label>
               <Input
                 value={formData.client_contact_phone || ""}
                 onChange={(e) => handleInputChange("client_contact_phone", e.target.value)}
@@ -172,7 +182,7 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
               />
             </div>
             <div>
-              <Label>Client Contact Email</Label>
+              <Label>Contact Email</Label>
               <Input
                 type="email"
                 value={formData.client_contact_email || ""}
@@ -190,6 +200,22 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
                 className="touch-target"
               />
             </div>
+          </div>
+
+          {/* Checkboxes for basic setup items */}
+          <div className="space-y-3 pt-4">
+            {checklistItems.slice(0, 1).map((item) => (
+              <div key={item.key} className="flex items-center space-x-3">
+                <Checkbox
+                  id={item.key}
+                  checked={!!formData[item.key as keyof ProjectStartup]}
+                  onCheckedChange={(checked) => handleCheckChange(item.key, !!checked)}
+                />
+                <Label htmlFor={item.key} className="cursor-pointer">
+                  {item.label}
+                </Label>
+              </div>
+            ))}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
@@ -218,11 +244,11 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
       {/* Planning & Design Checklist */}
       <Card>
         <CardHeader>
-          <CardTitle>Planning & Design</CardTitle>
+          <CardTitle>2. Planning & Design</CardTitle>
           <CardDescription>Documentation and planning checklist</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {checklistItems.slice(0, 5).map((item) => (
+          {checklistItems.slice(1).map((item) => (
             <div key={item.key} className="flex items-center space-x-3">
               <Checkbox
                 id={item.key}
@@ -236,7 +262,7 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
           ))}
 
           <div className="pt-4">
-            <Label>Mix Design Notes</Label>
+            <Label>Concrete Mix Design</Label>
             <Input
               value={formData.mix_design_text || ""}
               onChange={(e) => handleInputChange("mix_design_text", e.target.value)}
@@ -244,68 +270,72 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
               className="touch-target mt-1"
             />
           </div>
-
-          <div>
-            <Label>Mix Design Approval Notes</Label>
-            <Input
-              value={formData.mix_design_approval_notes || ""}
-              onChange={(e) => handleInputChange("mix_design_approval_notes", e.target.value)}
-              placeholder="Approval notes"
-              className="touch-target mt-1"
-            />
-          </div>
         </CardContent>
       </Card>
 
-      {/* Procurement & Suppliers */}
+      {/* Procurement & Suppliers - YES/NO format */}
       <Card>
         <CardHeader>
-          <CardTitle>Procurement & Suppliers</CardTitle>
+          <CardTitle>3. Procurement & Suppliers</CardTitle>
           <CardDescription>Material and supplier confirmation</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {checklistItems.slice(5).map((item) => (
-            <div key={item.key} className="flex items-center space-x-3">
-              <Checkbox
-                id={item.key}
-                checked={!!formData[item.key as keyof ProjectStartup]}
-                onCheckedChange={(checked) => handleCheckChange(item.key, !!checked)}
-              />
-              <Label htmlFor={item.key} className="cursor-pointer">
-                {item.label}
-              </Label>
-            </div>
-          ))}
+        <CardContent className="space-y-6">
+          {yesNoItems.map((item) => {
+            const currentValue = formData[item.key as keyof ProjectStartup];
+            const yesNoValue = currentValue === true ? "yes" : currentValue === false ? "no" : undefined;
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
-            <div>
-              <Label>Concrete Supplier</Label>
-              <Input
-                value={formData.concrete_supplier || ""}
-                onChange={(e) => handleInputChange("concrete_supplier", e.target.value)}
-                placeholder="Supplier name"
-                className="touch-target"
-              />
-            </div>
-            <div>
-              <Label>REO Supplier</Label>
-              <Input
-                value={formData.reo_supplier || ""}
-                onChange={(e) => handleInputChange("reo_supplier", e.target.value)}
-                placeholder="REO supplier"
-                className="touch-target"
-              />
-            </div>
-            <div className="sm:col-span-2">
-              <Label>REO Fixing - Who?</Label>
-              <Input
-                value={formData.reo_fixing_who || ""}
-                onChange={(e) => handleInputChange("reo_fixing_who", e.target.value)}
-                placeholder="REO fixing subcontractor details"
-                className="touch-target"
-              />
-            </div>
-          </div>
+            return (
+              <div key={item.key} className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-base">{item.label}</Label>
+                  <RadioGroup
+                    value={yesNoValue}
+                    onValueChange={(v) => handleYesNoChange(item.key, v)}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="yes" id={`${item.key}-yes`} />
+                      <Label htmlFor={`${item.key}-yes`} className="cursor-pointer font-normal">
+                        YES
+                      </Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="no" id={`${item.key}-no`} />
+                      <Label htmlFor={`${item.key}-no`} className="cursor-pointer font-normal">
+                        NO
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* Conditional supplier/subcontractor input */}
+                {"supplierKey" in item && item.supplierKey && yesNoValue === "yes" && (
+                  <Input
+                    value={(formData[item.supplierKey as keyof ProjectStartup] as string) || ""}
+                    onChange={(e) => handleInputChange(item.supplierKey!, e.target.value)}
+                    placeholder="Supplier name"
+                    className="mt-2"
+                  />
+                )}
+                {"subcontractorKey" in item && item.subcontractorKey && yesNoValue === "yes" && (
+                  <Input
+                    value={(formData[item.subcontractorKey as keyof ProjectStartup] as string) || ""}
+                    onChange={(e) => handleInputChange(item.subcontractorKey!, e.target.value)}
+                    placeholder="Subcontractor name"
+                    className="mt-2"
+                  />
+                )}
+                {"notesKey" in item && item.notesKey && yesNoValue === "yes" && (
+                  <Input
+                    value={(formData[item.notesKey as keyof ProjectStartup] as string) || ""}
+                    onChange={(e) => handleInputChange(item.notesKey!, e.target.value)}
+                    placeholder="Approval notes"
+                    className="mt-2"
+                  />
+                )}
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
 

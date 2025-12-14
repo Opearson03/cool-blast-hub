@@ -31,6 +31,7 @@ interface JobPour {
   id: string;
   job_id: string;
   pour_name: string;
+  visit_type: string | null;
   pour_date: string | null;
   scheduled_time: string | null;
   estimated_m3: number | null;

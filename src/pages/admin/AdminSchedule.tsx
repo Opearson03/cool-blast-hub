@@ -4,11 +4,9 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { 
   ChevronLeft, 
   ChevronRight, 
-  Calendar as CalendarIcon,
   List,
   Grid3X3
 } from "lucide-react";
@@ -19,14 +17,12 @@ import {
   startOfMonth, 
   endOfMonth, 
   eachDayOfInterval, 
-  isSameDay, 
   isSameMonth,
   addWeeks,
   subWeeks,
   addMonths,
   subMonths,
-  isToday,
-  parseISO
+  isToday
 } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -38,24 +34,23 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-import { DraggableJob } from "@/components/schedule/DraggableJob";
-import { DroppableDay } from "@/components/schedule/DroppableDay";
-import { cn } from "@/lib/utils";
+import { DraggablePour } from "@/components/schedule/DraggablePour";
+import { DroppablePourDay } from "@/components/schedule/DroppablePourDay";
 
-type Job = {
+type Pour = {
   id: string;
-  job_number: string | null;
-  name: string;
-  site_address: string;
-  scheduled_date: string | null;
-  pour_time: string | null;
-  status: "scheduled" | "in_progress" | "completed" | "cancelled";
-  crew_id: string | null;
-};
-
-type Crew = {
-  id: string;
-  name: string;
+  pour_name: string;
+  pour_date: string | null;
+  scheduled_time: string | null;
+  status: string | null;
+  visit_type: string | null;
+  job_id: string;
+  job?: {
+    id: string;
+    name: string;
+    site_address: string;
+    job_number: string | null;
+  };
 };
 
 type ViewMode = "week" | "month";
@@ -63,7 +58,7 @@ type ViewMode = "week" | "month";
 export default function AdminSchedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
-  const [activeJob, setActiveJob] = useState<Job | null>(null);
+  const [activePour, setActivePour] = useState<Pour | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -75,39 +70,39 @@ export default function AdminSchedule() {
     })
   );
 
-  const { data: jobs = [] } = useQuery({
-    queryKey: ["jobs"],
+  const { data: pours = [] } = useQuery({
+    queryKey: ["schedule-pours"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("jobs")
-        .select("id, job_number, name, site_address, scheduled_date, pour_time, status, crew_id")
+        .from("job_pours")
+        .select(`
+          id, 
+          pour_name, 
+          pour_date, 
+          scheduled_time, 
+          status,
+          visit_type,
+          job_id,
+          job:jobs(id, name, site_address, job_number)
+        `)
         .neq("status", "cancelled")
-        .order("pour_time", { ascending: true });
+        .order("scheduled_time", { ascending: true });
       if (error) throw error;
-      return data as Job[];
+      return data as Pour[];
     },
   });
 
-  const { data: crews = [] } = useQuery({
-    queryKey: ["crews"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("crews").select("id, name");
-      if (error) throw error;
-      return data as Crew[];
-    },
-  });
-
-  const updateJobDate = useMutation({
-    mutationFn: async ({ jobId, newDate }: { jobId: string; newDate: string }) => {
+  const updatePourDate = useMutation({
+    mutationFn: async ({ pourId, newDate }: { pourId: string; newDate: string }) => {
       const { error } = await supabase
-        .from("jobs")
-        .update({ scheduled_date: newDate })
-        .eq("id", jobId);
+        .from("job_pours")
+        .update({ pour_date: newDate })
+        .eq("id", pourId);
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      toast({ title: "Job rescheduled" });
+      queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
+      toast({ title: "Pour rescheduled" });
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -128,28 +123,23 @@ export default function AdminSchedule() {
     }
   }, [currentDate, viewMode]);
 
-  const jobsByDate = useMemo(() => {
-    const map = new Map<string, Job[]>();
-    jobs.forEach((job) => {
-      if (job.scheduled_date) {
-        const dateKey = job.scheduled_date;
+  const poursByDate = useMemo(() => {
+    const map = new Map<string, Pour[]>();
+    pours.forEach((pour) => {
+      if (pour.pour_date) {
+        const dateKey = pour.pour_date;
         if (!map.has(dateKey)) {
           map.set(dateKey, []);
         }
-        map.get(dateKey)!.push(job);
+        map.get(dateKey)!.push(pour);
       }
     });
     return map;
-  }, [jobs]);
+  }, [pours]);
 
-  const unscheduledJobs = useMemo(() => {
-    return jobs.filter((job) => !job.scheduled_date);
-  }, [jobs]);
-
-  const getCrewName = (crewId: string | null) => {
-    if (!crewId) return null;
-    return crews.find((c) => c.id === crewId)?.name;
-  };
+  const unscheduledPours = useMemo(() => {
+    return pours.filter((pour) => !pour.pour_date);
+  }, [pours]);
 
   const navigatePrev = () => {
     if (viewMode === "week") {
@@ -172,21 +162,20 @@ export default function AdminSchedule() {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    const job = jobs.find((j) => j.id === event.active.id);
-    if (job) setActiveJob(job);
+    const pour = pours.find((p) => p.id === event.active.id);
+    if (pour) setActivePour(pour);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
-    setActiveJob(null);
+    setActivePour(null);
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const jobId = active.id as string;
+      const pourId = active.id as string;
       const newDate = over.id as string;
 
-      // Validate it's a date string
       if (newDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        updateJobDate.mutate({ jobId, newDate });
+        updatePourDate.mutate({ pourId, newDate });
       }
     }
   };
@@ -244,15 +233,15 @@ export default function AdminSchedule() {
             </Button>
           </div>
 
-          {/* Unscheduled Jobs */}
-          {unscheduledJobs.length > 0 && (
+          {/* Unscheduled Pours */}
+          {unscheduledPours.length > 0 && (
             <Card className="p-3">
               <p className="text-sm font-medium text-muted-foreground mb-2">
-                Unscheduled ({unscheduledJobs.length})
+                Unscheduled ({unscheduledPours.length})
               </p>
               <div className="flex flex-wrap gap-2">
-                {unscheduledJobs.map((job) => (
-                  <DraggableJob key={job.id} job={job} getCrewName={getCrewName} compact />
+                {unscheduledPours.map((pour) => (
+                  <DraggablePour key={pour.id} pour={pour} compact />
                 ))}
               </div>
             </Card>
@@ -263,15 +252,14 @@ export default function AdminSchedule() {
             <div className="space-y-2">
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd");
-                const dayJobs = jobsByDate.get(dateKey) || [];
+                const dayPours = poursByDate.get(dateKey) || [];
                 
                 return (
-                  <DroppableDay
+                  <DroppablePourDay
                     key={dateKey}
                     date={day}
                     dateKey={dateKey}
-                    jobs={dayJobs}
-                    getCrewName={getCrewName}
+                    pours={dayPours}
                     isWeekView
                   />
                 );
@@ -289,16 +277,15 @@ export default function AdminSchedule() {
               {/* Days */}
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd");
-                const dayJobs = jobsByDate.get(dateKey) || [];
+                const dayPours = poursByDate.get(dateKey) || [];
                 const isCurrentMonth = isSameMonth(day, currentDate);
                 
                 return (
-                  <DroppableDay
+                  <DroppablePourDay
                     key={dateKey}
                     date={day}
                     dateKey={dateKey}
-                    jobs={dayJobs}
-                    getCrewName={getCrewName}
+                    pours={dayPours}
                     isCurrentMonth={isCurrentMonth}
                   />
                 );
@@ -309,9 +296,12 @@ export default function AdminSchedule() {
 
         {/* Drag Overlay */}
         <DragOverlay>
-          {activeJob ? (
+          {activePour ? (
             <div className="bg-primary text-primary-foreground px-3 py-2 rounded-lg shadow-lg">
-              <p className="text-sm font-medium">{activeJob.name}</p>
+              <p className="text-sm font-medium">{activePour.pour_name}</p>
+              {activePour.job && (
+                <p className="text-xs opacity-80">{activePour.job.name}</p>
+              )}
             </div>
           ) : null}
         </DragOverlay>
