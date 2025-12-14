@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Upload, X } from "lucide-react";
 
 const TICKET_TYPES = [
   "White Card",
@@ -46,6 +46,7 @@ type Ticket = {
   issue_date: string | null;
   expiry_date: string | null;
   notes: string | null;
+  document_url: string | null;
 };
 
 interface TicketFormDialogProps {
@@ -66,11 +67,40 @@ export function TicketFormDialog({
   const [issueDate, setIssueDate] = useState(editTicket?.issue_date || "");
   const [expiryDate, setExpiryDate] = useState(editTicket?.expiry_date || "");
   const [notes, setNotes] = useState(editTicket?.notes || "");
+  const [documentUrl, setDocumentUrl] = useState(editTicket?.document_url || "");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const uploadFile = async (file: File): Promise<string | null> => {
+    const fileExt = file.name.split(".").pop();
+    const fileName = `${employeeId}/${Date.now()}.${fileExt}`;
+
+    const { error: uploadError } = await supabase.storage
+      .from("employee-tickets")
+      .upload(fileName, file);
+
+    if (uploadError) throw uploadError;
+
+    const { data: urlData } = supabase.storage
+      .from("employee-tickets")
+      .getPublicUrl(fileName);
+
+    return urlData.publicUrl;
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
+      setIsUploading(true);
+      let finalDocumentUrl = documentUrl;
+
+      // Upload new file if selected
+      if (selectedFile) {
+        finalDocumentUrl = await uploadFile(selectedFile) || "";
+      }
+
       const ticketData = {
         employee_id: employeeId,
         ticket_type: ticketType,
@@ -78,6 +108,7 @@ export function TicketFormDialog({
         issue_date: issueDate || null,
         expiry_date: expiryDate || null,
         notes: notes || null,
+        document_url: finalDocumentUrl || null,
       };
 
       if (editTicket) {
@@ -100,6 +131,9 @@ export function TicketFormDialog({
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     },
+    onSettled: () => {
+      setIsUploading(false);
+    },
   });
 
   const resetForm = () => {
@@ -108,6 +142,27 @@ export function TicketFormDialog({
     setIssueDate("");
     setExpiryDate("");
     setNotes("");
+    setDocumentUrl("");
+    setSelectedFile(null);
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast({ title: "File too large", description: "Max 10MB allowed", variant: "destructive" });
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const clearFile = () => {
+    setSelectedFile(null);
+    setDocumentUrl("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -188,6 +243,44 @@ export function TicketFormDialog({
             />
           </div>
 
+          {/* File Upload */}
+          <div>
+            <Label>Ticket Photo/Document</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              onChange={handleFileChange}
+              className="hidden"
+            />
+            {selectedFile || documentUrl ? (
+              <div className="flex items-center gap-2 p-3 border rounded-lg bg-muted/50">
+                <span className="text-sm truncate flex-1">
+                  {selectedFile?.name || "Existing document"}
+                </span>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={clearFile}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full touch-target"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                Upload Photo
+              </Button>
+            )}
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button
               type="button"
@@ -197,8 +290,8 @@ export function TicketFormDialog({
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending} className="flex-1 touch-target">
-              {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            <Button type="submit" disabled={mutation.isPending || isUploading} className="flex-1 touch-target">
+              {(mutation.isPending || isUploading) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               {editTicket ? "Update" : "Add"}
             </Button>
           </div>
