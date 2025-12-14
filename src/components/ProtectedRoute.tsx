@@ -83,7 +83,7 @@ export function ProtectedRoute({ children, allowedRole }: ProtectedRouteProps) {
       return <Navigate to="/admin" replace />;
     }
     if (userRole === "staff") {
-      return <Navigate to="/staff" replace />;
+      return <Navigate to="/employee" replace />;
     }
     return <Navigate to="/auth" replace />;
   }
