@@ -65,11 +65,19 @@ export function EquipmentFormDialog({ open, onOpenChange, editEquipment }: Equip
   const mutation = useMutation({
     mutationFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
-      const { data: profile } = await supabase
+      if (!userData.user?.id) {
+        throw new Error("You must be logged in to add equipment");
+      }
+      
+      const { data: profile, error: profileError } = await supabase
         .from("profiles")
         .select("business_id")
-        .eq("id", userData.user?.id)
+        .eq("id", userData.user.id)
         .single();
+
+      if (profileError || !profile?.business_id) {
+        throw new Error("Could not find your business. Please ensure you're properly logged in.");
+      }
 
       const interval = serviceIntervalDays ? parseInt(serviceIntervalDays) : null;
       const nextService = calculateNextServiceDate(lastServiceDate, interval || 0);
@@ -82,7 +90,7 @@ export function EquipmentFormDialog({ open, onOpenChange, editEquipment }: Equip
         last_service_date: lastServiceDate || null,
         next_service_date: nextService,
         service_notes: serviceNotes || null,
-        business_id: profile?.business_id,
+        business_id: profile.business_id,
       };
 
       if (editEquipment) {
