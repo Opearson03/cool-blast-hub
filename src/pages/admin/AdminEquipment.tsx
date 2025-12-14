@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EquipmentFormDialog } from "@/components/equipment/EquipmentFormDialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, Wrench, AlertTriangle, CheckCircle } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Wrench, AlertTriangle, CheckCircle, RotateCcw } from "lucide-react";
 import { format, differenceInDays, isPast, addDays } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -140,6 +140,31 @@ export default function AdminEquipment() {
       queryClient.invalidateQueries({ queryKey: ["equipment"] });
       toast({ title: "Equipment deleted" });
       setDeleteEquipment(null);
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const serviceMutation = useMutation({
+    mutationFn: async (item: Equipment) => {
+      const today = new Date();
+      const nextServiceDate = item.service_interval_days 
+        ? addDays(today, item.service_interval_days)
+        : null;
+      
+      const { error } = await supabase
+        .from("equipment")
+        .update({
+          last_service_date: format(today, "yyyy-MM-dd"),
+          next_service_date: nextServiceDate ? format(nextServiceDate, "yyyy-MM-dd") : null,
+        })
+        .eq("id", item.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["equipment"] });
+      toast({ title: "Equipment marked as serviced" });
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -288,6 +313,16 @@ export default function AdminEquipment() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => serviceMutation.mutate(item)}
+                            disabled={serviceMutation.isPending}
+                            className="touch-target text-success hover:text-success hover:bg-success/10"
+                            title="Mark as Serviced"
+                          >
+                            <RotateCcw className="w-4 h-4" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
