@@ -269,14 +269,17 @@ export function TestResultFormDialog({
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Assign to Pour</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
+                    <Select
+                      onValueChange={(val) => field.onChange(val === "none" ? "" : val)}
+                      value={field.value || "none"}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a pour (optional)" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No specific pour</SelectItem>
+                        <SelectItem value="none">No specific pour</SelectItem>
                         {pours.map((pour) => (
                           <SelectItem key={pour.id} value={pour.id}>
                             {pour.pour_name}
