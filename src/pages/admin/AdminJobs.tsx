@@ -1,15 +1,14 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
 import { JobFormDialog } from "@/components/jobs/JobFormDialog";
-import { JobDetailsSheet } from "@/components/jobs/JobDetailsSheet";
 import { format } from "date-fns";
 
 type Job = {
@@ -53,12 +52,9 @@ const statusLabels: Record<string, string> = {
 };
 
 export default function AdminJobs() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
-  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ["jobs"],
@@ -81,22 +77,6 @@ export default function AdminJobs() {
     },
   });
 
-  const deleteJob = useMutation({
-    mutationFn: async (jobId: string) => {
-      const { error } = await supabase.from("jobs").delete().eq("id", jobId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      toast({ title: "Job deleted successfully" });
-      setIsDetailsOpen(false);
-      setSelectedJob(null);
-    },
-    onError: (error) => {
-      toast({ title: "Error deleting job", description: error.message, variant: "destructive" });
-    },
-  });
-
   const filteredJobs = jobs.filter(
     (job) =>
       job.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -111,8 +91,7 @@ export default function AdminJobs() {
   };
 
   const handleJobClick = (job: Job) => {
-    setSelectedJob(job);
-    setIsDetailsOpen(true);
+    navigate(`/admin/jobs/${job.id}`);
   };
 
   return (
@@ -209,15 +188,6 @@ export default function AdminJobs() {
         open={isCreateOpen}
         onOpenChange={setIsCreateOpen}
         crews={crews}
-      />
-
-      {/* Job Details Sheet */}
-      <JobDetailsSheet
-        job={selectedJob}
-        open={isDetailsOpen}
-        onOpenChange={setIsDetailsOpen}
-        crews={crews}
-        onDelete={() => selectedJob && deleteJob.mutate(selectedJob.id)}
       />
     </AdminLayout>
   );
