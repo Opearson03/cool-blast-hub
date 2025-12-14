@@ -1,41 +1,59 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { HardHat, Users, Calendar, ClipboardCheck, Truck } from "lucide-react";
+import { HardHat, Users, Calendar, ClipboardCheck, Truck, ArrowRight, Zap } from "lucide-react";
 
 const Index = () => {
   return (
-    <div className="min-h-screen bg-charcoal-dark">
+    <div className="min-h-screen bg-black-pure">
       {/* Hero Section */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-charcoal-dark via-charcoal to-charcoal-dark" />
-        <div className="absolute inset-0 opacity-10">
-          <div className="absolute inset-0" style={{
-            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-          }} />
+        {/* Animated gradient background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-black-pure via-black-soft to-black-pure" />
+        <div className="absolute inset-0 opacity-30">
+          <div 
+            className="absolute inset-0" 
+            style={{
+              backgroundImage: `radial-gradient(circle at 25% 25%, hsl(25 100% 50% / 0.15) 0%, transparent 50%),
+                               radial-gradient(circle at 75% 75%, hsl(25 100% 50% / 0.1) 0%, transparent 50%)`,
+            }} 
+          />
         </div>
         
-        <div className="relative px-4 py-16 sm:py-24 lg:py-32">
+        {/* Grid pattern overlay */}
+        <div className="absolute inset-0 opacity-5">
+          <div 
+            className="absolute inset-0" 
+            style={{
+              backgroundImage: `linear-gradient(hsl(0 0% 100% / 0.1) 1px, transparent 1px),
+                               linear-gradient(90deg, hsl(0 0% 100% / 0.1) 1px, transparent 1px)`,
+              backgroundSize: '50px 50px',
+            }} 
+          />
+        </div>
+        
+        <div className="relative px-4 py-20 sm:py-28 lg:py-36">
           <div className="text-center max-w-4xl mx-auto">
             {/* Logo */}
-            <div className="flex items-center justify-center gap-3 mb-8">
-              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
-                <HardHat className="w-10 h-10 text-primary-foreground" />
+            <div className="flex items-center justify-center gap-4 mb-10">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-primary rounded-xl flex items-center justify-center shadow-glow animate-pulse-glow">
+                <HardHat className="w-10 h-10 sm:w-12 sm:h-12 text-primary-foreground" />
               </div>
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary-foreground">
-                Pour<span className="text-primary">Hub</span>
+              <h1 className="font-display text-5xl sm:text-6xl lg:text-7xl tracking-wide">
+                POUR<span className="text-primary">HUB</span>
               </h1>
             </div>
             
-            <p className="text-xl sm:text-2xl text-muted-foreground mb-4">
-              Operations Management for Concreting Businesses
+            <p className="text-xl sm:text-2xl lg:text-3xl text-foreground font-semibold mb-4">
+              Operations Management for <span className="text-primary">Concreting</span> Businesses
             </p>
-            <p className="text-muted-foreground mb-10 max-w-2xl mx-auto">
+            <p className="text-muted-foreground mb-12 max-w-2xl mx-auto text-lg">
               Manage jobs, crews, schedules, compliance, equipment, and more — all from your phone on the job site.
             </p>
             
             <Link to="/auth">
-              <Button size="lg" className="text-lg px-8 py-6 touch-target">
+              <Button size="lg" className="text-lg px-10 py-7 touch-target group">
                 Sign In to Get Started
+                <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
           </div>
@@ -43,40 +61,45 @@ const Index = () => {
       </div>
 
       {/* Features Grid */}
-      <div className="bg-background py-16 px-4">
+      <div className="bg-black-soft py-20 px-4 border-t border-border">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl font-bold text-center mb-12">
-            Built for <span className="text-primary">Concreters</span>
-          </h2>
+          <div className="text-center mb-16">
+            <h2 className="font-display text-4xl sm:text-5xl tracking-wide mb-4">
+              BUILT FOR <span className="text-primary">CONCRETERS</span>
+            </h2>
+            <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
+              Everything you need to run your concreting business, designed for the job site.
+            </p>
+          </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             <FeatureCard
-              icon={<Calendar className="w-8 h-8" />}
+              icon={<Calendar className="w-7 h-7" />}
               title="Job Scheduling"
               description="Drag and drop calendar, crew allocation, and conflict management"
             />
             <FeatureCard
-              icon={<Users className="w-8 h-8" />}
+              icon={<Users className="w-7 h-7" />}
               title="Crew Management"
               description="Organize teams, assign supervisors, and track availability"
             />
             <FeatureCard
-              icon={<ClipboardCheck className="w-8 h-8" />}
+              icon={<ClipboardCheck className="w-7 h-7" />}
               title="ITPs & SWMS"
               description="Digital inspection checklists and safety documentation"
             />
             <FeatureCard
-              icon={<Truck className="w-8 h-8" />}
+              icon={<Truck className="w-7 h-7" />}
               title="Equipment Register"
               description="Track plant, service schedules, and job assignments"
             />
             <FeatureCard
-              icon={<HardHat className="w-8 h-8" />}
+              icon={<HardHat className="w-7 h-7" />}
               title="Compliance Tracking"
               description="Tickets, certifications, and expiry reminders"
             />
             <FeatureCard
-              icon={<ClipboardCheck className="w-8 h-8" />}
+              icon={<Zap className="w-7 h-7" />}
               title="Concrete Testing"
               description="Track test results, lab reports, and pass/fail alerts"
             />
@@ -85,19 +108,30 @@ const Index = () => {
       </div>
 
       {/* Mobile First Banner */}
-      <div className="bg-primary py-12 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h3 className="text-2xl font-bold text-primary-foreground mb-4">
+      <div className="relative overflow-hidden py-16 px-4 border-t border-border">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-primary/5 to-primary/10" />
+        <div className="relative max-w-4xl mx-auto text-center">
+          <div className="inline-flex items-center gap-2 bg-primary/20 text-primary px-4 py-2 rounded-full text-sm font-semibold uppercase tracking-wider mb-6">
+            <Zap className="w-4 h-4" />
             Mobile-First Design
+          </div>
+          <h3 className="font-display text-3xl sm:text-4xl tracking-wide mb-4">
+            WORKS ON <span className="text-primary">ANY DEVICE</span>
           </h3>
-          <p className="text-primary-foreground/90">
-            Built for supervisors and concreters to use on-site. Big buttons, simple navigation, works on any device.
+          <p className="text-muted-foreground text-lg max-w-xl mx-auto">
+            Built for supervisors and concreters to use on-site. Big buttons, simple navigation, designed for dirty hands and bright sun.
           </p>
         </div>
       </div>
 
       {/* Footer */}
-      <footer className="bg-charcoal-dark py-8 px-4 text-center">
+      <footer className="bg-black-pure py-8 px-4 text-center border-t border-border">
+        <div className="flex items-center justify-center gap-2 mb-4">
+          <div className="w-8 h-8 bg-primary/20 rounded-lg flex items-center justify-center">
+            <HardHat className="w-5 h-5 text-primary" />
+          </div>
+          <span className="font-display text-xl tracking-wide">POURHUB</span>
+        </div>
         <p className="text-muted-foreground text-sm">
           © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
         </p>
@@ -108,10 +142,12 @@ const Index = () => {
 
 function FeatureCard({ icon, title, description }: { icon: React.ReactNode; title: string; description: string }) {
   return (
-    <div className="bg-card border border-border rounded-lg p-6 hover:border-primary/50 transition-colors">
-      <div className="text-primary mb-4">{icon}</div>
-      <h3 className="text-lg font-semibold mb-2">{title}</h3>
-      <p className="text-muted-foreground text-sm">{description}</p>
+    <div className="group bg-gradient-to-b from-card to-black-soft border border-border rounded-lg p-6 hover:border-primary/50 hover-lift transition-all cursor-default">
+      <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center text-primary mb-4 group-hover:bg-primary/20 transition-colors">
+        {icon}
+      </div>
+      <h3 className="text-lg font-bold mb-2 group-hover:text-primary transition-colors">{title}</h3>
+      <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
     </div>
   );
 }

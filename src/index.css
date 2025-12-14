@@ -1,94 +1,105 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Bebas+Neue&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* PourHub Design System - Orange & Charcoal Theme */
-/* Mobile-first for concreting businesses */
+/* PourHub Design System - Dark Industrial Theme */
+/* Inspired by bold, high-contrast adult site aesthetics */
 
 @layer base {
   :root {
+    /* Light mode - rarely used, dark is default */
     --background: 0 0% 98%;
-    --foreground: 0 0% 15%;
+    --foreground: 0 0% 8%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 15%;
+    --card-foreground: 0 0% 8%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 15%;
+    --popover-foreground: 0 0% 8%;
 
-    --primary: 24 95% 53%;
+    --primary: 25 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 96%;
+    --secondary: 0 0% 92%;
     --secondary-foreground: 0 0% 15%;
 
-    --muted: 0 0% 96%;
+    --muted: 0 0% 92%;
     --muted-foreground: 0 0% 45%;
 
-    --accent: 24 95% 53%;
+    --accent: 25 100% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 24 95% 53%;
+    --border: 0 0% 85%;
+    --input: 0 0% 85%;
+    --ring: 25 100% 50%;
 
-    --radius: 0.75rem;
+    --radius: 0.5rem;
 
-    /* PourHub specific colors */
-    --orange: 24 95% 53%;
-    --orange-dark: 24 95% 45%;
-    --orange-light: 24 95% 60%;
-    --charcoal: 0 0% 20%;
-    --charcoal-dark: 0 0% 15%;
-    --charcoal-light: 0 0% 30%;
-    --concrete: 0 0% 85%;
-    --success: 142 76% 36%;
-    --warning: 45 93% 47%;
+    /* PourHub brand colors */
+    --orange: 25 100% 50%;
+    --orange-dark: 25 100% 42%;
+    --orange-light: 25 100% 60%;
+    --orange-glow: 25 100% 50%;
+    --black: 0 0% 0%;
+    --black-pure: 0 0% 0%;
+    --black-soft: 0 0% 6%;
+    --black-card: 0 0% 10%;
+    --gray-dark: 0 0% 15%;
+    --gray-mid: 0 0% 25%;
+    --gray-light: 0 0% 40%;
+    --white: 0 0% 100%;
+    --success: 142 76% 42%;
+    --warning: 45 100% 51%;
     
     /* Chart colors */
-    --chart-1: 24 95% 53%;
-    --chart-2: 142 76% 36%;
+    --chart-1: 25 100% 50%;
+    --chart-2: 142 76% 42%;
     --chart-3: 199 89% 48%;
-    --chart-4: 45 93% 47%;
+    --chart-4: 45 100% 51%;
     --chart-5: 0 84% 60%;
   }
 
   .dark {
-    --background: 0 0% 10%;
-    --foreground: 0 0% 98%;
+    --background: 0 0% 4%;
+    --foreground: 0 0% 96%;
 
-    --card: 0 0% 14%;
-    --card-foreground: 0 0% 98%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 96%;
 
-    --popover: 0 0% 12%;
-    --popover-foreground: 0 0% 98%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 96%;
 
-    --primary: 24 95% 53%;
+    --primary: 25 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 0% 18%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 0 0% 14%;
+    --secondary-foreground: 0 0% 96%;
 
-    --muted: 0 0% 18%;
-    --muted-foreground: 0 0% 65%;
+    --muted: 0 0% 14%;
+    --muted-foreground: 0 0% 55%;
 
-    --accent: 24 95% 53%;
+    --accent: 25 100% 50%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 98%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 0 0% 22%;
-    --input: 0 0% 22%;
-    --ring: 24 95% 53%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 25 100% 50%;
 
-    --charcoal: 0 0% 20%;
-    --charcoal-dark: 0 0% 10%;
-    --charcoal-light: 0 0% 30%;
-    --concrete: 0 0% 35%;
+    --black: 0 0% 0%;
+    --black-pure: 0 0% 0%;
+    --black-soft: 0 0% 6%;
+    --black-card: 0 0% 10%;
+    --gray-dark: 0 0% 15%;
+    --gray-mid: 0 0% 25%;
+    --gray-light: 0 0% 55%;
   }
 }
 
@@ -97,13 +108,98 @@
     @apply border-border;
   }
 
+  html {
+    @apply dark;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  /* Bold display headings */
+  h1, h2, h3 {
+    font-family: 'Bebas Neue', 'Inter', sans-serif;
+    @apply tracking-wide;
   }
   
   /* Mobile-first touch targets */
   button, a, input, select, textarea {
     @apply touch-manipulation;
+  }
+}
+
+@layer components {
+  /* Glowing orange accent effect */
+  .glow-orange {
+    box-shadow: 0 0 20px hsl(var(--orange) / 0.4),
+                0 0 40px hsl(var(--orange) / 0.2);
+  }
+  
+  .glow-orange-sm {
+    box-shadow: 0 0 10px hsl(var(--orange) / 0.3);
+  }
+  
+  /* Industrial card style */
+  .card-industrial {
+    @apply bg-card border border-border/50 rounded-lg;
+    background: linear-gradient(
+      180deg,
+      hsl(var(--card)) 0%,
+      hsl(0 0% 6%) 100%
+    );
+  }
+  
+  /* Premium gradient backgrounds */
+  .bg-gradient-dark {
+    background: linear-gradient(
+      180deg,
+      hsl(0 0% 4%) 0%,
+      hsl(0 0% 2%) 100%
+    );
+  }
+  
+  .bg-gradient-card {
+    background: linear-gradient(
+      135deg,
+      hsl(var(--card)) 0%,
+      hsl(0 0% 6%) 100%
+    );
+  }
+  
+  /* Orange gradient for CTAs */
+  .bg-gradient-orange {
+    background: linear-gradient(
+      135deg,
+      hsl(25 100% 55%) 0%,
+      hsl(25 100% 45%) 100%
+    );
+  }
+  
+  /* Subtle border glow */
+  .border-glow {
+    border-color: hsl(var(--orange) / 0.3);
+  }
+  
+  /* Status badge styles */
+  .badge-status {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider;
+  }
+  
+  .badge-scheduled {
+    @apply bg-blue-500/20 text-blue-400 border border-blue-500/30;
+  }
+  
+  .badge-in-progress {
+    @apply bg-orange/20 text-orange border border-orange/30;
+  }
+  
+  .badge-completed {
+    @apply bg-success/20 text-green-400 border border-success/30;
+  }
+  
+  .badge-cancelled {
+    @apply bg-gray-500/20 text-gray-400 border border-gray-500/30;
   }
 }
 
@@ -114,5 +210,42 @@
   
   .safe-area-inset {
     padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  /* Text gradient effect */
+  .text-gradient-orange {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(
+      135deg,
+      hsl(25 100% 60%) 0%,
+      hsl(25 100% 50%) 100%
+    );
+  }
+  
+  /* Smooth hover transitions */
+  .hover-lift {
+    @apply transition-all duration-200;
+  }
+  
+  .hover-lift:hover {
+    @apply -translate-y-0.5;
+    box-shadow: 0 8px 25px -5px hsl(0 0% 0% / 0.5);
+  }
+  
+  /* Animated border */
+  .border-animate {
+    @apply relative overflow-hidden;
+  }
+  
+  .border-animate::before {
+    content: '';
+    @apply absolute inset-0 rounded-lg;
+    background: linear-gradient(90deg, transparent, hsl(var(--orange) / 0.5), transparent);
+    animation: shimmer 2s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 }
