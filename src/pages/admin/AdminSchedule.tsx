@@ -36,6 +36,7 @@ import {
 } from "@dnd-kit/core";
 import { DraggablePour } from "@/components/schedule/DraggablePour";
 import { DroppablePourDay } from "@/components/schedule/DroppablePourDay";
+import { PourDetailSheet } from "@/components/schedule/PourDetailSheet";
 
 type Pour = {
   id: string;
@@ -59,6 +60,8 @@ export default function AdminSchedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [activePour, setActivePour] = useState<Pour | null>(null);
+  const [selectedPour, setSelectedPour] = useState<Pour | null>(null);
+  const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -180,6 +183,11 @@ export default function AdminSchedule() {
     }
   };
 
+  const handlePourClick = (pour: Pour) => {
+    setSelectedPour(pour);
+    setDetailSheetOpen(true);
+  };
+
   return (
     <AdminLayout>
       <DndContext
@@ -241,7 +249,7 @@ export default function AdminSchedule() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {unscheduledPours.map((pour) => (
-                  <DraggablePour key={pour.id} pour={pour} compact />
+                  <DraggablePour key={pour.id} pour={pour} compact onClick={handlePourClick} />
                 ))}
               </div>
             </Card>
@@ -261,6 +269,7 @@ export default function AdminSchedule() {
                     dateKey={dateKey}
                     pours={dayPours}
                     isWeekView
+                    onPourClick={handlePourClick}
                   />
                 );
               })}
@@ -287,6 +296,7 @@ export default function AdminSchedule() {
                     dateKey={dateKey}
                     pours={dayPours}
                     isCurrentMonth={isCurrentMonth}
+                    onPourClick={handlePourClick}
                   />
                 );
               })}
@@ -306,6 +316,13 @@ export default function AdminSchedule() {
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      {/* Pour Detail Sheet */}
+      <PourDetailSheet
+        pour={selectedPour}
+        open={detailSheetOpen}
+        onOpenChange={setDetailSheetOpen}
+      />
     </AdminLayout>
   );
 }
