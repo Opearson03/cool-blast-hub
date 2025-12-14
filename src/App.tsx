@@ -5,15 +5,16 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
-import Admin from "./pages/Admin";
-import JobsBookingsManagement from "./pages/JobsBookingsManagement";
-import StaffManagementHub from "./pages/StaffManagementHub";
-import CustomersManagement from "./pages/CustomersManagement";
-import StaffDashboard from "./pages/staff/StaffDashboard";
-import StaffShifts from "./pages/staff/StaffShifts";
-import StaffSWMS from "./pages/staff/StaffSWMS";
-import StaffTimesheets from "./pages/staff/StaffTimesheets";
-import StaffProfile from "./pages/staff/StaffProfile";
+import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminJobs from "./pages/admin/AdminJobs";
+import AdminSchedule from "./pages/admin/AdminSchedule";
+import AdminCrews from "./pages/admin/AdminCrews";
+import AdminEmployees from "./pages/admin/AdminEmployees";
+import AdminEquipment from "./pages/admin/AdminEquipment";
+import AdminSettings from "./pages/admin/AdminSettings";
+import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
+import EmployeeJobs from "./pages/employee/EmployeeJobs";
+import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -30,17 +31,18 @@ const App = () => (
           <Route path="/auth" element={<Auth />} />
           
           {/* Admin Routes */}
-          <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><Admin /></ProtectedRoute>} />
-          <Route path="/admin/jobs" element={<ProtectedRoute allowedRole="admin"><JobsBookingsManagement /></ProtectedRoute>} />
-          <Route path="/admin/staff" element={<ProtectedRoute allowedRole="admin"><StaffManagementHub /></ProtectedRoute>} />
-          <Route path="/admin/customers" element={<ProtectedRoute allowedRole="admin"><CustomersManagement /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>} />
+          <Route path="/admin/jobs" element={<ProtectedRoute allowedRole="admin"><AdminJobs /></ProtectedRoute>} />
+          <Route path="/admin/schedule" element={<ProtectedRoute allowedRole="admin"><AdminSchedule /></ProtectedRoute>} />
+          <Route path="/admin/crews" element={<ProtectedRoute allowedRole="admin"><AdminCrews /></ProtectedRoute>} />
+          <Route path="/admin/employees" element={<ProtectedRoute allowedRole="admin"><AdminEmployees /></ProtectedRoute>} />
+          <Route path="/admin/equipment" element={<ProtectedRoute allowedRole="admin"><AdminEquipment /></ProtectedRoute>} />
+          <Route path="/admin/settings" element={<ProtectedRoute allowedRole="admin"><AdminSettings /></ProtectedRoute>} />
           
-          {/* Staff Routes */}
-          <Route path="/staff" element={<ProtectedRoute allowedRole="staff"><StaffDashboard /></ProtectedRoute>} />
-          <Route path="/staff/shifts" element={<ProtectedRoute allowedRole="staff"><StaffShifts /></ProtectedRoute>} />
-          <Route path="/staff/swms" element={<ProtectedRoute allowedRole="staff"><StaffSWMS /></ProtectedRoute>} />
-          <Route path="/staff/timesheets" element={<ProtectedRoute allowedRole="staff"><StaffTimesheets /></ProtectedRoute>} />
-          <Route path="/staff/profile" element={<ProtectedRoute allowedRole="staff"><StaffProfile /></ProtectedRoute>} />
+          {/* Employee Routes */}
+          <Route path="/employee" element={<ProtectedRoute allowedRole="staff"><EmployeeDashboard /></ProtectedRoute>} />
+          <Route path="/employee/jobs" element={<ProtectedRoute allowedRole="staff"><EmployeeJobs /></ProtectedRoute>} />
+          <Route path="/employee/profile" element={<ProtectedRoute allowedRole="staff"><EmployeeProfile /></ProtectedRoute>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />

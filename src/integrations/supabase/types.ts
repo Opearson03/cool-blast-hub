@@ -14,350 +14,603 @@ export type Database = {
   }
   public: {
     Tables: {
-      bookings: {
+      businesses: {
         Row: {
-          created_at: string | null
-          customer_id: string | null
-          email: string | null
-          id: string
-          message: string | null
-          name: string
-          phone: string
-          preferred_date: string | null
-          service_type: Database["public"]["Enums"]["service_type"]
-          status: Database["public"]["Enums"]["booking_status"]
-          updated_at: string | null
-        }
-        Insert: {
-          created_at?: string | null
-          customer_id?: string | null
-          email?: string | null
-          id?: string
-          message?: string | null
-          name: string
-          phone: string
-          preferred_date?: string | null
-          service_type: Database["public"]["Enums"]["service_type"]
-          status?: Database["public"]["Enums"]["booking_status"]
-          updated_at?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          customer_id?: string | null
-          email?: string | null
-          id?: string
-          message?: string | null
-          name?: string
-          phone?: string
-          preferred_date?: string | null
-          service_type?: Database["public"]["Enums"]["service_type"]
-          status?: Database["public"]["Enums"]["booking_status"]
-          updated_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "bookings_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      customers: {
-        Row: {
+          abn: string | null
           address: string | null
-          company_name: string | null
-          contact_name: string
           created_at: string | null
-          customer_type: Database["public"]["Enums"]["customer_type"]
           email: string | null
           id: string
-          notes: string | null
+          logo_url: string | null
+          name: string
+          owner_id: string
           phone: string | null
-          tags: string[] | null
+          preferred_suppliers: Json | null
           updated_at: string | null
         }
         Insert: {
+          abn?: string | null
           address?: string | null
-          company_name?: string | null
-          contact_name: string
           created_at?: string | null
-          customer_type?: Database["public"]["Enums"]["customer_type"]
           email?: string | null
           id?: string
-          notes?: string | null
+          logo_url?: string | null
+          name: string
+          owner_id: string
           phone?: string | null
-          tags?: string[] | null
+          preferred_suppliers?: Json | null
           updated_at?: string | null
         }
         Update: {
+          abn?: string | null
           address?: string | null
-          company_name?: string | null
-          contact_name?: string
           created_at?: string | null
-          customer_type?: Database["public"]["Enums"]["customer_type"]
           email?: string | null
           id?: string
-          notes?: string | null
+          logo_url?: string | null
+          name?: string
+          owner_id?: string
           phone?: string | null
-          tags?: string[] | null
+          preferred_suppliers?: Json | null
           updated_at?: string | null
         }
         Relationships: []
       }
-      invoice_items: {
+      concrete_tests: {
         Row: {
-          amount: number | null
+          actual_strength: number | null
           created_at: string | null
-          description: string
           id: string
-          invoice_id: string
-          quantity: number
-          unit_price: number
-        }
-        Insert: {
-          amount?: number | null
-          created_at?: string | null
-          description: string
-          id?: string
-          invoice_id: string
-          quantity?: number
-          unit_price: number
-        }
-        Update: {
-          amount?: number | null
-          created_at?: string | null
-          description?: string
-          id?: string
-          invoice_id?: string
-          quantity?: number
-          unit_price?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "invoice_items_invoice_id_fkey"
-            columns: ["invoice_id"]
-            isOneToOne: false
-            referencedRelation: "invoices"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      invoices: {
-        Row: {
-          created_at: string | null
-          created_by: string | null
-          customer_id: string
-          due_date: string | null
-          id: string
-          invoice_number: string
-          job_id: string | null
+          job_id: string
+          lab_report_url: string | null
           notes: string | null
-          paid_date: string | null
-          status: Database["public"]["Enums"]["invoice_status"]
-          subtotal: number
-          tax_amount: number | null
-          tax_rate: number | null
-          total: number | null
+          passed: boolean | null
+          pour_date: string | null
+          sample_count: number | null
+          supplier: string | null
+          target_strength: number | null
+          test_date: string | null
+          test_id: string
+          test_type: Database["public"]["Enums"]["test_type"]
           updated_at: string | null
-          xero_invoice_id: string | null
         }
         Insert: {
+          actual_strength?: number | null
           created_at?: string | null
-          created_by?: string | null
-          customer_id: string
-          due_date?: string | null
-          id?: string
-          invoice_number: string
-          job_id?: string | null
-          notes?: string | null
-          paid_date?: string | null
-          status?: Database["public"]["Enums"]["invoice_status"]
-          subtotal?: number
-          tax_amount?: number | null
-          tax_rate?: number | null
-          total?: number | null
-          updated_at?: string | null
-          xero_invoice_id?: string | null
-        }
-        Update: {
-          created_at?: string | null
-          created_by?: string | null
-          customer_id?: string
-          due_date?: string | null
-          id?: string
-          invoice_number?: string
-          job_id?: string | null
-          notes?: string | null
-          paid_date?: string | null
-          status?: Database["public"]["Enums"]["invoice_status"]
-          subtotal?: number
-          tax_amount?: number | null
-          tax_rate?: number | null
-          total?: number | null
-          updated_at?: string | null
-          xero_invoice_id?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "invoices_customer_id_fkey"
-            columns: ["customer_id"]
-            isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "invoices_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      job_assignments: {
-        Row: {
-          assigned_at: string | null
-          assigned_by: string | null
-          id: string
-          job_id: string
-          role_on_job: string | null
-          staff_id: string
-        }
-        Insert: {
-          assigned_at?: string | null
-          assigned_by?: string | null
           id?: string
           job_id: string
-          role_on_job?: string | null
-          staff_id: string
+          lab_report_url?: string | null
+          notes?: string | null
+          passed?: boolean | null
+          pour_date?: string | null
+          sample_count?: number | null
+          supplier?: string | null
+          target_strength?: number | null
+          test_date?: string | null
+          test_id: string
+          test_type: Database["public"]["Enums"]["test_type"]
+          updated_at?: string | null
         }
         Update: {
-          assigned_at?: string | null
-          assigned_by?: string | null
+          actual_strength?: number | null
+          created_at?: string | null
           id?: string
           job_id?: string
-          role_on_job?: string | null
-          staff_id?: string
+          lab_report_url?: string | null
+          notes?: string | null
+          passed?: boolean | null
+          pour_date?: string | null
+          sample_count?: number | null
+          supplier?: string | null
+          target_strength?: number | null
+          test_date?: string | null
+          test_id?: string
+          test_type?: Database["public"]["Enums"]["test_type"]
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "job_assignments_job_id_fkey"
+            foreignKeyName: "concrete_tests_job_id_fkey"
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crew_members: {
+        Row: {
+          created_at: string | null
+          crew_id: string
+          employee_id: string
+          id: string
+          is_supervisor: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          crew_id: string
+          employee_id: string
+          id?: string
+          is_supervisor?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          crew_id?: string
+          employee_id?: string
+          id?: string
+          is_supervisor?: boolean | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crew_members_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_members_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crews: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crews_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      documents: {
+        Row: {
+          business_id: string
+          category: Database["public"]["Enums"]["document_category"]
+          created_at: string | null
+          file_name: string
+          file_type: string | null
+          file_url: string
+          id: string
+          reference_id: string | null
+          uploaded_by: string | null
+        }
+        Insert: {
+          business_id: string
+          category: Database["public"]["Enums"]["document_category"]
+          created_at?: string | null
+          file_name: string
+          file_type?: string | null
+          file_url: string
+          id?: string
+          reference_id?: string | null
+          uploaded_by?: string | null
+        }
+        Update: {
+          business_id?: string
+          category?: Database["public"]["Enums"]["document_category"]
+          created_at?: string | null
+          file_name?: string
+          file_type?: string | null
+          file_url?: string
+          id?: string
+          reference_id?: string | null
+          uploaded_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      employee_tickets: {
+        Row: {
+          created_at: string | null
+          document_url: string | null
+          employee_id: string
+          expiry_date: string | null
+          id: string
+          issue_date: string | null
+          notes: string | null
+          ticket_number: string | null
+          ticket_type: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          document_url?: string | null
+          employee_id: string
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          ticket_number?: string | null
+          ticket_type: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          document_url?: string | null
+          employee_id?: string
+          expiry_date?: string | null
+          id?: string
+          issue_date?: string | null
+          notes?: string | null
+          ticket_number?: string | null
+          ticket_type?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "employee_tickets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          id: string
+          last_service_date: string | null
+          name: string
+          next_service_date: string | null
+          purchase_date: string | null
+          serial_number: string | null
+          service_interval_days: number | null
+          service_notes: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          id?: string
+          last_service_date?: string | null
+          name: string
+          next_service_date?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          service_interval_days?: number | null
+          service_notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          id?: string
+          last_service_date?: string | null
+          name?: string
+          next_service_date?: string | null
+          purchase_date?: string | null
+          serial_number?: string | null
+          service_interval_days?: number | null
+          service_notes?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      itp_templates: {
+        Row: {
+          business_id: string | null
+          checklist_items: Json
+          created_at: string | null
+          id: string
+          is_default: boolean | null
+          itp_type: Database["public"]["Enums"]["itp_type"]
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_id?: string | null
+          checklist_items?: Json
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          itp_type: Database["public"]["Enums"]["itp_type"]
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string | null
+          checklist_items?: Json
+          created_at?: string | null
+          id?: string
+          is_default?: boolean | null
+          itp_type?: Database["public"]["Enums"]["itp_type"]
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      job_equipment: {
+        Row: {
+          created_at: string | null
+          equipment_id: string
+          id: string
+          job_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          equipment_id: string
+          id?: string
+          job_id: string
+        }
+        Update: {
+          created_at?: string | null
+          equipment_id?: string
+          id?: string
+          job_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_equipment_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_equipment_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_itps: {
+        Row: {
+          checklist_data: Json
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string | null
+          employee_signature: string | null
+          employee_signed_at: string | null
+          id: string
+          itp_type: Database["public"]["Enums"]["itp_type"]
+          job_id: string
+          name: string
+          notes: string | null
+          status: string | null
+          supervisor_signature: string | null
+          supervisor_signed_at: string | null
+          template_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          checklist_data?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          employee_signature?: string | null
+          employee_signed_at?: string | null
+          id?: string
+          itp_type: Database["public"]["Enums"]["itp_type"]
+          job_id: string
+          name: string
+          notes?: string | null
+          status?: string | null
+          supervisor_signature?: string | null
+          supervisor_signed_at?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          checklist_data?: Json
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string | null
+          employee_signature?: string | null
+          employee_signed_at?: string | null
+          id?: string
+          itp_type?: Database["public"]["Enums"]["itp_type"]
+          job_id?: string
+          name?: string
+          notes?: string | null
+          status?: string | null
+          supervisor_signature?: string | null
+          supervisor_signed_at?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_itps_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_itps_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "itp_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_swms: {
+        Row: {
+          content: Json
+          created_at: string | null
+          hazards: Json
+          id: string
+          job_id: string
+          name: string
+          status: string | null
+          template_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          content?: Json
+          created_at?: string | null
+          hazards?: Json
+          id?: string
+          job_id: string
+          name: string
+          status?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          content?: Json
+          created_at?: string | null
+          hazards?: Json
+          id?: string
+          job_id?: string
+          name?: string
+          status?: string | null
+          template_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_swms_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_swms_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "swms_templates"
             referencedColumns: ["id"]
           },
         ]
       }
       jobs: {
         Row: {
-          actual_hours: number | null
-          booking_id: string | null
-          completion_date: string | null
+          builder_client: string | null
+          business_id: string
+          concrete_supplier: string | null
           created_at: string | null
           created_by: string | null
-          customer_id: string | null
-          deposit_amount: number | null
-          deposit_notes: string | null
-          deposit_paid_date: string | null
-          deposit_payment_method: string | null
-          deposit_percentage: number | null
-          deposit_reference: string | null
-          deposit_required: boolean | null
-          deposit_status: string | null
-          description: string | null
-          estimated_hours: number | null
+          crew_id: string | null
+          estimated_m3: number | null
+          finish_type: string | null
           id: string
+          job_notes: string | null
           job_number: string | null
-          job_type: Database["public"]["Enums"]["job_type"]
-          location: string | null
-          quoted_amount: number | null
+          mpa_strength: string | null
+          name: string
+          ordered_m3: number | null
+          po_number: string | null
+          pour_time: string | null
           scheduled_date: string | null
-          scheduled_time: string | null
-          special_requirements: string | null
-          status: Database["public"]["Enums"]["job_status"]
-          stripe_payment_intent_id: string | null
-          stripe_payment_link: string | null
-          title: string
+          site_address: string
+          slump: string | null
+          status: Database["public"]["Enums"]["job_status"] | null
           updated_at: string | null
         }
         Insert: {
-          actual_hours?: number | null
-          booking_id?: string | null
-          completion_date?: string | null
+          builder_client?: string | null
+          business_id: string
+          concrete_supplier?: string | null
           created_at?: string | null
           created_by?: string | null
-          customer_id?: string | null
-          deposit_amount?: number | null
-          deposit_notes?: string | null
-          deposit_paid_date?: string | null
-          deposit_payment_method?: string | null
-          deposit_percentage?: number | null
-          deposit_reference?: string | null
-          deposit_required?: boolean | null
-          deposit_status?: string | null
-          description?: string | null
-          estimated_hours?: number | null
+          crew_id?: string | null
+          estimated_m3?: number | null
+          finish_type?: string | null
           id?: string
+          job_notes?: string | null
           job_number?: string | null
-          job_type: Database["public"]["Enums"]["job_type"]
-          location?: string | null
-          quoted_amount?: number | null
+          mpa_strength?: string | null
+          name: string
+          ordered_m3?: number | null
+          po_number?: string | null
+          pour_time?: string | null
           scheduled_date?: string | null
-          scheduled_time?: string | null
-          special_requirements?: string | null
-          status?: Database["public"]["Enums"]["job_status"]
-          stripe_payment_intent_id?: string | null
-          stripe_payment_link?: string | null
-          title: string
+          site_address: string
+          slump?: string | null
+          status?: Database["public"]["Enums"]["job_status"] | null
           updated_at?: string | null
         }
         Update: {
-          actual_hours?: number | null
-          booking_id?: string | null
-          completion_date?: string | null
+          builder_client?: string | null
+          business_id?: string
+          concrete_supplier?: string | null
           created_at?: string | null
           created_by?: string | null
-          customer_id?: string | null
-          deposit_amount?: number | null
-          deposit_notes?: string | null
-          deposit_paid_date?: string | null
-          deposit_payment_method?: string | null
-          deposit_percentage?: number | null
-          deposit_reference?: string | null
-          deposit_required?: boolean | null
-          deposit_status?: string | null
-          description?: string | null
-          estimated_hours?: number | null
+          crew_id?: string | null
+          estimated_m3?: number | null
+          finish_type?: string | null
           id?: string
+          job_notes?: string | null
           job_number?: string | null
-          job_type?: Database["public"]["Enums"]["job_type"]
-          location?: string | null
-          quoted_amount?: number | null
+          mpa_strength?: string | null
+          name?: string
+          ordered_m3?: number | null
+          po_number?: string | null
+          pour_time?: string | null
           scheduled_date?: string | null
-          scheduled_time?: string | null
-          special_requirements?: string | null
-          status?: Database["public"]["Enums"]["job_status"]
-          stripe_payment_intent_id?: string | null
-          stripe_payment_link?: string | null
-          title?: string
+          site_address?: string
+          slump?: string | null
+          status?: Database["public"]["Enums"]["job_status"] | null
           updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "jobs_booking_id_fkey"
-            columns: ["booking_id"]
+            foreignKeyName: "jobs_business_id_fkey"
+            columns: ["business_id"]
             isOneToOne: false
-            referencedRelation: "bookings"
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "jobs_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "jobs_crew_id_fkey"
+            columns: ["crew_id"]
             isOneToOne: false
-            referencedRelation: "customers"
+            referencedRelation: "crews"
             referencedColumns: ["id"]
           },
         ]
@@ -394,293 +647,193 @@ export type Database = {
       }
       profiles: {
         Row: {
+          business_id: string | null
           created_at: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
           full_name: string
           hourly_rate: number | null
           id: string
           phone: string | null
+          position: string | null
           updated_at: string | null
         }
         Insert: {
+          business_id?: string | null
           created_at?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name: string
           hourly_rate?: number | null
           id: string
           phone?: string | null
+          position?: string | null
           updated_at?: string | null
         }
         Update: {
+          business_id?: string | null
           created_at?: string | null
+          emergency_contact_name?: string | null
+          emergency_contact_phone?: string | null
           full_name?: string
           hourly_rate?: number | null
           id?: string
           phone?: string | null
+          position?: string | null
           updated_at?: string | null
-        }
-        Relationships: []
-      }
-      safety_documents: {
-        Row: {
-          document_type: Database["public"]["Enums"]["document_type"]
-          expiry_date: string | null
-          file_name: string
-          file_url: string
-          id: string
-          job_id: string | null
-          notes: string | null
-          title: string
-          uploaded_at: string | null
-          uploaded_by: string | null
-        }
-        Insert: {
-          document_type: Database["public"]["Enums"]["document_type"]
-          expiry_date?: string | null
-          file_name: string
-          file_url: string
-          id?: string
-          job_id?: string | null
-          notes?: string | null
-          title: string
-          uploaded_at?: string | null
-          uploaded_by?: string | null
-        }
-        Update: {
-          document_type?: Database["public"]["Enums"]["document_type"]
-          expiry_date?: string | null
-          file_name?: string
-          file_url?: string
-          id?: string
-          job_id?: string | null
-          notes?: string | null
-          title?: string
-          uploaded_at?: string | null
-          uploaded_by?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "safety_documents_job_id_fkey"
-            columns: ["job_id"]
+            foreignKeyName: "profiles_business_id_fkey"
+            columns: ["business_id"]
             isOneToOne: false
-            referencedRelation: "jobs"
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]
       }
-      swms_documents: {
+      project_startup: {
         Row: {
-          approved_at: string | null
-          approved_by: string | null
+          caulking_required: boolean | null
+          client: string | null
+          client_contact_email: string | null
+          client_contact_name: string | null
+          client_contact_phone: string | null
+          communication_setup: boolean | null
+          completion_percentage: number | null
+          concrete_supplier: string | null
+          concrete_supply: boolean | null
+          concrete_testing: boolean | null
           created_at: string | null
-          high_risk_work_types: Json | null
+          curing_required: boolean | null
           id: string
-          job_id: string | null
-          location: string | null
-          prepared_by: string | null
-          principal_contractor: string | null
-          review_date: string | null
-          status: string | null
-          subcontractor: string | null
-          swms_number: string
-          title: string
+          invoice_billing_address: string | null
+          invoice_payment_terms: string | null
+          itps_prepared: boolean | null
+          job_id: string
+          long_longs_required: boolean | null
+          mix_design_approval: boolean | null
+          mix_design_approval_notes: string | null
+          mix_design_file_url: string | null
+          mix_design_text: string | null
+          plans_printed: boolean | null
+          project_name: string | null
+          reo_fixing_subcontractor: boolean | null
+          reo_fixing_who: string | null
+          reo_supplier: string | null
+          reo_supply: boolean | null
+          risk_assessment_completed: boolean | null
+          site_manager: string | null
+          swms_prepared: boolean | null
           updated_at: string | null
-          valid_from: string
-          valid_to: string | null
-          version: number | null
-          work_description: string
         }
         Insert: {
-          approved_at?: string | null
-          approved_by?: string | null
+          caulking_required?: boolean | null
+          client?: string | null
+          client_contact_email?: string | null
+          client_contact_name?: string | null
+          client_contact_phone?: string | null
+          communication_setup?: boolean | null
+          completion_percentage?: number | null
+          concrete_supplier?: string | null
+          concrete_supply?: boolean | null
+          concrete_testing?: boolean | null
           created_at?: string | null
-          high_risk_work_types?: Json | null
+          curing_required?: boolean | null
           id?: string
-          job_id?: string | null
-          location?: string | null
-          prepared_by?: string | null
-          principal_contractor?: string | null
-          review_date?: string | null
-          status?: string | null
-          subcontractor?: string | null
-          swms_number: string
-          title: string
+          invoice_billing_address?: string | null
+          invoice_payment_terms?: string | null
+          itps_prepared?: boolean | null
+          job_id: string
+          long_longs_required?: boolean | null
+          mix_design_approval?: boolean | null
+          mix_design_approval_notes?: string | null
+          mix_design_file_url?: string | null
+          mix_design_text?: string | null
+          plans_printed?: boolean | null
+          project_name?: string | null
+          reo_fixing_subcontractor?: boolean | null
+          reo_fixing_who?: string | null
+          reo_supplier?: string | null
+          reo_supply?: boolean | null
+          risk_assessment_completed?: boolean | null
+          site_manager?: string | null
+          swms_prepared?: boolean | null
           updated_at?: string | null
-          valid_from: string
-          valid_to?: string | null
-          version?: number | null
-          work_description: string
         }
         Update: {
-          approved_at?: string | null
-          approved_by?: string | null
+          caulking_required?: boolean | null
+          client?: string | null
+          client_contact_email?: string | null
+          client_contact_name?: string | null
+          client_contact_phone?: string | null
+          communication_setup?: boolean | null
+          completion_percentage?: number | null
+          concrete_supplier?: string | null
+          concrete_supply?: boolean | null
+          concrete_testing?: boolean | null
           created_at?: string | null
-          high_risk_work_types?: Json | null
+          curing_required?: boolean | null
           id?: string
-          job_id?: string | null
-          location?: string | null
-          prepared_by?: string | null
-          principal_contractor?: string | null
-          review_date?: string | null
-          status?: string | null
-          subcontractor?: string | null
-          swms_number?: string
-          title?: string
+          invoice_billing_address?: string | null
+          invoice_payment_terms?: string | null
+          itps_prepared?: boolean | null
+          job_id?: string
+          long_longs_required?: boolean | null
+          mix_design_approval?: boolean | null
+          mix_design_approval_notes?: string | null
+          mix_design_file_url?: string | null
+          mix_design_text?: string | null
+          plans_printed?: boolean | null
+          project_name?: string | null
+          reo_fixing_subcontractor?: boolean | null
+          reo_fixing_who?: string | null
+          reo_supplier?: string | null
+          reo_supply?: boolean | null
+          risk_assessment_completed?: boolean | null
+          site_manager?: string | null
+          swms_prepared?: boolean | null
           updated_at?: string | null
-          valid_from?: string
-          valid_to?: string | null
-          version?: number | null
-          work_description?: string
         }
         Relationships: [
           {
-            foreignKeyName: "swms_documents_job_id_fkey"
+            foreignKeyName: "project_startup_job_id_fkey"
             columns: ["job_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      swms_emergency_procedures: {
-        Row: {
-          assembly_point: string | null
-          created_at: string | null
-          emergency_contacts: string | null
-          emergency_type: string
-          id: string
-          procedure: string
-          swms_id: string
-        }
-        Insert: {
-          assembly_point?: string | null
-          created_at?: string | null
-          emergency_contacts?: string | null
-          emergency_type: string
-          id?: string
-          procedure: string
-          swms_id: string
-        }
-        Update: {
-          assembly_point?: string | null
-          created_at?: string | null
-          emergency_contacts?: string | null
-          emergency_type?: string
-          id?: string
-          procedure?: string
-          swms_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "swms_emergency_procedures_swms_id_fkey"
-            columns: ["swms_id"]
-            isOneToOne: false
-            referencedRelation: "swms_documents"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      swms_hazards: {
-        Row: {
-          administrative_controls: string | null
-          consequence: string | null
-          created_at: string | null
-          elimination_controls: string | null
-          engineering_controls: string | null
-          hazard: string
-          id: string
-          initial_risk_rating: string | null
-          likelihood: string | null
-          potential_harm: string
-          ppe_required: string | null
-          residual_risk_rating: string | null
-          responsible_person: string
-          step_number: number
-          substitution_controls: string | null
-          swms_id: string
-          work_activity: string
-        }
-        Insert: {
-          administrative_controls?: string | null
-          consequence?: string | null
-          created_at?: string | null
-          elimination_controls?: string | null
-          engineering_controls?: string | null
-          hazard: string
-          id?: string
-          initial_risk_rating?: string | null
-          likelihood?: string | null
-          potential_harm: string
-          ppe_required?: string | null
-          residual_risk_rating?: string | null
-          responsible_person: string
-          step_number: number
-          substitution_controls?: string | null
-          swms_id: string
-          work_activity: string
-        }
-        Update: {
-          administrative_controls?: string | null
-          consequence?: string | null
-          created_at?: string | null
-          elimination_controls?: string | null
-          engineering_controls?: string | null
-          hazard?: string
-          id?: string
-          initial_risk_rating?: string | null
-          likelihood?: string | null
-          potential_harm?: string
-          ppe_required?: string | null
-          residual_risk_rating?: string | null
-          responsible_person?: string
-          step_number?: number
-          substitution_controls?: string | null
-          swms_id?: string
-          work_activity?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "swms_hazards_swms_id_fkey"
-            columns: ["swms_id"]
-            isOneToOne: false
-            referencedRelation: "swms_documents"
             referencedColumns: ["id"]
           },
         ]
       }
       swms_signoffs: {
         Row: {
-          acknowledged: boolean | null
+          employee_id: string | null
+          employee_name: string
           id: string
           signature_data: string | null
           signed_at: string | null
-          signer_name: string
-          signer_role: string | null
-          staff_id: string | null
           swms_id: string
         }
         Insert: {
-          acknowledged?: boolean | null
+          employee_id?: string | null
+          employee_name: string
           id?: string
           signature_data?: string | null
           signed_at?: string | null
-          signer_name: string
-          signer_role?: string | null
-          staff_id?: string | null
           swms_id: string
         }
         Update: {
-          acknowledged?: boolean | null
+          employee_id?: string | null
+          employee_name?: string
           id?: string
           signature_data?: string | null
           signed_at?: string | null
-          signer_name?: string
-          signer_role?: string | null
-          staff_id?: string | null
           swms_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "swms_signoffs_staff_id_fkey"
-            columns: ["staff_id"]
+            foreignKeyName: "swms_signoffs_employee_id_fkey"
+            columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -689,78 +842,40 @@ export type Database = {
             foreignKeyName: "swms_signoffs_swms_id_fkey"
             columns: ["swms_id"]
             isOneToOne: false
-            referencedRelation: "swms_documents"
+            referencedRelation: "job_swms"
             referencedColumns: ["id"]
           },
         ]
       }
-      timesheets: {
+      swms_templates: {
         Row: {
-          approved_at: string | null
-          approved_by: string | null
-          billable: boolean | null
-          break_minutes: number | null
+          business_id: string | null
+          content: Json
           created_at: string | null
-          date: string
-          edit_request: string | null
-          end_time: string | null
-          hourly_rate: number | null
           id: string
-          job_id: string | null
-          notes: string | null
-          staff_id: string
-          start_time: string
-          status: Database["public"]["Enums"]["timesheet_status"]
-          total_hours: number | null
+          is_default: boolean | null
+          name: string
           updated_at: string | null
         }
         Insert: {
-          approved_at?: string | null
-          approved_by?: string | null
-          billable?: boolean | null
-          break_minutes?: number | null
+          business_id?: string | null
+          content?: Json
           created_at?: string | null
-          date: string
-          edit_request?: string | null
-          end_time?: string | null
-          hourly_rate?: number | null
           id?: string
-          job_id?: string | null
-          notes?: string | null
-          staff_id: string
-          start_time: string
-          status?: Database["public"]["Enums"]["timesheet_status"]
-          total_hours?: number | null
+          is_default?: boolean | null
+          name: string
           updated_at?: string | null
         }
         Update: {
-          approved_at?: string | null
-          approved_by?: string | null
-          billable?: boolean | null
-          break_minutes?: number | null
+          business_id?: string | null
+          content?: Json
           created_at?: string | null
-          date?: string
-          edit_request?: string | null
-          end_time?: string | null
-          hourly_rate?: number | null
           id?: string
-          job_id?: string | null
-          notes?: string | null
-          staff_id?: string
-          start_time?: string
-          status?: Database["public"]["Enums"]["timesheet_status"]
-          total_hours?: number | null
+          is_default?: boolean | null
+          name?: string
           updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "timesheets_job_id_fkey"
-            columns: ["job_id"]
-            isOneToOne: false
-            referencedRelation: "jobs"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -800,17 +915,27 @@ export type Database = {
       app_role: "admin" | "staff"
       booking_status: "pending" | "contacted" | "converted" | "cancelled"
       customer_type: "retail" | "industrial"
+      document_category:
+        | "itp"
+        | "swms"
+        | "project_startup"
+        | "concrete_test"
+        | "equipment"
+        | "employee"
+        | "job"
+        | "general"
       document_type: "swms" | "risk_assessment" | "permit" | "jsa" | "other"
       invoice_status: "draft" | "sent" | "paid" | "overdue" | "cancelled"
-      job_status:
-        | "quoted"
-        | "scheduled"
-        | "in_progress"
-        | "completed"
-        | "invoiced"
-        | "cancelled"
+      itp_type:
+        | "formwork"
+        | "reinforcement"
+        | "pre_pour"
+        | "post_pour"
+        | "custom"
+      job_status: "scheduled" | "in_progress" | "completed" | "cancelled"
       job_type: "retail" | "industrial"
       service_type: "industrial" | "automotive" | "restoration" | "other"
+      test_type: "7_day" | "28_day" | "slump" | "cylinder" | "air" | "other"
       timesheet_status: "draft" | "submitted" | "approved" | "rejected"
     }
     CompositeTypes: {
@@ -942,18 +1067,29 @@ export const Constants = {
       app_role: ["admin", "staff"],
       booking_status: ["pending", "contacted", "converted", "cancelled"],
       customer_type: ["retail", "industrial"],
+      document_category: [
+        "itp",
+        "swms",
+        "project_startup",
+        "concrete_test",
+        "equipment",
+        "employee",
+        "job",
+        "general",
+      ],
       document_type: ["swms", "risk_assessment", "permit", "jsa", "other"],
       invoice_status: ["draft", "sent", "paid", "overdue", "cancelled"],
-      job_status: [
-        "quoted",
-        "scheduled",
-        "in_progress",
-        "completed",
-        "invoiced",
-        "cancelled",
+      itp_type: [
+        "formwork",
+        "reinforcement",
+        "pre_pour",
+        "post_pour",
+        "custom",
       ],
+      job_status: ["scheduled", "in_progress", "completed", "cancelled"],
       job_type: ["retail", "industrial"],
       service_type: ["industrial", "automotive", "restoration", "other"],
+      test_type: ["7_day", "28_day", "slump", "cylinder", "air", "other"],
       timesheet_status: ["draft", "submitted", "approved", "rejected"],
     },
   },
