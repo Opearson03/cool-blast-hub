@@ -12,9 +12,15 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { format, differenceInDays, isPast } from "date-fns";
-import { Phone, Pencil, Plus, Trash2, AlertTriangle, Check, Loader2 } from "lucide-react";
+import { Phone, Pencil, Plus, Trash2, AlertTriangle, Check, Loader2, FileImage } from "lucide-react";
 import { TicketFormDialog } from "./TicketFormDialog";
 import {
   AlertDialog,
@@ -43,6 +49,7 @@ type Ticket = {
   issue_date: string | null;
   expiry_date: string | null;
   notes: string | null;
+  document_url: string | null;
 };
 
 interface EmployeeDetailsSheetProps {
@@ -57,6 +64,7 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
   const [isTicketFormOpen, setIsTicketFormOpen] = useState(false);
   const [editTicket, setEditTicket] = useState<Ticket | null>(null);
   const [deleteTicketId, setDeleteTicketId] = useState<string | null>(null);
+  const [viewingTicketPhoto, setViewingTicketPhoto] = useState<Ticket | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -266,6 +274,17 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
                             )}
                           </div>
                           <div className="flex items-center gap-1">
+                            {ticket.document_url && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-primary"
+                                onClick={() => setViewingTicketPhoto(ticket)}
+                                title="View photo"
+                              >
+                                <FileImage className="w-4 h-4" />
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -337,6 +356,24 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* View Ticket Photo Dialog */}
+      <Dialog open={!!viewingTicketPhoto} onOpenChange={(open) => !open && setViewingTicketPhoto(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{viewingTicketPhoto?.ticket_type}</DialogTitle>
+          </DialogHeader>
+          {viewingTicketPhoto?.document_url && (
+            <div className="flex justify-center">
+              <img
+                src={viewingTicketPhoto.document_url}
+                alt={viewingTicketPhoto.ticket_type}
+                className="max-w-full max-h-[70vh] object-contain rounded-lg"
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
