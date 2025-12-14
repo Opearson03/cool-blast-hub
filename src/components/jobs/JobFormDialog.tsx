@@ -31,8 +31,6 @@ type JobFormData = {
   site_address: string;
   builder_client: string;
   po_number: string;
-  scheduled_date: string;
-  pour_time: string;
   estimated_m3: string;
   ordered_m3: string;
   concrete_supplier: string;
@@ -48,8 +46,6 @@ const initialFormData: JobFormData = {
   site_address: "",
   builder_client: "",
   po_number: "",
-  scheduled_date: "",
-  pour_time: "",
   estimated_m3: "",
   ordered_m3: "",
   concrete_supplier: "",
@@ -75,8 +71,6 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob }: JobFormDia
           site_address: editJob.site_address || "",
           builder_client: editJob.builder_client || "",
           po_number: editJob.po_number || "",
-          scheduled_date: editJob.scheduled_date || "",
-          pour_time: editJob.pour_time || "",
           estimated_m3: editJob.estimated_m3?.toString() || "",
           ordered_m3: editJob.ordered_m3?.toString() || "",
           concrete_supplier: editJob.concrete_supplier || "",
@@ -126,8 +120,6 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob }: JobFormDia
         site_address: data.site_address,
         builder_client: data.builder_client || null,
         po_number: data.po_number || null,
-        scheduled_date: data.scheduled_date || null,
-        pour_time: data.pour_time || null,
         estimated_m3: data.estimated_m3 ? parseFloat(data.estimated_m3) : null,
         ordered_m3: data.ordered_m3 ? parseFloat(data.ordered_m3) : null,
         concrete_supplier: data.concrete_supplier || null,
@@ -231,47 +223,21 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob }: JobFormDia
             </div>
           </div>
 
-          {/* Schedule */}
-          <div className="space-y-3">
-            <h4 className="font-medium text-sm text-muted-foreground">Schedule</h4>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="scheduled_date">Pour Date</Label>
-                <Input
-                  id="scheduled_date"
-                  type="date"
-                  value={formData.scheduled_date}
-                  onChange={(e) => handleChange("scheduled_date", e.target.value)}
-                  className="touch-target"
-                />
-              </div>
-              <div>
-                <Label htmlFor="pour_time">Pour Time</Label>
-                <Input
-                  id="pour_time"
-                  type="time"
-                  value={formData.pour_time}
-                  onChange={(e) => handleChange("pour_time", e.target.value)}
-                  className="touch-target"
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="crew_id">Assign Crew</Label>
-              <Select value={formData.crew_id} onValueChange={(v) => handleChange("crew_id", v)}>
-                <SelectTrigger className="touch-target">
-                  <SelectValue placeholder="Select a crew" />
-                </SelectTrigger>
-                <SelectContent>
-                  {crews.map((crew) => (
-                    <SelectItem key={crew.id} value={crew.id}>
-                      {crew.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          {/* Crew Assignment */}
+          <div>
+            <Label htmlFor="crew_id">Assign Crew</Label>
+            <Select value={formData.crew_id} onValueChange={(v) => handleChange("crew_id", v)}>
+              <SelectTrigger className="touch-target">
+                <SelectValue placeholder="Select a crew" />
+              </SelectTrigger>
+              <SelectContent>
+                {crews.map((crew) => (
+                  <SelectItem key={crew.id} value={crew.id}>
+                    {crew.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Concrete Info */}

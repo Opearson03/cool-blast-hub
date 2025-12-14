@@ -1,6 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Calendar, Clock, Users, Truck, FileText, Package } from "lucide-react";
-import { format } from "date-fns";
+import { MapPin, Users, Truck, FileText, Package } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Job = Tables<"jobs">;
@@ -29,28 +28,6 @@ export function JobOverviewTab({ job, crewName }: JobOverviewTabProps) {
               <p className="text-sm text-muted-foreground">{job.site_address}</p>
             </div>
           </div>
-
-          {job.scheduled_date && (
-            <div className="flex items-start gap-3">
-              <Calendar className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Pour Date</p>
-                <p className="text-sm text-muted-foreground">
-                  {format(new Date(job.scheduled_date), "EEEE, d MMMM yyyy")}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {job.pour_time && (
-            <div className="flex items-start gap-3">
-              <Clock className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Pour Time</p>
-                <p className="text-sm text-muted-foreground">{job.pour_time}</p>
-              </div>
-            </div>
-          )}
 
           {crewName && (
             <div className="flex items-start gap-3">
