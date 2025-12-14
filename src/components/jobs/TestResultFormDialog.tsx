@@ -36,7 +36,7 @@ type ConcreteTest = Tables<"concrete_tests">;
 
 const testSchema = z.object({
   test_id: z.string().min(1, "Test ID is required"),
-  test_type: z.enum(["7_day", "28_day", "slump", "cylinder", "air", "other"]),
+  test_type: z.enum(["7_day", "14_day", "28_day", "slump", "cylinder", "air", "other"]),
   pour_id: z.string().optional(),
   pour_date: z.string().optional(),
   test_date: z.string().optional(),
@@ -249,6 +249,7 @@ export function TestResultFormDialog({
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="7_day">7-Day</SelectItem>
+                        <SelectItem value="14_day">14-Day</SelectItem>
                         <SelectItem value="28_day">28-Day</SelectItem>
                         <SelectItem value="slump">Slump</SelectItem>
                         <SelectItem value="cylinder">Cylinder</SelectItem>
