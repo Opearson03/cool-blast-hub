@@ -6,10 +6,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { JobFormDialog } from "@/components/jobs/JobFormDialog";
 import { format } from "date-fns";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 type Job = {
   id: string;
@@ -55,6 +60,7 @@ export default function AdminJobs() {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isPastJobsOpen, setIsPastJobsOpen] = useState(false);
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ["jobs"],
@@ -85,6 +91,14 @@ export default function AdminJobs() {
       job.builder_client?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Separate active and past jobs
+  const activeJobs = filteredJobs.filter(
+    (job) => job.status === "scheduled" || job.status === "in_progress"
+  );
+  const pastJobs = filteredJobs.filter(
+    (job) => job.status === "completed" || job.status === "cancelled"
+  );
+
   const getCrewName = (crewId: string | null) => {
     if (!crewId) return null;
     return crews.find((c) => c.id === crewId)?.name;
@@ -93,6 +107,53 @@ export default function AdminJobs() {
   const handleJobClick = (job: Job) => {
     navigate(`/admin/jobs/${job.id}`);
   };
+
+  const renderJobCard = (job: Job, isPast: boolean = false) => (
+    <Card
+      key={job.id}
+      className={`cursor-pointer hover:border-primary/50 transition-colors ${isPast ? "opacity-70" : ""}`}
+      onClick={() => handleJobClick(job)}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-muted-foreground font-mono">
+                {job.job_number}
+              </span>
+              <Badge variant="outline" className={statusColors[job.status]}>
+                {statusLabels[job.status]}
+              </Badge>
+            </div>
+            <h3 className="font-semibold truncate">{job.name}</h3>
+            <p className="text-sm text-muted-foreground truncate">{job.site_address}</p>
+            {job.builder_client && (
+              <p className="text-sm text-muted-foreground">Client: {job.builder_client}</p>
+            )}
+          </div>
+          <div className="text-right shrink-0">
+            {job.scheduled_date && (
+              <p className="text-sm font-medium">
+                {format(new Date(job.scheduled_date), "d MMM")}
+              </p>
+            )}
+            {job.pour_time && (
+              <p className="text-xs text-muted-foreground">{job.pour_time}</p>
+            )}
+            {getCrewName(job.crew_id) && (
+              <p className="text-xs text-primary mt-1">{getCrewName(job.crew_id)}</p>
+            )}
+          </div>
+        </div>
+        {(job.estimated_m3 || job.mpa_strength) && (
+          <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+            {job.estimated_m3 && <span>{job.estimated_m3}m³</span>}
+            {job.mpa_strength && <span>{job.mpa_strength} MPa</span>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <AdminLayout>
@@ -122,64 +183,57 @@ export default function AdminJobs() {
           </Button>
         </div>
 
-        {/* Jobs List */}
+        {/* Active Jobs */}
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading jobs...</div>
-        ) : filteredJobs.length === 0 ? (
+        ) : activeJobs.length === 0 && pastJobs.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               {searchQuery ? "No jobs found matching your search." : "No jobs yet. Create your first job to get started."}
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {filteredJobs.map((job) => (
-              <Card
-                key={job.id}
-                className="cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => handleJobClick(job)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {job.job_number}
-                        </span>
-                        <Badge variant="outline" className={statusColors[job.status]}>
-                          {statusLabels[job.status]}
-                        </Badge>
-                      </div>
-                      <h3 className="font-semibold truncate">{job.name}</h3>
-                      <p className="text-sm text-muted-foreground truncate">{job.site_address}</p>
-                      {job.builder_client && (
-                        <p className="text-sm text-muted-foreground">Client: {job.builder_client}</p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      {job.scheduled_date && (
-                        <p className="text-sm font-medium">
-                          {format(new Date(job.scheduled_date), "d MMM")}
-                        </p>
-                      )}
-                      {job.pour_time && (
-                        <p className="text-xs text-muted-foreground">{job.pour_time}</p>
-                      )}
-                      {getCrewName(job.crew_id) && (
-                        <p className="text-xs text-primary mt-1">{getCrewName(job.crew_id)}</p>
-                      )}
-                    </div>
-                  </div>
-                  {(job.estimated_m3 || job.mpa_strength) && (
-                    <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-                      {job.estimated_m3 && <span>{job.estimated_m3}m³</span>}
-                      {job.mpa_strength && <span>{job.mpa_strength} MPa</span>}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <>
+            {/* Active Jobs Section */}
+            <div className="space-y-3">
+              <h2 className="text-sm font-medium text-muted-foreground">
+                Active Jobs ({activeJobs.length})
+              </h2>
+              {activeJobs.length === 0 ? (
+                <Card>
+                  <CardContent className="py-6 text-center text-muted-foreground text-sm">
+                    No active jobs
+                  </CardContent>
+                </Card>
+              ) : (
+                activeJobs.map((job) => renderJobCard(job))
+              )}
+            </div>
+
+            {/* Past Jobs Section */}
+            {pastJobs.length > 0 && (
+              <Collapsible open={isPastJobsOpen} onOpenChange={setIsPastJobsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="w-full justify-between px-0 hover:bg-transparent"
+                  >
+                    <span className="text-sm font-medium text-muted-foreground">
+                      Past Jobs ({pastJobs.length})
+                    </span>
+                    <ChevronDown
+                      className={`h-4 w-4 text-muted-foreground transition-transform ${
+                        isPastJobsOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 pt-2">
+                  {pastJobs.map((job) => renderJobCard(job, true))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </>
         )}
       </div>
 
