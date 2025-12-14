@@ -160,15 +160,15 @@ const Pricing = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
             <div>
               <div className="text-4xl font-bold text-primary mb-2">$79</div>
-              <p className="text-foreground/80">Less than one hour of labour per month</p>
+              <p className="text-primary-foreground/90">Less than one hour of labour per month</p>
             </div>
             <div>
               <div className="text-4xl font-bold text-primary mb-2">100%</div>
-              <p className="text-foreground/80">Digital compliance documentation</p>
+              <p className="text-primary-foreground/90">Digital compliance documentation</p>
             </div>
             <div>
               <div className="text-4xl font-bold text-primary mb-2">0</div>
-              <p className="text-foreground/80">Missed test results or expired tickets</p>
+              <p className="text-primary-foreground/90">Missed test results or expired tickets</p>
             </div>
           </div>
         </div>
