@@ -2,7 +2,8 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { HardHat, LayoutDashboard, CalendarDays, User, LogOut, Menu, X, Users } from "lucide-react";
+import { LayoutDashboard, CalendarDays, User, LogOut, Menu, X, Users } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -27,8 +28,8 @@ export function EmployeeLayout({ children }: { children: ReactNode }) {
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         <Link to="/employee" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <HardHat className="w-5 h-5 text-primary-foreground" />
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center p-1">
+            <Logo className="w-full h-full" />
           </div>
           <span className="font-bold">PourHub</span>
         </Link>

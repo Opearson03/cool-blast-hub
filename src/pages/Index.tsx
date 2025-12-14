@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { HardHat, Users, Calendar, ClipboardCheck, Truck, CheckCircle, ArrowRight } from "lucide-react";
+import { Users, Calendar, ClipboardCheck, Truck, CheckCircle, ArrowRight, Shield } from "lucide-react";
 import heroPourBackground from "@/assets/hero-pour-background.png";
+import { Logo } from "@/components/ui/Logo";
 
 const Index = () => {
   return (
@@ -18,8 +19,8 @@ const Index = () => {
           <div className="max-w-4xl mx-auto">
             {/* Logo */}
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center">
-                <HardHat className="w-10 h-10 text-primary-foreground" />
+              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center p-2">
+                <Logo className="w-full h-full" />
               </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary-foreground">
                 Pour<span className="text-primary">Hub</span>
@@ -83,7 +84,7 @@ const Index = () => {
               description="Track plant, service schedules, and job assignments"
             />
             <FeatureCard
-              icon={<HardHat className="w-8 h-8" />}
+              icon={<Shield className="w-8 h-8" />}
               title="Compliance Tracking"
               description="Tickets, certifications, and expiry reminders"
             />
