@@ -186,7 +186,7 @@ export default function Auth() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center p-1.5">
+              <div className="w-10 h-10 rounded-lg overflow-hidden">
                 <Logo className="w-full h-full" />
               </div>
               <span className="text-2xl font-bold">

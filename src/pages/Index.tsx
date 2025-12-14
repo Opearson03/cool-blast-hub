@@ -19,7 +19,7 @@ const Index = () => {
           <div className="max-w-4xl mx-auto">
             {/* Logo */}
             <div className="flex items-center gap-3 mb-8">
-              <div className="w-16 h-16 bg-primary rounded-xl flex items-center justify-center p-2">
+              <div className="w-16 h-16 rounded-xl overflow-hidden">
                 <Logo className="w-full h-full" />
               </div>
               <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary-foreground">

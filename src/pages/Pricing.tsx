@@ -67,7 +67,7 @@ const Pricing = () => {
       <header className="px-4 py-6 border-b border-border/30">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center p-1.5">
+            <div className="w-10 h-10 rounded-lg overflow-hidden">
               <Logo className="w-full h-full" />
             </div>
             <span className="text-2xl font-bold text-primary-foreground">
