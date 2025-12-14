@@ -38,9 +38,10 @@ const visitTypeLabels: Record<string, string> = {
 interface DraggablePourProps {
   pour: Pour;
   compact?: boolean;
+  onClick?: (pour: Pour) => void;
 }
 
-export function DraggablePour({ pour, compact = false }: DraggablePourProps) {
+export function DraggablePour({ pour, compact = false, onClick }: DraggablePourProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: pour.id,
   });
@@ -54,6 +55,14 @@ export function DraggablePour({ pour, compact = false }: DraggablePourProps) {
   const visitType = pour.visit_type || "pour";
   const isPour = visitType === "pour";
 
+  const handleClick = (e: React.MouseEvent) => {
+    // Only trigger click if not dragging
+    if (!isDragging && onClick) {
+      e.stopPropagation();
+      onClick(pour);
+    }
+  };
+
   if (compact) {
     return (
       <div
@@ -61,6 +70,7 @@ export function DraggablePour({ pour, compact = false }: DraggablePourProps) {
         style={style}
         {...listeners}
         {...attributes}
+        onClick={handleClick}
         className={cn(
           "bg-card border rounded-lg px-3 py-2 cursor-grab active:cursor-grabbing touch-target",
           "hover:border-primary/50 transition-colors",
@@ -81,6 +91,7 @@ export function DraggablePour({ pour, compact = false }: DraggablePourProps) {
       style={style}
       {...listeners}
       {...attributes}
+      onClick={handleClick}
       className={cn(
         "bg-card border rounded-lg p-3 cursor-grab active:cursor-grabbing",
         "hover:border-primary/50 transition-colors",

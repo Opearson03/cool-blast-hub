@@ -25,6 +25,7 @@ interface DroppablePourDayProps {
   pours: Pour[];
   isWeekView?: boolean;
   isCurrentMonth?: boolean;
+  onPourClick?: (pour: Pour) => void;
 }
 
 export function DroppablePourDay({
@@ -33,6 +34,7 @@ export function DroppablePourDay({
   pours,
   isWeekView = false,
   isCurrentMonth = true,
+  onPourClick,
 }: DroppablePourDayProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: dateKey,
@@ -69,7 +71,7 @@ export function DroppablePourDay({
         </div>
         <div className="space-y-2">
           {pours.map((pour) => (
-            <DraggablePour key={pour.id} pour={pour} />
+            <DraggablePour key={pour.id} pour={pour} onClick={onPourClick} />
           ))}
         </div>
         {pours.length === 0 && (
@@ -100,7 +102,7 @@ export function DroppablePourDay({
       </div>
       <div className="space-y-1">
         {pours.slice(0, 2).map((pour) => (
-          <DraggablePour key={pour.id} pour={pour} compact />
+          <DraggablePour key={pour.id} pour={pour} compact onClick={onPourClick} />
         ))}
         {pours.length > 2 && (
           <p className="text-xs text-muted-foreground text-center">
