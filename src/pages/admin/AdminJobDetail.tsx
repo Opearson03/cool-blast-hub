@@ -239,7 +239,7 @@ export default function AdminJobDetail() {
               <JobOverviewTab job={job} crewName={crewName} />
             </TabsContent>
             <TabsContent value="startup" className="m-0">
-              <JobProjectStartupTab jobId={job.id} />
+              <JobProjectStartupTab jobId={job.id} job={job} />
             </TabsContent>
             <TabsContent value="pours" className="m-0">
               <JobPoursTab jobId={job.id} />

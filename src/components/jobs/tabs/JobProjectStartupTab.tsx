@@ -15,14 +15,20 @@ type ProjectStartup = Tables<"project_startup">;
 
 interface JobProjectStartupTabProps {
   jobId: string;
+  job?: {
+    name: string;
+    builder_client?: string | null;
+    concrete_supplier?: string | null;
+  };
 }
 
-export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
+export function JobProjectStartupTab({ jobId, job }: JobProjectStartupTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const hasInitialized = useRef(false);
 
   const { data: startup, isLoading } = useQuery({
     queryKey: ["project-startup", jobId],
@@ -39,11 +45,23 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
 
   const [formData, setFormData] = useState<Partial<ProjectStartup>>({});
 
+  // Initialize form data from startup or with job defaults
   useEffect(() => {
+    if (hasInitialized.current) return;
+    
     if (startup) {
       setFormData(startup);
+      hasInitialized.current = true;
+    } else if (!isLoading) {
+      // No startup record exists - set defaults from job
+      setFormData({
+        project_name: job?.name || "",
+        client: job?.builder_client || "",
+        concrete_supplier: job?.concrete_supplier || "",
+      });
+      hasInitialized.current = true;
     }
-  }, [startup]);
+  }, [startup, isLoading, job]);
 
   // Items with just checkboxes (not yes/no)
   const checklistItems = [
@@ -68,7 +86,11 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
 
   const calculateProgress = useCallback((data: Partial<ProjectStartup>) => {
     const allKeys = [...checklistItems.map(i => i.key), ...yesNoItems.map(i => i.key)];
-    const completed = allKeys.filter((key) => data[key as keyof ProjectStartup] !== null && data[key as keyof ProjectStartup] !== undefined).length;
+    // Only count as completed if the value is explicitly true or false (not just "set")
+    const completed = allKeys.filter((key) => {
+      const value = data[key as keyof ProjectStartup];
+      return value === true || value === false;
+    }).length;
     return Math.round((completed / allKeys.length) * 100);
   }, []);
 
@@ -76,11 +98,19 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
     setIsSaving(true);
     try {
       const progress = calculateProgress(dataToSave);
-      const payload = {
-        ...dataToSave,
+      
+      // Only include fields that have been explicitly set
+      const payload: Record<string, any> = {
         job_id: jobId,
         completion_percentage: progress,
       };
+      
+      // Copy over only defined fields
+      Object.entries(dataToSave).forEach(([key, value]) => {
+        if (key !== 'id' && key !== 'created_at' && key !== 'updated_at') {
+          payload[key] = value;
+        }
+      });
 
       if (startup) {
         const { error } = await supabase
@@ -89,7 +119,7 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
           .eq("id", startup.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("project_startup").insert(payload);
+        const { error } = await supabase.from("project_startup").insert(payload as any);
         if (error) throw error;
       }
       
