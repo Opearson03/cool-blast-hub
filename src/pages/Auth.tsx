@@ -45,9 +45,24 @@ export default function Auth() {
         navigate("/admin");
       } else if (isStaff) {
         navigate("/employee");
+      } else {
+        // User has no role assigned - sign them out and show error
+        await supabase.auth.signOut();
+        toast({
+          title: "Access Denied",
+          description: "Your account has not been assigned a role yet. Please contact your administrator.",
+          variant: "destructive",
+        });
+        setLoading(false);
       }
     } catch (error) {
       console.error("Error checking roles:", error);
+      toast({
+        title: "Error",
+        description: "Failed to verify account permissions. Please try again.",
+        variant: "destructive",
+      });
+      setLoading(false);
     }
   };
 
