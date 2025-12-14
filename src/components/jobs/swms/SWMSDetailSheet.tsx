@@ -196,7 +196,7 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
                           </div>
                           <p className="text-sm text-muted-foreground font-medium mt-2">Controls:</p>
                           <ul className="text-sm text-muted-foreground list-disc list-inside">
-                            {hazard.controls.map((control, j) => (
+                            {(hazard.controls || []).map((control, j) => (
                               <li key={j}>{control}</li>
                             ))}
                           </ul>

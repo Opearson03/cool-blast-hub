@@ -136,7 +136,7 @@ export const PrintableSWMS = forwardRef<HTMLDivElement, PrintableSWMSProps>(
                   </td>
                   <td className="border border-gray-300 px-3 py-2">
                     <ul className="list-disc list-inside">
-                      {hazard.controls.map((control, j) => (
+                      {(hazard.controls || []).map((control, j) => (
                         <li key={j}>{control}</li>
                       ))}
                     </ul>
