@@ -1,15 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Save, ClipboardCheck } from "lucide-react";
+import { Loader2, ClipboardCheck, Check } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type ProjectStartup = Tables<"project_startup">;
@@ -21,6 +20,9 @@ interface JobProjectStartupTabProps {
 export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isSaving, setIsSaving] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const { data: startup, isLoading } = useQuery({
     queryKey: ["project-startup", jobId],
@@ -64,17 +66,18 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
     { key: "long_longs_required", label: "Long Longs Required" },
   ] as const;
 
-  const calculateProgress = () => {
+  const calculateProgress = useCallback((data: Partial<ProjectStartup>) => {
     const allKeys = [...checklistItems.map(i => i.key), ...yesNoItems.map(i => i.key)];
-    const completed = allKeys.filter((key) => formData[key as keyof ProjectStartup] !== null && formData[key as keyof ProjectStartup] !== undefined).length;
+    const completed = allKeys.filter((key) => data[key as keyof ProjectStartup] !== null && data[key as keyof ProjectStartup] !== undefined).length;
     return Math.round((completed / allKeys.length) * 100);
-  };
+  }, []);
 
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const progress = calculateProgress();
-      const dataToSave = {
-        ...formData,
+  const saveData = useCallback(async (dataToSave: Partial<ProjectStartup>) => {
+    setIsSaving(true);
+    try {
+      const progress = calculateProgress(dataToSave);
+      const payload = {
+        ...dataToSave,
         job_id: jobId,
         completion_percentage: progress,
       };
@@ -82,33 +85,58 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
       if (startup) {
         const { error } = await supabase
           .from("project_startup")
-          .update(dataToSave)
+          .update(payload)
           .eq("id", startup.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("project_startup").insert(dataToSave);
+        const { error } = await supabase.from("project_startup").insert(payload);
         if (error) throw error;
       }
-    },
-    onSuccess: () => {
+      
+      setLastSaved(new Date());
       queryClient.invalidateQueries({ queryKey: ["project-startup", jobId] });
-      toast({ title: "Project startup saved" });
-    },
-    onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    },
-  });
+    } catch (error: any) {
+      toast({ title: "Error saving", description: error.message, variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  }, [startup, jobId, calculateProgress, queryClient, toast]);
+
+  // Debounced auto-save
+  const debouncedSave = useCallback((newData: Partial<ProjectStartup>) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    saveTimeoutRef.current = setTimeout(() => {
+      saveData(newData);
+    }, 800);
+  }, [saveData]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleCheckChange = (key: string, checked: boolean) => {
-    setFormData((prev) => ({ ...prev, [key]: checked }));
+    const newData = { ...formData, [key]: checked };
+    setFormData(newData);
+    debouncedSave(newData);
   };
 
   const handleYesNoChange = (key: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [key]: value === "yes" }));
+    const newData = { ...formData, [key]: value === "yes" };
+    setFormData(newData);
+    debouncedSave(newData);
   };
 
   const handleInputChange = (key: string, value: string) => {
-    setFormData((prev) => ({ ...prev, [key]: value }));
+    const newData = { ...formData, [key]: value };
+    setFormData(newData);
+    debouncedSave(newData);
   };
 
   if (isLoading) {
@@ -119,7 +147,7 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
     );
   }
 
-  const progress = calculateProgress();
+  const progress = calculateProgress(formData);
 
   return (
     <div className="space-y-6">
@@ -131,7 +159,21 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
               <ClipboardCheck className="w-5 h-5 text-primary" />
               <span className="font-semibold">Completion Progress</span>
             </div>
-            <span className="text-2xl font-bold text-primary">{progress}%</span>
+            <div className="flex items-center gap-3">
+              {isSaving && (
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  Saving...
+                </span>
+              )}
+              {!isSaving && lastSaved && (
+                <span className="text-sm text-muted-foreground flex items-center gap-1">
+                  <Check className="w-3 h-3 text-green-500" />
+                  Saved
+                </span>
+              )}
+              <span className="text-2xl font-bold text-primary">{progress}%</span>
+            </div>
           </div>
           <Progress value={progress} className="h-3" />
         </CardContent>
@@ -339,21 +381,6 @@ export function JobProjectStartupTab({ jobId }: JobProjectStartupTabProps) {
         </CardContent>
       </Card>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <Button
-          onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending}
-          className="touch-target"
-        >
-          {saveMutation.isPending ? (
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4 mr-2" />
-          )}
-          Save Project Startup
-        </Button>
-      </div>
     </div>
   );
 }
