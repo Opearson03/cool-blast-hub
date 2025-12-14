@@ -1,15 +1,17 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Filter } from "lucide-react";
+import { Plus, Search, Filter, CheckCircle, ChevronDown, ChevronRight, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { JobFormDialog } from "@/components/jobs/JobFormDialog";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type Job = {
   id: string;
@@ -53,8 +55,10 @@ const statusLabels: Record<string, string> = {
 
 export default function AdminJobs() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ["jobs"],
@@ -62,7 +66,7 @@ export default function AdminJobs() {
       const { data, error } = await supabase
         .from("jobs")
         .select("*")
-        .order("scheduled_date", { ascending: true, nullsFirst: false });
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data as Job[];
     },
@@ -77,12 +81,42 @@ export default function AdminJobs() {
     },
   });
 
+  const finishJobMutation = useMutation({
+    mutationFn: async (jobId: string) => {
+      const { error } = await supabase
+        .from("jobs")
+        .update({ status: "completed" })
+        .eq("id", jobId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      toast.success("Job marked as completed and archived");
+    },
+    onError: () => {
+      toast.error("Failed to complete job");
+    },
+  });
+
+  const handleFinishJob = (e: React.MouseEvent, jobId: string) => {
+    e.stopPropagation();
+    finishJobMutation.mutate(jobId);
+  };
+
   const filteredJobs = jobs.filter(
     (job) =>
       job.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.site_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.job_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.builder_client?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Separate active and archived jobs
+  const activeJobs = filteredJobs.filter(
+    (job) => job.status === "scheduled" || job.status === "in_progress"
+  );
+  const archivedJobs = filteredJobs.filter(
+    (job) => job.status === "completed" || job.status === "cancelled"
   );
 
   const getCrewName = (crewId: string | null) => {
@@ -93,6 +127,65 @@ export default function AdminJobs() {
   const handleJobClick = (job: Job) => {
     navigate(`/admin/jobs/${job.id}`);
   };
+
+  const JobCard = ({ job, showFinishButton = false }: { job: Job; showFinishButton?: boolean }) => (
+    <Card
+      key={job.id}
+      className="cursor-pointer hover:border-primary/50 transition-colors"
+      onClick={() => handleJobClick(job)}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-muted-foreground font-mono">
+                {job.job_number}
+              </span>
+              <Badge variant="outline" className={statusColors[job.status]}>
+                {statusLabels[job.status]}
+              </Badge>
+            </div>
+            <h3 className="font-semibold truncate">{job.name}</h3>
+            <p className="text-sm text-muted-foreground truncate">{job.site_address}</p>
+            {job.builder_client && (
+              <p className="text-sm text-muted-foreground">Client: {job.builder_client}</p>
+            )}
+          </div>
+          <div className="text-right shrink-0 flex flex-col items-end gap-2">
+            {job.scheduled_date && (
+              <p className="text-sm font-medium">
+                {format(new Date(job.scheduled_date), "d MMM")}
+              </p>
+            )}
+            {job.pour_time && (
+              <p className="text-xs text-muted-foreground">{job.pour_time}</p>
+            )}
+            {getCrewName(job.crew_id) && (
+              <p className="text-xs text-primary">{getCrewName(job.crew_id)}</p>
+            )}
+            {showFinishButton && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="text-green-600 border-green-500/30 hover:bg-green-500/10"
+                onClick={(e) => handleFinishJob(e, job.id)}
+                disabled={finishJobMutation.isPending}
+              >
+                <CheckCircle className="w-4 h-4 mr-1" />
+                Finish
+              </Button>
+            )}
+          </div>
+        </div>
+        {(job.estimated_m3 || job.mpa_strength) && (
+          <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+            {job.estimated_m3 && <span>{job.estimated_m3}m³</span>}
+            {job.mpa_strength && <span>{job.mpa_strength} MPa</span>}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   return (
     <AdminLayout>
@@ -122,64 +215,59 @@ export default function AdminJobs() {
           </Button>
         </div>
 
-        {/* Jobs List */}
+        {/* Active Jobs List */}
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading jobs...</div>
-        ) : filteredJobs.length === 0 ? (
+        ) : activeJobs.length === 0 && archivedJobs.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               {searchQuery ? "No jobs found matching your search." : "No jobs yet. Create your first job to get started."}
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {filteredJobs.map((job) => (
-              <Card
-                key={job.id}
-                className="cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => handleJobClick(job)}
-              >
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {job.job_number}
-                        </span>
-                        <Badge variant="outline" className={statusColors[job.status]}>
-                          {statusLabels[job.status]}
-                        </Badge>
-                      </div>
-                      <h3 className="font-semibold truncate">{job.name}</h3>
-                      <p className="text-sm text-muted-foreground truncate">{job.site_address}</p>
-                      {job.builder_client && (
-                        <p className="text-sm text-muted-foreground">Client: {job.builder_client}</p>
-                      )}
-                    </div>
-                    <div className="text-right shrink-0">
-                      {job.scheduled_date && (
-                        <p className="text-sm font-medium">
-                          {format(new Date(job.scheduled_date), "d MMM")}
-                        </p>
-                      )}
-                      {job.pour_time && (
-                        <p className="text-xs text-muted-foreground">{job.pour_time}</p>
-                      )}
-                      {getCrewName(job.crew_id) && (
-                        <p className="text-xs text-primary mt-1">{getCrewName(job.crew_id)}</p>
-                      )}
-                    </div>
-                  </div>
-                  {(job.estimated_m3 || job.mpa_strength) && (
-                    <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
-                      {job.estimated_m3 && <span>{job.estimated_m3}m³</span>}
-                      {job.mpa_strength && <span>{job.mpa_strength} MPa</span>}
-                    </div>
-                  )}
+          <>
+            {/* Active Jobs */}
+            {activeJobs.length > 0 && (
+              <div className="space-y-3">
+                <h2 className="text-sm font-medium text-muted-foreground">Active Jobs ({activeJobs.length})</h2>
+                {activeJobs.map((job) => (
+                  <JobCard key={job.id} job={job} showFinishButton />
+                ))}
+              </div>
+            )}
+
+            {activeJobs.length === 0 && archivedJobs.length > 0 && (
+              <Card>
+                <CardContent className="py-6 text-center text-muted-foreground">
+                  No active jobs. All jobs have been completed or archived.
                 </CardContent>
               </Card>
-            ))}
-          </div>
+            )}
+
+            {/* Archived Jobs */}
+            {archivedJobs.length > 0 && (
+              <Collapsible open={archiveOpen} onOpenChange={setArchiveOpen} className="mt-6">
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" className="w-full justify-between hover:bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <Archive className="w-4 h-4" />
+                      <span>Archived Jobs ({archivedJobs.length})</span>
+                    </div>
+                    {archiveOpen ? (
+                      <ChevronDown className="w-4 h-4" />
+                    ) : (
+                      <ChevronRight className="w-4 h-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-3 mt-3">
+                  {archivedJobs.map((job) => (
+                    <JobCard key={job.id} job={job} />
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+          </>
         )}
       </div>
 
