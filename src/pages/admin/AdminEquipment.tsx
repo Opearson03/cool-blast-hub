@@ -80,6 +80,7 @@ function ServiceStatusBadge({ status }: { status: ServiceStatus }) {
 
 export default function AdminEquipment() {
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<ServiceStatus | "all">("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editEquipment, setEditEquipment] = useState<Equipment | null>(null);
   const [deleteEquipment, setDeleteEquipment] = useState<Equipment | null>(null);
@@ -171,11 +172,14 @@ export default function AdminEquipment() {
     },
   });
 
-  const filteredEquipment = equipment?.filter(
-    (item) =>
+  const filteredEquipment = equipment?.filter((item) => {
+    const matchesSearch =
       item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.serial_number?.toLowerCase().includes(search.toLowerCase())
-  );
+      item.serial_number?.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus =
+      statusFilter === "all" || getServiceStatus(item) === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   const handleEdit = (item: Equipment) => {
     setEditEquipment(item);
@@ -212,25 +216,37 @@ export default function AdminEquipment() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <Card>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-primary/50 ${statusFilter === "all" ? "ring-2 ring-primary" : ""}`}
+            onClick={() => setStatusFilter("all")}
+          >
             <CardContent className="pt-4">
               <div className="text-2xl font-bold">{stats.total}</div>
               <p className="text-sm text-muted-foreground">Total Items</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-success/50 ${statusFilter === "ok" ? "ring-2 ring-success" : ""}`}
+            onClick={() => setStatusFilter("ok")}
+          >
             <CardContent className="pt-4">
               <div className="text-2xl font-bold text-success">{stats.ok}</div>
               <p className="text-sm text-muted-foreground">Service OK</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-warning/50 ${statusFilter === "due-soon" ? "ring-2 ring-warning" : ""}`}
+            onClick={() => setStatusFilter("due-soon")}
+          >
             <CardContent className="pt-4">
               <div className="text-2xl font-bold text-warning">{stats.dueSoon}</div>
               <p className="text-sm text-muted-foreground">Due Soon</p>
             </CardContent>
           </Card>
-          <Card>
+          <Card
+            className={`cursor-pointer transition-colors hover:border-destructive/50 ${statusFilter === "overdue" ? "ring-2 ring-destructive" : ""}`}
+            onClick={() => setStatusFilter("overdue")}
+          >
             <CardContent className="pt-4">
               <div className="text-2xl font-bold text-destructive">{stats.overdue}</div>
               <p className="text-sm text-muted-foreground">Overdue</p>

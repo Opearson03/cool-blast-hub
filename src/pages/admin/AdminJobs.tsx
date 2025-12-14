@@ -6,12 +6,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, Filter, CheckCircle, ChevronDown, ChevronRight, Archive } from "lucide-react";
+import { Plus, Search, CheckCircle, ChevronDown, ChevronRight, Archive } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { JobFormDialog } from "@/components/jobs/JobFormDialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Job = {
   id: string;
@@ -57,6 +64,7 @@ export default function AdminJobs() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("active");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
 
@@ -103,15 +111,23 @@ export default function AdminJobs() {
     finishJobMutation.mutate(jobId);
   };
 
-  const filteredJobs = jobs.filter(
-    (job) =>
+  const filteredJobs = jobs.filter((job) => {
+    const matchesSearch =
       job.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.site_address.toLowerCase().includes(searchQuery.toLowerCase()) ||
       job.job_number?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.builder_client?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      job.builder_client?.toLowerCase().includes(searchQuery.toLowerCase());
 
-  // Separate active and archived jobs
+    if (statusFilter === "active") {
+      return matchesSearch && (job.status === "scheduled" || job.status === "in_progress");
+    }
+    if (statusFilter === "all") {
+      return matchesSearch;
+    }
+    return matchesSearch && job.status === statusFilter;
+  });
+
+  // Separate active and archived jobs for display
   const activeJobs = filteredJobs.filter(
     (job) => job.status === "scheduled" || job.status === "in_progress"
   );
@@ -210,23 +226,33 @@ export default function AdminJobs() {
               className="pl-10 touch-target"
             />
           </div>
-          <Button variant="outline" size="icon" className="touch-target">
-            <Filter className="w-4 h-4" />
-          </Button>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Filter" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="scheduled">Scheduled</SelectItem>
+              <SelectItem value="in_progress">In Progress</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="cancelled">Cancelled</SelectItem>
+              <SelectItem value="all">All Jobs</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Active Jobs List */}
         {isLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading jobs...</div>
-        ) : activeJobs.length === 0 && archivedJobs.length === 0 ? (
+        ) : filteredJobs.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
               {searchQuery ? "No jobs found matching your search." : "No jobs yet. Create your first job to get started."}
             </CardContent>
           </Card>
-        ) : (
+        ) : statusFilter === "active" ? (
           <>
-            {/* Active Jobs */}
+            {/* Active Jobs with Archive section */}
             {activeJobs.length > 0 && (
               <div className="space-y-3">
                 <h2 className="text-sm font-medium text-muted-foreground">Active Jobs ({activeJobs.length})</h2>
@@ -268,6 +294,15 @@ export default function AdminJobs() {
               </Collapsible>
             )}
           </>
+        ) : (
+          <div className="space-y-3">
+            <h2 className="text-sm font-medium text-muted-foreground">
+              {statusFilter === "all" ? "All Jobs" : statusLabels[statusFilter]} ({filteredJobs.length})
+            </h2>
+            {filteredJobs.map((job) => (
+              <JobCard key={job.id} job={job} showFinishButton={job.status === "scheduled" || job.status === "in_progress"} />
+            ))}
+          </div>
         )}
       </div>
 
