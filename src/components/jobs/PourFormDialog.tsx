@@ -21,7 +21,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -29,8 +29,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
+import { Check, ChevronsUpDown, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const pourSchema = z.object({
   pour_name: z.string().min(1, "Name is required"),
@@ -312,27 +327,71 @@ export function PourFormDialog({
             {/* Employee Assignment */}
             <div className="space-y-2">
               <FormLabel>Assigned Employees</FormLabel>
-              <div className="border rounded-lg p-3 max-h-[150px] overflow-y-auto space-y-2">
-                {employees.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No employees found</p>
-                ) : (
-                  employees.map((emp) => (
-                    <div key={emp.id} className="flex items-center space-x-2">
-                      <Checkbox
-                        id={`emp-${emp.id}`}
-                        checked={selectedEmployees.includes(emp.id)}
-                        onCheckedChange={() => toggleEmployee(emp.id)}
-                      />
-                      <label
-                        htmlFor={`emp-${emp.id}`}
-                        className="text-sm cursor-pointer"
-                      >
+              
+              {/* Selected employees badges */}
+              {selectedEmployees.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {selectedEmployees.map((empId) => {
+                    const emp = employees.find((e) => e.id === empId);
+                    return emp ? (
+                      <Badge key={empId} variant="secondary" className="flex items-center gap-1">
                         {emp.full_name}
-                      </label>
-                    </div>
-                  ))
-                )}
-              </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleEmployee(empId)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+
+              {/* Searchable employee selector */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {selectedEmployees.length === 0
+                      ? "Select employees..."
+                      : `${selectedEmployees.length} selected`}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0 bg-popover" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search employees..." />
+                    <CommandList>
+                      <CommandEmpty>No employees found.</CommandEmpty>
+                      <CommandGroup>
+                        {employees.map((emp) => (
+                          <CommandItem
+                            key={emp.id}
+                            value={emp.full_name}
+                            onSelect={() => toggleEmployee(emp.id)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedEmployees.includes(emp.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            {emp.full_name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
 
             {/* Concrete-specific fields - only show for pour type */}
