@@ -13,10 +13,6 @@ export default {
       },
     },
     extend: {
-      fontFamily: {
-        sans: ['Inter', 'system-ui', 'sans-serif'],
-        display: ['Bebas Neue', 'Inter', 'sans-serif'],
-      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -51,23 +47,17 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // PourHub brand colors
         orange: {
           DEFAULT: "hsl(var(--orange))",
           dark: "hsl(var(--orange-dark))",
           light: "hsl(var(--orange-light))",
         },
-        black: {
-          DEFAULT: "hsl(var(--black))",
-          pure: "hsl(var(--black-pure))",
-          soft: "hsl(var(--black-soft))",
-          card: "hsl(var(--black-card))",
+        charcoal: {
+          DEFAULT: "hsl(var(--charcoal))",
+          dark: "hsl(var(--charcoal-dark))",
+          light: "hsl(var(--charcoal-light))",
         },
-        gray: {
-          dark: "hsl(var(--gray-dark))",
-          mid: "hsl(var(--gray-mid))",
-          light: "hsl(var(--gray-light))",
-        },
+        concrete: "hsl(var(--concrete))",
         success: "hsl(var(--success))",
         warning: "hsl(var(--warning))",
         chart: {
@@ -83,12 +73,6 @@ export default {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      boxShadow: {
-        'glow': '0 0 20px hsl(var(--orange) / 0.4)',
-        'glow-sm': '0 0 10px hsl(var(--orange) / 0.3)',
-        'dark': '0 10px 40px -10px hsl(0 0% 0% / 0.7)',
-        'card': '0 4px 20px -5px hsl(0 0% 0% / 0.5)',
-      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -102,27 +86,14 @@ export default {
           from: { opacity: "0", transform: "translateY(10px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
-        "slide-in-right": {
-          from: { transform: "translateX(100%)" },
-          to: { transform: "translateX(0)" },
-        },
-        "pulse-glow": {
-          "0%, 100%": { boxShadow: "0 0 20px hsl(var(--orange) / 0.4)" },
-          "50%": { boxShadow: "0 0 30px hsl(var(--orange) / 0.6)" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-in": "fade-in 0.3s ease-out",
-        "slide-in-right": "slide-in-right 0.3s ease-out",
-        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
       },
       fontSize: {
         'touch': ['1rem', { lineHeight: '1.5' }],
-        'display-xl': ['3.5rem', { lineHeight: '1.1', letterSpacing: '0.02em' }],
-        'display-lg': ['2.5rem', { lineHeight: '1.15', letterSpacing: '0.02em' }],
-        'display-md': ['2rem', { lineHeight: '1.2', letterSpacing: '0.01em' }],
       },
     },
   },
