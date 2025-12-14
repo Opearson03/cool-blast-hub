@@ -67,15 +67,13 @@ const Pricing = () => {
       <header className="px-4 py-6 border-b border-border/30">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-lg overflow-hidden">
-              <Logo className="w-full h-full" />
-            </div>
+            <Logo size="lg" className="rounded-lg" />
             <span className="text-2xl font-bold text-primary-foreground">
               Pour<span className="text-primary">Hub</span>
             </span>
           </Link>
           <Link to="/auth">
-            <Button variant="outline" className="touch-target">
+            <Button variant="outline" className="touch-target border-muted-foreground/50 text-primary-foreground hover:bg-primary-foreground/10">
               Sign In
             </Button>
           </Link>

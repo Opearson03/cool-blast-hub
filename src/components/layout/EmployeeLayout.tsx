@@ -28,9 +28,7 @@ export function EmployeeLayout({ children }: { children: ReactNode }) {
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         <Link to="/employee" className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg overflow-hidden">
-            <Logo className="w-full h-full" />
-          </div>
+          <Logo size="md" className="rounded-lg" />
           <span className="font-bold">PourHub</span>
         </Link>
         <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
@@ -76,12 +74,14 @@ export function EmployeeLayout({ children }: { children: ReactNode }) {
             key={item.href}
             to={item.href}
             className={cn(
-              "flex flex-col items-center gap-1 px-4 py-2 rounded-lg touch-target",
-              location.pathname === item.href ? "text-primary" : "text-muted-foreground"
+              "flex flex-col items-center gap-1 px-4 py-2 rounded-lg touch-target transition-colors",
+              location.pathname === item.href 
+                ? "text-primary bg-primary/10" 
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
             )}
           >
             <item.icon className="w-6 h-6" />
-            <span className="text-xs">{item.label}</span>
+            <span className="text-xs font-medium">{item.label}</span>
           </Link>
         ))}
       </nav>

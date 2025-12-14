@@ -81,7 +81,7 @@ export default function Signup() {
       <div className="flex-1 flex items-center justify-center p-4">
         <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Plan Summary */}
-          <Card className="bg-card/50">
+          <Card className="bg-card/80 backdrop-blur-sm">
             <CardHeader>
               <CardTitle className="text-lg">Your Selected Plan</CardTitle>
             </CardHeader>
@@ -120,9 +120,7 @@ export default function Signup() {
           <Card>
             <CardHeader className="text-center">
               <div className="flex items-center justify-center gap-2 mb-4">
-                <div className="w-10 h-10 rounded-lg overflow-hidden">
-                  <Logo className="w-full h-full" />
-                </div>
+                <Logo size="lg" className="rounded-lg" />
                 <span className="text-2xl font-bold">
                   Pour<span className="text-primary">Hub</span>
                 </span>

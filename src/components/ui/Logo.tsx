@@ -7,17 +7,20 @@ interface LogoProps {
 
 const sizeClasses = {
   sm: "w-5 h-5",
-  md: "w-6 h-6", 
-  lg: "w-8 h-8",
-  xl: "w-10 h-10"
+  md: "w-8 h-8", 
+  lg: "w-10 h-10",
+  xl: "w-12 h-12"
 };
 
 export function Logo({ className, size = "md" }: LogoProps) {
+  const baseClasses = sizeClasses[size];
+  const combinedClasses = className ? `${baseClasses} ${className}` : baseClasses;
+  
   return (
     <img 
       src={pourhubLogo} 
       alt="PourHub Logo" 
-      className={className || sizeClasses[size]}
+      className={combinedClasses}
     />
   );
 }
