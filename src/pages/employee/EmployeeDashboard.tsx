@@ -4,11 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { EmployeeLayout } from "@/components/layout/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Clock, FileCheck, MapPin, Phone } from "lucide-react";
-import { format } from "date-fns";
+import { ClipboardList, Clock, FileCheck, MapPin, Calendar, AlertTriangle } from "lucide-react";
+import { format, isToday, isTomorrow, differenceInDays } from "date-fns";
 import { ITPDetailSheet } from "@/components/jobs/itps/ITPDetailSheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import type { Tables } from "@/integrations/supabase/types";
 
 type JobITP = Tables<"job_itps">;
@@ -26,27 +24,13 @@ const statusColors: Record<string, string> = {
 
 export default function EmployeeDashboard() {
   const [userId, setUserId] = useState<string | null>(null);
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [selectedItp, setSelectedItp] = useState<ITPWithDetails | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
-      const currentUserId = data.user?.id || null;
-
-      setUserId(currentUserId);
-
-      if (!currentUserId) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", currentUserId)
-        .maybeSingle();
-
-      setBusinessId(profile?.business_id || null);
+      setUserId(data.user?.id || null);
     };
-
     loadUser();
   }, []);
 
@@ -97,30 +81,69 @@ export default function EmployeeDashboard() {
     enabled: !!userId,
   });
 
-  const { data: colleagues = [], isLoading: isContactsLoading } = useQuery({
-    queryKey: ["colleagues", businessId],
+  // Fetch upcoming pours for this user
+  const { data: upcomingPours = [] } = useQuery({
+    queryKey: ["my-upcoming-pours", userId],
     queryFn: async () => {
-      if (!businessId) return [];
-
+      if (!userId) return [];
+      
+      const today = format(new Date(), "yyyy-MM-dd");
+      
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, phone, position")
-        .eq("business_id", businessId)
-        .order("full_name");
+        .from("pour_employees")
+        .select(`
+          pour_id,
+          job_pours!inner (
+            id,
+            pour_name,
+            pour_date,
+            scheduled_time,
+            visit_type,
+            jobs!inner (name, site_address)
+          )
+        `)
+        .eq("employee_id", userId)
+        .gte("job_pours.pour_date", today)
+        .order("job_pours(pour_date)", { ascending: true })
+        .limit(5);
 
       if (error) throw error;
-      return data as Tables<"profiles">[];
+      return (data || []).map((item: any) => ({
+        id: item.job_pours.id,
+        pour_name: item.job_pours.pour_name,
+        pour_date: item.job_pours.pour_date,
+        scheduled_time: item.job_pours.scheduled_time,
+        visit_type: item.job_pours.visit_type,
+        job_name: item.job_pours.jobs.name,
+        site_address: item.job_pours.jobs.site_address,
+      }));
     },
-    enabled: !!businessId,
+    enabled: !!userId,
   });
 
-  const colleaguesToShow = colleagues.filter((colleague) => colleague.id !== userId);
+  // Fetch expiring tickets
+  const { data: expiringTickets = [] } = useQuery({
+    queryKey: ["my-expiring-tickets", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      
+      const { data, error } = await supabase
+        .from("employee_tickets")
+        .select("*")
+        .eq("employee_id", userId)
+        .not("expiry_date", "is", null)
+        .order("expiry_date", { ascending: true });
 
-  const getInitials = (name: string) => {
-    const [first, second] = name.split(" ");
-    if (first && second) return `${first[0]}${second[0]}`.toUpperCase();
-    return (first?.[0] || "").toUpperCase();
-  };
+      if (error) throw error;
+      
+      // Filter to only show tickets expiring in next 90 days or already expired
+      return (data || []).filter((ticket) => {
+        const days = differenceInDays(new Date(ticket.expiry_date!), new Date());
+        return days <= 90;
+      });
+    },
+    enabled: !!userId,
+  });
 
   const visitTypeLabels: Record<string, string> = {
     pour: "Pour",
@@ -132,166 +155,165 @@ export default function EmployeeDashboard() {
     other: "Other",
   };
 
+  const getDateLabel = (dateStr: string) => {
+    const date = new Date(dateStr);
+    if (isToday(date)) return "Today";
+    if (isTomorrow(date)) return "Tomorrow";
+    return format(date, "EEE, d MMM");
+  };
+
   return (
     <EmployeeLayout>
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">My Dashboard</h1>
+      <div className="space-y-6 pb-20">
+        <h1 className="text-xl font-bold">My Dashboard</h1>
 
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 md:w-auto">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="contacts">Contacts</TabsTrigger>
-          </TabsList>
+        {/* Expiring Tickets Alert */}
+        {expiringTickets.length > 0 && (
+          <Card className="border-yellow-500/50 bg-yellow-500/10">
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium text-yellow-600">Tickets Expiring Soon</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {expiringTickets.map((t) => t.ticket_type).join(", ")} - check your profile to update
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-          <TabsContent value="overview" className="space-y-6">
-            {/* Assigned ITPs */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <ClipboardList className="w-5 h-5" />
-                  My Assigned ITPs
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                  <p className="text-muted-foreground">Loading...</p>
-                ) : assignedItps.length === 0 ? (
-                  <p className="text-muted-foreground">No ITPs assigned to you.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {assignedItps.map((itp) => (
-                      <Card
-                        key={itp.id}
-                        className="cursor-pointer hover:border-primary/50 transition-colors"
-                        onClick={() => setSelectedItp(itp)}
-                      >
-                        <CardContent className="p-4">
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3">
-                              {itp.status === "in_progress" ? (
-                                <Clock className="w-5 h-5 text-blue-500 mt-0.5" />
-                              ) : (
-                                <ClipboardList className="w-5 h-5 text-muted-foreground mt-0.5" />
-                              )}
-                              <div>
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="font-medium">{itp.name}</span>
-                                  <Badge variant="outline" className={statusColors[itp.status || "pending"]}>
-                                    {itp.status === "in_progress" ? "In Progress" : "Pending"}
-                                  </Badge>
-                                </div>
-                                {itp.job && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {itp.job.job_number} - {itp.job.name}
-                                  </p>
-                                )}
-                                {itp.pour && (
-                                  <p className="text-sm text-muted-foreground">
-                                    {itp.pour.pour_name} • {visitTypeLabels[itp.pour.visit_type || "pour"]}
-                                    {itp.pour.pour_date && ` • ${format(new Date(itp.pour.pour_date), "d MMM")}`}
-                                  </p>
-                                )}
-                                {itp.job?.site_address && (
-                                  <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
-                                    <MapPin className="w-3 h-3" />
-                                    {itp.job.site_address}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+        {/* Upcoming Work */}
+        {upcomingPours.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Calendar className="w-5 h-5" />
+                Upcoming Work
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                {upcomingPours.map((pour: any) => (
+                  <div
+                    key={pour.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{pour.pour_name}</p>
+                      <p className="text-xs text-muted-foreground">{pour.job_name}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-medium">{getDateLabel(pour.pour_date)}</p>
+                      {pour.scheduled_time && (
+                        <p className="text-xs text-muted-foreground">{pour.scheduled_time}</p>
+                      )}
+                    </div>
                   </div>
-                )}
-              </CardContent>
-            </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-            {/* Recently Completed */}
-            {completedItps.length > 0 && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <FileCheck className="w-5 h-5" />
-                    Recently Completed
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    {completedItps.map((itp) => (
-                      <div
-                        key={itp.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                      >
-                        <div>
-                          <p className="font-medium text-sm">{itp.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {itp.job?.job_number} - {itp.job?.name}
-                          </p>
-                        </div>
-                        {itp.completed_at && (
-                          <p className="text-xs text-muted-foreground">
-                            {format(new Date(itp.completed_at), "d MMM")}
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </TabsContent>
-
-          <TabsContent value="contacts">
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Phone className="w-5 h-5" />
-                  Team Contacts
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isContactsLoading ? (
-                  <p className="text-muted-foreground">Loading contacts...</p>
-                ) : colleaguesToShow.length === 0 ? (
-                  <p className="text-muted-foreground">No colleagues found.</p>
-                ) : (
-                  <div className="space-y-3">
-                    {colleaguesToShow.map((colleague) => (
-                      <div
-                        key={colleague.id}
-                        className="flex items-center justify-between gap-3 p-3 rounded-lg border bg-muted/50"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <Avatar className="h-10 w-10">
-                            <AvatarFallback>{getInitials(colleague.full_name)}</AvatarFallback>
-                          </Avatar>
+        {/* Assigned ITPs */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ClipboardList className="w-5 h-5" />
+              My Assigned ITPs
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {isLoading ? (
+              <p className="text-muted-foreground">Loading...</p>
+            ) : assignedItps.length === 0 ? (
+              <p className="text-muted-foreground text-sm">No ITPs assigned to you.</p>
+            ) : (
+              <div className="space-y-3">
+                {assignedItps.map((itp) => (
+                  <Card
+                    key={itp.id}
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => setSelectedItp(itp)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-start gap-3">
+                          {itp.status === "in_progress" ? (
+                            <Clock className="w-5 h-5 text-blue-500 mt-0.5" />
+                          ) : (
+                            <ClipboardList className="w-5 h-5 text-muted-foreground mt-0.5" />
+                          )}
                           <div>
-                            <p className="font-medium truncate">{colleague.full_name}</p>
-                            {colleague.position && (
-                              <p className="text-xs text-muted-foreground truncate">{colleague.position}</p>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="font-medium">{itp.name}</span>
+                              <Badge variant="outline" className={statusColors[itp.status || "pending"]}>
+                                {itp.status === "in_progress" ? "In Progress" : "Pending"}
+                              </Badge>
+                            </div>
+                            {itp.job && (
+                              <p className="text-sm text-muted-foreground">
+                                {itp.job.job_number} - {itp.job.name}
+                              </p>
+                            )}
+                            {itp.pour && (
+                              <p className="text-sm text-muted-foreground">
+                                {itp.pour.pour_name} • {visitTypeLabels[itp.pour.visit_type || "pour"]}
+                                {itp.pour.pour_date && ` • ${format(new Date(itp.pour.pour_date), "d MMM")}`}
+                              </p>
+                            )}
+                            {itp.job?.site_address && (
+                              <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                                <MapPin className="w-3 h-3" />
+                                {itp.job.site_address}
+                              </p>
                             )}
                           </div>
                         </div>
-                        <div className="shrink-0 text-right">
-                          {colleague.phone ? (
-                            <span className="flex items-center gap-2 text-sm font-medium">
-                              <Phone className="w-4 h-4 text-muted-foreground" />
-                              {colleague.phone}
-                            </span>
-                          ) : (
-                            <span className="text-xs text-muted-foreground">No phone listed</span>
-                          )}
-                        </div>
                       </div>
-                    ))}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recently Completed */}
+        {completedItps.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <FileCheck className="w-5 h-5" />
+                Recently Completed
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-2">
+                {completedItps.map((itp) => (
+                  <div
+                    key={itp.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
+                  >
+                    <div>
+                      <p className="font-medium text-sm">{itp.name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {itp.job?.job_number} - {itp.job?.name}
+                      </p>
+                    </div>
+                    {itp.completed_at && (
+                      <p className="text-xs text-muted-foreground">
+                        {format(new Date(itp.completed_at), "d MMM")}
+                      </p>
+                    )}
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* ITP Detail Sheet */}

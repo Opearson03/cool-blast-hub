@@ -18,6 +18,7 @@ import AdminEquipment from "./pages/admin/AdminEquipment";
 import AdminSettings from "./pages/admin/AdminSettings";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeSchedule from "./pages/employee/EmployeeSchedule";
+import EmployeeContacts from "./pages/employee/EmployeeContacts";
 import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
@@ -47,9 +48,10 @@ const App = () => (
           <Route path="/admin/equipment" element={<ProtectedRoute allowedRole="admin"><AdminEquipment /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute allowedRole="admin"><AdminSettings /></ProtectedRoute>} />
           
-          {/* Employee Routes */}
+{/* Employee Routes */}
           <Route path="/employee" element={<ProtectedRoute allowedRole="staff"><EmployeeDashboard /></ProtectedRoute>} />
           <Route path="/employee/schedule" element={<ProtectedRoute allowedRole="staff"><EmployeeSchedule /></ProtectedRoute>} />
+          <Route path="/employee/contacts" element={<ProtectedRoute allowedRole="staff"><EmployeeContacts /></ProtectedRoute>} />
           <Route path="/employee/profile" element={<ProtectedRoute allowedRole="staff"><EmployeeProfile /></ProtectedRoute>} />
           
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
