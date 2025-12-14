@@ -262,34 +262,42 @@ export function TestResultFormDialog({
               />
             </div>
 
-            {pours.length > 0 && (
-              <FormField
-                control={form.control}
-                name="pour_id"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Assign to Pour</FormLabel>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a pour (optional)" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="">No specific pour</SelectItem>
-                        {pours.map((pour) => (
-                          <SelectItem key={pour.id} value={pour.id}>
-                            {pour.pour_name}
-                            {pour.pour_date && ` (${pour.pour_date})`}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
+            <FormField
+              control={form.control}
+              name="pour_id"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Assign to Pour</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    disabled={pours.length === 0}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue
+                          placeholder={
+                            pours.length > 0
+                              ? "Select a pour (optional)"
+                              : "No pours available for this job"
+                          }
+                        />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="">No specific pour</SelectItem>
+                      {pours.map((pour) => (
+                        <SelectItem key={pour.id} value={pour.id}>
+                          {pour.pour_name}
+                          {pour.pour_date && ` (${pour.pour_date})`}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <div className="grid grid-cols-2 gap-4">
               <FormField
