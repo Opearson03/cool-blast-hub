@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Camera, Check, X, Loader2, Trash2 } from "lucide-react";
+import { Camera, Check, X, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { SignaturePad } from "./SignaturePad";
@@ -53,16 +53,13 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
   const [showSupervisorSignature, setShowSupervisorSignature] = useState(false);
 
   // Initialize checklist data when ITP changes
-  useState(() => {
+  useEffect(() => {
     if (itp?.checklist_data) {
       setChecklistData(itp.checklist_data as unknown as ChecklistItem[]);
+    } else {
+      setChecklistData([]);
     }
-  });
-
-  // Update local state when itp changes
-  if (itp && JSON.stringify(itp.checklist_data) !== JSON.stringify(checklistData) && checklistData.length === 0) {
-    setChecklistData(itp.checklist_data as unknown as ChecklistItem[]);
-  }
+  }, [itp?.id, itp?.checklist_data]);
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<JobITP>) => {
