@@ -95,11 +95,31 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob }: JobFormDia
   const mutation = useMutation({
     mutationFn: async (data: JobFormData) => {
       const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("Not authenticated");
+
+      // First try to get business_id from profile (for employees)
       const { data: profile } = await supabase
         .from("profiles")
         .select("business_id")
-        .eq("id", userData.user?.id)
-        .single();
+        .eq("id", userData.user.id)
+        .maybeSingle();
+
+      let businessId = profile?.business_id;
+
+      // If no business_id in profile, check if user owns a business (for admins)
+      if (!businessId) {
+        const { data: ownedBusiness } = await supabase
+          .from("businesses")
+          .select("id")
+          .eq("owner_id", userData.user.id)
+          .maybeSingle();
+        
+        businessId = ownedBusiness?.id;
+      }
+
+      if (!businessId) {
+        throw new Error("No business found. Please set up your business in Settings first.");
+      }
 
       const jobData = {
         name: data.name,
@@ -116,8 +136,8 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob }: JobFormDia
         finish_type: data.finish_type || null,
         crew_id: data.crew_id || null,
         job_notes: data.job_notes || null,
-        business_id: profile?.business_id,
-        created_by: userData.user?.id,
+        business_id: businessId,
+        created_by: userData.user.id,
       };
 
       if (editJob) {
