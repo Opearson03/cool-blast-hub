@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, Image } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Business = Tables<"businesses">;
@@ -20,8 +20,11 @@ export default function AdminSettings() {
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [newSupplier, setNewSupplier] = useState("");
   const [suppliers, setSuppliers] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -65,9 +68,57 @@ export default function AdminSettings() {
       setAddress(business.address || "");
       setPhone(business.phone || "");
       setEmail(business.email || "");
+      setLogoUrl(business.logo_url || null);
       setSuppliers((business.preferred_suppliers as string[]) || []);
     }
   }, [business]);
+
+  const handleLogoUpload = async (file: File) => {
+    if (!business) {
+      toast({ title: "Please save business details first", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const fileExt = file.name.split(".").pop();
+      const filePath = `${business.id}/logo.${fileExt}`;
+
+      // Delete old logo if exists
+      if (logoUrl) {
+        const oldPath = logoUrl.split("/").pop();
+        if (oldPath) {
+          await supabase.storage.from("business-logos").remove([`${business.id}/${oldPath}`]);
+        }
+      }
+
+      const { error: uploadError } = await supabase.storage
+        .from("business-logos")
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      const { data: urlData } = supabase.storage
+        .from("business-logos")
+        .getPublicUrl(filePath);
+
+      const newLogoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+      setLogoUrl(newLogoUrl);
+
+      // Update business record
+      await supabase
+        .from("businesses")
+        .update({ logo_url: newLogoUrl })
+        .eq("id", business.id);
+
+      queryClient.invalidateQueries({ queryKey: ["business"] });
+      toast({ title: "Logo uploaded successfully" });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const updateMutation = useMutation({
     mutationFn: async () => {
@@ -162,6 +213,65 @@ export default function AdminSettings() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Business Logo */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Image className="w-5 h-5" />
+                Business Logo
+              </CardTitle>
+              <CardDescription>
+                Your logo will appear on ITPs, SWMS, and other documents
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center gap-4">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Business logo"
+                    className="h-20 w-20 object-contain border rounded-lg bg-white"
+                  />
+                ) : (
+                  <div className="h-20 w-20 border rounded-lg bg-muted flex items-center justify-center">
+                    <Building2 className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                )}
+                <div>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleLogoUpload(file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading || !business}
+                    className="touch-target"
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2" />
+                    )}
+                    {logoUrl ? "Change Logo" : "Upload Logo"}
+                  </Button>
+                  {!business && (
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Save business details first to upload logo
+                    </p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Business Details */}
           <Card>
             <CardHeader>

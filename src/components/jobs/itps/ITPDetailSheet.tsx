@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
@@ -15,10 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Camera, Check, X, Loader2 } from "lucide-react";
+import { Camera, Check, X, Loader2, Printer } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { SignaturePad } from "./SignaturePad";
+import { PrintableITP } from "../documents/PrintableITP";
 
 type JobITP = Tables<"job_itps">;
 
@@ -47,10 +48,12 @@ const statusColors: Record<string, string> = {
 export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailSheetProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const printRef = useRef<HTMLDivElement>(null);
   const [checklistData, setChecklistData] = useState<ChecklistItem[]>([]);
   const [uploadingItemId, setUploadingItemId] = useState<number | null>(null);
   const [showEmployeeSignature, setShowEmployeeSignature] = useState(false);
   const [showSupervisorSignature, setShowSupervisorSignature] = useState(false);
+  const [showPrintView, setShowPrintView] = useState(false);
 
   // Initialize checklist data when ITP changes
   useEffect(() => {
@@ -60,6 +63,37 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
       setChecklistData([]);
     }
   }, [itp?.id, itp?.checklist_data]);
+
+  // Fetch job details for print
+  const { data: job } = useQuery({
+    queryKey: ["job-for-print", jobId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("name, site_address, business_id")
+        .eq("id", jobId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!jobId,
+  });
+
+  // Fetch business details for print
+  const { data: business } = useQuery({
+    queryKey: ["business-for-print", job?.business_id],
+    queryFn: async () => {
+      if (!job?.business_id) return null;
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("name, logo_url, address, phone, abn")
+        .eq("id", job.business_id)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!job?.business_id,
+  });
 
   const updateMutation = useMutation({
     mutationFn: async (updates: Partial<JobITP>) => {
@@ -197,6 +231,14 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
     toast.success(`${type === "employee" ? "Employee" : "Supervisor"} signature saved`);
   };
 
+  const handlePrint = () => {
+    setShowPrintView(true);
+    setTimeout(() => {
+      window.print();
+      setShowPrintView(false);
+    }, 100);
+  };
+
   if (!itp) return null;
 
   const completedCount = checklistData.filter((item) => item.checked).length;
@@ -204,192 +246,231 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader>
-          <div className="flex items-center justify-between">
-            <SheetTitle>{itp.name}</SheetTitle>
-            <Badge variant="outline" className={statusColors[itp.status || "pending"]}>
-              {itp.status === "completed" ? "Completed" : itp.status === "in_progress" ? "In Progress" : "Pending"}
-            </Badge>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            {completedCount}/{totalCount} items complete ({progress}%)
-          </div>
-        </SheetHeader>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <div className="flex items-center justify-between">
+              <SheetTitle>{itp.name}</SheetTitle>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={handlePrint}>
+                  <Printer className="w-4 h-4 mr-2" />
+                  Print
+                </Button>
+                <Badge variant="outline" className={statusColors[itp.status || "pending"]}>
+                  {itp.status === "completed" ? "Completed" : itp.status === "in_progress" ? "In Progress" : "Pending"}
+                </Badge>
+              </div>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              {completedCount}/{totalCount} items complete ({progress}%)
+            </div>
+          </SheetHeader>
 
-        <div className="mt-6 space-y-4">
-          {/* Checklist Items */}
-          {checklistData.map((item) => (
-            <Card key={item.id} className={item.checked ? "border-green-500/30 bg-green-500/5" : ""}>
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-start gap-3">
-                  <Checkbox
-                    checked={item.checked}
-                    onCheckedChange={(checked) => handleCheckChange(item.id, !!checked)}
-                    className="mt-0.5"
+          <div className="mt-6 space-y-4">
+            {/* Checklist Items */}
+            {checklistData.map((item) => (
+              <Card key={item.id} className={item.checked ? "border-green-500/30 bg-green-500/5" : ""}>
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      checked={item.checked}
+                      onCheckedChange={(checked) => handleCheckChange(item.id, !!checked)}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1">
+                      <Label className="font-normal cursor-pointer">
+                        {item.item}
+                        {item.required && <span className="text-destructive ml-1">*</span>}
+                      </Label>
+                    </div>
+                    {item.checked && <Check className="w-4 h-4 text-green-500" />}
+                  </div>
+
+                  {/* Comment */}
+                  <Textarea
+                    placeholder="Add comment..."
+                    value={item.comment}
+                    onChange={(e) => handleCommentChange(item.id, e.target.value)}
+                    onBlur={handleCommentBlur}
+                    className="text-sm min-h-[60px]"
                   />
-                  <div className="flex-1">
-                    <Label className="font-normal cursor-pointer">
-                      {item.item}
-                      {item.required && <span className="text-destructive ml-1">*</span>}
-                    </Label>
-                  </div>
-                  {item.checked && <Check className="w-4 h-4 text-green-500" />}
-                </div>
 
-                {/* Comment */}
-                <Textarea
-                  placeholder="Add comment..."
-                  value={item.comment}
-                  onChange={(e) => handleCommentChange(item.id, e.target.value)}
-                  onBlur={handleCommentBlur}
-                  className="text-sm min-h-[60px]"
-                />
-
-                {/* Photo */}
-                <div className="flex items-center gap-2">
-                  {item.photo_url ? (
-                    <div className="relative">
-                      <img
-                        src={item.photo_url}
-                        alt="Checklist item photo"
-                        className="h-20 w-20 object-cover rounded-md border"
-                      />
+                  {/* Photo */}
+                  <div className="flex items-center gap-2">
+                    {item.photo_url ? (
+                      <div className="relative">
+                        <img
+                          src={item.photo_url}
+                          alt="Checklist item photo"
+                          className="h-20 w-20 object-cover rounded-md border"
+                        />
+                        <Button
+                          size="icon"
+                          variant="destructive"
+                          className="absolute -top-2 -right-2 h-6 w-6"
+                          onClick={() => handleRemovePhoto(item.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ) : (
                       <Button
-                        size="icon"
-                        variant="destructive"
-                        className="absolute -top-2 -right-2 h-6 w-6"
-                        onClick={() => handleRemovePhoto(item.id)}
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingItemId === item.id}
+                        onClick={() => {
+                          const input = document.createElement("input");
+                          input.type = "file";
+                          input.accept = "image/*";
+                          input.capture = "environment";
+                          input.onchange = (e) => {
+                            const file = (e.target as HTMLInputElement).files?.[0];
+                            if (file) handlePhotoUpload(item.id, file);
+                          };
+                          input.click();
+                        }}
                       >
-                        <X className="w-3 h-3" />
+                        {uploadingItemId === item.id ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Camera className="w-4 h-4 mr-2" />
+                        )}
+                        Add Photo
                       </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={uploadingItemId === item.id}
-                      onClick={() => {
-                        const input = document.createElement("input");
-                        input.type = "file";
-                        input.accept = "image/*";
-                        input.capture = "environment";
-                        input.onchange = (e) => {
-                          const file = (e.target as HTMLInputElement).files?.[0];
-                          if (file) handlePhotoUpload(item.id, file);
-                        };
-                        input.click();
-                      }}
-                    >
-                      {uploadingItemId === item.id ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Camera className="w-4 h-4 mr-2" />
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+
+            <Separator className="my-6" />
+
+            {/* Signatures Section */}
+            <div className="space-y-4">
+              <h3 className="font-semibold">Digital Signatures</h3>
+
+              {/* Employee Signature */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Employee Signature</p>
+                      {itp.employee_signed_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Signed: {format(new Date(itp.employee_signed_at), "d MMM yyyy, HH:mm")}
+                        </p>
                       )}
-                      Add Photo
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-
-          <Separator className="my-6" />
-
-          {/* Signatures Section */}
-          <div className="space-y-4">
-            <h3 className="font-semibold">Digital Signatures</h3>
-
-            {/* Employee Signature */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Employee Signature</p>
-                    {itp.employee_signed_at && (
-                      <p className="text-xs text-muted-foreground">
-                        Signed: {format(new Date(itp.employee_signed_at), "d MMM yyyy, HH:mm")}
-                      </p>
+                    </div>
+                    {itp.employee_signature ? (
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={itp.employee_signature}
+                          alt="Employee signature"
+                          className="h-12 border rounded"
+                        />
+                        <Check className="w-5 h-5 text-green-500" />
+                      </div>
+                    ) : (
+                      <Button size="sm" onClick={() => setShowEmployeeSignature(true)}>
+                        Sign
+                      </Button>
                     )}
                   </div>
-                  {itp.employee_signature ? (
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={itp.employee_signature}
-                        alt="Employee signature"
-                        className="h-12 border rounded"
+                  {showEmployeeSignature && (
+                    <div className="mt-4">
+                      <SignaturePad
+                        onSave={(data) => handleSignature("employee", data)}
+                        onCancel={() => setShowEmployeeSignature(false)}
                       />
-                      <Check className="w-5 h-5 text-green-500" />
                     </div>
-                  ) : (
-                    <Button size="sm" onClick={() => setShowEmployeeSignature(true)}>
-                      Sign
-                    </Button>
                   )}
-                </div>
-                {showEmployeeSignature && (
-                  <div className="mt-4">
-                    <SignaturePad
-                      onSave={(data) => handleSignature("employee", data)}
-                      onCancel={() => setShowEmployeeSignature(false)}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            {/* Supervisor Signature */}
-            <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium">Supervisor Signature</p>
-                    {itp.supervisor_signed_at && (
-                      <p className="text-xs text-muted-foreground">
-                        Signed: {format(new Date(itp.supervisor_signed_at), "d MMM yyyy, HH:mm")}
-                      </p>
+              {/* Supervisor Signature */}
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">Supervisor Signature</p>
+                      {itp.supervisor_signed_at && (
+                        <p className="text-xs text-muted-foreground">
+                          Signed: {format(new Date(itp.supervisor_signed_at), "d MMM yyyy, HH:mm")}
+                        </p>
+                      )}
+                    </div>
+                    {itp.supervisor_signature ? (
+                      <div className="flex items-center gap-2">
+                        <img
+                          src={itp.supervisor_signature}
+                          alt="Supervisor signature"
+                          className="h-12 border rounded"
+                        />
+                        <Check className="w-5 h-5 text-green-500" />
+                      </div>
+                    ) : (
+                      <Button size="sm" onClick={() => setShowSupervisorSignature(true)}>
+                        Sign
+                      </Button>
                     )}
                   </div>
-                  {itp.supervisor_signature ? (
-                    <div className="flex items-center gap-2">
-                      <img
-                        src={itp.supervisor_signature}
-                        alt="Supervisor signature"
-                        className="h-12 border rounded"
+                  {showSupervisorSignature && (
+                    <div className="mt-4">
+                      <SignaturePad
+                        onSave={(data) => handleSignature("supervisor", data)}
+                        onCancel={() => setShowSupervisorSignature(false)}
                       />
-                      <Check className="w-5 h-5 text-green-500" />
                     </div>
-                  ) : (
-                    <Button size="sm" onClick={() => setShowSupervisorSignature(true)}>
-                      Sign
-                    </Button>
                   )}
-                </div>
-                {showSupervisorSignature && (
-                  <div className="mt-4">
-                    <SignaturePad
-                      onSave={(data) => handleSignature("supervisor", data)}
-                      onCancel={() => setShowSupervisorSignature(false)}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Notes */}
-          <div className="space-y-2">
-            <Label>Additional Notes</Label>
-            <Textarea
-              placeholder="Add any additional notes..."
-              defaultValue={itp.notes || ""}
-              onBlur={(e) => updateMutation.mutate({ notes: e.target.value })}
-              className="min-h-[80px]"
-            />
+            {/* Notes */}
+            <div className="space-y-2">
+              <Label>Additional Notes</Label>
+              <Textarea
+                placeholder="Add any additional notes..."
+                defaultValue={itp.notes || ""}
+                onBlur={(e) => updateMutation.mutate({ notes: e.target.value })}
+                className="min-h-[80px]"
+              />
+            </div>
           </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Print View */}
+      {showPrintView && itp && (
+        <div className="fixed inset-0 bg-white z-[100] overflow-auto print:static">
+          <PrintableITP
+            ref={printRef}
+            itp={itp}
+            jobName={job?.name || ""}
+            jobAddress={job?.site_address || ""}
+            business={business || null}
+          />
         </div>
-      </SheetContent>
-    </Sheet>
+      )}
+
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          .fixed.inset-0.bg-white {
+            display: block !important;
+            visibility: visible !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+          }
+          .fixed.inset-0.bg-white * {
+            visibility: visible !important;
+          }
+        }
+      `}</style>
+    </>
   );
 }
