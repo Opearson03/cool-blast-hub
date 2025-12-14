@@ -90,16 +90,40 @@ export default function AdminEquipment() {
     queryKey: ["equipment"],
     queryFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
+      const userId = userData.user?.id;
+
+      if (!userId) {
+        throw new Error("You must be logged in to view equipment");
+      }
+
+      // Try to resolve business from profile first (staff users)
       const { data: profile } = await supabase
         .from("profiles")
         .select("business_id")
-        .eq("id", userData.user?.id)
-        .single();
+        .eq("id", userId)
+        .maybeSingle();
+
+      let businessId = profile?.business_id as string | null | undefined;
+
+      // If no profile business found, fall back to business where user is the owner (admin users)
+      if (!businessId) {
+        const { data: business } = await supabase
+          .from("businesses")
+          .select("id")
+          .eq("owner_id", userId)
+          .maybeSingle();
+
+        businessId = business?.id;
+      }
+
+      if (!businessId) {
+        throw new Error("Could not find your business record. Please contact support.");
+      }
 
       const { data, error } = await supabase
         .from("equipment")
         .select("*")
-        .eq("business_id", profile?.business_id)
+        .eq("business_id", businessId)
         .order("name");
 
       if (error) throw error;
