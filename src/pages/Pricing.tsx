@@ -73,7 +73,7 @@ const Pricing = () => {
             </span>
           </Link>
           <Link to="/auth">
-            <Button variant="outline" className="touch-target border-muted-foreground/50 text-primary-foreground hover:bg-primary-foreground/10">
+            <Button variant="outline" className="touch-target border-primary-foreground/50 text-primary-foreground bg-primary-foreground/10 hover:bg-primary-foreground/20">
               Sign In
             </Button>
           </Link>
@@ -160,15 +160,15 @@ const Pricing = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
             <div>
               <div className="text-4xl font-bold text-primary mb-2">$79</div>
-              <p className="text-muted-foreground">Less than one hour of labour per month</p>
+              <p className="text-foreground/80">Less than one hour of labour per month</p>
             </div>
             <div>
               <div className="text-4xl font-bold text-primary mb-2">100%</div>
-              <p className="text-muted-foreground">Digital compliance documentation</p>
+              <p className="text-foreground/80">Digital compliance documentation</p>
             </div>
             <div>
               <div className="text-4xl font-bold text-primary mb-2">0</div>
-              <p className="text-muted-foreground">Missed test results or expired tickets</p>
+              <p className="text-foreground/80">Missed test results or expired tickets</p>
             </div>
           </div>
         </div>
