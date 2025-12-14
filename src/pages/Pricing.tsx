@@ -136,7 +136,7 @@ const Pricing = () => {
                       </li>
                     ))}
                   </ul>
-                  <Link to="/auth" className="mt-6">
+                  <Link to={`/signup?plan=${tier.name.toLowerCase()}`} className="mt-6">
                     <Button
                       className="w-full touch-target"
                       variant={tier.highlight ? "default" : "outline"}
@@ -218,9 +218,9 @@ const Pricing = () => {
             Sign up today and get your business organized in minutes.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/auth">
+            <Link to="/signup?plan=starter">
               <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">
-                Create Your Account
+                Get Started Now
                 <ArrowRight className="ml-2 w-5 h-5" />
               </Button>
             </Link>

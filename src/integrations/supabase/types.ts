@@ -14,6 +14,53 @@ export type Database = {
   }
   public: {
     Tables: {
+      business_subscriptions: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          current_period_end: string | null
+          employee_limit: number | null
+          id: string
+          plan_tier: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          current_period_end?: string | null
+          employee_limit?: number | null
+          id?: string
+          plan_tier?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          current_period_end?: string | null
+          employee_limit?: number | null
+          id?: string
+          plan_tier?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "business_subscriptions_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: true
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       businesses: {
         Row: {
           abn: string | null
@@ -23,6 +70,8 @@ export type Database = {
           id: string
           logo_url: string | null
           name: string
+          onboarding_completed: boolean | null
+          onboarding_step: number | null
           owner_id: string
           phone: string | null
           preferred_suppliers: Json | null
@@ -36,6 +85,8 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name: string
+          onboarding_completed?: boolean | null
+          onboarding_step?: number | null
           owner_id: string
           phone?: string | null
           preferred_suppliers?: Json | null
@@ -49,6 +100,8 @@ export type Database = {
           id?: string
           logo_url?: string | null
           name?: string
+          onboarding_completed?: boolean | null
+          onboarding_step?: number | null
           owner_id?: string
           phone?: string | null
           preferred_suppliers?: Json | null
