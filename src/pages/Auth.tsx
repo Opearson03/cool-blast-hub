@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, HardHat, ArrowLeft, Building2, UserPlus } from "lucide-react";
+import { Loader2, ArrowLeft, Building2, UserPlus } from "lucide-react";
+import { Logo } from "@/components/ui/Logo";
 
 type AuthMode = "login" | "employee_signup" | "business_signup";
 
@@ -185,8 +186,8 @@ export default function Auth() {
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
-                <HardHat className="w-6 h-6 text-primary-foreground" />
+              <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center p-1.5">
+                <Logo className="w-full h-full" />
               </div>
               <span className="text-2xl font-bold">
                 Pour<span className="text-primary">Hub</span>
