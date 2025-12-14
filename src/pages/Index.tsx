@@ -2,8 +2,6 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { HardHat, Users, Calendar, ClipboardCheck, Truck, CheckCircle, ArrowRight } from "lucide-react";
 import heroPourBackground from "@/assets/hero-pour-background.png";
-import concreteFinishing from "@/assets/concrete-finishing.jpg";
-import concreteFormwork from "@/assets/concrete-formwork.jpg";
 
 const Index = () => {
   return (
@@ -98,44 +96,6 @@ const Index = () => {
         </div>
       </div>
 
-      {/* Image Gallery Section */}
-      <div className="bg-charcoal py-20 px-4">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl sm:text-4xl font-bold text-center mb-4">
-            From <span className="text-primary">Site to Office</span>
-          </h2>
-          <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
-            Whether you're pouring slabs, finishing floors, or managing paperwork — PourHub keeps everything organized.
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="relative overflow-hidden rounded-xl aspect-[4/3]">
-              <img 
-                src={concreteFinishing} 
-                alt="Concrete crew finishing a polished floor" 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/80 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <h3 className="text-xl font-semibold text-primary-foreground">Professional Finishing</h3>
-                <p className="text-muted-foreground text-sm">Track every pour from placement to polish</p>
-              </div>
-            </div>
-            <div className="relative overflow-hidden rounded-xl aspect-[4/3]">
-              <img 
-                src={concreteFormwork} 
-                alt="Steel reinforcement and formwork" 
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/80 to-transparent" />
-              <div className="absolute bottom-4 left-4 right-4">
-                <h3 className="text-xl font-semibold text-primary-foreground">Inspection Ready</h3>
-                <p className="text-muted-foreground text-sm">Digital ITPs keep your compliance on point</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
       {/* CTA Section */}
       <div className="bg-primary py-16 px-4">
