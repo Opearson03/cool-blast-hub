@@ -154,12 +154,12 @@ export function ITPFormDialog({ open, onOpenChange, jobId }: ITPFormDialogProps)
           {/* Site Visit (Pour) Selection */}
           <div className="space-y-2">
             <Label>Associate with Site Visit (optional)</Label>
-            <Select value={selectedPourId} onValueChange={setSelectedPourId}>
+            <Select value={selectedPourId || "none"} onValueChange={(val) => setSelectedPourId(val === "none" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a site visit..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">No specific visit</SelectItem>
+                <SelectItem value="none">No specific visit</SelectItem>
                 {pours.map((pour) => (
                   <SelectItem key={pour.id} value={pour.id}>
                     {pour.pour_name} - {visitTypeLabels[pour.visit_type || "pour"]}
@@ -173,12 +173,12 @@ export function ITPFormDialog({ open, onOpenChange, jobId }: ITPFormDialogProps)
           {/* Assign To Employee */}
           <div className="space-y-2">
             <Label>Assign To</Label>
-            <Select value={assignedTo} onValueChange={setAssignedTo}>
+            <Select value={assignedTo || "none"} onValueChange={(val) => setAssignedTo(val === "none" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select employee..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Unassigned</SelectItem>
+                <SelectItem value="none">Unassigned</SelectItem>
                 {employees.map((emp) => (
                   <SelectItem key={emp.id} value={emp.id}>
                     {emp.full_name}
