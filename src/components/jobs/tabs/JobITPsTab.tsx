@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -6,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ClipboardList, Plus, FileCheck, Clock } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
+import { ITPFormDialog } from "../itps/ITPFormDialog";
+import { ITPDetailSheet } from "../itps/ITPDetailSheet";
 
 type JobITP = Tables<"job_itps">;
 
@@ -28,6 +31,9 @@ const itpTypeLabels: Record<string, string> = {
 };
 
 export function JobITPsTab({ jobId }: JobITPsTabProps) {
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [selectedItp, setSelectedItp] = useState<JobITP | null>(null);
+
   const { data: itps = [], isLoading } = useQuery({
     queryKey: ["job-itps", jobId],
     queryFn: async () => {
@@ -49,65 +55,92 @@ export function JobITPsTab({ jobId }: JobITPsTabProps) {
 
   if (itps.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">No ITPs Yet</h3>
-          <p className="text-muted-foreground mb-4">
-            Add inspection and test plans for this job
-          </p>
-          <Button>
-            <Plus className="w-4 h-4 mr-2" />
-            Add ITP
-          </Button>
-        </CardContent>
-      </Card>
+      <>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <ClipboardList className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="font-semibold mb-2">No ITPs Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Add inspection and test plans for this job
+            </p>
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add ITP
+            </Button>
+          </CardContent>
+        </Card>
+        <ITPFormDialog open={isFormOpen} onOpenChange={setIsFormOpen} jobId={jobId} />
+      </>
     );
   }
 
+  const getProgress = (itp: JobITP) => {
+    const checklist = itp.checklist_data as unknown as Array<{ checked: boolean }>;
+    if (!checklist || checklist.length === 0) return 0;
+    const completed = checklist.filter((item) => item.checked).length;
+    return Math.round((completed / checklist.length) * 100);
+  };
+
   return (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="font-semibold">Inspection & Test Plans</h3>
-        <Button size="sm">
-          <Plus className="w-4 h-4 mr-2" />
-          Add ITP
-        </Button>
+    <>
+      <div className="space-y-4">
+        <div className="flex justify-between items-center">
+          <h3 className="font-semibold">Inspection & Test Plans</h3>
+          <Button size="sm" onClick={() => setIsFormOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add ITP
+          </Button>
+        </div>
+
+        <div className="space-y-3">
+          {itps.map((itp) => {
+            const progress = getProgress(itp);
+            return (
+              <Card
+                key={itp.id}
+                className="cursor-pointer hover:border-primary/50 transition-colors"
+                onClick={() => setSelectedItp(itp)}
+              >
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {itp.status === "completed" ? (
+                        <FileCheck className="w-5 h-5 text-green-500 mt-0.5" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-muted-foreground mt-0.5" />
+                      )}
+                      <div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-medium">{itp.name}</span>
+                          <Badge variant="outline" className={statusColors[itp.status || "pending"]}>
+                            {itp.status === "completed" ? "Completed" : itp.status === "in_progress" ? "In Progress" : "Pending"}
+                          </Badge>
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {itpTypeLabels[itp.itp_type] || itp.itp_type} • {progress}% complete
+                        </p>
+                        {itp.completed_at && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Completed: {format(new Date(itp.completed_at), "d MMM yyyy")}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
-      <div className="space-y-3">
-        {itps.map((itp) => (
-          <Card key={itp.id} className="cursor-pointer hover:border-primary/50 transition-colors">
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  {itp.status === "completed" ? (
-                    <FileCheck className="w-5 h-5 text-success mt-0.5" />
-                  ) : (
-                    <Clock className="w-5 h-5 text-muted-foreground mt-0.5" />
-                  )}
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-medium">{itp.name}</span>
-                      <Badge variant="outline" className={statusColors[itp.status || "pending"]}>
-                        {itp.status === "completed" ? "Completed" : itp.status === "in_progress" ? "In Progress" : "Pending"}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {itpTypeLabels[itp.itp_type] || itp.itp_type}
-                    </p>
-                    {itp.completed_at && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Completed: {format(new Date(itp.completed_at), "d MMM yyyy")}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    </div>
+      <ITPFormDialog open={isFormOpen} onOpenChange={setIsFormOpen} jobId={jobId} />
+      <ITPDetailSheet
+        open={!!selectedItp}
+        onOpenChange={(open) => !open && setSelectedItp(null)}
+        itp={selectedItp}
+        jobId={jobId}
+      />
+    </>
   );
 }
