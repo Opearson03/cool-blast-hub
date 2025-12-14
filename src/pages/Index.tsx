@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { HardHat, Users, Calendar, ClipboardCheck, Truck, CheckCircle, ArrowRight } from "lucide-react";
-import heroConcretePour from "@/assets/hero-concrete-pour.jpg";
+import heroPourBackground from "@/assets/hero-pour-background.png";
 import concreteFinishing from "@/assets/concrete-finishing.jpg";
 import concreteFormwork from "@/assets/concrete-formwork.jpg";
 
@@ -12,7 +12,7 @@ const Index = () => {
       <div className="relative overflow-hidden min-h-[80vh] flex items-center">
         <div 
           className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url(${heroConcretePour})` }}
+          style={{ backgroundImage: `url(${heroPourBackground})` }}
         />
         <div className="absolute inset-0 bg-gradient-to-r from-charcoal-dark/95 via-charcoal-dark/80 to-charcoal-dark/60" />
         
