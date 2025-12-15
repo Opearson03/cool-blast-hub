@@ -24,10 +24,11 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { Check, ChevronsUpDown, X, MapPin, Clock, Building2, Calendar, Users } from "lucide-react";
+import { Check, ChevronsUpDown, X, MapPin, Clock, Building2, Calendar, Users, Palmtree } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
+import { isEmployeeOnLeave, useEmployeesOnLeave } from "@/hooks/useEmployeesOnLeave";
 
 type Pour = {
   id: string;
@@ -84,6 +85,23 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
   const queryClient = useQueryClient();
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [employeesOpen, setEmployeesOpen] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const loadBusinessId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+      if (profile?.business_id) setBusinessId(profile.business_id);
+    };
+    loadBusinessId();
+  }, []);
+
+  const { data: employeesOnLeave = [] } = useEmployeesOnLeave(businessId);
 
   // Fetch full pour details
   const { data: pourDetails } = useQuery({
@@ -267,9 +285,19 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
               <div className="flex flex-wrap gap-1">
                 {selectedEmployees.map((empId) => {
                   const emp = employees.find((e) => e.id === empId);
+                  const onLeave = pour?.pour_date && isEmployeeOnLeave(empId, pour.pour_date, employeesOnLeave);
                   return emp ? (
-                    <Badge key={empId} variant="secondary" className="flex items-center gap-1">
+                    <Badge 
+                      key={empId} 
+                      variant="secondary" 
+                      className={cn(
+                        "flex items-center gap-1",
+                        onLeave && "bg-amber-500/20 text-amber-500 border-amber-500/30"
+                      )}
+                    >
+                      {onLeave && <Palmtree className="h-3 w-3" />}
                       {emp.full_name}
+                      {onLeave && <span className="text-xs">(ON LEAVE)</span>}
                       <button
                         type="button"
                         onClick={() => removeEmployee(empId)}
