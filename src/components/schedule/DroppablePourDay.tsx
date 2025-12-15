@@ -2,6 +2,8 @@ import { useDroppable } from "@dnd-kit/core";
 import { format, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { DraggablePour } from "./DraggablePour";
+import { Badge } from "@/components/ui/badge";
+import { Palmtree } from "lucide-react";
 
 type Pour = {
   id: string;
@@ -19,6 +21,12 @@ type Pour = {
   };
 };
 
+interface EmployeeOnLeave {
+  employee_id: string;
+  employee_name: string;
+  leave_type: string;
+}
+
 interface DroppablePourDayProps {
   date: Date;
   dateKey: string;
@@ -26,6 +34,7 @@ interface DroppablePourDayProps {
   isWeekView?: boolean;
   isCurrentMonth?: boolean;
   onPourClick?: (pour: Pour) => void;
+  employeesOnLeave?: EmployeeOnLeave[];
 }
 
 export function DroppablePourDay({
@@ -35,6 +44,7 @@ export function DroppablePourDay({
   isWeekView = false,
   isCurrentMonth = true,
   onPourClick,
+  employeesOnLeave = [],
 }: DroppablePourDayProps) {
   const { isOver, setNodeRef } = useDroppable({
     id: dateKey,
@@ -68,13 +78,38 @@ export function DroppablePourDay({
               </span>
             )}
           </div>
+          {employeesOnLeave.length > 0 && (
+            <div className="flex items-center gap-1">
+              <Palmtree className="w-3.5 h-3.5 text-amber-500" />
+              <span className="text-xs text-amber-500 font-medium">
+                {employeesOnLeave.length} on leave
+              </span>
+            </div>
+          )}
         </div>
+
+        {/* On Leave Badges */}
+        {employeesOnLeave.length > 0 && (
+          <div className="flex flex-wrap gap-1 mb-2">
+            {employeesOnLeave.map((emp) => (
+              <Badge 
+                key={emp.employee_id} 
+                variant="outline" 
+                className="text-xs bg-amber-500/10 text-amber-500 border-amber-500/30"
+              >
+                <Palmtree className="w-3 h-3 mr-1" />
+                {emp.employee_name.split(" ")[0]}
+              </Badge>
+            ))}
+          </div>
+        )}
+
         <div className="space-y-2">
           {pours.map((pour) => (
             <DraggablePour key={pour.id} pour={pour} onClick={onPourClick} />
           ))}
         </div>
-        {pours.length === 0 && (
+        {pours.length === 0 && employeesOnLeave.length === 0 && (
           <p className="text-xs text-muted-foreground text-center py-2">No pours</p>
         )}
       </div>
@@ -92,13 +127,18 @@ export function DroppablePourDay({
         !isCurrentMonth && "opacity-40"
       )}
     >
-      <div
-        className={cn(
-          "text-xs font-medium mb-1",
-          today && "bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center"
+      <div className="flex items-center justify-between mb-1">
+        <div
+          className={cn(
+            "text-xs font-medium",
+            today && "bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center"
+          )}
+        >
+          {format(date, "d")}
+        </div>
+        {employeesOnLeave.length > 0 && (
+          <Palmtree className="w-3 h-3 text-amber-500" />
         )}
-      >
-        {format(date, "d")}
       </div>
       <div className="space-y-1">
         {pours.slice(0, 2).map((pour) => (
@@ -108,6 +148,11 @@ export function DroppablePourDay({
           <p className="text-xs text-muted-foreground text-center">
             +{pours.length - 2} more
           </p>
+        )}
+        {employeesOnLeave.length > 0 && pours.length <= 1 && (
+          <div className="text-xs text-amber-500 truncate">
+            {employeesOnLeave.length} on leave
+          </div>
         )}
       </div>
     </div>

@@ -1,14 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { 
   ChevronLeft, 
   ChevronRight, 
   List,
-  Grid3X3
+  Grid3X3,
+  Palmtree
 } from "lucide-react";
 import { 
   format, 
@@ -37,6 +39,7 @@ import {
 import { DraggablePour } from "@/components/schedule/DraggablePour";
 import { DroppablePourDay } from "@/components/schedule/DroppablePourDay";
 import { PourDetailSheet } from "@/components/schedule/PourDetailSheet";
+import { useEmployeesOnLeave, getEmployeesOnLeaveForDate } from "@/hooks/useEmployeesOnLeave";
 
 type Pour = {
   id: string;
@@ -62,8 +65,25 @@ export default function AdminSchedule() {
   const [activePour, setActivePour] = useState<Pour | null>(null);
   const [selectedPour, setSelectedPour] = useState<Pour | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    const loadBusinessId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+      if (profile?.business_id) setBusinessId(profile.business_id);
+    };
+    loadBusinessId();
+  }, []);
+
+  const { data: employeesOnLeave = [] } = useEmployeesOnLeave(businessId);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -261,6 +281,7 @@ export default function AdminSchedule() {
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd");
                 const dayPours = poursByDate.get(dateKey) || [];
+                const onLeave = getEmployeesOnLeaveForDate(dateKey, employeesOnLeave);
                 
                 return (
                   <DroppablePourDay
@@ -270,6 +291,7 @@ export default function AdminSchedule() {
                     pours={dayPours}
                     isWeekView
                     onPourClick={handlePourClick}
+                    employeesOnLeave={onLeave}
                   />
                 );
               })}
@@ -288,6 +310,7 @@ export default function AdminSchedule() {
                 const dateKey = format(day, "yyyy-MM-dd");
                 const dayPours = poursByDate.get(dateKey) || [];
                 const isCurrentMonth = isSameMonth(day, currentDate);
+                const onLeave = getEmployeesOnLeaveForDate(dateKey, employeesOnLeave);
                 
                 return (
                   <DroppablePourDay
@@ -297,6 +320,7 @@ export default function AdminSchedule() {
                     pours={dayPours}
                     isCurrentMonth={isCurrentMonth}
                     onPourClick={handlePourClick}
+                    employeesOnLeave={onLeave}
                   />
                 );
               })}
