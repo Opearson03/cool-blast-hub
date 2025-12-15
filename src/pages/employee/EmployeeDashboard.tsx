@@ -4,27 +4,36 @@ import { supabase } from "@/integrations/supabase/client";
 import { EmployeeLayout } from "@/components/layout/EmployeeLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, Clock, FileCheck, MapPin, Calendar, AlertTriangle } from "lucide-react";
+import { ClipboardList, Clock, FileCheck, MapPin, Calendar, AlertTriangle, Shield } from "lucide-react";
 import { format, isToday, isTomorrow, differenceInDays } from "date-fns";
 import { ITPDetailSheet } from "@/components/jobs/itps/ITPDetailSheet";
+import { SWMSDetailSheet } from "@/components/jobs/swms/SWMSDetailSheet";
 import type { Tables } from "@/integrations/supabase/types";
 
 type JobITP = Tables<"job_itps">;
+type JobSWMS = Tables<"job_swms">;
+type SWMSSignoff = Tables<"swms_signoffs">;
 
 interface ITPWithDetails extends JobITP {
   job?: { id: string; name: string; job_number: string; site_address: string } | null;
   pour?: { id: string; pour_name: string; pour_date: string; visit_type: string } | null;
 }
 
+interface SWMSWithDetails extends JobSWMS {
+  job?: { id: string; name: string; job_number: string; site_address: string } | null;
+}
+
 const statusColors: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-600 border-yellow-500/30",
   in_progress: "bg-blue-500/20 text-blue-600 border-blue-500/30",
   completed: "bg-green-500/20 text-green-600 border-green-500/30",
+  active: "bg-blue-500/20 text-blue-600 border-blue-500/30",
 };
 
 export default function EmployeeDashboard() {
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedItp, setSelectedItp] = useState<ITPWithDetails | null>(null);
+  const [selectedSwms, setSelectedSwms] = useState<SWMSWithDetails | null>(null);
 
   useEffect(() => {
     const loadUser = async () => {
@@ -79,6 +88,58 @@ export default function EmployeeDashboard() {
       return (data || []) as ITPWithDetails[];
     },
     enabled: !!userId,
+  });
+
+  // Fetch SWMS assigned to this user that need signing
+  const { data: assignedSwms = [] } = useQuery({
+    queryKey: ["my-assigned-swms", userId],
+    queryFn: async () => {
+      if (!userId) return [];
+      
+      // Get all SWMS where user is in required_signers
+      const { data: swmsData, error: swmsError } = await supabase
+        .from("job_swms")
+        .select(`
+          *,
+          job:jobs(id, name, job_number, site_address)
+        `)
+        .contains("required_signers", [userId])
+        .order("created_at", { ascending: false });
+
+      if (swmsError) throw swmsError;
+      if (!swmsData || swmsData.length === 0) return [];
+
+      // Get signoffs for these SWMS
+      const swmsIds = swmsData.map(s => s.id);
+      const { data: signoffs, error: signoffError } = await supabase
+        .from("swms_signoffs")
+        .select("swms_id, employee_id")
+        .in("swms_id", swmsIds)
+        .eq("employee_id", userId);
+
+      if (signoffError) throw signoffError;
+
+      const signedSwmsIds = new Set((signoffs || []).map(s => s.swms_id));
+      
+      // Return only SWMS the user hasn't signed yet
+      return swmsData.filter(s => !signedSwmsIds.has(s.id)) as SWMSWithDetails[];
+    },
+    enabled: !!userId,
+  });
+
+  // Fetch signoffs for the selected SWMS
+  const { data: selectedSwmsSignoffs = [] } = useQuery({
+    queryKey: ["swms-signoffs-for-detail", selectedSwms?.id],
+    queryFn: async () => {
+      if (!selectedSwms) return [];
+      const { data, error } = await supabase
+        .from("swms_signoffs")
+        .select("*")
+        .eq("swms_id", selectedSwms.id);
+      if (error) throw error;
+      return data as SWMSSignoff[];
+    },
+    enabled: !!selectedSwms,
   });
 
   // Fetch upcoming pours for this user
@@ -217,6 +278,57 @@ export default function EmployeeDashboard() {
           </Card>
         )}
 
+        {/* SWMS Requiring Signature */}
+        {assignedSwms.length > 0 && (
+          <Card className="border-orange-500/50">
+            <CardHeader className="pb-3">
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Shield className="w-5 h-5 text-orange-500" />
+                SWMS Requiring Your Signature
+                <Badge variant="outline" className="ml-auto bg-orange-500/20 text-orange-600 border-orange-500/30">
+                  {assignedSwms.length}
+                </Badge>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <div className="space-y-3">
+                {assignedSwms.map((swms) => (
+                  <Card
+                    key={swms.id}
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => setSelectedSwms(swms)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-start gap-3">
+                        <Shield className="w-5 h-5 text-orange-500 mt-0.5" />
+                        <div>
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="font-medium">{swms.name}</span>
+                            <Badge variant="outline" className={statusColors[swms.status || "pending"]}>
+                              {swms.status === "active" ? "Active" : "Pending"}
+                            </Badge>
+                          </div>
+                          {swms.job && (
+                            <p className="text-sm text-muted-foreground">
+                              {swms.job.job_number} - {swms.job.name}
+                            </p>
+                          )}
+                          {swms.job?.site_address && (
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              {swms.job.site_address}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Assigned ITPs */}
         <Card>
           <CardHeader className="pb-3">
@@ -322,6 +434,15 @@ export default function EmployeeDashboard() {
         onOpenChange={(open) => !open && setSelectedItp(null)}
         itp={selectedItp}
         jobId={selectedItp?.job_id || ""}
+      />
+
+      {/* SWMS Detail Sheet */}
+      <SWMSDetailSheet
+        open={!!selectedSwms}
+        onOpenChange={(open) => !open && setSelectedSwms(null)}
+        swms={selectedSwms}
+        signoffs={selectedSwmsSignoffs}
+        jobId={selectedSwms?.job_id || ""}
       />
     </EmployeeLayout>
   );
