@@ -24,7 +24,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Shield, Printer, Clock, Pencil, Trash2, X, Save, Users } from "lucide-react";
+import { AlertTriangle, Check, Shield, Printer, Clock, Pencil, Trash2, X, Save, Users, Download } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { SignaturePad } from "../itps/SignaturePad";
@@ -262,6 +262,14 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
     }, 100);
   };
 
+  const handleDownloadPDF = () => {
+    setShowPrintView(true);
+    setTimeout(() => {
+      window.print();
+      setShowPrintView(false);
+    }, 100);
+  };
+
   const toggleEditEmployee = (employeeId: string) => {
     setEditRequiredSigners(prev => 
       prev.includes(employeeId)
@@ -328,7 +336,10 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="outline" size="sm" onClick={handlePrint}>
+                    <Button variant="outline" size="sm" onClick={handleDownloadPDF} title="Download PDF">
+                      <Download className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handlePrint} title="Print">
                       <Printer className="w-4 h-4" />
                     </Button>
                     <Badge variant="outline" className={statusColors[swms.status || "pending"]}>
