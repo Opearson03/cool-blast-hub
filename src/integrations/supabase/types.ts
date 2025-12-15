@@ -623,6 +623,7 @@ export type Database = {
           id: string
           job_id: string
           name: string
+          required_signers: string[] | null
           status: string | null
           template_id: string | null
           updated_at: string | null
@@ -634,6 +635,7 @@ export type Database = {
           id?: string
           job_id: string
           name: string
+          required_signers?: string[] | null
           status?: string | null
           template_id?: string | null
           updated_at?: string | null
@@ -645,6 +647,7 @@ export type Database = {
           id?: string
           job_id?: string
           name?: string
+          required_signers?: string[] | null
           status?: string | null
           template_id?: string | null
           updated_at?: string | null
