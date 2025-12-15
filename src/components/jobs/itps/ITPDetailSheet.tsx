@@ -8,14 +8,25 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Camera, Check, X, Loader2, Printer } from "lucide-react";
+import { Camera, Check, X, Loader2, Printer, Pencil, Trash2, Save } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { SignaturePad } from "./SignaturePad";
@@ -54,6 +65,16 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
   const [showEmployeeSignature, setShowEmployeeSignature] = useState(false);
   const [showSupervisorSignature, setShowSupervisorSignature] = useState(false);
   const [showPrintView, setShowPrintView] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Reset edit state when ITP changes
+  useEffect(() => {
+    if (itp) {
+      setEditName(itp.name);
+    }
+  }, [itp]);
 
   // Initialize checklist data when ITP changes
   useEffect(() => {
@@ -111,6 +132,48 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
     },
     onError: (error) => {
       toast.error("Failed to update: " + error.message);
+    },
+  });
+
+  const updateNameMutation = useMutation({
+    mutationFn: async () => {
+      if (!itp) throw new Error("No ITP selected");
+
+      const { error } = await supabase
+        .from("job_itps")
+        .update({ name: editName.trim() })
+        .eq("id", itp.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job-itps", jobId] });
+      toast.success("ITP updated successfully");
+      setIsEditing(false);
+    },
+    onError: (error) => {
+      toast.error("Failed to update ITP: " + error.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!itp) throw new Error("No ITP selected");
+
+      const { error } = await supabase
+        .from("job_itps")
+        .delete()
+        .eq("id", itp.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job-itps", jobId] });
+      toast.success("ITP deleted successfully");
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast.error("Failed to delete ITP: " + error.message);
     },
   });
 
@@ -251,20 +314,66 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <div className="flex items-center justify-between">
-              <SheetTitle>{itp.name}</SheetTitle>
+              {isEditing ? (
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="max-w-[200px]"
+                />
+              ) : (
+                <SheetTitle>{itp.name}</SheetTitle>
+              )}
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handlePrint}>
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print
-                </Button>
-                <Badge variant="outline" className={statusColors[itp.status || "pending"]}>
-                  {itp.status === "completed" ? "Completed" : itp.status === "in_progress" ? "In Progress" : "Pending"}
-                </Badge>
+                {isEditing ? (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditName(itp.name);
+                      }}
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => updateNameMutation.mutate()}
+                      disabled={updateNameMutation.isPending}
+                    >
+                      <Save className="w-4 h-4 mr-1" />
+                      Save
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handlePrint}>
+                      <Printer className="w-4 h-4" />
+                    </Button>
+                    <Badge variant="outline" className={statusColors[itp.status || "pending"]}>
+                      {itp.status === "completed" ? "Completed" : itp.status === "in_progress" ? "In Progress" : "Pending"}
+                    </Badge>
+                  </>
+                )}
               </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              {completedCount}/{totalCount} items complete ({progress}%)
-            </div>
+            {!isEditing && (
+              <div className="text-sm text-muted-foreground">
+                {completedCount}/{totalCount} items complete ({progress}%)
+              </div>
+            )}
           </SheetHeader>
 
           <div className="mt-6 space-y-4">
@@ -453,6 +562,27 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
           />
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete ITP?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete this ITP and all associated data including photos and signatures. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <style>{`
         @media print {
