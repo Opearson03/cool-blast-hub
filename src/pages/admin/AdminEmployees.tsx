@@ -1,16 +1,17 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, Phone, Mail, AlertTriangle, Award } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Plus, Search, Phone, AlertTriangle, Award } from "lucide-react";
 import { EmployeeDetailsSheet } from "@/components/employees/EmployeeDetailsSheet";
 import { InviteEmployeeDialog } from "@/components/employees/InviteEmployeeDialog";
-import { format, differenceInDays, isPast } from "date-fns";
+import { LeaveRequestsList } from "@/components/leave/LeaveRequestsList";
+import { differenceInDays, isPast } from "date-fns";
 
 type Employee = {
   id: string;
@@ -29,34 +30,66 @@ type Ticket = {
   expiry_date: string | null;
 };
 
+interface LeaveRequest {
+  id: string;
+  employee_id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason: string | null;
+  status: "pending" | "approved" | "rejected";
+  review_notes: string | null;
+  created_at: string;
+  profiles?: { full_name: string };
+}
+
 export default function AdminEmployees() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("employees");
+
+  useEffect(() => {
+    const loadBusinessId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+      if (profile?.business_id) setBusinessId(profile.business_id);
+    };
+    loadBusinessId();
+  }, []);
 
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ["employees"],
+    queryKey: ["employees", businessId],
     queryFn: async () => {
+      if (!businessId) return [];
       const { data, error } = await supabase
         .from("profiles")
         .select("*")
+        .eq("business_id", businessId)
         .order("full_name");
       if (error) throw error;
       return data as Employee[];
     },
+    enabled: !!businessId,
   });
 
   const { data: tickets = [] } = useQuery({
-    queryKey: ["employee-tickets"],
+    queryKey: ["employee-tickets", businessId],
     queryFn: async () => {
+      if (!businessId) return [];
       const { data, error } = await supabase
         .from("employee_tickets")
         .select("*");
       if (error) throw error;
       return data as Ticket[];
     },
+    enabled: !!businessId,
   });
 
   const { data: userRoles = [] } = useQuery({
@@ -67,6 +100,23 @@ export default function AdminEmployees() {
       return data;
     },
   });
+
+  const { data: leaveRequests = [], refetch: refetchLeave } = useQuery({
+    queryKey: ["leave-requests", businessId],
+    queryFn: async () => {
+      if (!businessId) return [];
+      const { data, error } = await supabase
+        .from("leave_requests")
+        .select("*, profiles!leave_requests_employee_id_fkey(full_name)")
+        .eq("business_id", businessId)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as unknown as LeaveRequest[];
+    },
+    enabled: !!businessId,
+  });
+
+  const pendingLeaveCount = leaveRequests.filter(r => r.status === "pending").length;
 
   const filteredEmployees = employees.filter(
     (emp) =>
@@ -99,10 +149,12 @@ export default function AdminEmployees() {
     return role?.role || null;
   };
 
+  const pendingRequests = leaveRequests.filter(r => r.status === "pending");
+  const processedRequests = leaveRequests.filter(r => r.status !== "pending");
+
   return (
     <AdminLayout>
       <div className="space-y-4">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold">Employees</h1>
           <Button onClick={() => setIsInviteOpen(true)} className="touch-target">
@@ -111,100 +163,129 @@ export default function AdminEmployees() {
           </Button>
         </div>
 
-        {/* Search */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search employees..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 touch-target"
-          />
-        </div>
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList>
+            <TabsTrigger value="employees">Team ({employees.length})</TabsTrigger>
+            <TabsTrigger value="leave" className="relative">
+              Leave
+              {pendingLeaveCount > 0 && (
+                <Badge className="ml-2 bg-amber-500 text-white text-xs px-1.5 py-0.5">
+                  {pendingLeaveCount}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Employees List */}
-        {isLoading ? (
-          <div className="text-center py-8 text-muted-foreground">Loading employees...</div>
-        ) : filteredEmployees.length === 0 ? (
-          <Card>
-            <CardContent className="py-8 text-center text-muted-foreground">
-              {searchQuery
-                ? "No employees found matching your search."
-                : "No employees yet. Invite your first team member to get started."}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            {filteredEmployees.map((employee) => {
-              const empTickets = getTicketsForEmployee(employee.id);
-              const expiringCount = getExpiringTicketsCount(employee.id);
-              const role = getRole(employee.id);
+          <TabsContent value="employees" className="mt-4 space-y-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search employees..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 touch-target"
+              />
+            </div>
 
-              return (
-                <Card
-                  key={employee.id}
-                  className="cursor-pointer hover:border-primary/50 transition-colors"
-                  onClick={() => setSelectedEmployee(employee)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold">{employee.full_name}</h3>
-                          {role && (
-                            <Badge variant={role === "admin" ? "default" : "secondary"}>
-                              {role}
-                            </Badge>
-                          )}
-                        </div>
+            {/* Employees List */}
+            {isLoading ? (
+              <div className="text-center py-8 text-muted-foreground">Loading employees...</div>
+            ) : filteredEmployees.length === 0 ? (
+              <Card>
+                <CardContent className="py-8 text-center text-muted-foreground">
+                  {searchQuery
+                    ? "No employees found matching your search."
+                    : "No employees yet. Invite your first team member to get started."}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {filteredEmployees.map((employee) => {
+                  const empTickets = getTicketsForEmployee(employee.id);
+                  const expiringCount = getExpiringTicketsCount(employee.id);
+                  const role = getRole(employee.id);
 
-                        {employee.position && (
-                          <p className="text-sm text-muted-foreground">{employee.position}</p>
-                        )}
+                  return (
+                    <Card
+                      key={employee.id}
+                      className="cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => setSelectedEmployee(employee)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold">{employee.full_name}</h3>
+                              {role && (
+                                <Badge variant={role === "admin" ? "default" : "secondary"}>
+                                  {role}
+                                </Badge>
+                              )}
+                            </div>
 
-                        <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
-                          {employee.phone && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {employee.phone}
-                            </span>
-                          )}
-                        </div>
-                      </div>
+                            {employee.position && (
+                              <p className="text-sm text-muted-foreground">{employee.position}</p>
+                            )}
 
-                      <div className="text-right shrink-0">
-                        {empTickets.length > 0 && (
-                          <div className="flex items-center gap-1">
-                            <Award className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">
-                              {empTickets.length} ticket{empTickets.length !== 1 ? "s" : ""}
-                            </span>
+                            <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                              {employee.phone && (
+                                <span className="flex items-center gap-1">
+                                  <Phone className="w-3 h-3" />
+                                  {employee.phone}
+                                </span>
+                              )}
+                            </div>
                           </div>
-                        )}
-                        {expiringCount > 0 && (
-                          <Badge variant="destructive" className="mt-1">
-                            <AlertTriangle className="w-3 h-3 mr-1" />
-                            {expiringCount} expiring
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
+
+                          <div className="text-right shrink-0">
+                            {empTickets.length > 0 && (
+                              <div className="flex items-center gap-1">
+                                <Award className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">
+                                  {empTickets.length} ticket{empTickets.length !== 1 ? "s" : ""}
+                                </span>
+                              </div>
+                            )}
+                            {expiringCount > 0 && (
+                              <Badge variant="destructive" className="mt-1">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                {expiringCount} expiring
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="leave" className="mt-4 space-y-4">
+            <Tabs defaultValue="pending">
+              <TabsList>
+                <TabsTrigger value="pending">Pending ({pendingRequests.length})</TabsTrigger>
+                <TabsTrigger value="processed">Processed ({processedRequests.length})</TabsTrigger>
+              </TabsList>
+              <TabsContent value="pending" className="mt-4">
+                <LeaveRequestsList requests={pendingRequests} isAdmin={true} onUpdate={() => refetchLeave()} />
+              </TabsContent>
+              <TabsContent value="processed" className="mt-4">
+                <LeaveRequestsList requests={processedRequests} isAdmin={true} onUpdate={() => refetchLeave()} />
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+        </Tabs>
       </div>
 
-      {/* Employee Details Sheet */}
       <EmployeeDetailsSheet
         employee={selectedEmployee}
         open={!!selectedEmployee}
         onOpenChange={(open) => !open && setSelectedEmployee(null)}
       />
 
-      {/* Invite Dialog */}
       <InviteEmployeeDialog
         open={isInviteOpen}
         onOpenChange={setIsInviteOpen}

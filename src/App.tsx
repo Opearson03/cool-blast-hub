@@ -21,7 +21,6 @@ import EmployeeSchedule from "./pages/employee/EmployeeSchedule";
 import EmployeeContacts from "./pages/employee/EmployeeContacts";
 import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import EmployeeLeave from "./pages/employee/EmployeeLeave";
-import AdminLeave from "./pages/admin/AdminLeave";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 
@@ -48,7 +47,6 @@ const App = () => (
           <Route path="/admin/crews" element={<ProtectedRoute allowedRole="admin"><AdminCrews /></ProtectedRoute>} />
           <Route path="/admin/employees" element={<ProtectedRoute allowedRole="admin"><AdminEmployees /></ProtectedRoute>} />
           <Route path="/admin/equipment" element={<ProtectedRoute allowedRole="admin"><AdminEquipment /></ProtectedRoute>} />
-          <Route path="/admin/leave" element={<ProtectedRoute allowedRole="admin"><AdminLeave /></ProtectedRoute>} />
           <Route path="/admin/settings" element={<ProtectedRoute allowedRole="admin"><AdminSettings /></ProtectedRoute>} />
           
 {/* Employee Routes */}
