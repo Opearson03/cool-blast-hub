@@ -63,6 +63,21 @@ export function JobSWMSTab({ jobId }: JobSWMSTabProps) {
     return signoffs.filter((s) => s.swms_id === swmsId);
   };
 
+  const getSignoffProgress = (swms: JobSWMS) => {
+    const swmsSignoffs = signoffs.filter((s) => s.swms_id === swms.id);
+    const requiredSigners = (swms.required_signers as string[] | null) || [];
+    
+    if (requiredSigners.length === 0) {
+      return { signed: swmsSignoffs.length, total: null };
+    }
+    
+    const signedCount = requiredSigners.filter(signerId => 
+      swmsSignoffs.some(s => s.employee_id === signerId)
+    ).length;
+    
+    return { signed: signedCount, total: requiredSigners.length };
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-8 text-muted-foreground">Loading SWMS...</div>
@@ -103,7 +118,9 @@ export function JobSWMSTab({ jobId }: JobSWMSTabProps) {
 
         <div className="space-y-3">
           {swmsList.map((swms) => {
-            const signoffCount = getSignoffCount(swms.id);
+            const progress = getSignoffProgress(swms);
+            const isComplete = progress.total !== null && progress.signed === progress.total;
+            
             return (
               <Card 
                 key={swms.id} 
@@ -126,9 +143,14 @@ export function JobSWMSTab({ jobId }: JobSWMSTabProps) {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                    <div className={`flex items-center gap-1 text-sm ${isComplete ? "text-green-500" : "text-muted-foreground"}`}>
                       <Users className="w-4 h-4" />
-                      <span>{signoffCount} signoffs</span>
+                      <span>
+                        {progress.total !== null 
+                          ? `${progress.signed}/${progress.total} signed`
+                          : `${progress.signed} signoff${progress.signed !== 1 ? "s" : ""}`
+                        }
+                      </span>
                     </div>
                   </div>
                 </CardContent>

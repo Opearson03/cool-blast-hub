@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Shield, Printer } from "lucide-react";
+import { AlertTriangle, Check, Shield, Printer, Clock, User } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { SignaturePad } from "../itps/SignaturePad";
@@ -78,6 +78,22 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
       return data;
     },
     enabled: !!job?.business_id,
+  });
+
+  // Fetch required signers' details
+  const requiredSignerIds = (swms?.required_signers as string[] | null) || [];
+  
+  const { data: requiredSigners = [] } = useQuery({
+    queryKey: ["required-signers", swms?.id],
+    queryFn: async () => {
+      if (requiredSignerIds.length === 0) return [];
+      const { data, error } = await supabase.rpc("get_team_profiles");
+      if (error) throw error;
+      return (data || [])
+        .filter((p: any) => requiredSignerIds.includes(p.id))
+        .map((p: any) => ({ id: p.id, full_name: p.full_name }));
+    },
+    enabled: !!swms && requiredSignerIds.length > 0,
   });
 
   const content = swms?.content as any;
@@ -210,34 +226,87 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
 
             <Separator />
 
-            {/* Signoffs */}
+            {/* Required Signers & Signoffs */}
             <div>
-              <h3 className="font-semibold mb-3">Signoffs</h3>
-              {signoffs.length > 0 ? (
+              <h3 className="font-semibold mb-3">Required Signoffs</h3>
+              
+              {requiredSigners.length > 0 ? (
                 <div className="space-y-2 mb-4">
-                  {signoffs.map((signoff) => (
-                    <Card key={signoff.id}>
-                      <CardContent className="p-3 flex items-center gap-3">
-                        <Check className="w-5 h-5 text-green-500" />
-                        <div className="flex-1">
-                          <p className="font-medium">{signoff.employee_name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Signed: {format(new Date(signoff.signed_at!), "d MMM yyyy, HH:mm")}
-                          </p>
-                        </div>
-                        {signoff.signature_data && (
-                          <img
-                            src={signoff.signature_data}
-                            alt="Signature"
-                            className="h-10 border rounded"
-                          />
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
+                  {requiredSigners.map((signer) => {
+                    const hasSignedOff = signoffs.some(
+                      s => s.employee_id === signer.id || 
+                           s.employee_name.toLowerCase() === signer.full_name.toLowerCase()
+                    );
+                    const signoffData = signoffs.find(
+                      s => s.employee_id === signer.id || 
+                           s.employee_name.toLowerCase() === signer.full_name.toLowerCase()
+                    );
+                    
+                    return (
+                      <Card key={signer.id} className={hasSignedOff ? "border-green-500/30" : "border-yellow-500/30"}>
+                        <CardContent className="p-3 flex items-center gap-3">
+                          {hasSignedOff ? (
+                            <Check className="w-5 h-5 text-green-500" />
+                          ) : (
+                            <Clock className="w-5 h-5 text-yellow-500" />
+                          )}
+                          <div className="flex-1">
+                            <p className="font-medium">{signer.full_name}</p>
+                            {hasSignedOff && signoffData ? (
+                              <p className="text-xs text-muted-foreground">
+                                Signed: {format(new Date(signoffData.signed_at!), "d MMM yyyy, HH:mm")}
+                              </p>
+                            ) : (
+                              <p className="text-xs text-yellow-500">Awaiting signature</p>
+                            )}
+                          </div>
+                          {hasSignedOff && signoffData?.signature_data && (
+                            <img
+                              src={signoffData.signature_data}
+                              alt="Signature"
+                              className="h-10 border rounded"
+                            />
+                          )}
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground mb-4">No signoffs yet</p>
+                <p className="text-sm text-muted-foreground mb-4">No specific workers assigned - anyone can sign</p>
+              )}
+
+              {/* Additional Signoffs (not in required list) */}
+              {signoffs.filter(s => 
+                !requiredSigners.some(r => r.id === s.employee_id || r.full_name.toLowerCase() === s.employee_name.toLowerCase())
+              ).length > 0 && (
+                <div className="mt-4">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Additional Signoffs</h4>
+                  <div className="space-y-2">
+                    {signoffs
+                      .filter(s => !requiredSigners.some(r => r.id === s.employee_id || r.full_name.toLowerCase() === s.employee_name.toLowerCase()))
+                      .map((signoff) => (
+                        <Card key={signoff.id}>
+                          <CardContent className="p-3 flex items-center gap-3">
+                            <Check className="w-5 h-5 text-green-500" />
+                            <div className="flex-1">
+                              <p className="font-medium">{signoff.employee_name}</p>
+                              <p className="text-xs text-muted-foreground">
+                                Signed: {format(new Date(signoff.signed_at!), "d MMM yyyy, HH:mm")}
+                              </p>
+                            </div>
+                            {signoff.signature_data && (
+                              <img
+                                src={signoff.signature_data}
+                                alt="Signature"
+                                className="h-10 border rounded"
+                              />
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                  </div>
+                </div>
               )}
 
               {/* Add Signoff */}
