@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -12,8 +12,19 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { AlertTriangle, Check, Shield, Printer, Clock, User } from "lucide-react";
+import { AlertTriangle, Check, Shield, Printer, Clock, Pencil, Trash2, X, Save, Users } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { SignaturePad } from "../itps/SignaturePad";
@@ -47,7 +58,19 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
   const [showSignature, setShowSignature] = useState(false);
   const [employeeName, setEmployeeName] = useState("");
   const [showPrintView, setShowPrintView] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editRequiredSigners, setEditRequiredSigners] = useState<string[]>([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+
+  // Reset edit state when swms changes
+  useEffect(() => {
+    if (swms) {
+      setEditName(swms.name);
+      setEditRequiredSigners((swms.required_signers as string[] | null) || []);
+    }
+  }, [swms]);
 
   // Fetch job details for print
   const { data: job } = useQuery({
@@ -78,6 +101,43 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
       return data;
     },
     enabled: !!job?.business_id,
+  });
+
+  // Fetch all employees for editing required signers
+  const { data: allEmployees = [] } = useQuery({
+    queryKey: ["all-employees-for-swms-edit"],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("get_team_profiles");
+      if (error) throw error;
+      return (data || []).map((p: any) => ({ id: p.id, full_name: p.full_name }));
+    },
+    enabled: isEditing,
+  });
+
+  // Fetch employees assigned to this job's pours
+  const { data: jobEmployees = [] } = useQuery({
+    queryKey: ["job-employees", jobId],
+    queryFn: async () => {
+      const { data: pours, error: poursError } = await supabase
+        .from("job_pours")
+        .select("id")
+        .eq("job_id", jobId);
+      
+      if (poursError) throw poursError;
+      if (!pours || pours.length === 0) return [];
+
+      const pourIds = pours.map(p => p.id);
+      const { data: pourEmployees, error: peError } = await supabase
+        .from("pour_employees")
+        .select("employee_id")
+        .in("pour_id", pourIds);
+      
+      if (peError) throw peError;
+      if (!pourEmployees || pourEmployees.length === 0) return [];
+
+      return [...new Set(pourEmployees.map(pe => pe.employee_id))];
+    },
+    enabled: isEditing,
   });
 
   // Fetch required signers' details
@@ -119,7 +179,6 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
 
       if (error) throw error;
 
-      // Update SWMS status to active if still pending
       if (swms.status === "pending") {
         await supabase
           .from("job_swms")
@@ -139,12 +198,80 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!swms) throw new Error("No SWMS selected");
+
+      const { error } = await supabase
+        .from("job_swms")
+        .update({
+          name: editName.trim(),
+          required_signers: editRequiredSigners,
+        })
+        .eq("id", swms.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job-swms", jobId] });
+      queryClient.invalidateQueries({ queryKey: ["required-signers", swms?.id] });
+      toast.success("SWMS updated successfully");
+      setIsEditing(false);
+    },
+    onError: (error) => {
+      toast.error("Failed to update SWMS: " + error.message);
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async () => {
+      if (!swms) throw new Error("No SWMS selected");
+
+      // Delete signoffs first
+      const { error: signoffError } = await supabase
+        .from("swms_signoffs")
+        .delete()
+        .eq("swms_id", swms.id);
+
+      if (signoffError) throw signoffError;
+
+      // Delete SWMS
+      const { error } = await supabase
+        .from("job_swms")
+        .delete()
+        .eq("id", swms.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job-swms", jobId] });
+      queryClient.invalidateQueries({ queryKey: ["swms-signoffs", jobId] });
+      toast.success("SWMS deleted successfully");
+      onOpenChange(false);
+    },
+    onError: (error) => {
+      toast.error("Failed to delete SWMS: " + error.message);
+    },
+  });
+
   const handlePrint = () => {
     setShowPrintView(true);
     setTimeout(() => {
       window.print();
       setShowPrintView(false);
     }, 100);
+  };
+
+  const toggleEditEmployee = (employeeId: string) => {
+    setEditRequiredSigners(prev => 
+      prev.includes(employeeId)
+        ? prev.filter(id => id !== employeeId)
+        : [...prev, employeeId]
+    );
+  };
+
+  const handleSelectAllOnJob = () => {
+    setEditRequiredSigners(jobEmployees);
   };
 
   if (!swms) return null;
@@ -155,23 +282,124 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
         <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
           <SheetHeader>
             <div className="flex items-center justify-between">
-              <SheetTitle>{swms.name}</SheetTitle>
+              {isEditing ? (
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  className="max-w-[200px]"
+                />
+              ) : (
+                <SheetTitle>{swms.name}</SheetTitle>
+              )}
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handlePrint}>
-                  <Printer className="w-4 h-4 mr-2" />
-                  Print
-                </Button>
-                <Badge variant="outline" className={statusColors[swms.status || "pending"]}>
-                  {swms.status === "completed" ? "Completed" : swms.status === "active" ? "Active" : "Pending"}
-                </Badge>
+                {isEditing ? (
+                  <>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => {
+                        setIsEditing(false);
+                        setEditName(swms.name);
+                        setEditRequiredSigners((swms.required_signers as string[] | null) || []);
+                      }}
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Cancel
+                    </Button>
+                    <Button 
+                      size="sm" 
+                      onClick={() => updateMutation.mutate()}
+                      disabled={updateMutation.isPending}
+                    >
+                      <Save className="w-4 h-4 mr-1" />
+                      Save
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => setShowDeleteConfirm(true)}
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={handlePrint}>
+                      <Printer className="w-4 h-4" />
+                    </Button>
+                    <Badge variant="outline" className={statusColors[swms.status || "pending"]}>
+                      {swms.status === "completed" ? "Completed" : swms.status === "active" ? "Active" : "Pending"}
+                    </Badge>
+                  </>
+                )}
               </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              {signoffs.length} signoff(s)
-            </div>
+            {!isEditing && (
+              <div className="text-sm text-muted-foreground">
+                {signoffs.length} signoff(s)
+              </div>
+            )}
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
+            {/* Edit Required Signers */}
+            {isEditing && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-sm font-medium flex items-center gap-2">
+                    <Users className="w-4 h-4" />
+                    Required Signers
+                  </label>
+                  {jobEmployees.length > 0 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSelectAllOnJob}
+                      className="text-xs h-7"
+                    >
+                      Select All on Job
+                    </Button>
+                  )}
+                </div>
+                <div className="border rounded-md p-3 max-h-48 overflow-y-auto space-y-2">
+                  {allEmployees.map((employee) => {
+                    const isOnJob = jobEmployees.includes(employee.id);
+                    return (
+                      <div key={employee.id} className="flex items-center gap-2">
+                        <Checkbox
+                          id={`edit-emp-${employee.id}`}
+                          checked={editRequiredSigners.includes(employee.id)}
+                          onCheckedChange={() => toggleEditEmployee(employee.id)}
+                        />
+                        <label
+                          htmlFor={`edit-emp-${employee.id}`}
+                          className="text-sm cursor-pointer flex-1 flex items-center gap-2"
+                        >
+                          {employee.full_name}
+                          {isOnJob && (
+                            <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                              On Job
+                            </span>
+                          )}
+                        </label>
+                      </div>
+                    );
+                  })}
+                </div>
+                {editRequiredSigners.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    {editRequiredSigners.length} worker{editRequiredSigners.length !== 1 ? "s" : ""} selected
+                  </p>
+                )}
+                <Separator />
+              </div>
+            )}
+
             {/* Scope */}
             {content?.scope && (
               <div>
@@ -341,6 +569,27 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
           </div>
         </SheetContent>
       </Sheet>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete SWMS</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{swms.name}"? This will also remove all {signoffs.length} signoff(s). This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteMutation.mutate()}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Print View */}
       {showPrintView && swms && (
