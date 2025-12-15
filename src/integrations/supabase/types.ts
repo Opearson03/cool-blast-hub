@@ -1147,6 +1147,27 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_team_profiles: {
+        Args: never
+        Returns: {
+          business_id: string | null
+          created_at: string | null
+          emergency_contact_name: string | null
+          emergency_contact_phone: string | null
+          full_name: string
+          hourly_rate: number | null
+          id: string
+          phone: string | null
+          position: string | null
+          updated_at: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

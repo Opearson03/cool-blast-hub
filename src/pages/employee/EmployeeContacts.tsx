@@ -5,45 +5,20 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Phone, Search, User } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function EmployeeContacts() {
-  const [businessId, setBusinessId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    const loadBusinessId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      setBusinessId(profile?.business_id || null);
-    };
-    loadBusinessId();
-  }, []);
-
   const { data: colleagues = [], isLoading } = useQuery({
-    queryKey: ["team-contacts", businessId],
+    queryKey: ["team-contacts"],
     queryFn: async () => {
-      if (!businessId) return [];
-
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name, phone, position, emergency_contact_name, emergency_contact_phone")
-        .eq("business_id", businessId)
-        .order("full_name");
-
+      const { data, error } = await supabase.rpc("get_team_profiles");
       if (error) throw error;
-      return data as Tables<"profiles">[];
+      return (data || []) as Tables<"profiles">[];
     },
-    enabled: !!businessId,
   });
 
   const filteredColleagues = useMemo(() => {

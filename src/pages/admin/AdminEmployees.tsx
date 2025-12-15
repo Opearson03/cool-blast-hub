@@ -65,18 +65,12 @@ export default function AdminEmployees() {
   }, []);
 
   const { data: employees = [], isLoading } = useQuery({
-    queryKey: ["employees", businessId],
+    queryKey: ["employees-team"],
     queryFn: async () => {
-      if (!businessId) return [];
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("business_id", businessId)
-        .order("full_name");
+      const { data, error } = await supabase.rpc("get_team_profiles");
       if (error) throw error;
-      return data as Employee[];
+      return (data || []) as Employee[];
     },
-    enabled: !!businessId,
   });
 
   const { data: tickets = [] } = useQuery({
