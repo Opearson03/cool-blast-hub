@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/command";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { Check, ChevronsUpDown, X } from "lucide-react";
+import { Check, ChevronsUpDown, X, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const pourSchema = z.object({
@@ -113,6 +113,32 @@ export function PourFormDialog({
         .order("full_name");
       if (error) throw error;
       return data;
+    },
+  });
+
+  // Fetch crews with their members
+  const { data: crews = [] } = useQuery({
+    queryKey: ["crews-with-members"],
+    queryFn: async () => {
+      const { data: crewsData, error: crewsError } = await supabase
+        .from("crews")
+        .select("id, name")
+        .order("name");
+      if (crewsError) throw crewsError;
+
+      // Get crew members for each crew
+      const { data: membersData, error: membersError } = await supabase
+        .from("crew_members")
+        .select("crew_id, employee_id");
+      if (membersError) throw membersError;
+
+      // Map members to crews
+      return crewsData.map(crew => ({
+        ...crew,
+        memberIds: membersData
+          .filter(m => m.crew_id === crew.id)
+          .map(m => m.employee_id),
+      }));
     },
   });
 
@@ -265,6 +291,18 @@ export function PourFormDialog({
     );
   };
 
+  const assignCrew = (crewId: string) => {
+    const crew = crews.find(c => c.id === crewId);
+    if (crew && crew.memberIds.length > 0) {
+      // Add all crew members (avoiding duplicates)
+      setSelectedEmployees((prev) => {
+        const newIds = crew.memberIds.filter((id: string) => !prev.includes(id));
+        return [...prev, ...newIds];
+      });
+      toast.success(`Added ${crew.memberIds.length} crew members from ${crew.name}`);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
@@ -347,6 +385,32 @@ export function PourFormDialog({
             {/* Employee Assignment */}
             <div className="space-y-2">
               <FormLabel>Assigned Employees</FormLabel>
+              
+              {/* Crew quick-assign buttons */}
+              {crews.length > 0 && (
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <span className="text-xs text-muted-foreground self-center">Assign crew:</span>
+                  {crews.map((crew) => (
+                    <Button
+                      key={crew.id}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => assignCrew(crew.id)}
+                      disabled={crew.memberIds.length === 0}
+                      className="h-7 text-xs"
+                    >
+                      <Users className="w-3 h-3 mr-1" />
+                      {crew.name}
+                      {crew.memberIds.length > 0 && (
+                        <span className="ml-1 text-muted-foreground">
+                          ({crew.memberIds.length})
+                        </span>
+                      )}
+                    </Button>
+                  ))}
+                </div>
+              )}
               
               {/* Selected employees badges */}
               {selectedEmployees.length > 0 && (

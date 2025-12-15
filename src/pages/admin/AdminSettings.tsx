@@ -9,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, Image } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Business = Tables<"businesses">;
@@ -27,6 +28,7 @@ export default function AdminSettings() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const subscription = useSubscription();
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["business"],
@@ -213,6 +215,68 @@ export default function AdminSettings() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Subscription Status */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="w-5 h-5" />
+                Subscription
+              </CardTitle>
+              <CardDescription>Manage your PourHub subscription</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {subscription.isLoading ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : subscription.isSubscribed ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Plan:</span>
+                    <Badge variant="secondary" className="bg-primary/20 text-primary">
+                      {subscription.tierConfig?.name || subscription.tier}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">Employee Limit:</span>
+                    <span className="text-sm font-medium">
+                      {subscription.employeeLimit === 999 ? "Unlimited" : subscription.employeeLimit}
+                    </span>
+                  </div>
+                  {subscription.subscriptionEnd && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Renews:</span>
+                      <span className="text-sm">
+                        {new Date(subscription.subscriptionEnd).toLocaleDateString()}
+                      </span>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => subscription.openCustomerPortal()}
+                    className="touch-target"
+                  >
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Manage Subscription
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    No active subscription found.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="default"
+                    onClick={() => window.location.href = "/pricing"}
+                    className="touch-target"
+                  >
+                    View Plans
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Business Logo */}
           <Card>
             <CardHeader>
