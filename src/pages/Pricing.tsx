@@ -4,65 +4,28 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-
-const PRICING_TIERS = [
-  {
-    name: "Starter",
-    price: 79,
-    description: "Solo concreters, 1–3 person crews, small residential outfits.",
-    features: [
-      "1 Business",
-      "Up to 5 employees",
-      "Unlimited jobs",
-      "Job scheduling",
-      "Project Startup checklist",
-      "ITPs & SWMS",
-      "Concrete test result tracking",
-      "Photo & document uploads",
-      "Job Pack PDF export",
-      "Equipment register (basic)",
-    ],
-    highlight: false,
-  },
-  {
-    name: "Professional",
-    price: 199,
-    description: "Growing concreting businesses, multiple crews, builder work.",
-    features: [
-      "Everything in Starter, plus:",
-      "Up to 15 employees",
-      "Unlimited crews",
-      "Advanced scheduling (conflict warnings)",
-      "Concrete test result alerts",
-      "Equipment service reminders",
-      "Priority support",
-      "Custom ITP & SWMS templates",
-      "Business branding on PDFs",
-    ],
-    highlight: true,
-    badge: "Most Popular",
-  },
-  {
-    name: "Enterprise",
-    price: 300,
-    description: "Large concreters, civil contractors, Tier-2 builder subcontractors.",
-    features: [
-      "Everything in Professional, plus:",
-      "Unlimited employees",
-      "Multi-site businesses",
-      "Custom workflows",
-      "Custom fields",
-      "Dedicated onboarding",
-      "Priority feature requests",
-      "Phone support",
-    ],
-    highlight: false,
-  },
-];
-
+const PRICING_TIERS = [{
+  name: "Starter",
+  price: 79,
+  description: "Solo concreters, 1–3 person crews, small residential outfits.",
+  features: ["1 Business", "Up to 5 employees", "Unlimited jobs", "Job scheduling", "Project Startup checklist", "ITPs & SWMS", "Concrete test result tracking", "Photo & document uploads", "Job Pack PDF export", "Equipment register (basic)"],
+  highlight: false
+}, {
+  name: "Professional",
+  price: 199,
+  description: "Growing concreting businesses, multiple crews, builder work.",
+  features: ["Everything in Starter, plus:", "Up to 15 employees", "Unlimited crews", "Advanced scheduling (conflict warnings)", "Concrete test result alerts", "Equipment service reminders", "Priority support", "Custom ITP & SWMS templates", "Business branding on PDFs"],
+  highlight: true,
+  badge: "Most Popular"
+}, {
+  name: "Enterprise",
+  price: 300,
+  description: "Large concreters, civil contractors, Tier-2 builder subcontractors.",
+  features: ["Everything in Professional, plus:", "Unlimited employees", "Multi-site businesses", "Custom workflows", "Custom fields", "Dedicated onboarding", "Priority feature requests", "Phone support"],
+  highlight: false
+}];
 const Pricing = () => {
-  return (
-    <div className="min-h-screen bg-charcoal-dark">
+  return <div className="min-h-screen bg-charcoal-dark">
       {/* Header */}
       <header className="px-4 py-6 border-b border-border/30">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -96,20 +59,10 @@ const Pricing = () => {
       <div className="px-4 pb-20">
         <div className="max-w-6xl mx-auto">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
-            {PRICING_TIERS.map((tier) => (
-              <Card
-                key={tier.name}
-                className={`relative flex flex-col ${
-                  tier.highlight
-                    ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]"
-                    : "border-border"
-                }`}
-              >
-                {tier.badge && (
-                  <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
+            {PRICING_TIERS.map(tier => <Card key={tier.name} className={`relative flex flex-col ${tier.highlight ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]" : "border-border"}`}>
+                {tier.badge && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
                     {tier.badge}
-                  </Badge>
-                )}
+                  </Badge>}
                 <CardHeader className="text-center pb-2">
                   <h2 className="text-2xl font-bold">{tier.name}</h2>
                   <div className="mt-4">
@@ -120,33 +73,23 @@ const Pricing = () => {
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col">
                   <ul className="space-y-3 flex-1">
-                    {tier.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-3">
-                        {idx === 0 && tier.name !== "Starter" ? (
-                          <span className="text-sm text-muted-foreground font-medium">
+                    {tier.features.map((feature, idx) => <li key={idx} className="flex items-start gap-3">
+                        {idx === 0 && tier.name !== "Starter" ? <span className="text-sm text-muted-foreground font-medium">
                             {feature}
-                          </span>
-                        ) : (
-                          <>
+                          </span> : <>
                             <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                             <span className="text-sm">{feature}</span>
-                          </>
-                        )}
-                      </li>
-                    ))}
+                          </>}
+                      </li>)}
                   </ul>
                   <Link to={`/signup?plan=${tier.name.toLowerCase()}`} className="mt-6">
-                    <Button
-                      className="w-full touch-target"
-                      variant={tier.highlight ? "default" : "outline"}
-                    >
+                    <Button className="w-full touch-target" variant={tier.highlight ? "default" : "outline"}>
                       Get Started
                       <ArrowRight className="ml-2 w-4 h-4" />
                     </Button>
                   </Link>
                 </CardContent>
-              </Card>
-            ))}
+              </Card>)}
           </div>
         </div>
       </div>
@@ -154,7 +97,7 @@ const Pricing = () => {
       {/* Value Props */}
       <div className="bg-charcoal py-16 px-4">
         <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12">
+          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-secondary">
             Why Concreters Choose <span className="text-primary">PourHub</span>
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
@@ -239,8 +182,6 @@ const Pricing = () => {
           © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
         </p>
       </footer>
-    </div>
-  );
+    </div>;
 };
-
 export default Pricing;
