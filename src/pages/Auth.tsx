@@ -9,13 +9,13 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Building2, UserPlus } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 
-type AuthMode = "login" | "employee_signup" | "business_signup";
+type AuthMode = "login" | "employee_signup";
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -89,32 +89,6 @@ export default function Auth() {
         if (data.user) {
           await redirectBasedOnRole(data.user.id);
         }
-      } else if (authMode === "business_signup") {
-        // Business owner signup - no invite required
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/admin`,
-            data: { 
-              full_name: fullName,
-              business_name: businessName,
-              signup_type: "business_owner"
-            },
-          },
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Account created!",
-          description: "You can now log in with your credentials.",
-        });
-        setAuthMode("login");
-        setEmail("");
-        setPassword("");
-        setFullName("");
-        setBusinessName("");
       } else {
         // Employee signup - requires invite
         const { data: inviteData, error: inviteError } = await supabase
@@ -158,19 +132,13 @@ export default function Auth() {
   };
 
   const getTitle = () => {
-    switch (authMode) {
-      case "login": return "Sign In";
-      case "business_signup": return "Start Your Business";
-      case "employee_signup": return "Employee Sign Up";
-    }
+    return authMode === "login" ? "Sign In" : "Employee Sign Up";
   };
 
   const getDescription = () => {
-    switch (authMode) {
-      case "login": return "Enter your credentials to access your account";
-      case "business_signup": return "Create your business account to get started";
-      case "employee_signup": return "Sign up with your invite to join your team";
-    }
+    return authMode === "login" 
+      ? "Enter your credentials to access your account" 
+      : "Sign up with your invite to join your team";
   };
 
   return (
@@ -198,21 +166,6 @@ export default function Auth() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {authMode === "business_signup" && (
-                <div className="space-y-2">
-                  <Label htmlFor="businessName">Business Name</Label>
-                  <Input
-                    id="businessName"
-                    type="text"
-                    value={businessName}
-                    onChange={(e) => setBusinessName(e.target.value)}
-                    placeholder="e.g. Smith Concreting"
-                    required
-                    disabled={loading}
-                    className="touch-target"
-                  />
-                </div>
-              )}
               {authMode !== "login" && (
                 <div className="space-y-2">
                   <Label htmlFor="fullName">Your Full Name</Label>
@@ -254,7 +207,7 @@ export default function Auth() {
               </div>
               <Button type="submit" className="w-full touch-target" disabled={loading}>
                 {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {authMode === "login" ? "Sign In" : authMode === "business_signup" ? "Create Business" : "Create Account"}
+                {authMode === "login" ? "Sign In" : "Create Account"}
               </Button>
             </form>
             
@@ -272,7 +225,7 @@ export default function Auth() {
                   type="button"
                   variant="outline"
                   className="w-full touch-target"
-                  onClick={() => setAuthMode("business_signup")}
+                  onClick={() => navigate("/pricing")}
                   disabled={loading}
                 >
                   <Building2 className="mr-2 h-4 w-4" />
