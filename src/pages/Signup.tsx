@@ -53,6 +53,12 @@ export default function Signup() {
       if (error) throw error;
 
       if (data.url) {
+        // Store signup data in sessionStorage before redirect
+        sessionStorage.setItem("signup_email", email);
+        sessionStorage.setItem("signup_business", businessName);
+        sessionStorage.setItem("signup_name", fullName);
+        sessionStorage.setItem("signup_plan", plan);
+        
         // Redirect to Stripe Checkout
         window.location.href = data.url;
       } else {

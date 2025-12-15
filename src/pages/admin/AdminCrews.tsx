@@ -3,12 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Users, Pencil, Trash2, UserPlus } from "lucide-react";
+import { Plus, Users, Pencil, Trash2, UserPlus, Calendar, HardHat } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { CrewFormDialog } from "@/components/crews/CrewFormDialog";
 import { CrewMembersDialog } from "@/components/crews/CrewMembersDialog";
+import { format, startOfWeek, endOfWeek, isWithinInterval, parseISO } from "date-fns";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,6 +71,36 @@ export default function AdminCrews() {
     },
   });
 
+  // Fetch pours for crew schedule stats
+  const { data: poursWithEmployees = [] } = useQuery({
+    queryKey: ["pours-with-employees"],
+    queryFn: async () => {
+      const { data: pours, error: poursError } = await supabase
+        .from("job_pours")
+        .select(`
+          id,
+          pour_name,
+          pour_date,
+          job_id,
+          jobs (name, site_address)
+        `)
+        .gte("pour_date", format(new Date(), "yyyy-MM-dd"));
+      if (poursError) throw poursError;
+
+      const { data: pourEmployees, error: empError } = await supabase
+        .from("pour_employees")
+        .select("pour_id, employee_id");
+      if (empError) throw empError;
+
+      return pours.map(pour => ({
+        ...pour,
+        employeeIds: pourEmployees
+          .filter(pe => pe.pour_id === pour.id)
+          .map(pe => pe.employee_id),
+      }));
+    },
+  });
+
   const deleteCrew = useMutation({
     mutationFn: async (crewId: string) => {
       const { error } = await supabase.from("crews").delete().eq("id", crewId);
@@ -88,6 +119,22 @@ export default function AdminCrews() {
 
   const getMembersForCrew = (crewId: string) => {
     return crewMembers.filter((m) => m.crew_id === crewId);
+  };
+
+  // Get upcoming pours for a crew (where crew members are assigned)
+  const getCrewPoursThisWeek = (crewId: string) => {
+    const members = getMembersForCrew(crewId);
+    const memberIds = members.map(m => m.employee_id);
+    const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+
+    return poursWithEmployees.filter(pour => {
+      if (!pour.pour_date) return false;
+      const pourDate = parseISO(pour.pour_date);
+      const inWeek = isWithinInterval(pourDate, { start: weekStart, end: weekEnd });
+      const hasCrewMember = pour.employeeIds.some((id: string) => memberIds.includes(id));
+      return inWeek && hasCrewMember;
+    });
   };
 
   return (
@@ -116,17 +163,21 @@ export default function AdminCrews() {
             {crews.map((crew) => {
               const members = getMembersForCrew(crew.id);
               const supervisor = members.find((m) => m.is_supervisor);
+              const weekPours = getCrewPoursThisWeek(crew.id);
 
               return (
                 <Card key={crew.id} className="relative">
                   <CardHeader className="pb-2">
                     <div className="flex items-start justify-between">
                       <div>
-                        <CardTitle className="text-lg">{crew.name}</CardTitle>
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <HardHat className="w-5 h-5 text-primary" />
+                          {crew.name}
+                        </CardTitle>
                         {crew.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
+                          <CardDescription className="mt-1">
                             {crew.description}
-                          </p>
+                          </CardDescription>
                         )}
                       </div>
                       <div className="flex gap-1">
@@ -150,16 +201,23 @@ export default function AdminCrews() {
                     </div>
                   </CardHeader>
                   <CardContent>
-                    <div className="flex items-center gap-2 mb-3">
-                      <Users className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm text-muted-foreground">
-                        {members.length} member{members.length !== 1 ? "s" : ""}
-                      </span>
+                    {/* Stats Row */}
+                    <div className="flex items-center gap-4 mb-3 pb-3 border-b">
+                      <div className="flex items-center gap-1.5">
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{members.length}</span>
+                        <span className="text-xs text-muted-foreground">members</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium">{weekPours.length}</span>
+                        <span className="text-xs text-muted-foreground">this week</span>
+                      </div>
                     </div>
 
                     {supervisor && (
                       <div className="mb-3">
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-xs bg-primary/20 text-primary">
                           Supervisor: {supervisor.profiles.full_name}
                         </Badge>
                       </div>
@@ -178,6 +236,25 @@ export default function AdminCrews() {
                         {members.filter((m) => !m.is_supervisor).length > 3 && (
                           <p className="text-xs text-muted-foreground">
                             +{members.filter((m) => !m.is_supervisor).length - 3} more
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Upcoming pours for crew */}
+                    {weekPours.length > 0 && (
+                      <div className="mb-3 p-2 bg-muted/50 rounded-md">
+                        <p className="text-xs font-medium text-muted-foreground mb-1">
+                          Upcoming this week:
+                        </p>
+                        {weekPours.slice(0, 2).map((pour: any) => (
+                          <p key={pour.id} className="text-xs truncate">
+                            {pour.pour_date && format(parseISO(pour.pour_date), "EEE d")} - {pour.pour_name}
+                          </p>
+                        ))}
+                        {weekPours.length > 2 && (
+                          <p className="text-xs text-muted-foreground">
+                            +{weekPours.length - 2} more
                           </p>
                         )}
                       </div>
