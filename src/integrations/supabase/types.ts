@@ -753,6 +753,76 @@ export type Database = {
           },
         ]
       }
+      leave_requests: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          employee_id: string
+          end_date: string
+          id: string
+          leave_type: string
+          reason: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          start_date: string
+          status: Database["public"]["Enums"]["leave_status"]
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          employee_id: string
+          end_date: string
+          id?: string
+          leave_type: string
+          reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date: string
+          status?: Database["public"]["Enums"]["leave_status"]
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          employee_id?: string
+          end_date?: string
+          id?: string
+          leave_type?: string
+          reason?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          start_date?: string
+          status?: Database["public"]["Enums"]["leave_status"]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "leave_requests_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "leave_requests_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_invites: {
         Row: {
           accepted_at: string | null
@@ -1108,6 +1178,7 @@ export type Database = {
         | "custom"
       job_status: "scheduled" | "in_progress" | "completed" | "cancelled"
       job_type: "retail" | "industrial"
+      leave_status: "pending" | "approved" | "rejected"
       service_type: "industrial" | "automotive" | "restoration" | "other"
       test_type:
         | "7_day"
@@ -1269,6 +1340,7 @@ export const Constants = {
       ],
       job_status: ["scheduled", "in_progress", "completed", "cancelled"],
       job_type: ["retail", "industrial"],
+      leave_status: ["pending", "approved", "rejected"],
       service_type: ["industrial", "automotive", "restoration", "other"],
       test_type: [
         "7_day",

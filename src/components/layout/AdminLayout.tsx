@@ -2,7 +2,7 @@ import { ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, Settings, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, Settings, LogOut, Menu, X, CalendarDays } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ const navItems = [
   { href: "/admin/schedule", label: "Schedule", icon: Calendar },
   { href: "/admin/crews", label: "Crews", icon: Users },
   { href: "/admin/employees", label: "Employees", icon: UserCheck },
+  { href: "/admin/leave", label: "Leave", icon: CalendarDays },
   { href: "/admin/equipment", label: "Equipment", icon: Truck },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
