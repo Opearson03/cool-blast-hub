@@ -134,7 +134,7 @@ export default function AdminDashboard() {
               <p className="text-muted-foreground mb-2">
                 You have {businessData.pendingLeaveCount} leave request{businessData.pendingLeaveCount > 1 ? "s" : ""} awaiting approval.
               </p>
-              <Link to="/admin/leave" className="text-primary hover:underline text-sm">
+              <Link to="/admin/employees" className="text-primary hover:underline text-sm">
                 Review leave requests →
               </Link>
             </CardContent>
