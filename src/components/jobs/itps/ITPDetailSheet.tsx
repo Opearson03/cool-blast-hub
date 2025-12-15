@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-import { Camera, Check, X, Loader2, Printer } from "lucide-react";
+import { Camera, Check, X, Loader2, Printer, Download } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { SignaturePad } from "./SignaturePad";
@@ -239,6 +239,14 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
     }, 100);
   };
 
+  const handleDownloadPDF = () => {
+    setShowPrintView(true);
+    setTimeout(() => {
+      window.print();
+      setShowPrintView(false);
+    }, 100);
+  };
+
   if (!itp) return null;
 
   const completedCount = checklistData.filter((item) => item.checked).length;
@@ -253,7 +261,11 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
             <div className="flex items-center justify-between">
               <SheetTitle>{itp.name}</SheetTitle>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={handlePrint}>
+                <Button variant="outline" size="sm" onClick={handleDownloadPDF} title="Download PDF">
+                  <Download className="w-4 h-4 mr-2" />
+                  PDF
+                </Button>
+                <Button variant="outline" size="sm" onClick={handlePrint} title="Print">
                   <Printer className="w-4 h-4 mr-2" />
                   Print
                 </Button>
