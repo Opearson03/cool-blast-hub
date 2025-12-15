@@ -232,10 +232,21 @@ export function PourFormDialog({
           .insert(employeeAssignments);
         if (empError) throw empError;
       }
+
+      // Auto-update job status to in_progress when a pour is scheduled with a date
+      if (data.pour_date) {
+        await supabase
+          .from("jobs")
+          .update({ status: "in_progress" })
+          .eq("id", jobId)
+          .eq("status", "scheduled"); // Only update if still scheduled
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["job-pours", jobId] });
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
+      queryClient.invalidateQueries({ queryKey: ["job", jobId] });
+      queryClient.invalidateQueries({ queryKey: ["jobs"] });
       toast.success(editPour ? "Updated successfully" : "Created successfully");
       onOpenChange(false);
       form.reset();
