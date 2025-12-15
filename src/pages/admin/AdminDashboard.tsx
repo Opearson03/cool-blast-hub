@@ -1,14 +1,17 @@
 import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Users, Calendar, AlertTriangle } from "lucide-react";
+import { Briefcase, Users, Calendar, AlertTriangle, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
+import { useBusinessData } from "@/hooks/useBusinessData";
 
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const businessData = useBusinessData();
 
   useEffect(() => {
     const checkOnboarding = async () => {
@@ -72,11 +75,13 @@ export default function AdminDashboard() {
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Briefcase className="w-4 h-4" /> Jobs Today
+                <Briefcase className="w-4 h-4" /> Pours Today
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">
+                {businessData.isLoading ? "..." : businessData.todayPoursCount}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -86,7 +91,9 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">
+                {businessData.isLoading ? "..." : businessData.activeCrewsCount}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -96,7 +103,9 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold">0</p>
+              <p className="text-2xl font-bold">
+                {businessData.isLoading ? "..." : businessData.weekPoursCount}
+              </p>
             </CardContent>
           </Card>
           <Card>
@@ -106,10 +115,31 @@ export default function AdminDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-amber-500">0</p>
+              <p className={`text-2xl font-bold ${businessData.alertsCount > 0 ? "text-amber-500" : ""}`}>
+                {businessData.isLoading ? "..." : businessData.alertsCount}
+              </p>
             </CardContent>
           </Card>
         </div>
+
+        {businessData.pendingLeaveCount > 0 && (
+          <Card className="border-amber-500/50 bg-amber-500/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-amber-500" />
+                Pending Leave Requests
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-muted-foreground mb-2">
+                You have {businessData.pendingLeaveCount} leave request{businessData.pendingLeaveCount > 1 ? "s" : ""} awaiting approval.
+              </p>
+              <Link to="/admin/leave" className="text-primary hover:underline text-sm">
+                Review leave requests →
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         <Card>
           <CardHeader>
