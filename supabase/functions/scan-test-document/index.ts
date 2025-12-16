@@ -53,13 +53,21 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a concrete test report analyzer. Extract the following information from concrete test lab reports:
-- supplier: The testing laboratory or supplier name
+            content: `You are a concrete test report analyzer. Extract ALL available information from concrete test lab reports.
+
+Extract these fields:
+- test_id: The test/sample ID or reference number (e.g., "CT-001", "S123456")
+- test_type: The type of test. Must be one of: "7_day", "14_day", "28_day", "slump", "cylinder", "air", "other". Determine based on curing days mentioned (7 day = "7_day", 14 day = "14_day", 28 day = "28_day"), or test type (slump test = "slump", cylinder test = "cylinder", air content = "air")
+- pour_date: The date concrete was poured/cast (format: YYYY-MM-DD)
+- test_date: The date the test was conducted (format: YYYY-MM-DD)
+- supplier: The testing laboratory or concrete supplier name
 - target_mpa: The target/specified compressive strength in MPa (just the number)
 - actual_mpa: The actual/achieved compressive strength in MPa (just the number)
+- sample_count: Number of samples/specimens tested (just the number)
+- notes: Any relevant notes, comments, or observations from the report
 
 Return ONLY valid JSON in this exact format:
-{"supplier": "string or null", "target_mpa": number or null, "actual_mpa": number or null}
+{"test_id": "string or null", "test_type": "string or null", "pour_date": "string or null", "test_date": "string or null", "supplier": "string or null", "target_mpa": number or null, "actual_mpa": number or null, "sample_count": number or null, "notes": "string or null"}
 
 If you cannot find a value, use null. Do not include any text outside the JSON object.`
           },
@@ -68,7 +76,7 @@ If you cannot find a value, use null. Do not include any text outside the JSON o
             content: [
               {
                 type: 'text',
-                text: 'Please analyze this concrete test report PDF and extract the supplier name, target MPa, and actual MPa values.'
+                text: 'Please analyze this concrete test report PDF and extract all available information including test ID, test type, dates, supplier, strength values, sample count, and any notes.'
               },
               {
                 type: 'image_url',
@@ -94,12 +102,22 @@ If you cannot find a value, use null. Do not include any text outside the JSON o
     console.log('AI response:', content);
 
     // Parse the JSON response
-    let extractedData = { supplier: null, target_mpa: null, actual_mpa: null };
+    let extractedData = { 
+      test_id: null, 
+      test_type: null, 
+      pour_date: null, 
+      test_date: null, 
+      supplier: null, 
+      target_mpa: null, 
+      actual_mpa: null, 
+      sample_count: null, 
+      notes: null 
+    };
     try {
       // Try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        extractedData = JSON.parse(jsonMatch[0]);
+        extractedData = { ...extractedData, ...JSON.parse(jsonMatch[0]) };
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);
