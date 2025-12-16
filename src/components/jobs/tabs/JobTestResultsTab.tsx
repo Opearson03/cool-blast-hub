@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FlaskConical, Plus, CheckCircle, XCircle, AlertTriangle, Pencil, Trash2, FileText, ExternalLink } from "lucide-react";
+import { FlaskConical, Plus, CheckCircle, XCircle, AlertTriangle, Pencil, Trash2, Download } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { TestResultFormDialog } from "@/components/jobs/TestResultFormDialog";
@@ -220,11 +220,16 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
-                          asChild
+                          onClick={() => {
+                            const link = document.createElement('a');
+                            link.href = test.lab_report_url!;
+                            link.download = `lab-report-${test.test_id}.pdf`;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                          }}
                         >
-                          <a href={test.lab_report_url} target="_blank" rel="noopener noreferrer">
-                            <FileText className="h-4 w-4 text-primary" />
-                          </a>
+                          <Download className="h-4 w-4 text-primary" />
                         </Button>
                       )}
                       <Button
