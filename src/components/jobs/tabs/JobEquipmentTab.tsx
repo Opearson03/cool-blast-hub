@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Wrench, CheckCircle, AlertTriangle } from "lucide-react";
-import { differenceInDays, isPast } from "date-fns";
+import { differenceInDays, isPast, format } from "date-fns";
 import {
   Table,
   TableBody,
@@ -12,6 +13,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Equipment = Tables<"equipment">;
@@ -21,6 +28,15 @@ interface JobEquipmentTabProps {
 }
 
 type ServiceStatus = "ok" | "due-soon" | "overdue" | "unknown";
+
+interface EquipmentWithUsage extends Equipment {
+  usageCount: number;
+  pourDetails: Array<{
+    pourId: string;
+    pourName: string;
+    pourDate: string | null;
+  }>;
+}
 
 function getServiceStatus(equipment: Equipment): ServiceStatus {
   if (!equipment.next_service_date) return "unknown";
@@ -60,13 +76,28 @@ function ServiceStatusBadge({ status }: { status: ServiceStatus }) {
 }
 
 export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
-  const { data: jobEquipment = [], isLoading } = useQuery({
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentWithUsage | null>(null);
+
+  // Fetch all pours for this job and their equipment assignments
+  const { data: equipmentData = [], isLoading } = useQuery({
     queryKey: ["job-equipment", jobId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("job_equipment")
+      // Get all pours for this job
+      const { data: pours, error: poursError } = await supabase
+        .from("job_pours")
+        .select("id, pour_name, pour_date")
+        .eq("job_id", jobId);
+      if (poursError) throw poursError;
+
+      if (!pours || pours.length === 0) return [];
+
+      const pourIds = pours.map((p) => p.id);
+
+      // Get equipment assignments for these pours
+      const { data: pourEquipment, error: peError } = await supabase
+        .from("pour_equipment")
         .select(`
-          id,
+          pour_id,
           equipment:equipment_id (
             id,
             name,
@@ -75,9 +106,43 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
             next_service_date
           )
         `)
-        .eq("job_id", jobId);
-      if (error) throw error;
-      return data as Array<{ id: string; equipment: Equipment }>;
+        .in("pour_id", pourIds);
+      if (peError) throw peError;
+
+      // Aggregate equipment with usage counts
+      const equipmentMap = new Map<string, EquipmentWithUsage>();
+
+      pourEquipment?.forEach((pe) => {
+        const eq = pe.equipment as Equipment;
+        if (!eq) return;
+
+        const pour = pours.find((p) => p.id === pe.pour_id);
+        if (!pour) return;
+
+        if (equipmentMap.has(eq.id)) {
+          const existing = equipmentMap.get(eq.id)!;
+          existing.usageCount++;
+          existing.pourDetails.push({
+            pourId: pour.id,
+            pourName: pour.pour_name,
+            pourDate: pour.pour_date,
+          });
+        } else {
+          equipmentMap.set(eq.id, {
+            ...eq,
+            usageCount: 1,
+            pourDetails: [
+              {
+                pourId: pour.id,
+                pourName: pour.pour_name,
+                pourDate: pour.pour_date,
+              },
+            ],
+          });
+        }
+      });
+
+      return Array.from(equipmentMap.values());
     },
   });
 
@@ -87,14 +152,14 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
     );
   }
 
-  if (jobEquipment.length === 0) {
+  if (equipmentData.length === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <Wrench className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
           <h3 className="font-semibold mb-2">No Equipment Assigned</h3>
           <p className="text-muted-foreground">
-            No equipment has been assigned to this job yet.
+            Assign equipment to pours in the Pours tab.
           </p>
         </CardContent>
       </Card>
@@ -104,7 +169,7 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold">Assigned Equipment ({jobEquipment.length})</h3>
+        <h3 className="font-semibold">Assigned Equipment ({equipmentData.length})</h3>
       </div>
 
       <Card>
@@ -113,14 +178,19 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
             <TableRow>
               <TableHead>Equipment</TableHead>
               <TableHead className="hidden sm:table-cell">Serial #</TableHead>
+              <TableHead>Used in</TableHead>
               <TableHead>Service Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {jobEquipment.map(({ id, equipment }) => {
+            {equipmentData.map((equipment) => {
               const status = getServiceStatus(equipment);
               return (
-                <TableRow key={id}>
+                <TableRow
+                  key={equipment.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => setSelectedEquipment(equipment)}
+                >
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Wrench className="w-4 h-4 text-muted-foreground" />
@@ -131,6 +201,11 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
                     {equipment.serial_number || "—"}
                   </TableCell>
                   <TableCell>
+                    <Badge variant="outline">
+                      {equipment.usageCount} {equipment.usageCount === 1 ? "pour" : "pours"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
                     <ServiceStatusBadge status={status} />
                   </TableCell>
                 </TableRow>
@@ -139,6 +214,52 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
           </TableBody>
         </Table>
       </Card>
+
+      {/* Equipment Detail Dialog */}
+      <Dialog open={!!selectedEquipment} onOpenChange={() => setSelectedEquipment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wrench className="w-5 h-5" />
+              {selectedEquipment?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedEquipment?.serial_number && (
+              <div>
+                <p className="text-sm text-muted-foreground">Serial Number</p>
+                <p className="font-medium">{selectedEquipment.serial_number}</p>
+              </div>
+            )}
+            <div>
+              <p className="text-sm text-muted-foreground">Service Status</p>
+              <div className="mt-1">
+                <ServiceStatusBadge status={getServiceStatus(selectedEquipment!)} />
+              </div>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground mb-2">
+                Used in {selectedEquipment?.usageCount} {selectedEquipment?.usageCount === 1 ? "pour" : "pours"}
+              </p>
+              <div className="space-y-2">
+                {selectedEquipment?.pourDetails.map((pour) => (
+                  <div
+                    key={pour.pourId}
+                    className="flex items-center justify-between p-2 bg-muted/50 rounded-md"
+                  >
+                    <span className="font-medium">{pour.pourName}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {pour.pourDate
+                        ? format(new Date(pour.pourDate), "MMM d, yyyy")
+                        : "Not scheduled"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

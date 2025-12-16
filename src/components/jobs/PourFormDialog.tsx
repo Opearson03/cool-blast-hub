@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/command";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { Check, ChevronsUpDown, X, Users } from "lucide-react";
+import { Check, ChevronsUpDown, X, Users, Wrench } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const pourSchema = z.object({
@@ -101,7 +101,9 @@ export function PourFormDialog({
 }: PourFormDialogProps) {
   const queryClient = useQueryClient();
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
   const hasInitializedEmployees = useRef(false);
+  const hasInitializedEquipment = useRef(false);
 
   // Fetch employees for the business
   const { data: employees = [] } = useQuery({
@@ -142,6 +144,19 @@ export function PourFormDialog({
     },
   });
 
+  // Fetch equipment for the business
+  const { data: equipment = [] } = useQuery({
+    queryKey: ["equipment"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("equipment")
+        .select("id, name, serial_number")
+        .order("name");
+      if (error) throw error;
+      return data;
+    },
+  });
+
   // Fetch assigned employees if editing
   const { data: assignedEmployees } = useQuery({
     queryKey: ["pour-employees", editPour?.id],
@@ -156,6 +171,20 @@ export function PourFormDialog({
     },
   });
 
+  // Fetch assigned equipment if editing
+  const { data: assignedEquipment } = useQuery({
+    queryKey: ["pour-equipment", editPour?.id],
+    enabled: !!editPour?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pour_equipment")
+        .select("equipment_id")
+        .eq("pour_id", editPour!.id);
+      if (error) throw error;
+      return data.map((e) => e.equipment_id);
+    },
+  });
+
   // Initialize selected employees once when data loads
   useEffect(() => {
     if (editPour?.id && assignedEmployees && !hasInitializedEmployees.current) {
@@ -164,11 +193,21 @@ export function PourFormDialog({
     }
   }, [editPour?.id, assignedEmployees]);
 
+  // Initialize selected equipment once when data loads
+  useEffect(() => {
+    if (editPour?.id && assignedEquipment && !hasInitializedEquipment.current) {
+      setSelectedEquipment(assignedEquipment);
+      hasInitializedEquipment.current = true;
+    }
+  }, [editPour?.id, assignedEquipment]);
+
   // Reset when dialog closes or opens for new pour
   useEffect(() => {
     if (!open) {
       hasInitializedEmployees.current = false;
+      hasInitializedEquipment.current = false;
       setSelectedEmployees([]);
+      setSelectedEquipment([]);
     }
   }, [open]);
 
@@ -259,6 +298,20 @@ export function PourFormDialog({
         if (empError) throw empError;
       }
 
+      // Update equipment assignments
+      await supabase.from("pour_equipment").delete().eq("pour_id", pourId);
+
+      if (selectedEquipment.length > 0) {
+        const equipmentAssignments = selectedEquipment.map((eqId) => ({
+          pour_id: pourId,
+          equipment_id: eqId,
+        }));
+        const { error: eqError } = await supabase
+          .from("pour_equipment")
+          .insert(equipmentAssignments);
+        if (eqError) throw eqError;
+      }
+
       // Auto-update job status to in_progress when a pour is scheduled with a date
       if (data.pour_date) {
         await supabase
@@ -273,10 +326,12 @@ export function PourFormDialog({
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
       queryClient.invalidateQueries({ queryKey: ["job", jobId] });
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
+      queryClient.invalidateQueries({ queryKey: ["job-equipment", jobId] });
       toast.success(editPour ? "Updated successfully" : "Created successfully");
       onOpenChange(false);
       form.reset();
       setSelectedEmployees([]);
+      setSelectedEquipment([]);
     },
     onError: () => {
       toast.error("Failed to save");
@@ -288,6 +343,14 @@ export function PourFormDialog({
       prev.includes(employeeId)
         ? prev.filter((id) => id !== employeeId)
         : [...prev, employeeId]
+    );
+  };
+
+  const toggleEquipment = (equipmentId: string) => {
+    setSelectedEquipment((prev) =>
+      prev.includes(equipmentId)
+        ? prev.filter((id) => id !== equipmentId)
+        : [...prev, equipmentId]
     );
   };
 
@@ -469,6 +532,83 @@ export function PourFormDialog({
                               )}
                             />
                             {emp.full_name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Equipment Assignment */}
+            <div className="space-y-2">
+              <FormLabel>Assigned Equipment</FormLabel>
+              
+              {/* Selected equipment badges */}
+              {selectedEquipment.length > 0 && (
+                <div className="flex flex-wrap gap-1 mb-2">
+                  {selectedEquipment.map((eqId) => {
+                    const eq = equipment.find((e) => e.id === eqId);
+                    return eq ? (
+                      <Badge key={eqId} variant="secondary" className="flex items-center gap-1">
+                        <Wrench className="h-3 w-3" />
+                        {eq.name}
+                        <button
+                          type="button"
+                          onClick={() => toggleEquipment(eqId)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ) : null;
+                  })}
+                </div>
+              )}
+
+              {/* Searchable equipment selector */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    role="combobox"
+                    className="w-full justify-between"
+                  >
+                    {selectedEquipment.length === 0
+                      ? "Select equipment..."
+                      : `${selectedEquipment.length} selected`}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0 bg-popover" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search equipment..." />
+                    <CommandList>
+                      <CommandEmpty>No equipment found.</CommandEmpty>
+                      <CommandGroup>
+                        {equipment.map((eq) => (
+                          <CommandItem
+                            key={eq.id}
+                            value={eq.name}
+                            onSelect={() => toggleEquipment(eq.id)}
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                selectedEquipment.includes(eq.id)
+                                  ? "opacity-100"
+                                  : "opacity-0"
+                              )}
+                            />
+                            <Wrench className="mr-2 h-4 w-4 text-muted-foreground" />
+                            {eq.name}
+                            {eq.serial_number && (
+                              <span className="ml-2 text-xs text-muted-foreground">
+                                ({eq.serial_number})
+                              </span>
+                            )}
                           </CommandItem>
                         ))}
                       </CommandGroup>
