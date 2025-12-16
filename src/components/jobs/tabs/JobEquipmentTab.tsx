@@ -98,13 +98,7 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
         .from("pour_equipment")
         .select(`
           pour_id,
-          equipment:equipment_id (
-            id,
-            name,
-            serial_number,
-            status,
-            next_service_date
-          )
+          equipment:equipment_id (*)
         `)
         .in("pour_id", pourIds);
       if (peError) throw peError;
@@ -113,8 +107,8 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
       const equipmentMap = new Map<string, EquipmentWithUsage>();
 
       pourEquipment?.forEach((pe) => {
-        const eq = pe.equipment as Equipment;
-        if (!eq) return;
+        const eq = pe.equipment as Equipment | null;
+        if (!eq || !eq.id) return;
 
         const pour = pours.find((p) => p.id === pe.pour_id);
         if (!pour) return;
@@ -231,12 +225,14 @@ export function JobEquipmentTab({ jobId }: JobEquipmentTabProps) {
                 <p className="font-medium">{selectedEquipment.serial_number}</p>
               </div>
             )}
-            <div>
-              <p className="text-sm text-muted-foreground">Service Status</p>
-              <div className="mt-1">
-                <ServiceStatusBadge status={getServiceStatus(selectedEquipment!)} />
+            {selectedEquipment && (
+              <div>
+                <p className="text-sm text-muted-foreground">Service Status</p>
+                <div className="mt-1">
+                  <ServiceStatusBadge status={getServiceStatus(selectedEquipment)} />
+                </div>
               </div>
-            </div>
+            )}
             <div>
               <p className="text-sm text-muted-foreground mb-2">
                 Used in {selectedEquipment?.usageCount} {selectedEquipment?.usageCount === 1 ? "pour" : "pours"}
