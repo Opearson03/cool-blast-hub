@@ -216,7 +216,7 @@ export default function Auth() {
               </Button>
             </form>
             
-            {authMode === "login" && (
+            {authMode === "login" && !isNative && (
               <div className="mt-6 space-y-3">
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -247,6 +247,12 @@ export default function Auth() {
                   Have an invite? Join your team
                 </Button>
               </div>
+            )}
+            
+            {isNative && authMode === "login" && (
+              <p className="mt-4 text-center text-xs text-muted-foreground">
+                To create an account, please visit pourhub.com.au on a web browser.
+              </p>
             )}
             
             {authMode !== "login" && (
