@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { Capacitor } from '@capacitor/core';
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -141,14 +142,18 @@ export default function Auth() {
       : "Sign up with your invite to join your team";
   };
 
+  const isNative = Capacitor.isNativePlatform();
+
   return (
     <div className="min-h-screen flex flex-col bg-charcoal-dark">
-      <div className="p-4">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to home
-        </Link>
-      </div>
+      {!isNative && (
+        <div className="p-4">
+          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary-foreground transition-colors">
+            <ArrowLeft className="w-4 h-4" />
+            Back to home
+          </Link>
+        </div>
+      )}
       
       <div className="flex-1 flex items-center justify-center p-4">
         <Card className="w-full max-w-md">

@@ -1,10 +1,58 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, ClipboardCheck, Truck, CheckCircle, ArrowRight, Shield } from "lucide-react";
+import { Users, Calendar, ClipboardCheck, Truck, CheckCircle, ArrowRight, Shield, Loader2 } from "lucide-react";
 import heroPourBackground from "@/assets/hero-pour-background.png";
 import { Logo } from "@/components/ui/Logo";
+import { supabase } from "@/integrations/supabase/client";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const [checking, setChecking] = useState(true);
+  const isNative = Capacitor.isNativePlatform();
+
+  useEffect(() => {
+    const checkPlatformAndAuth = async () => {
+      // Only handle native platform redirects
+      if (isNative) {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session) {
+          // Check role and redirect to appropriate dashboard
+          const [{ data: isAdmin }, { data: isStaff }] = await Promise.all([
+            supabase.rpc("has_role", { _role: "admin", _user_id: session.user.id }),
+            supabase.rpc("has_role", { _role: "staff", _user_id: session.user.id }),
+          ]);
+
+          if (isAdmin) {
+            navigate('/admin', { replace: true });
+          } else if (isStaff) {
+            navigate('/employee', { replace: true });
+          } else {
+            navigate('/auth', { replace: true });
+          }
+        } else {
+          // Not logged in on native - go to auth
+          navigate('/auth', { replace: true });
+        }
+      }
+      setChecking(false);
+    };
+    
+    checkPlatformAndAuth();
+  }, [navigate, isNative]);
+
+  // Show loading while checking on native
+  if (isNative && checking) {
+    return (
+      <div className="min-h-screen bg-charcoal-dark flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Web: show landing page as normal
   return (
     <div className="min-h-screen bg-charcoal-dark">
       {/* Hero Section with Background Image */}
