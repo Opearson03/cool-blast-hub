@@ -254,7 +254,7 @@ export default function AdminJobDetail() {
               <JobTestResultsTab jobId={job.id} />
             </TabsContent>
             <TabsContent value="documents" className="m-0">
-              <JobDocumentsTab jobId={job.id} />
+              <JobDocumentsTab jobId={job.id} businessId={job.business_id} />
             </TabsContent>
             <TabsContent value="equipment" className="m-0">
               <JobEquipmentTab jobId={job.id} />

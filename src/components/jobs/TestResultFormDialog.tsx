@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -29,8 +29,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { FileUp, X, FileText } from "lucide-react";
+import { FileUp, X, FileText, Loader2, Sparkles } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { addDays, format } from "date-fns";
 
 type ConcreteTest = Tables<"concrete_tests">;
 
@@ -65,6 +66,7 @@ export function TestResultFormDialog({
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [scanningFile, setScanningFile] = useState(false);
   const [labReportUrl, setLabReportUrl] = useState<string | null>(
     editTest?.lab_report_url || null
   );
@@ -113,6 +115,84 @@ export function TestResultFormDialog({
       : undefined,
   });
 
+  const watchPourId = form.watch("pour_id");
+  const watchPourDate = form.watch("pour_date");
+  const watchTestType = form.watch("test_type");
+
+  // Auto-fill pour_date when pour is selected
+  useEffect(() => {
+    if (watchPourId && watchPourId !== "none" && !editTest) {
+      const selectedPour = pours.find((p) => p.id === watchPourId);
+      if (selectedPour?.pour_date) {
+        form.setValue("pour_date", selectedPour.pour_date);
+      }
+    }
+  }, [watchPourId, pours, form, editTest]);
+
+  // Auto-calculate test_date based on pour_date and test_type
+  useEffect(() => {
+    if (watchPourDate && !editTest) {
+      const pourDate = new Date(watchPourDate);
+      let testDate: Date | null = null;
+
+      switch (watchTestType) {
+        case "7_day":
+          testDate = addDays(pourDate, 7);
+          break;
+        case "14_day":
+          testDate = addDays(pourDate, 14);
+          break;
+        case "28_day":
+          testDate = addDays(pourDate, 28);
+          break;
+        case "slump":
+          testDate = pourDate;
+          break;
+        default:
+          // For other types, don't auto-fill
+          break;
+      }
+
+      if (testDate) {
+        form.setValue("test_date", format(testDate, "yyyy-MM-dd"));
+      }
+    }
+  }, [watchPourDate, watchTestType, form, editTest]);
+
+  const scanDocument = async (pdfUrl: string) => {
+    setScanningFile(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("scan-test-document", {
+        body: { pdfUrl },
+      });
+
+      if (error) throw error;
+
+      if (data?.success && data?.data) {
+        const { supplier, target_mpa, actual_mpa } = data.data;
+        
+        if (supplier) {
+          form.setValue("supplier", supplier);
+        }
+        if (target_mpa !== null && target_mpa !== undefined) {
+          form.setValue("target_strength", target_mpa.toString());
+        }
+        if (actual_mpa !== null && actual_mpa !== undefined) {
+          form.setValue("actual_strength", actual_mpa.toString());
+        }
+
+        toast.success("Document scanned successfully");
+      } else {
+        toast.info("Could not extract data from document");
+      }
+    } catch (error) {
+      console.error("Scan error:", error);
+      toast.error("Failed to scan document");
+    } finally {
+      setScanningFile(false);
+    }
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -142,6 +222,9 @@ export function TestResultFormDialog({
 
       setLabReportUrl(urlData.publicUrl);
       toast.success("Lab report uploaded");
+
+      // Auto-scan the document
+      await scanDocument(urlData.publicUrl);
     } catch (error) {
       console.error("Upload error:", error);
       toast.error("Failed to upload file");
@@ -152,7 +235,6 @@ export function TestResultFormDialog({
 
   const removeFile = async () => {
     if (labReportUrl) {
-      // Extract file path from URL
       const pathMatch = labReportUrl.match(/test-documents\/(.+)$/);
       if (pathMatch) {
         await supabase.storage.from("test-documents").remove([pathMatch[1]]);
@@ -166,7 +248,6 @@ export function TestResultFormDialog({
       const targetStrength = data.target_strength ? parseFloat(data.target_strength) : null;
       const actualStrength = data.actual_strength ? parseFloat(data.actual_strength) : null;
 
-      // Auto-calculate passed status
       let passed: boolean | null = null;
       if (targetStrength && actualStrength) {
         passed = actualStrength >= targetStrength;
@@ -324,6 +405,60 @@ export function TestResultFormDialog({
               />
             </div>
 
+            {/* Lab Report Upload - moved up for AI scanning */}
+            <div className="space-y-2">
+              <FormLabel>Lab Report (PDF)</FormLabel>
+              {labReportUrl ? (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
+                  <FileText className="h-5 w-5 text-primary" />
+                  <span className="text-sm flex-1 truncate">Lab report uploaded</span>
+                  {scanningFile && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      <span>Scanning...</span>
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => scanDocument(labReportUrl)}
+                    disabled={scanningFile}
+                    className="h-8"
+                  >
+                    <Sparkles className="h-4 w-4 mr-1" />
+                    Re-scan
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={removeFile}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+                >
+                  <FileUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">
+                    {uploadingFile ? "Uploading..." : "Click to upload PDF (AI will auto-extract data)"}
+                  </p>
+                </div>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+            </div>
+
             <FormField
               control={form.control}
               name="supplier"
@@ -377,43 +512,6 @@ export function TestResultFormDialog({
                     <FormMessage />
                   </FormItem>
                 )}
-              />
-            </div>
-
-            {/* Lab Report Upload */}
-            <div className="space-y-2">
-              <FormLabel>Lab Report (PDF)</FormLabel>
-              {labReportUrl ? (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted">
-                  <FileText className="h-5 w-5 text-primary" />
-                  <span className="text-sm flex-1 truncate">Lab report uploaded</span>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={removeFile}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-                >
-                  <FileUp className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">
-                    {uploadingFile ? "Uploading..." : "Click to upload PDF"}
-                  </p>
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="application/pdf"
-                onChange={handleFileUpload}
-                className="hidden"
               />
             </div>
 
