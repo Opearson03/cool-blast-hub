@@ -892,6 +892,42 @@ export type Database = {
           },
         ]
       }
+      pour_equipment: {
+        Row: {
+          created_at: string | null
+          equipment_id: string
+          id: string
+          pour_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          equipment_id: string
+          id?: string
+          pour_id: string
+        }
+        Update: {
+          created_at?: string | null
+          equipment_id?: string
+          id?: string
+          pour_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pour_equipment_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pour_equipment_pour_id_fkey"
+            columns: ["pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           business_id: string | null
