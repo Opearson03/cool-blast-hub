@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sheet,
   SheetContent,
@@ -39,6 +40,9 @@ type Employee = {
   phone: string | null;
   position: string | null;
   hourly_rate: number | null;
+  avatar_url?: string | null;
+  emergency_contact_name?: string | null;
+  emergency_contact_phone?: string | null;
 };
 
 type Ticket = {
@@ -147,7 +151,15 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
       <Sheet open={open} onOpenChange={onOpenChange}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-xl">{employee.full_name}</SheetTitle>
+            <div className="flex items-center gap-3">
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={employee.avatar_url || undefined} />
+                <AvatarFallback className="bg-primary/10 text-primary">
+                  {employee.full_name.split(" ").map(n => n[0]).join("").toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              <SheetTitle className="text-xl">{employee.full_name}</SheetTitle>
+            </div>
           </SheetHeader>
 
           <Tabs defaultValue="details" className="mt-4">

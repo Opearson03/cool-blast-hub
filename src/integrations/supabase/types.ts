@@ -930,6 +930,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           business_id: string | null
           created_at: string | null
           emergency_contact_name: string | null
@@ -942,6 +943,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          avatar_url?: string | null
           business_id?: string | null
           created_at?: string | null
           emergency_contact_name?: string | null
@@ -954,6 +956,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          avatar_url?: string | null
           business_id?: string | null
           created_at?: string | null
           emergency_contact_name?: string | null
@@ -1088,6 +1091,41 @@ export type Database = {
           },
         ]
       }
+      push_tokens: {
+        Row: {
+          created_at: string | null
+          id: string
+          platform: string
+          token: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          platform: string
+          token: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "push_tokens_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       swms_signoffs: {
         Row: {
           employee_id: string | null
@@ -1160,6 +1198,92 @@ export type Database = {
         }
         Relationships: []
       }
+      timesheets: {
+        Row: {
+          business_id: string
+          clock_in: string
+          clock_in_latitude: number | null
+          clock_in_longitude: number | null
+          clock_out: string | null
+          clock_out_latitude: number | null
+          clock_out_longitude: number | null
+          created_at: string | null
+          edited_at: string | null
+          edited_by: string | null
+          employee_id: string
+          id: string
+          notes: string | null
+          pour_id: string | null
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          clock_in: string
+          clock_in_latitude?: number | null
+          clock_in_longitude?: number | null
+          clock_out?: string | null
+          clock_out_latitude?: number | null
+          clock_out_longitude?: number | null
+          created_at?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
+          employee_id: string
+          id?: string
+          notes?: string | null
+          pour_id?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          clock_in?: string
+          clock_in_latitude?: number | null
+          clock_in_longitude?: number | null
+          clock_out?: string | null
+          clock_out_latitude?: number | null
+          clock_out_longitude?: number | null
+          created_at?: string | null
+          edited_at?: string | null
+          edited_by?: string | null
+          employee_id?: string
+          id?: string
+          notes?: string | null
+          pour_id?: string | null
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "timesheets_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_edited_by_fkey"
+            columns: ["edited_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "timesheets_pour_id_fkey"
+            columns: ["pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string | null
@@ -1189,6 +1313,7 @@ export type Database = {
       get_team_profiles: {
         Args: never
         Returns: {
+          avatar_url: string | null
           business_id: string | null
           created_at: string | null
           emergency_contact_name: string | null

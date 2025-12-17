@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ProfilePictureUpload } from "@/components/employees/ProfilePictureUpload";
 import { useToast } from "@/hooks/use-toast";
 import {
   User,
@@ -38,7 +38,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import type { Tables } from "@/integrations/supabase/types";
 
-type Profile = Tables<"profiles">;
+type Profile = Tables<"profiles"> & {
+  avatar_url?: string | null;
+};
 type Ticket = Tables<"employee_tickets">;
 
 export default function EmployeeProfile() {
@@ -181,11 +183,13 @@ export default function EmployeeProfile() {
             <Card>
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-4">
-                  <Avatar className="h-16 w-16">
-                    <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                      {getInitials(profile?.full_name || "")}
-                    </AvatarFallback>
-                  </Avatar>
+                  <ProfilePictureUpload
+                    userId={userId || ""}
+                    currentUrl={profile?.avatar_url}
+                    fullName={profile?.full_name || ""}
+                    size="lg"
+                    editable={true}
+                  />
                   <div>
                     <CardTitle>{profile?.full_name}</CardTitle>
                     {profile?.position && (

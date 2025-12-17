@@ -7,11 +7,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Phone, AlertTriangle, Award } from "lucide-react";
+import { Plus, Search, Phone, AlertTriangle, Award, Clock } from "lucide-react";
 import { EmployeeDetailsSheet } from "@/components/employees/EmployeeDetailsSheet";
 import { InviteEmployeeDialog } from "@/components/employees/InviteEmployeeDialog";
 import { LeaveRequestsList } from "@/components/leave/LeaveRequestsList";
+import { FloatingEmployeesWidget } from "@/components/employees/FloatingEmployeesWidget";
+import { TimesheetTable } from "@/components/timesheets/TimesheetTable";
+import { TimesheetExport } from "@/components/timesheets/TimesheetExport";
 import { differenceInDays, isPast } from "date-fns";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 type Employee = {
   id: string;
@@ -19,6 +23,7 @@ type Employee = {
   phone: string | null;
   position: string | null;
   hourly_rate: number | null;
+  avatar_url: string | null;
   created_at: string;
 };
 
@@ -160,6 +165,10 @@ export default function AdminEmployees() {
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
             <TabsTrigger value="employees">Team ({employees.length})</TabsTrigger>
+            <TabsTrigger value="timesheets">
+              <Clock className="w-4 h-4 mr-1" />
+              Timesheets
+            </TabsTrigger>
             <TabsTrigger value="leave" className="relative">
               Leave
               {pendingLeaveCount > 0 && (
@@ -171,6 +180,9 @@ export default function AdminEmployees() {
           </TabsList>
 
           <TabsContent value="employees" className="mt-4 space-y-4">
+            {/* Floating Employees Widget */}
+            {businessId && <FloatingEmployeesWidget businessId={businessId} />}
+
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -199,6 +211,7 @@ export default function AdminEmployees() {
                   const empTickets = getTicketsForEmployee(employee.id);
                   const expiringCount = getExpiringTicketsCount(employee.id);
                   const role = getRole(employee.id);
+                  const initials = employee.full_name.split(" ").map(n => n[0]).join("").toUpperCase();
 
                   return (
                     <Card
@@ -208,27 +221,35 @@ export default function AdminEmployees() {
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold">{employee.full_name}</h3>
-                              {role && (
-                                <Badge variant={role === "admin" ? "default" : "secondary"}>
-                                  {role}
-                                </Badge>
-                              )}
-                            </div>
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={employee.avatar_url || undefined} />
+                              <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold">{employee.full_name}</h3>
+                                {role && (
+                                  <Badge variant={role === "admin" ? "default" : "secondary"}>
+                                    {role}
+                                  </Badge>
+                                )}
+                              </div>
 
-                            {employee.position && (
-                              <p className="text-sm text-muted-foreground">{employee.position}</p>
-                            )}
-
-                            <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
-                              {employee.phone && (
-                                <span className="flex items-center gap-1">
-                                  <Phone className="w-3 h-3" />
-                                  {employee.phone}
-                                </span>
+                              {employee.position && (
+                                <p className="text-sm text-muted-foreground">{employee.position}</p>
                               )}
+
+                              <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
+                                {employee.phone && (
+                                  <span className="flex items-center gap-1">
+                                    <Phone className="w-3 h-3" />
+                                    {employee.phone}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
 
@@ -255,6 +276,13 @@ export default function AdminEmployees() {
                 })}
               </div>
             )}
+          </TabsContent>
+
+          <TabsContent value="timesheets" className="mt-4 space-y-4">
+            <div className="flex justify-end">
+              {businessId && <TimesheetExport businessId={businessId} />}
+            </div>
+            {businessId && <TimesheetTable businessId={businessId} />}
           </TabsContent>
 
           <TabsContent value="leave" className="mt-4 space-y-4">

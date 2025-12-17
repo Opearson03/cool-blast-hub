@@ -8,6 +8,7 @@ import { ClipboardList, Clock, FileCheck, MapPin, Calendar, AlertTriangle, Shiel
 import { format, isToday, isTomorrow, differenceInDays } from "date-fns";
 import { ITPDetailSheet } from "@/components/jobs/itps/ITPDetailSheet";
 import { SWMSDetailSheet } from "@/components/jobs/swms/SWMSDetailSheet";
+import { ClockInButton } from "@/components/timesheets/ClockInButton";
 import type { Tables } from "@/integrations/supabase/types";
 
 type JobITP = Tables<"job_itps">;
@@ -32,6 +33,7 @@ const statusColors: Record<string, string> = {
 
 export default function EmployeeDashboard() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [businessId, setBusinessId] = useState<string | null>(null);
   const [selectedItp, setSelectedItp] = useState<ITPWithDetails | null>(null);
   const [selectedSwms, setSelectedSwms] = useState<SWMSWithDetails | null>(null);
 
@@ -39,6 +41,15 @@ export default function EmployeeDashboard() {
     const loadUser = async () => {
       const { data } = await supabase.auth.getUser();
       setUserId(data.user?.id || null);
+      
+      if (data.user?.id) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("business_id")
+          .eq("id", data.user.id)
+          .single();
+        setBusinessId(profile?.business_id || null);
+      }
     };
     loadUser();
   }, []);
@@ -227,6 +238,11 @@ export default function EmployeeDashboard() {
     <EmployeeLayout>
       <div className="space-y-6 pb-20">
         <h1 className="text-xl font-bold">My Dashboard</h1>
+
+        {/* Clock In/Out Card */}
+        {userId && businessId && (
+          <ClockInButton userId={userId} businessId={businessId} />
+        )}
 
         {/* Expiring Tickets Alert */}
         {expiringTickets.length > 0 && (
