@@ -44,8 +44,18 @@ import {
 } from "@/components/ui/command";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { Check, ChevronsUpDown, X, Users, Wrench } from "lucide-react";
+import { Check, ChevronsUpDown, X, Users, Wrench, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const pourSchema = z.object({
   pour_name: z.string().min(1, "Name is required"),
@@ -102,6 +112,8 @@ export function PourFormDialog({
   const queryClient = useQueryClient();
   const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
   const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState<PourFormData | null>(null);
   const hasInitializedEmployees = useRef(false);
   const hasInitializedEquipment = useRef(false);
 
@@ -366,7 +378,25 @@ export function PourFormDialog({
     }
   };
 
+  const handleFormSubmit = (data: PourFormData) => {
+    if (!editPour) {
+      setPendingFormData(data);
+      setShowConfirmDialog(true);
+    } else {
+      mutation.mutate(data);
+    }
+  };
+
+  const confirmAndSubmit = () => {
+    if (pendingFormData) {
+      mutation.mutate(pendingFormData);
+      setShowConfirmDialog(false);
+      setPendingFormData(null);
+    }
+  };
+
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -376,7 +406,7 @@ export function PourFormDialog({
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((d) => mutation.mutate(d))} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleFormSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="visit_type"
@@ -745,5 +775,27 @@ export function PourFormDialog({
         </Form>
       </DialogContent>
     </Dialog>
+
+    {/* Confirmation Dialog for new pours */}
+    <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            Confirm Details
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            Have you reviewed all the details for this site visit? Make sure the date, time, and assigned employees are correct before proceeding.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Go Back</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmAndSubmit}>
+            Yes, Create Visit
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

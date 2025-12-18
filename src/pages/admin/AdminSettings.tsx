@@ -454,6 +454,23 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
+          {/* Legal */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Legal</CardTitle>
+              <CardDescription>Privacy policy and terms of service</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Button variant="link" className="p-0 h-auto" asChild>
+                <a href="/privacy" target="_blank">Privacy Policy</a>
+              </Button>
+              <br />
+              <Button variant="link" className="p-0 h-auto" asChild>
+                <a href="/terms" target="_blank">Terms and Conditions</a>
+              </Button>
+            </CardContent>
+          </Card>
+
           <Separator />
 
           <Button

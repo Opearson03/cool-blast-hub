@@ -1,14 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,10 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { format, differenceInMinutes, startOfWeek, endOfWeek, subWeeks } from "date-fns";
-import { Search, MapPin, CheckCircle, AlertCircle, Pencil, Clock } from "lucide-react";
+import { Search, MapPin, CheckCircle, AlertCircle, Pencil, Clock, ChevronDown, Coffee } from "lucide-react";
 import { EditTimesheetDialog } from "./EditTimesheetDialog";
 
 interface TimesheetTableProps {
@@ -39,6 +36,9 @@ interface Timesheet {
   clock_in_longitude: number | null;
   clock_out_latitude: number | null;
   clock_out_longitude: number | null;
+  break_start: string | null;
+  break_end: string | null;
+  break_applied_by: string | null;
   status: string;
   notes: string | null;
   edited_by: string | null;
@@ -47,10 +47,20 @@ interface Timesheet {
   job_pours: { pour_name: string; jobs: { name: string; site_address: string } } | null;
 }
 
+interface GroupedTimesheets {
+  [employeeId: string]: {
+    employeeName: string;
+    timesheets: Timesheet[];
+    totalMinutes: number;
+    breakMinutes: number;
+  };
+}
+
 export function TimesheetTable({ businessId }: TimesheetTableProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("this_week");
   const [editingTimesheet, setEditingTimesheet] = useState<Timesheet | null>(null);
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
 
   const getDateRange = () => {
     const now = new Date();
@@ -89,24 +99,70 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
     enabled: !!businessId,
   });
 
-  const filteredTimesheets = timesheets.filter((ts) =>
-    ts.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ts.job_pours?.pour_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    ts.job_pours?.jobs?.name?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Group timesheets by employee
+  const groupedTimesheets: GroupedTimesheets = timesheets
+    .filter((ts) =>
+      ts.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ts.job_pours?.pour_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ts.job_pours?.jobs?.name?.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    .reduce((acc, ts) => {
+      const empId = ts.employee_id;
+      if (!acc[empId]) {
+        acc[empId] = {
+          employeeName: ts.profiles?.full_name || "Unknown",
+          timesheets: [],
+          totalMinutes: 0,
+          breakMinutes: 0,
+        };
+      }
+      acc[empId].timesheets.push(ts);
+      
+      if (ts.clock_out) {
+        const workMins = differenceInMinutes(new Date(ts.clock_out), new Date(ts.clock_in));
+        let breakMins = 0;
+        if (ts.break_start && ts.break_end) {
+          breakMins = differenceInMinutes(new Date(ts.break_end), new Date(ts.break_start));
+        }
+        acc[empId].totalMinutes += workMins - breakMins;
+        acc[empId].breakMinutes += breakMins;
+      }
+      
+      return acc;
+    }, {} as GroupedTimesheets);
 
-  const calculateDuration = (clockIn: string, clockOut: string | null) => {
+  const calculateDuration = (clockIn: string, clockOut: string | null, breakStart?: string | null, breakEnd?: string | null) => {
     if (!clockOut) return "In progress";
-    const mins = differenceInMinutes(new Date(clockOut), new Date(clockIn));
+    let mins = differenceInMinutes(new Date(clockOut), new Date(clockIn));
+    if (breakStart && breakEnd) {
+      mins -= differenceInMinutes(new Date(breakEnd), new Date(breakStart));
+    }
     const hours = Math.floor(mins / 60);
     const remainingMins = mins % 60;
     return `${hours}h ${remainingMins}m`;
   };
 
-  const totalHours = filteredTimesheets.reduce((acc, ts) => {
-    if (!ts.clock_out) return acc;
-    return acc + differenceInMinutes(new Date(ts.clock_out), new Date(ts.clock_in));
-  }, 0);
+  const formatHours = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return `${hours}h ${mins}m`;
+  };
+
+  const toggleEmployee = (empId: string) => {
+    const newExpanded = new Set(expandedEmployees);
+    if (newExpanded.has(empId)) {
+      newExpanded.delete(empId);
+    } else {
+      newExpanded.add(empId);
+    }
+    setExpandedEmployees(newExpanded);
+  };
+
+  const totalHours = Object.values(groupedTimesheets).reduce((acc, g) => acc + g.totalMinutes, 0);
+  const totalEntries = timesheets.filter(ts => 
+    ts.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    ts.job_pours?.pour_name?.toLowerCase().includes(searchQuery.toLowerCase())
+  ).length;
 
   if (isLoading) {
     return (
@@ -128,9 +184,7 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
               <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Total Hours</span>
             </div>
-            <p className="text-2xl font-bold mt-1">
-              {Math.floor(totalHours / 60)}h {totalHours % 60}m
-            </p>
+            <p className="text-2xl font-bold mt-1">{formatHours(totalHours)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -139,7 +193,7 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Entries</span>
             </div>
-            <p className="text-2xl font-bold mt-1">{filteredTimesheets.length}</p>
+            <p className="text-2xl font-bold mt-1">{totalEntries}</p>
           </CardContent>
         </Card>
       </div>
@@ -167,75 +221,110 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
         </Select>
       </div>
 
-      {/* Table */}
-      {filteredTimesheets.length === 0 ? (
+      {/* Grouped by Employee */}
+      {Object.keys(groupedTimesheets).length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-muted-foreground">
             No timesheet entries found for the selected period.
           </CardContent>
         </Card>
       ) : (
-        <div className="border rounded-lg overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Employee</TableHead>
-                <TableHead>Date</TableHead>
-                <TableHead>Clock In</TableHead>
-                <TableHead>Clock Out</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Job/Pour</TableHead>
-                <TableHead className="w-[50px]"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredTimesheets.map((ts) => (
-                <TableRow key={ts.id}>
-                  <TableCell className="font-medium">{ts.profiles?.full_name}</TableCell>
-                  <TableCell>{format(new Date(ts.clock_in), "EEE, d MMM")}</TableCell>
-                  <TableCell>{format(new Date(ts.clock_in), "h:mm a")}</TableCell>
-                  <TableCell>
-                    {ts.clock_out ? format(new Date(ts.clock_out), "h:mm a") : (
-                      <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30">
-                        Active
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell>{calculateDuration(ts.clock_in, ts.clock_out)}</TableCell>
-                  <TableCell>
-                    {ts.clock_in_latitude ? (
-                      <Badge variant="outline" className="text-xs">
-                        <MapPin className="h-3 w-3 mr-1" />
-                        GPS
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="text-xs text-muted-foreground">
-                        <AlertCircle className="h-3 w-3 mr-1" />
-                        No GPS
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="max-w-[150px] truncate">
-                    {ts.job_pours ? (
-                      <span className="text-sm">{ts.job_pours.pour_name}</span>
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setEditingTimesheet(ts)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+        <div className="space-y-3">
+          {Object.entries(groupedTimesheets)
+            .sort((a, b) => a[1].employeeName.localeCompare(b[1].employeeName))
+            .map(([empId, group]) => (
+              <Collapsible
+                key={empId}
+                open={expandedEmployees.has(empId)}
+                onOpenChange={() => toggleEmployee(empId)}
+              >
+                <Card>
+                  <CollapsibleTrigger asChild>
+                    <div className="p-4 cursor-pointer hover:bg-muted/50 transition-colors">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <ChevronDown className={`h-4 w-4 transition-transform ${expandedEmployees.has(empId) ? "rotate-180" : ""}`} />
+                          <div>
+                            <p className="font-medium">{group.employeeName}</p>
+                            <p className="text-sm text-muted-foreground">{group.timesheets.length} entries</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-lg">{formatHours(group.totalMinutes)}</p>
+                          {group.breakMinutes > 0 && (
+                            <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
+                              <Coffee className="h-3 w-3" />
+                              {formatHours(group.breakMinutes)} breaks
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <div className="border-t divide-y">
+                      {group.timesheets.map((ts) => (
+                        <div key={ts.id} className="p-4 flex items-center justify-between hover:bg-muted/30">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{format(new Date(ts.clock_in), "EEE, d MMM")}</span>
+                              {ts.status === "active" && (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
+                                  Active
+                                </Badge>
+                              )}
+                              {ts.edited_at && (
+                                <Badge variant="outline" className="text-xs">Edited</Badge>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground flex items-center gap-2">
+                              <span>{format(new Date(ts.clock_in), "h:mm a")}</span>
+                              <span>→</span>
+                              <span>{ts.clock_out ? format(new Date(ts.clock_out), "h:mm a") : "—"}</span>
+                              {ts.break_start && ts.break_end && (
+                                <span className="flex items-center gap-1 text-amber-500">
+                                  <Coffee className="h-3 w-3" />
+                                  {differenceInMinutes(new Date(ts.break_end), new Date(ts.break_start))}m break
+                                </span>
+                              )}
+                            </div>
+                            {ts.job_pours && (
+                              <p className="text-xs text-muted-foreground">{ts.job_pours.pour_name}</p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="font-medium">{calculateDuration(ts.clock_in, ts.clock_out, ts.break_start, ts.break_end)}</p>
+                              {ts.clock_in_latitude ? (
+                                <Badge variant="outline" className="text-xs">
+                                  <MapPin className="h-3 w-3 mr-1" />
+                                  GPS
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs text-muted-foreground">
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  No GPS
+                                </Badge>
+                              )}
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingTimesheet(ts);
+                              }}
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CollapsibleContent>
+                </Card>
+              </Collapsible>
+            ))}
         </div>
       )}
 
