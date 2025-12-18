@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, AlertCircle } from "lucide-react";
@@ -19,6 +20,7 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -37,6 +39,16 @@ export default function Signup() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!termsAccepted) {
+      toast({
+        title: "Terms Required",
+        description: "You must accept the Terms and Conditions to continue.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -58,6 +70,7 @@ export default function Signup() {
         sessionStorage.setItem("signup_business", businessName);
         sessionStorage.setItem("signup_name", fullName);
         sessionStorage.setItem("signup_plan", plan);
+        sessionStorage.setItem("signup_terms_accepted", "true");
         
         // Redirect to Stripe Checkout
         window.location.href = data.url;
@@ -189,14 +202,28 @@ export default function Signup() {
                     className="touch-target"
                   />
                 </div>
-                <Button type="submit" className="w-full touch-target" disabled={loading}>
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="terms"
+                    checked={termsAccepted}
+                    onCheckedChange={(checked) => setTermsAccepted(checked === true)}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="terms" className="text-sm leading-tight cursor-pointer">
+                    I agree to the{" "}
+                    <Link to="/terms" target="_blank" className="text-primary hover:underline">
+                      Terms and Conditions
+                    </Link>{" "}
+                    and{" "}
+                    <Link to="/privacy" target="_blank" className="text-primary hover:underline">
+                      Privacy Policy
+                    </Link>
+                  </Label>
+                </div>
+                <Button type="submit" className="w-full touch-target" disabled={loading || !termsAccepted}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Continue to Payment
                 </Button>
-                <p className="text-xs text-center text-muted-foreground">
-                  By continuing, you agree to our Terms of Service and Privacy Policy.
-                  You'll be redirected to our secure payment partner.
-                </p>
               </form>
               
               <div className="mt-6 text-center text-sm">

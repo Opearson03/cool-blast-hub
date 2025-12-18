@@ -193,6 +193,13 @@ export function TestResultFormDialog({
         if (extracted.pour_date) {
           form.setValue("pour_date", extracted.pour_date);
           newAiFields.add("pour_date");
+          
+          // Auto-assign pour if pour_date matches a pour from this job
+          const matchingPour = pours.find(p => p.pour_date === extracted.pour_date);
+          if (matchingPour) {
+            form.setValue("pour_id", matchingPour.id);
+            newAiFields.add("pour_id");
+          }
         }
         if (extracted.test_date) {
           form.setValue("test_date", extracted.test_date);
@@ -221,7 +228,7 @@ export function TestResultFormDialog({
 
         setAiExtractedFields(newAiFields);
         setShowForm(true);
-        toast.success(`AI extracted ${newAiFields.size} fields from document`);
+        toast.success(`Extracted ${newAiFields.size} fields from document`);
       } else {
         toast.info("Could not extract data - please fill manually");
         setShowForm(true);
@@ -263,7 +270,7 @@ export function TestResultFormDialog({
         .getPublicUrl(fileName);
 
       setLabReportUrl(urlData.publicUrl);
-      toast.success("Lab report uploaded - scanning with AI...");
+      toast.success("Lab report uploaded - scanning...");
 
       // Auto-scan the document
       await scanDocument(urlData.publicUrl);
@@ -358,7 +365,7 @@ export function TestResultFormDialog({
           <div className="space-y-4">
             <div className="space-y-2">
               <p className="text-sm text-muted-foreground">
-                Upload a lab report PDF and AI will automatically extract the test data.
+                Upload a lab report PDF to automatically extract the test data.
               </p>
               <div
                 onClick={() => !uploadingFile && !scanningFile && fileInputRef.current?.click()}
@@ -371,15 +378,15 @@ export function TestResultFormDialog({
                   </>
                 ) : scanningFile ? (
                   <>
-                    <Sparkles className="h-10 w-10 mx-auto mb-3 text-primary animate-pulse" />
-                    <p className="text-sm font-medium">AI is scanning document...</p>
+                    <Loader2 className="h-10 w-10 mx-auto mb-3 text-primary animate-spin" />
+                    <p className="text-sm font-medium">Scanning document...</p>
                     <p className="text-xs text-muted-foreground mt-1">Extracting test data</p>
                   </>
                 ) : (
                   <>
                     <FileUp className="h-10 w-10 mx-auto mb-3 text-muted-foreground" />
                     <p className="text-sm font-medium">Upload Lab Report PDF</p>
-                    <p className="text-xs text-muted-foreground mt-1">AI will auto-fill all fields</p>
+                    <p className="text-xs text-muted-foreground mt-1">Fields will be auto-filled</p>
                   </>
                 )}
               </div>
@@ -472,7 +479,7 @@ export function TestResultFormDialog({
               {aiExtractedFields.size > 0 && (
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <Sparkles className="h-3 w-3" />
-                  AI-filled fields are highlighted. All fields are editable.
+                  Auto-filled fields are highlighted. All fields are editable.
                 </p>
               )}
 

@@ -242,6 +242,22 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
                         <p className="font-medium">${employee.hourly_rate.toFixed(2)}</p>
                       </div>
                     )}
+                    
+                    {/* Emergency Contact */}
+                    {(employee.emergency_contact_name || employee.emergency_contact_phone) && (
+                      <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+                        <p className="text-xs text-destructive font-medium mb-1">Emergency Contact</p>
+                        {employee.emergency_contact_name && (
+                          <p className="font-medium">{employee.emergency_contact_name}</p>
+                        )}
+                        {employee.emergency_contact_phone && (
+                          <div className="flex items-center gap-2 text-sm mt-1">
+                            <Phone className="w-3 h-3" />
+                            <span>{employee.emergency_contact_phone}</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <Button variant="outline" onClick={handleStartEdit} className="w-full touch-target">
                     <Pencil className="w-4 h-4 mr-2" />

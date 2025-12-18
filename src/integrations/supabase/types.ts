@@ -940,6 +940,7 @@ export type Database = {
           id: string
           phone: string | null
           position: string | null
+          terms_accepted_at: string | null
           updated_at: string | null
         }
         Insert: {
@@ -953,6 +954,7 @@ export type Database = {
           id: string
           phone?: string | null
           position?: string | null
+          terms_accepted_at?: string | null
           updated_at?: string | null
         }
         Update: {
@@ -966,6 +968,7 @@ export type Database = {
           id?: string
           phone?: string | null
           position?: string | null
+          terms_accepted_at?: string | null
           updated_at?: string | null
         }
         Relationships: [
@@ -1200,6 +1203,10 @@ export type Database = {
       }
       timesheets: {
         Row: {
+          break_applied_at: string | null
+          break_applied_by: string | null
+          break_end: string | null
+          break_start: string | null
           business_id: string
           clock_in: string
           clock_in_latitude: number | null
@@ -1218,6 +1225,10 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          break_applied_at?: string | null
+          break_applied_by?: string | null
+          break_end?: string | null
+          break_start?: string | null
           business_id: string
           clock_in: string
           clock_in_latitude?: number | null
@@ -1236,6 +1247,10 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          break_applied_at?: string | null
+          break_applied_by?: string | null
+          break_end?: string | null
+          break_start?: string | null
           business_id?: string
           clock_in?: string
           clock_in_latitude?: number | null
@@ -1254,6 +1269,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "timesheets_break_applied_by_fkey"
+            columns: ["break_applied_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "timesheets_business_id_fkey"
             columns: ["business_id"]
@@ -1323,6 +1345,7 @@ export type Database = {
           id: string
           phone: string | null
           position: string | null
+          terms_accepted_at: string | null
           updated_at: string | null
         }[]
         SetofOptions: {
