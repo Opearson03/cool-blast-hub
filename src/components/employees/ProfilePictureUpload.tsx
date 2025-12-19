@@ -47,14 +47,14 @@ export function ProfilePictureUpload({
       const filePath = `${userId}/${Date.now()}.${fileExt}`;
 
       const { error: uploadError } = await supabase.storage
-        .from("business-logos") // Reusing this bucket for profile pics
+        .from("avatars")
         .upload(filePath, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from("business-logos")
+        .from("avatars")
         .getPublicUrl(filePath);
 
       // Update profile

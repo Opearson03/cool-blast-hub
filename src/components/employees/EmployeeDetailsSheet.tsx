@@ -60,9 +60,10 @@ interface EmployeeDetailsSheetProps {
   employee: Employee | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  isAdmin?: boolean;
 }
 
-export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeDetailsSheetProps) {
+export function EmployeeDetailsSheet({ employee, open, onOpenChange, isAdmin = false }: EmployeeDetailsSheetProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({ phone: "", position: "", hourly_rate: "" });
   const [isTicketFormOpen, setIsTicketFormOpen] = useState(false);
@@ -243,8 +244,8 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange }: EmployeeD
                       </div>
                     )}
                     
-                    {/* Emergency Contact */}
-                    {(employee.emergency_contact_name || employee.emergency_contact_phone) && (
+                    {/* Emergency Contact - Admin Only */}
+                    {isAdmin && (employee.emergency_contact_name || employee.emergency_contact_phone) && (
                       <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
                         <p className="text-xs text-destructive font-medium mb-1">Emergency Contact</p>
                         {employee.emergency_contact_name && (
