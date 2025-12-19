@@ -306,6 +306,7 @@ export default function AdminEmployees() {
         employee={selectedEmployee}
         open={!!selectedEmployee}
         onOpenChange={(open) => !open && setSelectedEmployee(null)}
+        isAdmin={true}
       />
 
       <InviteEmployeeDialog

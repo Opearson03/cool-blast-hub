@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -19,8 +19,9 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { format, differenceInMinutes, startOfWeek, endOfWeek, subWeeks } from "date-fns";
-import { Search, MapPin, CheckCircle, AlertCircle, Pencil, Clock, ChevronDown, Coffee } from "lucide-react";
+import { Search, MapPin, CheckCircle, AlertCircle, Pencil, Clock, ChevronDown, Coffee, Check } from "lucide-react";
 import { EditTimesheetDialog } from "./EditTimesheetDialog";
+import { toast } from "sonner";
 
 interface TimesheetTableProps {
   businessId: string;
@@ -43,6 +44,8 @@ interface Timesheet {
   notes: string | null;
   edited_by: string | null;
   edited_at: string | null;
+  approved_by: string | null;
+  approved_at: string | null;
   profiles: { full_name: string };
   job_pours: { pour_name: string; jobs: { name: string; site_address: string } } | null;
 }
@@ -52,6 +55,7 @@ interface GroupedTimesheets {
     employeeName: string;
     timesheets: Timesheet[];
     totalMinutes: number;
+    approvedMinutes: number;
     breakMinutes: number;
   };
 }
@@ -61,6 +65,7 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
   const [dateFilter, setDateFilter] = useState("this_week");
   const [editingTimesheet, setEditingTimesheet] = useState<Timesheet | null>(null);
   const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   const getDateRange = () => {
     const now = new Date();
@@ -99,6 +104,27 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
     enabled: !!businessId,
   });
 
+  const approveTimesheet = useMutation({
+    mutationFn: async (timesheetId: string) => {
+      const { data: userData } = await supabase.auth.getUser();
+      const { error } = await supabase
+        .from("timesheets")
+        .update({
+          approved_by: userData.user?.id,
+          approved_at: new Date().toISOString(),
+        })
+        .eq("id", timesheetId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-timesheets"] });
+      toast.success("Timesheet approved");
+    },
+    onError: () => {
+      toast.error("Failed to approve timesheet");
+    },
+  });
+
   // Group timesheets by employee
   const groupedTimesheets: GroupedTimesheets = timesheets
     .filter((ts) =>
@@ -113,6 +139,7 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
           employeeName: ts.profiles?.full_name || "Unknown",
           timesheets: [],
           totalMinutes: 0,
+          approvedMinutes: 0,
           breakMinutes: 0,
         };
       }
@@ -124,8 +151,12 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
         if (ts.break_start && ts.break_end) {
           breakMins = differenceInMinutes(new Date(ts.break_end), new Date(ts.break_start));
         }
-        acc[empId].totalMinutes += workMins - breakMins;
+        const netMins = workMins - breakMins;
+        acc[empId].totalMinutes += netMins;
         acc[empId].breakMinutes += breakMins;
+        if (ts.approved_at) {
+          acc[empId].approvedMinutes += netMins;
+        }
       }
       
       return acc;
@@ -158,7 +189,7 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
     setExpandedEmployees(newExpanded);
   };
 
-  const totalHours = Object.values(groupedTimesheets).reduce((acc, g) => acc + g.totalMinutes, 0);
+  const totalApprovedHours = Object.values(groupedTimesheets).reduce((acc, g) => acc + g.approvedMinutes, 0);
   const totalEntries = timesheets.filter(ts => 
     ts.profiles?.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     ts.job_pours?.pour_name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -181,16 +212,16 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Total Hours</span>
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-sm text-muted-foreground">Approved Hours</span>
             </div>
-            <p className="text-2xl font-bold mt-1">{formatHours(totalHours)}</p>
+            <p className="text-2xl font-bold mt-1">{formatHours(totalApprovedHours)}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="flex items-center gap-2">
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
+              <Clock className="h-4 w-4 text-muted-foreground" />
               <span className="text-sm text-muted-foreground">Entries</span>
             </div>
             <p className="text-2xl font-bold mt-1">{totalEntries}</p>
@@ -250,7 +281,12 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-lg">{formatHours(group.totalMinutes)}</p>
+                          <p className="font-bold text-lg">{formatHours(group.approvedMinutes)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {group.totalMinutes > group.approvedMinutes && (
+                              <span className="text-amber-500">{formatHours(group.totalMinutes - group.approvedMinutes)} pending</span>
+                            )}
+                          </p>
                           {group.breakMinutes > 0 && (
                             <p className="text-xs text-muted-foreground flex items-center justify-end gap-1">
                               <Coffee className="h-3 w-3" />
@@ -271,6 +307,16 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
                               {ts.status === "active" && (
                                 <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
                                   Active
+                                </Badge>
+                              )}
+                              {ts.approved_at ? (
+                                <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
+                                  <Check className="h-3 w-3 mr-1" />
+                                  Approved
+                                </Badge>
+                              ) : ts.clock_out && (
+                                <Badge variant="outline" className="bg-amber-500/10 text-amber-600 border-amber-500/30 text-xs">
+                                  Pending
                                 </Badge>
                               )}
                               {ts.edited_at && (
@@ -307,6 +353,21 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
                                 </Badge>
                               )}
                             </div>
+                            {ts.clock_out && !ts.approved_at && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  approveTimesheet.mutate(ts.id);
+                                }}
+                                disabled={approveTimesheet.isPending}
+                                className="text-green-600 border-green-500/30 hover:bg-green-500/10"
+                              >
+                                <Check className="h-4 w-4 mr-1" />
+                                Approve
+                              </Button>
+                            )}
                             <Button
                               variant="ghost"
                               size="icon"

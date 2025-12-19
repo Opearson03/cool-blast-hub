@@ -462,11 +462,11 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent className="space-y-2">
               <Button variant="link" className="p-0 h-auto" asChild>
-                <a href="/privacy" target="_blank">Privacy Policy</a>
+                <a href="/privacy">Privacy Policy</a>
               </Button>
               <br />
               <Button variant="link" className="p-0 h-auto" asChild>
-                <a href="/terms" target="_blank">Terms and Conditions</a>
+                <a href="/terms">Terms and Conditions</a>
               </Button>
             </CardContent>
           </Card>

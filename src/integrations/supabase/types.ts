@@ -1203,6 +1203,8 @@ export type Database = {
       }
       timesheets: {
         Row: {
+          approved_at: string | null
+          approved_by: string | null
           break_applied_at: string | null
           break_applied_by: string | null
           break_end: string | null
@@ -1225,6 +1227,8 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
           break_applied_at?: string | null
           break_applied_by?: string | null
           break_end?: string | null
@@ -1247,6 +1251,8 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          approved_at?: string | null
+          approved_by?: string | null
           break_applied_at?: string | null
           break_applied_by?: string | null
           break_end?: string | null

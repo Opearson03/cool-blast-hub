@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useNativeCapabilities } from "@/hooks/useNativeCapabilities";
-import { Clock, MapPin, Play, Square, Loader2 } from "lucide-react";
+import { Clock, MapPin, Play, Square, Loader2, Coffee } from "lucide-react";
 import { format, differenceInSeconds } from "date-fns";
 
 interface ClockInButtonProps {
@@ -17,6 +17,8 @@ interface ClockInButtonProps {
 interface ActiveTimesheet {
   id: string;
   clock_in: string;
+  break_start: string | null;
+  break_end: string | null;
   pour_id: string | null;
   pour?: {
     pour_name: string;
@@ -44,6 +46,8 @@ export function ClockInButton({ userId, businessId }: ClockInButtonProps) {
         .select(`
           id,
           clock_in,
+          break_start,
+          break_end,
           pour_id,
           job_pours(
             pour_name,
@@ -86,6 +90,8 @@ export function ClockInButton({ userId, businessId }: ClockInButtonProps) {
     },
     enabled: !!userId && !activeTimesheet,
   });
+
+  const isOnBreak = activeTimesheet?.break_start && !activeTimesheet?.break_end;
 
   // Update elapsed time
   useEffect(() => {
@@ -185,6 +191,46 @@ export function ClockInButton({ userId, businessId }: ClockInButtonProps) {
     },
   });
 
+  const startBreak = useMutation({
+    mutationFn: async () => {
+      if (!activeTimesheet) throw new Error("No active timesheet");
+
+      const { error } = await supabase
+        .from("timesheets")
+        .update({ break_start: new Date().toISOString() })
+        .eq("id", activeTimesheet.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["active-timesheet"] });
+      toast({ title: "Break started" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const endBreak = useMutation({
+    mutationFn: async () => {
+      if (!activeTimesheet) throw new Error("No active timesheet");
+
+      const { error } = await supabase
+        .from("timesheets")
+        .update({ break_end: new Date().toISOString() })
+        .eq("id", activeTimesheet.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["active-timesheet"] });
+      toast({ title: "Break ended" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   if (isLoading) {
     return (
       <Card>
@@ -198,14 +244,23 @@ export function ClockInButton({ userId, businessId }: ClockInButtonProps) {
   if (activeTimesheet) {
     const pour = activeTimesheet.pour as any;
     return (
-      <Card className="border-green-500/50 bg-green-500/5">
+      <Card className={isOnBreak ? "border-amber-500/50 bg-amber-500/5" : "border-green-500/50 bg-green-500/5"}>
         <CardContent className="p-4">
           <div className="flex items-center justify-between mb-3">
-            <Badge variant="outline" className="bg-green-500/20 text-green-600 border-green-500/30">
-              <Clock className="h-3 w-3 mr-1" />
-              Clocked In
+            <Badge variant="outline" className={isOnBreak ? "bg-amber-500/20 text-amber-600 border-amber-500/30" : "bg-green-500/20 text-green-600 border-green-500/30"}>
+              {isOnBreak ? (
+                <>
+                  <Coffee className="h-3 w-3 mr-1" />
+                  On Break
+                </>
+              ) : (
+                <>
+                  <Clock className="h-3 w-3 mr-1" />
+                  Clocked In
+                </>
+              )}
             </Badge>
-            <span className="text-2xl font-mono font-bold text-green-600">{elapsedTime}</span>
+            <span className={`text-2xl font-mono font-bold ${isOnBreak ? "text-amber-600" : "text-green-600"}`}>{elapsedTime}</span>
           </div>
 
           {pour?.jobs && (
@@ -223,19 +278,50 @@ export function ClockInButton({ userId, businessId }: ClockInButtonProps) {
             Started at {format(new Date(activeTimesheet.clock_in), "h:mm a")}
           </p>
 
-          <Button
-            onClick={() => clockOut.mutate()}
-            disabled={clockOut.isPending}
-            variant="destructive"
-            className="w-full"
-          >
-            {clockOut.isPending ? (
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          <div className="flex gap-2">
+            {isOnBreak ? (
+              <Button
+                onClick={() => endBreak.mutate()}
+                disabled={endBreak.isPending}
+                variant="outline"
+                className="flex-1 border-amber-500/30 text-amber-600 hover:bg-amber-500/10"
+              >
+                {endBreak.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Coffee className="h-4 w-4 mr-2" />
+                )}
+                End Break
+              </Button>
             ) : (
-              <Square className="h-4 w-4 mr-2" />
+              <Button
+                onClick={() => startBreak.mutate()}
+                disabled={startBreak.isPending || !!activeTimesheet.break_end}
+                variant="outline"
+                className="flex-1"
+              >
+                {startBreak.isPending ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Coffee className="h-4 w-4 mr-2" />
+                )}
+                {activeTimesheet.break_end ? "Break Taken" : "Start Break"}
+              </Button>
             )}
-            Clock Out
-          </Button>
+            <Button
+              onClick={() => clockOut.mutate()}
+              disabled={clockOut.isPending || isOnBreak}
+              variant="destructive"
+              className="flex-1"
+            >
+              {clockOut.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Square className="h-4 w-4 mr-2" />
+              )}
+              Clock Out
+            </Button>
+          </div>
         </CardContent>
       </Card>
     );
