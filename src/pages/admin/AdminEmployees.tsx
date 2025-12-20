@@ -11,7 +11,7 @@ import { Plus, Search, Phone, AlertTriangle, Award, Clock } from "lucide-react";
 import { EmployeeDetailsSheet } from "@/components/employees/EmployeeDetailsSheet";
 import { InviteEmployeeDialog } from "@/components/employees/InviteEmployeeDialog";
 import { LeaveRequestsList } from "@/components/leave/LeaveRequestsList";
-import { FloatingEmployeesWidget } from "@/components/employees/FloatingEmployeesWidget";
+import { UnassignedEmployeesWidget } from "@/components/employees/UnassignedEmployeesWidget";
 import { TimesheetTable } from "@/components/timesheets/TimesheetTable";
 import { TimesheetExport } from "@/components/timesheets/TimesheetExport";
 import { differenceInDays, isPast } from "date-fns";
@@ -180,9 +180,6 @@ export default function AdminEmployees() {
           </TabsList>
 
           <TabsContent value="employees" className="mt-4 space-y-4">
-            {/* Floating Employees Widget */}
-            {businessId && <FloatingEmployeesWidget businessId={businessId} />}
-
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -279,6 +276,9 @@ export default function AdminEmployees() {
           </TabsContent>
 
           <TabsContent value="timesheets" className="mt-4 space-y-4">
+            {/* Unassigned Employees Widget */}
+            {businessId && <UnassignedEmployeesWidget businessId={businessId} />}
+            
             <div className="flex justify-end">
               {businessId && <TimesheetExport businessId={businessId} />}
             </div>

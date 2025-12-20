@@ -6,10 +6,12 @@ import { Briefcase, Users, Calendar, AlertTriangle, CalendarDays } from "lucide-
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useBusinessData } from "@/hooks/useBusinessData";
+import { FeedWidget } from "@/components/feed/FeedWidget";
 
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const businessData = useBusinessData();
 
@@ -18,6 +20,7 @@ export default function AdminDashboard() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        setUserId(user.id);
 
         const { data: profile } = await supabase
           .from("profiles")
@@ -141,16 +144,10 @@ export default function AdminDashboard() {
           </Card>
         )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Getting Started</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">
-              Welcome to PourHub! Start by setting up your business, adding employees, and creating your first job.
-            </p>
-          </CardContent>
-        </Card>
+        {/* Team Feed */}
+        {businessId && userId && (
+          <FeedWidget businessId={businessId} userId={userId} isAdmin={true} />
+        )}
       </div>
     </AdminLayout>
   );

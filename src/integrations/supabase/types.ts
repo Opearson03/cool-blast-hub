@@ -399,6 +399,51 @@ export type Database = {
           },
         ]
       }
+      feed_posts: {
+        Row: {
+          author_id: string
+          business_id: string
+          content: string
+          created_at: string
+          id: string
+          mentions: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          author_id: string
+          business_id: string
+          content: string
+          created_at?: string
+          id?: string
+          mentions?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          author_id?: string
+          business_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          mentions?: string[] | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_posts_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feed_posts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itp_templates: {
         Row: {
           business_id: string | null
