@@ -9,6 +9,7 @@ import { format, isToday, isTomorrow, differenceInDays } from "date-fns";
 import { ITPDetailSheet } from "@/components/jobs/itps/ITPDetailSheet";
 import { SWMSDetailSheet } from "@/components/jobs/swms/SWMSDetailSheet";
 import { ClockInButton } from "@/components/timesheets/ClockInButton";
+import { FeedWidget } from "@/components/feed/FeedWidget";
 import type { Tables } from "@/integrations/supabase/types";
 
 type JobITP = Tables<"job_itps">;
@@ -259,6 +260,11 @@ export default function EmployeeDashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Team Feed */}
+        {userId && businessId && (
+          <FeedWidget businessId={businessId} userId={userId} />
         )}
 
         {/* Upcoming Work */}
