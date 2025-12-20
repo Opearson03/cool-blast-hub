@@ -55,7 +55,7 @@ const riskColors: Record<string, string> = {
 
 export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: SWMSDetailSheetProps) {
   const queryClient = useQueryClient();
-  const [showSignature, setShowSignature] = useState(false);
+  const [signingForId, setSigningForId] = useState<string | null>(null);
   const [employeeName, setEmployeeName] = useState("");
   const [showPrintView, setShowPrintView] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -63,6 +63,16 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
   const [editRequiredSigners, setEditRequiredSigners] = useState<string[]>([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user ID
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setCurrentUserId(data.user?.id || null);
+    };
+    getUser();
+  }, []);
 
   // Reset edit state when swms changes
   useEffect(() => {
@@ -164,16 +174,14 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
   }>;
 
   const signoffMutation = useMutation({
-    mutationFn: async (signatureData: string) => {
+    mutationFn: async ({ signatureData, signerId }: { signatureData: string; signerId: string }) => {
       if (!swms) throw new Error("No SWMS selected");
       if (!employeeName.trim()) throw new Error("Please enter your name");
-
-      const { data: userData } = await supabase.auth.getUser();
 
       const { error } = await supabase.from("swms_signoffs").insert([{
         swms_id: swms.id,
         employee_name: employeeName.trim(),
-        employee_id: userData.user?.id || null,
+        employee_id: signerId,
         signature_data: signatureData,
       }]);
 
@@ -190,7 +198,7 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
       queryClient.invalidateQueries({ queryKey: ["job-swms", jobId] });
       queryClient.invalidateQueries({ queryKey: ["swms-signoffs", jobId] });
       toast.success("SWMS signed successfully");
-      setShowSignature(false);
+      setSigningForId(null);
       setEmployeeName("");
     },
     onError: (error) => {
@@ -469,31 +477,76 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
                       s => s.employee_id === signer.id || 
                            s.employee_name.toLowerCase() === signer.full_name.toLowerCase()
                     );
+                    const isCurrentUser = currentUserId === signer.id;
+                    const isSigningThis = signingForId === signer.id;
                     
                     return (
-                      <Card key={signer.id} className={hasSignedOff ? "border-green-500/30" : "border-yellow-500/30"}>
-                        <CardContent className="p-3 flex items-center gap-3">
-                          {hasSignedOff ? (
-                            <Check className="w-5 h-5 text-green-500" />
+                      <Card 
+                        key={signer.id} 
+                        className={`${hasSignedOff ? "border-green-500/30" : "border-yellow-500/30"} ${
+                          isCurrentUser && !hasSignedOff ? "cursor-pointer hover:border-primary transition-colors" : ""
+                        }`}
+                        onClick={() => {
+                          if (isCurrentUser && !hasSignedOff && !isSigningThis) {
+                            setSigningForId(signer.id);
+                            setEmployeeName(signer.full_name);
+                          }
+                        }}
+                      >
+                        <CardContent className="p-3">
+                          {isSigningThis ? (
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Shield className="w-5 h-5 text-primary" />
+                                <span className="font-medium">Sign as {signer.full_name}</span>
+                              </div>
+                              <div>
+                                <label className="text-sm font-medium">Confirm Your Full Name</label>
+                                <Input
+                                  value={employeeName}
+                                  onChange={(e) => setEmployeeName(e.target.value)}
+                                  placeholder="Type your full name to confirm"
+                                  className="mt-1"
+                                />
+                              </div>
+                              <SignaturePad
+                                onSave={(data) => signoffMutation.mutate({ signatureData: data, signerId: signer.id })}
+                                onCancel={() => {
+                                  setSigningForId(null);
+                                  setEmployeeName("");
+                                }}
+                              />
+                            </div>
                           ) : (
-                            <Clock className="w-5 h-5 text-yellow-500" />
-                          )}
-                          <div className="flex-1">
-                            <p className="font-medium">{signer.full_name}</p>
-                            {hasSignedOff && signoffData ? (
-                              <p className="text-xs text-muted-foreground">
-                                Signed: {format(new Date(signoffData.signed_at!), "d MMM yyyy, HH:mm")}
-                              </p>
-                            ) : (
-                              <p className="text-xs text-yellow-500">Awaiting signature</p>
-                            )}
-                          </div>
-                          {hasSignedOff && signoffData?.signature_data && (
-                            <img
-                              src={signoffData.signature_data}
-                              alt="Signature"
-                              className="h-10 border rounded"
-                            />
+                            <div className="flex items-center gap-3">
+                              {hasSignedOff ? (
+                                <Check className="w-5 h-5 text-green-500" />
+                              ) : (
+                                <Clock className="w-5 h-5 text-yellow-500" />
+                              )}
+                              <div className="flex-1">
+                                <p className="font-medium">
+                                  {signer.full_name}
+                                  {isCurrentUser && !hasSignedOff && (
+                                    <span className="ml-2 text-xs text-primary">(Click to sign)</span>
+                                  )}
+                                </p>
+                                {hasSignedOff && signoffData ? (
+                                  <p className="text-xs text-muted-foreground">
+                                    Signed: {format(new Date(signoffData.signed_at!), "d MMM yyyy, HH:mm")}
+                                  </p>
+                                ) : (
+                                  <p className="text-xs text-yellow-500">Awaiting signature</p>
+                                )}
+                              </div>
+                              {hasSignedOff && signoffData?.signature_data && (
+                                <img
+                                  src={signoffData.signature_data}
+                                  alt="Signature"
+                                  className="h-10 border rounded"
+                                />
+                              )}
+                            </div>
                           )}
                         </CardContent>
                       </Card>
@@ -535,35 +588,6 @@ export function SWMSDetailSheet({ open, onOpenChange, swms, signoffs, jobId }: S
                       ))}
                   </div>
                 </div>
-              )}
-
-              {/* Add Signoff */}
-              {!showSignature ? (
-                <Button onClick={() => setShowSignature(true)} className="w-full">
-                  <Shield className="w-4 h-4 mr-2" />
-                  Sign SWMS
-                </Button>
-              ) : (
-                <Card>
-                  <CardContent className="p-4 space-y-4">
-                    <div>
-                      <label className="text-sm font-medium">Your Name</label>
-                      <Input
-                        value={employeeName}
-                        onChange={(e) => setEmployeeName(e.target.value)}
-                        placeholder="Enter your full name"
-                        className="mt-1"
-                      />
-                    </div>
-                    <SignaturePad
-                      onSave={(data) => signoffMutation.mutate(data)}
-                      onCancel={() => {
-                        setShowSignature(false);
-                        setEmployeeName("");
-                      }}
-                    />
-                  </CardContent>
-                </Card>
               )}
             </div>
           </div>
