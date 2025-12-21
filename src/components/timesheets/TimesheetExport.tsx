@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,16 +13,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Download, FileSpreadsheet, FileText, Loader2 } from "lucide-react";
-import { format, differenceInMinutes } from "date-fns";
+import { format, differenceInMinutes, startOfWeek, endOfWeek, subWeeks, isSameWeek } from "date-fns";
 
 interface TimesheetExportProps {
   businessId: string;
 }
 
+// Get last full work week (Mon-Fri)
+const getLastFullWeek = () => {
+  const today = new Date();
+  const currentWeekStart = startOfWeek(today, { weekStartsOn: 1 }); // Monday
+  
+  // If we're in the current week, go back to last week
+  // Otherwise use current week's Monday
+  const targetWeekStart = subWeeks(currentWeekStart, 1);
+  const targetWeekEnd = endOfWeek(targetWeekStart, { weekStartsOn: 1 });
+  
+  // Set to Friday (4 days after Monday)
+  const friday = new Date(targetWeekStart);
+  friday.setDate(friday.getDate() + 4);
+  
+  return {
+    start: format(targetWeekStart, "yyyy-MM-dd"),
+    end: format(friday, "yyyy-MM-dd"),
+  };
+};
+
 export function TimesheetExport({ businessId }: TimesheetExportProps) {
   const [open, setOpen] = useState(false);
-  const [startDate, setStartDate] = useState(format(new Date(), "yyyy-MM-dd"));
-  const [endDate, setEndDate] = useState(format(new Date(), "yyyy-MM-dd"));
+  
+  const defaultDates = useMemo(() => getLastFullWeek(), []);
+  const [startDate, setStartDate] = useState(defaultDates.start);
+  const [endDate, setEndDate] = useState(defaultDates.end);
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
 
