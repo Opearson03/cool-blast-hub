@@ -90,36 +90,63 @@ export const PrintableITP = forwardRef<HTMLDivElement, PrintableITPProps>(
           </div>
         </div>
 
-        {/* Checklist Table */}
-        <table className="w-full border-collapse mb-6 text-sm">
-          <thead>
-            <tr className="bg-gray-100">
-              <th className="border border-gray-300 px-3 py-2 text-left w-12">#</th>
-              <th className="border border-gray-300 px-3 py-2 text-left">Inspection Item</th>
-              <th className="border border-gray-300 px-3 py-2 text-center w-16">Pass</th>
-              <th className="border border-gray-300 px-3 py-2 text-left">Comments</th>
-            </tr>
-          </thead>
-          <tbody>
-            {checklistData.map((item, index) => (
-              <tr key={item.id}>
-                <td className="border border-gray-300 px-3 py-2">{index + 1}</td>
-                <td className="border border-gray-300 px-3 py-2">
-                  {item.item}
-                  {item.required && <span className="text-red-600 ml-1">*</span>}
-                </td>
-                <td className="border border-gray-300 px-3 py-2 text-center">
-                  {item.checked ? "✓" : "○"}
-                </td>
-                <td className="border border-gray-300 px-3 py-2">
-                  {item.comment || "-"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Checklist Items with Photos - Each item gets its own section */}
+        {checklistData.map((item, index) => (
+          <div 
+            key={item.id} 
+            className="mb-8 border border-gray-300 rounded-lg overflow-hidden"
+            style={{ pageBreakInside: item.photo_url ? "avoid" : "auto" }}
+          >
+            {/* Item Header */}
+            <div className="bg-gray-100 px-4 py-2 border-b border-gray-300 flex items-center gap-3">
+              <span className="font-bold text-lg">#{index + 1}</span>
+              <span className="flex-1 font-medium">
+                {item.item}
+                {item.required && <span className="text-red-600 ml-1">*</span>}
+              </span>
+              <span className={`font-bold text-lg ${item.checked ? "text-green-600" : "text-gray-400"}`}>
+                {item.checked ? "✓ PASS" : "○ PENDING"}
+              </span>
+            </div>
 
-        <div className="text-sm mb-6">
+            {/* Item Content */}
+            <div className="p-4">
+              {/* Comment */}
+              {item.comment && (
+                <div className="mb-4">
+                  <p className="font-semibold text-sm text-gray-600 mb-1">Comments:</p>
+                  <p className="text-sm bg-gray-50 p-2 rounded border border-gray-200">{item.comment}</p>
+                </div>
+              )}
+
+              {/* Photo - Large size for printing (half page) */}
+              {item.photo_url && (
+                <div className="mt-2">
+                  <p className="font-semibold text-sm text-gray-600 mb-2">Photo Evidence:</p>
+                  <img
+                    src={item.photo_url}
+                    alt={`Photo for ${item.item}`}
+                    className="w-full max-h-[45vh] object-contain border border-gray-300 rounded"
+                    style={{ 
+                      maxWidth: "100%",
+                      height: "auto",
+                      minHeight: "200px",
+                      maxHeight: "45vh"
+                    }}
+                  />
+                </div>
+              )}
+
+              {/* No photo placeholder */}
+              {!item.photo_url && !item.comment && (
+                <p className="text-sm text-gray-400 italic">No comments or photos</p>
+              )}
+            </div>
+          </div>
+        ))}
+
+        {/* Summary */}
+        <div className="text-sm mb-6 p-4 bg-gray-100 rounded border border-gray-300">
           <p>
             <strong>Completion:</strong> {completedCount}/{checklistData.length} items checked
           </p>
@@ -129,44 +156,48 @@ export const PrintableITP = forwardRef<HTMLDivElement, PrintableITPProps>(
         {itp.notes && (
           <div className="mb-6 text-sm">
             <p className="font-semibold mb-1">Additional Notes:</p>
-            <p className="border border-gray-300 p-2 min-h-[40px]">{itp.notes}</p>
+            <p className="border border-gray-300 p-3 min-h-[40px] bg-gray-50 rounded">{itp.notes}</p>
           </div>
         )}
 
         {/* Signatures */}
-        <div className="grid grid-cols-2 gap-8 mt-8">
+        <div className="grid grid-cols-2 gap-8 mt-8 border-t-2 border-black pt-6">
           <div>
             <p className="font-semibold mb-2">Employee Signature:</p>
             {itp.employee_signature ? (
-              <div>
+              <div className="border border-gray-300 rounded p-2 bg-green-50">
                 <img
                   src={itp.employee_signature}
                   alt="Employee signature"
-                  className="h-16 border-b border-black"
+                  className="h-20 mx-auto"
                 />
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-gray-600 mt-2 text-center">
                   Signed: {itp.employee_signed_at && format(new Date(itp.employee_signed_at), "d MMM yyyy, HH:mm")}
                 </p>
               </div>
             ) : (
-              <div className="h-16 border-b border-black" />
+              <div className="h-24 border border-gray-300 rounded flex items-center justify-center text-gray-400">
+                Not signed
+              </div>
             )}
           </div>
           <div>
-            <p className="font-semibold mb-2">Supervisor Signature:</p>
+            <p className="font-semibold mb-2">Site Supervisor Signature:</p>
             {itp.supervisor_signature ? (
-              <div>
+              <div className="border border-gray-300 rounded p-2 bg-green-50">
                 <img
                   src={itp.supervisor_signature}
                   alt="Supervisor signature"
-                  className="h-16 border-b border-black"
+                  className="h-20 mx-auto"
                 />
-                <p className="text-xs text-gray-600 mt-1">
+                <p className="text-xs text-gray-600 mt-2 text-center">
                   Signed: {itp.supervisor_signed_at && format(new Date(itp.supervisor_signed_at), "d MMM yyyy, HH:mm")}
                 </p>
               </div>
             ) : (
-              <div className="h-16 border-b border-black" />
+              <div className="h-24 border border-gray-300 rounded flex items-center justify-center text-gray-400">
+                Not signed
+              </div>
             )}
           </div>
         </div>
