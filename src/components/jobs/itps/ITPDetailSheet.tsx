@@ -26,7 +26,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Camera, Check, X, Loader2, Printer, Pencil, Trash2, Save } from "lucide-react";
+import { Camera, Check, X, Loader2, Printer, Pencil, Trash2, Save, Clock, Send, Shield } from "lucide-react";
 import { format } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 import { SignaturePad } from "./SignaturePad";
@@ -62,12 +62,22 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
   const printRef = useRef<HTMLDivElement>(null);
   const [checklistData, setChecklistData] = useState<ChecklistItem[]>([]);
   const [uploadingItemId, setUploadingItemId] = useState<number | null>(null);
-  const [showEmployeeSignature, setShowEmployeeSignature] = useState(false);
-  const [showSupervisorSignature, setShowSupervisorSignature] = useState(false);
+  const [signingType, setSigningType] = useState<"employee" | "supervisor" | null>(null);
+  const [signatureName, setSignatureName] = useState("");
   const [showPrintView, setShowPrintView] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user ID
+  useEffect(() => {
+    const getUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      setCurrentUserId(data.user?.id || null);
+    };
+    getUser();
+  }, []);
 
   // Reset edit state when ITP changes
   useEffect(() => {
@@ -84,6 +94,38 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
       setChecklistData([]);
     }
   }, [itp?.id, itp?.checklist_data]);
+
+  // Fetch current user profile
+  const { data: currentUserProfile } = useQuery({
+    queryKey: ["current-user-profile", currentUserId],
+    queryFn: async () => {
+      if (!currentUserId) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", currentUserId)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!currentUserId,
+  });
+
+  // Fetch assigned employee details
+  const { data: assignedEmployee } = useQuery({
+    queryKey: ["assigned-employee", itp?.assigned_to],
+    queryFn: async () => {
+      if (!itp?.assigned_to) return null;
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .eq("id", itp.assigned_to)
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!itp?.assigned_to,
+  });
 
   // Fetch job details for print
   const { data: job } = useQuery({
@@ -265,16 +307,19 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
   };
 
   const handleSignature = async (type: "employee" | "supervisor", signatureData: string) => {
+    if (!signatureName.trim()) {
+      toast.error("Please type your full name to confirm");
+      return;
+    }
+
     const updates: Partial<JobITP> = {};
     
     if (type === "employee") {
       updates.employee_signature = signatureData;
       updates.employee_signed_at = new Date().toISOString();
-      setShowEmployeeSignature(false);
     } else {
       updates.supervisor_signature = signatureData;
       updates.supervisor_signed_at = new Date().toISOString();
-      setShowSupervisorSignature(false);
     }
 
     // Check if all required items are checked and both signatures present
@@ -292,6 +337,26 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
 
     await updateMutation.mutateAsync(updates);
     toast.success(`${type === "employee" ? "Employee" : "Supervisor"} signature saved`);
+    setSigningType(null);
+    setSignatureName("");
+  };
+
+  const handleSubmit = async () => {
+    if (!itp) return;
+
+    // Check if supervisor signature is present
+    if (!itp.supervisor_signature) {
+      toast.error("Supervisor signature is required to submit the ITP");
+      return;
+    }
+
+    // Submit the ITP
+    await updateMutation.mutateAsync({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+    });
+
+    toast.success("ITP submitted successfully");
   };
 
   const handlePrint = () => {
@@ -307,6 +372,12 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
   const completedCount = checklistData.filter((item) => item.checked).length;
   const totalCount = checklistData.length;
   const progress = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+
+  // Determine if current user is the assigned employee
+  const isAssignedEmployee = currentUserId && itp.assigned_to === currentUserId;
+  const canEmployeeSign = isAssignedEmployee && !itp.employee_signature;
+  const canSupervisorSign = !itp.supervisor_signature;
+  const canSubmit = itp.supervisor_signature && itp.status !== "completed";
 
   return (
     <>
@@ -460,76 +531,145 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
               <h3 className="font-semibold">Digital Signatures</h3>
 
               {/* Employee Signature */}
-              <Card>
+              <Card 
+                className={`${itp.employee_signature ? "border-green-500/30 bg-green-500/5" : "border-yellow-500/30"} ${
+                  canEmployeeSign && signingType !== "employee" ? "cursor-pointer hover:border-primary transition-colors" : ""
+                }`}
+                onClick={() => {
+                  if (canEmployeeSign && signingType !== "employee") {
+                    setSigningType("employee");
+                    setSignatureName(currentUserProfile?.full_name || "");
+                  }
+                }}
+              >
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Employee Signature</p>
-                      {itp.employee_signed_at && (
-                        <p className="text-xs text-muted-foreground">
-                          Signed: {format(new Date(itp.employee_signed_at), "d MMM yyyy, HH:mm")}
-                        </p>
-                      )}
-                    </div>
-                    {itp.employee_signature ? (
+                  {signingType === "employee" ? (
+                    <div className="space-y-4">
                       <div className="flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-primary" />
+                        <span className="font-medium">Sign as Employee</span>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Confirm Your Full Name</label>
+                        <Input
+                          value={signatureName}
+                          onChange={(e) => setSignatureName(e.target.value)}
+                          placeholder="Type your full name to confirm"
+                          className="mt-1"
+                        />
+                      </div>
+                      <SignaturePad
+                        onSave={(data) => handleSignature("employee", data)}
+                        onCancel={() => {
+                          setSigningType(null);
+                          setSignatureName("");
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {itp.employee_signature ? (
+                        <Check className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-yellow-500" />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium">
+                          Employee Signature
+                          {assignedEmployee && (
+                            <span className="ml-1 text-muted-foreground">
+                              ({assignedEmployee.full_name})
+                            </span>
+                          )}
+                          {canEmployeeSign && (
+                            <span className="ml-2 text-xs text-primary">(Click to sign)</span>
+                          )}
+                        </p>
+                        {itp.employee_signed_at ? (
+                          <p className="text-xs text-muted-foreground">
+                            Signed: {format(new Date(itp.employee_signed_at), "d MMM yyyy, HH:mm")}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-yellow-500">Awaiting signature</p>
+                        )}
+                      </div>
+                      {itp.employee_signature && (
                         <img
                           src={itp.employee_signature}
                           alt="Employee signature"
                           className="h-12 border rounded"
                         />
-                        <Check className="w-5 h-5 text-green-500" />
-                      </div>
-                    ) : (
-                      <Button size="sm" onClick={() => setShowEmployeeSignature(true)}>
-                        Sign
-                      </Button>
-                    )}
-                  </div>
-                  {showEmployeeSignature && (
-                    <div className="mt-4">
-                      <SignaturePad
-                        onSave={(data) => handleSignature("employee", data)}
-                        onCancel={() => setShowEmployeeSignature(false)}
-                      />
+                      )}
                     </div>
                   )}
                 </CardContent>
               </Card>
 
               {/* Supervisor Signature */}
-              <Card>
+              <Card 
+                className={`${itp.supervisor_signature ? "border-green-500/30 bg-green-500/5" : "border-yellow-500/30"} ${
+                  canSupervisorSign && signingType !== "supervisor" ? "cursor-pointer hover:border-primary transition-colors" : ""
+                }`}
+                onClick={() => {
+                  if (canSupervisorSign && signingType !== "supervisor") {
+                    setSigningType("supervisor");
+                    setSignatureName(currentUserProfile?.full_name || "");
+                  }
+                }}
+              >
                 <CardContent className="p-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">Supervisor Signature</p>
-                      {itp.supervisor_signed_at && (
-                        <p className="text-xs text-muted-foreground">
-                          Signed: {format(new Date(itp.supervisor_signed_at), "d MMM yyyy, HH:mm")}
-                        </p>
-                      )}
-                    </div>
-                    {itp.supervisor_signature ? (
+                  {signingType === "supervisor" ? (
+                    <div className="space-y-4">
                       <div className="flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-primary" />
+                        <span className="font-medium">Sign as Site Supervisor</span>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium">Confirm Your Full Name</label>
+                        <Input
+                          value={signatureName}
+                          onChange={(e) => setSignatureName(e.target.value)}
+                          placeholder="Type your full name to confirm"
+                          className="mt-1"
+                        />
+                      </div>
+                      <SignaturePad
+                        onSave={(data) => handleSignature("supervisor", data)}
+                        onCancel={() => {
+                          setSigningType(null);
+                          setSignatureName("");
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      {itp.supervisor_signature ? (
+                        <Check className="w-5 h-5 text-green-500" />
+                      ) : (
+                        <Clock className="w-5 h-5 text-yellow-500" />
+                      )}
+                      <div className="flex-1">
+                        <p className="font-medium">
+                          Site Supervisor Signature
+                          {canSupervisorSign && (
+                            <span className="ml-2 text-xs text-primary">(Click to sign)</span>
+                          )}
+                        </p>
+                        {itp.supervisor_signed_at ? (
+                          <p className="text-xs text-muted-foreground">
+                            Signed: {format(new Date(itp.supervisor_signed_at), "d MMM yyyy, HH:mm")}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-yellow-500">Awaiting signature - Required to submit</p>
+                        )}
+                      </div>
+                      {itp.supervisor_signature && (
                         <img
                           src={itp.supervisor_signature}
                           alt="Supervisor signature"
                           className="h-12 border rounded"
                         />
-                        <Check className="w-5 h-5 text-green-500" />
-                      </div>
-                    ) : (
-                      <Button size="sm" onClick={() => setShowSupervisorSignature(true)}>
-                        Sign
-                      </Button>
-                    )}
-                  </div>
-                  {showSupervisorSignature && (
-                    <div className="mt-4">
-                      <SignaturePad
-                        onSave={(data) => handleSignature("supervisor", data)}
-                        onCancel={() => setShowSupervisorSignature(false)}
-                      />
+                      )}
                     </div>
                   )}
                 </CardContent>
@@ -546,6 +686,40 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
                 className="min-h-[80px]"
               />
             </div>
+
+            {/* Submit Button */}
+            {itp.status !== "completed" && (
+              <div className="pt-4">
+                <Button
+                  className="w-full"
+                  size="lg"
+                  onClick={handleSubmit}
+                  disabled={!canSubmit || updateMutation.isPending}
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  {canSubmit ? "Submit ITP" : "Supervisor signature required to submit"}
+                </Button>
+                {!itp.supervisor_signature && (
+                  <p className="text-xs text-muted-foreground text-center mt-2">
+                    A site supervisor must sign before the ITP can be submitted
+                  </p>
+                )}
+              </div>
+            )}
+
+            {itp.status === "completed" && (
+              <div className="pt-4">
+                <div className="flex items-center justify-center gap-2 text-green-600 bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                  <Check className="w-5 h-5" />
+                  <span className="font-medium">ITP Submitted</span>
+                  {itp.completed_at && (
+                    <span className="text-sm text-muted-foreground">
+                      on {format(new Date(itp.completed_at), "d MMM yyyy, HH:mm")}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>
