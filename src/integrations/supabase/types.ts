@@ -405,6 +405,7 @@ export type Database = {
           business_id: string
           content: string
           created_at: string
+          crew_mentions: string[] | null
           id: string
           mentions: string[] | null
           updated_at: string
@@ -414,6 +415,7 @@ export type Database = {
           business_id: string
           content: string
           created_at?: string
+          crew_mentions?: string[] | null
           id?: string
           mentions?: string[] | null
           updated_at?: string
@@ -423,6 +425,7 @@ export type Database = {
           business_id?: string
           content?: string
           created_at?: string
+          crew_mentions?: string[] | null
           id?: string
           mentions?: string[] | null
           updated_at?: string
