@@ -23,10 +23,11 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { UserX, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, UserPlus } from "lucide-react";
+import { UserX, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Plus, UserPlus, AlertTriangle } from "lucide-react";
 import { format, addDays, isWeekend, isToday, isSaturday, isSunday, nextMonday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useEmployeeConflicts, hasEmployeeConflict } from "@/hooks/useEmployeeConflicts";
 
 interface UnassignedEmployeesWidgetProps {
   businessId: string;
@@ -155,9 +156,18 @@ export function UnassignedEmployeesWidget({ businessId }: UnassignedEmployeesWid
     enabled: !!businessId,
   });
 
+  // Fetch conflict data for the selected date
+  const dateStr = format(selectedDate, "yyyy-MM-dd");
+  const { data: conflictAssignments = [] } = useEmployeeConflicts(dateStr);
+
   // Assign employee to pour mutation
   const assignMutation = useMutation({
     mutationFn: async ({ pourId, employeeId }: { pourId: string; employeeId: string }) => {
+      // Check for conflicts first
+      if (hasEmployeeConflict(employeeId, conflictAssignments, pourId)) {
+        throw new Error("Employee is already assigned to another pour on this date");
+      }
+      
       const { error } = await supabase
         .from("pour_employees")
         .insert({ pour_id: pourId, employee_id: employeeId });
@@ -165,13 +175,14 @@ export function UnassignedEmployeesWidget({ businessId }: UnassignedEmployeesWid
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pour-assignments-date"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-pour-assignments"] });
       toast.success("Employee assigned successfully");
       setAssignDialogOpen(false);
       setSelectedEmployee(null);
       setSelectedPourId("");
     },
-    onError: () => {
-      toast.error("Failed to assign employee");
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to assign employee");
     },
   });
 
@@ -207,6 +218,7 @@ export function UnassignedEmployeesWidget({ businessId }: UnassignedEmployeesWid
       queryClient.invalidateQueries({ queryKey: ["pour-assignments-date"] });
       queryClient.invalidateQueries({ queryKey: ["pours-for-date"] });
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
+      queryClient.invalidateQueries({ queryKey: ["employee-pour-assignments"] });
       toast.success("Site visit created and employee assigned");
       setQuickAddOpen(false);
       setQuickAddJobId("");

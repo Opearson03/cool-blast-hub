@@ -21,14 +21,21 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useState, useEffect } from "react";
-import { Check, ChevronsUpDown, X, MapPin, Clock, Building2, Calendar, Users, Palmtree } from "lucide-react";
+import { Check, ChevronsUpDown, X, MapPin, Clock, Building2, Calendar, Users, Palmtree, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { isEmployeeOnLeave, useEmployeesOnLeave } from "@/hooks/useEmployeesOnLeave";
+import { useEmployeeConflicts, getEmployeeConflict } from "@/hooks/useEmployeeConflicts";
 
 type Pour = {
   id: string;
@@ -102,6 +109,7 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
   }, []);
 
   const { data: employeesOnLeave = [] } = useEmployeesOnLeave(businessId);
+  const { data: conflictAssignments = [] } = useEmployeeConflicts(pour?.pour_date);
 
   // Fetch full pour details
   const { data: pourDetails } = useQuery({
@@ -186,6 +194,17 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
   });
 
   const toggleEmployee = (employeeId: string) => {
+    // Check if adding (not removing)
+    if (!selectedEmployees.includes(employeeId)) {
+      const conflict = getEmployeeConflict(employeeId, conflictAssignments, pour?.id);
+      if (conflict) {
+        const emp = employees.find((e) => e.id === employeeId);
+        toast.error(
+          `${emp?.full_name} is already assigned to "${conflict.pour_name}" at ${conflict.job_name} on this date`
+        );
+        return;
+      }
+    }
     const newSelection = selectedEmployees.includes(employeeId)
       ? selectedEmployees.filter((id) => id !== employeeId)
       : [...selectedEmployees, employeeId];
@@ -330,25 +349,43 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
                   <CommandList>
                     <CommandEmpty>No employees found.</CommandEmpty>
                     <CommandGroup>
-                      {employees.map((emp) => (
-                        <CommandItem
-                          key={emp.id}
-                          value={emp.full_name}
-                          onSelect={() => {
-                            toggleEmployee(emp.id);
-                          }}
-                        >
-                          <Check
-                            className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedEmployees.includes(emp.id)
-                                ? "opacity-100"
-                                : "opacity-0"
-                            )}
-                          />
-                          {emp.full_name}
-                        </CommandItem>
-                      ))}
+                      {employees.map((emp) => {
+                        const conflict = getEmployeeConflict(emp.id, conflictAssignments, pour?.id);
+                        const isSelected = selectedEmployees.includes(emp.id);
+                        return (
+                          <TooltipProvider key={emp.id}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <CommandItem
+                                  value={emp.full_name}
+                                  onSelect={() => {
+                                    toggleEmployee(emp.id);
+                                  }}
+                                  className={cn(
+                                    conflict && !isSelected && "text-muted-foreground"
+                                  )}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      isSelected ? "opacity-100" : "opacity-0"
+                                    )}
+                                  />
+                                  {emp.full_name}
+                                  {conflict && !isSelected && (
+                                    <AlertTriangle className="ml-auto h-4 w-4 text-amber-500" />
+                                  )}
+                                </CommandItem>
+                              </TooltipTrigger>
+                              {conflict && !isSelected && (
+                                <TooltipContent side="right">
+                                  <p>Already assigned to "{conflict.pour_name}" at {conflict.job_name}</p>
+                                </TooltipContent>
+                              )}
+                            </Tooltip>
+                          </TooltipProvider>
+                        );
+                      })}
                     </CommandGroup>
                   </CommandList>
                 </Command>
