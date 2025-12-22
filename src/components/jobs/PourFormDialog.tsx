@@ -42,10 +42,17 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
-import { Check, ChevronsUpDown, X, Users, Wrench } from "lucide-react";
+import { Check, ChevronsUpDown, X, Users, Wrench, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useEmployeeConflicts, getEmployeeConflict } from "@/hooks/useEmployeeConflicts";
 
 const pourSchema = z.object({
   pour_name: z.string().min(1, "Name is required"),
@@ -338,7 +345,21 @@ export function PourFormDialog({
     },
   });
 
+  const pourDate = form.watch("pour_date");
+  const { data: conflictAssignments = [] } = useEmployeeConflicts(pourDate);
+
   const toggleEmployee = (employeeId: string) => {
+    // Check if adding (not removing)
+    if (!selectedEmployees.includes(employeeId)) {
+      const conflict = getEmployeeConflict(employeeId, conflictAssignments, editPour?.id);
+      if (conflict) {
+        const emp = employees.find((e) => e.id === employeeId);
+        toast.error(
+          `${emp?.full_name} is already assigned to "${conflict.pour_name}" at ${conflict.job_name} on this date`
+        );
+        return;
+      }
+    }
     setSelectedEmployees((prev) =>
       prev.includes(employeeId)
         ? prev.filter((id) => id !== employeeId)
@@ -357,12 +378,29 @@ export function PourFormDialog({
   const assignCrew = (crewId: string) => {
     const crew = crews.find(c => c.id === crewId);
     if (crew && crew.memberIds.length > 0) {
-      // Add all crew members (avoiding duplicates)
-      setSelectedEmployees((prev) => {
-        const newIds = crew.memberIds.filter((id: string) => !prev.includes(id));
-        return [...prev, ...newIds];
+      // Check for conflicts
+      const conflicts: string[] = [];
+      const validIds: string[] = [];
+      
+      crew.memberIds.forEach((id: string) => {
+        if (selectedEmployees.includes(id)) return; // Already selected
+        const conflict = getEmployeeConflict(id, conflictAssignments, editPour?.id);
+        if (conflict) {
+          const emp = employees.find((e) => e.id === id);
+          conflicts.push(emp?.full_name || "Unknown");
+        } else {
+          validIds.push(id);
+        }
       });
-      toast.success(`Added ${crew.memberIds.length} crew members from ${crew.name}`);
+      
+      if (validIds.length > 0) {
+        setSelectedEmployees((prev) => [...prev, ...validIds]);
+        toast.success(`Added ${validIds.length} crew members from ${crew.name}`);
+      }
+      
+      if (conflicts.length > 0) {
+        toast.error(`${conflicts.join(", ")} already assigned to other pours on this date`);
+      }
     }
   };
 
@@ -521,23 +559,41 @@ export function PourFormDialog({
                     <CommandList>
                       <CommandEmpty>No employees found.</CommandEmpty>
                       <CommandGroup>
-                        {employees.map((emp) => (
-                          <CommandItem
-                            key={emp.id}
-                            value={emp.full_name}
-                            onSelect={() => toggleEmployee(emp.id)}
-                          >
-                            <Check
-                              className={cn(
-                                "mr-2 h-4 w-4",
-                                selectedEmployees.includes(emp.id)
-                                  ? "opacity-100"
-                                  : "opacity-0"
-                              )}
-                            />
-                            {emp.full_name}
-                          </CommandItem>
-                        ))}
+                        {employees.map((emp) => {
+                          const conflict = getEmployeeConflict(emp.id, conflictAssignments, editPour?.id);
+                          const isSelected = selectedEmployees.includes(emp.id);
+                          return (
+                            <TooltipProvider key={emp.id}>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <CommandItem
+                                    value={emp.full_name}
+                                    onSelect={() => toggleEmployee(emp.id)}
+                                    className={cn(
+                                      conflict && !isSelected && "text-muted-foreground"
+                                    )}
+                                  >
+                                    <Check
+                                      className={cn(
+                                        "mr-2 h-4 w-4",
+                                        isSelected ? "opacity-100" : "opacity-0"
+                                      )}
+                                    />
+                                    {emp.full_name}
+                                    {conflict && !isSelected && (
+                                      <AlertTriangle className="ml-auto h-4 w-4 text-amber-500" />
+                                    )}
+                                  </CommandItem>
+                                </TooltipTrigger>
+                                {conflict && !isSelected && (
+                                  <TooltipContent side="right">
+                                    <p>Already assigned to "{conflict.pour_name}" at {conflict.job_name}</p>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
+                          );
+                        })}
                       </CommandGroup>
                     </CommandList>
                   </Command>
