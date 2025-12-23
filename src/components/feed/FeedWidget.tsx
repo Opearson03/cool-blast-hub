@@ -41,10 +41,10 @@ interface FeedPost {
 }
 
 export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
-  const [newPost, setNewPost] = useState("");
+  const [rawContent, setRawContent] = useState(""); // Stores the raw content with @[name](id) format
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
-  const [cursorPosition, setCursorPosition] = useState(0);
+  const [mentionStartIndex, setMentionStartIndex] = useState(-1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
 
@@ -169,7 +169,7 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
       if (error) throw error;
     },
     onSuccess: () => {
-      setNewPost("");
+      setRawContent("");
       queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
       toast.success("Post published");
     },
@@ -200,43 +200,46 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
   });
 
   const handleSubmit = () => {
-    if (!newPost.trim()) return;
-    createPost.mutate(newPost);
+    if (!rawContent.trim()) return;
+    createPost.mutate(rawContent);
   };
 
   const insertMention = (profile: Profile) => {
-    const beforeCursor = newPost.slice(0, cursorPosition);
-    const afterCursor = newPost.slice(cursorPosition);
-    
-    // Find the @ symbol position
-    const lastAtIndex = beforeCursor.lastIndexOf("@");
-    const textBeforeAt = beforeCursor.slice(0, lastAtIndex);
+    const beforeMention = rawContent.slice(0, mentionStartIndex);
+    const afterMention = rawContent.slice(mentionStartIndex + mentionSearch.length + 1);
     
     const mentionText = `@[${profile.full_name}](${profile.id}) `;
-    setNewPost(textBeforeAt + mentionText + afterCursor);
+    const newContent = beforeMention + mentionText + afterMention;
+    
+    setRawContent(newContent);
     setShowMentions(false);
     setMentionSearch("");
+    setMentionStartIndex(-1);
+    
+    // Focus back on textarea
+    setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
   const insertCrewMention = (crew: Crew) => {
-    const beforeCursor = newPost.slice(0, cursorPosition);
-    const afterCursor = newPost.slice(cursorPosition);
-    
-    // Find the @ symbol position
-    const lastAtIndex = beforeCursor.lastIndexOf("@");
-    const textBeforeAt = beforeCursor.slice(0, lastAtIndex);
+    const beforeMention = rawContent.slice(0, mentionStartIndex);
+    const afterMention = rawContent.slice(mentionStartIndex + mentionSearch.length + 1);
     
     const mentionText = `@[${crew.name}](crew:${crew.id}) `;
-    setNewPost(textBeforeAt + mentionText + afterCursor);
+    const newContent = beforeMention + mentionText + afterMention;
+    
+    setRawContent(newContent);
     setShowMentions(false);
     setMentionSearch("");
+    setMentionStartIndex(-1);
+    
+    // Focus back on textarea
+    setTimeout(() => textareaRef.current?.focus(), 0);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const position = e.target.selectionStart;
-    setNewPost(value);
-    setCursorPosition(position);
+    setRawContent(value);
 
     // Check if user is typing a mention
     const textBeforeCursor = value.slice(0, position);
@@ -244,11 +247,20 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
     
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.slice(lastAtIndex + 1);
-      // Show mentions if @ is at start or after a space, and no space after @
+      // Show mentions if @ is at start or after a space/newline, and no space after @
       const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : " ";
-      if ((charBeforeAt === " " || charBeforeAt === "\n" || lastAtIndex === 0) && !textAfterAt.includes(" ")) {
+      
+      // Make sure we're not inside an existing mention (check for unbalanced brackets)
+      const textFromAt = value.slice(lastAtIndex);
+      const isInsideExistingMention = textFromAt.match(/^@\[[^\]]*$/);
+      
+      if (!isInsideExistingMention && 
+          (charBeforeAt === " " || charBeforeAt === "\n" || lastAtIndex === 0) && 
+          !textAfterAt.includes(" ") && 
+          !textAfterAt.includes("[")) {
         setShowMentions(true);
         setMentionSearch(textAfterAt.toLowerCase());
+        setMentionStartIndex(lastAtIndex);
       } else {
         setShowMentions(false);
       }
@@ -263,32 +275,34 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
       p.id !== userId
   );
 
-  const filteredCrews = crews.filter(
-    (c) => c.name.toLowerCase().includes(mentionSearch)
-  );
+  // Only admins can tag crews
+  const filteredCrews = isAdmin 
+    ? crews.filter((c) => c.name.toLowerCase().includes(mentionSearch))
+    : [];
 
-  // Display content with styled mentions in textarea preview
-  const getDisplayContent = (content: string) => {
-    // Convert @[name](id) to just @name for display
-    return content.replace(/@\[([^\]]+)\]\([^)]+\)/g, "@$1");
-  };
-
-  const renderContent = (content: string) => {
+  // Render content with orange-highlighted mentions in posts
+  const renderContent = (content: string, postMentions: string[]) => {
     // Replace @[name](id) with styled mention
     const parts = content.split(/(@\[[^\]]+\]\([^)]+\))/g);
     return parts.map((part, index) => {
       const mentionMatch = part.match(/@\[([^\]]+)\]\(([^)]+)\)/);
       if (mentionMatch) {
-        const isCrewMention = mentionMatch[2].startsWith("crew:");
+        const mentionId = mentionMatch[2];
+        const isCrewMention = mentionId.startsWith("crew:");
+        const isUserMentioned = mentionId === userId;
+        const actualCrewId = isCrewMention ? mentionId.replace("crew:", "") : null;
+        const isUserInMentionedCrew = actualCrewId && userCrewIds.includes(actualCrewId);
+        
         return (
-          <Badge 
-            key={index} 
-            variant="secondary" 
-            className={isCrewMention ? "mx-1 text-primary bg-primary/10" : "mx-1 text-primary"}
+          <span
+            key={index}
+            className={`inline-flex items-center px-1.5 py-0.5 rounded font-medium text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30 ${
+              isUserMentioned || isUserInMentionedCrew ? "ring-2 ring-orange-400" : ""
+            }`}
           >
             {isCrewMention && <Users className="w-3 h-3 mr-1" />}
             @{mentionMatch[1]}
-          </Badge>
+          </span>
         );
       }
       return <span key={index}>{part}</span>;
@@ -302,6 +316,13 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
       .join("")
       .toUpperCase();
 
+  // Check if user is mentioned in a post
+  const isUserMentionedInPost = (post: FeedPost) => {
+    const directlyMentioned = post.mentions?.includes(userId);
+    const inMentionedCrew = post.crew_mentions?.some(crewId => userCrewIds.includes(crewId));
+    return directlyMentioned || inMentionedCrew;
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -313,54 +334,12 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
       <CardContent className="space-y-4">
         {/* New Post Input */}
         <div className="space-y-2 relative">
-          {/* Editable area with hidden raw content */}
           <div className="relative">
             <Textarea
               ref={textareaRef}
-              placeholder="Share an update with your team... Use @ to mention someone or a crew"
-              value={getDisplayContent(newPost)}
-              onChange={(e) => {
-                // When user types, we need to sync with the actual stored content
-                const displayValue = e.target.value;
-                const position = e.target.selectionStart;
-                
-                // If the display content matches what we'd display from newPost, user is editing
-                const currentDisplay = getDisplayContent(newPost);
-                
-                if (displayValue.length < currentDisplay.length) {
-                  // User deleted something - find what mention was affected
-                  const mentionRegex = /@\[([^\]]+)\]\(([^)]+)\)/g;
-                  let newContent = newPost;
-                  let match;
-                  let offset = 0;
-                  
-                  while ((match = mentionRegex.exec(newPost)) !== null) {
-                    const displayStart = match.index - offset;
-                    const displayMention = `@${match[1]}`;
-                    const displayEnd = displayStart + displayMention.length;
-                    
-                    // Check if this mention was deleted in display
-                    const beforeMention = getDisplayContent(newPost.slice(0, match.index));
-                    const afterMention = getDisplayContent(newPost.slice(match.index + match[0].length));
-                    const displayWithoutThisMention = beforeMention + afterMention;
-                    
-                    if (displayValue.length <= displayStart || 
-                        !displayValue.includes(displayMention)) {
-                      // This mention was deleted
-                      newContent = newPost.slice(0, match.index) + newPost.slice(match.index + match[0].length);
-                      break;
-                    }
-                    offset += match[0].length - displayMention.length;
-                  }
-                  setNewPost(newContent);
-                  setCursorPosition(position);
-                } else {
-                  // User added text - update the raw content
-                  handleTextChange(e as any);
-                }
-              }}
-              onKeyUp={(e) => setCursorPosition(e.currentTarget.selectionStart)}
-              onClick={(e) => setCursorPosition(e.currentTarget.selectionStart)}
+              placeholder="Share an update with your team... Use @ to mention someone"
+              value={rawContent}
+              onChange={handleTextChange}
               className="min-h-[80px] resize-none"
             />
           </div>
@@ -369,8 +348,8 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
           {showMentions && (filteredProfiles.length > 0 || filteredCrews.length > 0) && (
             <Card className="absolute z-50 w-full max-h-48 overflow-auto shadow-lg">
               <CardContent className="p-2">
-                {/* Crews section */}
-                {filteredCrews.length > 0 && (
+                {/* Crews section - only for admins */}
+                {isAdmin && filteredCrews.length > 0 && (
                   <>
                     <p className="text-xs text-muted-foreground px-2 py-1 font-medium">Crews</p>
                     {filteredCrews.map((crew) => (
@@ -379,8 +358,8 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
                         onClick={() => insertCrewMention(crew)}
                         className="w-full flex items-center gap-2 p-2 rounded hover:bg-muted text-left"
                       >
-                        <div className="h-6 w-6 rounded-full bg-primary/10 flex items-center justify-center">
-                          <Users className="w-3 h-3 text-primary" />
+                        <div className="h-6 w-6 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center">
+                          <Users className="w-3 h-3 text-orange-600 dark:text-orange-400" />
                         </div>
                         <div>
                           <p className="text-sm font-medium">{crew.name}</p>
@@ -427,12 +406,12 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
           <div className="flex justify-between items-center">
             <p className="text-xs text-muted-foreground flex items-center gap-1">
               <AtSign className="w-3 h-3" />
-              Type @ to mention someone or a crew
+              Type @ to mention someone{isAdmin ? " or a crew" : ""}
             </p>
             <Button
               size="sm"
               onClick={handleSubmit}
-              disabled={!newPost.trim() || createPost.isPending}
+              disabled={!rawContent.trim() || createPost.isPending}
             >
               <Send className="w-4 h-4 mr-1" />
               Post
@@ -456,11 +435,16 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
               const mentionedCrewNames = postCrewMentions
                 .map(crewId => crews.find(c => c.id === crewId)?.name)
                 .filter(Boolean);
+              const userIsMentioned = isUserMentionedInPost(post);
               
               return (
                 <div
                   key={post.id}
-                  className="p-3 rounded-lg bg-muted/50 space-y-2"
+                  className={`p-3 rounded-lg space-y-2 ${
+                    userIsMentioned 
+                      ? "bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-800" 
+                      : "bg-muted/50"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2">
@@ -483,9 +467,14 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
                             })}
                           </p>
                           {mentionedCrewNames.length > 0 && (
-                            <Badge variant="outline" className="text-xs py-0 px-1.5 h-4 gap-1">
+                            <Badge variant="outline" className="text-xs py-0 px-1.5 h-4 gap-1 text-orange-600 border-orange-300 dark:text-orange-400 dark:border-orange-700">
                               <Users className="w-2.5 h-2.5" />
                               {mentionedCrewNames.join(", ")}
+                            </Badge>
+                          )}
+                          {userIsMentioned && (
+                            <Badge className="text-xs py-0 px-1.5 h-4 bg-orange-500 hover:bg-orange-600">
+                              Mentioned
                             </Badge>
                           )}
                         </div>
@@ -503,7 +492,7 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
                     )}
                   </div>
                   <p className="text-sm whitespace-pre-wrap">
-                    {renderContent(post.content)}
+                    {renderContent(post.content, post.mentions || [])}
                   </p>
                 </div>
               );
