@@ -350,13 +350,14 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
       return;
     }
 
-    // Submit the ITP
+    // Submit the ITP and mark as completed
     await updateMutation.mutateAsync({
       status: "completed",
       completed_at: new Date().toISOString(),
+      completed_by: currentUserId,
     });
 
-    toast.success("ITP submitted successfully");
+    toast.success("ITP marked as completed");
   };
 
   const handlePrint = () => {
@@ -769,9 +770,18 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
             position: absolute !important;
             left: 0 !important;
             top: 0 !important;
+            width: 100% !important;
+            height: auto !important;
+            overflow: visible !important;
           }
           .fixed.inset-0.bg-white * {
             visibility: visible !important;
+          }
+          .fixed.inset-0.bg-white .print-container {
+            width: 100% !important;
+            max-width: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
         }
       `}</style>

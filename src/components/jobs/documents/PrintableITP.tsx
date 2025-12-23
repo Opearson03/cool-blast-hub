@@ -34,168 +34,222 @@ export const PrintableITP = forwardRef<HTMLDivElement, PrintableITPProps>(
     return (
       <div
         ref={ref}
-        className="bg-white text-black p-8 max-w-[210mm] mx-auto print:p-6"
+        className="print-container bg-white text-black"
         style={{ fontFamily: "Arial, sans-serif" }}
       >
+        <style>{`
+          @media print {
+            @page {
+              size: A4;
+              margin: 15mm;
+            }
+            
+            .print-container {
+              width: 100%;
+              max-width: none;
+              margin: 0;
+              padding: 0;
+            }
+            
+            .print-page-break {
+              page-break-before: always;
+            }
+            
+            .print-avoid-break {
+              page-break-inside: avoid;
+            }
+            
+            .print-header {
+              page-break-after: avoid;
+            }
+            
+            .checklist-item {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            
+            .checklist-item-with-photo {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            
+            .signature-section {
+              page-break-inside: avoid;
+              break-inside: avoid;
+            }
+            
+            img {
+              max-height: 200px !important;
+              object-fit: contain;
+            }
+          }
+          
+          @media screen {
+            .print-container {
+              max-width: 210mm;
+              margin: 0 auto;
+              padding: 20px;
+            }
+          }
+        `}</style>
+
         {/* Header */}
-        <div className="flex items-start justify-between border-b-2 border-black pb-4 mb-6">
+        <div className="print-header flex items-start justify-between border-b-2 border-black pb-4 mb-4">
           <div className="flex items-center gap-4">
             {business?.logo_url ? (
               <img
                 src={business.logo_url}
                 alt="Company logo"
-                className="h-16 w-16 object-contain"
+                className="h-12 w-12 object-contain"
               />
             ) : (
-              <div className="h-16 w-16 bg-gray-200 flex items-center justify-center text-gray-500 text-xs">
+              <div className="h-12 w-12 bg-gray-200 flex items-center justify-center text-gray-500 text-xs">
                 Logo
               </div>
             )}
             <div>
-              <h1 className="text-xl font-bold">{business?.name || "Company Name"}</h1>
-              {business?.abn && <p className="text-sm">ABN: {business.abn}</p>}
-              {business?.address && <p className="text-sm">{business.address}</p>}
-              {business?.phone && <p className="text-sm">Ph: {business.phone}</p>}
+              <h1 className="text-lg font-bold">{business?.name || "Company Name"}</h1>
+              {business?.abn && <p className="text-xs">ABN: {business.abn}</p>}
+              {business?.phone && <p className="text-xs">Ph: {business.phone}</p>}
             </div>
           </div>
           <div className="text-right">
-            <h2 className="text-lg font-bold">INSPECTION & TEST PLAN</h2>
-            <p className="text-sm text-gray-600">
+            <h2 className="text-base font-bold">INSPECTION & TEST PLAN</h2>
+            <p className="text-xs text-gray-600">
               Date: {format(new Date(itp.created_at!), "d MMM yyyy")}
             </p>
           </div>
         </div>
 
-        {/* Job Details */}
-        <div className="grid grid-cols-2 gap-4 mb-6 text-sm">
+        {/* Job Details - Compact */}
+        <div className="print-avoid-break grid grid-cols-2 gap-2 mb-4 text-xs border border-gray-300 p-3 rounded">
           <div>
-            <p className="font-semibold">Job Name:</p>
-            <p>{jobName}</p>
+            <span className="font-semibold">Job: </span>
+            <span>{jobName}</span>
           </div>
           <div>
-            <p className="font-semibold">ITP Type:</p>
-            <p className="capitalize">{itp.itp_type.replace("_", " ")}</p>
+            <span className="font-semibold">ITP Type: </span>
+            <span className="capitalize">{itp.itp_type.replace("_", " ")}</span>
+          </div>
+          <div>
+            <span className="font-semibold">Site: </span>
+            <span>{jobAddress}</span>
+          </div>
+          <div>
+            <span className="font-semibold">Status: </span>
+            <span className="capitalize font-medium">{itp.status}</span>
           </div>
           <div className="col-span-2">
-            <p className="font-semibold">Site Address:</p>
-            <p>{jobAddress}</p>
-          </div>
-          <div>
-            <p className="font-semibold">ITP Name:</p>
-            <p>{itp.name}</p>
-          </div>
-          <div>
-            <p className="font-semibold">Status:</p>
-            <p className="capitalize">{itp.status}</p>
+            <span className="font-semibold">ITP Name: </span>
+            <span>{itp.name}</span>
           </div>
         </div>
 
-        {/* Checklist Items with Photos - Each item gets its own section */}
-        {checklistData.map((item, index) => (
-          <div 
-            key={item.id} 
-            className="mb-8 border border-gray-300 rounded-lg overflow-hidden"
-            style={{ pageBreakInside: item.photo_url ? "avoid" : "auto" }}
-          >
-            {/* Item Header */}
-            <div className="bg-gray-100 px-4 py-2 border-b border-gray-300 flex items-center gap-3">
-              <span className="font-bold text-lg">#{index + 1}</span>
-              <span className="flex-1 font-medium">
-                {item.item}
-                {item.required && <span className="text-red-600 ml-1">*</span>}
-              </span>
-              <span className={`font-bold text-lg ${item.checked ? "text-green-600" : "text-gray-400"}`}>
-                {item.checked ? "✓ PASS" : "○ PENDING"}
-              </span>
+        {/* Checklist Items */}
+        <div className="space-y-3">
+          {checklistData.map((item, index) => (
+            <div 
+              key={item.id} 
+              className={`border border-gray-300 rounded overflow-hidden ${item.photo_url ? 'checklist-item-with-photo' : 'checklist-item'}`}
+            >
+              {/* Item Header */}
+              <div className="bg-gray-100 px-3 py-1.5 border-b border-gray-300 flex items-center gap-2">
+                <span className="font-bold text-sm">#{index + 1}</span>
+                <span className="flex-1 text-sm">
+                  {item.item}
+                  {item.required && <span className="text-red-600 ml-1">*</span>}
+                </span>
+                <span className={`font-bold text-sm ${item.checked ? "text-green-600" : "text-gray-400"}`}>
+                  {item.checked ? "✓ PASS" : "○ PENDING"}
+                </span>
+              </div>
+
+              {/* Item Content */}
+              <div className="p-2">
+                {item.comment && (
+                  <div className="mb-2">
+                    <p className="text-xs text-gray-600 mb-0.5">Comments:</p>
+                    <p className="text-xs bg-gray-50 p-1.5 rounded border border-gray-200">{item.comment}</p>
+                  </div>
+                )}
+
+                {item.photo_url && (
+                  <div>
+                    <p className="text-xs text-gray-600 mb-1">Photo Evidence:</p>
+                    <img
+                      src={item.photo_url}
+                      alt={`Photo for ${item.item}`}
+                      className="max-w-full h-auto border border-gray-300 rounded"
+                      style={{ 
+                        maxHeight: "180px",
+                        objectFit: "contain"
+                      }}
+                    />
+                  </div>
+                )}
+
+                {!item.photo_url && !item.comment && (
+                  <p className="text-xs text-gray-400 italic">No comments or photos</p>
+                )}
+              </div>
             </div>
-
-            {/* Item Content */}
-            <div className="p-4">
-              {/* Comment */}
-              {item.comment && (
-                <div className="mb-4">
-                  <p className="font-semibold text-sm text-gray-600 mb-1">Comments:</p>
-                  <p className="text-sm bg-gray-50 p-2 rounded border border-gray-200">{item.comment}</p>
-                </div>
-              )}
-
-              {/* Photo - Large size for printing (half page) */}
-              {item.photo_url && (
-                <div className="mt-2">
-                  <p className="font-semibold text-sm text-gray-600 mb-2">Photo Evidence:</p>
-                  <img
-                    src={item.photo_url}
-                    alt={`Photo for ${item.item}`}
-                    className="w-full max-h-[45vh] object-contain border border-gray-300 rounded"
-                    style={{ 
-                      maxWidth: "100%",
-                      height: "auto",
-                      minHeight: "200px",
-                      maxHeight: "45vh"
-                    }}
-                  />
-                </div>
-              )}
-
-              {/* No photo placeholder */}
-              {!item.photo_url && !item.comment && (
-                <p className="text-sm text-gray-400 italic">No comments or photos</p>
-              )}
-            </div>
-          </div>
-        ))}
+          ))}
+        </div>
 
         {/* Summary */}
-        <div className="text-sm mb-6 p-4 bg-gray-100 rounded border border-gray-300">
+        <div className="print-avoid-break text-xs my-4 p-3 bg-gray-100 rounded border border-gray-300">
           <p>
             <strong>Completion:</strong> {completedCount}/{checklistData.length} items checked
+            ({checklistData.length > 0 ? Math.round((completedCount / checklistData.length) * 100) : 0}%)
           </p>
         </div>
 
         {/* Notes */}
         {itp.notes && (
-          <div className="mb-6 text-sm">
+          <div className="print-avoid-break mb-4 text-xs">
             <p className="font-semibold mb-1">Additional Notes:</p>
-            <p className="border border-gray-300 p-3 min-h-[40px] bg-gray-50 rounded">{itp.notes}</p>
+            <p className="border border-gray-300 p-2 bg-gray-50 rounded">{itp.notes}</p>
           </div>
         )}
 
         {/* Signatures */}
-        <div className="grid grid-cols-2 gap-8 mt-8 border-t-2 border-black pt-6">
+        <div className="signature-section grid grid-cols-2 gap-6 mt-4 border-t-2 border-black pt-4">
           <div>
-            <p className="font-semibold mb-2">Employee Signature:</p>
+            <p className="font-semibold text-sm mb-2">Employee Signature:</p>
             {itp.employee_signature ? (
               <div className="border border-gray-300 rounded p-2 bg-green-50">
                 <img
                   src={itp.employee_signature}
                   alt="Employee signature"
-                  className="h-20 mx-auto"
+                  className="h-16 mx-auto"
+                  style={{ maxHeight: "60px" }}
                 />
-                <p className="text-xs text-gray-600 mt-2 text-center">
+                <p className="text-xs text-gray-600 mt-1 text-center">
                   Signed: {itp.employee_signed_at && format(new Date(itp.employee_signed_at), "d MMM yyyy, HH:mm")}
                 </p>
               </div>
             ) : (
-              <div className="h-24 border border-gray-300 rounded flex items-center justify-center text-gray-400">
+              <div className="h-20 border border-gray-300 rounded flex items-center justify-center text-gray-400 text-xs">
                 Not signed
               </div>
             )}
           </div>
           <div>
-            <p className="font-semibold mb-2">Site Supervisor Signature:</p>
+            <p className="font-semibold text-sm mb-2">Site Supervisor Signature:</p>
             {itp.supervisor_signature ? (
               <div className="border border-gray-300 rounded p-2 bg-green-50">
                 <img
                   src={itp.supervisor_signature}
                   alt="Supervisor signature"
-                  className="h-20 mx-auto"
+                  className="h-16 mx-auto"
+                  style={{ maxHeight: "60px" }}
                 />
-                <p className="text-xs text-gray-600 mt-2 text-center">
+                <p className="text-xs text-gray-600 mt-1 text-center">
                   Signed: {itp.supervisor_signed_at && format(new Date(itp.supervisor_signed_at), "d MMM yyyy, HH:mm")}
                 </p>
               </div>
             ) : (
-              <div className="h-24 border border-gray-300 rounded flex items-center justify-center text-gray-400">
+              <div className="h-20 border border-gray-300 rounded flex items-center justify-center text-gray-400 text-xs">
                 Not signed
               </div>
             )}
@@ -203,7 +257,7 @@ export const PrintableITP = forwardRef<HTMLDivElement, PrintableITPProps>(
         </div>
 
         {/* Footer */}
-        <div className="mt-8 pt-4 border-t border-gray-300 text-xs text-gray-500 text-center">
+        <div className="mt-6 pt-3 border-t border-gray-300 text-xs text-gray-500 text-center">
           <p>Generated by PourHub • {format(new Date(), "d MMM yyyy, HH:mm")}</p>
         </div>
       </div>
