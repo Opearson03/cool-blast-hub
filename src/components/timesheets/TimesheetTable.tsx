@@ -19,7 +19,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { format, differenceInMinutes, startOfWeek, endOfWeek, subWeeks } from "date-fns";
-import { Search, MapPin, CheckCircle, AlertCircle, Pencil, Clock, ChevronDown, Coffee, Check } from "lucide-react";
+import { Search, MapPin, CheckCircle, AlertCircle, Pencil, Clock, ChevronDown, Coffee, Check, AlertTriangle } from "lucide-react";
 import { EditTimesheetDialog } from "./EditTimesheetDialog";
 import { toast } from "sonner";
 
@@ -46,6 +46,7 @@ interface Timesheet {
   edited_at: string | null;
   approved_by: string | null;
   approved_at: string | null;
+  auto_clocked_out: boolean | null;
   profiles: { full_name: string };
   job_pours: { pour_name: string; jobs: { name: string; site_address: string } } | null;
 }
@@ -300,10 +301,16 @@ export function TimesheetTable({ businessId }: TimesheetTableProps) {
                   <CollapsibleContent>
                     <div className="border-t divide-y">
                       {group.timesheets.map((ts) => (
-                        <div key={ts.id} className="p-4 flex items-center justify-between hover:bg-muted/30">
+                        <div key={ts.id} className={`p-4 flex items-center justify-between hover:bg-muted/30 ${ts.auto_clocked_out ? 'bg-red-500/5 border-l-4 border-l-red-500' : ''}`}>
                           <div className="space-y-1">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-medium">{format(new Date(ts.clock_in), "EEE, d MMM")}</span>
+                              {ts.auto_clocked_out && (
+                                <Badge variant="outline" className="bg-red-500/10 text-red-600 border-red-500/30 text-xs">
+                                  <AlertTriangle className="h-3 w-3 mr-1" />
+                                  Auto Clocked Out
+                                </Badge>
+                              )}
                               {ts.status === "active" && (
                                 <Badge variant="outline" className="bg-green-500/10 text-green-600 border-green-500/30 text-xs">
                                   Active

@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.verify-checkout]
 verify_jwt = false
+
+[functions.auto-clock-out]
+verify_jwt = false

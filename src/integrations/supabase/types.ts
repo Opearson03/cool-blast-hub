@@ -1253,6 +1253,7 @@ export type Database = {
         Row: {
           approved_at: string | null
           approved_by: string | null
+          auto_clocked_out: boolean | null
           break_applied_at: string | null
           break_applied_by: string | null
           break_end: string | null
@@ -1277,6 +1278,7 @@ export type Database = {
         Insert: {
           approved_at?: string | null
           approved_by?: string | null
+          auto_clocked_out?: boolean | null
           break_applied_at?: string | null
           break_applied_by?: string | null
           break_end?: string | null
@@ -1301,6 +1303,7 @@ export type Database = {
         Update: {
           approved_at?: string | null
           approved_by?: string | null
+          auto_clocked_out?: boolean | null
           break_applied_at?: string | null
           break_applied_by?: string | null
           break_end?: string | null
