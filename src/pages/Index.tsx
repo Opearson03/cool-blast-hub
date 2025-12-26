@@ -159,7 +159,7 @@ const Index = () => {
           <div className="grid lg:grid-cols-2 gap-8 mb-16 items-center">
             <div className="relative rounded-xl overflow-hidden shadow-2xl order-2 lg:order-1">
               <img 
-                src={concreteFormwork} 
+                src=https://pasteboard.co/R6MdQ2lgyXx7.png 
                 alt="PourHub Dashboard" 
                 className="w-full h-64 lg:h-80 object-cover"
               />
