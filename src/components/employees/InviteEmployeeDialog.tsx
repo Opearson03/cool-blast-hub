@@ -19,7 +19,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface InviteEmployeeDialogProps {
   open: boolean;
@@ -30,11 +32,31 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"admin" | "staff">("staff");
+  const [limitError, setLimitError] = useState<string | null>(null);
+  const [isCheckingLimit, setIsCheckingLimit] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { checkEmployeeLimit } = useSubscription();
 
   const mutation = useMutation({
     mutationFn: async () => {
+      // Server-side check for employee limit
+      setIsCheckingLimit(true);
+      setLimitError(null);
+      
+      try {
+        const limitCheck = await checkEmployeeLimit();
+        
+        if (!limitCheck.canAdd && !limitCheck.isExempt) {
+          throw new Error(
+            `You've reached your employee limit (${limitCheck.currentCount}/${limitCheck.limit}). ` +
+            `Upgrade your plan to add more employees.`
+          );
+        }
+      } finally {
+        setIsCheckingLimit(false);
+      }
+
       const { data: userData } = await supabase.auth.getUser();
       
       const { error } = await supabase.from("pending_invites").insert({
@@ -47,6 +69,7 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pending-invites"] });
+      queryClient.invalidateQueries({ queryKey: ["employees"] });
       toast({
         title: "Invite sent",
         description: `${fullName} can now sign up at the login page.`,
@@ -55,9 +78,14 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
       setEmail("");
       setFullName("");
       setRole("staff");
+      setLimitError(null);
     },
     onError: (error) => {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+      if (error.message.includes("employee limit")) {
+        setLimitError(error.message);
+      } else {
+        toast({ title: "Error", description: error.message, variant: "destructive" });
+      }
     },
   });
 
@@ -79,6 +107,13 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
             Send an invite so they can create their account.
           </DialogDescription>
         </DialogHeader>
+
+        {limitError && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{limitError}</AlertDescription>
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -126,8 +161,12 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={mutation.isPending} className="flex-1 touch-target">
-              {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+            <Button 
+              type="submit" 
+              disabled={mutation.isPending || isCheckingLimit} 
+              className="flex-1 touch-target"
+            >
+              {(mutation.isPending || isCheckingLimit) && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
               Send Invite
             </Button>
           </div>

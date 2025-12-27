@@ -75,6 +75,7 @@ export type Database = {
           owner_id: string
           phone: string | null
           preferred_suppliers: Json | null
+          subscription_exempt: boolean | null
           updated_at: string | null
         }
         Insert: {
@@ -90,6 +91,7 @@ export type Database = {
           owner_id: string
           phone?: string | null
           preferred_suppliers?: Json | null
+          subscription_exempt?: boolean | null
           updated_at?: string | null
         }
         Update: {
@@ -105,6 +107,7 @@ export type Database = {
           owner_id?: string
           phone?: string | null
           preferred_suppliers?: Json | null
+          subscription_exempt?: boolean | null
           updated_at?: string | null
         }
         Relationships: []
@@ -1389,6 +1392,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_employee_limit: { Args: { _business_id: string }; Returns: Json }
       check_invite_email: { Args: { _email: string }; Returns: boolean }
       get_team_profiles: {
         Args: never
@@ -1423,6 +1427,7 @@ export type Database = {
           position: string
         }[]
       }
+      has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
