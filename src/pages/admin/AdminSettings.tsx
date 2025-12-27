@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock } from "lucide-react";
 import { useSubscription } from "@/hooks/useSubscription";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -26,6 +26,9 @@ export default function AdminSettings() {
   const [newSupplier, setNewSupplier] = useState("");
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -195,6 +198,29 @@ export default function AdminSettings() {
 
   const removeSupplier = (supplier: string) => {
     setSuppliers(suppliers.filter((s) => s !== supplier));
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 6) {
+      toast({ title: "Password must be at least 6 characters", variant: "destructive" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast({ title: "Passwords do not match", variant: "destructive" });
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast({ title: "Password updated successfully" });
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } finally {
+      setChangingPassword(false);
+    }
   };
 
   if (isLoading) {
@@ -452,6 +478,55 @@ export default function AdminSettings() {
               ) : (
                 <p className="text-sm text-muted-foreground">No suppliers added yet</p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Account Security */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Lock className="w-5 h-5" />
+                Account Security
+              </CardTitle>
+              <CardDescription>Change your password</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="newPassword">New Password</Label>
+                <Input
+                  id="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter new password"
+                  className="touch-target"
+                />
+              </div>
+              <div>
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="touch-target"
+                />
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleChangePassword}
+                disabled={changingPassword || !newPassword || !confirmPassword}
+                className="touch-target"
+              >
+                {changingPassword ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Lock className="w-4 h-4 mr-2" />
+                )}
+                Change Password
+              </Button>
             </CardContent>
           </Card>
 

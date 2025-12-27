@@ -55,7 +55,7 @@ serve(async (req) => {
       try {
         const { error: updateError } = await supabaseClient.auth.admin.updateUserById(
           pourhubUser.id,
-          { password: "Example123" }
+          { password: "Demo123" }
         );
         
         if (updateError) {
