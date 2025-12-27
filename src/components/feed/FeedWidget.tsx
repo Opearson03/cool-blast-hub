@@ -208,32 +208,46 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
     const beforeMention = rawContent.slice(0, mentionStartIndex);
     const afterMention = rawContent.slice(mentionStartIndex + mentionSearch.length + 1);
     
-    const mentionText = `@[${profile.full_name}](${profile.id}) `;
-    const newContent = beforeMention + mentionText + afterMention;
+    // Use a shorter display format: @Name (the full format is stored but we display shorter)
+    const mentionText = `@${profile.full_name} `;
+    const storedMention = `@[${profile.full_name}](${profile.id})`;
+    const newContent = beforeMention + storedMention + " " + afterMention;
     
     setRawContent(newContent);
     setShowMentions(false);
     setMentionSearch("");
     setMentionStartIndex(-1);
     
-    // Focus back on textarea
-    setTimeout(() => textareaRef.current?.focus(), 0);
+    // Focus back on textarea and set cursor position after the mention
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const cursorPos = beforeMention.length + storedMention.length + 1;
+        textareaRef.current.setSelectionRange(cursorPos, cursorPos);
+      }
+    }, 0);
   };
 
   const insertCrewMention = (crew: Crew) => {
     const beforeMention = rawContent.slice(0, mentionStartIndex);
     const afterMention = rawContent.slice(mentionStartIndex + mentionSearch.length + 1);
     
-    const mentionText = `@[${crew.name}](crew:${crew.id}) `;
-    const newContent = beforeMention + mentionText + afterMention;
+    const storedMention = `@[${crew.name}](crew:${crew.id})`;
+    const newContent = beforeMention + storedMention + " " + afterMention;
     
     setRawContent(newContent);
     setShowMentions(false);
     setMentionSearch("");
     setMentionStartIndex(-1);
     
-    // Focus back on textarea
-    setTimeout(() => textareaRef.current?.focus(), 0);
+    // Focus back on textarea and set cursor position after the mention
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        const cursorPos = beforeMention.length + storedMention.length + 1;
+        textareaRef.current.setSelectionRange(cursorPos, cursorPos);
+      }
+    }, 0);
   };
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -357,26 +371,13 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
       <CardContent className="space-y-4">
         {/* New Post Input */}
         <div className="space-y-2 relative">
-          <div className="relative">
-            {/* Display layer - shows formatted mentions */}
-            <div 
-              className="absolute inset-0 p-3 pointer-events-none whitespace-pre-wrap break-words overflow-hidden text-sm"
-              aria-hidden="true"
-            >
-              {rawContent ? renderInputContent(rawContent) : (
-                <span className="text-muted-foreground">Share an update with your team... Use @ to mention someone</span>
-              )}
-            </div>
-            {/* Actual textarea - transparent text */}
-            <Textarea
-              ref={textareaRef}
-              placeholder=""
-              value={rawContent}
-              onChange={handleTextChange}
-              className="min-h-[80px] resize-none bg-transparent text-transparent caret-foreground"
-              style={{ caretColor: 'hsl(var(--foreground))' }}
-            />
-          </div>
+          <Textarea
+            ref={textareaRef}
+            placeholder="Share an update with your team... Use @ to mention someone"
+            value={rawContent}
+            onChange={handleTextChange}
+            className="min-h-[80px] resize-none"
+          />
           
           {/* Mention suggestions dropdown */}
           {showMentions && (filteredProfiles.length > 0 || filteredCrews.length > 0) && (
