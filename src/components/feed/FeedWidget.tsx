@@ -40,13 +40,32 @@ interface FeedPost {
   author?: Profile;
 }
 
+interface MentionData {
+  displayText: string; // @Name
+  storedText: string;  // @[Name](id)
+  id: string;
+  type: 'person' | 'crew';
+}
+
 export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
-  const [rawContent, setRawContent] = useState(""); // Stores the raw content with @[name](id) format
+  const [displayContent, setDisplayContent] = useState(""); // What user sees
+  const [mentions, setMentions] = useState<MentionData[]>([]); // Track mentions
   const [showMentions, setShowMentions] = useState(false);
   const [mentionSearch, setMentionSearch] = useState("");
   const [mentionStartIndex, setMentionStartIndex] = useState(-1);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const queryClient = useQueryClient();
+
+  // Convert display content to stored format for submission
+  const getStoredContent = () => {
+    let content = displayContent;
+    // Sort mentions by display text length (longest first) to avoid partial replacements
+    const sortedMentions = [...mentions].sort((a, b) => b.displayText.length - a.displayText.length);
+    for (const mention of sortedMentions) {
+      content = content.split(mention.displayText).join(mention.storedText);
+    }
+    return content;
+  };
 
   // Fetch team profiles for mentions
   const { data: teamProfiles = [] } = useQuery({
@@ -169,7 +188,8 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
       if (error) throw error;
     },
     onSuccess: () => {
-      setRawContent("");
+      setDisplayContent("");
+      setMentions([]);
       queryClient.invalidateQueries({ queryKey: ["feed-posts"] });
       toast.success("Post published");
     },
@@ -200,20 +220,22 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
   });
 
   const handleSubmit = () => {
-    if (!rawContent.trim()) return;
-    createPost.mutate(rawContent);
+    if (!displayContent.trim()) return;
+    const storedContent = getStoredContent();
+    createPost.mutate(storedContent);
   };
 
   const insertMention = (profile: Profile) => {
-    const beforeMention = rawContent.slice(0, mentionStartIndex);
-    const afterMention = rawContent.slice(mentionStartIndex + mentionSearch.length + 1);
+    const beforeMention = displayContent.slice(0, mentionStartIndex);
+    const afterMention = displayContent.slice(mentionStartIndex + mentionSearch.length + 1);
     
-    // Use a shorter display format: @Name (the full format is stored but we display shorter)
-    const mentionText = `@${profile.full_name} `;
-    const storedMention = `@[${profile.full_name}](${profile.id})`;
-    const newContent = beforeMention + storedMention + " " + afterMention;
+    const displayText = `@${profile.full_name}`;
+    const storedText = `@[${profile.full_name}](${profile.id})`;
+    const newContent = beforeMention + displayText + " " + afterMention;
     
-    setRawContent(newContent);
+    // Add to mentions tracking
+    setMentions(prev => [...prev, { displayText, storedText, id: profile.id, type: 'person' }]);
+    setDisplayContent(newContent);
     setShowMentions(false);
     setMentionSearch("");
     setMentionStartIndex(-1);
@@ -222,20 +244,23 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        const cursorPos = beforeMention.length + storedMention.length + 1;
+        const cursorPos = beforeMention.length + displayText.length + 1;
         textareaRef.current.setSelectionRange(cursorPos, cursorPos);
       }
     }, 0);
   };
 
   const insertCrewMention = (crew: Crew) => {
-    const beforeMention = rawContent.slice(0, mentionStartIndex);
-    const afterMention = rawContent.slice(mentionStartIndex + mentionSearch.length + 1);
+    const beforeMention = displayContent.slice(0, mentionStartIndex);
+    const afterMention = displayContent.slice(mentionStartIndex + mentionSearch.length + 1);
     
-    const storedMention = `@[${crew.name}](crew:${crew.id})`;
-    const newContent = beforeMention + storedMention + " " + afterMention;
+    const displayText = `@${crew.name}`;
+    const storedText = `@[${crew.name}](crew:${crew.id})`;
+    const newContent = beforeMention + displayText + " " + afterMention;
     
-    setRawContent(newContent);
+    // Add to mentions tracking
+    setMentions(prev => [...prev, { displayText, storedText, id: crew.id, type: 'crew' }]);
+    setDisplayContent(newContent);
     setShowMentions(false);
     setMentionSearch("");
     setMentionStartIndex(-1);
@@ -244,7 +269,7 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        const cursorPos = beforeMention.length + storedMention.length + 1;
+        const cursorPos = beforeMention.length + displayText.length + 1;
         textareaRef.current.setSelectionRange(cursorPos, cursorPos);
       }
     }, 0);
@@ -253,7 +278,10 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
     const position = e.target.selectionStart;
-    setRawContent(value);
+    setDisplayContent(value);
+
+    // Clean up mentions that are no longer in the content
+    setMentions(prev => prev.filter(m => value.includes(m.displayText)));
 
     // Check if user is typing a mention
     const textBeforeCursor = value.slice(0, position);
@@ -264,14 +292,15 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
       // Show mentions if @ is at start or after a space/newline, and no space after @
       const charBeforeAt = lastAtIndex > 0 ? textBeforeCursor[lastAtIndex - 1] : " ";
       
-      // Make sure we're not inside an existing mention (check for unbalanced brackets)
-      const textFromAt = value.slice(lastAtIndex);
-      const isInsideExistingMention = textFromAt.match(/^@\[[^\]]*$/);
+      // Check if this @ is part of an existing mention
+      const existingMention = mentions.find(m => {
+        const mentionStart = value.indexOf(m.displayText);
+        return mentionStart !== -1 && lastAtIndex >= mentionStart && lastAtIndex < mentionStart + m.displayText.length;
+      });
       
-      if (!isInsideExistingMention && 
+      if (!existingMention && 
           (charBeforeAt === " " || charBeforeAt === "\n" || lastAtIndex === 0) && 
-          !textAfterAt.includes(" ") && 
-          !textAfterAt.includes("[")) {
+          !textAfterAt.includes(" ")) {
         setShowMentions(true);
         setMentionSearch(textAfterAt.toLowerCase());
         setMentionStartIndex(lastAtIndex);
@@ -374,7 +403,7 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
           <Textarea
             ref={textareaRef}
             placeholder="Share an update with your team... Use @ to mention someone"
-            value={rawContent}
+            value={displayContent}
             onChange={handleTextChange}
             className="min-h-[80px] resize-none"
           />
@@ -446,7 +475,7 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
             <Button
               size="sm"
               onClick={handleSubmit}
-              disabled={!rawContent.trim() || createPost.isPending}
+              disabled={!displayContent.trim() || createPost.isPending}
             >
               <Send className="w-4 h-4 mr-1" />
               Post
