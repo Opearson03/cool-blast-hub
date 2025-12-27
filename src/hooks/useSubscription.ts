@@ -2,6 +2,18 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SUBSCRIPTION_TIERS, SubscriptionTier } from "@/lib/subscription-tiers";
 
+const SUBSCRIPTION_CACHE_KEY = "pourhub_subscription_cache";
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+interface CachedSubscription {
+  subscribed: boolean;
+  tier: SubscriptionTier | null;
+  subscriptionEnd: string | null;
+  employeeLimit: number;
+  isExempt: boolean;
+  cachedAt: number;
+}
+
 interface SubscriptionState {
   isLoading: boolean;
   isSubscribed: boolean;
@@ -12,24 +24,61 @@ interface SubscriptionState {
   isExempt: boolean;
 }
 
+function getCachedSubscription(): CachedSubscription | null {
+  try {
+    const cached = localStorage.getItem(SUBSCRIPTION_CACHE_KEY);
+    if (!cached) return null;
+    
+    const data = JSON.parse(cached) as CachedSubscription;
+    const now = Date.now();
+    
+    // Return cached data if within TTL
+    if (now - data.cachedAt < CACHE_TTL_MS) {
+      return data;
+    }
+    
+    // Cache expired, but still return it for optimistic rendering
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedSubscription(data: Omit<CachedSubscription, "cachedAt">) {
+  try {
+    localStorage.setItem(SUBSCRIPTION_CACHE_KEY, JSON.stringify({
+      ...data,
+      cachedAt: Date.now(),
+    }));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 export function useSubscription() {
+  // Initialize from cache for instant loading
+  const cachedData = getCachedSubscription();
+  
   const [state, setState] = useState<SubscriptionState>({
-    isLoading: true,
-    isSubscribed: false,
-    tier: null,
-    subscriptionEnd: null,
-    employeeLimit: 5,
+    // If we have cached data, don't show loading state
+    isLoading: !cachedData,
+    isSubscribed: cachedData?.subscribed ?? false,
+    tier: cachedData?.tier ?? null,
+    subscriptionEnd: cachedData?.subscriptionEnd ?? null,
+    employeeLimit: cachedData?.employeeLimit ?? 5,
     error: null,
-    isExempt: false,
+    isExempt: cachedData?.isExempt ?? false,
   });
 
-  const checkSubscription = useCallback(async () => {
+  const checkSubscription = useCallback(async (showLoading = false) => {
     try {
-      setState(prev => ({ ...prev, isLoading: true, error: null }));
+      if (showLoading) {
+        setState(prev => ({ ...prev, isLoading: true, error: null }));
+      }
       
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setState({
+        const emptyState = {
           isLoading: false,
           isSubscribed: false,
           tier: null,
@@ -37,7 +86,9 @@ export function useSubscription() {
           employeeLimit: 5,
           error: null,
           isExempt: false,
-        });
+        };
+        setState(emptyState);
+        localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
         return;
       }
 
@@ -49,7 +100,7 @@ export function useSubscription() {
 
       if (error) throw error;
 
-      setState({
+      const newState = {
         isLoading: false,
         isSubscribed: data.subscribed,
         tier: data.tier as SubscriptionTier | null,
@@ -57,9 +108,21 @@ export function useSubscription() {
         employeeLimit: data.employee_limit || 5,
         error: null,
         isExempt: data.is_exempt || false,
+      };
+      
+      setState(newState);
+      
+      // Cache the result
+      setCachedSubscription({
+        subscribed: data.subscribed,
+        tier: data.tier,
+        subscriptionEnd: data.subscription_end,
+        employeeLimit: data.employee_limit || 5,
+        isExempt: data.is_exempt || false,
       });
     } catch (error) {
       console.error("Error checking subscription:", error);
+      // Don't clear access on error if we have cached data
       setState(prev => ({
         ...prev,
         isLoading: false,
@@ -69,10 +132,11 @@ export function useSubscription() {
   }, []);
 
   useEffect(() => {
-    checkSubscription();
+    // Check subscription in background (don't block UI if we have cache)
+    checkSubscription(false);
 
     // Refresh subscription status every 60 seconds
-    const interval = setInterval(checkSubscription, 60000);
+    const interval = setInterval(() => checkSubscription(false), 60000);
     return () => clearInterval(interval);
   }, [checkSubscription]);
 
