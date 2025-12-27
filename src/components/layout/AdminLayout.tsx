@@ -7,6 +7,8 @@ import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { useThemeOnAuth } from "@/hooks/useThemeOnAuth";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -22,6 +24,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // Set dark mode as default for authenticated users
+  useThemeOnAuth();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -39,9 +44,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           </div>
           <span className="font-bold">PourHub</span>
         </Link>
-        <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
-          {mobileMenuOpen ? <X /> : <Menu />}
-        </Button>
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <Button variant="ghost" size="icon" onClick={() => setMobileMenuOpen(!mobileMenuOpen)}>
+            {mobileMenuOpen ? <X /> : <Menu />}
+          </Button>
+        </div>
       </header>
 
       {/* Mobile Menu */}
@@ -72,13 +80,14 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex-col">
-        <div className="p-4 border-b border-border">
+        <div className="p-4 border-b border-border flex items-center justify-between">
           <Link to="/admin" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg overflow-hidden">
               <Logo className="w-full h-full" />
             </div>
             <span className="text-xl font-bold">PourHub</span>
           </Link>
+          <ThemeToggle />
         </div>
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => (
