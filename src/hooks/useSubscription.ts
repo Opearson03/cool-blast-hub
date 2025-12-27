@@ -9,6 +9,7 @@ interface SubscriptionState {
   subscriptionEnd: string | null;
   employeeLimit: number;
   error: string | null;
+  isExempt: boolean;
 }
 
 export function useSubscription() {
@@ -19,6 +20,7 @@ export function useSubscription() {
     subscriptionEnd: null,
     employeeLimit: 5,
     error: null,
+    isExempt: false,
   });
 
   const checkSubscription = useCallback(async () => {
@@ -34,6 +36,7 @@ export function useSubscription() {
           subscriptionEnd: null,
           employeeLimit: 5,
           error: null,
+          isExempt: false,
         });
         return;
       }
@@ -53,6 +56,7 @@ export function useSubscription() {
         subscriptionEnd: data.subscription_end,
         employeeLimit: data.employee_limit || 5,
         error: null,
+        isExempt: data.is_exempt || false,
       });
     } catch (error) {
       console.error("Error checking subscription:", error);
@@ -72,6 +76,38 @@ export function useSubscription() {
     return () => clearInterval(interval);
   }, [checkSubscription]);
 
+  const checkEmployeeLimit = useCallback(async (): Promise<{
+    canAdd: boolean;
+    currentCount: number;
+    limit: number;
+    isExempt: boolean;
+  }> => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        return { canAdd: false, currentCount: 0, limit: 5, isExempt: false };
+      }
+
+      const { data, error } = await supabase.functions.invoke("check-employee-limit", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (error) throw error;
+
+      return {
+        canAdd: data.can_add,
+        currentCount: data.current_count,
+        limit: data.limit,
+        isExempt: data.is_exempt,
+      };
+    } catch (error) {
+      console.error("Error checking employee limit:", error);
+      return { canAdd: false, currentCount: 0, limit: 5, isExempt: false };
+    }
+  }, []);
+
   const canAddEmployee = useCallback(
     (currentCount: number) => currentCount < state.employeeLimit,
     [state.employeeLimit]
@@ -79,12 +115,17 @@ export function useSubscription() {
 
   const isFeatureEnabled = useCallback(
     (feature: string) => {
+      // Exempt users have all features
+      if (state.isExempt) return true;
       if (!state.tier) return false;
       const tierConfig = SUBSCRIPTION_TIERS[state.tier];
       return tierConfig.features.some(f => f.toLowerCase().includes(feature.toLowerCase()));
     },
-    [state.tier]
+    [state.tier, state.isExempt]
   );
+
+  // Check if user has ANY access (subscribed or exempt)
+  const hasAccess = state.isSubscribed || state.isExempt;
 
   const openCustomerPortal = useCallback(async () => {
     try {
@@ -109,7 +150,9 @@ export function useSubscription() {
 
   return {
     ...state,
+    hasAccess,
     checkSubscription,
+    checkEmployeeLimit,
     canAddEmployee,
     isFeatureEnabled,
     openCustomerPortal,

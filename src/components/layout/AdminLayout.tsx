@@ -6,6 +6,7 @@ import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, Settings
 import { Logo } from "@/components/ui/Logo";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -28,7 +29,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <SubscriptionGate>
+      <div className="min-h-screen bg-background">
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         <Link to="/admin" className="flex items-center gap-2">
@@ -106,5 +108,6 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         {children}
       </main>
     </div>
+    </SubscriptionGate>
   );
 }

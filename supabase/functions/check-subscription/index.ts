@@ -45,10 +45,6 @@ serve(async (req) => {
   try {
     logStep("Function started");
 
-    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
-    logStep("Stripe key verified");
-
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("No authorization header provided");
     logStep("Authorization header found");
@@ -62,12 +58,49 @@ serve(async (req) => {
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
+    // Get user's business and check if exempt
+    const { data: profile } = await supabaseClient
+      .from("profiles")
+      .select("business_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    if (profile?.business_id) {
+      const { data: business } = await supabaseClient
+        .from("businesses")
+        .select("subscription_exempt")
+        .eq("id", profile.business_id)
+        .maybeSingle();
+
+      // If business is exempt (demo account), return full access
+      if (business?.subscription_exempt) {
+        logStep("Business is exempt from subscription - granting full access");
+        return new Response(JSON.stringify({
+          subscribed: true,
+          tier: "enterprise",
+          subscription_end: null,
+          employee_limit: 999,
+          is_exempt: true,
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        });
+      }
+    }
+
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
+    logStep("Stripe key verified");
+
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     
     if (customers.data.length === 0) {
       logStep("No customer found, returning unsubscribed state");
-      return new Response(JSON.stringify({ subscribed: false }), {
+      return new Response(JSON.stringify({ 
+        subscribed: false,
+        is_exempt: false,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
         status: 200,
       });
@@ -97,17 +130,11 @@ serve(async (req) => {
       logStep("Determined subscription tier", { productId, tier, employeeLimit });
 
       // Update subscription record in database
-      const { data: profileData } = await supabaseClient
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (profileData?.business_id) {
+      if (profile?.business_id) {
         await supabaseClient
           .from("business_subscriptions")
           .upsert({
-            business_id: profileData.business_id,
+            business_id: profile.business_id,
             stripe_customer_id: customerId,
             stripe_subscription_id: subscription.id,
             plan_tier: tier,
@@ -126,6 +153,7 @@ serve(async (req) => {
       tier,
       subscription_end: subscriptionEnd,
       employee_limit: employeeLimit,
+      is_exempt: false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
       status: 200,

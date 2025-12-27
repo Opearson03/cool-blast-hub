@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, CalendarDays, User, LogOut, Menu, X, Users, Calendar } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
+import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
 
 const navItems = [
   { href: "/employee", label: "Dashboard", icon: LayoutDashboard },
@@ -25,6 +26,7 @@ export function EmployeeLayout({ children }: { children: ReactNode }) {
   };
 
   return (
+    <SubscriptionGate>
     <div className="min-h-screen bg-background">
       {/* Mobile Header */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
@@ -87,5 +89,6 @@ export function EmployeeLayout({ children }: { children: ReactNode }) {
         ))}
       </nav>
     </div>
+    </SubscriptionGate>
   );
 }
