@@ -100,6 +100,13 @@ export function useSubscription() {
 
       if (error) throw error;
 
+      // If there was a token error, keep using cached data and don't update state
+      if (data.token_error) {
+        console.log("Token error from subscription check, using cached data");
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
       const newState = {
         isLoading: false,
         isSubscribed: data.subscribed,
