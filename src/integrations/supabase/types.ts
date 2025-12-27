@@ -1389,6 +1389,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      check_invite_email: { Args: { _email: string }; Returns: boolean }
       get_team_profiles: {
         Args: never
         Returns: {
@@ -1411,6 +1412,16 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      get_team_profiles_safe: {
+        Args: never
+        Returns: {
+          avatar_url: string
+          business_id: string
+          full_name: string
+          id: string
+          position: string
+        }[]
       }
       has_role: {
         Args: {
