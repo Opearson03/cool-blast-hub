@@ -52,8 +52,29 @@ serve(async (req) => {
     const token = authHeader.replace("Bearer ", "");
     logStep("Authenticating user with token");
     
+    // Use getUser with the token directly (more reliable than session-based auth)
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    
+    if (userError) {
+      logStep("Auth error occurred", { error: userError.message });
+      // If token is expired/invalid, return a graceful response instead of error
+      // The client-side has caching and will retry
+      if (userError.message.includes("session") || userError.message.includes("expired") || userError.message.includes("invalid")) {
+        return new Response(JSON.stringify({ 
+          subscribed: false,
+          tier: null,
+          subscription_end: null,
+          employee_limit: 5,
+          is_exempt: false,
+          token_error: true, // Signal to client that token was invalid
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200, // Return 200 so client handles gracefully
+        });
+      }
+      throw new Error(`Authentication error: ${userError.message}`);
+    }
+    
     const user = userData.user;
     if (!user?.email) throw new Error("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
