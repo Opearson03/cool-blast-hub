@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Capacitor } from '@capacitor/core';
+import { useTheme } from "next-themes";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,16 +22,20 @@ export default function Auth() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { setTheme } = useTheme();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session) {
+        // Set dark mode on successful login
+        setTheme("dark");
         await redirectBasedOnRole(session.user.id);
       }
     });
 
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
+        setTheme("dark");
         await redirectBasedOnRole(session.user.id);
       }
     });
@@ -88,6 +93,7 @@ export default function Auth() {
         });
 
         if (data.user) {
+          setTheme("dark");
           await redirectBasedOnRole(data.user.id);
         }
       } else {
@@ -145,10 +151,10 @@ export default function Auth() {
   const isNative = Capacitor.isNativePlatform();
 
   return (
-    <div className="min-h-screen flex flex-col bg-charcoal-dark">
+    <div className="min-h-screen flex flex-col bg-background">
       {!isNative && (
         <div className="p-4">
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary-foreground transition-colors">
+          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Back to home
           </Link>

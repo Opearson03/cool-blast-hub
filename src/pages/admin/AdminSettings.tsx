@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
@@ -462,11 +463,11 @@ export default function AdminSettings() {
             </CardHeader>
             <CardContent className="space-y-2">
               <Button variant="link" className="p-0 h-auto" asChild>
-                <a href="/privacy">Privacy Policy</a>
+                <Link to="/privacy">Privacy Policy</Link>
               </Button>
               <br />
               <Button variant="link" className="p-0 h-auto" asChild>
-                <a href="/terms">Terms and Conditions</a>
+                <Link to="/terms">Terms and Conditions</Link>
               </Button>
             </CardContent>
           </Card>
