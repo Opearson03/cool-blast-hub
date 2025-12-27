@@ -280,6 +280,29 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
     ? crews.filter((c) => c.name.toLowerCase().includes(mentionSearch))
     : [];
 
+  // Render content for the input textarea overlay
+  const renderInputContent = (content: string) => {
+    const parts = content.split(/(@\[[^\]]+\]\([^)]+\))/g);
+    return parts.map((part, index) => {
+      const mentionMatch = part.match(/@\[([^\]]+)\]\(([^)]+)\)/);
+      if (mentionMatch) {
+        const mentionId = mentionMatch[2];
+        const isCrewMention = mentionId.startsWith("crew:");
+        
+        return (
+          <span
+            key={index}
+            className="inline-flex items-center px-1.5 py-0.5 rounded font-medium text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-900/30"
+          >
+            {isCrewMention && <Users className="w-3 h-3 mr-1" />}
+            @{mentionMatch[1]}
+          </span>
+        );
+      }
+      return <span key={index}>{part}</span>;
+    });
+  };
+
   // Render content with orange-highlighted mentions in posts
   const renderContent = (content: string, postMentions: string[]) => {
     // Replace @[name](id) with styled mention
@@ -335,12 +358,23 @@ export function FeedWidget({ businessId, userId, isAdmin }: FeedWidgetProps) {
         {/* New Post Input */}
         <div className="space-y-2 relative">
           <div className="relative">
+            {/* Display layer - shows formatted mentions */}
+            <div 
+              className="absolute inset-0 p-3 pointer-events-none whitespace-pre-wrap break-words overflow-hidden text-sm"
+              aria-hidden="true"
+            >
+              {rawContent ? renderInputContent(rawContent) : (
+                <span className="text-muted-foreground">Share an update with your team... Use @ to mention someone</span>
+              )}
+            </div>
+            {/* Actual textarea - transparent text */}
             <Textarea
               ref={textareaRef}
-              placeholder="Share an update with your team... Use @ to mention someone"
+              placeholder=""
               value={rawContent}
               onChange={handleTextChange}
-              className="min-h-[80px] resize-none"
+              className="min-h-[80px] resize-none bg-transparent text-transparent caret-foreground"
+              style={{ caretColor: 'hsl(var(--foreground))' }}
             />
           </div>
           
