@@ -9,20 +9,23 @@ interface SubscriptionGateProps {
 }
 
 export function SubscriptionGate({ children }: SubscriptionGateProps) {
-  const { isLoading, hasAccess, isSubscribed, isExempt, error } = useSubscription();
+  const { isLoading, hasAccess, error } = useSubscription();
 
-  if (isLoading) {
+  // Show loading only on first load without any cached data
+  // The hook now initializes from cache, so isLoading will be false if cache exists
+  if (isLoading && !hasAccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
-          <p className="text-muted-foreground">Checking subscription...</p>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>
     );
   }
 
-  if (error) {
+  // Only show error if we also don't have cached access
+  if (error && !hasAccess) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full">

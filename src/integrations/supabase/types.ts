@@ -1427,6 +1427,7 @@ export type Database = {
           position: string
         }[]
       }
+      get_user_business_id: { Args: { _user_id: string }; Returns: string }
       has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
