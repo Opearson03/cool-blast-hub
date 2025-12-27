@@ -4,8 +4,8 @@ import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
 import { Users, Calendar, ClipboardCheck, Truck, CheckCircle, ArrowRight, Shield, Loader2, BarChart3, Clock, FileText } from "lucide-react";
 import heroPourBackground from "@/assets/hero-pour-background.png";
-import concreteFinishing from "@/assets/concrete-finishing.jpg";
-import concreteFormwork from "@/assets/concrete-formwork.jpg";
+import dashboardScreenshot from "@/assets/dashboard-screenshot.png";
+import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
 import { Logo } from "@/components/ui/Logo";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -157,11 +157,11 @@ const Index = () => {
 
           {/* Feature 1: Dashboard & Team Communication */}
           <div className="grid lg:grid-cols-2 gap-8 mb-16 items-center">
-            <div className="relative rounded-xl overflow-hidden shadow-2xl order-2 lg:order-1">
+            <div className="relative rounded-xl overflow-hidden shadow-2xl order-2 lg:order-1 border border-border/30">
               <img 
-                src={concreteFormwork}
+                src={dashboardScreenshot}
                 alt="PourHub Dashboard" 
-                className="w-full h-64 lg:h-80 object-cover"
+                className="w-full h-64 lg:h-80 object-cover object-top"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/90 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
@@ -226,11 +226,11 @@ const Index = () => {
                 </li>
               </ul>
             </div>
-            <div className="relative rounded-xl overflow-hidden shadow-2xl">
+            <div className="relative rounded-xl overflow-hidden shadow-2xl border border-border/30">
               <img 
-                src={concreteFinishing} 
+                src={jobDetailsScreenshot}
                 alt="Job Details Management" 
-                className="w-full h-64 lg:h-80 object-cover"
+                className="w-full h-64 lg:h-80 object-cover object-top"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/90 to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-6">
