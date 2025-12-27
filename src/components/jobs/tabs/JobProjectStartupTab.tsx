@@ -65,7 +65,6 @@ export function JobProjectStartupTab({ jobId, job }: JobProjectStartupTabProps) 
 
   // Items with just checkboxes (not yes/no)
   const checklistItems = [
-    { key: "communication_setup", label: "Connect / Teams Setup" },
     { key: "plans_printed", label: "Plans Printed" },
     { key: "itps_prepared", label: "ITPs Prepared & Approved" },
     { key: "swms_prepared", label: "SWMS Prepared" },
@@ -274,21 +273,6 @@ export function JobProjectStartupTab({ jobId, job }: JobProjectStartupTabProps) 
             </div>
           </div>
 
-          {/* Checkboxes for basic setup items */}
-          <div className="space-y-3 pt-4">
-            {checklistItems.slice(0, 1).map((item) => (
-              <div key={item.key} className="flex items-center space-x-3">
-                <Checkbox
-                  id={item.key}
-                  checked={!!formData[item.key as keyof ProjectStartup]}
-                  onCheckedChange={(checked) => handleCheckChange(item.key, !!checked)}
-                />
-                <Label htmlFor={item.key} className="cursor-pointer">
-                  {item.label}
-                </Label>
-              </div>
-            ))}
-          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-4">
             <div>
@@ -320,7 +304,7 @@ export function JobProjectStartupTab({ jobId, job }: JobProjectStartupTabProps) 
           <CardDescription>Documentation and planning checklist</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {checklistItems.slice(1).map((item) => (
+          {checklistItems.map((item) => (
             <div key={item.key} className="flex items-center space-x-3">
               <Checkbox
                 id={item.key}
