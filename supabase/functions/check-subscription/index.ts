@@ -25,7 +25,7 @@ const TIER_FROM_PRODUCT: Record<string, string> = {
 
 const EMPLOYEE_LIMITS: Record<string, number> = {
   starter: 5,
-  professional: 20,
+  professional: 15,
 };
 
 serve(async (req) => {
