@@ -28,7 +28,7 @@ const PRICING_TIERS = [{
   description: "Growing concreting businesses, multiple crews, builder work.",
   features: [
     "Everything in Starter, plus:",
-    "Up to 15 employees",
+    "Unlimited employees",
     "Unlimited crews",
     "Advanced scheduling (conflict warnings)",
     "Concrete test result alerts",
