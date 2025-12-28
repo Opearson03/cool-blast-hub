@@ -25,11 +25,11 @@ export const SUBSCRIPTION_TIERS = {
     price: 199,
     price_id: "price_1SeCxpS7UIjxyz7V9Rudg8D7",
     product_id: "prod_TbPnloNedYyooY",
-    employee_limit: 15,
+    employee_limit: 999,
     description: "Growing concreting businesses, multiple crews, builder work.",
     features: [
       "Everything in Starter, plus:",
-      "Up to 15 employees",
+      "Unlimited employees",
       "Unlimited crews",
       "Advanced scheduling (conflict warnings)",
       "Concrete test result alerts",
