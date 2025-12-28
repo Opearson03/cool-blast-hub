@@ -12,23 +12,20 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
-// Product IDs for each tier
+// Product IDs for each tier (2 tiers only)
 const PRODUCT_IDS = {
   starter: "prod_TbPmlPUYfBBb3F",
   professional: "prod_TbPnloNedYyooY",
-  enterprise: "prod_TbPoNLzeCemzy9",
 };
 
 const TIER_FROM_PRODUCT: Record<string, string> = {
   "prod_TbPmlPUYfBBb3F": "starter",
   "prod_TbPnloNedYyooY": "professional",
-  "prod_TbPoNLzeCemzy9": "enterprise",
 };
 
 const EMPLOYEE_LIMITS: Record<string, number> = {
   starter: 5,
-  professional: 15,
-  enterprise: 999,
+  professional: 20,
 };
 
 serve(async (req) => {
@@ -98,9 +95,9 @@ serve(async (req) => {
         logStep("Business is exempt from subscription - granting full access");
         return new Response(JSON.stringify({
           subscribed: true,
-          tier: "enterprise",
+          tier: "professional",
           subscription_end: null,
-          employee_limit: 999,
+          employee_limit: 20,
           is_exempt: true,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },

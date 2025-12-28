@@ -12,11 +12,10 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
-// Price IDs for each tier
+// Price IDs for each tier (2 tiers only)
 const PRICE_IDS = {
   starter: "price_1SeCx7S7UIjxyz7VnNuTR8Lg",
   professional: "price_1SeCxpS7UIjxyz7V9Rudg8D7",
-  enterprise: "price_1SeCz7S7UIjxyz7VaqZ2oUDM",
 };
 
 serve(async (req) => {
