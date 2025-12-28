@@ -51,7 +51,7 @@ serve(async (req) => {
       logStep("Existing customer found", { customerId });
     }
 
-    // Create checkout session
+    // Create checkout session with 30-day free trial
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : email,
@@ -64,17 +64,19 @@ serve(async (req) => {
       mode: "subscription",
       success_url: `${req.headers.get("origin")}/signup/success?session_id={CHECKOUT_SESSION_ID}&plan=${plan}`,
       cancel_url: `${req.headers.get("origin")}/signup?plan=${plan}&cancelled=true`,
-      metadata: {
-        plan,
-        full_name: fullName,
-        business_name: businessName,
-      },
+      payment_method_collection: "always",
       subscription_data: {
+        trial_period_days: 30,
         metadata: {
           plan,
           full_name: fullName,
           business_name: businessName,
         },
+      },
+      metadata: {
+        plan,
+        full_name: fullName,
+        business_name: businessName,
       },
     });
 

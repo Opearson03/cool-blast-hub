@@ -7,16 +7,39 @@ import { Logo } from "@/components/ui/Logo";
 const PRICING_TIERS = [{
   name: "Starter",
   price: 99,
-  description: "For small crews just getting started",
-  features: ["Up to 5 users", "Job scheduling", "Basic ITPs", "Email support"],
-  highlight: false
+  description: "Solo concreters, 1–3 person crews, small residential outfits.",
+  features: [
+    "1 Business",
+    "Up to 5 employees",
+    "Unlimited jobs",
+    "Job scheduling",
+    "Project Startup checklist",
+    "ITPs & SWMS",
+    "Concrete test result tracking",
+    "Photo & document uploads",
+    "Job Pack PDF export",
+    "Equipment register (basic)",
+  ],
+  highlight: false,
+  trialBadge: "One month free trial"
 }, {
   name: "Professional",
   price: 199,
-  description: "For growing concreting businesses",
-  features: ["Up to 20 users", "Full ITP & SWMS", "Equipment register", "Crew timesheets", "Priority support"],
+  description: "Growing concreting businesses, multiple crews, builder work.",
+  features: [
+    "Everything in Starter, plus:",
+    "Up to 15 employees",
+    "Unlimited crews",
+    "Advanced scheduling (conflict warnings)",
+    "Concrete test result alerts",
+    "Equipment service reminders",
+    "Priority support",
+    "Custom ITP & SWMS templates",
+    "Business branding on PDFs",
+  ],
   highlight: true,
-  badge: "Most Popular"
+  badge: "Most Popular",
+  trialBadge: "One month free trial"
 }];
 const Pricing = () => {
   return <div className="min-h-screen bg-charcoal-dark">
@@ -63,22 +86,38 @@ const Pricing = () => {
                     <span className="text-4xl font-bold text-primary">${tier.price}</span>
                     <span className="text-muted-foreground"> / month</span>
                   </div>
+                  {tier.trialBadge && (
+                    <div className="mt-2">
+                      <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
+                        {tier.trialBadge}
+                      </Badge>
+                    </div>
+                  )}
                   <p className="text-sm text-muted-foreground mt-3">{tier.description}</p>
                 </CardHeader>
                 <CardContent className="flex-1 flex flex-col">
                   <ul className="space-y-3 flex-1">
-                    {tier.features.map((feature, idx) => <li key={idx} className="flex items-start gap-3">
-                        {idx === 0 && tier.name !== "Starter" ? <span className="text-sm text-muted-foreground font-medium">
-                            {feature}
-                          </span> : <>
-                            <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                            <span className="text-sm">{feature}</span>
-                          </>}
-                      </li>)}
+                    {tier.features.map((feature, idx) => {
+                      const isHeader = feature.includes("Everything in");
+                      return (
+                        <li key={idx} className="flex items-start gap-3">
+                          {isHeader ? (
+                            <span className="text-sm text-muted-foreground font-medium">
+                              {feature}
+                            </span>
+                          ) : (
+                            <>
+                              <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                              <span className="text-sm">{feature}</span>
+                            </>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                   <Link to={`/signup?plan=${tier.name.toLowerCase()}`} className="mt-6">
                     <Button className="w-full touch-target" variant={tier.highlight ? "default" : "outline"}>
-                      Get Started
+                      Start Free Trial
                       <ArrowRight className="ml-2 w-4 h-4" />
                     </Button>
                   </Link>
