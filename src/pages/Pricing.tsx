@@ -6,23 +6,17 @@ import { Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 const PRICING_TIERS = [{
   name: "Starter",
-  price: 79,
-  description: "Solo concreters, 1–3 person crews, small residential outfits.",
-  features: ["1 Business", "Up to 5 employees", "Unlimited jobs", "Job scheduling", "Project Startup checklist", "ITPs & SWMS", "Concrete test result tracking", "Photo & document uploads", "Job Pack PDF export", "Equipment register (basic)"],
+  price: 99,
+  description: "For small crews just getting started",
+  features: ["Up to 5 users", "Job scheduling", "Basic ITPs", "Email support"],
   highlight: false
 }, {
   name: "Professional",
   price: 199,
-  description: "Growing concreting businesses, multiple crews, builder work.",
-  features: ["Everything in Starter, plus:", "Up to 15 employees", "Unlimited crews", "Advanced scheduling (conflict warnings)", "Concrete test result alerts", "Equipment service reminders", "Priority support", "Custom ITP & SWMS templates", "Business branding on PDFs"],
+  description: "For growing concreting businesses",
+  features: ["Up to 20 users", "Full ITP & SWMS", "Equipment register", "Crew timesheets", "Priority support"],
   highlight: true,
   badge: "Most Popular"
-}, {
-  name: "Enterprise",
-  price: 300,
-  description: "Large concreters, civil contractors, Tier-2 builder subcontractors.",
-  features: ["Everything in Professional, plus:", "Unlimited employees", "Multi-site businesses", "Custom workflows", "Custom fields", "Dedicated onboarding", "Priority feature requests", "Phone support"],
-  highlight: false
 }];
 const Pricing = () => {
   return <div className="min-h-screen bg-charcoal-dark">
@@ -58,7 +52,7 @@ const Pricing = () => {
       {/* Pricing Cards */}
       <div className="px-4 pb-20">
         <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 lg:gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto">
             {PRICING_TIERS.map(tier => <Card key={tier.name} className={`relative flex flex-col ${tier.highlight ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]" : "border-border"}`}>
                 {tier.badge && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
                     {tier.badge}
@@ -102,7 +96,7 @@ const Pricing = () => {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
             <div>
-              <div className="text-4xl font-bold text-primary mb-2">$79</div>
+              <div className="text-4xl font-bold text-primary mb-2">$99</div>
               <p className="text-primary-foreground/90">Less than one hour of labour per month</p>
             </div>
             <div>
@@ -123,7 +117,7 @@ const Pricing = () => {
           <h2 className="text-2xl font-bold text-center mb-8">Why These Prices?</h2>
           <div className="space-y-6">
             <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="font-semibold mb-2">Starter at $79/month</h3>
+              <h3 className="font-semibold mb-2">Starter at $99/month</h3>
               <p className="text-muted-foreground text-sm">
                 Under $100 makes it an easy decision. It's cheaper than one hour of labour, 
                 but still feels like professional software. Perfect for solo operators who 
@@ -133,17 +127,9 @@ const Pricing = () => {
             <div className="bg-card border border-border rounded-lg p-6">
               <h3 className="font-semibold mb-2">Professional at $199/month</h3>
               <p className="text-muted-foreground text-sm">
-                This is where most growing businesses land. One failed ITP or missing concrete 
-                test can cost thousands. Builders love clean compliance packs, and this tier 
-                makes it easy to deliver professional documentation every time.
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="font-semibold mb-2">Enterprise at $300/month</h3>
-              <p className="text-muted-foreground text-sm">
-                For large operations that need everything. Unlimited employees, custom workflows, 
-                and dedicated support. This tier lets us handle edge cases and provide white-glove 
-                onboarding without affecting pricing for smaller businesses.
+                Full unrestricted access to everything PourHub offers. One failed ITP or missing 
+                concrete test can cost thousands. Builders love clean compliance packs, and this 
+                tier makes it easy to deliver professional documentation every time.
               </p>
             </div>
           </div>
