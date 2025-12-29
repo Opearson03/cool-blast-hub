@@ -2,7 +2,7 @@
 export const SUBSCRIPTION_TIERS = {
   starter: {
     name: "Starter",
-    price: 99,
+    price: 79,
     price_id: "price_1SeCx7S7UIjxyz7VnNuTR8Lg",
     product_id: "prod_TbPmlPUYfBBb3F",
     employee_limit: 5,
