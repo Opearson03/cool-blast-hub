@@ -91,6 +91,20 @@ export default function Auth() {
 
         if (error) throw error;
 
+        // Check if user has a pending invite and process it
+        const normalizedEmail = email.toLowerCase().trim();
+        try {
+          const { data: acceptData } = await supabase.functions.invoke("accept-invite", {
+            body: { email: normalizedEmail },
+          });
+          if (acceptData?.success) {
+            console.log("Processed pending invite for logged in user");
+          }
+        } catch (inviteError) {
+          // Ignore errors - user may not have a pending invite
+          console.log("No pending invite to process");
+        }
+
         toast({
           title: "Welcome back!",
           description: "You've been successfully logged in.",
@@ -104,7 +118,7 @@ export default function Auth() {
         // Employee signup - requires invite
         const normalizedEmail = email.toLowerCase().trim();
         
-        // First verify the invite exists
+        // First verify the invite exists and get role info
         const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-invite", {
           body: { email: normalizedEmail },
         });
@@ -120,23 +134,54 @@ export default function Auth() {
         // Use the name from the invite if user didn't provide one
         const signupName = fullName || verifyData.fullName || normalizedEmail.split("@")[0];
         
-        const { error: signupError } = await supabase.auth.signUp({
+        // Include signup_type and role in metadata for the trigger
+        const { data: signupData, error: signupError } = await supabase.auth.signUp({
           email: normalizedEmail,
           password,
           options: {
             emailRedirectTo: `${window.location.origin}/auth`,
-            data: { full_name: signupName },
+            data: { 
+              full_name: signupName,
+              signup_type: "employee_invite",
+              invite_role: verifyData.role,
+              invite_id: verifyData.inviteId,
+              business_id: verifyData.businessId
+            },
           },
         });
 
         if (signupError) {
+          // Check if user already exists
+          if (signupError.message.includes("already registered")) {
+            throw new Error("An account with this email already exists. Please sign in instead, and your invite will be processed automatically.");
+          }
           throw signupError;
         }
 
-        toast({
-          title: "Account created!",
-          description: "You can now log in with your credentials.",
-        });
+        // If signup succeeded but user already existed (auto-confirm scenario), process invite
+        if (signupData?.user && !signupData?.session) {
+          toast({
+            title: "Account created!",
+            description: "You can now log in with your credentials.",
+          });
+        } else if (signupData?.session) {
+          // User was auto-confirmed and logged in - process invite
+          try {
+            await supabase.functions.invoke("accept-invite", {
+              body: { email: normalizedEmail },
+            });
+          } catch {
+            // Ignore - trigger should have handled it
+          }
+          toast({
+            title: "Welcome to the team!",
+            description: "Your account has been created.",
+          });
+          setTheme("dark");
+          await redirectBasedOnRole(signupData.user.id);
+          return;
+        }
+        
         setAuthMode("login");
         setEmail(normalizedEmail);
         setPassword("");

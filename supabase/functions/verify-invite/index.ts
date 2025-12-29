@@ -41,7 +41,7 @@ const handler = async (req: Request): Promise<Response> => {
     // Check for pending invite
     const { data: invite, error } = await supabase
       .from("pending_invites")
-      .select("id, full_name, role")
+      .select("id, full_name, role, invited_by")
       .ilike("email", normalizedEmail)
       .is("accepted_at", null)
       .maybeSingle();
@@ -65,12 +65,21 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    console.log(`[VERIFY-INVITE] Found invite for: ${normalizedEmail}, name: ${invite.full_name}`);
+    // Get the business_id from the inviter
+    const { data: inviterProfile } = await supabase
+      .from("profiles")
+      .select("business_id")
+      .eq("id", invite.invited_by)
+      .single();
+
+    console.log(`[VERIFY-INVITE] Found invite for: ${normalizedEmail}, name: ${invite.full_name}, role: ${invite.role}`);
     return new Response(
       JSON.stringify({ 
         valid: true, 
         fullName: invite.full_name,
-        role: invite.role
+        role: invite.role,
+        inviteId: invite.id,
+        businessId: inviterProfile?.business_id
       }),
       {
         status: 200,
