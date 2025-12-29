@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from "next-themes";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,11 +14,15 @@ import { Logo } from "@/components/ui/Logo";
 type AuthMode = "login" | "employee_signup";
 
 export default function Auth() {
-  const [email, setEmail] = useState("");
+  const [searchParams] = useSearchParams();
+  const modeParam = searchParams.get("mode");
+  const emailParam = searchParams.get("email");
+  
+  const [email, setEmail] = useState(emailParam || "");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   
-  const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [authMode, setAuthMode] = useState<AuthMode>(modeParam === "signup" ? "employee_signup" : "login");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -98,34 +102,44 @@ export default function Auth() {
         }
       } else {
         // Employee signup - requires invite
-        const { data: inviteData, error: inviteError } = await supabase
-          .from("pending_invites")
-          .select("*")
-          .ilike("email", email)
-          .is("accepted_at", null)
-          .maybeSingle();
+        const normalizedEmail = email.toLowerCase().trim();
+        
+        // First verify the invite exists
+        const { data: verifyData, error: verifyError } = await supabase.functions.invoke("verify-invite", {
+          body: { email: normalizedEmail },
+        });
 
-        if (inviteError) throw inviteError;
-        if (!inviteData) {
-          throw new Error("No pending invite found. Please contact your administrator.");
+        if (verifyError) {
+          throw new Error("Failed to verify invitation. Please try again.");
         }
 
-        const { error } = await supabase.auth.signUp({
-          email,
+        if (!verifyData?.valid) {
+          throw new Error(verifyData?.error || "No pending invitation found for this email address. Please contact your administrator.");
+        }
+
+        // Use the name from the invite if user didn't provide one
+        const signupName = fullName || verifyData.fullName || normalizedEmail.split("@")[0];
+        
+        const { error: signupError } = await supabase.auth.signUp({
+          email: normalizedEmail,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/admin`,
-            data: { full_name: fullName },
+            emailRedirectTo: `${window.location.origin}/auth`,
+            data: { full_name: signupName },
           },
         });
 
-        if (error) throw error;
+        if (signupError) {
+          throw signupError;
+        }
 
         toast({
           title: "Account created!",
           description: "You can now log in with your credentials.",
         });
         setAuthMode("login");
+        setEmail(normalizedEmail);
+        setPassword("");
       }
     } catch (error: any) {
       toast({
