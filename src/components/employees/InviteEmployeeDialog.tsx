@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -38,6 +38,34 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
   const queryClient = useQueryClient();
   const { checkEmployeeLimit } = useSubscription();
 
+  // Get current user's profile and business info for the email
+  const { data: userProfile } = useQuery({
+    queryKey: ["current-user-profile"],
+    queryFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return null;
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, business_id")
+        .eq("id", userData.user.id)
+        .single();
+      
+      if (!profile?.business_id) return null;
+      
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("name")
+        .eq("id", profile.business_id)
+        .single();
+      
+      return {
+        inviterName: profile.full_name,
+        businessName: business?.name || "Your Company"
+      };
+    },
+  });
+
   const mutation = useMutation({
     mutationFn: async () => {
       // Server-side check for employee limit
@@ -66,6 +94,22 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
         invited_by: userData.user?.id,
       });
       if (error) throw error;
+
+      // Send invite email via edge function
+      const { error: emailError } = await supabase.functions.invoke("send-invite-email", {
+        body: {
+          employeeName: fullName,
+          employeeEmail: email.toLowerCase().trim(),
+          businessName: userProfile?.businessName || "Your Company",
+          inviterName: userProfile?.inviterName || "Your employer",
+          role,
+        },
+      });
+
+      if (emailError) {
+        console.error("Failed to send invite email:", emailError);
+        // Don't throw - the invite was created, just email failed
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pending-invites"] });
