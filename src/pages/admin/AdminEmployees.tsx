@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,15 +7,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Phone, AlertTriangle, Award, Clock } from "lucide-react";
+import { Plus, Search, Phone, AlertTriangle, Award, Clock, RefreshCw, Mail } from "lucide-react";
 import { EmployeeDetailsSheet } from "@/components/employees/EmployeeDetailsSheet";
 import { InviteEmployeeDialog } from "@/components/employees/InviteEmployeeDialog";
 import { LeaveRequestsList } from "@/components/leave/LeaveRequestsList";
 import { UnassignedEmployeesWidget } from "@/components/employees/UnassignedEmployeesWidget";
 import { TimesheetTable } from "@/components/timesheets/TimesheetTable";
 import { TimesheetExport } from "@/components/timesheets/TimesheetExport";
-import { differenceInDays, isPast } from "date-fns";
+import { differenceInDays, isPast, formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 
 type Employee = {
   id: string;
@@ -25,6 +26,15 @@ type Employee = {
   hourly_rate: number | null;
   avatar_url: string | null;
   created_at: string;
+};
+
+type PendingInvite = {
+  id: string;
+  email: string;
+  full_name: string;
+  role: "admin" | "staff";
+  invited_at: string | null;
+  accepted_at: string | null;
 };
 
 type Ticket = {
@@ -54,6 +64,9 @@ export default function AdminEmployees() {
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("employees");
+  const [resendingId, setResendingId] = useState<string | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     const loadBusinessId = async () => {
@@ -77,6 +90,83 @@ export default function AdminEmployees() {
       return (data || []) as Employee[];
     },
   });
+
+  const { data: pendingInvites = [], isLoading: isLoadingInvites } = useQuery({
+    queryKey: ["pending-invites"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pending_invites")
+        .select("*")
+        .is("accepted_at", null)
+        .order("invited_at", { ascending: false });
+      if (error) throw error;
+      return (data || []) as PendingInvite[];
+    },
+  });
+
+  // Get business info for resend emails
+  const { data: businessInfo } = useQuery({
+    queryKey: ["business-info-for-invites"],
+    queryFn: async () => {
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) return null;
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, business_id")
+        .eq("id", userData.user.id)
+        .single();
+      
+      if (!profile?.business_id) return null;
+      
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("name")
+        .eq("id", profile.business_id)
+        .single();
+      
+      return {
+        inviterName: profile.full_name,
+        businessName: business?.name || "Your Company"
+      };
+    },
+  });
+
+  const resendInviteMutation = useMutation({
+    mutationFn: async (invite: PendingInvite) => {
+      const { error } = await supabase.functions.invoke("send-invite-email", {
+        body: {
+          employeeName: invite.full_name,
+          employeeEmail: invite.email,
+          businessName: businessInfo?.businessName || "Your Company",
+          inviterName: businessInfo?.inviterName || "Your employer",
+          role: invite.role,
+        },
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invite resent",
+        description: "The signup link has been sent again.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to resend invite",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setResendingId(null);
+    },
+  });
+
+  const handleResendInvite = (invite: PendingInvite) => {
+    setResendingId(invite.id);
+    resendInviteMutation.mutate(invite);
+  };
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["employee-tickets", businessId],
@@ -164,7 +254,14 @@ export default function AdminEmployees() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="employees">Team ({employees.length})</TabsTrigger>
+            <TabsTrigger value="employees">
+              Team ({employees.length})
+              {pendingInvites.length > 0 && (
+                <Badge variant="outline" className="ml-2 text-xs">
+                  +{pendingInvites.length} pending
+                </Badge>
+              )}
+            </TabsTrigger>
             <TabsTrigger value="timesheets">
               <Clock className="w-4 h-4 mr-1" />
               Timesheets
@@ -191,10 +288,68 @@ export default function AdminEmployees() {
               />
             </div>
 
-            {/* Employees List */}
+            {/* Pending Invites */}
+            {pendingInvites.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-sm font-medium text-muted-foreground">Pending Invites</h3>
+                {pendingInvites.map((invite) => {
+                  const initials = invite.full_name.split(" ").map(n => n[0]).join("").toUpperCase();
+                  const invitedAgo = invite.invited_at 
+                    ? formatDistanceToNow(new Date(invite.invited_at), { addSuffix: true })
+                    : null;
+
+                  return (
+                    <Card key={invite.id} className="border-dashed">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarFallback className="bg-muted text-muted-foreground text-sm">
+                                {initials}
+                              </AvatarFallback>
+                            </Avatar>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <h3 className="font-semibold">{invite.full_name}</h3>
+                                <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                                  Pending
+                                </Badge>
+                                <Badge variant={invite.role === "admin" ? "default" : "secondary"}>
+                                  {invite.role}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Mail className="w-3 h-3" />
+                                <span>{invite.email}</span>
+                              </div>
+                              {invitedAgo && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Invited {invitedAgo}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResendInvite(invite)}
+                            disabled={resendingId === invite.id}
+                          >
+                            <RefreshCw className={`w-4 h-4 mr-1 ${resendingId === invite.id ? 'animate-spin' : ''}`} />
+                            Resend
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Active Employees List */}
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">Loading employees...</div>
-            ) : filteredEmployees.length === 0 ? (
+            ) : filteredEmployees.length === 0 && pendingInvites.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   {searchQuery
@@ -202,8 +357,11 @@ export default function AdminEmployees() {
                     : "No employees yet. Invite your first team member to get started."}
                 </CardContent>
               </Card>
-            ) : (
+            ) : filteredEmployees.length > 0 && (
               <div className="space-y-3">
+                {pendingInvites.length > 0 && (
+                  <h3 className="text-sm font-medium text-muted-foreground">Active Team Members</h3>
+                )}
                 {filteredEmployees.map((employee) => {
                   const empTickets = getTicketsForEmployee(employee.id);
                   const expiringCount = getExpiringTicketsCount(employee.id);
