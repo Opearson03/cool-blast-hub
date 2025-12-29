@@ -149,11 +149,22 @@ serve(async (req) => {
 
     if (hasActiveSub) {
       const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
-      logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       
-      const productId = subscription.items.data[0].price.product as string;
-      tier = TIER_FROM_PRODUCT[productId] || "starter";
+      // Safely handle the period end date (could be trial_end for trialing subscriptions)
+      const periodEnd = subscription.current_period_end || subscription.trial_end;
+      if (periodEnd && typeof periodEnd === 'number') {
+        subscriptionEnd = new Date(periodEnd * 1000).toISOString();
+      }
+      logStep("Subscription found", { 
+        subscriptionId: subscription.id, 
+        status: subscription.status,
+        endDate: subscriptionEnd,
+        trialEnd: subscription.trial_end,
+        currentPeriodEnd: subscription.current_period_end,
+      });
+      
+      const productId = subscription.items.data[0]?.price?.product as string;
+      tier = productId ? (TIER_FROM_PRODUCT[productId] || "starter") : "starter";
       employeeLimit = EMPLOYEE_LIMITS[tier] || 5;
       logStep("Determined subscription tier", { productId, tier, employeeLimit });
 
