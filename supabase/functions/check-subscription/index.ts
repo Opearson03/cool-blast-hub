@@ -111,21 +111,67 @@ serve(async (req) => {
     logStep("Stripe key verified");
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    
-    if (customers.data.length === 0) {
-      logStep("No customer found, returning unsubscribed state");
-      return new Response(JSON.stringify({ 
-        subscribed: false,
-        is_exempt: false,
-      }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
-      });
+
+    // Prefer stored Stripe IDs (avoids email case-sensitivity issues)
+    let customerId: string | null = null;
+    let storedSubscriptionId: string | null = null;
+
+    if (profile?.business_id) {
+      const { data: subscriptionRow } = await supabaseClient
+        .from("business_subscriptions")
+        .select("stripe_customer_id, stripe_subscription_id")
+        .eq("business_id", profile.business_id)
+        .maybeSingle();
+
+      customerId = subscriptionRow?.stripe_customer_id ?? null;
+      storedSubscriptionId = subscriptionRow?.stripe_subscription_id ?? null;
+
+      if (customerId) {
+        logStep("Using stored Stripe customer", { customerId });
+      } else if (storedSubscriptionId) {
+        logStep("Stored Stripe subscription found (customer unknown)", { subscriptionId: storedSubscriptionId });
+      }
     }
 
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+    // If we have a subscription id, we can resolve the customer even if email search fails
+    if (!customerId && storedSubscriptionId) {
+      try {
+        const sub: any = await stripe.subscriptions.retrieve(storedSubscriptionId);
+        const customer = sub?.customer;
+        const resolvedCustomerId = typeof customer === "string" ? customer : customer?.id;
+        if (resolvedCustomerId) {
+          customerId = resolvedCustomerId;
+          logStep("Resolved customer from stored subscription", { customerId });
+        }
+      } catch (e) {
+        logStep("Failed to retrieve stored subscription", {
+          subscriptionId: storedSubscriptionId,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+
+    // Fallback to Stripe lookup by email
+    if (!customerId) {
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+
+      if (customers.data.length === 0) {
+        logStep("No customer found, returning unsubscribed state", { email: user.email });
+        return new Response(
+          JSON.stringify({
+            subscribed: false,
+            is_exempt: false,
+          }),
+          {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+            status: 200,
+          }
+        );
+      }
+
+      customerId = customers.data[0].id;
+      logStep("Found Stripe customer", { customerId });
+    }
 
     // Check for active OR trialing subscriptions (trial periods have status "trialing")
     let subscriptions = await stripe.subscriptions.list({
