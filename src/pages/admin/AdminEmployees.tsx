@@ -7,7 +7,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Phone, AlertTriangle, Award, Clock, RefreshCw, Mail } from "lucide-react";
+import { Plus, Search, Phone, AlertTriangle, Award, Clock, RefreshCw, Mail, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { EmployeeDetailsSheet } from "@/components/employees/EmployeeDetailsSheet";
 import { InviteEmployeeDialog } from "@/components/employees/InviteEmployeeDialog";
 import { LeaveRequestsList } from "@/components/leave/LeaveRequestsList";
@@ -65,6 +76,7 @@ export default function AdminEmployees() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("employees");
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -166,6 +178,46 @@ export default function AdminEmployees() {
   const handleResendInvite = (invite: PendingInvite) => {
     setResendingId(invite.id);
     resendInviteMutation.mutate(invite);
+  };
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({ id, type }: { id: string; type: "invite" | "employee" }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Not authenticated");
+
+      const response = await supabase.functions.invoke("delete-employee", {
+        body: { employeeId: id, type },
+      });
+      
+      if (response.error) throw response.error;
+      if (response.data?.error) throw new Error(response.data.error);
+      return response.data;
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: variables.type === "invite" ? "Invite deleted" : "Employee removed",
+        description: variables.type === "invite" 
+          ? "The pending invite has been cancelled." 
+          : "The employee has been removed from your team.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["pending-invites"] });
+      queryClient.invalidateQueries({ queryKey: ["employees-team"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Failed to delete",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+    onSettled: () => {
+      setDeletingId(null);
+    },
+  });
+
+  const handleDelete = (id: string, type: "invite" | "employee") => {
+    setDeletingId(id);
+    deleteMutation.mutate({ id, type });
   };
 
   const { data: tickets = [] } = useQuery({
@@ -329,15 +381,46 @@ export default function AdminEmployees() {
                               )}
                             </div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResendInvite(invite)}
-                            disabled={resendingId === invite.id}
-                          >
-                            <RefreshCw className={`w-4 h-4 mr-1 ${resendingId === invite.id ? 'animate-spin' : ''}`} />
-                            Resend
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResendInvite(invite)}
+                              disabled={resendingId === invite.id || deletingId === invite.id}
+                            >
+                              <RefreshCw className={`w-4 h-4 mr-1 ${resendingId === invite.id ? 'animate-spin' : ''}`} />
+                              Resend
+                            </Button>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-destructive hover:text-destructive"
+                                  disabled={deletingId === invite.id}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Cancel Invite</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to cancel the invite for {invite.full_name}? They will no longer be able to sign up.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Keep Invite</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(invite.id, "invite")}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                  >
+                                    Cancel Invite
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -408,17 +491,52 @@ export default function AdminEmployees() {
                             </div>
                           </div>
 
-                          <div className="text-right shrink-0">
-                            {empTickets.length > 0 && (
-                              <div className="flex items-center gap-1">
-                                <Award className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm text-muted-foreground">
-                                  {empTickets.length} ticket{empTickets.length !== 1 ? "s" : ""}
-                                </span>
-                              </div>
-                            )}
+                          <div className="flex flex-col items-end gap-2 shrink-0">
+                            <div className="flex items-center gap-2">
+                              {empTickets.length > 0 && (
+                                <div className="flex items-center gap-1">
+                                  <Award className="w-4 h-4 text-muted-foreground" />
+                                  <span className="text-sm text-muted-foreground">
+                                    {empTickets.length} ticket{empTickets.length !== 1 ? "s" : ""}
+                                  </span>
+                                </div>
+                              )}
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                    disabled={deletingId === employee.id}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Remove Employee</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to remove {employee.full_name} from your team? This will delete all their data including timesheets, tickets, and leave requests. This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleDelete(employee.id, "employee");
+                                      }}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Remove Employee
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                             {expiringCount > 0 && (
-                              <Badge variant="destructive" className="mt-1">
+                              <Badge variant="destructive">
                                 <AlertTriangle className="w-3 h-3 mr-1" />
                                 {expiringCount} expiring
                               </Badge>
