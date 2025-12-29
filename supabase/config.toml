@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.auto-clock-out]
 verify_jwt = false
+
+[functions.verify-invite]
+verify_jwt = false
+
+[functions.send-invite-email]
+verify_jwt = false
