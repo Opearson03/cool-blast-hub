@@ -33,7 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Missing required fields: employeeName, employeeEmail, or businessName");
     }
 
-    const loginUrl = `${Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '')}` || "https://pourhub.com.au";
+    const appUrl = "https://invite.pourhub.com.au";
     
     const emailResponse = await resend.emails.send({
       from: "PourHub <onboarding@resend.dev>",
@@ -76,7 +76,7 @@ const handler = async (req: Request): Promise<Response> => {
                       <table width="100%" cellpadding="0" cellspacing="0">
                         <tr>
                           <td align="center">
-                            <a href="https://pourhub.com.au/auth" 
+                            <a href="${appUrl}/auth" 
                                style="display: inline-block; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 16px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">
                               Create Your Account
                             </a>
