@@ -36,7 +36,7 @@ const handler = async (req: Request): Promise<Response> => {
     const loginUrl = `${Deno.env.get("SUPABASE_URL")?.replace('.supabase.co', '')}` || "https://pourhub.com.au";
     
     const emailResponse = await resend.emails.send({
-      from: "PourHub <onboarding@resend.dev>",
+      from: "PourHub <Hello@invite.pourhub.com.au>",
       to: [employeeEmail],
       subject: `You've been invited to join ${businessName} on PourHub`,
       html: `
