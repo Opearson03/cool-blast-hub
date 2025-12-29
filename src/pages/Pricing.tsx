@@ -6,7 +6,7 @@ import { Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 const PRICING_TIERS = [{
   name: "Starter",
-  price: 99,
+  price: 79,
   description: "Solo concreters, 1–3 person crews, small residential outfits.",
   features: [
     "1 Business",
@@ -135,7 +135,7 @@ const Pricing = () => {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
             <div>
-              <div className="text-4xl font-bold text-primary mb-2">$99</div>
+              <div className="text-4xl font-bold text-primary mb-2">$79</div>
               <p className="text-primary-foreground/90">Less than one hour of labour per month</p>
             </div>
             <div>
@@ -156,9 +156,9 @@ const Pricing = () => {
           <h2 className="text-2xl font-bold text-center mb-8">Why These Prices?</h2>
           <div className="space-y-6">
             <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="font-semibold mb-2">Starter at $99/month</h3>
+              <h3 className="font-semibold mb-2">Starter at $79/month</h3>
               <p className="text-muted-foreground text-sm">
-                Under $100 makes it an easy decision. It's cheaper than one hour of labour, 
+                Under $80 makes it an easy decision. It's cheaper than one hour of labour, 
                 but still feels like professional software. Perfect for solo operators who 
                 want to look professional to builders.
               </p>
