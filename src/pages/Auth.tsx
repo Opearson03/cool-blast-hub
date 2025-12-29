@@ -29,23 +29,27 @@ export default function Auth() {
   const { setTheme } = useTheme();
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         // Set dark mode on successful login
         setTheme("dark");
-        await redirectBasedOnRole(session.user.id);
+        setTimeout(() => {
+          void redirectBasedOnRole(session.user.id);
+        }, 0);
       }
     });
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setTheme("dark");
-        await redirectBasedOnRole(session.user.id);
+        setTimeout(() => {
+          void redirectBasedOnRole(session.user.id);
+        }, 0);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [navigate]);
+  }, [navigate, setTheme]);
 
   const redirectBasedOnRole = async (userId: string) => {
     try {
@@ -56,17 +60,39 @@ export default function Auth() {
 
       if (isAdmin) {
         navigate("/admin");
-      } else if (isStaff) {
-        navigate("/employee");
-      } else {
-        await supabase.auth.signOut();
-        toast({
-          title: "Access Denied",
-          description: "Your account has not been assigned a role yet. Please contact your administrator.",
-          variant: "destructive",
-        });
-        setLoading(false);
+        return;
       }
+
+      if (isStaff) {
+        navigate("/employee");
+        return;
+      }
+
+      // If no role yet, try to accept any pending invite for this user's email, then re-check
+      const { error: acceptErr } = await supabase.functions.invoke("accept-invite", { body: {} });
+      if (!acceptErr) {
+        const [{ data: isAdmin2 }, { data: isStaff2 }] = await Promise.all([
+          supabase.rpc("has_role", { _role: "admin", _user_id: userId }),
+          supabase.rpc("has_role", { _role: "staff", _user_id: userId }),
+        ]);
+
+        if (isAdmin2) {
+          navigate("/admin");
+          return;
+        }
+        if (isStaff2) {
+          navigate("/employee");
+          return;
+        }
+      }
+
+      await supabase.auth.signOut();
+      toast({
+        title: "Access Denied",
+        description: "Your account has not been assigned a role yet. Please contact your administrator.",
+        variant: "destructive",
+      });
+      setLoading(false);
     } catch (error) {
       console.error("Error checking roles:", error);
       toast({
@@ -91,20 +117,6 @@ export default function Auth() {
 
         if (error) throw error;
 
-        // Check if user has a pending invite and process it
-        const normalizedEmail = email.toLowerCase().trim();
-        try {
-          const { data: acceptData } = await supabase.functions.invoke("accept-invite", {
-            body: { email: normalizedEmail },
-          });
-          if (acceptData?.success) {
-            console.log("Processed pending invite for logged in user");
-          }
-        } catch (inviteError) {
-          // Ignore errors - user may not have a pending invite
-          console.log("No pending invite to process");
-        }
-
         toast({
           title: "Welcome back!",
           description: "You've been successfully logged in.",
@@ -112,7 +124,7 @@ export default function Auth() {
 
         if (data.user) {
           setTheme("dark");
-          await redirectBasedOnRole(data.user.id);
+          // Redirect will be handled by auth state change listener
         }
       } else {
         // Employee signup - requires invite

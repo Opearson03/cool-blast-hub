@@ -13,24 +13,42 @@ serve(async (req) => {
   }
 
   try {
-    const { email } = await req.json();
-
-    if (!email) {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(
-        JSON.stringify({ success: false, error: "Email is required" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    const normalizedEmail = email.toLowerCase().trim();
-    console.log(`[ACCEPT-INVITE] Processing invite for: ${normalizedEmail}`);
+    const jwt = authHeader.replace("Bearer ", "");
 
-    // Create Supabase client with service role to bypass RLS
+    // Service role client (bypasses RLS)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get the pending invite
+    // Identify the calling user (must match the invite email)
+    const { data: userData, error: userError } = await supabase.auth.getUser(jwt);
+    if (userError || !userData?.user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const user = userData.user;
+    const normalizedEmail = (user.email ?? "").toLowerCase().trim();
+    if (!normalizedEmail) {
+      return new Response(
+        JSON.stringify({ success: false, error: "User email is missing" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log(`[ACCEPT-INVITE] Attempting for userId=${user.id} email=${normalizedEmail}`);
+
+    // Find the pending invite for this email
     const { data: invite, error: inviteError } = await supabase
       .from("pending_invites")
       .select("id, full_name, role, invited_by")
@@ -44,56 +62,56 @@ serve(async (req) => {
     }
 
     if (!invite) {
-      console.log(`[ACCEPT-INVITE] No pending invite found for: ${normalizedEmail}`);
       return new Response(
         JSON.stringify({ success: false, error: "No pending invitation found" }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Get the user by email
-    const { data: { users }, error: userError } = await supabase.auth.admin.listUsers();
-    const user = users?.find(u => u.email?.toLowerCase() === normalizedEmail);
-
-    if (userError || !user) {
-      console.log(`[ACCEPT-INVITE] No user found for email: ${normalizedEmail}`);
-      return new Response(
-        JSON.stringify({ success: false, error: "User not found. Please sign up first." }),
-        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    // Get business_id from inviter's profile
-    const { data: inviterProfile } = await supabase
+    // Determine invited business via inviter profile
+    const { data: inviterProfile, error: inviterError } = await supabase
       .from("profiles")
       .select("business_id")
       .eq("id", invite.invited_by)
       .single();
 
-    if (!inviterProfile?.business_id) {
-      console.error("[ACCEPT-INVITE] Inviter has no business_id");
+    if (inviterError || !inviterProfile?.business_id) {
+      console.error("[ACCEPT-INVITE] Invalid inviter profile:", inviterError);
       return new Response(
         JSON.stringify({ success: false, error: "Invalid invitation" }),
         { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
-    // Check if user already has a profile
-    const { data: existingProfile } = await supabase
+    const invitedBusinessId = inviterProfile.business_id;
+
+    // If the user already belongs to a different business, block (avoids cross-tenant switching)
+    const { data: existingProfile, error: profileError } = await supabase
       .from("profiles")
       .select("id, business_id")
       .eq("id", user.id)
       .maybeSingle();
 
+    if (profileError) {
+      console.error("[ACCEPT-INVITE] Error reading profile:", profileError);
+      throw profileError;
+    }
+
+    if (existingProfile?.business_id && existingProfile.business_id !== invitedBusinessId) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: "This email is already linked to a different business. Please use a different email address for this invite.",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Ensure profile exists and is linked to the invited business
     if (existingProfile) {
-      // Update existing profile to new business
-      console.log(`[ACCEPT-INVITE] Updating existing profile to new business`);
       const { error: updateProfileError } = await supabase
         .from("profiles")
-        .update({ 
-          business_id: inviterProfile.business_id,
-          full_name: invite.full_name 
-        })
+        .update({ business_id: invitedBusinessId, full_name: invite.full_name })
         .eq("id", user.id);
 
       if (updateProfileError) {
@@ -101,15 +119,9 @@ serve(async (req) => {
         throw updateProfileError;
       }
     } else {
-      // Create new profile
-      console.log(`[ACCEPT-INVITE] Creating new profile`);
       const { error: insertProfileError } = await supabase
         .from("profiles")
-        .insert({
-          id: user.id,
-          full_name: invite.full_name,
-          business_id: inviterProfile.business_id
-        });
+        .insert({ id: user.id, full_name: invite.full_name, business_id: invitedBusinessId });
 
       if (insertProfileError) {
         console.error("[ACCEPT-INVITE] Error creating profile:", insertProfileError);
@@ -117,16 +129,19 @@ serve(async (req) => {
       }
     }
 
-    // Check if user already has a role
-    const { data: existingRole } = await supabase
+    // Ensure role exists (roles remain in user_roles table)
+    const { data: existingRole, error: roleReadError } = await supabase
       .from("user_roles")
       .select("id, role")
       .eq("user_id", user.id)
       .maybeSingle();
 
+    if (roleReadError) {
+      console.error("[ACCEPT-INVITE] Error reading role:", roleReadError);
+      throw roleReadError;
+    }
+
     if (existingRole) {
-      // Update existing role
-      console.log(`[ACCEPT-INVITE] Updating existing role to: ${invite.role}`);
       const { error: updateRoleError } = await supabase
         .from("user_roles")
         .update({ role: invite.role })
@@ -137,14 +152,9 @@ serve(async (req) => {
         throw updateRoleError;
       }
     } else {
-      // Create new role
-      console.log(`[ACCEPT-INVITE] Creating new role: ${invite.role}`);
       const { error: insertRoleError } = await supabase
         .from("user_roles")
-        .insert({
-          user_id: user.id,
-          role: invite.role
-        });
+        .insert({ user_id: user.id, role: invite.role });
 
       if (insertRoleError) {
         console.error("[ACCEPT-INVITE] Error creating role:", insertRoleError);
@@ -152,7 +162,7 @@ serve(async (req) => {
       }
     }
 
-    // Mark invite as accepted
+    // Mark invite accepted
     const { error: acceptError } = await supabase
       .from("pending_invites")
       .update({ accepted_at: new Date().toISOString() })
@@ -163,16 +173,12 @@ serve(async (req) => {
       throw acceptError;
     }
 
-    console.log(`[ACCEPT-INVITE] Successfully processed invite for: ${normalizedEmail}`);
+    console.log(`[ACCEPT-INVITE] Success inviteId=${invite.id} role=${invite.role}`);
+
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        role: invite.role,
-        businessId: inviterProfile.business_id
-      }),
+      JSON.stringify({ success: true, role: invite.role, businessId: invitedBusinessId }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
-
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("[ACCEPT-INVITE] Error:", errorMessage);
