@@ -4,6 +4,8 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { SEOHead } from "@/components/seo/SEOHead";
+
 const PRICING_TIERS = [{
   name: "Starter",
   price: 79,
@@ -42,7 +44,15 @@ const PRICING_TIERS = [{
   trialBadge: "One month free trial"
 }];
 const Pricing = () => {
-  return <div className="min-h-screen bg-charcoal-dark">
+  return (
+    <>
+      <SEOHead
+        title="PourHub Pricing - Plans from $79/month | Concreting Software Australia"
+        description="Simple, transparent pricing for PourHub concreting business management software. Starter plan $79/month, Professional plan $199/month. One month free trial included."
+        canonicalPath="/pricing"
+        keywords="concreting software pricing, construction management software cost, ITP SWMS software price"
+      />
+      <div className="min-h-screen bg-charcoal-dark">
       {/* Header */}
       <header className="px-4 py-6 border-b border-border/30">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
@@ -203,10 +213,27 @@ const Pricing = () => {
 
       {/* Footer */}
       <footer className="bg-charcoal-dark py-8 px-4 text-center">
-        <p className="text-muted-foreground text-sm">
-          © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
-        </p>
+        <div className="max-w-4xl mx-auto">
+          <p className="text-muted-foreground text-sm mb-4">
+            © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
+          </p>
+          <div className="flex justify-center gap-4 text-sm">
+            <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
+              Privacy Policy
+            </Link>
+            <span className="text-muted-foreground">•</span>
+            <Link to="/terms" className="text-muted-foreground hover:text-primary transition-colors">
+              Terms & Conditions
+            </Link>
+            <span className="text-muted-foreground">•</span>
+            <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
+              Home
+            </Link>
+          </div>
+        </div>
       </footer>
-    </div>;
+      </div>
+    </>
+  );
 };
 export default Pricing;

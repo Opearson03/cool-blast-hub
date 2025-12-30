@@ -8,6 +8,7 @@ import dashboardScreenshot from "@/assets/dashboard-screenshot.png";
 import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
 import { Logo } from "@/components/ui/Logo";
 import { supabase } from "@/integrations/supabase/client";
+import { SEOHead } from "@/components/seo/SEOHead";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -54,9 +55,15 @@ const Index = () => {
     );
   }
 
-  // Web: show landing page as normal
   return (
-    <div className="min-h-screen bg-charcoal-dark">
+    <>
+      <SEOHead
+        title="PourHub - Concreting Business Management Software | NSW Australia"
+        description="PourHub is the all-in-one management platform for concreting businesses in NSW, Australia. Manage jobs, crews, schedules, timesheets, ITPs, SWMS, and concrete test results."
+        canonicalPath="/"
+        keywords="concreting software, concrete business management, ITP software, SWMS software, NSW concreting, crew management"
+      />
+      <div className="min-h-screen bg-charcoal-dark">
       {/* Hero Section with Background Image */}
       <div className="relative overflow-hidden min-h-[80vh] flex items-center">
         <div 
@@ -160,7 +167,7 @@ const Index = () => {
             <div className="relative rounded-xl overflow-hidden shadow-2xl order-2 lg:order-1 border border-border/30">
               <img 
                 src={dashboardScreenshot}
-                alt="PourHub Dashboard" 
+                alt="PourHub dashboard showing concreting job scheduling, crew management, and daily pour overview for NSW businesses" 
                 className="w-full h-64 lg:h-80 object-cover object-top"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/90 to-transparent" />
@@ -229,7 +236,7 @@ const Index = () => {
             <div className="relative rounded-xl overflow-hidden shadow-2xl border border-border/30">
               <img 
                 src={jobDetailsScreenshot}
-                alt="Job Details Management" 
+                alt="PourHub job details management showing concrete specifications, MPa strength, slump values, and supplier information" 
                 className="w-full h-64 lg:h-80 object-cover object-top"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/90 to-transparent" />
@@ -325,11 +332,27 @@ const Index = () => {
 
       {/* Footer */}
       <footer className="bg-charcoal-dark py-8 px-4 text-center">
-        <p className="text-muted-foreground text-sm">
-          © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
-        </p>
+        <div className="max-w-4xl mx-auto">
+          <p className="text-muted-foreground text-sm mb-4">
+            © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
+          </p>
+          <div className="flex justify-center gap-4 text-sm">
+            <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
+              Privacy Policy
+            </Link>
+            <span className="text-muted-foreground">•</span>
+            <Link to="/terms" className="text-muted-foreground hover:text-primary transition-colors">
+              Terms & Conditions
+            </Link>
+            <span className="text-muted-foreground">•</span>
+            <Link to="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
+              Pricing
+            </Link>
+          </div>
+        </div>
       </footer>
-    </div>
+      </div>
+    </>
   );
 };
 
