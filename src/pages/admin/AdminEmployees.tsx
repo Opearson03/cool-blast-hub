@@ -74,6 +74,7 @@ export default function AdminEmployees() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("employees");
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -84,6 +85,7 @@ export default function AdminEmployees() {
     const loadBusinessId = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setCurrentUserId(user.id);
       const { data: profile } = await supabase
         .from("profiles")
         .select("business_id")
@@ -501,39 +503,41 @@ export default function AdminEmployees() {
                                   </span>
                                 </div>
                               )}
-                              <AlertDialog>
-                                <AlertDialogTrigger asChild>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-destructive hover:text-destructive h-8 w-8 p-0"
-                                    onClick={(e) => e.stopPropagation()}
-                                    disabled={deletingId === employee.id}
-                                  >
-                                    <Trash2 className="w-4 h-4" />
-                                  </Button>
-                                </AlertDialogTrigger>
-                                <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                                  <AlertDialogHeader>
-                                    <AlertDialogTitle>Remove Employee</AlertDialogTitle>
-                                    <AlertDialogDescription>
-                                      Are you sure you want to remove {employee.full_name} from your team? This will delete all their data including timesheets, tickets, and leave requests. This action cannot be undone.
-                                    </AlertDialogDescription>
-                                  </AlertDialogHeader>
-                                  <AlertDialogFooter>
-                                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                    <AlertDialogAction
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDelete(employee.id, "employee");
-                                      }}
-                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              {employee.id !== currentUserId && (
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                                      onClick={(e) => e.stopPropagation()}
+                                      disabled={deletingId === employee.id}
                                     >
-                                      Remove Employee
-                                    </AlertDialogAction>
-                                  </AlertDialogFooter>
-                                </AlertDialogContent>
-                              </AlertDialog>
+                                      <Trash2 className="w-4 h-4" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Remove Employee</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Are you sure you want to remove {employee.full_name} from your team? This will delete all their data including timesheets, tickets, and leave requests. This action cannot be undone.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleDelete(employee.id, "employee");
+                                        }}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Remove Employee
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              )}
                             </div>
                             {expiringCount > 0 && (
                               <Badge variant="destructive">
