@@ -10,7 +10,19 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useSubscription } from "@/hooks/useSubscription";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -561,6 +573,53 @@ export default function AdminSettings() {
             )}
             Save Settings
           </Button>
+
+          {/* Hidden Danger Zone - Collapsible at the very bottom */}
+          {subscription.isSubscribed && (
+            <div className="mt-16 pt-8">
+              <Collapsible>
+                <CollapsibleTrigger asChild>
+                  <button className="flex items-center gap-1 text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+                    <ChevronDown className="w-3 h-3" />
+                    <span>Advanced options</span>
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-4">
+                  <Card className="border-destructive/20">
+                    <CardHeader>
+                      <CardTitle className="text-sm text-muted-foreground">Danger Zone</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="ghost" size="sm" className="text-destructive/60 hover:text-destructive hover:bg-destructive/10">
+                            Cancel Subscription
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Cancel your subscription?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will cancel your PourHub subscription. You'll lose access to premium features at the end of your current billing period. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Keep Subscription</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => subscription.openCustomerPortal()}
+                            >
+                              Proceed to Cancel
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardContent>
+                  </Card>
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          )}
         </form>
       </div>
     </AdminLayout>
