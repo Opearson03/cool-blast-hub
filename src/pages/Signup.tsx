@@ -27,6 +27,15 @@ export default function Signup() {
 
   const tierConfig = SUBSCRIPTION_TIERS[plan] || SUBSCRIPTION_TIERS.starter;
 
+  // Track Google Ads "Begin checkout" conversion when page loads
+  useEffect(() => {
+    if (typeof window !== 'undefined' && (window as any).gtag) {
+      (window as any).gtag('event', 'conversion', {
+        'send_to': 'AW-17843911252/vwECCL6BudobENT00bxC'
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (cancelled) {
       toast({
