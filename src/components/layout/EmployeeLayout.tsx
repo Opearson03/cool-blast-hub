@@ -121,7 +121,10 @@ export function EmployeeLayout({ children }: { children: ReactNode }) {
       </main>
 
       {/* Bottom Navigation - Mobile Only */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border px-2 py-2 flex justify-around safe-area-inset">
+      <nav 
+        className="lg:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border px-2 py-2 flex justify-around"
+        style={isNative ? { paddingBottom: 'env(safe-area-inset-bottom)' } : undefined}
+      >
         {navItems.map((item) => (
           <Link
             key={item.href}

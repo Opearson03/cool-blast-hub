@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Building2, UserPlus } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { usePlatform } from "@/hooks/usePlatform";
 
 type AuthMode = "login" | "employee_signup";
 
@@ -27,6 +28,7 @@ export default function Auth() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { setTheme } = useTheme();
+  const { isNative } = usePlatform();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
@@ -219,13 +221,16 @@ export default function Auth() {
       : "Sign up with your invite to join your team";
   };
 
-  const isNative = Capacitor.isNativePlatform();
+  const isNativeDevice = Capacitor.isNativePlatform();
 
   return (
-    <div className="min-h-screen flex flex-col bg-background">
-      {!isNative && (
+    <div 
+      className="min-h-screen flex flex-col bg-background"
+      style={isNative ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}
+    >
+      {!isNativeDevice && (
         <div className="p-4">
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors min-h-[44px]">
             <ArrowLeft className="w-4 h-4" />
             Back to home
           </Link>
@@ -293,7 +298,7 @@ export default function Auth() {
               </Button>
             </form>
             
-            {authMode === "login" && !isNative && (
+            {authMode === "login" && !isNativeDevice && (
               <div className="mt-6 space-y-3">
                 <div className="relative">
                   <div className="absolute inset-0 flex items-center">
@@ -326,7 +331,7 @@ export default function Auth() {
               </div>
             )}
             
-            {isNative && authMode === "login" && (
+            {isNativeDevice && authMode === "login" && (
               <p className="mt-4 text-center text-xs text-muted-foreground">
                 To create an account, please visit pourhub.com.au on a web browser.
               </p>
