@@ -1,11 +1,12 @@
 import { EmployeeLayout } from "@/components/layout/EmployeeLayout";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format, startOfWeek, addDays, isSameDay } from "date-fns";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { ChevronLeft, ChevronRight, MapPin, Clock, Building2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -46,6 +47,7 @@ const visitTypeColors: Record<string, string> = {
 
 export default function EmployeeSchedule() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 1 }));
+  const queryClient = useQueryClient();
 
   const { data: pours, isLoading } = useQuery({
     queryKey: ["employee-schedule", weekStart.toISOString()],
@@ -121,9 +123,13 @@ export default function EmployeeSchedule() {
   const navigateNext = () => setWeekStart((prev) => addDays(prev, 7));
   const goToToday = () => setWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["employee-schedule"] });
+  }, [queryClient]);
+
   return (
     <EmployeeLayout>
-      <div className="pb-20">
+      <PullToRefresh onRefresh={handleRefresh} className="pb-20">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-xl font-bold">My Schedule</h1>
           <Button variant="outline" size="sm" onClick={goToToday}>
@@ -220,7 +226,7 @@ export default function EmployeeSchedule() {
             })
           )}
         </div>
-      </div>
+      </PullToRefresh>
     </EmployeeLayout>
   );
 }

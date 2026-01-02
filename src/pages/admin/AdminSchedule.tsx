@@ -1,10 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -208,6 +209,10 @@ export default function AdminSchedule() {
     setDetailSheetOpen(true);
   };
 
+  const handleRefresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
+  }, [queryClient]);
+
   return (
     <AdminLayout>
       <DndContext
@@ -215,6 +220,7 @@ export default function AdminSchedule() {
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
       >
+        <PullToRefresh onRefresh={handleRefresh} className="h-full">
         <div className="space-y-4">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -327,6 +333,7 @@ export default function AdminSchedule() {
             </div>
           )}
         </div>
+        </PullToRefresh>
 
         {/* Drag Overlay */}
         <DragOverlay>
