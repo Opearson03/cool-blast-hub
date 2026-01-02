@@ -1,14 +1,14 @@
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, Settings, LogOut, Menu, X } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useThemeOnAuth } from "@/hooks/useThemeOnAuth";
+import { usePlatform } from "@/hooks/usePlatform";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -24,6 +24,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const { isNative } = usePlatform();
   
   // Set dark mode as default for authenticated users
   useThemeOnAuth();
@@ -37,7 +38,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     <SubscriptionGate>
       <div className="min-h-screen bg-background">
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between">
+      <header 
+        className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between"
+        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 12px)' } : undefined}
+      >
         <Link to="/admin" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg overflow-hidden">
             <Logo className="w-full h-full" />
@@ -54,7 +58,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-background pt-16">
+        <div className="lg:hidden fixed inset-0 z-40 bg-background" style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 56px)' } : { paddingTop: '64px' }}>
           <nav className="p-4 space-y-2">
             {navItems.map((item) => (
               <Link
@@ -113,7 +117,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-64 pt-16 lg:pt-0 p-4 lg:p-6">
+      <main 
+        className="lg:ml-64 p-4 lg:p-6"
+        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 72px)' } : { paddingTop: '64px' }}
+      >
         {children}
       </main>
     </div>
