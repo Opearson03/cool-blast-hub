@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { PullToRefresh } from "@/components/ui/PullToRefresh";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -295,8 +296,18 @@ export default function AdminEmployees() {
   const pendingRequests = leaveRequests.filter(r => r.status === "pending");
   const processedRequests = leaveRequests.filter(r => r.status !== "pending");
 
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["employees-team"] }),
+      queryClient.invalidateQueries({ queryKey: ["pending-invites"] }),
+      queryClient.invalidateQueries({ queryKey: ["leave-requests"] }),
+      queryClient.invalidateQueries({ queryKey: ["employee-tickets"] }),
+    ]);
+  }, [queryClient]);
+
   return (
     <AdminLayout>
+      <PullToRefresh onRefresh={handleRefresh} className="h-full">
       <div className="space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold">Employees</h1>
@@ -593,6 +604,7 @@ export default function AdminEmployees() {
         open={isInviteOpen}
         onOpenChange={setIsInviteOpen}
       />
+      </PullToRefresh>
     </AdminLayout>
   );
 }
