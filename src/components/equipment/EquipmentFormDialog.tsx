@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { usePlatform } from "@/hooks/usePlatform";
 
 type Equipment = Tables<"equipment">;
 
@@ -32,6 +33,7 @@ export function EquipmentFormDialog({ open, onOpenChange, editEquipment }: Equip
   const [serviceNotes, setServiceNotes] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isNative } = usePlatform();
 
   useEffect(() => {
     if (editEquipment) {
@@ -141,7 +143,7 @@ export function EquipmentFormDialog({ open, onOpenChange, editEquipment }: Equip
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[85vh] overflow-y-auto mx-4 sm:mx-auto" style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 16px)', maxHeight: '80vh', marginTop: 'env(safe-area-inset-top)' } : undefined}>
         <DialogHeader>
           <DialogTitle>{editEquipment ? "Edit Equipment" : "Add Equipment"}</DialogTitle>
         </DialogHeader>

@@ -238,30 +238,31 @@ export function LeaveRequestsList({ requests, isAdmin, onUpdate }: LeaveRequests
           <CardTitle>Leave Requests</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                {isAdmin && <TableHead>Employee</TableHead>}
-                <TableHead>Type</TableHead>
-                <TableHead>Dates</TableHead>
-                <TableHead>Status</TableHead>
-                {isAdmin && <TableHead className="text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
+          <div className="overflow-x-auto -mx-4 sm:mx-0">
+            <Table className="min-w-[500px]">
+              <TableHeader>
+                <TableRow>
+                  {isAdmin && <TableHead className="whitespace-nowrap">Employee</TableHead>}
+                  <TableHead className="whitespace-nowrap">Type</TableHead>
+                  <TableHead className="whitespace-nowrap">Dates</TableHead>
+                  <TableHead className="whitespace-nowrap">Status</TableHead>
+                  {isAdmin && <TableHead className="text-right whitespace-nowrap">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
             <TableBody>
               {requests.map((request) => (
                 <TableRow key={request.id}>
                   {isAdmin && (
-                    <TableCell className="font-medium">
+                    <TableCell className="font-medium whitespace-nowrap">
                       {request.profiles?.full_name || "Unknown"}
                     </TableCell>
                   )}
-                  <TableCell>{leaveTypeLabels[request.leave_type] || request.leave_type}</TableCell>
-                  <TableCell>
+                  <TableCell className="whitespace-nowrap">{leaveTypeLabels[request.leave_type] || request.leave_type}</TableCell>
+                  <TableCell className="whitespace-nowrap">
                     {format(new Date(request.start_date), "MMM d")} - {format(new Date(request.end_date), "MMM d, yyyy")}
                   </TableCell>
                   <TableCell>
-                    <Badge className={statusColors[request.status]}>
+                    <Badge className={`${statusColors[request.status]} whitespace-nowrap`}>
                       {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
                     </Badge>
                   </TableCell>
@@ -293,6 +294,7 @@ export function LeaveRequestsList({ requests, isAdmin, onUpdate }: LeaveRequests
               ))}
             </TableBody>
           </Table>
+          </div>
         </CardContent>
       </Card>
 
