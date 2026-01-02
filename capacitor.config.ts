@@ -10,13 +10,17 @@ const config: CapacitorConfig = {
   //   cleartext: true
   // },
   ios: {
-    scheme: 'PourHub'
+    scheme: 'PourHub',
+    contentInset: 'automatic',
+    preferredContentMode: 'mobile',
+    backgroundColor: '#1a1a1a'
   },
   android: {
     buildOptions: {
       keystorePath: undefined,
       keystoreAlias: undefined
-    }
+    },
+    backgroundColor: '#1a1a1a'
   },
   plugins: {
     SplashScreen: {
@@ -27,6 +31,10 @@ const config: CapacitorConfig = {
       androidScaleType: 'CENTER_CROP',
       splashFullScreen: true,
       splashImmersive: true
+    },
+    Keyboard: {
+      resize: 'body',
+      resizeOnFullScreen: true
     }
   }
 };
