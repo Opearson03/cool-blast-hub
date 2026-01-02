@@ -286,14 +286,15 @@ export default function AdminEquipment() {
           </Card>
         ) : (
           <Card>
-            <Table>
+            <div className="overflow-x-auto">
+            <Table className="min-w-[600px]">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead className="hidden md:table-cell">Serial #</TableHead>
-                  <TableHead className="hidden md:table-cell">Last Service</TableHead>
-                  <TableHead>Service Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className="whitespace-nowrap">Name</TableHead>
+                  <TableHead className="hidden md:table-cell whitespace-nowrap">Serial #</TableHead>
+                  <TableHead className="hidden md:table-cell whitespace-nowrap">Last Service</TableHead>
+                  <TableHead className="whitespace-nowrap">Service Status</TableHead>
+                  <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -362,6 +363,7 @@ export default function AdminEquipment() {
                 })}
               </TableBody>
             </Table>
+            </div>
           </Card>
         )}
       </div>

@@ -8,6 +8,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { usePlatform } from "@/hooks/usePlatform";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -72,6 +73,7 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange, isAdmin = f
   const [viewingTicketPhoto, setViewingTicketPhoto] = useState<Ticket | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isNative } = usePlatform();
 
   const { data: tickets = [] } = useQuery({
     queryKey: ["employee-tickets", employee?.id],
@@ -150,7 +152,7 @@ export function EmployeeDetailsSheet({ employee, open, onOpenChange, isAdmin = f
   return (
     <>
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-lg overflow-y-auto" style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 16px)' } : undefined}>
           <SheetHeader>
             <div className="flex items-center gap-3">
               <Avatar className="h-12 w-12">

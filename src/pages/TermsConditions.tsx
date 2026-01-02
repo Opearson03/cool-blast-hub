@@ -2,8 +2,11 @@ import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { usePlatform } from "@/hooks/usePlatform";
 
 export default function TermsConditions() {
+  const { isNative } = usePlatform();
+  
   return (
     <>
       <SEOHead
@@ -11,9 +14,9 @@ export default function TermsConditions() {
         description="PourHub terms and conditions. Understand the terms of service for using our concreting business management software in Australia."
         canonicalPath="/terms"
       />
-      <div className="min-h-screen bg-charcoal-dark p-4">
+      <div className="min-h-screen bg-charcoal-dark p-4" style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 16px)' } : undefined}>
       <div className="max-w-3xl mx-auto">
-        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary-foreground transition-colors mb-6">
+        <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary-foreground transition-colors mb-6 min-h-[44px]">
           <ArrowLeft className="w-4 h-4" />
           Back
         </Link>
