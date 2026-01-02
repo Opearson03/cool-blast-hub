@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Geolocation } from '@capacitor/geolocation';
@@ -7,44 +7,43 @@ import { supabase } from '@/integrations/supabase/client';
 export const useNativeCapabilities = () => {
   const isNative = Capacitor.isNativePlatform();
 
-  const savePushToken = useCallback(async (token: string) => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.log('No authenticated user, skipping push token save');
-        return;
-      }
-
-      const platform = Capacitor.getPlatform(); // 'ios' or 'android'
-      
-      // Upsert the token (update if exists, insert if not)
-      const { error } = await supabase
-        .from('push_tokens')
-        .upsert(
-          {
-            user_id: user.id,
-            token,
-            platform,
-            updated_at: new Date().toISOString(),
-          },
-          {
-            onConflict: 'user_id,platform',
-          }
-        );
-
-      if (error) {
-        console.error('Error saving push token:', error);
-      } else {
-        console.log('Push token saved successfully for platform:', platform);
-      }
-    } catch (error) {
-      console.error('Error in savePushToken:', error);
-    }
-  }, []);
-
   useEffect(() => {
     if (!isNative) return;
+
+    const savePushToken = async (token: string) => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          console.log('No authenticated user, skipping push token save');
+          return;
+        }
+
+        const platform = Capacitor.getPlatform();
+        
+        const { error } = await supabase
+          .from('push_tokens')
+          .upsert(
+            {
+              user_id: user.id,
+              token,
+              platform,
+              updated_at: new Date().toISOString(),
+            },
+            {
+              onConflict: 'user_id,platform',
+            }
+          );
+
+        if (error) {
+          console.error('Error saving push token:', error);
+        } else {
+          console.log('Push token saved successfully for platform:', platform);
+        }
+      } catch (error) {
+        console.error('Error in savePushToken:', error);
+      }
+    };
 
     const initializeNativeCapabilities = async () => {
       // Request push notification permissions
@@ -59,7 +58,6 @@ export const useNativeCapabilities = () => {
           await PushNotifications.register();
         }
 
-        // Listen for push notification events
         PushNotifications.addListener('registration', async (token) => {
           console.log('Push registration success, token:', token.value);
           await savePushToken(token.value);
@@ -95,15 +93,12 @@ export const useNativeCapabilities = () => {
     initializeNativeCapabilities();
 
     return () => {
-      if (isNative) {
-        PushNotifications.removeAllListeners();
-      }
+      PushNotifications.removeAllListeners();
     };
-  }, [isNative, savePushToken]);
+  }, [isNative]);
 
   const getCurrentLocation = async () => {
     if (!isNative) {
-      // Fallback to web geolocation API
       return new Promise<{ latitude: number; longitude: number }>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(
           (position) => resolve({
