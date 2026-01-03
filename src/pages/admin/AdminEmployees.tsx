@@ -318,28 +318,30 @@ export default function AdminEmployees() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList>
-            <TabsTrigger value="employees">
-              Team ({employees.length})
-              {pendingInvites.length > 0 && (
-                <Badge variant="outline" className="ml-2 text-xs">
-                  +{pendingInvites.length} pending
-                </Badge>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="timesheets">
-              <Clock className="w-4 h-4 mr-1" />
-              Timesheets
-            </TabsTrigger>
-            <TabsTrigger value="leave" className="relative">
-              Leave
-              {pendingLeaveCount > 0 && (
-                <Badge className="ml-2 bg-amber-500 text-white text-xs px-1.5 py-0.5">
-                  {pendingLeaveCount}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4">
+            <TabsList className="w-max">
+              <TabsTrigger value="employees">
+                Team ({employees.length})
+                {pendingInvites.length > 0 && (
+                  <Badge variant="outline" className="ml-2 text-xs">
+                    +{pendingInvites.length} pending
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="timesheets">
+                <Clock className="w-4 h-4 mr-1" />
+                Timesheets
+              </TabsTrigger>
+              <TabsTrigger value="leave" className="relative">
+                Leave
+                {pendingLeaveCount > 0 && (
+                  <Badge className="ml-2 bg-amber-500 text-white text-xs px-1.5 py-0.5">
+                    {pendingLeaveCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="employees" className="mt-4 space-y-4">
             {/* Search */}
