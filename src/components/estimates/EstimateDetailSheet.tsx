@@ -1,4 +1,5 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -94,57 +95,135 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
     }, 100);
   };
 
-  const generatePDFBase64 = useCallback(async (): Promise<string> => {
-    // For now, we'll use a simple approach - the email will contain an HTML version
-    // In a production app, you'd use a PDF generation library
-    // This creates a basic PDF-like base64 string for the attachment
+  const generateHTMLContent = useCallback((): string => {
+    const descriptionItems = estimate?.description?.split(' | ').map(p => `<li style="margin-bottom: 4px;">• ${p}</li>`).join('') || '';
+    const notesContent = estimate?.notes?.split('\n').map(line => `<p style="margin: 2px 0; font-size: 11px;">${line}</p>`).join('') || '';
     
-    const htmlContent = `
+    return `
       <!DOCTYPE html>
       <html>
       <head>
+        <meta charset="utf-8">
         <style>
-          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
-          .logo { font-size: 24px; font-weight: bold; }
-          .estimate-title { font-size: 28px; font-weight: bold; }
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; margin: 0; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 25px; }
+          .company-info { display: flex; gap: 15px; }
+          .company-details h1 { margin: 0 0 5px 0; font-size: 20px; }
+          .company-details p { margin: 2px 0; font-size: 12px; color: #666; }
+          .estimate-info { text-align: right; }
+          .estimate-title { font-size: 24px; font-weight: bold; margin: 0; }
+          .estimate-number { font-size: 16px; color: #f97316; font-weight: bold; margin: 5px 0; }
+          .estimate-date { font-size: 12px; color: #666; }
           .section { margin-bottom: 20px; }
-          .section-title { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 8px; }
-          .total-box { background: #f5f5f5; padding: 20px; text-align: right; margin-top: 30px; }
-          .total-amount { font-size: 28px; font-weight: bold; color: #0ea5e9; }
+          .section-title { font-size: 11px; color: #666; text-transform: uppercase; font-weight: bold; margin-bottom: 8px; }
+          .client-grid { display: flex; gap: 40px; margin-bottom: 20px; }
+          .client-box { flex: 1; }
+          .scope-box { background: #f9f9f9; border: 1px solid #e5e5e5; border-radius: 6px; padding: 15px; }
+          .scope-list { list-style: none; padding: 0; margin: 0; }
+          .scope-list li { font-size: 13px; color: #333; }
+          .total-section { display: flex; justify-content: flex-end; margin: 25px 0; }
+          .total-box { border-top: 2px solid #333; padding-top: 12px; min-width: 250px; }
+          .total-row { display: flex; justify-content: space-between; align-items: center; }
+          .total-label { font-size: 16px; font-weight: bold; }
+          .total-amount { font-size: 22px; font-weight: bold; color: #f97316; }
+          .terms-section { border-top: 1px solid #ddd; padding-top: 15px; margin-bottom: 20px; }
+          .acceptance-box { background: #f9f9f9; border: 1px solid #e5e5e5; border-radius: 6px; padding: 15px; margin-bottom: 20px; }
+          .signature-grid { display: flex; gap: 30px; margin-top: 15px; }
+          .signature-field { flex: 1; }
+          .signature-label { font-size: 10px; color: #666; margin-bottom: 4px; }
+          .signature-line { border-bottom: 1px solid #999; height: 25px; }
+          .footer { text-align: center; border-top: 1px solid #eee; padding-top: 15px; margin-top: 20px; }
+          .footer p { font-size: 10px; color: #999; margin: 3px 0; }
         </style>
       </head>
       <body>
         <div class="header">
-          <div class="logo">${business?.name || 'Company'}</div>
-          <div>
-            <div class="estimate-title">ESTIMATE</div>
-            <div>${estimate?.estimate_number}</div>
-            <div>Date: ${estimate ? format(new Date(estimate.created_at), "d MMMM yyyy") : ''}</div>
+          <div class="company-info">
+            ${business?.logo_url ? `<img src="${business.logo_url}" alt="Logo" style="height: 50px; width: 50px; object-fit: contain;">` : ''}
+            <div class="company-details">
+              <h1>${business?.name || 'Company Name'}</h1>
+              ${business?.address ? `<p>${business.address}</p>` : ''}
+              ${business?.phone ? `<p>Ph: ${business.phone}</p>` : ''}
+              ${business?.email ? `<p>${business.email}</p>` : ''}
+              ${business?.abn ? `<p>ABN: ${business.abn}</p>` : ''}
+            </div>
+          </div>
+          <div class="estimate-info">
+            <p class="estimate-title">ESTIMATE</p>
+            <p class="estimate-number">${estimate?.estimate_number}</p>
+            <p class="estimate-date">Date: ${estimate ? format(new Date(estimate.created_at), "d MMMM yyyy") : ''}</p>
+            ${estimate?.valid_until ? `<p class="estimate-date">Valid Until: ${format(new Date(estimate.valid_until), "d MMMM yyyy")}</p>` : ''}
           </div>
         </div>
-        <div class="section">
-          <div class="section-title">Client</div>
-          <div><strong>${estimate?.client_name}</strong></div>
-          <div>${estimate?.client_email || ''}</div>
-          <div>${estimate?.site_address}</div>
+        
+        <div class="client-grid">
+          <div class="client-box">
+            <p class="section-title">Bill To</p>
+            <p style="font-weight: bold; margin: 0 0 3px 0;">${estimate?.client_name}</p>
+            ${estimate?.client_email ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">${estimate.client_email}</p>` : ''}
+            ${estimate?.client_phone ? `<p style="font-size: 12px; color: #666; margin: 2px 0;">${estimate.client_phone}</p>` : ''}
+          </div>
+          <div class="client-box">
+            <p class="section-title">Site Address</p>
+            <p style="margin: 0; font-size: 13px;">${estimate?.site_address}</p>
+          </div>
         </div>
+        
+        ${descriptionItems ? `
         <div class="section">
-          <div class="section-title">Scope of Works</div>
-          <div>${estimate?.description?.split(' | ').map(p => `<p>• ${p}</p>`).join('') || 'N/A'}</div>
+          <p class="section-title">Scope of Works</p>
+          <div class="scope-box">
+            <ul class="scope-list">${descriptionItems}</ul>
+          </div>
         </div>
-        <div class="total-box">
-          <div>Total (inc GST)</div>
-          <div class="total-amount">${formatCurrency(estimate?.total_amount || 0)}</div>
+        ` : ''}
+        
+        <div class="total-section">
+          <div class="total-box">
+            <div class="total-row">
+              <span class="total-label">Total (inc GST)</span>
+              <span class="total-amount">${formatCurrency(estimate?.total_amount || 0)}</span>
+            </div>
+          </div>
+        </div>
+        
+        <div class="terms-section">
+          <p class="section-title">Terms & Conditions</p>
+          ${notesContent || `
+            <p style="font-size: 11px; margin: 2px 0;">• This quote is valid for 14 days from the date of issue unless otherwise specified.</p>
+            <p style="font-size: 11px; margin: 2px 0;">• A 50% deposit is required before commencement of works.</p>
+            <p style="font-size: 11px; margin: 2px 0;">• Final payment is due upon completion of works.</p>
+            <p style="font-size: 11px; margin: 2px 0;">• Prices include GST unless otherwise stated.</p>
+          `}
+        </div>
+        
+        <div class="acceptance-box">
+          <p class="section-title" style="margin-top: 0;">Acceptance</p>
+          <p style="font-size: 11px; color: #666; margin-bottom: 15px;">I accept this estimate and authorize the commencement of works as described above.</p>
+          <div class="signature-grid">
+            <div class="signature-field">
+              <p class="signature-label">Signature</p>
+              <div class="signature-line"></div>
+            </div>
+            <div class="signature-field">
+              <p class="signature-label">Date</p>
+              <div class="signature-line"></div>
+            </div>
+          </div>
+          <div style="margin-top: 15px;">
+            <p class="signature-label">Print Name</p>
+            <div class="signature-line"></div>
+          </div>
+        </div>
+        
+        <div class="footer">
+          <p>Thank you for considering ${business?.name || 'us'} for your project.</p>
+          <p>Generated by PourHub • ${format(new Date(), "d MMM yyyy")}</p>
         </div>
       </body>
       </html>
     `;
-    
-    // Convert HTML to base64
-    const base64 = btoa(unescape(encodeURIComponent(htmlContent)));
-    return base64;
-  }, [estimate, business]);
+  }, [estimate, business, formatCurrency]);
 
   const handleSendEmail = async () => {
     if (!estimate) return;
@@ -161,12 +240,12 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
     setIsSending(true);
     
     try {
-      const pdfBase64 = await generatePDFBase64();
+      const htmlContent = generateHTMLContent();
       
       const { data, error } = await supabase.functions.invoke("send-estimate-email", {
         body: {
           estimateId: estimate.id,
-          pdfBase64,
+          htmlContent,
           clientEmail: estimate.client_email,
           clientName: estimate.client_name,
           estimateNumber: estimate.estimate_number,
@@ -198,9 +277,23 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
 
   if (!estimate) return null;
 
+  // Render printable content in a portal outside the dialog for proper print isolation
+  const printablePortal = isPrinting ? createPortal(
+    <div className="print-estimate-portal">
+      <PrintableEstimate
+        ref={printRef}
+        estimate={estimate}
+        business={business}
+      />
+    </div>,
+    document.body
+  ) : null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <>
+      {printablePortal}
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto no-print">
         <DialogHeader className="flex flex-row items-start justify-between gap-4">
           <div>
             <DialogTitle className="text-xl">{estimate.estimate_number}</DialogTitle>
@@ -334,16 +427,8 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
             </div>
           )}
         </div>
-
-        {/* Printable Version (hidden on screen) */}
-        <div className={isPrinting ? "block" : "hidden print:block"}>
-          <PrintableEstimate
-            ref={printRef}
-            estimate={estimate}
-            business={business}
-          />
-        </div>
       </DialogContent>
     </Dialog>
+    </>
   );
 }

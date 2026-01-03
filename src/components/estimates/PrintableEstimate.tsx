@@ -57,25 +57,59 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
       >
         <style>{`
           @media print {
-            @page {
-              size: A4;
-              margin: 15mm 20mm;
+            /* Hide everything except the print container */
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+              -webkit-print-color-adjust: exact !important;
+              print-color-adjust: exact !important;
             }
             
-            body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
+            /* Hide the entire app and dialog backdrop */
+            body > div:first-child,
+            [role="dialog"],
+            [data-radix-dialog-overlay],
+            [data-radix-dialog-content],
+            .no-print,
+            nav,
+            header,
+            aside,
+            footer:not(.print-footer) {
+              display: none !important;
+              visibility: hidden !important;
+            }
+            
+            /* Show only the print container */
+            body > .print-estimate-portal {
+              display: block !important;
+              visibility: visible !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              width: 100% !important;
+              background: white !important;
+              z-index: 999999 !important;
             }
             
             .print-container {
-              width: 100%;
-              max-width: none;
-              margin: 0;
-              padding: 0;
+              display: block !important;
+              visibility: visible !important;
+              position: absolute !important;
+              top: 0 !important;
+              left: 0 !important;
+              width: 100% !important;
+              max-width: none !important;
+              margin: 0 !important;
+              padding: 0 !important;
+              background: white !important;
+              color: black !important;
+              z-index: 999999 !important;
             }
             
-            .no-print {
-              display: none !important;
+            @page {
+              size: A4;
+              margin: 15mm 20mm;
             }
             
             .page-break-avoid {
