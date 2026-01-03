@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2 } from "lucide-react";
+import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Eye } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,6 +16,7 @@ import { SEOHead } from "@/components/seo/SEOHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
+import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 
 type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
 
@@ -45,6 +46,7 @@ export default function AdminEstimates() {
   const [searchQuery, setSearchQuery] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
+  const [viewingEstimate, setViewingEstimate] = useState<Estimate | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -262,6 +264,10 @@ export default function AdminEstimates() {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setViewingEstimate(estimate)}>
+                              <Eye className="w-4 h-4 mr-2" />
+                              View / Print
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleEdit(estimate)}>Edit</DropdownMenuItem>
                             <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: estimate.id, status: "sent" })}>
                               Mark as Sent
@@ -343,6 +349,10 @@ export default function AdminEstimates() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setViewingEstimate(estimate)}>
+                                  <Eye className="w-4 h-4 mr-2" />
+                                  View / Print
+                                </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => handleEdit(estimate)}>Edit</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: estimate.id, status: "sent" })}>
                                   Mark as Sent
@@ -377,6 +387,12 @@ export default function AdminEstimates() {
         open={formOpen}
         onOpenChange={handleFormClose}
         editEstimate={editingEstimate}
+      />
+
+      <EstimateDetailSheet
+        estimate={viewingEstimate}
+        open={!!viewingEstimate}
+        onOpenChange={(open) => !open && setViewingEstimate(null)}
       />
     </AdminLayout>
   );
