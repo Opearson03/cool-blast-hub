@@ -469,47 +469,25 @@ export default function AdminEmployees() {
                       onClick={() => setSelectedEmployee(employee)}
                     >
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            <Avatar className="h-10 w-10">
-                              <AvatarImage src={employee.avatar_url || undefined} />
-                              <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                                {initials}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold">{employee.full_name}</h3>
-                                {role && (
-                                  <Badge variant={role === "admin" ? "default" : "secondary"}>
-                                    {role}
-                                  </Badge>
-                                )}
-                              </div>
-
-                              {employee.position && (
-                                <p className="text-sm text-muted-foreground">{employee.position}</p>
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-10 w-10 shrink-0">
+                            <AvatarImage src={employee.avatar_url || undefined} />
+                            <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h3 className="font-semibold">{employee.full_name}</h3>
+                              {role && (
+                                <Badge variant={role === "admin" ? "default" : "secondary"}>
+                                  {role}
+                                </Badge>
                               )}
-
-                              <div className="flex flex-wrap gap-3 mt-2 text-sm text-muted-foreground">
-                                {employee.phone && (
-                                  <span className="flex items-center gap-1">
-                                    <Phone className="w-3 h-3" />
-                                    {employee.phone}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col items-end gap-2 shrink-0">
-                            <div className="flex items-center gap-2">
                               {empTickets.length > 0 && (
-                                <div className="flex items-center gap-1">
-                                  <Award className="w-4 h-4 text-muted-foreground" />
-                                  <span className="text-sm text-muted-foreground">
-                                    {empTickets.length} ticket{empTickets.length !== 1 ? "s" : ""}
-                                  </span>
+                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                                  <Award className="w-3 h-3" />
+                                  <span>{empTickets.length} ticket{empTickets.length !== 1 ? "s" : ""}</span>
                                 </div>
                               )}
                               {employee.id !== currentUserId && (
@@ -518,7 +496,7 @@ export default function AdminEmployees() {
                                     <Button
                                       variant="ghost"
                                       size="sm"
-                                      className="text-destructive hover:text-destructive h-8 w-8 p-0"
+                                      className="text-destructive hover:text-destructive h-7 w-7 p-0 ml-auto"
                                       onClick={(e) => e.stopPropagation()}
                                       disabled={deletingId === employee.id}
                                     >
@@ -548,8 +526,20 @@ export default function AdminEmployees() {
                                 </AlertDialog>
                               )}
                             </div>
+
+                            {employee.position && (
+                              <p className="text-sm text-muted-foreground">{employee.position}</p>
+                            )}
+
+                            {employee.phone && (
+                              <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
+                                <Phone className="w-3 h-3 shrink-0" />
+                                <span>{employee.phone}</span>
+                              </div>
+                            )}
+
                             {expiringCount > 0 && (
-                              <Badge variant="destructive">
+                              <Badge variant="destructive" className="mt-2">
                                 <AlertTriangle className="w-3 h-3 mr-1" />
                                 {expiringCount} expiring
                               </Badge>
