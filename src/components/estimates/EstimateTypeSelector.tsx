@@ -53,13 +53,12 @@ const ESTIMATE_TYPES = [
       "Strip footings and pier holes",
       "Ground beams and thickenings",
       "Detailed rebar schedule (N12, N16, N20, etc.)",
-      "Cast-in items and expansion joints",
+      "Ligatures and mesh options",
     ],
     icon: Building2,
     color: "from-orange-500/20 to-orange-600/20",
     borderColor: "border-orange-500",
     iconColor: "text-orange-500",
-    badge: "Coming Soon",
   },
 ];
 
@@ -82,7 +81,8 @@ export function EstimateTypeSelector({
         {ESTIMATE_TYPES.map((type) => {
           const Icon = type.icon;
           const isSelected = selectedType === type.id;
-          const isDisabled = !!type.badge;
+          const badge = 'badge' in type ? (type as { badge?: string }).badge : undefined;
+          const isDisabled = !!badge;
 
           return (
             <Card
@@ -95,10 +95,10 @@ export function EstimateTypeSelector({
               )}
               onClick={() => !isDisabled && onSelect(type.id)}
             >
-              {type.badge && (
+              {badge && (
                 <div className="absolute top-3 right-3">
                   <span className="px-2 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full">
-                    {type.badge}
+                    {badge}
                   </span>
                 </div>
               )}

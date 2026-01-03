@@ -26,6 +26,7 @@ import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight, Eye, 
 
 import { EstimateTypeSelector, EstimateType } from "./EstimateTypeSelector";
 import { HouseSlabCalculator, HouseSlabData, initialHouseSlabData, calculateHouseSlabTotals } from "./calculators/HouseSlabCalculator";
+import { CommercialSlabCalculator, CommercialSlabData, initialCommercialSlabData, calculateCommercialSlabTotals } from "./calculators/CommercialSlabCalculator";
 
 interface Estimate {
   id: string;
@@ -233,6 +234,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [selectedInclusions, setSelectedInclusions] = useState<Set<string>>(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
   const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
   const [houseSlabData, setHouseSlabData] = useState<HouseSlabData>(initialHouseSlabData);
+  const [commercialSlabData, setCommercialSlabData] = useState<CommercialSlabData>(initialCommercialSlabData);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -386,13 +388,22 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return calculateHouseSlabTotals(houseSlabData);
   }, [estimateType, houseSlabData]);
 
+  // Commercial slab calculations
+  const commercialSlabCalcs = useMemo(() => {
+    if (estimateType !== "commercial_slab") return null;
+    return calculateCommercialSlabTotals(commercialSlabData);
+  }, [estimateType, commercialSlabData]);
+
   // Combined subtotal based on estimate type
   const combinedSubtotal = useMemo(() => {
     if (estimateType === "house_slab" && houseSlabCalcs) {
       return houseSlabCalcs.subtotal + labourCost + materialsCost + finishingCalculations.total;
     }
+    if (estimateType === "commercial_slab" && commercialSlabCalcs) {
+      return commercialSlabCalcs.subtotal + labourCost + materialsCost + finishingCalculations.total;
+    }
     return subtotal;
-  }, [estimateType, houseSlabCalcs, subtotal, labourCost, materialsCost, finishingCalculations.total]);
+  }, [estimateType, houseSlabCalcs, commercialSlabCalcs, subtotal, labourCost, materialsCost, finishingCalculations.total]);
 
   // Markup amount
   const markupAmount = useMemo(() => {
@@ -436,6 +447,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
         setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
         setHouseSlabData(initialHouseSlabData);
+        setCommercialSlabData(initialCommercialSlabData);
         setVisitedTabs(new Set(["details"]));
         setActiveTab("details");
       }
@@ -532,6 +544,22 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         }
         if (houseSlabData.pump.include) {
           descriptionParts.push("Concrete pump included");
+        }
+      } else if (estimateType === "commercial_slab" && commercialSlabCalcs) {
+        // Commercial slab description
+        descriptionParts.push(`Commercial Slab: ${commercialSlabCalcs.totalSlabArea.toFixed(1)}m²`);
+        descriptionParts.push(`Concrete: ${commercialSlabCalcs.volumeWithWastage.toFixed(2)}m³ @ ${commercialSlabCalcs.mpaStrength}MPa`);
+        if (commercialSlabCalcs.hasFootings) {
+          descriptionParts.push("Strip footings included");
+        }
+        if (commercialSlabCalcs.hasPiers) {
+          descriptionParts.push("Pier holes included");
+        }
+        if (commercialSlabCalcs.hasBeams) {
+          descriptionParts.push("Ground beams included");
+        }
+        if (commercialSlabCalcs.totalRebarCost > 0) {
+          descriptionParts.push("Detailed rebar schedule");
         }
       } else {
         // Driveway description (original logic)
@@ -801,6 +829,15 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               {estimateType === "house_slab" ? (
                 <>
                   <HouseSlabCalculator data={houseSlabData} onChange={setHouseSlabData} />
+                  <div className="flex justify-end pt-4">
+                    <Button type="button" onClick={goToNextTab} className="gap-2">
+                      Next: Labour <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </>
+              ) : estimateType === "commercial_slab" ? (
+                <>
+                  <CommercialSlabCalculator data={commercialSlabData} onChange={setCommercialSlabData} />
                   <div className="flex justify-end pt-4">
                     <Button type="button" onClick={goToNextTab} className="gap-2">
                       Next: Labour <ChevronRight className="w-4 h-4" />
