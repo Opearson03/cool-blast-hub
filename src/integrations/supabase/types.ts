@@ -402,6 +402,119 @@ export type Database = {
           },
         ]
       }
+      estimate_items: {
+        Row: {
+          created_at: string
+          description: string
+          estimate_id: string
+          id: string
+          quantity: number
+          sort_order: number | null
+          total: number | null
+          unit: string | null
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          estimate_id: string
+          id?: string
+          quantity?: number
+          sort_order?: number | null
+          total?: number | null
+          unit?: string | null
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          estimate_id?: string
+          id?: string
+          quantity?: number
+          sort_order?: number | null
+          total?: number | null
+          unit?: string | null
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_items_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimates: {
+        Row: {
+          business_id: string
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          estimate_number: string | null
+          id: string
+          notes: string | null
+          site_address: string
+          status: Database["public"]["Enums"]["estimate_status"]
+          total_amount: number | null
+          updated_at: string
+          valid_until: string | null
+        }
+        Insert: {
+          business_id: string
+          client_email?: string | null
+          client_name: string
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          estimate_number?: string | null
+          id?: string
+          notes?: string | null
+          site_address: string
+          status?: Database["public"]["Enums"]["estimate_status"]
+          total_amount?: number | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Update: {
+          business_id?: string
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          estimate_number?: string | null
+          id?: string
+          notes?: string | null
+          site_address?: string
+          status?: Database["public"]["Enums"]["estimate_status"]
+          total_amount?: number | null
+          updated_at?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "estimates_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_posts: {
         Row: {
           author_id: string
@@ -1451,6 +1564,7 @@ export type Database = {
         | "job"
         | "general"
       document_type: "swms" | "risk_assessment" | "permit" | "jsa" | "other"
+      estimate_status: "draft" | "sent" | "accepted" | "declined"
       invoice_status: "draft" | "sent" | "paid" | "overdue" | "cancelled"
       itp_type:
         | "formwork"
@@ -1612,6 +1726,7 @@ export const Constants = {
         "general",
       ],
       document_type: ["swms", "risk_assessment", "permit", "jsa", "other"],
+      estimate_status: ["draft", "sent", "accepted", "declined"],
       invoice_status: ["draft", "sent", "paid", "overdue", "cancelled"],
       itp_type: [
         "formwork",
