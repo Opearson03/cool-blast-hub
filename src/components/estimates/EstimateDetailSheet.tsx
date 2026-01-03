@@ -1,17 +1,18 @@
-import { useState, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useRef, useCallback } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, X, Calendar, DollarSign, Mail, Phone, MapPin } from "lucide-react";
+import { Printer, X, Calendar, DollarSign, Mail, Phone, MapPin, Send, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PrintableEstimate } from "./PrintableEstimate";
 import { format } from "date-fns";
+import { useToast } from "@/hooks/use-toast";
 
 type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
 
@@ -45,7 +46,10 @@ const statusConfig: Record<EstimateStatus, { label: string; variant: "default" |
 
 export function EstimateDetailSheet({ estimate, open, onOpenChange }: EstimateDetailSheetProps) {
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   // Fetch business details for the estimate
   const { data: business } = useQuery({
@@ -89,31 +93,148 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange }: EstimateDe
     }, 100);
   };
 
+  const generatePDFBase64 = useCallback(async (): Promise<string> => {
+    // For now, we'll use a simple approach - the email will contain an HTML version
+    // In a production app, you'd use a PDF generation library
+    // This creates a basic PDF-like base64 string for the attachment
+    
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <style>
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          .header { display: flex; justify-content: space-between; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 30px; }
+          .logo { font-size: 24px; font-weight: bold; }
+          .estimate-title { font-size: 28px; font-weight: bold; }
+          .section { margin-bottom: 20px; }
+          .section-title { font-size: 12px; color: #666; text-transform: uppercase; margin-bottom: 8px; }
+          .total-box { background: #f5f5f5; padding: 20px; text-align: right; margin-top: 30px; }
+          .total-amount { font-size: 28px; font-weight: bold; color: #0ea5e9; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <div class="logo">${business?.name || 'Company'}</div>
+          <div>
+            <div class="estimate-title">ESTIMATE</div>
+            <div>${estimate?.estimate_number}</div>
+            <div>Date: ${estimate ? format(new Date(estimate.created_at), "d MMMM yyyy") : ''}</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Client</div>
+          <div><strong>${estimate?.client_name}</strong></div>
+          <div>${estimate?.client_email || ''}</div>
+          <div>${estimate?.site_address}</div>
+        </div>
+        <div class="section">
+          <div class="section-title">Scope of Works</div>
+          <div>${estimate?.description?.split(' | ').map(p => `<p>• ${p}</p>`).join('') || 'N/A'}</div>
+        </div>
+        <div class="total-box">
+          <div>Total (inc GST)</div>
+          <div class="total-amount">${formatCurrency(estimate?.total_amount || 0)}</div>
+        </div>
+      </body>
+      </html>
+    `;
+    
+    // Convert HTML to base64
+    const base64 = btoa(unescape(encodeURIComponent(htmlContent)));
+    return base64;
+  }, [estimate, business]);
+
+  const handleSendEmail = async () => {
+    if (!estimate) return;
+    
+    if (!estimate.client_email) {
+      toast({
+        title: "No email address",
+        description: "This client doesn't have an email address on file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSending(true);
+    
+    try {
+      const pdfBase64 = await generatePDFBase64();
+      
+      const { data, error } = await supabase.functions.invoke("send-estimate-email", {
+        body: {
+          estimateId: estimate.id,
+          pdfBase64,
+          clientEmail: estimate.client_email,
+          clientName: estimate.client_name,
+          estimateNumber: estimate.estimate_number,
+          businessName: business?.name || "PourHub",
+          totalAmount: formatCurrency(estimate.total_amount),
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Quote sent!",
+        description: `Email sent to ${estimate.client_email}`,
+      });
+
+      queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      onOpenChange(false);
+    } catch (error: any) {
+      console.error("Error sending estimate:", error);
+      toast({
+        title: "Failed to send",
+        description: error.message || "Could not send the estimate email.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   if (!estimate) return null;
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
-        <SheetHeader className="flex flex-row items-start justify-between">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-full max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogHeader className="flex flex-row items-start justify-between gap-4">
           <div>
-            <SheetTitle className="text-xl">{estimate.estimate_number}</SheetTitle>
+            <DialogTitle className="text-xl">{estimate.estimate_number}</DialogTitle>
             <Badge variant={statusConfig[estimate.status].variant} className="mt-1">
               {statusConfig[estimate.status].label}
             </Badge>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => onOpenChange(false)} className="no-print">
-            <X className="w-4 h-4" />
-          </Button>
-        </SheetHeader>
+        </DialogHeader>
 
-        <div className="mt-6 space-y-6 no-print">
-          {/* Actions */}
-          <div className="flex gap-2">
-            <Button onClick={handlePrint} className="flex-1 gap-2">
+        <div className="space-y-6 no-print">
+          {/* Actions - Central prominent buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <Button onClick={handlePrint} variant="outline" className="gap-2 h-12">
               <Printer className="w-4 h-4" />
-              Print / Save PDF
+              Print Estimate
+            </Button>
+            <Button 
+              onClick={handleSendEmail} 
+              className="gap-2 h-12"
+              disabled={isSending || !estimate.client_email}
+            >
+              {isSending ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+              Email to Client
             </Button>
           </div>
+
+          {!estimate.client_email && (
+            <p className="text-xs text-muted-foreground text-center -mt-2">
+              Add client email to enable sending
+            </p>
+          )}
 
           {/* Client Info */}
           <div className="space-y-3">
@@ -207,7 +328,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange }: EstimateDe
             business={business}
           />
         </div>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
