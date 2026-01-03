@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,11 +62,23 @@ const statusLabels: Record<string, string> = {
 
 export default function AdminJobs() {
   const navigate = useNavigate();
+  const location = useLocation();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  const [initialJobData, setInitialJobData] = useState<any>(null);
+
+  // Check for pre-filled data from estimate conversion
+  useEffect(() => {
+    if (location.state?.createJobFromEstimate) {
+      setInitialJobData(location.state.createJobFromEstimate);
+      setIsCreateOpen(true);
+      // Clear the state to prevent re-opening on navigation
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ["jobs"],
@@ -309,8 +321,12 @@ export default function AdminJobs() {
       {/* Create Job Dialog */}
       <JobFormDialog
         open={isCreateOpen}
-        onOpenChange={setIsCreateOpen}
+        onOpenChange={(open) => {
+          setIsCreateOpen(open);
+          if (!open) setInitialJobData(null);
+        }}
         crews={crews}
+        initialData={initialJobData}
       />
     </AdminLayout>
   );

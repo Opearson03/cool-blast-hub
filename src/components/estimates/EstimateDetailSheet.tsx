@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, X, Calendar, DollarSign, Mail, Phone, MapPin, Send, Loader2 } from "lucide-react";
+import { Printer, Calendar, DollarSign, Mail, Phone, MapPin, Send, Loader2, Briefcase } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PrintableEstimate } from "./PrintableEstimate";
 import { format } from "date-fns";
@@ -35,6 +35,7 @@ interface EstimateDetailSheetProps {
   estimate: Estimate | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onConvertToJob?: (estimate: Estimate) => void;
 }
 
 const statusConfig: Record<EstimateStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -44,7 +45,7 @@ const statusConfig: Record<EstimateStatus, { label: string; variant: "default" |
   declined: { label: "Declined", variant: "destructive" },
 };
 
-export function EstimateDetailSheet({ estimate, open, onOpenChange }: EstimateDetailSheetProps) {
+export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJob }: EstimateDetailSheetProps) {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
@@ -210,6 +211,20 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange }: EstimateDe
         </DialogHeader>
 
         <div className="space-y-6 no-print">
+          {/* Convert to Job - for accepted estimates */}
+          {estimate.status === "accepted" && onConvertToJob && (
+            <Button 
+              onClick={() => {
+                onConvertToJob(estimate);
+                onOpenChange(false);
+              }} 
+              className="w-full gap-2 h-12 bg-green-600 hover:bg-green-700"
+            >
+              <Briefcase className="w-4 h-4" />
+              Convert to Job
+            </Button>
+          )}
+
           {/* Actions - Central prominent buttons */}
           <div className="grid grid-cols-2 gap-3">
             <Button onClick={handlePrint} variant="outline" className="gap-2 h-12">
