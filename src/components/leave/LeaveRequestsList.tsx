@@ -238,62 +238,117 @@ export function LeaveRequestsList({ requests, isAdmin, onUpdate }: LeaveRequests
           <CardTitle>Leave Requests</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto -mx-4 sm:mx-0">
-            <Table className="min-w-[500px]">
+          {/* Mobile: Card layout */}
+          <div className="sm:hidden space-y-3">
+            {requests.map((request) => (
+              <div
+                key={request.id}
+                className="p-3 border rounded-lg space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    {isAdmin && (
+                      <p className="font-semibold truncate">
+                        {request.profiles?.full_name || "Unknown"}
+                      </p>
+                    )}
+                    <p className="text-sm text-muted-foreground">
+                      {leaveTypeLabels[request.leave_type] || request.leave_type}
+                    </p>
+                  </div>
+                  <Badge className={`${statusColors[request.status]} shrink-0`}>
+                    {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>
+                    {format(new Date(request.start_date), "MMM d")} - {format(new Date(request.end_date), "MMM d, yyyy")}
+                  </span>
+                </div>
+                {isAdmin && request.status === "pending" && (
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-green-500 hover:text-green-600"
+                      onClick={() => handleApproveClick(request)}
+                    >
+                      <Check className="w-4 h-4 mr-1" />
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 text-red-500 hover:text-red-600"
+                      onClick={() => setReviewDialog({ open: true, request, action: "reject", step: "confirm" })}
+                    >
+                      <X className="w-4 h-4 mr-1" />
+                      Reject
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Desktop: Table layout */}
+          <div className="hidden sm:block">
+            <Table>
               <TableHeader>
                 <TableRow>
-                  {isAdmin && <TableHead className="whitespace-nowrap">Employee</TableHead>}
-                  <TableHead className="whitespace-nowrap">Type</TableHead>
-                  <TableHead className="whitespace-nowrap">Dates</TableHead>
-                  <TableHead className="whitespace-nowrap">Status</TableHead>
-                  {isAdmin && <TableHead className="text-right whitespace-nowrap">Actions</TableHead>}
+                  {isAdmin && <TableHead>Employee</TableHead>}
+                  <TableHead>Type</TableHead>
+                  <TableHead>Dates</TableHead>
+                  <TableHead>Status</TableHead>
+                  {isAdmin && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
-            <TableBody>
-              {requests.map((request) => (
-                <TableRow key={request.id}>
-                  {isAdmin && (
-                    <TableCell className="font-medium whitespace-nowrap">
-                      {request.profiles?.full_name || "Unknown"}
+              <TableBody>
+                {requests.map((request) => (
+                  <TableRow key={request.id}>
+                    {isAdmin && (
+                      <TableCell className="font-medium">
+                        {request.profiles?.full_name || "Unknown"}
+                      </TableCell>
+                    )}
+                    <TableCell>{leaveTypeLabels[request.leave_type] || request.leave_type}</TableCell>
+                    <TableCell>
+                      {format(new Date(request.start_date), "MMM d")} - {format(new Date(request.end_date), "MMM d, yyyy")}
                     </TableCell>
-                  )}
-                  <TableCell className="whitespace-nowrap">{leaveTypeLabels[request.leave_type] || request.leave_type}</TableCell>
-                  <TableCell className="whitespace-nowrap">
-                    {format(new Date(request.start_date), "MMM d")} - {format(new Date(request.end_date), "MMM d, yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={`${statusColors[request.status]} whitespace-nowrap`}>
-                      {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
-                    </Badge>
-                  </TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-right">
-                      {request.status === "pending" && (
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-green-500 hover:text-green-600"
-                            onClick={() => handleApproveClick(request)}
-                          >
-                            <Check className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="text-red-500 hover:text-red-600"
-                            onClick={() => setReviewDialog({ open: true, request, action: "reject", step: "confirm" })}
-                          >
-                            <X className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
+                    <TableCell>
+                      <Badge className={statusColors[request.status]}>
+                        {request.status.charAt(0).toUpperCase() + request.status.slice(1)}
+                      </Badge>
                     </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                    {isAdmin && (
+                      <TableCell className="text-right">
+                        {request.status === "pending" && (
+                          <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-green-500 hover:text-green-600"
+                              onClick={() => handleApproveClick(request)}
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-red-500 hover:text-red-600"
+                              onClick={() => setReviewDialog({ open: true, request, action: "reject", step: "confirm" })}
+                            >
+                              <X className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
