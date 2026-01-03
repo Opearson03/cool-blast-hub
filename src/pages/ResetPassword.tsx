@@ -22,28 +22,66 @@ const ResetPassword = () => {
   
 
   useEffect(() => {
-    // Listen for auth state changes - the recovery link will automatically sign in the user
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setSessionReady(true);
+    // Handle the recovery tokens from the URL hash
+    const handleRecoveryToken = async () => {
+      // Check if we have recovery tokens in the URL (from the email link)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+      const type = hashParams.get('type');
+
+      if (accessToken && type === 'recovery') {
+        // We have a recovery token, set the session
+        const { data, error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || '',
+        });
+
+        if (error) {
+          console.error("Error setting session from recovery token:", error);
+          toast({
+            title: "Invalid or expired link",
+            description: "Please request a new password reset link.",
+            variant: "destructive",
+          });
+          navigate("/auth");
+          return;
+        }
+
+        if (data.session) {
+          setSessionReady(true);
+          // Clear the hash from URL for cleaner display
+          window.history.replaceState(null, '', window.location.pathname);
+        }
         return;
       }
 
-      // User might be signed in via recovery link
-      if (event === "SIGNED_IN" && session) {
-        setSessionReady(true);
-      }
-    });
-
-    // Check if we already have a session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+      // Fallback: check if already have a session
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setSessionReady(true);
+      } else {
+        // No session and no recovery token - invalid access
+        toast({
+          title: "No valid reset link",
+          description: "Please request a password reset from the login page.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+      }
+    };
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "PASSWORD_RECOVERY" && session) {
+        setSessionReady(true);
       }
     });
 
+    handleRecoveryToken();
+
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate, toast]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
