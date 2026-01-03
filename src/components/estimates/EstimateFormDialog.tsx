@@ -85,6 +85,26 @@ interface ReoDetails {
   barChairPrice: string;
 }
 
+interface FinishingDetails {
+  perimeter: string;
+  // Area-based items ($ per m²)
+  includeCuring: boolean;
+  curingPricePerM2: string;
+  includeSealing: boolean;
+  sealingPricePerM2: string;
+  includeRetarder: boolean;
+  retarderPricePerM2: string;
+  // Linear items ($ per m)
+  includeStickyBack: boolean;
+  stickyBackPricePerM: string;
+  includeSawCuts: boolean;
+  sawCutMeters: string;
+  sawCutPricePerM: string;
+  includeJointSealer: boolean;
+  jointSealerMeters: string;
+  jointSealerPricePerM: string;
+}
+
 interface LabourItem {
   id: string;
   description: string;
@@ -147,6 +167,24 @@ const initialReoDetails: ReoDetails = {
   barChairPrice: "0.50",
 };
 
+const initialFinishingDetails: FinishingDetails = {
+  perimeter: "",
+  includeCuring: false,
+  curingPricePerM2: "3.50",
+  includeSealing: false,
+  sealingPricePerM2: "8.00",
+  includeRetarder: false,
+  retarderPricePerM2: "12.00",
+  includeStickyBack: false,
+  stickyBackPricePerM: "2.50",
+  includeSawCuts: false,
+  sawCutMeters: "",
+  sawCutPricePerM: "4.00",
+  includeJointSealer: false,
+  jointSealerMeters: "",
+  jointSealerPricePerM: "6.00",
+};
+
 // Default inclusions and exclusions for concreting quotes
 const DEFAULT_INCLUSIONS = [
   { id: "concrete_supply", label: "Supply of concrete to site", category: "inclusion" },
@@ -178,6 +216,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [slab, setSlab] = useState<SlabDimensions>(initialSlabDimensions);
   const [concrete, setConcrete] = useState<ConcreteDetails>(initialConcreteDetails);
   const [reo, setReo] = useState<ReoDetails>(initialReoDetails);
+  const [finishing, setFinishing] = useState<FinishingDetails>(initialFinishingDetails);
   const [labourItems, setLabourItems] = useState<LabourItem[]>([
     { id: "1", description: "Concreting labour", hours: "", hourlyRate: "85" },
   ]);
@@ -267,6 +306,49 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return reoCalculations.cost + reoCalculations.barChairCost;
   }, [reoCalculations]);
 
+  // Finishing calculations
+  const finishingCalculations = useMemo(() => {
+    const perimeter = parseFloat(finishing.perimeter) || 0;
+    
+    // Area-based costs
+    const curingCost = finishing.includeCuring 
+      ? slabArea * (parseFloat(finishing.curingPricePerM2) || 0) 
+      : 0;
+    const sealingCost = finishing.includeSealing 
+      ? slabArea * (parseFloat(finishing.sealingPricePerM2) || 0) 
+      : 0;
+    const retarderCost = finishing.includeRetarder 
+      ? slabArea * (parseFloat(finishing.retarderPricePerM2) || 0) 
+      : 0;
+    
+    // Linear costs
+    const stickyBackCost = finishing.includeStickyBack 
+      ? perimeter * (parseFloat(finishing.stickyBackPricePerM) || 0) 
+      : 0;
+    const sawCutMeters = parseFloat(finishing.sawCutMeters) || 0;
+    const sawCutCost = finishing.includeSawCuts 
+      ? sawCutMeters * (parseFloat(finishing.sawCutPricePerM) || 0) 
+      : 0;
+    const jointSealerMeters = parseFloat(finishing.jointSealerMeters) || 0;
+    const jointSealerCost = finishing.includeJointSealer 
+      ? jointSealerMeters * (parseFloat(finishing.jointSealerPricePerM) || 0) 
+      : 0;
+    
+    const total = curingCost + sealingCost + retarderCost + stickyBackCost + sawCutCost + jointSealerCost;
+    
+    return {
+      curingCost,
+      sealingCost,
+      retarderCost,
+      stickyBackCost,
+      sawCutMeters,
+      sawCutCost,
+      jointSealerMeters,
+      jointSealerCost,
+      total,
+    };
+  }, [slabArea, finishing]);
+
   // Labour cost
   const labourCost = useMemo(() => {
     return labourItems.reduce((total, item) => {
@@ -285,10 +367,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     }, 0);
   }, [materialItems]);
 
-  // Subtotal
+  // Subtotal (includes finishing costs)
   const subtotal = useMemo(() => {
-    return concreteCost + totalReoCost + labourCost + materialsCost;
-  }, [concreteCost, totalReoCost, labourCost, materialsCost]);
+    return concreteCost + totalReoCost + finishingCalculations.total + labourCost + materialsCost;
+  }, [concreteCost, totalReoCost, finishingCalculations.total, labourCost, materialsCost]);
 
   // Markup amount
   const markupAmount = useMemo(() => {
@@ -321,6 +403,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setSlab(initialSlabDimensions);
         setConcrete(initialConcreteDetails);
         setReo(initialReoDetails);
+        setFinishing(initialFinishingDetails);
         setLabourItems([{ id: "1", description: "Concreting labour", hours: "", hourlyRate: "85" }]);
         setMaterialItems([]);
         setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
@@ -919,6 +1002,242 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </CardContent>
               </Card>
 
+              {/* Finishing & Treatments */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Finishing & Treatments</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Perimeter for linear calculations */}
+                  <div className="space-y-2">
+                    <Label>Slab Perimeter (m) — for edge treatments</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      value={finishing.perimeter}
+                      onChange={(e) => setFinishing(prev => ({ ...prev, perimeter: e.target.value }))}
+                      placeholder={slab.shape === "rectangular" && slab.length && slab.width 
+                        ? `Approx: ${((parseFloat(slab.length) || 0) * 2 + (parseFloat(slab.width) || 0) * 2).toFixed(1)}m`
+                        : "e.g., 24"}
+                    />
+                    {slab.shape === "rectangular" && slab.length && slab.width && (
+                      <p className="text-xs text-muted-foreground">
+                        Calculated perimeter: {((parseFloat(slab.length) || 0) * 2 + (parseFloat(slab.width) || 0) * 2).toFixed(1)}m
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="border-t border-border pt-4 space-y-4">
+                    <p className="text-sm font-medium text-muted-foreground">Area-based treatments ($ per m²)</p>
+                    
+                    {/* Curing */}
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="checkbox"
+                        id="includeCuring"
+                        checked={finishing.includeCuring}
+                        onChange={(e) => setFinishing(prev => ({ ...prev, includeCuring: e.target.checked }))}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <Label htmlFor="includeCuring" className="cursor-pointer flex-1">Curing compound</Label>
+                      <div className="w-24">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={finishing.curingPricePerM2}
+                          onChange={(e) => setFinishing(prev => ({ ...prev, curingPricePerM2: e.target.value }))}
+                          placeholder="$/m²"
+                          disabled={!finishing.includeCuring}
+                          className="h-8"
+                        />
+                      </div>
+                      {finishing.includeCuring && slabArea > 0 && (
+                        <span className="text-sm w-20 text-right">{formatCurrency(finishingCalculations.curingCost)}</span>
+                      )}
+                    </div>
+
+                    {/* Sealing */}
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="checkbox"
+                        id="includeSealing"
+                        checked={finishing.includeSealing}
+                        onChange={(e) => setFinishing(prev => ({ ...prev, includeSealing: e.target.checked }))}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <Label htmlFor="includeSealing" className="cursor-pointer flex-1">Sealing</Label>
+                      <div className="w-24">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={finishing.sealingPricePerM2}
+                          onChange={(e) => setFinishing(prev => ({ ...prev, sealingPricePerM2: e.target.value }))}
+                          placeholder="$/m²"
+                          disabled={!finishing.includeSealing}
+                          className="h-8"
+                        />
+                      </div>
+                      {finishing.includeSealing && slabArea > 0 && (
+                        <span className="text-sm w-20 text-right">{formatCurrency(finishingCalculations.sealingCost)}</span>
+                      )}
+                    </div>
+
+                    {/* Retarder (Exposed Aggregate) */}
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="checkbox"
+                        id="includeRetarder"
+                        checked={finishing.includeRetarder}
+                        onChange={(e) => setFinishing(prev => ({ ...prev, includeRetarder: e.target.checked }))}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <Label htmlFor="includeRetarder" className="cursor-pointer flex-1">Retarder (exposed agg)</Label>
+                      <div className="w-24">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={finishing.retarderPricePerM2}
+                          onChange={(e) => setFinishing(prev => ({ ...prev, retarderPricePerM2: e.target.value }))}
+                          placeholder="$/m²"
+                          disabled={!finishing.includeRetarder}
+                          className="h-8"
+                        />
+                      </div>
+                      {finishing.includeRetarder && slabArea > 0 && (
+                        <span className="text-sm w-20 text-right">{formatCurrency(finishingCalculations.retarderCost)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="border-t border-border pt-4 space-y-4">
+                    <p className="text-sm font-medium text-muted-foreground">Linear treatments ($ per m)</p>
+                    
+                    {/* Sticky Back */}
+                    <div className="flex items-center gap-4">
+                      <input
+                        type="checkbox"
+                        id="includeStickyBack"
+                        checked={finishing.includeStickyBack}
+                        onChange={(e) => setFinishing(prev => ({ ...prev, includeStickyBack: e.target.checked }))}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <Label htmlFor="includeStickyBack" className="cursor-pointer flex-1">Sticky back (perimeter)</Label>
+                      <div className="w-24">
+                        <Input
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={finishing.stickyBackPricePerM}
+                          onChange={(e) => setFinishing(prev => ({ ...prev, stickyBackPricePerM: e.target.value }))}
+                          placeholder="$/m"
+                          disabled={!finishing.includeStickyBack}
+                          className="h-8"
+                        />
+                      </div>
+                      {finishing.includeStickyBack && parseFloat(finishing.perimeter) > 0 && (
+                        <span className="text-sm w-20 text-right">{formatCurrency(finishingCalculations.stickyBackCost)}</span>
+                      )}
+                    </div>
+
+                    {/* Saw Cuts */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="checkbox"
+                          id="includeSawCuts"
+                          checked={finishing.includeSawCuts}
+                          onChange={(e) => setFinishing(prev => ({ ...prev, includeSawCuts: e.target.checked }))}
+                          className="h-4 w-4 rounded border-border"
+                        />
+                        <Label htmlFor="includeSawCuts" className="cursor-pointer flex-1">Saw cuts</Label>
+                        <div className="w-24">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={finishing.sawCutPricePerM}
+                            onChange={(e) => setFinishing(prev => ({ ...prev, sawCutPricePerM: e.target.value }))}
+                            placeholder="$/m"
+                            disabled={!finishing.includeSawCuts}
+                            className="h-8"
+                          />
+                        </div>
+                        {finishing.includeSawCuts && finishingCalculations.sawCutMeters > 0 && (
+                          <span className="text-sm w-20 text-right">{formatCurrency(finishingCalculations.sawCutCost)}</span>
+                        )}
+                      </div>
+                      {finishing.includeSawCuts && (
+                        <div className="ml-8">
+                          <Label className="text-xs">Total cut length (m)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={finishing.sawCutMeters}
+                            onChange={(e) => setFinishing(prev => ({ ...prev, sawCutMeters: e.target.value }))}
+                            placeholder="e.g., 15"
+                            className="w-32 h-8"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Joint Sealer */}
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-4">
+                        <input
+                          type="checkbox"
+                          id="includeJointSealer"
+                          checked={finishing.includeJointSealer}
+                          onChange={(e) => setFinishing(prev => ({ ...prev, includeJointSealer: e.target.checked }))}
+                          className="h-4 w-4 rounded border-border"
+                        />
+                        <Label htmlFor="includeJointSealer" className="cursor-pointer flex-1">Joint sealer</Label>
+                        <div className="w-24">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={finishing.jointSealerPricePerM}
+                            onChange={(e) => setFinishing(prev => ({ ...prev, jointSealerPricePerM: e.target.value }))}
+                            placeholder="$/m"
+                            disabled={!finishing.includeJointSealer}
+                            className="h-8"
+                          />
+                        </div>
+                        {finishing.includeJointSealer && finishingCalculations.jointSealerMeters > 0 && (
+                          <span className="text-sm w-20 text-right">{formatCurrency(finishingCalculations.jointSealerCost)}</span>
+                        )}
+                      </div>
+                      {finishing.includeJointSealer && (
+                        <div className="ml-8">
+                          <Label className="text-xs">Total joint length (m)</Label>
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={finishing.jointSealerMeters}
+                            onChange={(e) => setFinishing(prev => ({ ...prev, jointSealerMeters: e.target.value }))}
+                            placeholder="e.g., 15"
+                            className="w-32 h-8"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {finishingCalculations.total > 0 && (
+                    <div className="pt-2 text-right border-t border-border">
+                      <Badge variant="default">Finishing Total: {formatCurrency(finishingCalculations.total)}</Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
               <div className="flex justify-end pt-4">
                 <Button type="button" onClick={goToNextTab} className="gap-2">
                   Next: Labour <ChevronRight className="w-4 h-4" />
@@ -1228,6 +1547,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                           Bar chairs ({reoCalculations.barChairs} @ {formatCurrency(parseFloat(reo.barChairPrice) || 0)} ea)
                         </span>
                         <span>{formatCurrency(reoCalculations.barChairCost)}</span>
+                      </div>
+                    )}
+                    {finishingCalculations.total > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Finishing & Treatments</span>
+                        <span>{formatCurrency(finishingCalculations.total)}</span>
                       </div>
                     )}
                     {labourCost > 0 && (
