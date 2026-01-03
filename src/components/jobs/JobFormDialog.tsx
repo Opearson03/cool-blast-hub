@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -65,7 +65,7 @@ interface JobFormDialogProps {
 }
 
 export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData }: JobFormDialogProps) {
-  const getInitialFormData = (): JobFormData => {
+  const getFormData = (): JobFormData => {
     if (editJob) {
       return {
         name: editJob.name || "",
@@ -83,12 +83,33 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
       };
     }
     if (initialData) {
-      return { ...initialFormData, ...initialData };
+      return { 
+        ...initialFormData, 
+        name: initialData.name || "",
+        site_address: initialData.site_address || "",
+        builder_client: initialData.builder_client || "",
+        po_number: initialData.po_number || "",
+        estimated_m3: initialData.estimated_m3 || "",
+        ordered_m3: initialData.ordered_m3 || "",
+        concrete_supplier: initialData.concrete_supplier || "",
+        mpa_strength: initialData.mpa_strength || "",
+        slump: initialData.slump || "",
+        finish_type: initialData.finish_type || "",
+        crew_id: initialData.crew_id || "",
+        job_notes: initialData.job_notes || "",
+      };
     }
     return initialFormData;
   };
 
-  const [formData, setFormData] = useState<JobFormData>(getInitialFormData());
+  const [formData, setFormData] = useState<JobFormData>(getFormData());
+
+  // Reset form when dialog opens with new data
+  useEffect(() => {
+    if (open) {
+      setFormData(getFormData());
+    }
+  }, [open, editJob, initialData]);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
