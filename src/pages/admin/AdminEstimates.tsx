@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Eye } from "lucide-react";
+import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -133,7 +133,8 @@ export default function AdminEstimates() {
     });
   };
 
-  const handleEdit = (estimate: Estimate) => {
+  const handleEdit = (estimate: Estimate, e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditingEstimate(estimate);
     setFormOpen(true);
   };
@@ -141,6 +142,10 @@ export default function AdminEstimates() {
   const handleFormClose = () => {
     setFormOpen(false);
     setEditingEstimate(null);
+  };
+
+  const handleRowClick = (estimate: Estimate) => {
+    setViewingEstimate(estimate);
   };
 
   return (
@@ -230,7 +235,11 @@ export default function AdminEstimates() {
               filteredEstimates.map((estimate) => {
                 const StatusIcon = statusConfig[estimate.status].icon;
                 return (
-                  <Card key={estimate.id} className="overflow-hidden">
+                  <Card 
+                    key={estimate.id} 
+                    className="overflow-hidden cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleRowClick(estimate)}
+                  >
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-start justify-between">
                         <div>
@@ -243,7 +252,7 @@ export default function AdminEstimates() {
                         </Badge>
                       </div>
                       
-                      {estimate.description && <p className="text-sm">{estimate.description}</p>}
+                      {estimate.description && <p className="text-sm line-clamp-1">{estimate.description}</p>}
                       <p className="text-xs text-muted-foreground">{estimate.site_address}</p>
                       
                       <div className="flex items-center justify-between pt-2 border-t border-border">
@@ -258,29 +267,25 @@ export default function AdminEstimates() {
                           </span>
                         </div>
                         <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
+                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                             <Button variant="ghost" size="icon" className="h-8 w-8">
                               <MoreVertical className="w-4 h-4" />
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setViewingEstimate(estimate)}>
-                              <Eye className="w-4 h-4 mr-2" />
-                              View / Print
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleEdit(estimate)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: estimate.id, status: "sent" })}>
+                            <DropdownMenuItem onClick={(e) => handleEdit(estimate, e)}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
                               Mark as Sent
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: estimate.id, status: "accepted" })}>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "accepted" }); }}>
                               Mark as Accepted
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: estimate.id, status: "declined" })}>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
                               Mark as Declined
                             </DropdownMenuItem>
                             <DropdownMenuItem 
                               className="text-destructive"
-                              onClick={() => deleteMutation.mutate(estimate.id)}
+                              onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(estimate.id); }}
                             >
                               Delete
                             </DropdownMenuItem>
@@ -323,7 +328,11 @@ export default function AdminEstimates() {
                     filteredEstimates.map((estimate) => {
                       const StatusIcon = statusConfig[estimate.status].icon;
                       return (
-                        <tr key={estimate.id} className="border-b border-border last:border-0 hover:bg-muted/50">
+                        <tr 
+                          key={estimate.id} 
+                          className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                          onClick={() => handleRowClick(estimate)}
+                        >
                           <td className="p-4 font-medium">{estimate.estimate_number}</td>
                           <td className="p-4">
                             <div>
@@ -343,29 +352,25 @@ export default function AdminEstimates() {
                           <td className="p-4 text-muted-foreground">{formatDate(estimate.valid_until)}</td>
                           <td className="p-4">
                             <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                 <Button variant="ghost" size="icon" className="h-8 w-8">
                                   <MoreVertical className="w-4 h-4" />
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => setViewingEstimate(estimate)}>
-                                  <Eye className="w-4 h-4 mr-2" />
-                                  View / Print
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => handleEdit(estimate)}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: estimate.id, status: "sent" })}>
+                                <DropdownMenuItem onClick={(e) => handleEdit(estimate, e)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
                                   Mark as Sent
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: estimate.id, status: "accepted" })}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "accepted" }); }}>
                                   Mark as Accepted
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: estimate.id, status: "declined" })}>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
                                   Mark as Declined
                                 </DropdownMenuItem>
                                 <DropdownMenuItem 
                                   className="text-destructive"
-                                  onClick={() => deleteMutation.mutate(estimate.id)}
+                                  onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(estimate.id); }}
                                 >
                                   Delete
                                 </DropdownMenuItem>
