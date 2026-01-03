@@ -299,7 +299,8 @@ export default function Auth() {
                           const { data, error } = await supabase.functions.invoke("send-password-reset", {
                             body: { 
                               email: email.toLowerCase().trim(),
-                              redirectTo: `${window.location.origin}/auth`
+                              // Always send users to the website reset page (not the preview domain)
+                              redirectTo: "https://pourhub.com.au/reset-password",
                             },
                           });
                           

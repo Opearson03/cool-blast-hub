@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -19,17 +19,18 @@ const ResetPassword = () => {
   const [sessionReady, setSessionReady] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  
 
   useEffect(() => {
     // Listen for auth state changes - the recovery link will automatically sign in the user
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("Auth event:", event, session?.user?.email);
-      
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         setSessionReady(true);
-      } else if (event === "SIGNED_IN" && session) {
-        // User might be signed in via recovery link
+        return;
+      }
+
+      // User might be signed in via recovery link
+      if (event === "SIGNED_IN" && session) {
         setSessionReady(true);
       }
     });
@@ -111,7 +112,7 @@ const ResetPassword = () => {
         <div className="min-h-screen flex items-center justify-center bg-background p-4">
           <Card className="w-full max-w-md">
             <CardContent className="pt-6 text-center">
-              <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
+              <CheckCircle2 className="h-16 w-16 text-primary mx-auto mb-4" />
               <h2 className="text-2xl font-bold mb-2">Password Reset Successful</h2>
               <p className="text-muted-foreground mb-4">
                 Your password has been updated. You'll be redirected to login shortly.
