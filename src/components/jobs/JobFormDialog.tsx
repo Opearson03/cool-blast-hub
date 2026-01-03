@@ -61,27 +61,34 @@ interface JobFormDialogProps {
   onOpenChange: (open: boolean) => void;
   crews: Crew[];
   editJob?: any;
+  initialData?: Partial<JobFormData>;
 }
 
-export function JobFormDialog({ open, onOpenChange, crews, editJob }: JobFormDialogProps) {
-  const [formData, setFormData] = useState<JobFormData>(
-    editJob
-      ? {
-          name: editJob.name || "",
-          site_address: editJob.site_address || "",
-          builder_client: editJob.builder_client || "",
-          po_number: editJob.po_number || "",
-          estimated_m3: editJob.estimated_m3?.toString() || "",
-          ordered_m3: editJob.ordered_m3?.toString() || "",
-          concrete_supplier: editJob.concrete_supplier || "",
-          mpa_strength: editJob.mpa_strength || "",
-          slump: editJob.slump || "",
-          finish_type: editJob.finish_type || "",
-          crew_id: editJob.crew_id || "",
-          job_notes: editJob.job_notes || "",
-        }
-      : initialFormData
-  );
+export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData }: JobFormDialogProps) {
+  const getInitialFormData = (): JobFormData => {
+    if (editJob) {
+      return {
+        name: editJob.name || "",
+        site_address: editJob.site_address || "",
+        builder_client: editJob.builder_client || "",
+        po_number: editJob.po_number || "",
+        estimated_m3: editJob.estimated_m3?.toString() || "",
+        ordered_m3: editJob.ordered_m3?.toString() || "",
+        concrete_supplier: editJob.concrete_supplier || "",
+        mpa_strength: editJob.mpa_strength || "",
+        slump: editJob.slump || "",
+        finish_type: editJob.finish_type || "",
+        crew_id: editJob.crew_id || "",
+        job_notes: editJob.job_notes || "",
+      };
+    }
+    if (initialData) {
+      return { ...initialFormData, ...initialData };
+    }
+    return initialFormData;
+  };
+
+  const [formData, setFormData] = useState<JobFormData>(getInitialFormData());
 
   const { toast } = useToast();
   const queryClient = useQueryClient();

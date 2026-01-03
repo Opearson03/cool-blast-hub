@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,6 +50,7 @@ export default function AdminEstimates() {
   const [viewingEstimate, setViewingEstimate] = useState<Estimate | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   const { data: estimates = [], isLoading } = useQuery({
     queryKey: ["estimates"],
@@ -146,6 +148,37 @@ export default function AdminEstimates() {
 
   const handleRowClick = (estimate: Estimate) => {
     setViewingEstimate(estimate);
+  };
+
+  // Parse estimate description to extract concrete volume if present
+  const parseEstimateForJob = (estimate: Estimate) => {
+    let estimatedM3 = "";
+    
+    // Try to extract m³ from description like "4.50 m³ concrete"
+    if (estimate.description) {
+      const m3Match = estimate.description.match(/([\d.]+)\s*m[³3]/i);
+      if (m3Match) {
+        estimatedM3 = m3Match[1];
+      }
+    }
+
+    return {
+      name: `${estimate.client_name} - ${estimate.site_address.split(",")[0]}`,
+      site_address: estimate.site_address,
+      builder_client: estimate.client_name,
+      estimated_m3: estimatedM3,
+      job_notes: `Converted from estimate ${estimate.estimate_number}\n\n${estimate.description || ""}`.trim(),
+    };
+  };
+
+  const handleConvertToJob = (estimate: Estimate) => {
+    const jobData = parseEstimateForJob(estimate);
+    // Navigate to jobs page with pre-filled data in URL state
+    navigate("/admin/jobs", { state: { createJobFromEstimate: jobData } });
+    toast({
+      title: "Ready to create job",
+      description: "Fill in the remaining details and create the job.",
+    });
   };
 
   return (
@@ -398,6 +431,7 @@ export default function AdminEstimates() {
         estimate={viewingEstimate}
         open={!!viewingEstimate}
         onOpenChange={(open) => !open && setViewingEstimate(null)}
+        onConvertToJob={handleConvertToJob}
       />
     </AdminLayout>
   );
