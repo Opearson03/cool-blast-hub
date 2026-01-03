@@ -11,7 +11,7 @@ const corsHeaders = {
 
 interface SendEstimateRequest {
   estimateId: string;
-  pdfBase64: string;
+  htmlContent: string;
   clientEmail: string;
   clientName: string;
   estimateNumber: string;
@@ -28,7 +28,7 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { 
       estimateId, 
-      pdfBase64, 
+      htmlContent, 
       clientEmail, 
       clientName, 
       estimateNumber,
@@ -42,12 +42,9 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Client email is required");
     }
 
-    if (!pdfBase64) {
-      throw new Error("PDF data is required");
+    if (!htmlContent) {
+      throw new Error("HTML content is required");
     }
-
-    // Remove data URL prefix if present
-    const base64Data = pdfBase64.replace(/^data:application\/pdf;base64,/, '');
 
     const emailResponse = await resend.emails.send({
       from: "PourHub <Hello@contact.pourhub.au>",
@@ -97,8 +94,8 @@ const handler = async (req: Request): Promise<Response> => {
       `,
       attachments: [
         {
-          filename: `${estimateNumber}.pdf`,
-          content: base64Data,
+          filename: `${estimateNumber}.html`,
+          content: htmlContent,
         },
       ],
     });

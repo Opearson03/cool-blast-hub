@@ -116,3 +116,50 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+
+/* Print styles for estimate documents */
+@media print {
+  /* Hide everything by default */
+  body > *:not(.print-estimate-portal) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Hide dialog overlays and backdrops */
+  [data-radix-dialog-overlay],
+  [role="dialog"],
+  .fixed,
+  .absolute:not(.print-container) {
+    display: none !important;
+  }
+  
+  /* Show the print portal */
+  .print-estimate-portal {
+    display: block !important;
+    visibility: visible !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    background: white !important;
+    z-index: 999999 !important;
+    overflow: visible !important;
+  }
+  
+  /* Ensure html/body are clean */
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+  
+  /* Hide no-print elements */
+  .no-print {
+    display: none !important;
+  }
+}
