@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight } from "lucide-react";
+import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight, Eye, EyeOff, ListChecks } from "lucide-react";
 
 interface Estimate {
   id: string;
@@ -147,7 +147,31 @@ const initialReoDetails: ReoDetails = {
   barChairPrice: "0.50",
 };
 
-type TabId = "details" | "slab" | "labour" | "summary";
+// Default inclusions and exclusions for concreting quotes
+const DEFAULT_INCLUSIONS = [
+  { id: "concrete_supply", label: "Supply of concrete to site", category: "inclusion" },
+  { id: "labour", label: "All labour for concrete placement and finishing", category: "inclusion" },
+  { id: "reo_supply", label: "Supply and installation of reinforcement mesh", category: "inclusion" },
+  { id: "finishing", label: "Power floating / finishing to specified standard", category: "inclusion" },
+  { id: "curing", label: "Curing compound application", category: "inclusion" },
+  { id: "site_cleanup", label: "Site cleanup on completion", category: "inclusion" },
+  { id: "pump_hire", label: "Concrete pump hire", category: "inclusion" },
+  { id: "formwork", label: "Edge formwork supply and installation", category: "inclusion" },
+];
+
+const DEFAULT_EXCLUSIONS = [
+  { id: "exc_excavation", label: "Excavation and site preparation", category: "exclusion" },
+  { id: "exc_soil_removal", label: "Removal of excavated material", category: "exclusion" },
+  { id: "exc_boxing", label: "Boxing and formwork beyond edge forms", category: "exclusion" },
+  { id: "exc_waterproofing", label: "Waterproofing membrane", category: "exclusion" },
+  { id: "exc_drainage", label: "Drainage and stormwater works", category: "exclusion" },
+  { id: "exc_saw_cutting", label: "Saw cutting control joints", category: "exclusion" },
+  { id: "exc_sealing", label: "Concrete sealing", category: "exclusion" },
+  { id: "exc_permits", label: "Council permits and inspections", category: "exclusion" },
+  { id: "exc_engineering", label: "Engineering certification", category: "exclusion" },
+];
+
+type TabId = "details" | "slab" | "labour" | "inclusions" | "summary";
 
 export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -160,11 +184,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>("details");
   const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(new Set(["details"]));
+  const [selectedInclusions, setSelectedInclusions] = useState<Set<string>>(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
+  const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const tabOrder: TabId[] = ["details", "slab", "labour", "summary"];
+  const tabOrder: TabId[] = ["details", "slab", "labour", "inclusions", "summary"];
 
   // Track visited tabs
   useEffect(() => {
@@ -297,6 +323,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setReo(initialReoDetails);
         setLabourItems([{ id: "1", description: "Concreting labour", hours: "", hourlyRate: "85" }]);
         setMaterialItems([]);
+        setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
+        setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
         setVisitedTabs(new Set(["details"]));
         setActiveTab("details");
       }
@@ -378,7 +406,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
       if (!profile?.business_id) throw new Error("No business found");
 
-      // Build description from calculator
+      // Build description from calculator (shown on quote)
       const descriptionParts = [];
       if (slabArea > 0) {
         descriptionParts.push(`Slab: ${slabArea.toFixed(1)}m² x ${slab.thickness}mm`);
@@ -393,6 +421,23 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         descriptionParts.push(formData.description);
       }
 
+      // Build inclusions text for the quote
+      const inclusionsList = DEFAULT_INCLUSIONS
+        .filter(i => selectedInclusions.has(i.id))
+        .map(i => i.label);
+      const exclusionsList = DEFAULT_EXCLUSIONS
+        .filter(e => selectedExclusions.has(e.id))
+        .map(e => e.label);
+
+      // Build full notes with inclusions/exclusions (shown on quote)
+      let fullNotes = formData.notes || "";
+      if (inclusionsList.length > 0) {
+        fullNotes += (fullNotes ? "\n\n" : "") + "INCLUSIONS:\n• " + inclusionsList.join("\n• ");
+      }
+      if (exclusionsList.length > 0) {
+        fullNotes += (fullNotes ? "\n\n" : "") + "EXCLUSIONS:\n• " + exclusionsList.join("\n• ");
+      }
+
       const estimateData = {
         business_id: profile.business_id,
         client_name: formData.client_name,
@@ -400,9 +445,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         client_phone: formData.client_phone || null,
         site_address: formData.site_address,
         description: descriptionParts.join(" | ") || null,
-        total_amount: totalAmount,
+        total_amount: totalAmount, // Only total amount shown to client - no cost breakdown
         valid_until: formData.valid_until || null,
-        notes: formData.notes || null,
+        notes: fullNotes || null, // Includes terms + inclusions/exclusions
         created_by: user.id,
       };
 
@@ -469,7 +514,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="details" className="gap-1">
               {getTabIcon("details")}
               <FileText className="w-4 h-4 hidden sm:inline" />
@@ -486,10 +531,16 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               <span className="hidden sm:inline">Labour</span>
               <span className="sm:hidden">3</span>
             </TabsTrigger>
+            <TabsTrigger value="inclusions" className="gap-1">
+              {getTabIcon("inclusions")}
+              <ListChecks className="w-4 h-4 hidden sm:inline" />
+              <span className="hidden sm:inline">Inclusions</span>
+              <span className="sm:hidden">4</span>
+            </TabsTrigger>
             <TabsTrigger value="summary" className="gap-1">
               {getTabIcon("summary")}
               <span className="hidden sm:inline">Summary</span>
-              <span className="sm:hidden">4</span>
+              <span className="sm:hidden">5</span>
             </TabsTrigger>
           </TabsList>
 
@@ -578,6 +629,14 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
             {/* Slab & Concrete Tab */}
             <TabsContent value="slab" className="space-y-6 m-0">
+              {/* Internal cost notice */}
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
+                <EyeOff className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  <strong>Internal costs only</strong> — These prices are for your calculation. The client will only see the final quoted amount.
+                </p>
+              </div>
+
               {/* Slab Dimensions */}
               <Card>
                 <CardHeader className="pb-3">
@@ -869,6 +928,14 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
             {/* Labour & Materials Tab */}
             <TabsContent value="labour" className="space-y-6 m-0">
+              {/* Internal cost notice */}
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
+                <EyeOff className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-700 dark:text-amber-400">
+                  <strong>Internal costs only</strong> — Hourly rates and cost breakdowns are not shown to the client.
+                </p>
+              </div>
+
               {/* Labour */}
               <Card>
                 <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -1028,6 +1095,87 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
               <div className="flex justify-end pt-4">
                 <Button type="button" onClick={goToNextTab} className="gap-2">
+                  Next: Inclusions <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </TabsContent>
+
+            {/* Inclusions & Exclusions Tab */}
+            <TabsContent value="inclusions" className="space-y-6 m-0">
+              <div className="bg-muted/50 rounded-lg p-3 text-sm text-muted-foreground">
+                <p>Select what is included and excluded in your quote. These will appear on the client's quote document.</p>
+              </div>
+
+              {/* Inclusions */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Check className="w-4 h-4 text-green-500" />
+                    Inclusions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {DEFAULT_INCLUSIONS.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id={item.id}
+                        checked={selectedInclusions.has(item.id)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedInclusions);
+                          if (e.target.checked) {
+                            newSet.add(item.id);
+                          } else {
+                            newSet.delete(item.id);
+                          }
+                          setSelectedInclusions(newSet);
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <Label htmlFor={item.id} className="cursor-pointer text-sm font-normal">
+                        {item.label}
+                      </Label>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              {/* Exclusions */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <EyeOff className="w-4 h-4 text-orange-500" />
+                    Exclusions
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {DEFAULT_EXCLUSIONS.map((item) => (
+                    <div key={item.id} className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id={item.id}
+                        checked={selectedExclusions.has(item.id)}
+                        onChange={(e) => {
+                          const newSet = new Set(selectedExclusions);
+                          if (e.target.checked) {
+                            newSet.add(item.id);
+                          } else {
+                            newSet.delete(item.id);
+                          }
+                          setSelectedExclusions(newSet);
+                        }}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <Label htmlFor={item.id} className="cursor-pointer text-sm font-normal">
+                        {item.label}
+                      </Label>
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end pt-4">
+                <Button type="button" onClick={goToNextTab} className="gap-2">
                   Next: Summary <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
@@ -1035,9 +1183,17 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
             {/* Summary Tab */}
             <TabsContent value="summary" className="space-y-4 m-0">
+              {/* Internal costs notice */}
+              <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 flex items-start gap-2">
+                <Eye className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                <p className="text-sm text-blue-700 dark:text-blue-400">
+                  <strong>Your cost breakdown (internal)</strong> — The client will only see the total amount, job description, and inclusions/exclusions.
+                </p>
+              </div>
+
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Quote Summary</CardTitle>
+                  <CardTitle className="text-base">Your Cost Breakdown</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Breakdown */}
@@ -1126,16 +1282,47 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
               {/* Notes */}
               <div className="space-y-2">
-                <Label htmlFor="notes">Notes / Terms</Label>
+                <Label htmlFor="notes">Additional Notes / Terms (shown on quote)</Label>
                 <Textarea
                   id="notes"
                   name="notes"
                   value={formData.notes}
                   onChange={handleChange}
-                  placeholder="Payment terms, conditions, exclusions..."
-                  rows={3}
+                  placeholder="Payment terms, conditions..."
+                  rows={2}
                 />
               </div>
+
+              {/* Inclusions/Exclusions Preview */}
+              {(selectedInclusions.size > 0 || selectedExclusions.size > 0) && (
+                <Card className="bg-muted/30">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm text-muted-foreground">Shown on Quote</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3 text-sm">
+                    {selectedInclusions.size > 0 && (
+                      <div>
+                        <p className="font-medium text-green-600 dark:text-green-400 mb-1">Inclusions ({selectedInclusions.size})</p>
+                        <ul className="text-muted-foreground space-y-0.5">
+                          {DEFAULT_INCLUSIONS.filter(i => selectedInclusions.has(i.id)).map(i => (
+                            <li key={i.id}>• {i.label}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {selectedExclusions.size > 0 && (
+                      <div>
+                        <p className="font-medium text-orange-600 dark:text-orange-400 mb-1">Exclusions ({selectedExclusions.size})</p>
+                        <ul className="text-muted-foreground space-y-0.5">
+                          {DEFAULT_EXCLUSIONS.filter(e => selectedExclusions.has(e.id)).map(e => (
+                            <li key={e.id}>• {e.label}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Footer */}
               <div className="flex gap-3 pt-4 border-t border-border">
