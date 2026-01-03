@@ -116,10 +116,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content */}
+      {/* Main Content - header is ~48px + safe-area on native */}
       <main 
         className="lg:ml-64 p-4 lg:p-6 overflow-x-hidden"
-        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 56px)' } : { paddingTop: '56px' }}
+        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 48px)' } : { paddingTop: '48px' }}
       >
         {children}
       </main>
