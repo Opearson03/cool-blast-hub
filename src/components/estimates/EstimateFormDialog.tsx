@@ -24,6 +24,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight, Eye, EyeOff, ListChecks } from "lucide-react";
 
+import { EstimateTypeSelector, EstimateType } from "./EstimateTypeSelector";
+
 interface Estimate {
   id: string;
   estimate_number: string;
@@ -36,6 +38,7 @@ interface Estimate {
   status: string;
   valid_until: string | null;
   notes: string | null;
+  estimate_type?: EstimateType;
 }
 
 interface EstimateFormDialogProps {
@@ -210,8 +213,11 @@ const DEFAULT_EXCLUSIONS = [
 ];
 
 type TabId = "details" | "slab" | "labour" | "inclusions" | "summary";
+type FormStep = "type_selection" | "calculator";
 
 export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
+  const [formStep, setFormStep] = useState<FormStep>("type_selection");
+  const [estimateType, setEstimateType] = useState<EstimateType | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [slab, setSlab] = useState<SlabDimensions>(initialSlabDimensions);
   const [concrete, setConcrete] = useState<ConcreteDetails>(initialConcreteDetails);
@@ -396,9 +402,14 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           notes: editEstimate.notes || "",
           markupPercent: "15",
         });
-        // For edit mode, allow immediate creation
+        // For edit mode, skip type selection and allow immediate creation
+        setEstimateType(editEstimate.estimate_type || "driveway");
+        setFormStep("calculator");
         setVisitedTabs(new Set(tabOrder));
       } else {
+        // Reset everything for new estimate
+        setFormStep("type_selection");
+        setEstimateType(null);
         setFormData(initialFormData);
         setSlab(initialSlabDimensions);
         setConcrete(initialConcreteDetails);
@@ -532,6 +543,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         valid_until: formData.valid_until || null,
         notes: fullNotes || null, // Includes terms + inclusions/exclusions
         created_by: user.id,
+        estimate_type: estimateType || "driveway",
       };
 
       if (editEstimate) {
@@ -586,6 +598,15 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return null;
   };
 
+  const getEstimateTypeLabel = (type: EstimateType) => {
+    switch (type) {
+      case "driveway": return "Driveway";
+      case "house_slab": return "House Slab";
+      case "commercial_slab": return "Commercial Slab";
+      default: return "";
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
@@ -593,9 +614,27 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="w-5 h-5" />
             {editEstimate ? "Edit Estimate" : "New Estimate"}
+            {formStep === "calculator" && estimateType && (
+              <Badge variant="secondary" className="ml-2">
+                {getEstimateTypeLabel(estimateType)}
+              </Badge>
+            )}
           </DialogTitle>
         </DialogHeader>
 
+        {/* Step 1: Type Selection */}
+        {formStep === "type_selection" && (
+          <div className="flex-1 overflow-y-auto py-4">
+            <EstimateTypeSelector
+              selectedType={estimateType}
+              onSelect={setEstimateType}
+              onContinue={() => setFormStep("calculator")}
+            />
+          </div>
+        )}
+
+        {/* Step 2: Calculator */}
+        {formStep === "calculator" && (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="details" className="gap-1">
@@ -703,7 +742,18 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </div>
               </div>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-between pt-4">
+                {!editEstimate && (
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    onClick={() => setFormStep("type_selection")}
+                    className="gap-2"
+                  >
+                    ← Change Type
+                  </Button>
+                )}
+                {editEstimate && <div />}
                 <Button type="button" onClick={goToNextTab} className="gap-2">
                   Next: Slab & Reo <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -1673,6 +1723,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             </TabsContent>
           </form>
         </Tabs>
+        )}
       </DialogContent>
     </Dialog>
   );

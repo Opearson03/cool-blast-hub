@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2 } from "lucide-react";
+import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Car, Home, Building2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,6 +20,7 @@ import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
 import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 
 type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
+type EstimateType = "driveway" | "house_slab" | "commercial_slab";
 
 interface Estimate {
   id: string;
@@ -34,7 +35,14 @@ interface Estimate {
   created_at: string;
   valid_until: string | null;
   notes: string | null;
+  estimate_type: EstimateType;
 }
+
+const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Car }> = {
+  driveway: { label: "Driveway", icon: Car },
+  house_slab: { label: "House Slab", icon: Home },
+  commercial_slab: { label: "Commercial", icon: Building2 },
+};
 
 const statusConfig: Record<EstimateStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }> = {
   draft: { label: "Draft", variant: "secondary", icon: FileText },
@@ -305,6 +313,7 @@ export default function AdminEstimates() {
             ) : (
               filteredEstimates.map((estimate) => {
                 const StatusIcon = statusConfig[estimate.status].icon;
+                const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Car;
                 return (
                   <Card 
                     key={estimate.id} 
@@ -313,9 +322,14 @@ export default function AdminEstimates() {
                   >
                     <CardContent className="p-4 space-y-3">
                       <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-semibold">{estimate.estimate_number}</p>
-                          <p className="text-sm text-muted-foreground">{estimate.client_name}</p>
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-md bg-muted">
+                            <TypeIcon className="w-4 h-4 text-muted-foreground" />
+                          </div>
+                          <div>
+                            <p className="font-semibold">{estimate.estimate_number}</p>
+                            <p className="text-sm text-muted-foreground">{estimate.client_name}</p>
+                          </div>
                         </div>
                         <Badge variant={statusConfig[estimate.status].variant} className="gap-1">
                           <StatusIcon className="w-3 h-3" />
@@ -378,6 +392,7 @@ export default function AdminEstimates() {
               <table className="w-full">
                 <thead className="border-b border-border">
                   <tr className="text-left">
+                    <th className="p-4 font-medium text-muted-foreground">Type</th>
                     <th className="p-4 font-medium text-muted-foreground">Estimate #</th>
                     <th className="p-4 font-medium text-muted-foreground">Client</th>
                     <th className="p-4 font-medium text-muted-foreground">Description</th>
@@ -391,19 +406,28 @@ export default function AdminEstimates() {
                 <tbody>
                   {filteredEstimates.length === 0 ? (
                     <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={9} className="p-8 text-center text-muted-foreground">
                         {estimates.length === 0 ? "No estimates yet. Create your first one!" : "No estimates found"}
                       </td>
                     </tr>
                   ) : (
                     filteredEstimates.map((estimate) => {
                       const StatusIcon = statusConfig[estimate.status].icon;
+                      const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Car;
+                      const typeLabel = estimateTypeConfig[estimate.estimate_type]?.label || "Driveway";
                       return (
                         <tr 
                           key={estimate.id} 
                           className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
                           onClick={() => handleRowClick(estimate)}
                         >
+                          <td className="p-4">
+                            <div className="flex items-center gap-2" title={typeLabel}>
+                              <div className="p-1.5 rounded-md bg-muted">
+                                <TypeIcon className="w-4 h-4 text-muted-foreground" />
+                              </div>
+                            </div>
+                          </td>
                           <td className="p-4 font-medium">{estimate.estimate_number}</td>
                           <td className="p-4">
                             <div>
