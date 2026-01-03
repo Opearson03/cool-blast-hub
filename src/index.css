@@ -119,29 +119,51 @@
 
 /* Print styles for estimate documents */
 @media print {
-  /* Hide everything by default */
+  /* Reset everything for clean print */
+  *, *::before, *::after {
+    background: transparent !important;
+    box-shadow: none !important;
+  }
+  
+  html, body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Hide EVERYTHING except the print portal */
   body > *:not(.print-estimate-portal) {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    position: absolute !important;
+    left: -9999px !important;
+  }
+  
+  /* Hide dialog overlays, backdrops, and any fixed/absolute elements */
+  [data-radix-dialog-overlay],
+  [data-radix-portal],
+  [role="dialog"],
+  .fixed:not(.print-estimate-portal),
+  .absolute:not(.print-container *),
+  nav, header, aside, footer:not(.print-footer) {
     display: none !important;
     visibility: hidden !important;
   }
   
-  /* Hide dialog overlays and backdrops */
-  [data-radix-dialog-overlay],
-  [role="dialog"],
-  .fixed,
-  .absolute:not(.print-container) {
-    display: none !important;
-  }
-  
-  /* Show the print portal */
+  /* Show the print portal with white background */
   .print-estimate-portal {
     display: block !important;
     visibility: visible !important;
-    position: fixed !important;
+    position: absolute !important;
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
-    bottom: 0 !important;
     width: 100% !important;
     height: auto !important;
     background: white !important;
@@ -149,17 +171,33 @@
     overflow: visible !important;
   }
   
-  /* Ensure html/body are clean */
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
+  /* Ensure print container has white background */
+  .print-container {
+    display: block !important;
+    visibility: visible !important;
     background: white !important;
-    overflow: visible !important;
-    height: auto !important;
+    color: black !important;
+    position: relative !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 15mm 20mm !important;
+  }
+  
+  /* Allow specific backgrounds for styling */
+  .print-container .bg-gray-50,
+  .print-container .bg-gray-800 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: inherit !important;
   }
   
   /* Hide no-print elements */
   .no-print {
     display: none !important;
+  }
+  
+  @page {
+    size: A4;
+    margin: 0;
   }
 }
