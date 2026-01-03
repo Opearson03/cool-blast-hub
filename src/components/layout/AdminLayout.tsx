@@ -40,7 +40,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {/* Mobile Header */}
       <header 
         className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between"
-        style={isNative ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}
+        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 8px)' } : undefined}
       >
         <Link to="/admin" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg overflow-hidden">
@@ -116,10 +116,10 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content - header is ~48px + safe-area on native */}
+      {/* Main Content - header is ~56px + safe-area on native */}
       <main 
         className="lg:ml-64 p-4 lg:p-6 overflow-x-hidden"
-        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 48px)' } : { paddingTop: '48px' }}
+        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 64px)' } : { paddingTop: '56px' }}
       >
         {children}
       </main>
