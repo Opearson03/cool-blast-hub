@@ -43,7 +43,6 @@ const ESTIMATE_TYPES = [
     color: "from-green-500/20 to-green-600/20",
     borderColor: "border-green-500",
     iconColor: "text-green-500",
-    badge: "Coming Soon",
   },
   {
     id: "commercial_slab" as EstimateType,

@@ -25,6 +25,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight, Eye, EyeOff, ListChecks } from "lucide-react";
 
 import { EstimateTypeSelector, EstimateType } from "./EstimateTypeSelector";
+import { HouseSlabCalculator, HouseSlabData, initialHouseSlabData, calculateHouseSlabTotals } from "./calculators/HouseSlabCalculator";
 
 interface Estimate {
   id: string;
@@ -231,6 +232,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(new Set(["details"]));
   const [selectedInclusions, setSelectedInclusions] = useState<Set<string>>(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
   const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
+  const [houseSlabData, setHouseSlabData] = useState<HouseSlabData>(initialHouseSlabData);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -378,16 +380,30 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return concreteCost + totalReoCost + finishingCalculations.total + labourCost + materialsCost;
   }, [concreteCost, totalReoCost, finishingCalculations.total, labourCost, materialsCost]);
 
+  // House slab calculations
+  const houseSlabCalcs = useMemo(() => {
+    if (estimateType !== "house_slab") return null;
+    return calculateHouseSlabTotals(houseSlabData);
+  }, [estimateType, houseSlabData]);
+
+  // Combined subtotal based on estimate type
+  const combinedSubtotal = useMemo(() => {
+    if (estimateType === "house_slab" && houseSlabCalcs) {
+      return houseSlabCalcs.subtotal + labourCost + materialsCost + finishingCalculations.total;
+    }
+    return subtotal;
+  }, [estimateType, houseSlabCalcs, subtotal, labourCost, materialsCost, finishingCalculations.total]);
+
   // Markup amount
   const markupAmount = useMemo(() => {
     const markupPercent = parseFloat(formData.markupPercent) || 0;
-    return subtotal * (markupPercent / 100);
-  }, [subtotal, formData.markupPercent]);
+    return combinedSubtotal * (markupPercent / 100);
+  }, [combinedSubtotal, formData.markupPercent]);
 
   // Total
   const totalAmount = useMemo(() => {
-    return subtotal + markupAmount;
-  }, [subtotal, markupAmount]);
+    return combinedSubtotal + markupAmount;
+  }, [combinedSubtotal, markupAmount]);
 
   useEffect(() => {
     if (open) {
@@ -419,6 +435,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setMaterialItems([]);
         setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
         setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
+        setHouseSlabData(initialHouseSlabData);
         setVisitedTabs(new Set(["details"]));
         setActiveTab("details");
       }
@@ -502,15 +519,33 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
       // Build description from calculator (shown on quote)
       const descriptionParts = [];
-      if (slabArea > 0) {
-        descriptionParts.push(`Slab: ${slabArea.toFixed(1)}m² x ${slab.thickness}mm`);
+      
+      if (estimateType === "house_slab" && houseSlabCalcs) {
+        // House slab description
+        descriptionParts.push(`House Slab: ${houseSlabCalcs.totalSlabArea.toFixed(1)}m²`);
+        descriptionParts.push(`Concrete: ${houseSlabCalcs.volumeWithWastage.toFixed(2)}m³ @ ${houseSlabCalcs.mpaStrength}MPa`);
+        if (houseSlabCalcs.reoSheets > 0) {
+          descriptionParts.push(`Reo: ${houseSlabCalcs.reoSheets} sheets ${houseSlabCalcs.meshType}`);
+        }
+        if (houseSlabData.vapourBarrier.include) {
+          descriptionParts.push("Vapour barrier included");
+        }
+        if (houseSlabData.pump.include) {
+          descriptionParts.push("Concrete pump included");
+        }
+      } else {
+        // Driveway description (original logic)
+        if (slabArea > 0) {
+          descriptionParts.push(`Slab: ${slabArea.toFixed(1)}m² x ${slab.thickness}mm`);
+        }
+        if (volumeWithWastage > 0) {
+          descriptionParts.push(`Concrete: ${volumeWithWastage.toFixed(2)}m³ @ ${concrete.mpaStrength}MPa`);
+        }
+        if (reoCalculations.sheets > 0) {
+          descriptionParts.push(`Reo: ${reoCalculations.sheets} sheets ${selectedMesh.id}`);
+        }
       }
-      if (volumeWithWastage > 0) {
-        descriptionParts.push(`Concrete: ${volumeWithWastage.toFixed(2)}m³ @ ${concrete.mpaStrength}MPa`);
-      }
-      if (reoCalculations.sheets > 0) {
-        descriptionParts.push(`Reo: ${reoCalculations.sheets} sheets ${selectedMesh.id}`);
-      }
+      
       if (formData.description) {
         descriptionParts.push(formData.description);
       }
@@ -762,6 +797,18 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
             {/* Slab & Concrete Tab */}
             <TabsContent value="slab" className="space-y-6 m-0">
+              {/* House Slab Calculator */}
+              {estimateType === "house_slab" ? (
+                <>
+                  <HouseSlabCalculator data={houseSlabData} onChange={setHouseSlabData} />
+                  <div className="flex justify-end pt-4">
+                    <Button type="button" onClick={goToNextTab} className="gap-2">
+                      Next: Labour <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </>
+              ) : (
+              <>
               {/* Internal cost notice */}
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
                 <EyeOff className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
@@ -1293,6 +1340,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                   Next: Labour <ChevronRight className="w-4 h-4" />
                 </Button>
               </div>
+              </>
+              )}
             </TabsContent>
 
             {/* Labour & Materials Tab */}
