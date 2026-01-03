@@ -285,7 +285,7 @@ export default function Auth() {
                   {authMode === "login" && (
                     <button
                       type="button"
-                      onClick={() => {
+                      onClick={async () => {
                         if (!email) {
                           toast({
                             title: "Email required",
@@ -295,23 +295,28 @@ export default function Auth() {
                           return;
                         }
                         setLoading(true);
-                        supabase.auth.resetPasswordForEmail(email, {
-                          redirectTo: `${window.location.origin}/auth`,
-                        }).then(({ error }) => {
-                          if (error) {
-                            toast({
-                              title: "Error",
-                              description: error.message,
-                              variant: "destructive",
-                            });
-                          } else {
-                            toast({
-                              title: "Password reset email sent",
-                              description: "Check your email for a link to reset your password.",
-                            });
-                          }
+                        try {
+                          const { data, error } = await supabase.functions.invoke("send-password-reset", {
+                            body: { 
+                              email: email.toLowerCase().trim(),
+                              redirectTo: `${window.location.origin}/auth`
+                            },
+                          });
+                          
+                          if (error) throw error;
+                          
+                          toast({
+                            title: "Password reset email sent",
+                            description: "Check your email for a link to reset your password.",
+                          });
+                        } catch (err: any) {
+                          toast({
+                            title: "Password reset email sent",
+                            description: "If an account exists, you'll receive a reset link.",
+                          });
+                        } finally {
                           setLoading(false);
-                        });
+                        }
                       }}
                       className="text-xs text-primary hover:underline"
                       disabled={loading}
