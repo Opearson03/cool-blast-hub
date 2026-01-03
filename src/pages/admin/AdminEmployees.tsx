@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Plus, Search, Phone, AlertTriangle, Award, Clock, RefreshCw, Mail, Trash2 } from "lucide-react";
 import {
@@ -318,8 +325,28 @@ export default function AdminEmployees() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <div className="overflow-x-auto -mx-4 px-4">
-            <TabsList className="w-max">
+          {/* Mobile: dropdown switcher to avoid cramped tabs */}
+          <div className="sm:hidden">
+            <Select value={activeTab} onValueChange={setActiveTab}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select view" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="employees">
+                  Team ({employees.length})
+                  {pendingInvites.length > 0 ? ` • +${pendingInvites.length} pending` : ""}
+                </SelectItem>
+                <SelectItem value="timesheets">Timesheets</SelectItem>
+                <SelectItem value="leave">
+                  Leave{pendingLeaveCount > 0 ? ` (${pendingLeaveCount})` : ""}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Desktop+ : tabs */}
+          <div className="hidden sm:block">
+            <TabsList>
               <TabsTrigger value="employees">
                 Team ({employees.length})
                 {pendingInvites.length > 0 && (
