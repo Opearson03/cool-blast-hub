@@ -150,16 +150,51 @@ export default function AdminEstimates() {
     setViewingEstimate(estimate);
   };
 
-  // Parse estimate description to extract concrete volume if present
+  // Parse estimate description to extract all available data for job creation
   const parseEstimateForJob = (estimate: Estimate) => {
     let estimatedM3 = "";
+    let mpaStrength = "";
+    let slump = "";
+    let finishType = "";
     
-    // Try to extract m³ from description like "4.50 m³ concrete"
+    // Parse the description format: "Slab: 18.0m² x 100mm | Concrete: 1.89m³ @ 32MPa | Reo: 2 sheets SL82 | Other notes"
     if (estimate.description) {
-      const m3Match = estimate.description.match(/([\d.]+)\s*m[³3]/i);
+      // Extract m³ from "Concrete: 1.89m³" pattern
+      const m3Match = estimate.description.match(/Concrete:\s*([\d.]+)\s*m[³3]/i);
       if (m3Match) {
         estimatedM3 = m3Match[1];
+      } else {
+        // Fallback: Try simpler pattern like "4.50 m³"
+        const simpleM3Match = estimate.description.match(/([\d.]+)\s*m[³3]/i);
+        if (simpleM3Match) {
+          estimatedM3 = simpleM3Match[1];
+        }
       }
+      
+      // Extract MPa from "@ 32MPa" pattern
+      const mpaMatch = estimate.description.match(/@\s*([\d]+)\s*MPa/i);
+      if (mpaMatch) {
+        mpaStrength = mpaMatch[1];
+      }
+    }
+
+    // Build comprehensive job notes with all estimate info
+    const noteParts = [
+      `Converted from estimate ${estimate.estimate_number}`,
+      `Quote Total: ${new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(estimate.total_amount)}`,
+    ];
+    
+    if (estimate.client_email) {
+      noteParts.push(`Client Email: ${estimate.client_email}`);
+    }
+    if (estimate.client_phone) {
+      noteParts.push(`Client Phone: ${estimate.client_phone}`);
+    }
+    if (estimate.description) {
+      noteParts.push(`\nScope: ${estimate.description}`);
+    }
+    if (estimate.notes) {
+      noteParts.push(`\nTerms/Notes: ${estimate.notes}`);
     }
 
     return {
@@ -167,7 +202,10 @@ export default function AdminEstimates() {
       site_address: estimate.site_address,
       builder_client: estimate.client_name,
       estimated_m3: estimatedM3,
-      job_notes: `Converted from estimate ${estimate.estimate_number}\n\n${estimate.description || ""}`.trim(),
+      mpa_strength: mpaStrength,
+      slump: slump,
+      finish_type: finishType,
+      job_notes: noteParts.join("\n").trim(),
     };
   };
 
@@ -177,7 +215,7 @@ export default function AdminEstimates() {
     navigate("/admin/jobs", { state: { createJobFromEstimate: jobData } });
     toast({
       title: "Ready to create job",
-      description: "Fill in the remaining details and create the job.",
+      description: "All estimate details have been pre-filled.",
     });
   };
 
