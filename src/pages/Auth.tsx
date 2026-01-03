@@ -280,7 +280,46 @@ export default function Auth() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="password">Password</Label>
+                  {authMode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!email) {
+                          toast({
+                            title: "Email required",
+                            description: "Please enter your email address first.",
+                            variant: "destructive",
+                          });
+                          return;
+                        }
+                        setLoading(true);
+                        supabase.auth.resetPasswordForEmail(email, {
+                          redirectTo: `${window.location.origin}/auth`,
+                        }).then(({ error }) => {
+                          if (error) {
+                            toast({
+                              title: "Error",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                          } else {
+                            toast({
+                              title: "Password reset email sent",
+                              description: "Check your email for a link to reset your password.",
+                            });
+                          }
+                          setLoading(false);
+                        });
+                      }}
+                      className="text-xs text-primary hover:underline"
+                      disabled={loading}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
                 <Input
                   id="password"
                   type="password"
@@ -332,9 +371,19 @@ export default function Auth() {
             )}
             
             {isNativeDevice && authMode === "login" && (
-              <p className="mt-4 text-center text-xs text-muted-foreground">
-                To create an account, please visit pourhub.com.au on a web browser.
-              </p>
+              <div className="mt-4 space-y-3">
+                <p className="text-center text-xs text-muted-foreground">
+                  To create an account, please visit pourhub.com.au on a web browser.
+                </p>
+                <div className="flex justify-center gap-4 text-xs">
+                  <Link to="/privacy" className="text-primary hover:underline">
+                    Privacy Policy
+                  </Link>
+                  <Link to="/terms" className="text-primary hover:underline">
+                    Terms of Service
+                  </Link>
+                </div>
+              </div>
             )}
             
             {authMode !== "login" && (
