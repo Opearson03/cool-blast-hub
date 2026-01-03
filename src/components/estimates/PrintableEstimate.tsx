@@ -52,96 +52,39 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     return (
       <div
         ref={ref}
-        className="print-container bg-white text-black"
-        style={{ fontFamily: "Arial, sans-serif" }}
+        className="print-container"
+        style={{ 
+          fontFamily: "Arial, sans-serif",
+          backgroundColor: "white",
+          color: "black"
+        }}
       >
         <style>{`
-          @media print {
-            /* Hide everything except the print container */
-            html, body {
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
-              -webkit-print-color-adjust: exact !important;
-              print-color-adjust: exact !important;
-            }
-            
-            /* Hide the entire app and dialog backdrop */
-            body > div:first-child,
-            [role="dialog"],
-            [data-radix-dialog-overlay],
-            [data-radix-dialog-content],
-            .no-print,
-            nav,
-            header,
-            aside,
-            footer:not(.print-footer) {
-              display: none !important;
-              visibility: hidden !important;
-            }
-            
-            /* Show only the print container */
-            body > .print-estimate-portal {
-              display: block !important;
-              visibility: visible !important;
-              position: absolute !important;
-              top: 0 !important;
-              left: 0 !important;
-              width: 100% !important;
-              background: white !important;
-              z-index: 999999 !important;
-            }
-            
-            .print-container {
-              display: block !important;
-              visibility: visible !important;
-              position: absolute !important;
-              top: 0 !important;
-              left: 0 !important;
-              width: 100% !important;
-              max-width: none !important;
-              margin: 0 !important;
-              padding: 0 !important;
-              background: white !important;
-              color: black !important;
-              z-index: 999999 !important;
-            }
-            
-            @page {
-              size: A4;
-              margin: 15mm 20mm;
-            }
-            
-            .page-break-avoid {
-              page-break-inside: avoid;
-              break-inside: avoid;
-            }
-          }
-          
           @media screen {
             .print-container {
               max-width: 210mm;
               margin: 0 auto;
               padding: 20px;
-              background: white;
+              background: white !important;
               box-shadow: 0 0 10px rgba(0,0,0,0.1);
             }
+          }
+          
+          .page-break-avoid {
+            page-break-inside: avoid;
+            break-inside: avoid;
           }
         `}</style>
 
         {/* Header with Logo */}
-        <div className="page-break-avoid flex items-start justify-between border-b-2 border-gray-800 pb-4 mb-6">
+        <div className="page-break-avoid flex items-start justify-between pb-4 mb-6" style={{ borderBottom: "2px solid #1f2937" }}>
           <div className="flex items-start gap-4">
-            {business?.logo_url ? (
+            {business?.logo_url && (
               <img
                 src={business.logo_url}
                 alt="Company logo"
-                className="h-16 w-16 object-contain"
+                style={{ height: "64px", width: "64px", objectFit: "contain" }}
               />
-            ) : (
-              <div className="h-16 w-16 bg-gray-200 flex items-center justify-center text-gray-400 text-xs rounded">
-                Logo
-              </div>
             )}
             <div>
               <h1 className="text-xl font-bold text-gray-900">{business?.name || "Company Name"}</h1>
