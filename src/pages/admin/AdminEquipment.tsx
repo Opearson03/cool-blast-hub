@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EquipmentFormDialog } from "@/components/equipment/EquipmentFormDialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, Wrench, AlertTriangle, CheckCircle, RotateCcw } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Wrench, AlertTriangle, CheckCircle, RotateCcw, Calendar } from "lucide-react";
 import { format, differenceInDays, isPast, addDays } from "date-fns";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -285,86 +285,142 @@ export default function AdminEquipment() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <div className="overflow-x-auto">
-            <Table className="min-w-[600px]">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="whitespace-nowrap">Name</TableHead>
-                  <TableHead className="hidden md:table-cell whitespace-nowrap">Serial #</TableHead>
-                  <TableHead className="hidden md:table-cell whitespace-nowrap">Last Service</TableHead>
-                  <TableHead className="whitespace-nowrap">Service Status</TableHead>
-                  <TableHead className="text-right whitespace-nowrap">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredEquipment?.map((item) => {
-                  const status = getServiceStatus(item);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell>
-                        <div>
-                          <div className="font-medium">{item.name}</div>
-                          <div className="text-sm text-muted-foreground md:hidden">
-                            {item.serial_number || "—"}
-                          </div>
+          <>
+            {/* Mobile: Card layout */}
+            <div className="sm:hidden space-y-3">
+              {filteredEquipment?.map((item) => {
+                const status = getServiceStatus(item);
+                return (
+                  <Card key={item.id}>
+                    <CardContent className="p-3">
+                      <div className="flex items-start justify-between gap-2 mb-2">
+                        <div className="min-w-0">
+                          <h4 className="font-semibold truncate">{item.name}</h4>
+                          {item.serial_number && (
+                            <p className="text-sm text-muted-foreground">S/N: {item.serial_number}</p>
+                          )}
                         </div>
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {item.serial_number || "—"}
-                      </TableCell>
-                      <TableCell className="hidden md:table-cell">
-                        {item.last_service_date
-                          ? format(new Date(item.last_service_date), "dd MMM yyyy")
-                          : "—"}
-                      </TableCell>
-                      <TableCell>
                         <ServiceStatusBadge status={status} />
-                        {item.next_service_date && status !== "unknown" && (
-                          <div className="text-xs text-muted-foreground mt-1">
-                            {status === "overdue"
-                              ? `Was due ${format(new Date(item.next_service_date), "dd MMM")}`
-                              : `Due ${format(new Date(item.next_service_date), "dd MMM")}`}
+                      </div>
+                      
+                      <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
+                        {item.last_service_date && (
+                          <div className="flex items-center gap-1">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>Last: {format(new Date(item.last_service_date), "d MMM yyyy")}</span>
                           </div>
                         )}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => serviceMutation.mutate(item)}
-                            disabled={serviceMutation.isPending}
-                            className="touch-target text-success hover:text-success hover:bg-success/10"
-                            title="Mark as Serviced"
-                          >
-                            <RotateCcw className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(item)}
-                            className="touch-target"
-                          >
-                            <Pencil className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteEquipment(item)}
-                            className="touch-target text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        {item.next_service_date && status !== "unknown" && (
+                          <span className={status === "overdue" ? "text-destructive" : status === "due-soon" ? "text-warning" : ""}>
+                            {status === "overdue" ? "Was due" : "Due"}: {format(new Date(item.next_service_date), "d MMM")}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-end gap-1 pt-2 border-t border-border/50">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => serviceMutation.mutate(item)}
+                          disabled={serviceMutation.isPending}
+                          className="text-success hover:text-success"
+                        >
+                          <RotateCcw className="w-4 h-4 mr-1" />
+                          Service
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(item)}
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive"
+                          onClick={() => setDeleteEquipment(item)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
-          </Card>
+
+            {/* Desktop: Table layout */}
+            <Card className="hidden sm:block">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Serial #</TableHead>
+                    <TableHead>Last Service</TableHead>
+                    <TableHead>Service Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredEquipment?.map((item) => {
+                    const status = getServiceStatus(item);
+                    return (
+                      <TableRow key={item.id}>
+                        <TableCell className="font-medium">{item.name}</TableCell>
+                        <TableCell>{item.serial_number || "—"}</TableCell>
+                        <TableCell>
+                          {item.last_service_date
+                            ? format(new Date(item.last_service_date), "dd MMM yyyy")
+                            : "—"}
+                        </TableCell>
+                        <TableCell>
+                          <ServiceStatusBadge status={status} />
+                          {item.next_service_date && status !== "unknown" && (
+                            <div className="text-xs text-muted-foreground mt-1">
+                              {status === "overdue"
+                                ? `Was due ${format(new Date(item.next_service_date), "dd MMM")}`
+                                : `Due ${format(new Date(item.next_service_date), "dd MMM")}`}
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => serviceMutation.mutate(item)}
+                              disabled={serviceMutation.isPending}
+                              className="text-success hover:text-success hover:bg-success/10"
+                              title="Mark as Serviced"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEdit(item)}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteEquipment(item)}
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </Card>
+          </>
         )}
       </div>
 
