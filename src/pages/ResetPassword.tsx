@@ -8,8 +8,10 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Eye, EyeOff, Lock, CheckCircle2 } from "lucide-react";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { usePlatform } from "@/hooks/usePlatform";
 
 const ResetPassword = () => {
+  const { isNative } = usePlatform();
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -147,7 +149,7 @@ const ResetPassword = () => {
           title="Password Reset Successful | PourHub"
           description="Your password has been successfully reset."
         />
-        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <div className="min-h-screen flex items-center justify-center bg-background p-4" style={isNative ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}>
           <Card className="w-full max-w-md">
             <CardContent className="pt-6 text-center">
               <CheckCircle2 className="h-16 w-16 text-primary mx-auto mb-4" />
@@ -171,7 +173,7 @@ const ResetPassword = () => {
         title="Reset Password | PourHub"
         description="Create a new password for your PourHub account."
       />
-      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <div className="min-h-screen flex items-center justify-center bg-background p-4" style={isNative ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}>
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto mb-4 p-3 bg-primary/10 rounded-full w-fit">
