@@ -11,6 +11,7 @@ import Signup from "./pages/Signup";
 import SignupSuccess from "./pages/SignupSuccess";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsConditions from "./pages/TermsConditions";
+import ResetPassword from "./pages/ResetPassword";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminJobs from "./pages/admin/AdminJobs";
 import AdminJobDetail from "./pages/admin/AdminJobDetail";
@@ -41,6 +42,7 @@ const AppContent = () => {
       <Route path="/auth" element={<Auth />} />
       <Route path="/signup" element={<Signup />} />
       <Route path="/signup/success" element={<SignupSuccess />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsConditions />} />
       
