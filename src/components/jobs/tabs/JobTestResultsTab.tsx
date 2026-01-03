@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FlaskConical, Plus, CheckCircle, XCircle, AlertTriangle, Pencil, Trash2, FileText, ExternalLink } from "lucide-react";
+import { FlaskConical, Plus, CheckCircle, XCircle, AlertTriangle, Pencil, Trash2, FileText, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { TestResultFormDialog } from "@/components/jobs/TestResultFormDialog";
@@ -166,15 +166,98 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
         </Card>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile: Card layout */}
+      <div className="sm:hidden space-y-3">
+        {tests.map((test) => {
+          const pourName = getPourName((test as any).pour_id);
+          return (
+            <Card key={test.id}>
+              <CardContent className="p-3">
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-sm font-medium">{test.test_id}</span>
+                      <Badge variant="outline" className="text-xs">
+                        {testTypeLabels[test.test_type] || test.test_type}
+                      </Badge>
+                    </div>
+                    {pourName && (
+                      <p className="text-xs text-muted-foreground mt-1">Pour: {pourName}</p>
+                    )}
+                  </div>
+                  {test.passed === true && (
+                    <Badge className="bg-success/20 text-success border-success/30 shrink-0">Pass</Badge>
+                  )}
+                  {test.passed === false && (
+                    <Badge variant="destructive" className="shrink-0">Fail</Badge>
+                  )}
+                  {test.passed === null && (
+                    <Badge variant="secondary" className="shrink-0">Pending</Badge>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-2 text-sm mb-2">
+                  <div>
+                    <span className="text-muted-foreground">Target: </span>
+                    <span className="font-medium">{test.target_strength ? `${test.target_strength} MPa` : "—"}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Actual: </span>
+                    <span className="font-medium">{test.actual_strength ? `${test.actual_strength} MPa` : "—"}</span>
+                  </div>
+                </div>
+
+                {test.test_date && (
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+                    <Calendar className="w-3 h-3" />
+                    <span>Tested: {format(new Date(test.test_date), "d MMM yyyy")}</span>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-1 pt-1 border-t border-border/50">
+                  {test.lab_report_url && (
+                    <Button variant="ghost" size="sm" asChild>
+                      <a href={test.lab_report_url} target="_blank" rel="noopener noreferrer">
+                        <FileText className="h-4 w-4 mr-1 text-primary" />
+                        Report
+                      </a>
+                    </Button>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setEditTest(test);
+                      setFormOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => setDeleteId(test.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      {/* Desktop: Table layout */}
+      <Card className="hidden sm:block">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Test ID</TableHead>
               <TableHead>Type</TableHead>
-              <TableHead className="hidden md:table-cell">Pour</TableHead>
-              <TableHead className="hidden md:table-cell">Test Date</TableHead>
+              <TableHead>Pour</TableHead>
+              <TableHead>Test Date</TableHead>
               <TableHead>Target</TableHead>
               <TableHead>Actual</TableHead>
               <TableHead>Result</TableHead>
@@ -188,7 +271,7 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
                 <TableRow key={test.id}>
                   <TableCell className="font-mono text-sm">{test.test_id}</TableCell>
                   <TableCell>{testTypeLabels[test.test_type] || test.test_type}</TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  <TableCell>
                     {pourName ? (
                       <Badge variant="outline" className="text-xs">
                         {pourName}
@@ -197,7 +280,7 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
                       "—"
                     )}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  <TableCell>
                     {test.test_date ? format(new Date(test.test_date), "d MMM yyyy") : "—"}
                   </TableCell>
                   <TableCell>{test.target_strength ? `${test.target_strength} MPa` : "—"}</TableCell>
