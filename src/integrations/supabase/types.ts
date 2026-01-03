@@ -456,6 +456,7 @@ export type Database = {
           created_by: string | null
           description: string | null
           estimate_number: string | null
+          estimate_type: string
           id: string
           notes: string | null
           site_address: string
@@ -473,6 +474,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           estimate_number?: string | null
+          estimate_type?: string
           id?: string
           notes?: string | null
           site_address: string
@@ -490,6 +492,7 @@ export type Database = {
           created_by?: string | null
           description?: string | null
           estimate_number?: string | null
+          estimate_type?: string
           id?: string
           notes?: string | null
           site_address?: string
