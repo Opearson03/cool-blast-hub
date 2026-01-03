@@ -121,7 +121,7 @@ export function DroppablePourDay({
     <div
       ref={setNodeRef}
       className={cn(
-        "border rounded-lg p-1.5 min-h-[80px] sm:min-h-[100px] transition-colors",
+        "border rounded-lg p-1 sm:p-1.5 min-h-[60px] sm:min-h-[100px] transition-colors",
         isOver && "border-primary bg-primary/5",
         today && "border-primary/50 bg-primary/5",
         !isCurrentMonth && "opacity-40"
@@ -131,7 +131,7 @@ export function DroppablePourDay({
         <div
           className={cn(
             "text-xs font-medium",
-            today && "bg-primary text-primary-foreground w-6 h-6 rounded-full flex items-center justify-center"
+            today && "bg-primary text-primary-foreground w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs"
           )}
         >
           {format(date, "d")}
@@ -140,7 +140,36 @@ export function DroppablePourDay({
           <Palmtree className="w-3 h-3 text-amber-500" />
         )}
       </div>
-      <div className="space-y-1">
+      
+      {/* Mobile: Show dots/count indicator */}
+      <div className="sm:hidden">
+        {pours.length > 0 && (
+          <div className="flex flex-wrap gap-0.5 justify-center">
+            {pours.slice(0, 4).map((pour) => (
+              <div
+                key={pour.id}
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  pour.status === "completed" ? "bg-green-500" :
+                  pour.status === "in_progress" ? "bg-orange-500" : "bg-blue-500"
+                )}
+                onClick={() => onPourClick?.(pour)}
+              />
+            ))}
+            {pours.length > 4 && (
+              <span className="text-[10px] text-muted-foreground">+{pours.length - 4}</span>
+            )}
+          </div>
+        )}
+        {pours.length > 0 && (
+          <p className="text-[10px] text-center text-muted-foreground mt-0.5 truncate">
+            {pours.length} {pours.length === 1 ? "pour" : "pours"}
+          </p>
+        )}
+      </div>
+
+      {/* Desktop: Show pour cards */}
+      <div className="hidden sm:block space-y-1">
         {pours.slice(0, 2).map((pour) => (
           <DraggablePour key={pour.id} pour={pour} compact onClick={onPourClick} />
         ))}
