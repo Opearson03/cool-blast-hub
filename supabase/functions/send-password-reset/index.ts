@@ -35,12 +35,15 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Use the provided redirectTo or default to the reset-password page
+    const resetRedirect = redirectTo || "https://pourhub.com.au/reset-password";
+    
     // Generate password reset link using Supabase Admin API
     const { data, error: resetError } = await supabase.auth.admin.generateLink({
       type: "recovery",
       email: email,
       options: {
-        redirectTo: redirectTo || "https://pourhub.com.au/auth",
+        redirectTo: resetRedirect,
       },
     });
 
