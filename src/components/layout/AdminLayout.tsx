@@ -40,7 +40,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {/* Mobile Header */}
       <header 
         className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between"
-        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 12px)' } : undefined}
+        style={isNative ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}
       >
         <Link to="/admin" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg overflow-hidden">
@@ -58,7 +58,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-40 bg-background" style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 56px)' } : { paddingTop: '64px' }}>
+        <div className="lg:hidden fixed inset-0 z-40 bg-background" style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 48px)' } : { paddingTop: '56px' }}>
           <nav className="p-4 space-y-2">
             {navItems.map((item) => (
               <Link
@@ -118,8 +118,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Main Content */}
       <main 
-        className="lg:ml-64 p-4 lg:p-6"
-        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 72px)' } : { paddingTop: '64px' }}
+        className="lg:ml-64 p-4 lg:p-6 overflow-x-hidden"
+        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 56px)' } : { paddingTop: '56px' }}
       >
         {children}
       </main>

@@ -308,7 +308,7 @@ export default function AdminEmployees() {
   return (
     <AdminLayout>
       <PullToRefresh onRefresh={handleRefresh} className="h-full">
-      <div className="space-y-4">
+      <div className="space-y-4 max-w-full overflow-x-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold">Employees</h1>
           <Button onClick={() => setIsInviteOpen(true)} className="touch-target">
