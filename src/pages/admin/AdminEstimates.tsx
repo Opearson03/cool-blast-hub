@@ -421,7 +421,7 @@ export default function AdminEstimates() {
                           </td>
                           <td className="p-4 text-muted-foreground">{formatDate(estimate.created_at)}</td>
                           <td className="p-4 text-muted-foreground">{formatDate(estimate.valid_until)}</td>
-                          <td className="p-4">
+                          <td className="p-4 w-12">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                 <Button variant="ghost" size="icon" className="h-8 w-8">
