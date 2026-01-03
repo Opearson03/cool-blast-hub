@@ -211,8 +211,8 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
         </DialogHeader>
 
         <div className="space-y-6 no-print">
-          {/* Convert to Job - for accepted estimates */}
-          {estimate.status === "accepted" && onConvertToJob && (
+          {/* Convert to Job - always available */}
+          {onConvertToJob && (
             <Button 
               onClick={() => {
                 onConvertToJob(estimate);
