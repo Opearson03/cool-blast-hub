@@ -366,73 +366,71 @@ export default function AdminEmployees() {
                   return (
                     <Card key={invite.id} className="border-dashed">
                       <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3">
-                            <Avatar className="h-10 w-10">
-                              <AvatarFallback className="bg-muted text-muted-foreground text-sm">
-                                {initials}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-semibold">{invite.full_name}</h3>
-                                <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-                                  Pending
-                                </Badge>
-                                <Badge variant={invite.role === "admin" ? "default" : "secondary"}>
-                                  {invite.role}
-                                </Badge>
-                              </div>
-                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                                <Mail className="w-3 h-3" />
-                                <span>{invite.email}</span>
-                              </div>
-                              {invitedAgo && (
-                                <p className="text-xs text-muted-foreground mt-1">
-                                  Invited {invitedAgo}
-                                </p>
-                              )}
+                        <div className="flex items-start gap-3">
+                          <Avatar className="h-10 w-10 shrink-0">
+                            <AvatarFallback className="bg-muted text-muted-foreground text-sm">
+                              {initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <h3 className="font-semibold">{invite.full_name}</h3>
+                              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
+                                Pending
+                              </Badge>
+                              <Badge variant={invite.role === "admin" ? "default" : "secondary"}>
+                                {invite.role}
+                              </Badge>
                             </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleResendInvite(invite)}
-                              disabled={resendingId === invite.id || deletingId === invite.id}
-                            >
-                              <RefreshCw className={`w-4 h-4 mr-1 ${resendingId === invite.id ? 'animate-spin' : ''}`} />
-                              Resend
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="text-destructive hover:text-destructive"
-                                  disabled={deletingId === invite.id}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Cancel Invite</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Are you sure you want to cancel the invite for {invite.full_name}? They will no longer be able to sign up.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Keep Invite</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(invite.id, "invite")}
-                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                              <Mail className="w-3 h-3 shrink-0" />
+                              <span className="truncate">{invite.email}</span>
+                            </div>
+                            {invitedAgo && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Invited {invitedAgo}
+                              </p>
+                            )}
+                            <div className="flex gap-2 mt-3">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleResendInvite(invite)}
+                                disabled={resendingId === invite.id || deletingId === invite.id}
+                              >
+                                <RefreshCw className={`w-4 h-4 mr-1 ${resendingId === invite.id ? 'animate-spin' : ''}`} />
+                                Resend
+                              </Button>
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="text-destructive hover:text-destructive"
+                                    disabled={deletingId === invite.id}
                                   >
-                                    Cancel Invite
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle>Cancel Invite</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                      Are you sure you want to cancel the invite for {invite.full_name}? They will no longer be able to sign up.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel>Keep Invite</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      onClick={() => handleDelete(invite.id, "invite")}
+                                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                    >
+                                      Cancel Invite
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            </div>
                           </div>
                         </div>
                       </CardContent>
