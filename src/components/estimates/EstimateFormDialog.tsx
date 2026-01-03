@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Calculator, FileText } from "lucide-react";
+import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight } from "lucide-react";
 
 interface Estimate {
   id: string;
@@ -58,6 +58,31 @@ interface ConcreteDetails {
   mpaStrength: string;
   slump: string;
   wastagePercent: string;
+}
+
+// Australian standard reo mesh sizes (all 6m x 2.4m = 14.4m² coverage)
+const REO_MESH_TYPES = [
+  { id: "SL62", label: "SL62 (6.0mm wire)", size: "6m x 2.4m", area: 14.4, defaultPrice: 45 },
+  { id: "SL72", label: "SL72 (7.0mm wire)", size: "6m x 2.4m", area: 14.4, defaultPrice: 55 },
+  { id: "SL82", label: "SL82 (8.0mm wire)", size: "6m x 2.4m", area: 14.4, defaultPrice: 70 },
+  { id: "SL92", label: "SL92 (9.0mm wire)", size: "6m x 2.4m", area: 14.4, defaultPrice: 90 },
+  { id: "SL102", label: "SL102 (10.0mm wire)", size: "6m x 2.4m", area: 14.4, defaultPrice: 110 },
+  { id: "RL718", label: "RL718 (7mm x 200)", size: "6m x 2.4m", area: 14.4, defaultPrice: 48 },
+  { id: "RL818", label: "RL818 (8mm x 200)", size: "6m x 2.4m", area: 14.4, defaultPrice: 62 },
+  { id: "RL918", label: "RL918 (9mm x 200)", size: "6m x 2.4m", area: 14.4, defaultPrice: 78 },
+  { id: "RL1018", label: "RL1018 (10mm x 200)", size: "6m x 2.4m", area: 14.4, defaultPrice: 95 },
+  { id: "F62", label: "F62 Trench Mesh", size: "6m x 0.2m", area: 1.2, defaultPrice: 12 },
+  { id: "F72", label: "F72 Trench Mesh", size: "6m x 0.3m", area: 1.8, defaultPrice: 18 },
+  { id: "F82", label: "F82 Trench Mesh", size: "6m x 0.4m", area: 2.4, defaultPrice: 24 },
+];
+
+interface ReoDetails {
+  meshType: string;
+  pricePerSheet: string;
+  overlapPercent: string;
+  includeBarChairs: boolean;
+  barChairsPerM2: string;
+  barChairPrice: string;
 }
 
 interface LabourItem {
@@ -113,18 +138,48 @@ const initialConcreteDetails: ConcreteDetails = {
   wastagePercent: "5",
 };
 
+const initialReoDetails: ReoDetails = {
+  meshType: "SL82",
+  pricePerSheet: "70",
+  overlapPercent: "10",
+  includeBarChairs: true,
+  barChairsPerM2: "4",
+  barChairPrice: "0.50",
+};
+
+type TabId = "details" | "slab" | "labour" | "summary";
+
 export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [slab, setSlab] = useState<SlabDimensions>(initialSlabDimensions);
   const [concrete, setConcrete] = useState<ConcreteDetails>(initialConcreteDetails);
+  const [reo, setReo] = useState<ReoDetails>(initialReoDetails);
   const [labourItems, setLabourItems] = useState<LabourItem[]>([
     { id: "1", description: "Concreting labour", hours: "", hourlyRate: "85" },
   ]);
   const [materialItems, setMaterialItems] = useState<MaterialItem[]>([]);
-  const [activeTab, setActiveTab] = useState("details");
+  const [activeTab, setActiveTab] = useState<TabId>("details");
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(new Set(["details"]));
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const tabOrder: TabId[] = ["details", "slab", "labour", "summary"];
+
+  // Track visited tabs
+  useEffect(() => {
+    setVisitedTabs(prev => new Set([...prev, activeTab]));
+  }, [activeTab]);
+
+  // Check if all tabs have been visited
+  const allTabsVisited = useMemo(() => {
+    return tabOrder.every(tab => visitedTabs.has(tab));
+  }, [visitedTabs]);
+
+  // Get selected mesh type details
+  const selectedMesh = useMemo(() => {
+    return REO_MESH_TYPES.find(m => m.id === reo.meshType) || REO_MESH_TYPES[2];
+  }, [reo.meshType]);
 
   // Calculate slab area in m²
   const slabArea = useMemo(() => {
@@ -157,6 +212,35 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return volumeWithWastage * pricePerM3;
   }, [volumeWithWastage, concrete.pricePerM3]);
 
+  // Reo calculations
+  const reoCalculations = useMemo(() => {
+    if (slabArea <= 0) return { sheets: 0, cost: 0, barChairs: 0, barChairCost: 0 };
+    
+    const overlapFactor = 1 + (parseFloat(reo.overlapPercent) || 0) / 100;
+    const areaWithOverlap = slabArea * overlapFactor;
+    const sheetsNeeded = Math.ceil(areaWithOverlap / selectedMesh.area);
+    const pricePerSheet = parseFloat(reo.pricePerSheet) || 0;
+    const reoCost = sheetsNeeded * pricePerSheet;
+    
+    // Bar chairs
+    const barChairsPerM2 = parseFloat(reo.barChairsPerM2) || 0;
+    const barChairPrice = parseFloat(reo.barChairPrice) || 0;
+    const totalBarChairs = reo.includeBarChairs ? Math.ceil(slabArea * barChairsPerM2) : 0;
+    const barChairCost = totalBarChairs * barChairPrice;
+    
+    return { 
+      sheets: sheetsNeeded, 
+      cost: reoCost, 
+      barChairs: totalBarChairs,
+      barChairCost 
+    };
+  }, [slabArea, reo, selectedMesh]);
+
+  // Total reo cost
+  const totalReoCost = useMemo(() => {
+    return reoCalculations.cost + reoCalculations.barChairCost;
+  }, [reoCalculations]);
+
   // Labour cost
   const labourCost = useMemo(() => {
     return labourItems.reduce((total, item) => {
@@ -177,8 +261,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
   // Subtotal
   const subtotal = useMemo(() => {
-    return concreteCost + labourCost + materialsCost;
-  }, [concreteCost, labourCost, materialsCost]);
+    return concreteCost + totalReoCost + labourCost + materialsCost;
+  }, [concreteCost, totalReoCost, labourCost, materialsCost]);
 
   // Markup amount
   const markupAmount = useMemo(() => {
@@ -192,25 +276,47 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   }, [subtotal, markupAmount]);
 
   useEffect(() => {
-    if (editEstimate) {
-      setFormData({
-        client_name: editEstimate.client_name,
-        client_email: editEstimate.client_email || "",
-        client_phone: editEstimate.client_phone || "",
-        site_address: editEstimate.site_address,
-        description: editEstimate.description || "",
-        valid_until: editEstimate.valid_until || "",
-        notes: editEstimate.notes || "",
-        markupPercent: "15",
-      });
-    } else {
-      setFormData(initialFormData);
-      setSlab(initialSlabDimensions);
-      setConcrete(initialConcreteDetails);
-      setLabourItems([{ id: "1", description: "Concreting labour", hours: "", hourlyRate: "85" }]);
-      setMaterialItems([]);
+    if (open) {
+      if (editEstimate) {
+        setFormData({
+          client_name: editEstimate.client_name,
+          client_email: editEstimate.client_email || "",
+          client_phone: editEstimate.client_phone || "",
+          site_address: editEstimate.site_address,
+          description: editEstimate.description || "",
+          valid_until: editEstimate.valid_until || "",
+          notes: editEstimate.notes || "",
+          markupPercent: "15",
+        });
+        // For edit mode, allow immediate creation
+        setVisitedTabs(new Set(tabOrder));
+      } else {
+        setFormData(initialFormData);
+        setSlab(initialSlabDimensions);
+        setConcrete(initialConcreteDetails);
+        setReo(initialReoDetails);
+        setLabourItems([{ id: "1", description: "Concreting labour", hours: "", hourlyRate: "85" }]);
+        setMaterialItems([]);
+        setVisitedTabs(new Set(["details"]));
+        setActiveTab("details");
+      }
     }
   }, [editEstimate, open]);
+
+  // Update reo price when mesh type changes
+  useEffect(() => {
+    const mesh = REO_MESH_TYPES.find(m => m.id === reo.meshType);
+    if (mesh) {
+      setReo(prev => ({ ...prev, pricePerSheet: mesh.defaultPrice.toString() }));
+    }
+  }, [reo.meshType]);
+
+  const goToNextTab = () => {
+    const currentIndex = tabOrder.indexOf(activeTab);
+    if (currentIndex < tabOrder.length - 1) {
+      setActiveTab(tabOrder[currentIndex + 1]);
+    }
+  };
 
   const addLabourItem = () => {
     setLabourItems([...labourItems, { 
@@ -280,6 +386,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       if (volumeWithWastage > 0) {
         descriptionParts.push(`Concrete: ${volumeWithWastage.toFixed(2)}m³ @ ${concrete.mpaStrength}MPa`);
       }
+      if (reoCalculations.sheets > 0) {
+        descriptionParts.push(`Reo: ${reoCalculations.sheets} sheets ${selectedMesh.id}`);
+      }
       if (formData.description) {
         descriptionParts.push(formData.description);
       }
@@ -325,6 +434,11 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     e.preventDefault();
     if (!formData.client_name || !formData.site_address) {
       toast({ title: "Please fill in client name and site address", variant: "destructive" });
+      setActiveTab("details");
+      return;
+    }
+    if (!allTabsVisited) {
+      toast({ title: "Please complete all tabs before creating the estimate", variant: "destructive" });
       return;
     }
     mutation.mutate();
@@ -337,6 +451,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     }));
   };
 
+  const getTabIcon = (tab: TabId) => {
+    if (visitedTabs.has(tab) && tab !== activeTab) {
+      return <Check className="w-4 h-4 text-green-500" />;
+    }
+    return null;
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
@@ -347,17 +468,29 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="details">
-              <FileText className="w-4 h-4 mr-2 hidden sm:inline" />
-              Details
+            <TabsTrigger value="details" className="gap-1">
+              {getTabIcon("details")}
+              <FileText className="w-4 h-4 hidden sm:inline" />
+              <span className="hidden sm:inline">Details</span>
+              <span className="sm:hidden">1</span>
             </TabsTrigger>
-            <TabsTrigger value="slab">
-              <span className="hidden sm:inline">Slab &</span> Concrete
+            <TabsTrigger value="slab" className="gap-1">
+              {getTabIcon("slab")}
+              <span className="hidden sm:inline">Slab & Reo</span>
+              <span className="sm:hidden">2</span>
             </TabsTrigger>
-            <TabsTrigger value="labour">Labour</TabsTrigger>
-            <TabsTrigger value="summary">Summary</TabsTrigger>
+            <TabsTrigger value="labour" className="gap-1">
+              {getTabIcon("labour")}
+              <span className="hidden sm:inline">Labour</span>
+              <span className="sm:hidden">3</span>
+            </TabsTrigger>
+            <TabsTrigger value="summary" className="gap-1">
+              {getTabIcon("summary")}
+              <span className="hidden sm:inline">Summary</span>
+              <span className="sm:hidden">4</span>
+            </TabsTrigger>
           </TabsList>
 
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto mt-4">
@@ -434,6 +567,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     onChange={handleChange}
                   />
                 </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <Button type="button" onClick={goToNextTab} className="gap-2">
+                  Next: Slab & Reo <ChevronRight className="w-4 h-4" />
+                </Button>
               </div>
             </TabsContent>
 
@@ -526,7 +665,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               {/* Concrete Details */}
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Concrete Details</CardTitle>
+                  <CardTitle className="text-base">Concrete</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
@@ -610,6 +749,122 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                   )}
                 </CardContent>
               </Card>
+
+              {/* Reo Calculator */}
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Reinforcement (Reo)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Mesh Type</Label>
+                      <Select
+                        value={reo.meshType}
+                        onValueChange={(value) => setReo(prev => ({ ...prev, meshType: value }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {REO_MESH_TYPES.map(mesh => (
+                            <SelectItem key={mesh.id} value={mesh.id}>
+                              {mesh.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Sheet size: {selectedMesh.size} ({selectedMesh.area}m² coverage)
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Price per Sheet ($)</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        value={reo.pricePerSheet}
+                        onChange={(e) => setReo(prev => ({ ...prev, pricePerSheet: e.target.value }))}
+                        placeholder="e.g., 70"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Overlap Allowance (%)</Label>
+                    <Input
+                      type="number"
+                      step="1"
+                      min="0"
+                      max="30"
+                      value={reo.overlapPercent}
+                      onChange={(e) => setReo(prev => ({ ...prev, overlapPercent: e.target.value }))}
+                      placeholder="e.g., 10"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Accounts for overlaps between sheets (typically 10-15%)
+                    </p>
+                  </div>
+
+                  <div className="border-t border-border pt-4 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        id="includeBarChairs"
+                        checked={reo.includeBarChairs}
+                        onChange={(e) => setReo(prev => ({ ...prev, includeBarChairs: e.target.checked }))}
+                        className="h-4 w-4 rounded border-border"
+                      />
+                      <Label htmlFor="includeBarChairs" className="cursor-pointer">Include bar chairs</Label>
+                    </div>
+
+                    {reo.includeBarChairs && (
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Chairs per m²</Label>
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={reo.barChairsPerM2}
+                            onChange={(e) => setReo(prev => ({ ...prev, barChairsPerM2: e.target.value }))}
+                            placeholder="e.g., 4"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Price each ($)</Label>
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={reo.barChairPrice}
+                            onChange={(e) => setReo(prev => ({ ...prev, barChairPrice: e.target.value }))}
+                            placeholder="e.g., 0.50"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {slabArea > 0 && (
+                    <div className="flex flex-wrap gap-2 pt-2 text-sm">
+                      <Badge variant="secondary">{reoCalculations.sheets} sheets needed</Badge>
+                      <Badge variant="secondary">Reo: {formatCurrency(reoCalculations.cost)}</Badge>
+                      {reo.includeBarChairs && reoCalculations.barChairs > 0 && (
+                        <Badge variant="secondary">{reoCalculations.barChairs} chairs: {formatCurrency(reoCalculations.barChairCost)}</Badge>
+                      )}
+                      <Badge variant="default">Total: {formatCurrency(totalReoCost)}</Badge>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <div className="flex justify-end pt-4">
+                <Button type="button" onClick={goToNextTab} className="gap-2">
+                  Next: Labour <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </TabsContent>
 
             {/* Labour & Materials Tab */}
@@ -695,7 +950,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 <CardContent className="space-y-3">
                   {materialItems.length === 0 ? (
                     <p className="text-sm text-muted-foreground text-center py-4">
-                      No additional items. Click Add to include reo, pump hire, etc.
+                      No additional items. Click Add to include pump hire, edge forms, etc.
                     </p>
                   ) : (
                     materialItems.map((item, index) => (
@@ -705,7 +960,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                           <Input
                             value={item.description}
                             onChange={(e) => updateMaterialItem(item.id, "description", e.target.value)}
-                            placeholder="e.g., Reo mesh"
+                            placeholder="e.g., Pump hire"
                           />
                         </div>
                         <div className="col-span-2 space-y-1">
@@ -770,6 +1025,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                   )}
                 </CardContent>
               </Card>
+
+              <div className="flex justify-end pt-4">
+                <Button type="button" onClick={goToNextTab} className="gap-2">
+                  Next: Summary <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
             </TabsContent>
 
             {/* Summary Tab */}
@@ -795,6 +1056,22 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                           Concrete ({volumeWithWastage.toFixed(2)}m³ @ {formatCurrency(parseFloat(concrete.pricePerM3) || 0)}/m³)
                         </span>
                         <span>{formatCurrency(concreteCost)}</span>
+                      </div>
+                    )}
+                    {reoCalculations.sheets > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Reo ({reoCalculations.sheets} x {selectedMesh.id} sheets)
+                        </span>
+                        <span>{formatCurrency(reoCalculations.cost)}</span>
+                      </div>
+                    )}
+                    {reo.includeBarChairs && reoCalculations.barChairs > 0 && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Bar chairs ({reoCalculations.barChairs} @ {formatCurrency(parseFloat(reo.barChairPrice) || 0)} ea)
+                        </span>
+                        <span>{formatCurrency(reoCalculations.barChairCost)}</span>
                       </div>
                     )}
                     {labourCost > 0 && (
@@ -859,19 +1136,29 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                   rows={3}
                 />
               </div>
-            </TabsContent>
 
-            {/* Footer */}
-            <div className="flex gap-3 pt-6 border-t border-border mt-6">
-              <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" className="flex-1" disabled={mutation.isPending}>
-                {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                {editEstimate ? "Update" : "Create"} Estimate
-                {totalAmount > 0 && ` (${formatCurrency(totalAmount)})`}
-              </Button>
-            </div>
+              {/* Footer */}
+              <div className="flex gap-3 pt-4 border-t border-border">
+                <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  type="submit" 
+                  className="flex-1" 
+                  disabled={mutation.isPending || !allTabsVisited}
+                >
+                  {mutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  {editEstimate ? "Update" : "Create"} Estimate
+                  {totalAmount > 0 && ` (${formatCurrency(totalAmount)})`}
+                </Button>
+              </div>
+
+              {!allTabsVisited && (
+                <p className="text-xs text-muted-foreground text-center">
+                  Complete all tabs to enable estimate creation
+                </p>
+              )}
+            </TabsContent>
           </form>
         </Tabs>
       </DialogContent>
