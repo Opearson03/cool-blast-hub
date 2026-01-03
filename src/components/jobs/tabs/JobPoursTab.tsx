@@ -12,7 +12,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Droplets, Plus, Pencil, Trash2 } from "lucide-react";
+import { Droplets, Plus, Pencil, Trash2, Calendar, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PourFormDialog } from "@/components/jobs/PourFormDialog";
@@ -164,15 +164,78 @@ export function JobPoursTab({ jobId }: JobPoursTabProps) {
         </Card>
       </div>
 
-      {/* Table */}
-      <Card>
+      {/* Mobile: Card layout */}
+      <div className="sm:hidden space-y-3">
+        {pours.map((pour) => (
+          <Card key={pour.id} className="overflow-hidden">
+            <CardContent className="p-3">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="min-w-0 flex-1">
+                  <h4 className="font-semibold truncate">{pour.pour_name}</h4>
+                  {pour.pour_date && (
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mt-1">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>{format(new Date(pour.pour_date), "EEE, d MMM")}</span>
+                      {pour.scheduled_time && (
+                        <>
+                          <Clock className="w-3.5 h-3.5 ml-1" />
+                          <span>{pour.scheduled_time.slice(0, 5)}</span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <Badge className={`shrink-0 ${statusColors[pour.status || "scheduled"]}`}>
+                  {statusLabels[pour.status || "scheduled"]}
+                </Badge>
+              </div>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-4 text-sm">
+                  <span className="text-muted-foreground">
+                    <span className="font-medium text-foreground">{pour.actual_m3 || pour.estimated_m3 || "—"}</span> m³
+                  </span>
+                  {pour.concrete_supplier && (
+                    <span className="text-muted-foreground truncate max-w-[120px]">
+                      {pour.concrete_supplier}
+                    </span>
+                  )}
+                </div>
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => {
+                      setEditPour(pour);
+                      setFormOpen(true);
+                    }}
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-destructive"
+                    onClick={() => setDeleteId(pour.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop: Table layout */}
+      <Card className="hidden sm:block">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Pour Name</TableHead>
-              <TableHead className="hidden md:table-cell">Date</TableHead>
+              <TableHead>Date</TableHead>
               <TableHead>m³</TableHead>
-              <TableHead className="hidden md:table-cell">Supplier</TableHead>
+              <TableHead>Supplier</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
@@ -181,14 +244,14 @@ export function JobPoursTab({ jobId }: JobPoursTabProps) {
             {pours.map((pour) => (
               <TableRow key={pour.id}>
                 <TableCell className="font-medium">{pour.pour_name}</TableCell>
-                <TableCell className="hidden md:table-cell">
+                <TableCell>
                   {pour.pour_date ? format(new Date(pour.pour_date), "d MMM yyyy") : "—"}
                   {pour.scheduled_time && ` @ ${pour.scheduled_time.slice(0, 5)}`}
                 </TableCell>
                 <TableCell>
                   {pour.actual_m3 || pour.estimated_m3 || "—"}
                 </TableCell>
-                <TableCell className="hidden md:table-cell">
+                <TableCell>
                   {pour.concrete_supplier || "—"}
                 </TableCell>
                 <TableCell>
