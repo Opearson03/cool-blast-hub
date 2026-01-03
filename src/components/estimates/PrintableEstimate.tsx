@@ -169,11 +169,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
         {/* Total */}
         <div className="page-break-avoid flex justify-end mb-8">
-          <div className="w-64">
-            <div className="border-t-2 border-gray-800 pt-3">
-              <div className="flex justify-between items-center">
+          <div className="w-72">
+            <div style={{ borderTop: "2px solid #1f2937", paddingTop: "12px" }}>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">Subtotal (ex GST)</span>
+                <span className="text-base font-medium text-gray-700">
+                  {formatCurrency(estimate.total_amount / 1.1)}
+                </span>
+              </div>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm text-gray-600">GST (10%)</span>
+                <span className="text-base font-medium text-gray-700">
+                  {formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2" style={{ borderTop: "1px solid #d1d5db" }}>
                 <span className="text-lg font-bold text-gray-900">Total (inc GST)</span>
-                <span className="text-2xl font-bold text-primary">
+                <span className="text-2xl font-bold" style={{ color: "#f97316" }}>
                   {formatCurrency(estimate.total_amount)}
                 </span>
               </div>

@@ -215,18 +215,50 @@ const handler = async (req: Request): Promise<Response> => {
       yPos += 8;
     }
 
-    // Total Amount Box
+    // Total Amount Box - Calculate GST breakdown
+    const totalAmountNum = parseFloat(totalAmount.replace(/[^0-9.-]+/g, '')) || 0;
+    const exGstAmount = totalAmountNum / 1.1;
+    const gstAmount = totalAmountNum - exGstAmount;
+    
+    const formatCurrency = (amount: number) => {
+      return new Intl.NumberFormat('en-AU', {
+        style: 'currency',
+        currency: 'AUD',
+        minimumFractionDigits: 2,
+      }).format(amount);
+    };
+
     doc.setDrawColor(51, 51, 51);
     doc.setLineWidth(0.5);
-    doc.line(pageWidth - margin - 80, yPos, pageWidth - margin, yPos);
+    doc.line(pageWidth - margin - 90, yPos, pageWidth - margin, yPos);
     yPos += 8;
 
+    // Subtotal (ex GST)
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+    doc.text("Subtotal (ex GST)", pageWidth - margin - 90, yPos);
+    doc.text(formatCurrency(exGstAmount), pageWidth - margin, yPos, { align: 'right' });
+    yPos += 6;
+
+    // GST
+    doc.text("GST (10%)", pageWidth - margin - 90, yPos);
+    doc.text(formatCurrency(gstAmount), pageWidth - margin, yPos, { align: 'right' });
+    yPos += 6;
+
+    // Divider before total
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.3);
+    doc.line(pageWidth - margin - 90, yPos, pageWidth - margin, yPos);
+    yPos += 6;
+
+    // Total (inc GST)
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
     doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text("Total (inc GST)", pageWidth - margin - 80, yPos);
+    doc.text("Total (inc GST)", pageWidth - margin - 90, yPos);
     
-    doc.setFontSize(18);
+    doc.setFontSize(16);
     doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
     doc.text(totalAmount, pageWidth - margin, yPos, { align: 'right' });
     yPos += 15;
