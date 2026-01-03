@@ -2,7 +2,7 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, Settings, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, FileText, Settings, LogOut, Menu, X } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
@@ -13,6 +13,7 @@ import { usePlatform } from "@/hooks/usePlatform";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/jobs", label: "Jobs", icon: Briefcase },
+  { href: "/admin/estimates", label: "Estimates", icon: FileText },
   { href: "/admin/schedule", label: "Schedule", icon: Calendar },
   { href: "/admin/crews", label: "Crews", icon: Users },
   { href: "/admin/employees", label: "Employees", icon: UserCheck },
