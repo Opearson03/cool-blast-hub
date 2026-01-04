@@ -143,6 +143,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [selectedScopes, setSelectedScopes] = useState<Set<ScopeType>>(new Set());
   const [scopeData, setScopeData] = useState<ScopeCalculatorData>(initialScopeData);
   const [activeScopeTab, setActiveScopeTab] = useState<ScopeType | null>(null);
+  const [visitedScopes, setVisitedScopes] = useState<Set<ScopeType>>(new Set());
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -158,6 +159,19 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const allTabsVisited = useMemo(() => {
     return tabOrder.every(tab => visitedTabs.has(tab));
   }, [visitedTabs]);
+
+  // Check if all selected scopes have been visited
+  const allScopesVisited = useMemo(() => {
+    if (selectedScopes.size === 0) return false;
+    return Array.from(selectedScopes).every(scope => visitedScopes.has(scope));
+  }, [selectedScopes, visitedScopes]);
+
+  // Track visited scope tabs
+  useEffect(() => {
+    if (activeScopeTab) {
+      setVisitedScopes(prev => new Set([...prev, activeScopeTab]));
+    }
+  }, [activeScopeTab]);
 
   // Update active scope tab when scopes change
   useEffect(() => {
@@ -259,16 +273,32 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setSelectedScopes(new Set());
         setScopeData(initialScopeData);
         setActiveScopeTab(null);
+        setVisitedScopes(new Set());
         setVisitedTabs(new Set(["details"]));
         setActiveTab("details");
       }
     }
   }, [editEstimate, open]);
 
+  const handleTabChange = (newTab: TabId) => {
+    // Block navigation to inclusions/summary if not all scopes are visited
+    if ((newTab === "inclusions" || newTab === "summary") && !allScopesVisited && selectedScopes.size > 0) {
+      toast({ 
+        title: "Complete all scopes first", 
+        description: "Please review each scope calculator before continuing.",
+        variant: "destructive" 
+      });
+      setActiveTab("scopes");
+      return;
+    }
+    setActiveTab(newTab);
+  };
+
   const goToNextTab = () => {
     const currentIndex = tabOrder.indexOf(activeTab);
     if (currentIndex < tabOrder.length - 1) {
-      setActiveTab(tabOrder[currentIndex + 1]);
+      const nextTab = tabOrder[currentIndex + 1];
+      handleTabChange(nextTab);
     }
   };
 
@@ -502,7 +532,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
         {/* Step 2: Calculator */}
         {formStep === "calculator" && (
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as TabId)} className="flex-1 overflow-hidden flex flex-col">
+        <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as TabId)} className="flex-1 overflow-hidden flex flex-col">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="details" className="gap-1">
               {getTabIcon("details")}
@@ -666,6 +696,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                         onClick={() => setActiveScopeTab(scope)}
                         className="gap-2"
                       >
+                        {visitedScopes.has(scope) && (
+                          <Check className="w-3 h-3 text-green-500" />
+                        )}
                         {getScopeLabel(scope)}
                         {scopeTotals[scope].total > 0 && (
                           <Badge variant="secondary" className="ml-1">
@@ -676,6 +709,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     ))}
                   </div>
 
+                  {/* Progress indicator */}
+                  {!allScopesVisited && (
+                    <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded-lg">
+                      Review each scope tab ({visitedScopes.size}/{selectedScopes.size} completed) before continuing to Inclusions
+                    </div>
+                  )}
+
                   {/* Active scope calculator */}
                   <div className="min-h-[400px]">
                     {activeScopeTab && renderScopeCalculator(activeScopeTab)}
@@ -684,8 +724,17 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               )}
 
               <div className="flex justify-end pt-4">
-                <Button type="button" onClick={goToNextTab} className="gap-2">
-                  Next: Inclusions <ChevronRight className="w-4 h-4" />
+                <Button 
+                  type="button" 
+                  onClick={goToNextTab} 
+                  className="gap-2"
+                  disabled={!allScopesVisited}
+                >
+                  {allScopesVisited ? (
+                    <>Next: Inclusions <ChevronRight className="w-4 h-4" /></>
+                  ) : (
+                    <>Complete All Scopes ({visitedScopes.size}/{selectedScopes.size})</>
+                  )}
                 </Button>
               </div>
             </TabsContent>
