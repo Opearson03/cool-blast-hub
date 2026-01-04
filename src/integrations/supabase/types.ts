@@ -460,6 +460,8 @@ export type Database = {
           estimate_type: string
           id: string
           notes: string | null
+          scope_data: Json | null
+          selected_scopes: Json | null
           site_address: string
           status: Database["public"]["Enums"]["estimate_status"]
           total_amount: number | null
@@ -479,6 +481,8 @@ export type Database = {
           estimate_type?: string
           id?: string
           notes?: string | null
+          scope_data?: Json | null
+          selected_scopes?: Json | null
           site_address: string
           status?: Database["public"]["Enums"]["estimate_status"]
           total_amount?: number | null
@@ -498,6 +502,8 @@ export type Database = {
           estimate_type?: string
           id?: string
           notes?: string | null
+          scope_data?: Json | null
+          selected_scopes?: Json | null
           site_address?: string
           status?: Database["public"]["Enums"]["estimate_status"]
           total_amount?: number | null

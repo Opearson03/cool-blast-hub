@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight, Eye, EyeOff, ListChecks } from "lucide-react";
 
@@ -50,6 +51,8 @@ interface Estimate {
   valid_until: string | null;
   notes: string | null;
   estimate_type?: EstimateType;
+  scope_data?: ScopeCalculatorData | null;
+  selected_scopes?: ScopeType[] | null;
 }
 
 interface EstimateFormDialogProps {
@@ -106,8 +109,8 @@ const DEFAULT_EXCLUSIONS = [
   { id: "exc_engineering", label: "Engineering certification", category: "exclusion" },
 ];
 
-// Scope calculator data types
-interface ScopeCalculatorData {
+// Scope calculator data types - exported for reuse in job conversion
+export interface ScopeCalculatorData {
   piers: PiersData;
   retaining_wall_footings: RetainingWallData;
   strip_footings: StripFootingsData;
@@ -279,6 +282,15 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setEstimateType(editEstimate.estimate_type || "driveway");
         setFormStep("calculator");
         setVisitedTabs(new Set(tabOrder));
+        
+        // Restore saved scope data if available
+        if (editEstimate.scope_data) {
+          setScopeData({ ...initialScopeData, ...editEstimate.scope_data });
+        }
+        if (editEstimate.selected_scopes && Array.isArray(editEstimate.selected_scopes)) {
+          setSelectedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
+          setVisitedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
+        }
       } else {
         // Reset everything for new estimate
         setFormStep("type_selection");
@@ -385,6 +397,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         notes: fullNotes || null,
         created_by: user.id,
         estimate_type: estimateType || "driveway",
+        scope_data: JSON.parse(JSON.stringify(scopeData)) as Json,
+        selected_scopes: Array.from(selectedScopes) as unknown as Json,
       };
 
       if (editEstimate) {
