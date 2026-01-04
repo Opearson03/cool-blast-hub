@@ -27,6 +27,7 @@ import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight, Eye, 
 import { EstimateTypeSelector, EstimateType } from "./EstimateTypeSelector";
 import { HouseSlabCalculator, HouseSlabData, initialHouseSlabData, calculateHouseSlabTotals } from "./calculators/HouseSlabCalculator";
 import { CommercialSlabCalculator, CommercialSlabData, initialCommercialSlabData, calculateCommercialSlabTotals } from "./calculators/CommercialSlabCalculator";
+import { RaftSlabCalculator, RaftSlabData, initialRaftSlabData, calculateRaftSlabTotals } from "./calculators/RaftSlabCalculator";
 
 interface Estimate {
   id: string;
@@ -235,11 +236,18 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
   const [houseSlabData, setHouseSlabData] = useState<HouseSlabData>(initialHouseSlabData);
   const [commercialSlabData, setCommercialSlabData] = useState<CommercialSlabData>(initialCommercialSlabData);
+  const [raftSlabData, setRaftSlabData] = useState<RaftSlabData>(initialRaftSlabData);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const tabOrder: TabId[] = ["details", "slab", "labour", "inclusions", "summary"];
+  // Tab order depends on estimate type - raft slabs skip labour tab (it's built into calculator)
+  const tabOrder: TabId[] = useMemo(() => {
+    if (estimateType === "house_slab" || estimateType === "commercial_slab") {
+      return ["details", "slab", "inclusions", "summary"];
+    }
+    return ["details", "slab", "labour", "inclusions", "summary"];
+  }, [estimateType]);
 
   // Track visited tabs
   useEffect(() => {
@@ -249,7 +257,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   // Check if all tabs have been visited
   const allTabsVisited = useMemo(() => {
     return tabOrder.every(tab => visitedTabs.has(tab));
-  }, [visitedTabs]);
+  }, [tabOrder, visitedTabs]);
 
   // Get selected mesh type details
   const selectedMesh = useMemo(() => {
@@ -394,16 +402,20 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return calculateCommercialSlabTotals(commercialSlabData);
   }, [estimateType, commercialSlabData]);
 
+  // Raft slab calculations (for house_slab and commercial_slab)
+  const raftSlabCalcs = useMemo(() => {
+    if (estimateType !== "house_slab" && estimateType !== "commercial_slab") return null;
+    return calculateRaftSlabTotals(raftSlabData);
+  }, [estimateType, raftSlabData]);
+
   // Combined subtotal based on estimate type
   const combinedSubtotal = useMemo(() => {
-    if (estimateType === "house_slab" && houseSlabCalcs) {
-      return houseSlabCalcs.subtotal + labourCost + materialsCost + finishingCalculations.total;
-    }
-    if (estimateType === "commercial_slab" && commercialSlabCalcs) {
-      return commercialSlabCalcs.subtotal + labourCost + materialsCost + finishingCalculations.total;
+    // Use raft slab calculator for house_slab and commercial_slab
+    if ((estimateType === "house_slab" || estimateType === "commercial_slab") && raftSlabCalcs) {
+      return raftSlabCalcs.grandTotal;
     }
     return subtotal;
-  }, [estimateType, houseSlabCalcs, commercialSlabCalcs, subtotal, labourCost, materialsCost, finishingCalculations.total]);
+  }, [estimateType, raftSlabCalcs, subtotal]);
 
   // Markup amount
   const markupAmount = useMemo(() => {
@@ -448,6 +460,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
         setHouseSlabData(initialHouseSlabData);
         setCommercialSlabData(initialCommercialSlabData);
+        setRaftSlabData(initialRaftSlabData);
         setVisitedTabs(new Set(["details"]));
         setActiveTab("details");
       }
@@ -532,34 +545,21 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       // Build description from calculator (shown on quote)
       const descriptionParts = [];
       
-      if (estimateType === "house_slab" && houseSlabCalcs) {
-        // House slab description
-        descriptionParts.push(`House Slab: ${houseSlabCalcs.totalSlabArea.toFixed(1)}m²`);
-        descriptionParts.push(`Concrete: ${houseSlabCalcs.volumeWithWastage.toFixed(2)}m³ @ ${houseSlabCalcs.mpaStrength}MPa`);
-        if (houseSlabCalcs.reoSheets > 0) {
-          descriptionParts.push(`Reo: ${houseSlabCalcs.reoSheets} sheets ${houseSlabCalcs.meshType}`);
+      if ((estimateType === "house_slab" || estimateType === "commercial_slab") && raftSlabCalcs) {
+        // Raft slab description (house and commercial)
+        descriptionParts.push(`${estimateType === "house_slab" ? "House" : "Commercial"} Raft Slab: ${raftSlabCalcs.raftArea.toFixed(1)}m²`);
+        descriptionParts.push(`Concrete: ${raftSlabCalcs.volumeWithWastage.toFixed(2)}m³ @ ${raftSlabCalcs.concreteStrength}MPa`);
+        if (raftSlabData.edgeBeams.length > 0) {
+          descriptionParts.push(`${raftSlabData.edgeBeams.length} edge beam type(s)`);
         }
-        if (houseSlabData.vapourBarrier.include) {
-          descriptionParts.push("Vapour barrier included");
+        if (raftSlabData.internalBeams.length > 0) {
+          descriptionParts.push(`${raftSlabData.internalBeams.length} internal beam type(s)`);
         }
-        if (houseSlabData.pump.include) {
-          descriptionParts.push("Concrete pump included");
+        if (raftSlabData.stripFootings.length > 0) {
+          descriptionParts.push(`${raftSlabData.stripFootings.length} strip footing type(s)`);
         }
-      } else if (estimateType === "commercial_slab" && commercialSlabCalcs) {
-        // Commercial slab description
-        descriptionParts.push(`Commercial Slab: ${commercialSlabCalcs.totalSlabArea.toFixed(1)}m²`);
-        descriptionParts.push(`Concrete: ${commercialSlabCalcs.volumeWithWastage.toFixed(2)}m³ @ ${commercialSlabCalcs.mpaStrength}MPa`);
-        if (commercialSlabCalcs.hasFootings) {
-          descriptionParts.push("Strip footings included");
-        }
-        if (commercialSlabCalcs.hasPiers) {
-          descriptionParts.push("Pier holes included");
-        }
-        if (commercialSlabCalcs.hasBeams) {
-          descriptionParts.push("Ground beams included");
-        }
-        if (commercialSlabCalcs.totalRebarCost > 0) {
-          descriptionParts.push("Detailed rebar schedule");
+        if (raftSlabData.polyMembrane) {
+          descriptionParts.push("Poly membrane included");
         }
       } else {
         // Driveway description (original logic)
@@ -711,21 +711,24 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               <span className="hidden sm:inline">Slab & Reo</span>
               <span className="sm:hidden">2</span>
             </TabsTrigger>
-            <TabsTrigger value="labour" className="gap-1">
-              {getTabIcon("labour")}
-              <span className="hidden sm:inline">Labour</span>
-              <span className="sm:hidden">3</span>
-            </TabsTrigger>
+            {/* Only show Labour tab for driveway - raft slabs have labour built-in */}
+            {estimateType !== "house_slab" && estimateType !== "commercial_slab" && (
+              <TabsTrigger value="labour" className="gap-1">
+                {getTabIcon("labour")}
+                <span className="hidden sm:inline">Labour</span>
+                <span className="sm:hidden">3</span>
+              </TabsTrigger>
+            )}
             <TabsTrigger value="inclusions" className="gap-1">
               {getTabIcon("inclusions")}
               <ListChecks className="w-4 h-4 hidden sm:inline" />
               <span className="hidden sm:inline">Inclusions</span>
-              <span className="sm:hidden">4</span>
+              <span className="sm:hidden">{estimateType === "house_slab" || estimateType === "commercial_slab" ? "3" : "4"}</span>
             </TabsTrigger>
             <TabsTrigger value="summary" className="gap-1">
               {getTabIcon("summary")}
               <span className="hidden sm:inline">Summary</span>
-              <span className="sm:hidden">5</span>
+              <span className="sm:hidden">{estimateType === "house_slab" || estimateType === "commercial_slab" ? "4" : "5"}</span>
             </TabsTrigger>
           </TabsList>
 
@@ -825,22 +828,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
             {/* Slab & Concrete Tab */}
             <TabsContent value="slab" className="space-y-6 m-0">
-              {/* House Slab Calculator */}
-              {estimateType === "house_slab" ? (
+              {/* Raft Slab Calculator for House Slab and Commercial Slab */}
+              {(estimateType === "house_slab" || estimateType === "commercial_slab") ? (
                 <>
-                  <HouseSlabCalculator data={houseSlabData} onChange={setHouseSlabData} />
+                  <RaftSlabCalculator data={raftSlabData} onChange={setRaftSlabData} />
                   <div className="flex justify-end pt-4">
                     <Button type="button" onClick={goToNextTab} className="gap-2">
-                      Next: Labour <ChevronRight className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </>
-              ) : estimateType === "commercial_slab" ? (
-                <>
-                  <CommercialSlabCalculator data={commercialSlabData} onChange={setCommercialSlabData} />
-                  <div className="flex justify-end pt-4">
-                    <Button type="button" onClick={goToNextTab} className="gap-2">
-                      Next: Labour <ChevronRight className="w-4 h-4" />
+                      Next: Inclusions <ChevronRight className="w-4 h-4" />
                     </Button>
                   </div>
                 </>
@@ -2012,89 +2006,130 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 <CardContent className="space-y-4">
                   {/* Breakdown */}
                   <div className="space-y-2">
-                    {slabArea > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Slab ({slabArea.toFixed(1)}m² x {slab.thickness}mm)
-                        </span>
-                        <span>{concreteVolume.toFixed(2)} m³</span>
-                      </div>
-                    )}
-                    {volumeWithWastage > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Concrete ({volumeWithWastage.toFixed(2)}m³ @ {formatCurrency(parseFloat(concrete.pricePerM3) || 0)}/m³)
-                        </span>
-                        <span>{formatCurrency(concreteCost)}</span>
-                      </div>
-                    )}
-                    {reoCalculations.sheets > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Reo ({reoCalculations.sheets} x {selectedMesh.id} sheets)
-                        </span>
-                        <span>{formatCurrency(reoCalculations.cost)}</span>
-                      </div>
-                    )}
-                    {reo.includeBarChairs && reoCalculations.barChairs > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Bar chairs ({reoCalculations.barChairs} @ {formatCurrency(parseFloat(reo.barChairPrice) || 0)} ea)
-                        </span>
-                        <span>{formatCurrency(reoCalculations.barChairCost)}</span>
-                      </div>
-                    )}
-                    {finishingCalculations.total > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Finishing & Treatments</span>
-                        <span>{formatCurrency(finishingCalculations.total)}</span>
-                      </div>
-                    )}
-                    {labourCost > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Labour</span>
-                        <span>{formatCurrency(labourCost)}</span>
-                      </div>
-                    )}
-                    {materialsCost > 0 && (
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Materials & Other</span>
-                        <span>{formatCurrency(materialsCost)}</span>
-                      </div>
+                    {/* Raft Slab Summary for house_slab and commercial_slab */}
+                    {(estimateType === "house_slab" || estimateType === "commercial_slab") && raftSlabCalcs ? (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Raft Slab ({raftSlabCalcs.raftArea.toFixed(1)}m²)
+                          </span>
+                          <span>{raftSlabCalcs.volumeWithWastage.toFixed(2)} m³</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Concrete</span>
+                          <span>{formatCurrency(raftSlabCalcs.concreteCost)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Reinforcement</span>
+                          <span>{formatCurrency(raftSlabCalcs.totalReoCost)}</span>
+                        </div>
+                        {raftSlabCalcs.polyCost > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Poly Membrane</span>
+                            <span>{formatCurrency(raftSlabCalcs.polyCost)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between text-sm font-medium border-t pt-2">
+                          <span className="text-muted-foreground">Materials (inc. {raftSlabData.materialsMarkupPercent}% markup)</span>
+                          <span>{formatCurrency(raftSlabCalcs.materialsTotal)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm font-medium">
+                          <span className="text-muted-foreground">Labour (inc. {raftSlabData.labourMarkupPercent}% markup)</span>
+                          <span>{formatCurrency(raftSlabCalcs.labourTotal)}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {slabArea > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Slab ({slabArea.toFixed(1)}m² x {slab.thickness}mm)
+                            </span>
+                            <span>{concreteVolume.toFixed(2)} m³</span>
+                          </div>
+                        )}
+                        {volumeWithWastage > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Concrete ({volumeWithWastage.toFixed(2)}m³ @ {formatCurrency(parseFloat(concrete.pricePerM3) || 0)}/m³)
+                            </span>
+                            <span>{formatCurrency(concreteCost)}</span>
+                          </div>
+                        )}
+                        {reoCalculations.sheets > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Reo ({reoCalculations.sheets} x {selectedMesh.id} sheets)
+                            </span>
+                            <span>{formatCurrency(reoCalculations.cost)}</span>
+                          </div>
+                        )}
+                        {reo.includeBarChairs && reoCalculations.barChairs > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              Bar chairs ({reoCalculations.barChairs} @ {formatCurrency(parseFloat(reo.barChairPrice) || 0)} ea)
+                            </span>
+                            <span>{formatCurrency(reoCalculations.barChairCost)}</span>
+                          </div>
+                        )}
+                        {finishingCalculations.total > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Finishing & Treatments</span>
+                            <span>{formatCurrency(finishingCalculations.total)}</span>
+                          </div>
+                        )}
+                        {labourCost > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Labour</span>
+                            <span>{formatCurrency(labourCost)}</span>
+                          </div>
+                        )}
+                        {materialsCost > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">Materials & Other</span>
+                            <span>{formatCurrency(materialsCost)}</span>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
                   <div className="border-t border-border pt-3 space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Subtotal</span>
-                      <span>{formatCurrency(subtotal)}</span>
-                    </div>
-                    
-                    <div className="flex items-center justify-between gap-4">
-                      <div className="flex items-center gap-2">
-                        <Label htmlFor="markup" className="text-sm text-muted-foreground whitespace-nowrap">
-                          Markup
-                        </Label>
-                        <Input
-                          id="markup"
-                          type="number"
-                          step="1"
-                          min="0"
-                          max="100"
-                          value={formData.markupPercent}
-                          onChange={(e) => setFormData(prev => ({ ...prev, markupPercent: e.target.value }))}
-                          className="w-20 h-8"
-                        />
-                        <span className="text-sm text-muted-foreground">%</span>
-                      </div>
-                      <span className="text-sm">{formatCurrency(markupAmount)}</span>
-                    </div>
+                    {/* Only show markup controls for driveway (raft slab has its own markup) */}
+                    {estimateType === "driveway" && (
+                      <>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Subtotal</span>
+                          <span>{formatCurrency(subtotal)}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex items-center gap-2">
+                            <Label htmlFor="markup" className="text-sm text-muted-foreground whitespace-nowrap">
+                              Markup
+                            </Label>
+                            <Input
+                              id="markup"
+                              type="number"
+                              step="1"
+                              min="0"
+                              max="100"
+                              value={formData.markupPercent}
+                              onChange={(e) => setFormData(prev => ({ ...prev, markupPercent: e.target.value }))}
+                              className="w-20 h-8"
+                            />
+                            <span className="text-sm text-muted-foreground">%</span>
+                          </div>
+                          <span className="text-sm">{formatCurrency(markupAmount)}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   <div className="border-t border-border pt-3">
                     <div className="flex justify-between text-lg font-bold">
-                      <span>Total</span>
-                      <span className="text-primary">{formatCurrency(totalAmount)}</span>
+                      <span>Total (ex GST)</span>
+                      <span className="text-primary">{formatCurrency(combinedSubtotal)}</span>
                     </div>
                   </div>
                 </CardContent>
