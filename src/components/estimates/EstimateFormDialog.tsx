@@ -33,6 +33,7 @@ import { CrossoversCalculator, CrossoversData, initialCrossoversData, calculateC
 import { PathsSurroundsCalculator, PathsSurroundsData, initialPathsSurroundsData, calculatePathsSurroundsTotals } from "./calculators/PathsSurroundsCalculator";
 import { RaftSlabCalculator, RaftSlabData, initialRaftSlabData, calculateRaftSlabTotals } from "./calculators/RaftSlabCalculator";
 import { StandardSlabCalculator, StandardSlabData, initialStandardSlabData, calculateStandardSlabTotals } from "./calculators/StandardSlabCalculator";
+import { SuspendedSlabCalculator, SuspendedSlabData, initialSuspendedSlabData, calculateSuspendedSlabTotals } from "./calculators/SuspendedSlabCalculator";
 
 interface Estimate {
   id: string;
@@ -111,6 +112,7 @@ interface ScopeCalculatorData {
   standard_slab: StandardSlabData;
   raft_slab: RaftSlabData;
   waffle_pod: WafflePodData;
+  suspended_slab: SuspendedSlabData;
   driveway: StandardSlabData; // Simple slab calculator for driveways
   paths_surrounds: PathsSurroundsData;
   crossovers: CrossoversData;
@@ -122,6 +124,7 @@ const initialScopeData: ScopeCalculatorData = {
   standard_slab: initialStandardSlabData,
   raft_slab: initialRaftSlabData,
   waffle_pod: initialWafflePodData,
+  suspended_slab: initialSuspendedSlabData,
   driveway: initialStandardSlabData,
   paths_surrounds: initialPathsSurroundsData,
   crossovers: initialCrossoversData,
@@ -192,6 +195,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       standard_slab: { total: 0, description: "" },
       raft_slab: { total: 0, description: "" },
       waffle_pod: { total: 0, description: "" },
+      suspended_slab: { total: 0, description: "" },
       driveway: { total: 0, description: "" },
       paths_surrounds: { total: 0, description: "" },
       crossovers: { total: 0, description: "" },
@@ -216,6 +220,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     if (selectedScopes.has("waffle_pod")) {
       const calcs = calculateWafflePodTotals(scopeData.waffle_pod);
       totals.waffle_pod = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² waffle pod` };
+    }
+    if (selectedScopes.has("suspended_slab")) {
+      const calcs = calculateSuspendedSlabTotals(scopeData.suspended_slab);
+      totals.suspended_slab = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² suspended slab` };
     }
     if (selectedScopes.has("driveway")) {
       const calcs = calculateStandardSlabTotals(scopeData.driveway);
@@ -476,6 +484,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           <WafflePodCalculator
             data={scopeData.waffle_pod}
             onChange={(data) => updateScopeData("waffle_pod", data)}
+          />
+        );
+      case "suspended_slab":
+        return (
+          <SuspendedSlabCalculator
+            data={scopeData.suspended_slab}
+            onChange={(data) => updateScopeData("suspended_slab", data)}
           />
         );
       case "driveway":

@@ -9,6 +9,7 @@ export type ScopeType =
   | "standard_slab"
   | "raft_slab"
   | "waffle_pod"
+  | "suspended_slab"
   | "driveway"
   | "paths_surrounds"
   | "crossovers";
@@ -50,6 +51,12 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     label: "Waffle Pod Slab", 
     description: "Waffle pod system slab",
     availableFor: ["house_slab", "commercial_slab"]
+  },
+  { 
+    id: "suspended_slab", 
+    label: "Suspended Slab", 
+    description: "Elevated slab with formwork and propping",
+    availableFor: ["commercial_slab"]
   },
   { 
     id: "driveway", 
