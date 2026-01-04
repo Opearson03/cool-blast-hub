@@ -334,6 +334,72 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return SCOPE_OPTIONS.find(s => s.id === scope)?.label || scope;
   };
 
+  // Save Draft mutation - minimal validation, saves current progress
+  const saveDraftMutation = useMutation({
+    mutationFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.business_id) throw new Error("No business found");
+
+      // Build description from scopes (if any)
+      const scopeDescriptions = Array.from(selectedScopes).map((scope) => {
+        const label = SCOPE_OPTIONS.find(s => s.id === scope)?.label || scope;
+        return `${label}: ${scopeTotals[scope].description || 'Not configured'}`;
+      });
+
+      const estimateData = {
+        business_id: profile.business_id,
+        client_name: formData.client_name || "Draft Estimate",
+        company_name: formData.company_name || null,
+        client_email: formData.client_email || null,
+        client_phone: formData.client_phone || null,
+        site_address: formData.site_address || "No address",
+        description: scopeDescriptions.length > 0 
+          ? scopeDescriptions.join("\n") + (formData.description ? `\n\n${formData.description}` : "")
+          : formData.description || null,
+        valid_until: formData.valid_until || null,
+        notes: formData.notes || null,
+        total_amount: combinedTotal,
+        estimate_type: estimateType || "driveway",
+        status: "draft" as const,
+        scope_data: scopeData as unknown as Json,
+        selected_scopes: Array.from(selectedScopes) as unknown as Json,
+      };
+
+      if (editEstimate) {
+        const { error } = await supabase
+          .from("estimates")
+          .update(estimateData)
+          .eq("id", editEstimate.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("estimates")
+          .insert([{ ...estimateData, created_by: user.id }]);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      toast({ title: "Draft saved", description: "You can continue editing this estimate later." });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error saving draft", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const handleSaveDraft = () => {
+    saveDraftMutation.mutate();
+  };
+
   const mutation = useMutation({
     mutationFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -699,17 +765,27 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               </div>
 
               <div className="flex justify-between pt-4">
-                {!editEstimate && (
+                <div className="flex gap-2">
+                  {!editEstimate && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      onClick={() => setFormStep("type_selection")}
+                      className="gap-2"
+                    >
+                      ← Change Type
+                    </Button>
+                  )}
                   <Button 
                     type="button" 
-                    variant="ghost" 
-                    onClick={() => setFormStep("type_selection")}
-                    className="gap-2"
+                    variant="outline" 
+                    onClick={handleSaveDraft}
+                    disabled={saveDraftMutation.isPending}
                   >
-                    ← Change Type
+                    {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Save Draft
                   </Button>
-                )}
-                {editEstimate && <div />}
+                </div>
                 <Button 
                   type="button" 
                   onClick={goToNextTab} 
@@ -767,7 +843,16 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </>
               )}
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-between pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleSaveDraft}
+                  disabled={saveDraftMutation.isPending}
+                >
+                  {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Save Draft
+                </Button>
                 <Button 
                   type="button" 
                   onClick={goToNextTab} 
@@ -849,7 +934,16 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </CardContent>
               </Card>
 
-              <div className="flex justify-end pt-4">
+              <div className="flex justify-between pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleSaveDraft}
+                  disabled={saveDraftMutation.isPending}
+                >
+                  {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Save Draft
+                </Button>
                 <Button type="button" onClick={goToNextTab} className="gap-2">
                   Next: Summary <ChevronRight className="w-4 h-4" />
                 </Button>
@@ -946,7 +1040,16 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
               {/* Footer */}
               <div className="flex gap-3 pt-4 border-t border-border">
-                <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleSaveDraft}
+                  disabled={saveDraftMutation.isPending}
+                >
+                  {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Save Draft
+                </Button>
+                <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
                 <Button 
