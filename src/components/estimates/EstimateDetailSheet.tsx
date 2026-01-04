@@ -21,6 +21,7 @@ interface Estimate {
   id: string;
   estimate_number: string;
   client_name: string;
+  company_name: string | null;
   client_email: string | null;
   client_phone: string | null;
   site_address: string;
@@ -226,6 +227,9 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
             <h3 className="font-semibold text-sm text-muted-foreground uppercase">Client Details</h3>
             <div className="space-y-2">
               <p className="font-medium text-lg">{estimate.client_name}</p>
+              {estimate.company_name && (
+                <p className="text-sm text-muted-foreground">{estimate.company_name}</p>
+              )}
               {estimate.client_email && (
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <Mail className="w-4 h-4" />

@@ -26,6 +26,7 @@ interface Estimate {
   id: string;
   estimate_number: string;
   client_name: string;
+  company_name: string | null;
   client_email: string | null;
   client_phone: string | null;
   site_address: string;

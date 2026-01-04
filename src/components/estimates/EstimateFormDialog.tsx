@@ -33,6 +33,7 @@ interface Estimate {
   id: string;
   estimate_number: string;
   client_name: string;
+  company_name: string | null;
   client_email: string | null;
   client_phone: string | null;
   site_address: string;
@@ -128,6 +129,7 @@ interface MaterialItem {
 
 interface FormData {
   client_name: string;
+  company_name: string;
   client_email: string;
   client_phone: string;
   site_address: string;
@@ -139,6 +141,7 @@ interface FormData {
 
 const initialFormData: FormData = {
   client_name: "",
+  company_name: "",
   client_email: "",
   client_phone: "",
   site_address: "",
@@ -433,6 +436,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       if (editEstimate) {
         setFormData({
           client_name: editEstimate.client_name,
+          company_name: editEstimate.company_name || "",
           client_email: editEstimate.client_email || "",
           client_phone: editEstimate.client_phone || "",
           site_address: editEstimate.site_address,
@@ -598,6 +602,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       const estimateData = {
         business_id: profile.business_id,
         client_name: formData.client_name,
+        company_name: formData.company_name || null,
         client_email: formData.client_email || null,
         client_phone: formData.client_phone || null,
         site_address: formData.site_address,
@@ -743,8 +748,19 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     name="client_name"
                     value={formData.client_name}
                     onChange={handleChange}
-                    placeholder="e.g., Smith Builders"
+                    placeholder="e.g., John Smith"
                     required
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="company_name">Company Name</Label>
+                  <Input
+                    id="company_name"
+                    name="company_name"
+                    value={formData.company_name}
+                    onChange={handleChange}
+                    placeholder="e.g., Smith Builders (leave blank for private jobs)"
                   />
                 </div>
 
