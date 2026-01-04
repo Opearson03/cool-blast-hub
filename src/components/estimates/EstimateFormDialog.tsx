@@ -111,7 +111,7 @@ interface ScopeCalculatorData {
   standard_slab: StandardSlabData;
   raft_slab: RaftSlabData;
   waffle_pod: WafflePodData;
-  driveway: RaftSlabData; // Reuse raft slab for driveway
+  driveway: StandardSlabData; // Simple slab calculator for driveways
   paths_surrounds: PathsSurroundsData;
   crossovers: CrossoversData;
 }
@@ -122,7 +122,7 @@ const initialScopeData: ScopeCalculatorData = {
   standard_slab: initialStandardSlabData,
   raft_slab: initialRaftSlabData,
   waffle_pod: initialWafflePodData,
-  driveway: initialRaftSlabData,
+  driveway: initialStandardSlabData,
   paths_surrounds: initialPathsSurroundsData,
   crossovers: initialCrossoversData,
 };
@@ -204,8 +204,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       totals.waffle_pod = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² waffle pod` };
     }
     if (selectedScopes.has("driveway")) {
-      const calcs = calculateRaftSlabTotals(scopeData.driveway);
-      totals.driveway = { total: calcs.grandTotal, description: `${calcs.raftArea.toFixed(1)}m² driveway` };
+      const calcs = calculateStandardSlabTotals(scopeData.driveway);
+      totals.driveway = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² driveway` };
     }
     if (selectedScopes.has("paths_surrounds")) {
       const calcs = calculatePathsSurroundsTotals(scopeData.paths_surrounds);
@@ -450,7 +450,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         );
       case "driveway":
         return (
-          <RaftSlabCalculator
+          <StandardSlabCalculator
             data={scopeData.driveway}
             onChange={(data) => updateScopeData("driveway", data)}
           />
