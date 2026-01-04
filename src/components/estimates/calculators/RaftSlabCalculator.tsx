@@ -67,6 +67,19 @@ export const LIGATURE_SIZES = [
 
 // ============= INTERFACES =============
 
+export type SlabMode = "raft" | "individual";
+
+export interface IndividualSlab {
+  id: string;
+  name: string;
+  area: string;
+  thickness: string;
+  concreteStrength: string;
+  meshType: string;
+  polyMembrane: boolean;
+  polyLayers: string;
+}
+
 export interface BeamType {
   id: string;
   name: string;
@@ -114,7 +127,13 @@ export interface AdditionalCostItem {
 }
 
 export interface RaftSlabData {
-  // Raft slab core
+  // Slab mode selection
+  slabMode: SlabMode;
+  
+  // Individual slabs (when mode is "individual")
+  individualSlabs: IndividualSlab[];
+  
+  // Raft slab core (when mode is "raft")
   raftArea: string;
   concreteStrength: string;
   slabThickness: string;
@@ -167,7 +186,24 @@ export interface RaftSlabData {
   wastagePercent: string;
 }
 
+function createEmptyIndividualSlab(id: string, name: string): IndividualSlab {
+  return {
+    id,
+    name,
+    area: "",
+    thickness: "100",
+    concreteStrength: "32",
+    meshType: "SL82",
+    polyMembrane: true,
+    polyLayers: "1",
+  };
+}
+
 export const initialRaftSlabData: RaftSlabData = {
+  slabMode: "raft",
+  
+  individualSlabs: [],
+  
   raftArea: "",
   concreteStrength: "32",
   slabThickness: "100",
@@ -266,6 +302,10 @@ interface RaftSlabCalculatorProps {
 }
 
 export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) {
+  // Apply defaults for backward compatibility with existing data
+  const slabMode = data.slabMode || "raft";
+  const individualSlabs = data.individualSlabs || [];
+  
   // ============= HELPERS =============
   
   const updateEdgeBeam = (id: string, field: keyof BeamType, value: string | boolean) => {
@@ -302,6 +342,42 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
         p.id === id ? { ...p, [field]: value } : p
       ),
     });
+  };
+
+  const updateIndividualSlab = (id: string, field: keyof IndividualSlab, value: string | boolean) => {
+    onChange({
+      ...data,
+      individualSlabs: individualSlabs.map((s) =>
+        s.id === id ? { ...s, [field]: value } : s
+      ),
+    });
+  };
+
+  const handleSlabModeChange = (mode: SlabMode) => {
+    if (mode === "individual" && individualSlabs.length === 0) {
+      // Initialize with one slab
+      onChange({
+        ...data,
+        slabMode: mode,
+        individualSlabs: [createEmptyIndividualSlab("1", "Slab 1")],
+      });
+    } else {
+      onChange({ ...data, slabMode: mode });
+    }
+  };
+
+  const addIndividualSlab = () => {
+    const newSlab = createEmptyIndividualSlab(
+      Date.now().toString(),
+      `Slab ${individualSlabs.length + 1}`
+    );
+    onChange({ ...data, individualSlabs: [...individualSlabs, newSlab] });
+  };
+
+  const removeIndividualSlab = (id: string) => {
+    if (individualSlabs.length > 1) {
+      onChange({ ...data, individualSlabs: individualSlabs.filter((s) => s.id !== id) });
+    }
   };
 
   const handleEdgeBeamCountChange = (count: string) => {
@@ -401,19 +477,44 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
   // ============= CALCULATIONS =============
   
   const calculations = useMemo(() => {
-    const raftArea = parseFloat(data.raftArea) || 0;
-    const slabThickness = (parseFloat(data.slabThickness) || 0) / 1000;
-    const slabVolume = raftArea * slabThickness;
-    
-    // Mesh calculations
-    const selectedMesh = MESH_TYPES.find((m) => m.id === data.meshType) || MESH_TYPES[2];
-    const meshSheets = Math.ceil((raftArea * 1.1) / selectedMesh.area); // 10% overlap
-    const meshCost = meshSheets * (parseFloat(data.meshPrice) || selectedMesh.defaultPrice);
-    
-    // Poly membrane
-    const polyCost = data.polyMembrane 
-      ? raftArea * (parseInt(data.polyLayers) || 1) * (parseFloat(data.polyPrice) || 2.5)
-      : 0;
+    // Calculate slab area and volume based on mode
+    let totalSlabArea = 0;
+    let slabVolume = 0;
+    let meshCost = 0;
+    let polyCost = 0;
+
+    if (slabMode === "raft") {
+      // Raft slab mode - single unified slab
+      totalSlabArea = parseFloat(data.raftArea) || 0;
+      const slabThickness = (parseFloat(data.slabThickness) || 0) / 1000;
+      slabVolume = totalSlabArea * slabThickness;
+      
+      const selectedMesh = MESH_TYPES.find((m) => m.id === data.meshType) || MESH_TYPES[2];
+      const meshSheets = Math.ceil((totalSlabArea * 1.1) / selectedMesh.area);
+      meshCost = meshSheets * (parseFloat(data.meshPrice) || selectedMesh.defaultPrice);
+      
+      polyCost = data.polyMembrane 
+        ? totalSlabArea * (parseInt(data.polyLayers) || 1) * (parseFloat(data.polyPrice) || 2.5)
+        : 0;
+    } else {
+      // Individual slabs mode
+      individualSlabs.forEach((slab) => {
+        const area = parseFloat(slab.area) || 0;
+        const thickness = (parseFloat(slab.thickness) || 0) / 1000;
+        totalSlabArea += area;
+        slabVolume += area * thickness;
+        
+        const selectedMesh = MESH_TYPES.find((m) => m.id === slab.meshType) || MESH_TYPES[2];
+        const meshSheets = Math.ceil((area * 1.1) / selectedMesh.area);
+        meshCost += meshSheets * (parseFloat(data.meshPrice) || selectedMesh.defaultPrice);
+        
+        if (slab.polyMembrane) {
+          polyCost += area * (parseInt(slab.polyLayers) || 1) * (parseFloat(data.polyPrice) || 2.5);
+        }
+      });
+    }
+
+    const meshSheets = Math.ceil((totalSlabArea * 1.1) / 14.4); // For display
     
     // Edge beam calculations
     let totalEdgeBeamVolume = 0;
@@ -574,7 +675,8 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
     const grandTotal = materialsTotal + labourTotal;
     
     return {
-      raftArea,
+      raftArea: totalSlabArea,
+      totalSlabArea,
       slabVolume,
       meshSheets,
       meshCost,
@@ -777,111 +879,279 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
         </p>
       </div>
 
-      <Accordion type="multiple" defaultValue={["raft-core", "edge-beams"]} className="space-y-4">
-        {/* Raft Slab Core */}
-        <AccordionItem value="raft-core" className="border rounded-lg px-4">
+      {/* Slab Mode Selector */}
+      <Card className="border-primary/20">
+        <CardContent className="pt-4">
+          <div className="space-y-4">
+            <Label className="text-base font-medium">Slab Type</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                type="button"
+                variant={slabMode === "raft" ? "default" : "outline"}
+                className="h-auto py-3 flex flex-col items-center gap-1"
+                onClick={() => handleSlabModeChange("raft")}
+              >
+                <Layers className="w-5 h-5" />
+                <span>Raft Slab</span>
+                <span className="text-xs opacity-70">Single unified slab</span>
+              </Button>
+              <Button
+                type="button"
+                variant={slabMode === "individual" ? "default" : "outline"}
+                className="h-auto py-3 flex flex-col items-center gap-1"
+                onClick={() => handleSlabModeChange("individual")}
+              >
+                <Square className="w-5 h-5" />
+                <span>Individual Slabs</span>
+                <span className="text-xs opacity-70">Slab 1, 2, 3...</span>
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Accordion type="multiple" defaultValue={["slab-core", "edge-beams"]} className="space-y-4">
+        {/* Slab Core - Conditional based on mode */}
+        <AccordionItem value="slab-core" className="border rounded-lg px-4">
           <AccordionTrigger className="hover:no-underline">
             <div className="flex items-center gap-2">
               <Layers className="w-4 h-4" />
-              <span>Raft Slab</span>
-              {calculations.raftArea > 0 && (
+              <span>{slabMode === "raft" ? "Raft Slab" : `Individual Slabs (${individualSlabs.length})`}</span>
+              {calculations.totalSlabArea > 0 && (
                 <Badge variant="secondary" className="ml-2">
-                  {calculations.raftArea.toFixed(1)}m² / {calculations.volumeWithWastage.toFixed(2)}m³
+                  {calculations.totalSlabArea.toFixed(1)}m² / {calculations.volumeWithWastage.toFixed(2)}m³
                 </Badge>
               )}
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-4 space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Enter total raft slab area excluding patios, porch, paths etc.
-            </p>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Total Area (m²)</Label>
-                <Input
-                  type="number"
-                  value={data.raftArea}
-                  onChange={(e) => onChange({ ...data, raftArea: e.target.value })}
-                  placeholder="0"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>Slab Thickness (mm)</Label>
-                <Input
-                  type="number"
-                  value={data.slabThickness}
-                  onChange={(e) => onChange({ ...data, slabThickness: e.target.value })}
-                  placeholder="100"
-                />
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Concrete Strength</Label>
-                <Select
-                  value={data.concreteStrength}
-                  onValueChange={(v) => onChange({ ...data, concreteStrength: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {MPA_STRENGTHS.map((s) => (
-                      <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Reinforcement Mesh</Label>
-                <Select
-                  value={data.meshType}
-                  onValueChange={(v) => onChange({ ...data, meshType: v })}
-                >
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {MESH_TYPES.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            
-            {/* Poly Membrane */}
-            <div className="flex items-center gap-4 pt-2">
-              <div className="flex items-center gap-2">
-                <Switch
-                  checked={data.polyMembrane}
-                  onCheckedChange={(c) => onChange({ ...data, polyMembrane: c })}
-                />
-                <Label>Poly membrane required?</Label>
-              </div>
-              {data.polyMembrane && (
-                <div className="flex items-center gap-2">
-                  <Label className="text-sm">Layers:</Label>
-                  <Select
-                    value={data.polyLayers}
-                    onValueChange={(v) => onChange({ ...data, polyLayers: v })}
-                  >
-                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1">1</SelectItem>
-                      <SelectItem value="2">2</SelectItem>
-                    </SelectContent>
-                  </Select>
+            {slabMode === "raft" ? (
+              /* Raft Slab Mode */
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Enter total raft slab area excluding patios, porch, paths etc.
+                </p>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Total Area (m²)</Label>
+                    <Input
+                      type="number"
+                      value={data.raftArea}
+                      onChange={(e) => onChange({ ...data, raftArea: e.target.value })}
+                      placeholder="0"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Slab Thickness (mm)</Label>
+                    <Input
+                      type="number"
+                      value={data.slabThickness}
+                      onChange={(e) => onChange({ ...data, slabThickness: e.target.value })}
+                      placeholder="100"
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
-            
-            {/* Detailed Excavation */}
-            <div className="flex items-center gap-2 pt-2">
-              <Switch
-                checked={data.detailedExcavation}
-                onCheckedChange={(c) => onChange({ ...data, detailedExcavation: c })}
-              />
-              <Label>Are you completing the detailed excavation of the slab?</Label>
-            </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Concrete Strength</Label>
+                    <Select
+                      value={data.concreteStrength}
+                      onValueChange={(v) => onChange({ ...data, concreteStrength: v })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {MPA_STRENGTHS.map((s) => (
+                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Reinforcement Mesh</Label>
+                    <Select
+                      value={data.meshType}
+                      onValueChange={(v) => onChange({ ...data, meshType: v })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {MESH_TYPES.map((m) => (
+                          <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                
+                {/* Poly Membrane */}
+                <div className="flex items-center gap-4 pt-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={data.polyMembrane}
+                      onCheckedChange={(c) => onChange({ ...data, polyMembrane: c })}
+                    />
+                    <Label>Poly membrane required?</Label>
+                  </div>
+                  {data.polyMembrane && (
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm">Layers:</Label>
+                      <Select
+                        value={data.polyLayers}
+                        onValueChange={(v) => onChange({ ...data, polyLayers: v })}
+                      >
+                        <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="1">1</SelectItem>
+                          <SelectItem value="2">2</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Detailed Excavation */}
+                <div className="flex items-center gap-2 pt-2">
+                  <Switch
+                    checked={data.detailedExcavation}
+                    onCheckedChange={(c) => onChange({ ...data, detailedExcavation: c })}
+                  />
+                  <Label>Are you completing the detailed excavation of the slab?</Label>
+                </div>
+              </>
+            ) : (
+              /* Individual Slabs Mode */
+              <>
+                <p className="text-sm text-muted-foreground">
+                  Add individual slabs with separate specifications for each.
+                </p>
+                
+                <div className="space-y-4">
+                  {individualSlabs.map((slab, index) => (
+                    <Card key={slab.id} className="bg-muted/30">
+                      <CardContent className="pt-4 space-y-4">
+                        <div className="flex items-center justify-between">
+                          <Input
+                            value={slab.name}
+                            onChange={(e) => updateIndividualSlab(slab.id, "name", e.target.value)}
+                            className="font-medium max-w-[150px]"
+                            placeholder={`Slab ${index + 1}`}
+                          />
+                          {individualSlabs.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => removeIndividualSlab(slab.id)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Area (m²)</Label>
+                            <Input
+                              type="number"
+                              value={slab.area}
+                              onChange={(e) => updateIndividualSlab(slab.id, "area", e.target.value)}
+                              placeholder="0"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Thickness (mm)</Label>
+                            <Input
+                              type="number"
+                              value={slab.thickness}
+                              onChange={(e) => updateIndividualSlab(slab.id, "thickness", e.target.value)}
+                              placeholder="100"
+                            />
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Concrete Strength</Label>
+                            <Select
+                              value={slab.concreteStrength}
+                              onValueChange={(v) => updateIndividualSlab(slab.id, "concreteStrength", v)}
+                            >
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {MPA_STRENGTHS.map((s) => (
+                                  <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Reinforcement Mesh</Label>
+                            <Select
+                              value={slab.meshType}
+                              onValueChange={(v) => updateIndividualSlab(slab.id, "meshType", v)}
+                            >
+                              <SelectTrigger><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {MESH_TYPES.map((m) => (
+                                  <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        
+                        {/* Poly Membrane */}
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <Switch
+                              checked={slab.polyMembrane}
+                              onCheckedChange={(c) => updateIndividualSlab(slab.id, "polyMembrane", c)}
+                            />
+                            <Label className="text-sm">Poly membrane</Label>
+                          </div>
+                          {slab.polyMembrane && (
+                            <div className="flex items-center gap-2">
+                              <Label className="text-xs">Layers:</Label>
+                              <Select
+                                value={slab.polyLayers}
+                                onValueChange={(v) => updateIndividualSlab(slab.id, "polyLayers", v)}
+                              >
+                                <SelectTrigger className="w-16 h-8"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="1">1</SelectItem>
+                                  <SelectItem value="2">2</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                  
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addIndividualSlab}
+                    className="w-full"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Slab
+                  </Button>
+                </div>
+                
+                {/* Detailed Excavation */}
+                <div className="flex items-center gap-2 pt-2">
+                  <Switch
+                    checked={data.detailedExcavation}
+                    onCheckedChange={(c) => onChange({ ...data, detailedExcavation: c })}
+                  />
+                  <Label>Are you completing the detailed excavation?</Label>
+                </div>
+              </>
+            )}
           </AccordionContent>
         </AccordionItem>
 
