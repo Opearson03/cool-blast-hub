@@ -103,6 +103,14 @@ export interface CommercialSlabData {
     slump: string;
     wastagePercent: string;
   };
+  footingsPiersConcrete: {
+    useSeparateStrength: boolean;
+    mpaStrength: string;
+    pricePerM3: string;
+  };
+  footingsPiersReinforcement: {
+    includeReinforcement: boolean;
+  };
   mesh: {
     include: boolean;
     meshType: string;
@@ -142,6 +150,14 @@ export const initialCommercialSlabData: CommercialSlabData = {
     mpaStrength: "32",
     slump: "100",
     wastagePercent: "5",
+  },
+  footingsPiersConcrete: {
+    useSeparateStrength: false,
+    mpaStrength: "40",
+    pricePerM3: "320",
+  },
+  footingsPiersReinforcement: {
+    includeReinforcement: true,
   },
   mesh: {
     include: true,
@@ -327,11 +343,22 @@ export function CommercialSlabCalculator({ data, onChange }: CommercialSlabCalcu
     });
     const totalGroundBeamVolume = groundBeamCalcs.reduce((sum, b) => sum + b.volume, 0);
 
-    // Total concrete
-    const totalConcreteVolume = totalSlabVolume + totalStripFootingVolume + totalPierVolume + totalGroundBeamVolume;
+    // Total concrete - separate calc for footings/piers if using different strength
+    const footingsPiersVolume = totalStripFootingVolume + totalPierVolume;
+    const slabBeamsVolume = totalSlabVolume + totalGroundBeamVolume;
+    const totalConcreteVolume = slabBeamsVolume + footingsPiersVolume;
     const wastage = (parseFloat(data.concrete.wastagePercent) || 0) / 100;
+    
+    // Calculate costs based on whether separate concrete is used
+    const slabBeamsVolumeWithWastage = slabBeamsVolume * (1 + wastage);
+    const footingsPiersVolumeWithWastage = footingsPiersVolume * (1 + wastage);
     const volumeWithWastage = totalConcreteVolume * (1 + wastage);
-    const concreteCost = volumeWithWastage * (parseFloat(data.concrete.pricePerM3) || 0);
+    
+    const slabConcreteCost = slabBeamsVolumeWithWastage * (parseFloat(data.concrete.pricePerM3) || 0);
+    const footingsPiersConcreteCost = data.footingsPiersConcrete.useSeparateStrength
+      ? footingsPiersVolumeWithWastage * (parseFloat(data.footingsPiersConcrete.pricePerM3) || 0)
+      : footingsPiersVolumeWithWastage * (parseFloat(data.concrete.pricePerM3) || 0);
+    const concreteCost = slabConcreteCost + footingsPiersConcreteCost;
 
     // Mesh
     const selectedMesh = REO_MESH_TYPES.find((m) => m.id === data.mesh.meshType) || REO_MESH_TYPES[1];
@@ -382,8 +409,12 @@ export function CommercialSlabCalculator({ data, onChange }: CommercialSlabCalcu
       groundBeamCalcs,
       totalGroundBeamVolume,
       totalConcreteVolume,
+      slabBeamsVolume,
+      footingsPiersVolume,
       volumeWithWastage,
       concreteCost,
+      slabConcreteCost,
+      footingsPiersConcreteCost,
       selectedMesh,
       meshSheets,
       meshCost,
@@ -642,40 +673,127 @@ export function CommercialSlabCalculator({ data, onChange }: CommercialSlabCalcu
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-4 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Price per m³</Label>
-                <Input type="number" value={data.concrete.pricePerM3} onChange={(e) => onChange({ ...data, concrete: { ...data.concrete, pricePerM3: e.target.value } })} />
-              </div>
-              <div className="space-y-2">
-                <Label>MPa Strength</Label>
-                <Select value={data.concrete.mpaStrength} onValueChange={(v) => onChange({ ...data, concrete: { ...data.concrete, mpaStrength: v } })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="25">N25</SelectItem>
-                    <SelectItem value="32">N32</SelectItem>
-                    <SelectItem value="40">N40</SelectItem>
-                    <SelectItem value="50">N50</SelectItem>
-                    <SelectItem value="65">N65</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Slump (mm)</Label>
-                <Input type="number" value={data.concrete.slump} onChange={(e) => onChange({ ...data, concrete: { ...data.concrete, slump: e.target.value } })} />
-              </div>
-              <div className="space-y-2">
-                <Label>Wastage %</Label>
-                <Input type="number" value={data.concrete.wastagePercent} onChange={(e) => onChange({ ...data, concrete: { ...data.concrete, wastagePercent: e.target.value } })} />
+            {/* Main Slab Concrete */}
+            <div className="space-y-3">
+              <h4 className="font-medium text-sm">Slab & Ground Beams</h4>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Price per m³</Label>
+                  <Input type="number" value={data.concrete.pricePerM3} onChange={(e) => onChange({ ...data, concrete: { ...data.concrete, pricePerM3: e.target.value } })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>MPa Strength</Label>
+                  <Select value={data.concrete.mpaStrength} onValueChange={(v) => onChange({ ...data, concrete: { ...data.concrete, mpaStrength: v } })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">N25</SelectItem>
+                      <SelectItem value="32">N32</SelectItem>
+                      <SelectItem value="40">N40</SelectItem>
+                      <SelectItem value="50">N50</SelectItem>
+                      <SelectItem value="65">N65</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Slump (mm)</Label>
+                  <Input type="number" value={data.concrete.slump} onChange={(e) => onChange({ ...data, concrete: { ...data.concrete, slump: e.target.value } })} />
+                </div>
+                <div className="space-y-2">
+                  <Label>Wastage %</Label>
+                  <Input type="number" value={data.concrete.wastagePercent} onChange={(e) => onChange({ ...data, concrete: { ...data.concrete, wastagePercent: e.target.value } })} />
+                </div>
               </div>
             </div>
+
+            {/* Footings & Piers Separate Concrete Option */}
+            {(data.stripFootings.length > 0 || data.pierHoles.length > 0) && (
+              <div className="space-y-3 pt-4 border-t">
+                <div className="flex items-center gap-3">
+                  <Label htmlFor="separateFootingsConcrete" className="font-medium text-sm">Different concrete for Footings & Piers?</Label>
+                  <Select 
+                    value={data.footingsPiersConcrete.useSeparateStrength ? "yes" : "no"} 
+                    onValueChange={(v) => onChange({ 
+                      ...data, 
+                      footingsPiersConcrete: { ...data.footingsPiersConcrete, useSeparateStrength: v === "yes" } 
+                    })}
+                  >
+                    <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="no">No</SelectItem>
+                      <SelectItem value="yes">Yes</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {data.footingsPiersConcrete.useSeparateStrength && (
+                  <div className="grid grid-cols-2 gap-4 pl-4 border-l-2 border-muted">
+                    <div className="space-y-2">
+                      <Label>Footings/Piers Price per m³</Label>
+                      <Input type="number" value={data.footingsPiersConcrete.pricePerM3} onChange={(e) => onChange({ ...data, footingsPiersConcrete: { ...data.footingsPiersConcrete, pricePerM3: e.target.value } })} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Footings/Piers MPa Strength</Label>
+                      <Select value={data.footingsPiersConcrete.mpaStrength} onValueChange={(v) => onChange({ ...data, footingsPiersConcrete: { ...data.footingsPiersConcrete, mpaStrength: v } })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="25">N25</SelectItem>
+                          <SelectItem value="32">N32</SelectItem>
+                          <SelectItem value="40">N40</SelectItem>
+                          <SelectItem value="50">N50</SelectItem>
+                          <SelectItem value="65">N65</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Footings/Piers Reinforcement Option */}
+            {(data.stripFootings.length > 0 || data.pierHoles.length > 0) && (
+              <div className="flex items-center gap-3 pt-4 border-t">
+                <Label htmlFor="footingsReinforcement" className="font-medium text-sm">Reinforcement in Footings & Piers?</Label>
+                <Select 
+                  value={data.footingsPiersReinforcement.includeReinforcement ? "yes" : "no"} 
+                  onValueChange={(v) => onChange({ 
+                    ...data, 
+                    footingsPiersReinforcement: { ...data.footingsPiersReinforcement, includeReinforcement: v === "yes" } 
+                  })}
+                >
+                  <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">Yes</SelectItem>
+                    <SelectItem value="no">No</SelectItem>
+                  </SelectContent>
+                </Select>
+                {data.footingsPiersReinforcement.includeReinforcement && (
+                  <span className="text-xs text-muted-foreground">(Add rebar in Reinforcement Schedule)</span>
+                )}
+              </div>
+            )}
+
             {calculations.totalConcreteVolume > 0 && (
-              <div className="text-sm space-y-1 pt-2 border-t">
+              <div className="text-sm space-y-1 pt-4 border-t">
                 <p>Slab: {calculations.totalSlabVolume.toFixed(2)}m³</p>
-                {calculations.totalStripFootingVolume > 0 && <p>+ Strip Footings: {calculations.totalStripFootingVolume.toFixed(2)}m³</p>}
-                {calculations.totalPierVolume > 0 && <p>+ Pier Holes: {calculations.totalPierVolume.toFixed(2)}m³</p>}
                 {calculations.totalGroundBeamVolume > 0 && <p>+ Ground Beams: {calculations.totalGroundBeamVolume.toFixed(2)}m³</p>}
-                <p className="font-medium">Total: {calculations.totalConcreteVolume.toFixed(2)}m³ (+{data.concrete.wastagePercent}% waste = {calculations.volumeWithWastage.toFixed(2)}m³)</p>
+                {calculations.totalStripFootingVolume > 0 && (
+                  <p className={data.footingsPiersConcrete.useSeparateStrength ? "text-blue-600 dark:text-blue-400" : ""}>
+                    + Strip Footings: {calculations.totalStripFootingVolume.toFixed(2)}m³
+                    {data.footingsPiersConcrete.useSeparateStrength && ` (N${data.footingsPiersConcrete.mpaStrength})`}
+                  </p>
+                )}
+                {calculations.totalPierVolume > 0 && (
+                  <p className={data.footingsPiersConcrete.useSeparateStrength ? "text-blue-600 dark:text-blue-400" : ""}>
+                    + Pier Holes: {calculations.totalPierVolume.toFixed(2)}m³
+                    {data.footingsPiersConcrete.useSeparateStrength && ` (N${data.footingsPiersConcrete.mpaStrength})`}
+                  </p>
+                )}
+                <p className="font-medium pt-1">Total: {calculations.totalConcreteVolume.toFixed(2)}m³ (+{data.concrete.wastagePercent}% waste = {calculations.volumeWithWastage.toFixed(2)}m³)</p>
+                {data.footingsPiersConcrete.useSeparateStrength && calculations.footingsPiersVolume > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Slab/Beams: {formatCurrency(calculations.slabConcreteCost)} | Footings/Piers: {formatCurrency(calculations.footingsPiersConcreteCost)}
+                  </p>
+                )}
               </div>
             )}
           </AccordionContent>
