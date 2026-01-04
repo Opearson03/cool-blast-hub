@@ -37,6 +37,8 @@ interface Estimate {
   valid_until: string | null;
   notes: string | null;
   estimate_type: EstimateType;
+  scope_data: Record<string, unknown> | null;
+  selected_scopes: string[] | null;
 }
 
 const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Car }> = {
@@ -159,35 +161,116 @@ export default function AdminEstimates() {
     setViewingEstimate(estimate);
   };
 
-  // Parse estimate description to extract all available data for job creation
+  // Parse estimate scope_data to extract structured data for job creation
   const parseEstimateForJob = (estimate: Estimate) => {
     let estimatedM3 = "";
     let mpaStrength = "";
     let slump = "";
     let finishType = "";
+    const pours: Array<{
+      pour_name: string;
+      estimated_m3: number;
+      mpa_strength: string;
+      slump: string;
+      notes: string;
+    }> = [];
+
+    // Try to extract from structured scope_data first
+    if (estimate.scope_data && estimate.selected_scopes) {
+      const scopeData = estimate.scope_data as Record<string, any>;
+      
+      // Calculate total m³ from all scopes
+      let totalM3 = 0;
+      
+      // Check raft_slab for pours data
+      if (estimate.selected_scopes.includes("raft_slab") && scopeData.raft_slab) {
+        const raftData = scopeData.raft_slab;
+        mpaStrength = raftData.concreteStrength || "";
+        
+        // Calculate volume from dimensions
+        const length = parseFloat(raftData.slabLength) || 0;
+        const width = parseFloat(raftData.slabWidth) || 0;
+        const depth = parseFloat(raftData.slabDepth) || 0;
+        const wastage = parseFloat(raftData.wastagePercent) || 5;
+        const volume = (length * width * (depth / 1000)) * (1 + wastage / 100);
+        totalM3 += volume;
+        
+        // Extract pours if defined
+        if (raftData.pours && Array.isArray(raftData.pours)) {
+          raftData.pours.forEach((pour: any, index: number) => {
+            pours.push({
+              pour_name: pour.name || `Pour ${index + 1}`,
+              estimated_m3: Math.round((volume / raftData.pours.length) * 100) / 100,
+              mpa_strength: mpaStrength,
+              slump: slump,
+              notes: `Crew: ${pour.crewSize || 4} | Hours: ${pour.hoursPerMan || 8}h per person`,
+            });
+          });
+        }
+      }
+      
+      // Check suspended_slab
+      if (estimate.selected_scopes.includes("suspended_slab") && scopeData.suspended_slab) {
+        const suspendedData = scopeData.suspended_slab;
+        mpaStrength = mpaStrength || suspendedData.concreteStrength || "";
+        
+        const length = parseFloat(suspendedData.slabLength) || 0;
+        const width = parseFloat(suspendedData.slabWidth) || 0;
+        const depth = parseFloat(suspendedData.slabDepth) || 0;
+        const wastage = parseFloat(suspendedData.wastagePercent) || 5;
+        totalM3 += (length * width * (depth / 1000)) * (1 + wastage / 100);
+      }
+      
+      // Check standard_slab or driveway
+      const slabScope = estimate.selected_scopes.includes("standard_slab") ? "standard_slab" 
+        : estimate.selected_scopes.includes("driveway") ? "driveway" : null;
+      if (slabScope && scopeData[slabScope]) {
+        const slabData = scopeData[slabScope];
+        mpaStrength = mpaStrength || slabData.concreteStrength || "";
+        
+        const length = parseFloat(slabData.slabLength) || 0;
+        const width = parseFloat(slabData.slabWidth) || 0;
+        const depth = parseFloat(slabData.slabDepth) || 0;
+        const wastage = parseFloat(slabData.wastagePercent) || 5;
+        totalM3 += (length * width * (depth / 1000)) * (1 + wastage / 100);
+      }
+      
+      // Check waffle_pod
+      if (estimate.selected_scopes.includes("waffle_pod") && scopeData.waffle_pod) {
+        const waffleData = scopeData.waffle_pod;
+        mpaStrength = mpaStrength || waffleData.concreteStrength || "";
+        
+        const length = parseFloat(waffleData.slabLength) || 0;
+        const width = parseFloat(waffleData.slabWidth) || 0;
+        const depth = parseFloat(waffleData.slabDepth) || 0;
+        const wastage = parseFloat(waffleData.wastagePercent) || 5;
+        totalM3 += (length * width * (depth / 1000)) * (1 + wastage / 100);
+      }
+      
+      if (totalM3 > 0) {
+        estimatedM3 = totalM3.toFixed(2);
+      }
+    }
     
-    // Parse the description format: "Slab: 18.0m² x 100mm | Concrete: 1.89m³ @ 32MPa | Reo: 2 sheets SL82 | Other notes"
-    if (estimate.description) {
-      // Extract m³ from "Concrete: 1.89m³" pattern
+    // Fallback: Parse the description format if no scope_data
+    if (!estimatedM3 && estimate.description) {
       const m3Match = estimate.description.match(/Concrete:\s*([\d.]+)\s*m[³3]/i);
       if (m3Match) {
         estimatedM3 = m3Match[1];
       } else {
-        // Fallback: Try simpler pattern like "4.50 m³"
         const simpleM3Match = estimate.description.match(/([\d.]+)\s*m[³3]/i);
         if (simpleM3Match) {
           estimatedM3 = simpleM3Match[1];
         }
       }
       
-      // Extract MPa from "@ 32MPa" pattern
       const mpaMatch = estimate.description.match(/@\s*([\d]+)\s*MPa/i);
       if (mpaMatch) {
         mpaStrength = mpaMatch[1];
       }
     }
 
-    // Build comprehensive job notes with all estimate info
+    // Build comprehensive job notes
     const noteParts = [
       `Converted from estimate ${estimate.estimate_number}`,
       `Quote Total: ${new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(estimate.total_amount)}`,
@@ -202,9 +285,6 @@ export default function AdminEstimates() {
     if (estimate.description) {
       noteParts.push(`\nScope: ${estimate.description}`);
     }
-    if (estimate.notes) {
-      noteParts.push(`\nTerms/Notes: ${estimate.notes}`);
-    }
 
     return {
       name: `${estimate.client_name} - ${estimate.site_address.split(",")[0]}`,
@@ -215,6 +295,8 @@ export default function AdminEstimates() {
       slump: slump,
       finish_type: finishType,
       job_notes: noteParts.join("\n").trim(),
+      pours: pours, // Include pours for auto-creation
+      estimate_id: estimate.id,
     };
   };
 
@@ -487,7 +569,11 @@ export default function AdminEstimates() {
       <EstimateFormDialog
         open={formOpen}
         onOpenChange={handleFormClose}
-        editEstimate={editingEstimate}
+        editEstimate={editingEstimate ? {
+          ...editingEstimate,
+          scope_data: editingEstimate.scope_data as any,
+          selected_scopes: editingEstimate.selected_scopes as any,
+        } : null}
       />
 
       <EstimateDetailSheet

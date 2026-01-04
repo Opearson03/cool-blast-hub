@@ -41,6 +41,19 @@ type JobFormData = {
   job_notes: string;
 };
 
+type PourData = {
+  pour_name: string;
+  estimated_m3: number;
+  mpa_strength: string;
+  slump: string;
+  notes: string;
+};
+
+type InitialJobData = Partial<JobFormData> & {
+  pours?: PourData[];
+  estimate_id?: string;
+};
+
 const initialFormData: JobFormData = {
   name: "",
   site_address: "",
@@ -61,7 +74,7 @@ interface JobFormDialogProps {
   onOpenChange: (open: boolean) => void;
   crews: Crew[];
   editJob?: any;
-  initialData?: Partial<JobFormData>;
+  initialData?: InitialJobData;
 }
 
 export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData }: JobFormDialogProps) {
@@ -167,13 +180,46 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
           .eq("id", editJob.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("jobs").insert(jobData);
+        // Create the job
+        const { data: newJob, error } = await supabase
+          .from("jobs")
+          .insert(jobData)
+          .select("id")
+          .single();
         if (error) throw error;
+
+        // If we have pours from estimate conversion, create job_pours
+        if (newJob && initialData?.pours && initialData.pours.length > 0) {
+          const poursToInsert = initialData.pours.map((pour, index) => ({
+            job_id: newJob.id,
+            pour_name: pour.pour_name,
+            estimated_m3: pour.estimated_m3 || null,
+            mpa_strength: pour.mpa_strength || null,
+            slump: pour.slump || null,
+            notes: pour.notes || null,
+            status: "scheduled",
+          }));
+
+          const { error: poursError } = await supabase
+            .from("job_pours")
+            .insert(poursToInsert);
+          
+          if (poursError) {
+            console.error("Failed to create pours:", poursError);
+            // Don't throw - job was created successfully
+          }
+        }
       }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
-      toast({ title: editJob ? "Job updated successfully" : "Job created successfully" });
+      queryClient.invalidateQueries({ queryKey: ["job-pours"] });
+      toast({ 
+        title: editJob ? "Job updated successfully" : "Job created successfully",
+        description: initialData?.pours?.length 
+          ? `Created ${initialData.pours.length} pour(s) from estimate.`
+          : undefined,
+      });
       onOpenChange(false);
       setFormData(initialFormData);
     },
