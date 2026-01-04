@@ -32,6 +32,7 @@ import { RetainingWallCalculator, RetainingWallData, initialRetainingWallData, c
 import { CrossoversCalculator, CrossoversData, initialCrossoversData, calculateCrossoversTotals } from "./calculators/CrossoversCalculator";
 import { PathsSurroundsCalculator, PathsSurroundsData, initialPathsSurroundsData, calculatePathsSurroundsTotals } from "./calculators/PathsSurroundsCalculator";
 import { RaftSlabCalculator, RaftSlabData, initialRaftSlabData, calculateRaftSlabTotals } from "./calculators/RaftSlabCalculator";
+import { StandardSlabCalculator, StandardSlabData, initialStandardSlabData, calculateStandardSlabTotals } from "./calculators/StandardSlabCalculator";
 
 interface Estimate {
   id: string;
@@ -107,7 +108,7 @@ const DEFAULT_EXCLUSIONS = [
 interface ScopeCalculatorData {
   piers: PiersData;
   retaining_wall_footings: RetainingWallData;
-  standard_slab: RaftSlabData; // Reuse raft slab for standard slab
+  standard_slab: StandardSlabData;
   raft_slab: RaftSlabData;
   waffle_pod: WafflePodData;
   driveway: RaftSlabData; // Reuse raft slab for driveway
@@ -118,7 +119,7 @@ interface ScopeCalculatorData {
 const initialScopeData: ScopeCalculatorData = {
   piers: initialPiersData,
   retaining_wall_footings: initialRetainingWallData,
-  standard_slab: initialRaftSlabData,
+  standard_slab: initialStandardSlabData,
   raft_slab: initialRaftSlabData,
   waffle_pod: initialWafflePodData,
   driveway: initialRaftSlabData,
@@ -191,8 +192,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       totals.retaining_wall_footings = { total: calcs.grandTotal, description: `${scopeData.retaining_wall_footings.footings.length} footing types` };
     }
     if (selectedScopes.has("standard_slab")) {
-      const calcs = calculateRaftSlabTotals(scopeData.standard_slab);
-      totals.standard_slab = { total: calcs.grandTotal, description: `${calcs.raftArea.toFixed(1)}m² standard slab` };
+      const calcs = calculateStandardSlabTotals(scopeData.standard_slab);
+      totals.standard_slab = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² standard slab` };
     }
     if (selectedScopes.has("raft_slab")) {
       const calcs = calculateRaftSlabTotals(scopeData.raft_slab);
@@ -428,7 +429,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         );
       case "standard_slab":
         return (
-          <RaftSlabCalculator
+          <StandardSlabCalculator
             data={scopeData.standard_slab}
             onChange={(data) => updateScopeData("standard_slab", data)}
           />
