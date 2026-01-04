@@ -24,9 +24,6 @@ const ESTIMATE_TYPES = [
       "Basic treatments (sealing, curing)",
     ],
     icon: Car,
-    color: "from-blue-500/20 to-blue-600/20",
-    borderColor: "border-blue-500",
-    iconColor: "text-blue-500",
   },
   {
     id: "house_slab" as EstimateType,
@@ -40,9 +37,6 @@ const ESTIMATE_TYPES = [
       "Concrete pump options",
     ],
     icon: Home,
-    color: "from-green-500/20 to-green-600/20",
-    borderColor: "border-green-500",
-    iconColor: "text-green-500",
   },
   {
     id: "commercial_slab" as EstimateType,
@@ -56,9 +50,6 @@ const ESTIMATE_TYPES = [
       "Ligatures and mesh options",
     ],
     icon: Building2,
-    color: "from-orange-500/20 to-orange-600/20",
-    borderColor: "border-orange-500",
-    iconColor: "text-orange-500",
   },
 ];
 
@@ -89,7 +80,7 @@ export function EstimateTypeSelector({
               key={type.id}
               className={cn(
                 "relative cursor-pointer transition-all duration-200 hover:shadow-md",
-                isSelected && `border-2 ${type.borderColor} bg-gradient-to-r ${type.color}`,
+                isSelected && "border-2 border-orange bg-gradient-to-r from-orange/20 to-orange-dark/20",
                 !isSelected && "hover:border-muted-foreground/30",
                 isDisabled && "opacity-60 cursor-not-allowed"
               )}
@@ -108,14 +99,14 @@ export function EstimateTypeSelector({
                     className={cn(
                       "shrink-0 w-12 h-12 rounded-lg flex items-center justify-center",
                       isSelected
-                        ? `bg-gradient-to-br ${type.color}`
+                        ? "bg-gradient-to-br from-orange/20 to-orange-dark/20"
                         : "bg-muted"
                     )}
                   >
                     <Icon
                       className={cn(
                         "w-6 h-6",
-                        isSelected ? type.iconColor : "text-muted-foreground"
+                        isSelected ? "text-orange" : "text-muted-foreground"
                       )}
                     />
                   </div>
