@@ -29,6 +29,7 @@ import { ScopeSelector, ScopeType, SCOPE_OPTIONS } from "./ScopeSelector";
 import { PiersCalculator, PiersData, initialPiersData, calculatePiersTotals } from "./calculators/PiersCalculator";
 import { WafflePodCalculator, WafflePodData, initialWafflePodData, calculateWafflePodTotals } from "./calculators/WafflePodCalculator";
 import { RetainingWallCalculator, RetainingWallData, initialRetainingWallData, calculateRetainingWallTotals } from "./calculators/RetainingWallCalculator";
+import { StripFootingsCalculator, StripFootingsData, initialStripFootingsData, calculateStripFootingsTotals } from "./calculators/StripFootingsCalculator";
 import { CrossoversCalculator, CrossoversData, initialCrossoversData, calculateCrossoversTotals } from "./calculators/CrossoversCalculator";
 import { PathsSurroundsCalculator, PathsSurroundsData, initialPathsSurroundsData, calculatePathsSurroundsTotals } from "./calculators/PathsSurroundsCalculator";
 import { RaftSlabCalculator, RaftSlabData, initialRaftSlabData, calculateRaftSlabTotals } from "./calculators/RaftSlabCalculator";
@@ -109,6 +110,7 @@ const DEFAULT_EXCLUSIONS = [
 interface ScopeCalculatorData {
   piers: PiersData;
   retaining_wall_footings: RetainingWallData;
+  strip_footings: StripFootingsData;
   standard_slab: StandardSlabData;
   raft_slab: RaftSlabData;
   waffle_pod: WafflePodData;
@@ -121,6 +123,7 @@ interface ScopeCalculatorData {
 const initialScopeData: ScopeCalculatorData = {
   piers: initialPiersData,
   retaining_wall_footings: initialRetainingWallData,
+  strip_footings: initialStripFootingsData,
   standard_slab: initialStandardSlabData,
   raft_slab: initialRaftSlabData,
   waffle_pod: initialWafflePodData,
@@ -192,6 +195,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     const totals: Record<ScopeType, { total: number; description: string }> = {
       piers: { total: 0, description: "" },
       retaining_wall_footings: { total: 0, description: "" },
+      strip_footings: { total: 0, description: "" },
       standard_slab: { total: 0, description: "" },
       raft_slab: { total: 0, description: "" },
       waffle_pod: { total: 0, description: "" },
@@ -208,6 +212,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     if (selectedScopes.has("retaining_wall_footings")) {
       const calcs = calculateRetainingWallTotals(scopeData.retaining_wall_footings);
       totals.retaining_wall_footings = { total: calcs.grandTotal, description: `${scopeData.retaining_wall_footings.footings.length} footing types` };
+    }
+    if (selectedScopes.has("strip_footings")) {
+      const calcs = calculateStripFootingsTotals(scopeData.strip_footings);
+      totals.strip_footings = { total: calcs.grandTotal, description: `${calcs.totalLength.toFixed(1)}m strip footings` };
     }
     if (selectedScopes.has("standard_slab")) {
       const calcs = calculateStandardSlabTotals(scopeData.standard_slab);
@@ -463,6 +471,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           <RetainingWallCalculator
             data={scopeData.retaining_wall_footings}
             onChange={(data) => updateScopeData("retaining_wall_footings", data)}
+          />
+        );
+      case "strip_footings":
+        return (
+          <StripFootingsCalculator
+            data={scopeData.strip_footings}
+            onChange={(data) => updateScopeData("strip_footings", data)}
           />
         );
       case "standard_slab":
