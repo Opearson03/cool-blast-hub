@@ -19,7 +19,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Plus, Trash2, EyeOff, Layers, Circle, Square, Grip, Truck } from "lucide-react";
+import { Plus, Trash2, EyeOff, Layers, Circle, Square, Grip, Truck, Users, HelpCircle } from "lucide-react";
 
 // Slab section type
 interface SlabSection {
@@ -92,6 +92,39 @@ const LIGATURE_TYPES = [
   { id: "R10", label: "R10 (10mm round)", kgPerM: 0.617, defaultPrice: 1.50 },
 ];
 
+// Labour questionnaire type
+interface LabourQuestionnaire {
+  useGuided: boolean;
+  // Setout
+  setoutMen: string;
+  setoutHours: string;
+  // Excavation
+  excavationMen: string;
+  excavationHours: string;
+  spotterRequired: boolean;
+  spotterHours: string;
+  removeSpoil: boolean; // if false, add to exclusions
+  // Formwork for piers
+  pierFormwork: boolean;
+  pierFormworkCost: string;
+  pierFormworkMen: string;
+  pierFormworkHours: string;
+  // Reinforcement cages
+  reoCageMen: string;
+  reoCageHours: string;
+  // Concrete placement
+  concretePlacementMen: string;
+  concretePlacementHours: string;
+  // Pump time
+  pumpHours: string;
+  // Waiting time
+  waitingMinutes: string;
+  // Manual override
+  manualHours: string;
+  manualMen: string;
+  hourlyRate: string;
+}
+
 export interface CommercialSlabData {
   sections: SlabSection[];
   stripFootings: StripFooting[];
@@ -123,6 +156,7 @@ export interface CommercialSlabData {
     ligatureMeters: string;
     ligaturePricePerM: string;
   };
+  labour: LabourQuestionnaire;
   extras: {
     formworkMeters: string;
     formworkPricePerM: string;
@@ -170,6 +204,29 @@ export const initialCommercialSlabData: CommercialSlabData = {
     ligatureType: "R10",
     ligatureMeters: "",
     ligaturePricePerM: "1.50",
+  },
+  labour: {
+    useGuided: true,
+    setoutMen: "2",
+    setoutHours: "",
+    excavationMen: "1",
+    excavationHours: "",
+    spotterRequired: false,
+    spotterHours: "",
+    removeSpoil: true,
+    pierFormwork: false,
+    pierFormworkCost: "",
+    pierFormworkMen: "2",
+    pierFormworkHours: "",
+    reoCageMen: "2",
+    reoCageHours: "",
+    concretePlacementMen: "4",
+    concretePlacementHours: "",
+    pumpHours: "",
+    waitingMinutes: "",
+    manualHours: "",
+    manualMen: "4",
+    hourlyRate: "85",
   },
   extras: {
     formworkMeters: "",
@@ -396,7 +453,68 @@ export function CommercialSlabCalculator({ data, onChange }: CommercialSlabCalcu
     const vbArea = data.extras.vapourBarrier ? totalSlabArea * 1.15 : 0;
     const vbCost = vbArea * (parseFloat(data.extras.vapourBarrierPricePerM2) || 0);
 
-    const subtotal = concreteCost + totalReinforcementCost + formworkCost + pumpCost + vbCost;
+    // Labour calculations
+    const hourlyRate = parseFloat(data.labour.hourlyRate) || 0;
+    const totalPierCount = data.pierHoles.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
+    
+    let labourTotalHours = 0;
+    let labourTotalManHours = 0;
+    
+    if (data.labour.useGuided) {
+      // Setout
+      const setoutMen = parseFloat(data.labour.setoutMen) || 0;
+      const setoutHours = parseFloat(data.labour.setoutHours) || 0;
+      labourTotalManHours += setoutMen * setoutHours;
+      
+      // Excavation
+      const excavationMen = parseFloat(data.labour.excavationMen) || 0;
+      const excavationHours = parseFloat(data.labour.excavationHours) || 0;
+      labourTotalManHours += excavationMen * excavationHours;
+      
+      // Spotter
+      if (data.labour.spotterRequired) {
+        const spotterHours = parseFloat(data.labour.spotterHours) || 0;
+        labourTotalManHours += spotterHours; // 1 spotter
+      }
+      
+      // Pier formwork
+      if (data.labour.pierFormwork) {
+        const pierFormworkMen = parseFloat(data.labour.pierFormworkMen) || 0;
+        const pierFormworkHours = parseFloat(data.labour.pierFormworkHours) || 0;
+        labourTotalManHours += pierFormworkMen * pierFormworkHours;
+      }
+      
+      // Reo cages
+      const reoCageMen = parseFloat(data.labour.reoCageMen) || 0;
+      const reoCageHours = parseFloat(data.labour.reoCageHours) || 0;
+      labourTotalManHours += reoCageMen * reoCageHours;
+      
+      // Concrete placement
+      const concretePlacementMen = parseFloat(data.labour.concretePlacementMen) || 0;
+      const concretePlacementHours = parseFloat(data.labour.concretePlacementHours) || 0;
+      labourTotalManHours += concretePlacementMen * concretePlacementHours;
+      
+      // Pump hours (crew waiting)
+      const pumpHours = parseFloat(data.labour.pumpHours) || 0;
+      labourTotalManHours += concretePlacementMen * pumpHours;
+      
+      // Waiting time on concrete
+      const waitingMinutes = parseFloat(data.labour.waitingMinutes) || 0;
+      labourTotalManHours += concretePlacementMen * (waitingMinutes / 60);
+      
+      labourTotalHours = labourTotalManHours;
+    } else {
+      // Manual entry
+      const manualMen = parseFloat(data.labour.manualMen) || 0;
+      const manualHours = parseFloat(data.labour.manualHours) || 0;
+      labourTotalManHours = manualMen * manualHours;
+      labourTotalHours = labourTotalManHours;
+    }
+    
+    const labourCost = labourTotalManHours * hourlyRate;
+    const pierFormworkMaterialCost = data.labour.pierFormwork ? (parseFloat(data.labour.pierFormworkCost) || 0) : 0;
+
+    const subtotal = concreteCost + totalReinforcementCost + formworkCost + pumpCost + vbCost + labourCost + pierFormworkMaterialCost;
 
     return {
       sectionCalcs,
@@ -430,6 +548,10 @@ export function CommercialSlabCalculator({ data, onChange }: CommercialSlabCalcu
       pumpCost,
       vbArea,
       vbCost,
+      totalPierCount,
+      labourTotalManHours,
+      labourCost,
+      pierFormworkMaterialCost,
       subtotal,
     };
   }, [data]);
@@ -988,12 +1110,310 @@ export function CommercialSlabCalculator({ data, onChange }: CommercialSlabCalcu
             </div>
           </AccordionContent>
         </AccordionItem>
+
+        {/* Labour */}
+        <AccordionItem value="labour" className="border rounded-lg px-4">
+          <AccordionTrigger className="hover:no-underline">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              <span>Labour Estimation</span>
+              {calculations.labourCost > 0 && (
+                <Badge variant="secondary" className="ml-2">
+                  {calculations.labourTotalManHours.toFixed(1)} man-hrs = {formatCurrency(calculations.labourCost)}
+                </Badge>
+              )}
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="pt-4 space-y-4">
+            {/* Mode Toggle */}
+            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-4 h-4 text-muted-foreground" />
+                <span className="text-sm font-medium">Use guided questionnaire?</span>
+              </div>
+              <Select 
+                value={data.labour.useGuided ? "guided" : "manual"} 
+                onValueChange={(v) => onChange({ 
+                  ...data, 
+                  labour: { ...data.labour, useGuided: v === "guided" } 
+                })}
+              >
+                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="guided">Guided</SelectItem>
+                  <SelectItem value="manual">Manual</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Hourly Rate - always visible */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Hourly Rate ($/hr per person)</Label>
+                <Input 
+                  type="number" 
+                  value={data.labour.hourlyRate} 
+                  onChange={(e) => onChange({ ...data, labour: { ...data.labour, hourlyRate: e.target.value } })} 
+                />
+              </div>
+            </div>
+
+            {data.labour.useGuided ? (
+              <div className="space-y-6">
+                {/* Setout */}
+                <div className="space-y-3 p-4 border rounded-lg bg-background">
+                  <Label className="font-medium">How many hours to set out the {calculations.totalPierCount || "X"} piers?</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">No. of men</Label>
+                      <Input 
+                        type="number" 
+                        value={data.labour.setoutMen} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, setoutMen: e.target.value } })} 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Hours</Label>
+                      <Input 
+                        type="number" 
+                        value={data.labour.setoutHours} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, setoutHours: e.target.value } })} 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Excavation */}
+                <div className="space-y-3 p-4 border rounded-lg bg-background">
+                  <Label className="font-medium">How many hours to excavate the {calculations.totalPierCount || "X"} piers?</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">No. of men</Label>
+                      <Input 
+                        type="number" 
+                        value={data.labour.excavationMen} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, excavationMen: e.target.value } })} 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Hours</Label>
+                      <Input 
+                        type="number" 
+                        value={data.labour.excavationHours} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, excavationHours: e.target.value } })} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Spotter */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <Label className="text-sm">Spotter required while excavating?</Label>
+                    <Select 
+                      value={data.labour.spotterRequired ? "yes" : "no"} 
+                      onValueChange={(v) => onChange({ ...data, labour: { ...data.labour, spotterRequired: v === "yes" } })}
+                    >
+                      <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {data.labour.spotterRequired && (
+                      <div className="flex items-center gap-1">
+                        <Input 
+                          type="number" 
+                          className="w-20" 
+                          placeholder="Hours"
+                          value={data.labour.spotterHours} 
+                          onChange={(e) => onChange({ ...data, labour: { ...data.labour, spotterHours: e.target.value } })} 
+                        />
+                        <span className="text-xs text-muted-foreground">hrs</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Spoil removal */}
+                  <div className="flex items-center gap-3 pt-2">
+                    <Label className="text-sm">Removing spoil from site?</Label>
+                    <Select 
+                      value={data.labour.removeSpoil ? "yes" : "no"} 
+                      onValueChange={(v) => onChange({ ...data, labour: { ...data.labour, removeSpoil: v === "yes" } })}
+                    >
+                      <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    {!data.labour.removeSpoil && (
+                      <span className="text-xs text-amber-600 dark:text-amber-400">→ Will be added to exclusions</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Pier Formwork */}
+                <div className="space-y-3 p-4 border rounded-lg bg-background">
+                  <div className="flex items-center gap-3">
+                    <Label className="font-medium">Formwork required for the {calculations.totalPierCount || "X"} piers?</Label>
+                    <Select 
+                      value={data.labour.pierFormwork ? "yes" : "no"} 
+                      onValueChange={(v) => onChange({ ...data, labour: { ...data.labour, pierFormwork: v === "yes" } })}
+                    >
+                      <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="no">No</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {data.labour.pierFormwork && (
+                    <div className="grid grid-cols-3 gap-3 pl-4 border-l-2 border-muted">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Material Cost ($)</Label>
+                        <Input 
+                          type="number" 
+                          value={data.labour.pierFormworkCost} 
+                          onChange={(e) => onChange({ ...data, labour: { ...data.labour, pierFormworkCost: e.target.value } })} 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">No. of men</Label>
+                        <Input 
+                          type="number" 
+                          value={data.labour.pierFormworkMen} 
+                          onChange={(e) => onChange({ ...data, labour: { ...data.labour, pierFormworkMen: e.target.value } })} 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Hours to install</Label>
+                        <Input 
+                          type="number" 
+                          value={data.labour.pierFormworkHours} 
+                          onChange={(e) => onChange({ ...data, labour: { ...data.labour, pierFormworkHours: e.target.value } })} 
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Reinforcement Cages */}
+                <div className="space-y-3 p-4 border rounded-lg bg-background">
+                  <Label className="font-medium">How many men to tie reinforcement cages? How many hours?</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">No. of men</Label>
+                      <Input 
+                        type="number" 
+                        value={data.labour.reoCageMen} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, reoCageMen: e.target.value } })} 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Hours</Label>
+                      <Input 
+                        type="number" 
+                        value={data.labour.reoCageHours} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, reoCageHours: e.target.value } })} 
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Concrete Placement */}
+                <div className="space-y-3 p-4 border rounded-lg bg-background">
+                  <Label className="font-medium">How many men to place the concrete? How many hours?</Label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs">No. of men</Label>
+                      <Input 
+                        type="number" 
+                        value={data.labour.concretePlacementMen} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, concretePlacementMen: e.target.value } })} 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Hours</Label>
+                      <Input 
+                        type="number" 
+                        value={data.labour.concretePlacementHours} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, concretePlacementHours: e.target.value } })} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pump hours */}
+                  <div className="space-y-1 pt-2">
+                    <Label className="text-xs">How many hours do you expect the pump to be onsite?</Label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="number" 
+                        className="w-24"
+                        value={data.labour.pumpHours} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, pumpHours: e.target.value } })} 
+                      />
+                      <span className="text-xs text-muted-foreground">hours</span>
+                    </div>
+                  </div>
+
+                  {/* Waiting time */}
+                  <div className="space-y-1 pt-2">
+                    <Label className="text-xs">Expected waiting time on concrete delivery?</Label>
+                    <div className="flex items-center gap-2">
+                      <Input 
+                        type="number" 
+                        className="w-24"
+                        value={data.labour.waitingMinutes} 
+                        onChange={(e) => onChange({ ...data, labour: { ...data.labour, waitingMinutes: e.target.value } })} 
+                      />
+                      <span className="text-xs text-muted-foreground">minutes</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Manual Entry */
+              <div className="space-y-3 p-4 border rounded-lg bg-background">
+                <Label className="font-medium">Enter total labour directly</Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs">No. of men</Label>
+                    <Input 
+                      type="number" 
+                      value={data.labour.manualMen} 
+                      onChange={(e) => onChange({ ...data, labour: { ...data.labour, manualMen: e.target.value } })} 
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Total Hours</Label>
+                    <Input 
+                      type="number" 
+                      value={data.labour.manualHours} 
+                      onChange={(e) => onChange({ ...data, labour: { ...data.labour, manualHours: e.target.value } })} 
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Labour Summary */}
+            {calculations.labourTotalManHours > 0 && (
+              <div className="text-sm space-y-1 pt-2 border-t">
+                <p className="font-medium">
+                  Total: {calculations.labourTotalManHours.toFixed(1)} man-hours × ${data.labour.hourlyRate}/hr = {formatCurrency(calculations.labourCost)}
+                </p>
+                {calculations.pierFormworkMaterialCost > 0 && (
+                  <p className="text-muted-foreground">+ Pier formwork materials: {formatCurrency(calculations.pierFormworkMaterialCost)}</p>
+                )}
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
       </Accordion>
 
       {/* Summary Card */}
       <Card className="bg-primary/5 border-primary/20">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Material Cost Summary</CardTitle>
+          <CardTitle className="text-base">Cost Summary</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -1022,8 +1442,14 @@ export function CommercialSlabCalculator({ data, onChange }: CommercialSlabCalcu
               <span>{formatCurrency(calculations.vbCost)}</span>
             </div>
           )}
+          {(calculations.labourCost > 0 || calculations.pierFormworkMaterialCost > 0) && (
+            <div className="flex justify-between">
+              <span>Labour ({calculations.labourTotalManHours.toFixed(1)} man-hrs)</span>
+              <span>{formatCurrency(calculations.labourCost + calculations.pierFormworkMaterialCost)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-semibold pt-2 border-t">
-            <span>Materials Subtotal</span>
+            <span>Subtotal</span>
             <span>{formatCurrency(calculations.subtotal)}</span>
           </div>
         </CardContent>
