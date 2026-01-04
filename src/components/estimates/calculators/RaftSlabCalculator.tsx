@@ -8,7 +8,9 @@ import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -669,14 +671,18 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="" disabled>Trench Mesh</SelectItem>
-                {TRENCH_MESH_TYPES.map((t) => (
-                  <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
-                ))}
-                <SelectItem value="" disabled>Reo Bars</SelectItem>
-                {REBAR_SIZES.map((r) => (
-                  <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
-                ))}
+                <SelectGroup>
+                  <SelectLabel>Trench Mesh</SelectLabel>
+                  {TRENCH_MESH_TYPES.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>{t.label}</SelectItem>
+                  ))}
+                </SelectGroup>
+                <SelectGroup>
+                  <SelectLabel>Reo Bars</SelectLabel>
+                  {REBAR_SIZES.map((r) => (
+                    <SelectItem key={r.id} value={r.id}>{r.label}</SelectItem>
+                  ))}
+                </SelectGroup>
               </SelectContent>
             </Select>
           </div>
