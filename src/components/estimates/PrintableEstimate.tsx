@@ -13,6 +13,7 @@ interface PrintableEstimateProps {
   estimate: {
     estimate_number: string;
     client_name: string;
+    company_name: string | null;
     client_email: string | null;
     client_phone: string | null;
     site_address: string;
@@ -113,6 +114,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           <div>
             <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Bill To</h3>
             <p className="font-semibold text-gray-900">{estimate.client_name}</p>
+            {estimate.company_name && <p className="text-sm text-gray-700">{estimate.company_name}</p>}
             {estimate.client_email && <p className="text-sm text-gray-600">{estimate.client_email}</p>}
             {estimate.client_phone && <p className="text-sm text-gray-600">{estimate.client_phone}</p>}
           </div>
