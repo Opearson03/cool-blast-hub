@@ -25,7 +25,7 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     id: "piers", 
     label: "Piers", 
     description: "Concrete piers / footings",
-    availableFor: ["house_slab", "commercial_slab"]
+    availableFor: ["driveway", "house_slab", "commercial_slab"]
   },
   { 
     id: "retaining_wall_footings", 
@@ -36,13 +36,13 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
   { 
     id: "standard_slab", 
     label: "Standard Slab", 
-    description: "Basic slab on ground",
+    description: "Basic slab on ground (no edge beams)",
     availableFor: ["house_slab", "commercial_slab"]
   },
   { 
     id: "raft_slab", 
     label: "Raft Slab", 
-    description: "Full raft slab with edge beams",
+    description: "Full raft slab with edge and internal beams",
     availableFor: ["house_slab", "commercial_slab"]
   },
   { 

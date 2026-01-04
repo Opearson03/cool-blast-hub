@@ -1882,17 +1882,45 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
 
 // Export calculation helper
 export function calculateRaftSlabTotals(data: RaftSlabData) {
-  const raftArea = parseFloat(data.raftArea) || 0;
-  const slabThickness = (parseFloat(data.slabThickness) || 0) / 1000;
-  const slabVolume = raftArea * slabThickness;
+  const slabMode = data.slabMode || "raft";
+  const individualSlabs = data.individualSlabs || [];
   
-  const selectedMesh = MESH_TYPES.find((m) => m.id === data.meshType) || MESH_TYPES[2];
-  const meshSheets = Math.ceil((raftArea * 1.1) / selectedMesh.area);
-  const meshCost = meshSheets * (parseFloat(data.meshPrice) || selectedMesh.defaultPrice);
+  let raftArea = 0;
+  let slabVolume = 0;
+  let meshCost = 0;
+  let polyCost = 0;
   
-  const polyCost = data.polyMembrane 
-    ? raftArea * (parseInt(data.polyLayers) || 1) * (parseFloat(data.polyPrice) || 2.5)
-    : 0;
+  if (slabMode === "raft") {
+    raftArea = parseFloat(data.raftArea) || 0;
+    const slabThickness = (parseFloat(data.slabThickness) || 0) / 1000;
+    slabVolume = raftArea * slabThickness;
+    
+    const selectedMesh = MESH_TYPES.find((m) => m.id === data.meshType) || MESH_TYPES[2];
+    const meshSheets = Math.ceil((raftArea * 1.1) / selectedMesh.area);
+    meshCost = meshSheets * (parseFloat(data.meshPrice) || selectedMesh.defaultPrice);
+    
+    polyCost = data.polyMembrane 
+      ? raftArea * (parseInt(data.polyLayers) || 1) * (parseFloat(data.polyPrice) || 2.5)
+      : 0;
+  } else {
+    // Individual slabs mode
+    individualSlabs.forEach((slab) => {
+      const area = parseFloat(slab.area) || 0;
+      const thickness = (parseFloat(slab.thickness) || 0) / 1000;
+      raftArea += area;
+      slabVolume += area * thickness;
+      
+      const selectedMesh = MESH_TYPES.find((m) => m.id === slab.meshType) || MESH_TYPES[2];
+      const meshSheets = Math.ceil((area * 1.1) / selectedMesh.area);
+      meshCost += meshSheets * (parseFloat(data.meshPrice) || selectedMesh.defaultPrice);
+      
+      if (slab.polyMembrane) {
+        polyCost += area * (parseInt(slab.polyLayers) || 1) * (parseFloat(data.polyPrice) || 2.5);
+      }
+    });
+  }
+  
+  const meshSheets = Math.ceil((raftArea * 1.1) / (MESH_TYPES.find((m) => m.id === data.meshType)?.area || 14.4));
   
   let totalBeamVolume = 0;
   let totalReoCost = meshCost;
