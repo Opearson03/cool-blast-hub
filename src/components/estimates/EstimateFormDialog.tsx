@@ -1605,8 +1605,151 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     )}
                   </CardContent>
                 </Card>
+              ) : estimateType === "house_slab" ? (
+                /* House Slab - Guided Labour Questionnaire */
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Labour Estimation</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Mode Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <span className="text-sm font-medium">Use guided questionnaire?</span>
+                      <Select 
+                        value={houseSlabData.labour.useGuided ? "guided" : "manual"} 
+                        onValueChange={(v) => setHouseSlabData({ 
+                          ...houseSlabData, 
+                          labour: { ...houseSlabData.labour, useGuided: v === "guided" } 
+                        })}
+                      >
+                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="guided">Guided</SelectItem>
+                          <SelectItem value="manual">Manual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Hourly Rate */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Hourly Rate ($/hr per person)</Label>
+                        <Input 
+                          type="number" 
+                          value={houseSlabData.labour.hourlyRate} 
+                          onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, hourlyRate: e.target.value } })} 
+                        />
+                      </div>
+                    </div>
+
+                    {houseSlabData.labour.useGuided ? (
+                      <div className="space-y-4">
+                        {/* Edge Formwork */}
+                        <div className="space-y-3 p-4 border rounded-lg">
+                          <Label className="font-medium">How many hours to install edge formwork?</Label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">No. of men</Label>
+                              <Input type="number" value={houseSlabData.labour.edgeFormworkMen} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, edgeFormworkMen: e.target.value } })} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Hours</Label>
+                              <Input type="number" value={houseSlabData.labour.edgeFormworkHours} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, edgeFormworkHours: e.target.value } })} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Slab Prep */}
+                        <div className="space-y-3 p-4 border rounded-lg">
+                          <Label className="font-medium">How many hours for slab prep (vapour barrier, sand blinding)?</Label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">No. of men</Label>
+                              <Input type="number" value={houseSlabData.labour.slabPrepMen} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, slabPrepMen: e.target.value } })} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Hours</Label>
+                              <Input type="number" value={houseSlabData.labour.slabPrepHours} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, slabPrepHours: e.target.value } })} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Mesh Laying */}
+                        <div className="space-y-3 p-4 border rounded-lg">
+                          <Label className="font-medium">How many hours to lay and tie mesh?</Label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">No. of men</Label>
+                              <Input type="number" value={houseSlabData.labour.meshLayingMen} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, meshLayingMen: e.target.value } })} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Hours</Label>
+                              <Input type="number" value={houseSlabData.labour.meshLayingHours} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, meshLayingHours: e.target.value } })} />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Concrete Placement */}
+                        <div className="space-y-3 p-4 border rounded-lg">
+                          <Label className="font-medium">How many men to place and finish the concrete?</Label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-xs">No. of men</Label>
+                              <Input type="number" value={houseSlabData.labour.concretePlacementMen} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, concretePlacementMen: e.target.value } })} />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-xs">Hours</Label>
+                              <Input type="number" value={houseSlabData.labour.concretePlacementHours} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, concretePlacementHours: e.target.value } })} />
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 pt-2">
+                            <Label className="text-xs">How many hours do you expect the pump to be onsite?</Label>
+                            <div className="flex items-center gap-2">
+                              <Input type="number" className="w-24" value={houseSlabData.labour.pumpHours} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, pumpHours: e.target.value } })} />
+                              <span className="text-xs text-muted-foreground">hours</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Waiting Time */}
+                        <div className="space-y-3 p-4 border rounded-lg">
+                          <Label className="font-medium">Expected waiting time on concrete delivery?</Label>
+                          <div className="flex items-center gap-2">
+                            <Input type="number" className="w-24" value={houseSlabData.labour.concreteWaitingMinutes} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, concreteWaitingMinutes: e.target.value } })} placeholder="0" />
+                            <span className="text-xs text-muted-foreground">minutes</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Manual Entry */
+                      <div className="space-y-3 p-4 border rounded-lg">
+                        <Label className="font-medium">Manual Labour Entry</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">Total Men</Label>
+                            <Input type="number" value={houseSlabData.labour.manualMen} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, manualMen: e.target.value } })} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Total Hours</Label>
+                            <Input type="number" value={houseSlabData.labour.manualHours} onChange={(e) => setHouseSlabData({ ...houseSlabData, labour: { ...houseSlabData.labour, manualHours: e.target.value } })} />
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Labour Summary */}
+                    {houseSlabCalcs && houseSlabCalcs.labourTotalManHours > 0 && (
+                      <div className="pt-2 text-right border-t">
+                        <Badge variant="default">
+                          {houseSlabCalcs.labourTotalManHours.toFixed(1)} man-hours = {formatCurrency(houseSlabCalcs.labourCost)}
+                        </Badge>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
               ) : (
-                /* Standard Labour (Driveway / House Slab) */
+                /* Standard Labour (Driveway) */
                 <Card>
                   <CardHeader className="pb-3 flex flex-row items-center justify-between">
                     <CardTitle className="text-base">Labour</CardTitle>

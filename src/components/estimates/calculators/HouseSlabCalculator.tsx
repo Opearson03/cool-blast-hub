@@ -57,6 +57,31 @@ const REO_MESH_TYPES = [
   { id: "SL102", label: "SL102 (10.0mm wire)", area: 14.4, defaultPrice: 110 },
 ];
 
+// Labour questionnaire for house slabs
+interface HouseSlabLabour {
+  useGuided: boolean;
+  hourlyRate: string;
+  // Edge beam formwork
+  edgeFormworkMen: string;
+  edgeFormworkHours: string;
+  // Slab prep (vapour barrier, mesh layout)
+  slabPrepMen: string;
+  slabPrepHours: string;
+  // Mesh laying
+  meshLayingMen: string;
+  meshLayingHours: string;
+  // Concrete placement
+  concretePlacementMen: string;
+  concretePlacementHours: string;
+  // Pump hours
+  pumpHours: string;
+  // Concrete waiting
+  concreteWaitingMinutes: string;
+  // Manual entry fallback
+  manualHours: string;
+  manualMen: string;
+}
+
 export interface HouseSlabData {
   sections: SlabSection[];
   edgeBeams: EdgeBeam[];
@@ -88,6 +113,7 @@ export interface HouseSlabData {
     include: boolean;
     pumpCost: string;
   };
+  labour: HouseSlabLabour;
 }
 
 interface HouseSlabCalculatorProps {
@@ -127,6 +153,22 @@ export const initialHouseSlabData: HouseSlabData = {
   pump: {
     include: false,
     pumpCost: "800",
+  },
+  labour: {
+    useGuided: true,
+    hourlyRate: "85",
+    edgeFormworkMen: "",
+    edgeFormworkHours: "",
+    slabPrepMen: "",
+    slabPrepHours: "",
+    meshLayingMen: "",
+    meshLayingHours: "",
+    concretePlacementMen: "",
+    concretePlacementHours: "",
+    pumpHours: "",
+    concreteWaitingMinutes: "",
+    manualHours: "",
+    manualMen: "",
   },
 };
 
@@ -989,6 +1031,25 @@ export function calculateHouseSlabTotals(data: HouseSlabData) {
     (parseFloat(data.formwork.linearMeters) || 0) * (parseFloat(data.formwork.pricePerM) || 0);
   const pumpCost = data.pump.include ? parseFloat(data.pump.pumpCost) || 0 : 0;
 
+  // Labour calculations
+  const labour = data.labour;
+  const hourlyRate = parseFloat(labour.hourlyRate) || 0;
+  let labourTotalManHours = 0;
+
+  if (labour.useGuided) {
+    const edgeFormwork = (parseFloat(labour.edgeFormworkMen) || 0) * (parseFloat(labour.edgeFormworkHours) || 0);
+    const slabPrep = (parseFloat(labour.slabPrepMen) || 0) * (parseFloat(labour.slabPrepHours) || 0);
+    const meshLaying = (parseFloat(labour.meshLayingMen) || 0) * (parseFloat(labour.meshLayingHours) || 0);
+    const concretePlacement = (parseFloat(labour.concretePlacementMen) || 0) * (parseFloat(labour.concretePlacementHours) || 0);
+    const pumpHours = parseFloat(labour.pumpHours) || 0;
+    const waitingHours = (parseFloat(labour.concreteWaitingMinutes) || 0) / 60;
+    labourTotalManHours = edgeFormwork + slabPrep + meshLaying + concretePlacement + pumpHours + waitingHours;
+  } else {
+    labourTotalManHours = (parseFloat(labour.manualMen) || 0) * (parseFloat(labour.manualHours) || 0);
+  }
+
+  const labourCost = labourTotalManHours * hourlyRate;
+
   return {
     totalSlabArea,
     volumeWithWastage,
@@ -998,7 +1059,9 @@ export function calculateHouseSlabTotals(data: HouseSlabData) {
     vbCost,
     formworkCost,
     pumpCost,
-    subtotal: concreteCost + reoCost + barChairCost + vbCost + formworkCost + pumpCost,
+    labourTotalManHours,
+    labourCost,
+    subtotal: concreteCost + reoCost + barChairCost + vbCost + formworkCost + pumpCost + labourCost,
     mpaStrength: data.concrete.mpaStrength,
     slump: data.concrete.slump,
     meshType: data.reo.meshType,
