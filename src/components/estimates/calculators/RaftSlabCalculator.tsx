@@ -21,6 +21,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Plus, Trash2, EyeOff, Layers, Square, ShieldCheck, Truck, Users, DollarSign, Calendar } from "lucide-react";
+import { AreaCalculator } from "./AreaCalculator";
 
 // ============= CONSTANTS =============
 
@@ -934,11 +935,10 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
                 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label>Total Area (m²)</Label>
-                    <Input
-                      type="number"
+                    <AreaCalculator
                       value={data.raftArea}
-                      onChange={(e) => onChange({ ...data, raftArea: e.target.value })}
+                      onChange={(v) => onChange({ ...data, raftArea: v })}
+                      label="Total Area (m²)"
                       placeholder="0"
                     />
                   </div>
@@ -1051,11 +1051,10 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
                         
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1">
-                            <Label className="text-xs">Area (m²)</Label>
-                            <Input
-                              type="number"
+                            <AreaCalculator
                               value={slab.area}
-                              onChange={(e) => updateIndividualSlab(slab.id, "area", e.target.value)}
+                              onChange={(v) => updateIndividualSlab(slab.id, "area", v)}
+                              label="Area (m²)"
                               placeholder="0"
                             />
                           </div>
