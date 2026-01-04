@@ -1391,75 +1391,291 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </p>
               </div>
 
-              {/* Labour */}
-              <Card>
-                <CardHeader className="pb-3 flex flex-row items-center justify-between">
-                  <CardTitle className="text-base">Labour</CardTitle>
-                  <Button type="button" variant="outline" size="sm" onClick={addLabourItem}>
-                    <Plus className="w-4 h-4 mr-1" /> Add
-                  </Button>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                  {labourItems.map((item, index) => (
-                    <div key={item.id} className="grid grid-cols-12 gap-2 items-end">
-                      <div className="col-span-5 space-y-1">
-                        {index === 0 && <Label className="text-xs">Description</Label>}
-                        <Input
-                          value={item.description}
-                          onChange={(e) => updateLabourItem(item.id, "description", e.target.value)}
-                          placeholder="Labour type"
+              {/* Commercial Slab - Guided Labour Questionnaire */}
+              {estimateType === "commercial_slab" ? (
+                <Card>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Labour Estimation</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    {/* Mode Toggle */}
+                    <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                      <span className="text-sm font-medium">Use guided questionnaire?</span>
+                      <Select 
+                        value={commercialSlabData.labour.useGuided ? "guided" : "manual"} 
+                        onValueChange={(v) => setCommercialSlabData({ 
+                          ...commercialSlabData, 
+                          labour: { ...commercialSlabData.labour, useGuided: v === "guided" } 
+                        })}
+                      >
+                        <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="guided">Guided</SelectItem>
+                          <SelectItem value="manual">Manual</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {/* Hourly Rate */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Hourly Rate ($/hr per person)</Label>
+                        <Input 
+                          type="number" 
+                          value={commercialSlabData.labour.hourlyRate} 
+                          onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, hourlyRate: e.target.value } })} 
                         />
                       </div>
-                      <div className="col-span-2 space-y-1">
-                        {index === 0 && <Label className="text-xs">Hours</Label>}
-                        <Input
-                          type="number"
-                          step="0.5"
-                          min="0"
-                          value={item.hours}
-                          onChange={(e) => updateLabourItem(item.id, "hours", e.target.value)}
-                          placeholder="0"
-                        />
+                    </div>
+
+                    {commercialSlabData.labour.useGuided ? (
+                      <div className="space-y-4">
+                        {/* Calculate pier count */}
+                        {(() => {
+                          const totalPierCount = commercialSlabData.pierHoles.reduce((sum, p) => sum + (parseFloat(p.quantity) || 0), 0);
+                          const pierLabel = totalPierCount > 0 ? `${totalPierCount}` : "X";
+                          return (
+                            <>
+                              {/* Setout */}
+                              <div className="space-y-3 p-4 border rounded-lg">
+                                <Label className="font-medium">How many hours to set out the {pierLabel} piers?</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">No. of men</Label>
+                                    <Input type="number" value={commercialSlabData.labour.setoutMen} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, setoutMen: e.target.value } })} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Hours</Label>
+                                    <Input type="number" value={commercialSlabData.labour.setoutHours} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, setoutHours: e.target.value } })} />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Excavation */}
+                              <div className="space-y-3 p-4 border rounded-lg">
+                                <Label className="font-medium">How many hours to excavate the {pierLabel} piers?</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">No. of men</Label>
+                                    <Input type="number" value={commercialSlabData.labour.excavationMen} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, excavationMen: e.target.value } })} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Hours</Label>
+                                    <Input type="number" value={commercialSlabData.labour.excavationHours} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, excavationHours: e.target.value } })} />
+                                  </div>
+                                </div>
+
+                                {/* Spotter */}
+                                <div className="flex items-center gap-3 pt-2 flex-wrap">
+                                  <Label className="text-sm">Spotter required while excavating?</Label>
+                                  <Select value={commercialSlabData.labour.spotterRequired ? "yes" : "no"} onValueChange={(v) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, spotterRequired: v === "yes" } })}>
+                                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="no">No</SelectItem>
+                                      <SelectItem value="yes">Yes</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {commercialSlabData.labour.spotterRequired && (
+                                    <div className="flex items-center gap-1">
+                                      <Input type="number" className="w-20" placeholder="Hours" value={commercialSlabData.labour.spotterHours} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, spotterHours: e.target.value } })} />
+                                      <span className="text-xs text-muted-foreground">hrs</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                {/* Spoil removal */}
+                                <div className="flex items-center gap-3 pt-2 flex-wrap">
+                                  <Label className="text-sm">Removing spoil from site?</Label>
+                                  <Select value={commercialSlabData.labour.removeSpoil ? "yes" : "no"} onValueChange={(v) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, removeSpoil: v === "yes" } })}>
+                                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="yes">Yes</SelectItem>
+                                      <SelectItem value="no">No</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  {!commercialSlabData.labour.removeSpoil && (
+                                    <span className="text-xs text-amber-600 dark:text-amber-400">→ Will be added to exclusions</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Pier Formwork */}
+                              <div className="space-y-3 p-4 border rounded-lg">
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <Label className="font-medium">Formwork required for the {pierLabel} piers?</Label>
+                                  <Select value={commercialSlabData.labour.pierFormwork ? "yes" : "no"} onValueChange={(v) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, pierFormwork: v === "yes" } })}>
+                                    <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="no">No</SelectItem>
+                                      <SelectItem value="yes">Yes</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                {commercialSlabData.labour.pierFormwork && (
+                                  <div className="grid grid-cols-3 gap-3 pl-4 border-l-2 border-muted">
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Material Cost ($)</Label>
+                                      <Input type="number" value={commercialSlabData.labour.pierFormworkCost} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, pierFormworkCost: e.target.value } })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">No. of men</Label>
+                                      <Input type="number" value={commercialSlabData.labour.pierFormworkMen} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, pierFormworkMen: e.target.value } })} />
+                                    </div>
+                                    <div className="space-y-1">
+                                      <Label className="text-xs">Hours to install</Label>
+                                      <Input type="number" value={commercialSlabData.labour.pierFormworkHours} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, pierFormworkHours: e.target.value } })} />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Reinforcement Cages */}
+                              <div className="space-y-3 p-4 border rounded-lg">
+                                <Label className="font-medium">How many men to tie reinforcement cages? How many hours?</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">No. of men</Label>
+                                    <Input type="number" value={commercialSlabData.labour.reoCageMen} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, reoCageMen: e.target.value } })} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Hours</Label>
+                                    <Input type="number" value={commercialSlabData.labour.reoCageHours} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, reoCageHours: e.target.value } })} />
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Concrete Placement */}
+                              <div className="space-y-3 p-4 border rounded-lg">
+                                <Label className="font-medium">How many men to place the concrete? How many hours?</Label>
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">No. of men</Label>
+                                    <Input type="number" value={commercialSlabData.labour.concretePlacementMen} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, concretePlacementMen: e.target.value } })} />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs">Hours</Label>
+                                    <Input type="number" value={commercialSlabData.labour.concretePlacementHours} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, concretePlacementHours: e.target.value } })} />
+                                  </div>
+                                </div>
+
+                                <div className="space-y-1 pt-2">
+                                  <Label className="text-xs">How many hours do you expect the pump to be onsite?</Label>
+                                  <div className="flex items-center gap-2">
+                                    <Input type="number" className="w-24" value={commercialSlabData.labour.pumpHours} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, pumpHours: e.target.value } })} />
+                                    <span className="text-xs text-muted-foreground">hours</span>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-1 pt-2">
+                                  <Label className="text-xs">Expected waiting time on concrete delivery?</Label>
+                                  <div className="flex items-center gap-2">
+                                    <Input type="number" className="w-24" value={commercialSlabData.labour.waitingMinutes} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, waitingMinutes: e.target.value } })} />
+                                    <span className="text-xs text-muted-foreground">minutes</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
-                      <div className="col-span-2 space-y-1">
-                        {index === 0 && <Label className="text-xs">$/hr</Label>}
-                        <Input
-                          type="number"
-                          step="0.01"
-                          min="0"
-                          value={item.hourlyRate}
-                          onChange={(e) => updateLabourItem(item.id, "hourlyRate", e.target.value)}
-                          placeholder="85"
-                        />
-                      </div>
-                      <div className="col-span-2 space-y-1">
-                        {index === 0 && <Label className="text-xs">Total</Label>}
-                        <div className="h-10 flex items-center text-sm font-medium">
-                          {formatCurrency((parseFloat(item.hours) || 0) * (parseFloat(item.hourlyRate) || 0))}
+                    ) : (
+                      /* Manual Entry */
+                      <div className="space-y-3 p-4 border rounded-lg">
+                        <Label className="font-medium">Enter total labour directly</Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-1">
+                            <Label className="text-xs">No. of men</Label>
+                            <Input type="number" value={commercialSlabData.labour.manualMen} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, manualMen: e.target.value } })} />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Total Hours</Label>
+                            <Input type="number" value={commercialSlabData.labour.manualHours} onChange={(e) => setCommercialSlabData({ ...commercialSlabData, labour: { ...commercialSlabData.labour, manualHours: e.target.value } })} />
+                          </div>
                         </div>
                       </div>
-                      <div className="col-span-1">
-                        {labourItems.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="h-10 w-10"
-                            onClick={() => removeLabourItem(item.id)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        )}
+                    )}
+
+                    {/* Labour Summary */}
+                    {commercialSlabCalcs && commercialSlabCalcs.labourTotalManHours > 0 && (
+                      <div className="pt-2 text-right border-t">
+                        <Badge variant="default">
+                          {commercialSlabCalcs.labourTotalManHours.toFixed(1)} man-hours = {formatCurrency(commercialSlabCalcs.labourCost)}
+                        </Badge>
                       </div>
-                    </div>
-                  ))}
-                  {labourCost > 0 && (
-                    <div className="pt-2 text-right">
-                      <Badge variant="default">Labour Total: {formatCurrency(labourCost)}</Badge>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                /* Standard Labour (Driveway / House Slab) */
+                <Card>
+                  <CardHeader className="pb-3 flex flex-row items-center justify-between">
+                    <CardTitle className="text-base">Labour</CardTitle>
+                    <Button type="button" variant="outline" size="sm" onClick={addLabourItem}>
+                      <Plus className="w-4 h-4 mr-1" /> Add
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {labourItems.map((item, index) => (
+                      <div key={item.id} className="grid grid-cols-12 gap-2 items-end">
+                        <div className="col-span-5 space-y-1">
+                          {index === 0 && <Label className="text-xs">Description</Label>}
+                          <Input
+                            value={item.description}
+                            onChange={(e) => updateLabourItem(item.id, "description", e.target.value)}
+                            placeholder="Labour type"
+                          />
+                        </div>
+                        <div className="col-span-2 space-y-1">
+                          {index === 0 && <Label className="text-xs">Hours</Label>}
+                          <Input
+                            type="number"
+                            step="0.5"
+                            min="0"
+                            value={item.hours}
+                            onChange={(e) => updateLabourItem(item.id, "hours", e.target.value)}
+                            placeholder="0"
+                          />
+                        </div>
+                        <div className="col-span-2 space-y-1">
+                          {index === 0 && <Label className="text-xs">$/hr</Label>}
+                          <Input
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            value={item.hourlyRate}
+                            onChange={(e) => updateLabourItem(item.id, "hourlyRate", e.target.value)}
+                            placeholder="85"
+                          />
+                        </div>
+                        <div className="col-span-2 space-y-1">
+                          {index === 0 && <Label className="text-xs">Total</Label>}
+                          <div className="h-10 flex items-center text-sm font-medium">
+                            {formatCurrency((parseFloat(item.hours) || 0) * (parseFloat(item.hourlyRate) || 0))}
+                          </div>
+                        </div>
+                        <div className="col-span-1">
+                          {labourItems.length > 1 && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-10 w-10"
+                              onClick={() => removeLabourItem(item.id)}
+                            >
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {labourCost > 0 && (
+                      <div className="pt-2 text-right">
+                        <Badge variant="default">Labour Total: {formatCurrency(labourCost)}</Badge>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Additional Materials */}
               <Card>
