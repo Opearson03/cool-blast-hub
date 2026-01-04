@@ -6,6 +6,7 @@ import { EstimateType } from "./EstimateTypeSelector";
 export type ScopeType = 
   | "piers"
   | "retaining_wall_footings"
+  | "standard_slab"
   | "raft_slab"
   | "waffle_pod"
   | "driveway"
@@ -30,6 +31,12 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     id: "retaining_wall_footings", 
     label: "Retaining Wall Footings", 
     description: "Strip footings for retaining walls",
+    availableFor: ["house_slab", "commercial_slab"]
+  },
+  { 
+    id: "standard_slab", 
+    label: "Standard Slab", 
+    description: "Basic slab on ground",
     availableFor: ["house_slab", "commercial_slab"]
   },
   { 

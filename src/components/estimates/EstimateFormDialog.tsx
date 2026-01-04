@@ -107,6 +107,7 @@ const DEFAULT_EXCLUSIONS = [
 interface ScopeCalculatorData {
   piers: PiersData;
   retaining_wall_footings: RetainingWallData;
+  standard_slab: RaftSlabData; // Reuse raft slab for standard slab
   raft_slab: RaftSlabData;
   waffle_pod: WafflePodData;
   driveway: RaftSlabData; // Reuse raft slab for driveway
@@ -117,6 +118,7 @@ interface ScopeCalculatorData {
 const initialScopeData: ScopeCalculatorData = {
   piers: initialPiersData,
   retaining_wall_footings: initialRetainingWallData,
+  standard_slab: initialRaftSlabData,
   raft_slab: initialRaftSlabData,
   waffle_pod: initialWafflePodData,
   driveway: initialRaftSlabData,
@@ -172,6 +174,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     const totals: Record<ScopeType, { total: number; description: string }> = {
       piers: { total: 0, description: "" },
       retaining_wall_footings: { total: 0, description: "" },
+      standard_slab: { total: 0, description: "" },
       raft_slab: { total: 0, description: "" },
       waffle_pod: { total: 0, description: "" },
       driveway: { total: 0, description: "" },
@@ -186,6 +189,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     if (selectedScopes.has("retaining_wall_footings")) {
       const calcs = calculateRetainingWallTotals(scopeData.retaining_wall_footings);
       totals.retaining_wall_footings = { total: calcs.grandTotal, description: `${scopeData.retaining_wall_footings.footings.length} footing types` };
+    }
+    if (selectedScopes.has("standard_slab")) {
+      const calcs = calculateRaftSlabTotals(scopeData.standard_slab);
+      totals.standard_slab = { total: calcs.grandTotal, description: `${calcs.raftArea.toFixed(1)}m² standard slab` };
     }
     if (selectedScopes.has("raft_slab")) {
       const calcs = calculateRaftSlabTotals(scopeData.raft_slab);
@@ -417,6 +424,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           <RetainingWallCalculator
             data={scopeData.retaining_wall_footings}
             onChange={(data) => updateScopeData("retaining_wall_footings", data)}
+          />
+        );
+      case "standard_slab":
+        return (
+          <RaftSlabCalculator
+            data={scopeData.standard_slab}
+            onChange={(data) => updateScopeData("standard_slab", data)}
           />
         );
       case "raft_slab":
