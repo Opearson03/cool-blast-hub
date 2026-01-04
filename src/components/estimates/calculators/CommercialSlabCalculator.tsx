@@ -1506,6 +1506,53 @@ export function calculateCommercialSlabTotals(data: CommercialSlabData) {
   const vbArea = data.extras.vapourBarrier ? totalSlabArea * 1.15 : 0;
   const vbCost = vbArea * (parseFloat(data.extras.vapourBarrierPricePerM2) || 0);
 
+  // Labour calculations
+  const hourlyRate = parseFloat(data.labour.hourlyRate) || 0;
+  let labourTotalManHours = 0;
+  
+  if (data.labour.useGuided) {
+    const setoutMen = parseFloat(data.labour.setoutMen) || 0;
+    const setoutHours = parseFloat(data.labour.setoutHours) || 0;
+    labourTotalManHours += setoutMen * setoutHours;
+    
+    const excavationMen = parseFloat(data.labour.excavationMen) || 0;
+    const excavationHours = parseFloat(data.labour.excavationHours) || 0;
+    labourTotalManHours += excavationMen * excavationHours;
+    
+    if (data.labour.spotterRequired) {
+      labourTotalManHours += parseFloat(data.labour.spotterHours) || 0;
+    }
+    
+    if (data.labour.pierFormwork) {
+      const pierFormworkMen = parseFloat(data.labour.pierFormworkMen) || 0;
+      const pierFormworkHours = parseFloat(data.labour.pierFormworkHours) || 0;
+      labourTotalManHours += pierFormworkMen * pierFormworkHours;
+    }
+    
+    const reoCageMen = parseFloat(data.labour.reoCageMen) || 0;
+    const reoCageHours = parseFloat(data.labour.reoCageHours) || 0;
+    labourTotalManHours += reoCageMen * reoCageHours;
+    
+    const concretePlacementMen = parseFloat(data.labour.concretePlacementMen) || 0;
+    const concretePlacementHours = parseFloat(data.labour.concretePlacementHours) || 0;
+    labourTotalManHours += concretePlacementMen * concretePlacementHours;
+    
+    const pumpHours = parseFloat(data.labour.pumpHours) || 0;
+    labourTotalManHours += concretePlacementMen * pumpHours;
+    
+    const waitingMinutes = parseFloat(data.labour.waitingMinutes) || 0;
+    labourTotalManHours += concretePlacementMen * (waitingMinutes / 60);
+  } else {
+    const manualMen = parseFloat(data.labour.manualMen) || 0;
+    const manualHours = parseFloat(data.labour.manualHours) || 0;
+    labourTotalManHours = manualMen * manualHours;
+  }
+  
+  const labourCost = labourTotalManHours * hourlyRate;
+  const pierFormworkMaterialCost = data.labour.pierFormwork ? (parseFloat(data.labour.pierFormworkCost) || 0) : 0;
+
+  const subtotal = concreteCost + meshCost + totalRebarCost + ligatureCost + formworkCost + pumpCost + vbCost + labourCost + pierFormworkMaterialCost;
+
   return {
     totalSlabArea,
     volumeWithWastage,
@@ -1518,7 +1565,10 @@ export function calculateCommercialSlabTotals(data: CommercialSlabData) {
     formworkCost,
     pumpCost,
     vbCost,
-    subtotal: concreteCost + meshCost + totalRebarCost + ligatureCost + formworkCost + pumpCost + vbCost,
+    labourTotalManHours,
+    labourCost,
+    pierFormworkMaterialCost,
+    subtotal,
     mpaStrength: data.concrete.mpaStrength,
     slump: data.concrete.slump,
     meshType: data.mesh.meshType,
