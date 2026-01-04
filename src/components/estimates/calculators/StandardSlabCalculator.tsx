@@ -16,9 +16,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Square, ShieldCheck, Truck, Users, DollarSign } from "lucide-react";
+import { Square, ShieldCheck, Truck, Users, DollarSign, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2 } from "lucide-react";
+import { AreaCalculator } from "./AreaCalculator";
 
 // ============= CONSTANTS =============
 
@@ -266,11 +266,10 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
           <AccordionContent className="px-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <Label>Slab Area (m²)</Label>
-                <Input
-                  type="number"
+                <AreaCalculator
                   value={data.slabArea}
-                  onChange={(e) => onChange({ ...data, slabArea: e.target.value })}
+                  onChange={(v) => onChange({ ...data, slabArea: v })}
+                  label="Slab Area (m²)"
                   placeholder="e.g. 120"
                 />
               </div>
