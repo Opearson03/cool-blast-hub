@@ -300,6 +300,8 @@ export default function AdminEstimates() {
       // Include scope data for BOQ generation
       scope_data: estimate.scope_data as Record<string, unknown> | undefined,
       selected_scopes: estimate.selected_scopes as string[] | undefined,
+      // Include description as fallback for BOQ generation
+      estimate_description: estimate.description,
     };
   };
 

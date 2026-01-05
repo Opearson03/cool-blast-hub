@@ -55,6 +55,7 @@ type InitialJobData = Partial<JobFormData> & {
   estimate_id?: string;
   scope_data?: Record<string, unknown>;
   selected_scopes?: string[];
+  estimate_description?: string;
 };
 
 const initialFormData: JobFormData = {
@@ -213,11 +214,12 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
           }
         }
 
-        // If we have scope_data from estimate, generate BOQ
-        if (newJob && initialData?.scope_data && initialData?.selected_scopes) {
+        // Generate BOQ from estimate data or description
+        if (newJob && initialData) {
           const boqItems = generateBOQFromEstimate(
-            initialData.scope_data as Record<string, unknown>,
-            initialData.selected_scopes
+            initialData.scope_data as Record<string, unknown> || null,
+            initialData.selected_scopes || null,
+            initialData.estimate_description
           );
           
           if (boqItems.length > 0) {
