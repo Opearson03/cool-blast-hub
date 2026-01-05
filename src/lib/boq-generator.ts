@@ -5,13 +5,98 @@ interface ScopeData {
 }
 
 /**
+ * Generates Bill of Quantities items from estimate description (fallback)
+ */
+export function generateBOQFromDescription(description: string | null): BOQItem[] {
+  if (!description) return [];
+
+  const items: BOQItem[] = [];
+  let itemId = 1;
+
+  const addItem = (
+    category: BOQItem['category'],
+    description: string,
+    quantity: number,
+    unit: string
+  ) => {
+    if (quantity > 0) {
+      items.push({
+        id: `boq-${itemId++}`,
+        category,
+        description,
+        quantity: Math.round(quantity * 100) / 100,
+        unit,
+      });
+    }
+  };
+
+  // Parse "Standard Slab: 100.0m² standard slab"
+  const slabMatch = description.match(/Standard Slab:\s*([\d.]+)\s*m²/i);
+  if (slabMatch) {
+    const area = parseFloat(slabMatch[1]);
+    const volume = area * 0.1 * 1.05; // 100mm depth + 5% wastage
+    addItem("concrete", "N32 Concrete (Standard Slab)", volume, "m³");
+    const meshSheets = Math.ceil((area * 1.1) / 14.4);
+    addItem("reinforcement", "SL82 Mesh", meshSheets, "sheets");
+    addItem("other", "Poly Membrane", area, "m²");
+  }
+
+  // Parse "Piers: 10 piers"
+  const piersMatch = description.match(/Piers:\s*(\d+)\s*piers?/i);
+  if (piersMatch) {
+    const count = parseInt(piersMatch[1]);
+    const volumePerPier = Math.PI * 0.225 * 0.225 * 1; // 450mm diameter, 1m depth
+    addItem("concrete", "N25 Concrete (Piers)", count * volumePerPier, "m³");
+    addItem("reinforcement", "Pier Cages", count, "units");
+  }
+
+  // Parse "Driveway: 50.0m² driveway"
+  const drivewayMatch = description.match(/Driveway:\s*([\d.]+)\s*m²/i);
+  if (drivewayMatch) {
+    const area = parseFloat(drivewayMatch[1]);
+    if (area > 0) {
+      const volume = area * 0.1 * 1.05;
+      addItem("concrete", "N32 Concrete (Driveway)", volume, "m³");
+      const meshSheets = Math.ceil((area * 1.1) / 14.4);
+      addItem("reinforcement", "SL82 Mesh", meshSheets, "sheets");
+    }
+  }
+
+  // Parse "Concrete: 52.50m³ @ 32MPa"
+  const concreteMatch = description.match(/Concrete:\s*([\d.]+)\s*m³\s*@\s*(\d+)\s*MPa/i);
+  if (concreteMatch && items.length === 0) {
+    const volume = parseFloat(concreteMatch[1]);
+    const mpa = concreteMatch[2];
+    addItem("concrete", `N${mpa} Concrete`, volume, "m³");
+  }
+
+  // Parse "Reo: 39 sheets SL82"
+  const reoMatch = description.match(/Reo:\s*(\d+)\s*sheets?\s*(\w+)/i);
+  if (reoMatch && !items.find(i => i.category === 'reinforcement')) {
+    const sheets = parseInt(reoMatch[1]);
+    const meshType = reoMatch[2];
+    addItem("reinforcement", `${meshType} Mesh`, sheets, "sheets");
+  }
+
+  return items;
+}
+
+/**
  * Generates Bill of Quantities items from estimate scope data
  */
 export function generateBOQFromEstimate(
   scopeData: ScopeData | null,
-  selectedScopes: string[] | null
+  selectedScopes: string[] | null,
+  description?: string | null
 ): BOQItem[] {
-  if (!scopeData || !selectedScopes) return [];
+  // Check if scopeData is empty or has no valid scopes
+  const hasValidScopeData = scopeData && selectedScopes && selectedScopes.length > 0 &&
+    Object.keys(scopeData).some(key => scopeData[key] && Object.keys(scopeData[key]).length > 0);
+
+  // If no valid scope data, try to generate from description
+  if (!hasValidScopeData) {
+    return generateBOQFromDescription(description || null);
+  }
 
   const items: BOQItem[] = [];
   let itemId = 1;
