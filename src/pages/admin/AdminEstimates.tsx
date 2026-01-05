@@ -296,7 +296,10 @@ export default function AdminEstimates() {
       finish_type: finishType,
       job_notes: noteParts.join("\n").trim(),
       pours: pours, // Include pours for auto-creation
-      estimate_id: estimate.id,
+      estimate_id: estimate.estimate_number,
+      // Include scope data for BOQ generation
+      scope_data: estimate.scope_data as Record<string, unknown> | undefined,
+      selected_scopes: estimate.selected_scopes as string[] | undefined,
     };
   };
 

@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MapPin, Users, Truck, FileText, Package } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { BOQCard } from "@/components/jobs/boq/BOQCard";
 
 type Job = Tables<"jobs">;
 
@@ -111,6 +112,11 @@ export function JobOverviewTab({ job, crewName }: JobOverviewTabProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Bill of Quantities Card - spans full width */}
+      <div className="md:col-span-2">
+        <BOQCard jobId={job.id} jobName={job.name} jobNumber={job.job_number ?? undefined} />
+      </div>
     </div>
   );
 }

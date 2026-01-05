@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { generateBOQFromEstimate } from "@/lib/boq-generator";
 
 type Crew = {
   id: string;
@@ -52,6 +53,8 @@ type PourData = {
 type InitialJobData = Partial<JobFormData> & {
   pours?: PourData[];
   estimate_id?: string;
+  scope_data?: Record<string, unknown>;
+  selected_scopes?: string[];
 };
 
 const initialFormData: JobFormData = {
@@ -207,6 +210,29 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
           if (poursError) {
             console.error("Failed to create pours:", poursError);
             // Don't throw - job was created successfully
+          }
+        }
+
+        // If we have scope_data from estimate, generate BOQ
+        if (newJob && initialData?.scope_data && initialData?.selected_scopes) {
+          const boqItems = generateBOQFromEstimate(
+            initialData.scope_data as Record<string, unknown>,
+            initialData.selected_scopes
+          );
+          
+          if (boqItems.length > 0) {
+            const { error: boqError } = await supabase
+              .from("job_boq")
+              .insert({
+                job_id: newJob.id,
+                items: JSON.parse(JSON.stringify(boqItems)),
+                notes: `Auto-generated from estimate${initialData.estimate_id ? ` (${initialData.estimate_id})` : ''}`,
+              });
+            
+            if (boqError) {
+              console.error("Failed to create BOQ:", boqError);
+              // Don't throw - job was created successfully
+            }
           }
         }
       }
