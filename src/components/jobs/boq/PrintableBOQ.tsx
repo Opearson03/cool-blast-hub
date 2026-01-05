@@ -24,92 +24,83 @@ export function PrintableBOQ({ boq, jobName, jobNumber }: PrintableBOQProps) {
   const totalValue = boq.items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
 
   return (
-    <div className="print-container print-only">
-      <style>{`
-        @media print {
-          body * { visibility: hidden; }
-          .print-container, .print-container * { visibility: visible; }
-          .print-container { 
-            position: absolute; 
-            left: 0; 
-            top: 0; 
-            width: 100%;
-            background: white;
-            padding: 40px;
-          }
-        }
-        .print-only { display: none; }
-        @media print { .print-only { display: block; } }
-      `}</style>
-
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="border-b-2 border-gray-800 pb-4 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Bill of Quantities</h1>
-          <div className="mt-2 text-gray-600">
-            <p className="font-medium">{jobName}</p>
-            {jobNumber && <p className="text-sm">Job: {jobNumber}</p>}
-            <p className="text-sm">Generated: {new Date().toLocaleDateString("en-AU")}</p>
-          </div>
-        </div>
-
-        {/* Items by Category */}
-        {Object.entries(groupedItems).map(([category, items]) => (
-          <div key={category} className="mb-6">
-            <h2 className="text-lg font-semibold bg-gray-100 px-3 py-2 mb-2">
-              {BOQ_CATEGORIES[category as keyof typeof BOQ_CATEGORIES]?.label || category}
-            </h2>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-2">Description</th>
-                  <th className="text-right py-2 px-2 w-20">Qty</th>
-                  <th className="text-left py-2 px-2 w-16">Unit</th>
-                  <th className="text-right py-2 px-2 w-24">Unit Price</th>
-                  <th className="text-right py-2 px-2 w-24">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item) => (
-                  <tr key={item.id} className="border-b border-gray-200">
-                    <td className="py-2 px-2">
-                      {item.description}
-                      {item.notes && (
-                        <span className="block text-xs text-gray-500">{item.notes}</span>
-                      )}
-                    </td>
-                    <td className="text-right py-2 px-2">{item.quantity}</td>
-                    <td className="py-2 px-2">{item.unit}</td>
-                    <td className="text-right py-2 px-2">
-                      {item.unitPrice ? formatCurrency(item.unitPrice) : '-'}
-                    </td>
-                    <td className="text-right py-2 px-2 font-medium">
-                      {item.totalPrice ? formatCurrency(item.totalPrice) : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-
-        {/* Total */}
-        <div className="border-t-2 border-gray-800 pt-4 mt-6">
-          <div className="flex justify-end">
-            <div className="text-right">
-              <p className="text-sm text-gray-600">Total Value</p>
-              <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
+    <div className="print-estimate-portal">
+      <div className="print-container">
+        <div className="max-w-4xl mx-auto">
+          {/* Header */}
+          <div style={{ borderBottom: '2px solid #1f2937', paddingBottom: '16px', marginBottom: '24px' }}>
+            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', margin: 0 }}>Bill of Quantities</h1>
+            <div style={{ marginTop: '8px', color: '#4b5563' }}>
+              <p style={{ fontWeight: '500', margin: '4px 0' }}>{jobName}</p>
+              {jobNumber && <p style={{ fontSize: '14px', margin: '4px 0' }}>Job: {jobNumber}</p>}
+              <p style={{ fontSize: '14px', margin: '4px 0' }}>Generated: {new Date().toLocaleDateString("en-AU")}</p>
             </div>
           </div>
-        </div>
 
-        {/* Notes */}
-        {boq.notes && (
-          <div className="mt-6 pt-4 border-t">
-            <h3 className="font-semibold mb-2">Notes</h3>
-            <p className="text-sm text-gray-600 whitespace-pre-wrap">{boq.notes}</p>
+          {/* Items by Category */}
+          {Object.entries(groupedItems).map(([category, items]) => (
+            <div key={category} style={{ marginBottom: '24px' }}>
+              <h2 style={{ 
+                fontSize: '16px', 
+                fontWeight: '600', 
+                backgroundColor: '#f3f4f6', 
+                padding: '8px 12px', 
+                marginBottom: '8px' 
+              }}>
+                {BOQ_CATEGORIES[category as keyof typeof BOQ_CATEGORIES]?.label || category}
+              </h2>
+              <table style={{ width: '100%', fontSize: '14px', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #d1d5db' }}>
+                    <th style={{ textAlign: 'left', padding: '8px', fontWeight: '600' }}>Description</th>
+                    <th style={{ textAlign: 'right', padding: '8px', width: '80px', fontWeight: '600' }}>Qty</th>
+                    <th style={{ textAlign: 'left', padding: '8px', width: '64px', fontWeight: '600' }}>Unit</th>
+                    <th style={{ textAlign: 'right', padding: '8px', width: '96px', fontWeight: '600' }}>Unit Price</th>
+                    <th style={{ textAlign: 'right', padding: '8px', width: '96px', fontWeight: '600' }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((item) => (
+                    <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
+                      <td style={{ padding: '8px' }}>
+                        {item.description}
+                        {item.notes && (
+                          <span style={{ display: 'block', fontSize: '12px', color: '#6b7280' }}>{item.notes}</span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '8px' }}>{item.quantity}</td>
+                      <td style={{ padding: '8px' }}>{item.unit}</td>
+                      <td style={{ textAlign: 'right', padding: '8px' }}>
+                        {item.unitPrice ? formatCurrency(item.unitPrice) : '-'}
+                      </td>
+                      <td style={{ textAlign: 'right', padding: '8px', fontWeight: '500' }}>
+                        {item.totalPrice ? formatCurrency(item.totalPrice) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+
+          {/* Total */}
+          <div style={{ borderTop: '2px solid #1f2937', paddingTop: '16px', marginTop: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ textAlign: 'right' }}>
+                <p style={{ fontSize: '14px', color: '#4b5563', margin: '0 0 4px 0' }}>Total Value</p>
+                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>{formatCurrency(totalValue)}</p>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* Notes */}
+          {boq.notes && (
+            <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
+              <h3 style={{ fontWeight: '600', marginBottom: '8px' }}>Notes</h3>
+              <p style={{ fontSize: '14px', color: '#4b5563', whiteSpace: 'pre-wrap', margin: 0 }}>{boq.notes}</p>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
