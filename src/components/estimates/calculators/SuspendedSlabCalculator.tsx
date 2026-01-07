@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -15,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ShieldCheck, Truck, Users, DollarSign, Plus, Trash2, Layers } from "lucide-react";
+import { ShieldCheck, Truck, Users, DollarSign, Plus, Trash2, Layers, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AreaCalculator } from "./AreaCalculator";
 import { InternalCostNotice } from "./shared";
