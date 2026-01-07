@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Plus, Trash2, Users, DollarSign, Truck, ShieldCheck, Square } from "lucide-react";
+import { InternalCostNotice } from "./shared";
 
 const MPA_STRENGTHS = ["20", "25", "32", "40"];
 const TRENCH_MESH_TYPES = [
@@ -296,6 +297,8 @@ export function StripFootingsCalculator({ data, onChange }: StripFootingsCalcula
 
   return (
     <div className="space-y-4">
+      <InternalCostNotice />
+      
       <Accordion type="multiple" defaultValue={["footings", "materials", "labour"]} className="space-y-2">
         
         {/* Footings */}

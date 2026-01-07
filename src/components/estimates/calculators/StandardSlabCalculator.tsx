@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -19,6 +18,7 @@ import {
 import { Square, ShieldCheck, Truck, Users, DollarSign, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AreaCalculator } from "./AreaCalculator";
+import { InternalCostNotice } from "./shared";
 
 // ============= CONSTANTS =============
 
@@ -253,6 +253,8 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
 
   return (
     <div className="space-y-4">
+      <InternalCostNotice />
+      
       <Accordion type="multiple" defaultValue={["slab", "materials", "labour"]} className="space-y-2">
         
         {/* Slab Dimensions */}
