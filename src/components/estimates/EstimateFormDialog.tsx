@@ -23,7 +23,8 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight, Eye, EyeOff, ListChecks } from "lucide-react";
+import { Loader2, Plus, Trash2, Calculator, FileText, Check, ChevronRight, Eye, EyeOff, ListChecks, ClipboardCheck } from "lucide-react";
+import { EstimateReviewTab } from "./EstimateReviewTab";
 
 import { EstimateTypeSelector, EstimateType } from "./EstimateTypeSelector";
 import { ScopeSelector, ScopeType, SCOPE_OPTIONS } from "./ScopeSelector";
@@ -136,7 +137,7 @@ const initialScopeData: ScopeCalculatorData = {
   crossovers: initialCrossoversData,
 };
 
-type TabId = "details" | "scopes" | "inclusions" | "summary";
+type TabId = "details" | "scopes" | "inclusions" | "review" | "summary";
 type FormStep = "type_selection" | "calculator";
 
 export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
@@ -157,7 +158,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const tabOrder: TabId[] = ["details", "scopes", "inclusions", "summary"];
+  const tabOrder: TabId[] = ["details", "scopes", "inclusions", "review", "summary"];
 
   // Track visited tabs
   useEffect(() => {
@@ -643,7 +644,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         {/* Step 2: Calculator */}
         {formStep === "calculator" && (
         <Tabs value={activeTab} onValueChange={(v) => handleTabChange(v as TabId)} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="details" className="gap-1">
               {getTabIcon("details")}
               <FileText className="w-4 h-4 hidden sm:inline" />
@@ -661,10 +662,16 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               <span className="hidden sm:inline">Inclusions</span>
               <span className="sm:hidden">3</span>
             </TabsTrigger>
+            <TabsTrigger value="review" className="gap-1">
+              {getTabIcon("review")}
+              <ClipboardCheck className="w-4 h-4 hidden sm:inline" />
+              <span className="hidden sm:inline">Review</span>
+              <span className="sm:hidden">4</span>
+            </TabsTrigger>
             <TabsTrigger value="summary" className="gap-1">
               {getTabIcon("summary")}
               <span className="hidden sm:inline">Summary</span>
-              <span className="sm:hidden">4</span>
+              <span className="sm:hidden">5</span>
             </TabsTrigger>
           </TabsList>
 
@@ -933,6 +940,32 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                   </div>
                 </CardContent>
               </Card>
+
+              <div className="flex justify-between pt-4">
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleSaveDraft}
+                  disabled={saveDraftMutation.isPending}
+                >
+                  {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                  Save Draft
+                </Button>
+                <Button type="button" onClick={goToNextTab} className="gap-2">
+                  Next: Review <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </TabsContent>
+
+            {/* Review Tab */}
+            <TabsContent value="review" className="space-y-4 m-0">
+              <EstimateReviewTab
+                selectedScopes={selectedScopes}
+                scopeData={scopeData}
+                onScopeDataChange={updateScopeData}
+                scopeTotals={scopeTotals}
+                formatCurrency={formatCurrency}
+              />
 
               <div className="flex justify-between pt-4">
                 <Button 
