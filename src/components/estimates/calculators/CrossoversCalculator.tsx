@@ -163,7 +163,7 @@ export function CrossoversCalculator({ data, onChange }: CrossoversCalculatorPro
     <div className="space-y-4">
       <InternalCostNotice />
 
-      <Accordion type="multiple" defaultValue={["crossovers", "council", "materials", "labour"]} className="space-y-2">
+      <Accordion type="multiple" className="space-y-2">
         {/* Crossovers */}
         <AccordionItem value="crossovers" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
@@ -179,7 +179,7 @@ export function CrossoversCalculator({ data, onChange }: CrossoversCalculatorPro
                 <Plus className="w-4 h-4 mr-1" /> Add Crossover
               </Button>
             </div>
-            <Accordion type="multiple" defaultValue={["crossover-0"]}>
+            <Accordion type="multiple">
               {data.crossovers.map((crossover, index) => (
                 <AccordionItem key={crossover.id} value={`crossover-${index}`}>
                   <AccordionTrigger className="hover:no-underline">

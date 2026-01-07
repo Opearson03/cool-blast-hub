@@ -165,7 +165,7 @@ export function PathsSurroundsCalculator({ data, onChange }: PathsSurroundsCalcu
     <div className="space-y-4">
       <InternalCostNotice />
 
-      <Accordion type="multiple" defaultValue={["sections", "materials", "labour"]} className="space-y-2">
+      <Accordion type="multiple" className="space-y-2">
         {/* Path Sections */}
         <AccordionItem value="sections" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
@@ -181,7 +181,7 @@ export function PathsSurroundsCalculator({ data, onChange }: PathsSurroundsCalcu
                 <Plus className="w-4 h-4 mr-1" /> Add Section
               </Button>
             </div>
-            <Accordion type="multiple" defaultValue={["section-0"]}>
+            <Accordion type="multiple">
               {data.sections.map((section, index) => (
                 <AccordionItem key={section.id} value={`section-${index}`}>
                   <AccordionTrigger className="hover:no-underline">

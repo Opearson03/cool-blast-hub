@@ -163,7 +163,7 @@ export function PiersCalculator({ data, onChange }: PiersCalculatorProps) {
     <div className="space-y-4">
       <InternalCostNotice />
 
-      <Accordion type="multiple" defaultValue={["piers", "materials", "labour"]} className="space-y-2">
+      <Accordion type="multiple" className="space-y-2">
         {/* Pier Configurations */}
         <AccordionItem value="piers" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
@@ -179,7 +179,7 @@ export function PiersCalculator({ data, onChange }: PiersCalculatorProps) {
                 <Plus className="w-4 h-4 mr-1" /> Add Type
               </Button>
             </div>
-            <Accordion type="multiple" defaultValue={["pier-0"]}>
+            <Accordion type="multiple">
               {data.piers.map((pier, index) => (
                 <AccordionItem key={pier.id} value={`pier-${index}`}>
                   <AccordionTrigger className="hover:no-underline">
