@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { useEstimateInitialData } from "@/hooks/useEstimateInitialData";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -124,7 +125,8 @@ export interface ScopeCalculatorData {
   crossovers: CrossoversData;
 }
 
-const initialScopeData: ScopeCalculatorData = {
+// Default scope data (used as fallback before price list loads)
+const defaultScopeData: ScopeCalculatorData = {
   piers: initialPiersData,
   retaining_wall_footings: initialRetainingWallData,
   strip_footings: initialStripFootingsData,
@@ -141,6 +143,8 @@ type TabId = "details" | "scopes" | "inclusions" | "review" | "summary";
 type FormStep = "type_selection" | "calculator";
 
 export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
+  const { initialScopeData } = useEstimateInitialData();
+  
   const [formStep, setFormStep] = useState<FormStep>("type_selection");
   const [estimateType, setEstimateType] = useState<EstimateType | null>(null);
   const [formData, setFormData] = useState<FormData>(initialFormData);
@@ -151,7 +155,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   
   // Scope selection state
   const [selectedScopes, setSelectedScopes] = useState<Set<ScopeType>>(new Set());
-  const [scopeData, setScopeData] = useState<ScopeCalculatorData>(initialScopeData);
+  const [scopeData, setScopeData] = useState<ScopeCalculatorData>(defaultScopeData);
   const [activeScopeTab, setActiveScopeTab] = useState<ScopeType | null>(null);
   const [visitedScopes, setVisitedScopes] = useState<Set<ScopeType>>(new Set());
   
@@ -284,16 +288,18 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setFormStep("calculator");
         setVisitedTabs(new Set(tabOrder));
         
-        // Restore saved scope data if available
+        // Restore saved scope data if available, merging with price list defaults
         if (editEstimate.scope_data) {
           setScopeData({ ...initialScopeData, ...editEstimate.scope_data });
+        } else {
+          setScopeData(initialScopeData);
         }
         if (editEstimate.selected_scopes && Array.isArray(editEstimate.selected_scopes)) {
           setSelectedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
           setVisitedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
         }
       } else {
-        // Reset everything for new estimate
+        // Reset everything for new estimate with price list prices
         setFormStep("type_selection");
         setEstimateType(null);
         setFormData(initialFormData);
@@ -307,7 +313,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setActiveTab("details");
       }
     }
-  }, [editEstimate, open]);
+  }, [editEstimate, open, initialScopeData]);
 
   const handleTabChange = (newTab: TabId) => {
     // Block navigation to inclusions/summary if not all scopes are visited
