@@ -310,7 +310,7 @@ export function SuspendedSlabCalculator({ data, onChange }: SuspendedSlabCalcula
     <div className="space-y-4">
       <InternalCostNotice />
       
-      <Accordion type="multiple" defaultValue={["slab", "reinforcement", "formwork", "labour"]} className="space-y-2">
+      <Accordion type="multiple" className="space-y-2">
         
         {/* Slab Dimensions */}
         <AccordionItem value="slab" className="border rounded-lg">

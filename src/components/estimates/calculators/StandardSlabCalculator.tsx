@@ -256,7 +256,7 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
     <div className="space-y-4">
       <InternalCostNotice />
       
-      <Accordion type="multiple" defaultValue={["slab", "materials", "labour"]} className="space-y-2">
+      <Accordion type="multiple" className="space-y-2">
         
         {/* Slab Dimensions */}
         <AccordionItem value="slab" className="border rounded-lg">

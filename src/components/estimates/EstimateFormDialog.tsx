@@ -812,67 +812,111 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </Card>
               ) : (
                 <>
-                  {/* Scope sub-tabs */}
-                  <div className="flex flex-wrap gap-2 pb-2 border-b">
-                    {Array.from(selectedScopes).map((scope) => (
-                      <Button
-                        key={scope}
-                        type="button"
-                        variant={activeScopeTab === scope ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setActiveScopeTab(scope)}
-                        className="gap-2"
-                      >
-                        {visitedScopes.has(scope) && (
-                          <Check className="w-3 h-3 text-green-500" />
-                        )}
-                        {getScopeLabel(scope)}
-                        {scopeTotals[scope].total > 0 && (
-                          <Badge variant="secondary" className="ml-1">
-                            {formatCurrency(scopeTotals[scope].total)}
-                          </Badge>
-                        )}
-                      </Button>
-                    ))}
-                  </div>
-
-                  {/* Progress indicator */}
-                  {!allScopesVisited && (
-                    <div className="text-sm text-muted-foreground bg-muted/50 p-2 rounded-lg">
-                      Review each scope tab ({visitedScopes.size}/{selectedScopes.size} completed) before continuing to Inclusions
+                  {/* Progress bar and scope navigation */}
+                  <div className="bg-muted/30 rounded-lg p-3 space-y-3">
+                    {/* Progress indicator */}
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium">
+                        Scope {Array.from(selectedScopes).indexOf(activeScopeTab!) + 1} of {selectedScopes.size}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {visitedScopes.size}/{selectedScopes.size} completed
+                      </span>
                     </div>
-                  )}
+                    
+                    {/* Scope pills */}
+                    <div className="flex flex-wrap gap-2">
+                      {Array.from(selectedScopes).map((scope, index) => {
+                        const isActive = activeScopeTab === scope;
+                        const isVisited = visitedScopes.has(scope);
+                        return (
+                          <Button
+                            key={scope}
+                            type="button"
+                            variant={isActive ? "default" : isVisited ? "secondary" : "outline"}
+                            size="sm"
+                            onClick={() => setActiveScopeTab(scope)}
+                            className="gap-1.5 text-xs"
+                          >
+                            <span className="w-5 h-5 rounded-full bg-background/20 flex items-center justify-center text-[10px] font-bold">
+                              {isVisited && !isActive ? <Check className="w-3 h-3" /> : index + 1}
+                            </span>
+                            {getScopeLabel(scope)}
+                            {scopeTotals[scope].total > 0 && (
+                              <Badge variant={isActive ? "outline" : "secondary"} className="ml-1 text-[10px]">
+                                {formatCurrency(scopeTotals[scope].total)}
+                              </Badge>
+                            )}
+                          </Button>
+                        );
+                      })}
+                    </div>
+                  </div>
 
                   {/* Active scope calculator */}
                   <div className="min-h-[400px]">
                     {activeScopeTab && renderScopeCalculator(activeScopeTab)}
                   </div>
+
+                  {/* Navigation within scopes */}
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <Button 
+                      type="button" 
+                      variant="outline" 
+                      onClick={handleSaveDraft}
+                      disabled={saveDraftMutation.isPending}
+                    >
+                      {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                      Save Draft
+                    </Button>
+                    
+                    <div className="flex gap-2">
+                      {/* Previous scope button */}
+                      {activeScopeTab && Array.from(selectedScopes).indexOf(activeScopeTab) > 0 && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => {
+                            const scopesArr = Array.from(selectedScopes);
+                            const currentIdx = scopesArr.indexOf(activeScopeTab);
+                            setActiveScopeTab(scopesArr[currentIdx - 1]);
+                          }}
+                        >
+                          ← Previous Scope
+                        </Button>
+                      )}
+                      
+                      {/* Next scope or continue button */}
+                      {activeScopeTab && Array.from(selectedScopes).indexOf(activeScopeTab) < selectedScopes.size - 1 ? (
+                        <Button
+                          type="button"
+                          onClick={() => {
+                            const scopesArr = Array.from(selectedScopes);
+                            const currentIdx = scopesArr.indexOf(activeScopeTab);
+                            setActiveScopeTab(scopesArr[currentIdx + 1]);
+                          }}
+                          className="gap-2"
+                        >
+                          Next Scope <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button 
+                          type="button" 
+                          onClick={goToNextTab} 
+                          className="gap-2"
+                          disabled={!allScopesVisited}
+                        >
+                          {allScopesVisited ? (
+                            <>Continue to Inclusions <ChevronRight className="w-4 h-4" /></>
+                          ) : (
+                            <>Review Remaining Scopes ({visitedScopes.size}/{selectedScopes.size})</>
+                          )}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                 </>
               )}
-
-              <div className="flex justify-between pt-4">
-                <Button 
-                  type="button" 
-                  variant="outline" 
-                  onClick={handleSaveDraft}
-                  disabled={saveDraftMutation.isPending}
-                >
-                  {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                  Save Draft
-                </Button>
-                <Button 
-                  type="button" 
-                  onClick={goToNextTab} 
-                  className="gap-2"
-                  disabled={!allScopesVisited}
-                >
-                  {allScopesVisited ? (
-                    <>Next: Inclusions <ChevronRight className="w-4 h-4" /></>
-                  ) : (
-                    <>Complete All Scopes ({visitedScopes.size}/{selectedScopes.size})</>
-                  )}
-                </Button>
-              </div>
             </TabsContent>
 
             {/* Inclusions Tab */}

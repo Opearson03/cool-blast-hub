@@ -911,7 +911,7 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
         </CardContent>
       </Card>
 
-      <Accordion type="multiple" defaultValue={["slab-core", "edge-beams"]} className="space-y-4">
+      <Accordion type="multiple" className="space-y-4">
         {/* Slab Core - Conditional based on mode */}
         <AccordionItem value="slab-core" className="border rounded-lg px-4">
           <AccordionTrigger className="hover:no-underline">
