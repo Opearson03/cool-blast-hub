@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { PriceListSection } from "@/components/settings/PriceListSection";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -492,6 +493,9 @@ export default function AdminSettings() {
               )}
             </CardContent>
           </Card>
+
+          {/* My Price List */}
+          <PriceListSection />
 
           {/* Account Security */}
           <Card>

@@ -1139,6 +1139,59 @@ export type Database = {
           },
         ]
       }
+      price_list_items: {
+        Row: {
+          business_id: string
+          category: string
+          created_at: string | null
+          custom_price: number | null
+          default_price: number
+          id: string
+          is_active: boolean | null
+          item_code: string
+          item_name: string
+          notes: string | null
+          unit: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          category: string
+          created_at?: string | null
+          custom_price?: number | null
+          default_price: number
+          id?: string
+          is_active?: boolean | null
+          item_code: string
+          item_name: string
+          notes?: string | null
+          unit: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          category?: string
+          created_at?: string | null
+          custom_price?: number | null
+          default_price?: number
+          id?: string
+          is_active?: boolean | null
+          item_code?: string
+          item_name?: string
+          notes?: string | null
+          unit?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "price_list_items_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
