@@ -1,15 +1,24 @@
 import { useMemo } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { EyeOff } from "lucide-react";
-
-const MPA_STRENGTHS = ["20", "25", "32", "40"];
-const MESH_TYPES = ["SL62", "SL72", "SL82", "SL92", "SL102"];
-const POD_SIZES = ["1090x1090x110", "1090x1090x150", "1090x1090x225", "1090x1090x300"];
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Square, ShieldCheck, Users, DollarSign, Layers } from "lucide-react";
+import {
+  MPA_STRENGTHS,
+  MESH_TYPES,
+  POD_SIZES,
+  formatCurrency,
+  InternalCostNotice,
+  CostSummaryCard,
+} from "./shared";
 
 export interface WafflePodData {
   slabLength: string;
@@ -99,7 +108,6 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
     // Internal beams
     const internalBeamWidthM = (parseFloat(data.internalBeamWidth) || 110) / 1000;
     const internalBeamDepthM = (parseFloat(data.internalBeamDepth) || 300) / 1000;
-    const internalBeamSpacingM = (parseFloat(data.internalBeamSpacing) || 1090) / 1000;
     
     // Calculate number of internal beams
     const effectiveWidth = width - 2 * edgeBeamWidthM;
@@ -128,7 +136,7 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
     // Mesh calculation
     const meshOverlap = 1 + (parseFloat(data.meshOverlapPercent) || 0) / 100;
     const meshArea = slabArea * meshOverlap;
-    const meshSheetArea = 14.4; // Standard 6m x 2.4m
+    const meshSheetArea = 14.4;
     const meshSheets = Math.ceil(meshArea / meshSheetArea);
     const meshPrice = parseFloat(data.meshPricePerSheet) || 0;
     const meshCost = meshSheets * meshPrice;
@@ -171,243 +179,216 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
     };
   }, [data]);
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      minimumFractionDigits: 2,
-    }).format(amount);
-  };
-
   return (
     <div className="space-y-4">
-      {/* Internal cost notice */}
-      <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-start gap-2">
-        <EyeOff className="w-4 h-4 text-amber-500 mt-0.5 shrink-0" />
-        <p className="text-sm text-amber-700 dark:text-amber-400">
-          <strong>Internal costs only</strong> — Client sees final quoted amount only.
-        </p>
-      </div>
+      <InternalCostNotice />
 
-      {/* Slab Dimensions */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Slab Dimensions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Length (m)</Label>
-              <Input type="number" step="0.1" value={data.slabLength} onChange={(e) => updateField("slabLength", e.target.value)} placeholder="e.g., 15" />
+      <Accordion type="multiple" defaultValue={["slab", "pods", "materials", "labour"]} className="space-y-2">
+        {/* Slab Dimensions */}
+        <AccordionItem value="slab" className="border rounded-lg">
+          <AccordionTrigger className="px-4 hover:no-underline">
+            <div className="flex items-center gap-2">
+              <Square className="w-4 h-4 text-primary" />
+              <span className="font-medium">Slab Dimensions</span>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Width (m)</Label>
-              <Input type="number" step="0.1" value={data.slabWidth} onChange={(e) => updateField("slabWidth", e.target.value)} placeholder="e.g., 12" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Top Slab Thickness (mm)</Label>
-              <Input type="number" value={data.topSlabThickness} onChange={(e) => updateField("topSlabThickness", e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Concrete Strength</Label>
-              <Select value={data.concreteStrength} onValueChange={(v) => updateField("concreteStrength", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MPA_STRENGTHS.map(s => <SelectItem key={s} value={s}>{s} MPa</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          {calculations.slabArea > 0 && (
-            <div className="flex gap-3 mt-3">
-              <Badge variant="secondary">Area: {calculations.slabArea.toFixed(1)}m²</Badge>
-              <Badge variant="secondary">Perimeter: {calculations.perimeter.toFixed(1)}m</Badge>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Waffle Pods */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Waffle Pods</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Pod Size</Label>
-              <Select value={data.podSize} onValueChange={(v) => updateField("podSize", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {POD_SIZES.map(s => <SelectItem key={s} value={s}>{s}mm</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Price per Pod ($)</Label>
-              <Input type="number" step="0.01" value={data.podPriceEach} onChange={(e) => updateField("podPriceEach", e.target.value)} />
-            </div>
-          </div>
-          {calculations.totalPods > 0 && (
-            <div className="flex gap-3 mt-3">
-              <Badge variant="secondary">{calculations.totalPods} pods needed</Badge>
-              <Badge variant="default">{formatCurrency(calculations.podsCost)}</Badge>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Beams */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Edge & Internal Beams</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm font-medium mb-2">Edge Beams</p>
-            <div className="grid grid-cols-3 gap-3">
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="space-y-1">
-                <Label className="text-xs">Width (mm)</Label>
-                <Input type="number" value={data.edgeBeamWidth} onChange={(e) => updateField("edgeBeamWidth", e.target.value)} />
+                <Label className="text-xs">Length (m)</Label>
+                <Input type="number" step="0.1" value={data.slabLength} onChange={(e) => updateField("slabLength", e.target.value)} placeholder="e.g., 15" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Depth (mm)</Label>
-                <Input type="number" value={data.edgeBeamDepth} onChange={(e) => updateField("edgeBeamDepth", e.target.value)} />
+                <Label className="text-xs">Width (m)</Label>
+                <Input type="number" step="0.1" value={data.slabWidth} onChange={(e) => updateField("slabWidth", e.target.value)} placeholder="e.g., 12" />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Trench Mesh</Label>
-                <Input value={data.edgeBeamMesh} onChange={(e) => updateField("edgeBeamMesh", e.target.value)} placeholder="F72" />
-              </div>
-            </div>
-          </div>
-          <div>
-            <p className="text-sm font-medium mb-2">Internal Beams</p>
-            <div className="grid grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Width (mm)</Label>
-                <Input type="number" value={data.internalBeamWidth} onChange={(e) => updateField("internalBeamWidth", e.target.value)} />
+                <Label className="text-xs">Top Slab Thickness (mm)</Label>
+                <Input type="number" value={data.topSlabThickness} onChange={(e) => updateField("topSlabThickness", e.target.value)} />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Depth (mm)</Label>
-                <Input type="number" value={data.internalBeamDepth} onChange={(e) => updateField("internalBeamDepth", e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Spacing (mm)</Label>
-                <Input type="number" value={data.internalBeamSpacing} onChange={(e) => updateField("internalBeamSpacing", e.target.value)} />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Trench Mesh</Label>
-                <Input value={data.internalBeamMesh} onChange={(e) => updateField("internalBeamMesh", e.target.value)} placeholder="F62" />
+                <Label className="text-xs">Concrete Strength</Label>
+                <Select value={data.concreteStrength} onValueChange={(v) => updateField("concreteStrength", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MPA_STRENGTHS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Materials Pricing */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Materials Pricing</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Concrete ($/m³)</Label>
-              <Input type="number" value={data.concretePricePerM3} onChange={(e) => updateField("concretePricePerM3", e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Wastage (%)</Label>
-              <Input type="number" value={data.wastagePercent} onChange={(e) => updateField("wastagePercent", e.target.value)} />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Top Mesh Type</Label>
-              <Select value={data.meshType} onValueChange={(v) => updateField("meshType", v)}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {MESH_TYPES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Mesh ($/sheet)</Label>
-              <Input type="number" value={data.meshPricePerSheet} onChange={(e) => updateField("meshPricePerSheet", e.target.value)} />
-            </div>
-          </div>
-          <div className="flex items-center gap-4 mt-4">
-            <Switch checked={data.polyMembrane} onCheckedChange={(v) => updateField("polyMembrane", v)} />
-            <Label>Include poly membrane</Label>
-            {data.polyMembrane && (
-              <Input type="number" step="0.01" value={data.polyPricePerM2} onChange={(e) => updateField("polyPricePerM2", e.target.value)} className="w-24" placeholder="$/m²" />
+            {calculations.slabArea > 0 && (
+              <div className="flex gap-3 mt-3">
+                <Badge variant="secondary">Area: {calculations.slabArea.toFixed(1)}m²</Badge>
+                <Badge variant="secondary">Perimeter: {calculations.perimeter.toFixed(1)}m</Badge>
+              </div>
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </AccordionContent>
+        </AccordionItem>
 
-      {/* Labour & Markup */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Labour & Markup</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Hourly Rate ($/hr)</Label>
-              <Input type="number" value={data.labourHourlyRate} onChange={(e) => updateField("labourHourlyRate", e.target.value)} />
+        {/* Waffle Pods */}
+        <AccordionItem value="pods" className="border rounded-lg">
+          <AccordionTrigger className="px-4 hover:no-underline">
+            <div className="flex items-center gap-2">
+              <Layers className="w-4 h-4 text-primary" />
+              <span className="font-medium">Waffle Pods & Beams</span>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Hours per m²</Label>
-              <Input type="number" step="0.01" value={data.labourHoursPerM2} onChange={(e) => updateField("labourHoursPerM2", e.target.value)} />
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Pod Size</Label>
+                <Select value={data.podSize} onValueChange={(v) => updateField("podSize", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {POD_SIZES.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Price per Pod ($)</Label>
+                <Input type="number" step="0.01" value={data.podPriceEach} onChange={(e) => updateField("podPriceEach", e.target.value)} />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Materials Markup (%)</Label>
-              <Input type="number" value={data.materialsMarkupPercent} onChange={(e) => updateField("materialsMarkupPercent", e.target.value)} />
+            
+            <div>
+              <p className="text-sm font-medium mb-2">Edge Beams</p>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Width (mm)</Label>
+                  <Input type="number" value={data.edgeBeamWidth} onChange={(e) => updateField("edgeBeamWidth", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Depth (mm)</Label>
+                  <Input type="number" value={data.edgeBeamDepth} onChange={(e) => updateField("edgeBeamDepth", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Trench Mesh</Label>
+                  <Input value={data.edgeBeamMesh} onChange={(e) => updateField("edgeBeamMesh", e.target.value)} placeholder="F72" />
+                </div>
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Labour Markup (%)</Label>
-              <Input type="number" value={data.labourMarkupPercent} onChange={(e) => updateField("labourMarkupPercent", e.target.value)} />
+            
+            <div>
+              <p className="text-sm font-medium mb-2">Internal Beams</p>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Width (mm)</Label>
+                  <Input type="number" value={data.internalBeamWidth} onChange={(e) => updateField("internalBeamWidth", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Depth (mm)</Label>
+                  <Input type="number" value={data.internalBeamDepth} onChange={(e) => updateField("internalBeamDepth", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Spacing (mm)</Label>
+                  <Input type="number" value={data.internalBeamSpacing} onChange={(e) => updateField("internalBeamSpacing", e.target.value)} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Trench Mesh</Label>
+                  <Input value={data.internalBeamMesh} onChange={(e) => updateField("internalBeamMesh", e.target.value)} placeholder="F62" />
+                </div>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            
+            {calculations.totalPods > 0 && (
+              <div className="flex gap-3 mt-3">
+                <Badge variant="secondary">{calculations.totalPods} pods needed</Badge>
+                <Badge variant="default">{formatCurrency(calculations.podsCost)}</Badge>
+              </div>
+            )}
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Materials */}
+        <AccordionItem value="materials" className="border rounded-lg">
+          <AccordionTrigger className="px-4 hover:no-underline">
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-primary" />
+              <span className="font-medium">Materials Pricing</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Concrete ($/m³)</Label>
+                <Input type="number" value={data.concretePricePerM3} onChange={(e) => updateField("concretePricePerM3", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Wastage (%)</Label>
+                <Input type="number" value={data.wastagePercent} onChange={(e) => updateField("wastagePercent", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Top Mesh Type</Label>
+                <Select value={data.meshType} onValueChange={(v) => updateField("meshType", v)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MESH_TYPES.map(s => <SelectItem key={s.id} value={s.id}>{s.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Mesh ($/sheet)</Label>
+                <Input type="number" value={data.meshPricePerSheet} onChange={(e) => updateField("meshPricePerSheet", e.target.value)} />
+              </div>
+            </div>
+            <div className="flex items-center gap-4 mt-4">
+              <Switch checked={data.polyMembrane} onCheckedChange={(v) => updateField("polyMembrane", v)} />
+              <Label>Include poly membrane</Label>
+              {data.polyMembrane && (
+                <Input type="number" step="0.01" value={data.polyPricePerM2} onChange={(e) => updateField("polyPricePerM2", e.target.value)} className="w-24" placeholder="$/m²" />
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+
+        {/* Labour & Markup */}
+        <AccordionItem value="labour" className="border rounded-lg">
+          <AccordionTrigger className="px-4 hover:no-underline">
+            <div className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="font-medium">Labour & Markup</span>
+            </div>
+          </AccordionTrigger>
+          <AccordionContent className="px-4 pb-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Hourly Rate ($/hr)</Label>
+                <Input type="number" value={data.labourHourlyRate} onChange={(e) => updateField("labourHourlyRate", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Hours per m²</Label>
+                <Input type="number" step="0.01" value={data.labourHoursPerM2} onChange={(e) => updateField("labourHoursPerM2", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Materials Markup (%)</Label>
+                <Input type="number" value={data.materialsMarkupPercent} onChange={(e) => updateField("materialsMarkupPercent", e.target.value)} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Labour Markup (%)</Label>
+                <Input type="number" value={data.labourMarkupPercent} onChange={(e) => updateField("labourMarkupPercent", e.target.value)} />
+              </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Cost Summary */}
-      <Card className="bg-muted/30">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Cost Summary</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Concrete ({calculations.volumeWithWastage.toFixed(2)}m³)</span>
-            <span>{formatCurrency(calculations.concreteCost)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Waffle Pods ({calculations.totalPods})</span>
-            <span>{formatCurrency(calculations.podsCost)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-muted-foreground">Mesh ({calculations.meshSheets} sheets)</span>
-            <span>{formatCurrency(calculations.meshCost)}</span>
-          </div>
-          {data.polyMembrane && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Poly Membrane</span>
-              <span>{formatCurrency(calculations.polyCost)}</span>
-            </div>
-          )}
-          <div className="flex justify-between text-sm font-medium border-t pt-2">
-            <span>Materials (inc. {data.materialsMarkupPercent}% markup)</span>
-            <span>{formatCurrency(calculations.materialsTotal)}</span>
-          </div>
-          <div className="flex justify-between text-sm font-medium">
-            <span>Labour ({calculations.labourHours.toFixed(1)}hrs, inc. {data.labourMarkupPercent}% markup)</span>
-            <span>{formatCurrency(calculations.labourTotal)}</span>
-          </div>
-          <div className="flex justify-between text-lg font-bold border-t pt-2">
-            <span>Total</span>
-            <span className="text-primary">{formatCurrency(calculations.grandTotal)}</span>
-          </div>
-        </CardContent>
-      </Card>
+      <CostSummaryCard
+        materialItems={[
+          { label: "Concrete", value: calculations.concreteCost, detail: `${calculations.volumeWithWastage.toFixed(2)}m³` },
+          { label: "Waffle Pods", value: calculations.podsCost, detail: `${calculations.totalPods}` },
+          { label: "Mesh", value: calculations.meshCost, detail: `${calculations.meshSheets} sheets` },
+          ...(data.polyMembrane ? [{ label: "Poly Membrane", value: calculations.polyCost }] : []),
+        ]}
+        materialsMarkupPercent={data.materialsMarkupPercent}
+        materialsTotal={calculations.materialsTotal}
+        labourItems={[
+          { label: "Labour", value: calculations.labourCost, detail: `${calculations.labourHours.toFixed(1)}hrs` },
+        ]}
+        labourMarkupPercent={data.labourMarkupPercent}
+        labourTotal={calculations.labourTotal}
+        grandTotal={calculations.grandTotal}
+      />
     </div>
   );
 }
