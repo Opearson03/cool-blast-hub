@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useEstimateInitialData } from "@/hooks/useEstimateInitialData";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
@@ -144,6 +144,7 @@ type FormStep = "type_selection" | "calculator";
 
 export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
   const { initialScopeData } = useEstimateInitialData();
+  const hasInitializedOnOpenRef = useRef(false);
   
   const [formStep, setFormStep] = useState<FormStep>("type_selection");
   const [estimateType, setEstimateType] = useState<EstimateType | null>(null);
@@ -271,49 +272,65 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   };
 
   useEffect(() => {
-    if (open) {
-      if (editEstimate) {
-        setFormData({
-          client_name: editEstimate.client_name,
-          company_name: editEstimate.company_name || "",
-          client_email: editEstimate.client_email || "",
-          client_phone: editEstimate.client_phone || "",
-          site_address: editEstimate.site_address,
-          description: editEstimate.description || "",
-          valid_until: editEstimate.valid_until || "",
-          notes: editEstimate.notes || "",
-          markupPercent: "15",
-        });
-        setEstimateType(editEstimate.estimate_type || "driveway");
-        setFormStep("calculator");
-        setVisitedTabs(new Set(tabOrder));
-        
-        // Restore saved scope data if available, merging with price list defaults
-        if (editEstimate.scope_data) {
-          setScopeData({ ...initialScopeData, ...editEstimate.scope_data });
-        } else {
-          setScopeData(initialScopeData);
-        }
-        if (editEstimate.selected_scopes && Array.isArray(editEstimate.selected_scopes)) {
-          setSelectedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
-          setVisitedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
-        }
+    if (!open) {
+      hasInitializedOnOpenRef.current = false;
+      return;
+    }
+
+    // Prevent re-initializing state while the dialog stays open
+    if (hasInitializedOnOpenRef.current) return;
+    hasInitializedOnOpenRef.current = true;
+
+    if (editEstimate) {
+      setFormData({
+        client_name: editEstimate.client_name,
+        company_name: editEstimate.company_name || "",
+        client_email: editEstimate.client_email || "",
+        client_phone: editEstimate.client_phone || "",
+        site_address: editEstimate.site_address,
+        description: editEstimate.description || "",
+        valid_until: editEstimate.valid_until || "",
+        notes: editEstimate.notes || "",
+        markupPercent: "15",
+      });
+      setEstimateType(editEstimate.estimate_type || "driveway");
+      setFormStep("calculator");
+      setVisitedTabs(new Set(tabOrder));
+
+      // Restore saved scope data if available, merging with price list defaults
+      if (editEstimate.scope_data) {
+        setScopeData({ ...initialScopeData, ...editEstimate.scope_data });
       } else {
-        // Reset everything for new estimate with price list prices
-        setFormStep("type_selection");
-        setEstimateType(null);
-        setFormData(initialFormData);
-        setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
-        setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
-        setSelectedScopes(new Set());
         setScopeData(initialScopeData);
-        setActiveScopeTab(null);
-        setVisitedScopes(new Set());
-        setVisitedTabs(new Set(["details"]));
-        setActiveTab("details");
       }
+      if (editEstimate.selected_scopes && Array.isArray(editEstimate.selected_scopes)) {
+        setSelectedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
+        setVisitedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
+      }
+    } else {
+      // Reset everything for new estimate with price list prices
+      setFormStep("type_selection");
+      setEstimateType(null);
+      setFormData(initialFormData);
+      setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
+      setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
+      setSelectedScopes(new Set());
+      setScopeData(initialScopeData);
+      setActiveScopeTab(null);
+      setVisitedScopes(new Set());
+      setVisitedTabs(new Set(["details"]));
+      setActiveTab("details");
     }
   }, [editEstimate, open, initialScopeData]);
+
+  // If price list defaults arrive after opening, update scope defaults without resetting user choices
+  useEffect(() => {
+    if (!open || editEstimate) return;
+    if (formStep !== "type_selection") return;
+    if (selectedScopes.size > 0 || visitedScopes.size > 0) return;
+
+    setScopeData(initialScopeData);
+  }, [open, editEstimate, formStep, selectedScopes.size, visitedScopes.size, initialScopeData]);
 
   const handleTabChange = (newTab: TabId) => {
     // Block navigation to inclusions/summary if not all scopes are visited
