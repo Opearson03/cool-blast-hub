@@ -5,16 +5,9 @@ import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SEOHead } from "@/components/seo/SEOHead";
-
 const Pricing = () => {
-  return (
-    <>
-      <SEOHead
-        title="PourHub Pricing - $100/month | Concreting Software Australia"
-        description="Simple, all-inclusive pricing for PourHub concreting business management software. $100/month with one month free trial. All features included."
-        canonicalPath="/pricing"
-        keywords="concreting software pricing, construction management software cost, ITP SWMS software price"
-      />
+  return <>
+      <SEOHead title="PourHub Pricing - $100/month | Concreting Software Australia" description="Simple, all-inclusive pricing for PourHub concreting business management software. $100/month with one month free trial. All features included." canonicalPath="/pricing" keywords="concreting software pricing, construction management software cost, ITP SWMS software price" />
       <div className="min-h-screen bg-charcoal-dark">
         {/* Header */}
         <header className="px-4 py-6 border-b border-border/30">
@@ -69,26 +62,10 @@ const Pricing = () => {
               </CardHeader>
               <CardContent className="flex-1 flex flex-col">
                 <ul className="space-y-3 flex-1">
-                  {[
-                    "Unlimited employees",
-                    "Unlimited jobs",
-                    "Unlimited crews",
-                    "Job scheduling with conflict warnings",
-                    "Project Startup checklist",
-                    "ITPs & SWMS",
-                    "Concrete test result tracking & alerts",
-                    "Photo & document uploads",
-                    "Job Pack PDF export",
-                    "Equipment register with service reminders",
-                    "Custom ITP & SWMS templates",
-                    "Business branding on PDFs",
-                    "Priority support",
-                  ].map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
+                  {["Unlimited employees", "Unlimited jobs", "Unlimited crews", "Job scheduling with conflict warnings", "Project Startup checklist", "ITPs & SWMS", "Concrete test result tracking & alerts", "Photo & document uploads", "Job Pack PDF export", "Equipment register with service reminders", "Custom ITP & SWMS templates", "Business branding on PDFs", "Priority support"].map((feature, idx) => <li key={idx} className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                       <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
+                    </li>)}
                 </ul>
                 <Link to="/signup" className="mt-6">
                   <Button className="w-full touch-target" size="lg">
@@ -104,7 +81,7 @@ const Pricing = () => {
         {/* Value Props */}
         <div className="bg-charcoal py-16 px-4">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-secondary">
+            <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-primary-foreground">
               Why Concreters Choose <span className="text-primary">PourHub</span>
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
@@ -188,8 +165,6 @@ const Pricing = () => {
           </div>
         </footer>
       </div>
-    </>
-  );
+    </>;
 };
-
 export default Pricing;
