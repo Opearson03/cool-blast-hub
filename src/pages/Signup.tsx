@@ -6,14 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
-import { SUBSCRIPTION_TIERS, SubscriptionTier } from "@/lib/subscription-tiers";
+import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
+
+const tierConfig = SUBSCRIPTION_TIERS.standard;
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
-  const plan = (searchParams.get("plan") as SubscriptionTier) || "starter";
   const cancelled = searchParams.get("cancelled") === "true";
   
   const [email, setEmail] = useState("");
@@ -24,8 +26,6 @@ export default function Signup() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  const tierConfig = SUBSCRIPTION_TIERS[plan] || SUBSCRIPTION_TIERS.starter;
 
   useEffect(() => {
     if (cancelled) {
@@ -67,7 +67,6 @@ export default function Signup() {
       // Create Stripe checkout session
       const { data, error } = await supabase.functions.invoke("create-checkout", {
         body: {
-          plan,
           email,
           fullName,
           businessName,
@@ -81,7 +80,6 @@ export default function Signup() {
         sessionStorage.setItem("signup_email", email);
         sessionStorage.setItem("signup_business", businessName);
         sessionStorage.setItem("signup_name", fullName);
-        sessionStorage.setItem("signup_plan", plan);
         sessionStorage.setItem("signup_terms_accepted", "true");
         
         // Redirect to Stripe Checkout
@@ -114,7 +112,7 @@ export default function Signup() {
           {/* Plan Summary */}
           <Card className="bg-card/80 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-lg">Your Selected Plan</CardTitle>
+              <CardTitle className="text-lg">Your Plan</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
@@ -123,6 +121,9 @@ export default function Signup() {
                   <span className="text-3xl font-bold text-primary">${tierConfig.price}</span>
                   <span className="text-muted-foreground"> / month</span>
                 </div>
+                <Badge variant="secondary" className="mt-2 bg-green-500/20 text-green-400 border-green-500/30">
+                  One month free trial
+                </Badge>
               </div>
               <ul className="space-y-2">
                 {tierConfig.features.slice(0, 6).map((feature, idx) => (

@@ -12,11 +12,8 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
-// Price IDs for each tier (2 tiers only)
-const PRICE_IDS = {
-  starter: "price_1SeCx7S7UIjxyz7VnNuTR8Lg",
-  professional: "price_1SeCxpS7UIjxyz7V9Rudg8D7",
-};
+// Single tier price ID
+const PRICE_ID = "price_1Sn7u2S7UIjxyz7VMeUH1Kct";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -30,16 +27,12 @@ serve(async (req) => {
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     logStep("Stripe key verified");
 
-    const { plan, email, fullName, businessName } = await req.json();
-    logStep("Request data received", { plan, email, businessName });
+    const { email, fullName, businessName } = await req.json();
+    logStep("Request data received", { email, businessName });
 
-    if (!plan || !email || !fullName || !businessName) {
-      throw new Error("Missing required fields: plan, email, fullName, businessName");
+    if (!email || !fullName || !businessName) {
+      throw new Error("Missing required fields: email, fullName, businessName");
     }
-
-    const priceId = PRICE_IDS[plan as keyof typeof PRICE_IDS];
-    if (!priceId) throw new Error(`Invalid plan: ${plan}`);
-    logStep("Price ID resolved", { plan, priceId });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -57,24 +50,22 @@ serve(async (req) => {
       customer_email: customerId ? undefined : email,
       line_items: [
         {
-          price: priceId,
+          price: PRICE_ID,
           quantity: 1,
         },
       ],
       mode: "subscription",
-      success_url: `${req.headers.get("origin")}/signup/success?session_id={CHECKOUT_SESSION_ID}&plan=${plan}`,
-      cancel_url: `${req.headers.get("origin")}/signup?plan=${plan}&cancelled=true`,
+      success_url: `${req.headers.get("origin")}/signup/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.headers.get("origin")}/signup?cancelled=true`,
       payment_method_collection: "always",
       subscription_data: {
         trial_period_days: 30,
         metadata: {
-          plan,
           full_name: fullName,
           business_name: businessName,
         },
       },
       metadata: {
-        plan,
         full_name: fullName,
         business_name: businessName,
       },
