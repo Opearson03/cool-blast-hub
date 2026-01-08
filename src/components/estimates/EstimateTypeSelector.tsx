@@ -78,13 +78,29 @@ export function EstimateTypeSelector({
           return (
             <Card
               key={type.id}
+              role="button"
+              tabIndex={0}
               className={cn(
                 "relative cursor-pointer transition-all duration-200 hover:shadow-md",
                 isSelected && "border-2 border-orange bg-gradient-to-r from-orange/20 to-orange-dark/20",
                 !isSelected && "hover:border-muted-foreground/30",
                 isDisabled && "opacity-60 cursor-not-allowed"
               )}
-              onClick={() => !isDisabled && onSelect(type.id)}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (!isDisabled) {
+                  onSelect(type.id);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  if (!isDisabled) {
+                    onSelect(type.id);
+                  }
+                }
+              }}
             >
               {badge && (
                 <div className="absolute top-3 right-3">
