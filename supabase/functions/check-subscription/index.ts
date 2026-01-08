@@ -12,21 +12,9 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
-// Product IDs for each tier (2 tiers only)
-const PRODUCT_IDS = {
-  starter: "prod_TbPmlPUYfBBb3F",
-  professional: "prod_TbPnloNedYyooY",
-};
-
-const TIER_FROM_PRODUCT: Record<string, string> = {
-  "prod_TbPmlPUYfBBb3F": "starter",
-  "prod_TbPnloNedYyooY": "professional",
-};
-
-const EMPLOYEE_LIMITS: Record<string, number> = {
-  starter: 5,
-  professional: 999,
-};
+// Single tier product ID
+const PRODUCT_ID = "prod_TkdAIRs15o1Omv";
+const EMPLOYEE_LIMIT = 999;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -61,7 +49,7 @@ serve(async (req) => {
           subscribed: false,
           tier: null,
           subscription_end: null,
-          employee_limit: 5,
+          employee_limit: EMPLOYEE_LIMIT,
           is_exempt: false,
           token_error: true, // Signal to client that token was invalid
         }), {
@@ -95,9 +83,9 @@ serve(async (req) => {
         logStep("Business is exempt from subscription - granting full access");
         return new Response(JSON.stringify({
           subscribed: true,
-          tier: "professional",
+          tier: "standard",
           subscription_end: null,
-          employee_limit: 20,
+          employee_limit: EMPLOYEE_LIMIT,
           is_exempt: true,
         }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -191,7 +179,6 @@ serve(async (req) => {
     const hasActiveSub = subscriptions.data.length > 0;
     let tier = null;
     let subscriptionEnd = null;
-    let employeeLimit = 5;
 
     if (hasActiveSub) {
       const subscription = subscriptions.data[0];
@@ -209,10 +196,8 @@ serve(async (req) => {
         currentPeriodEnd: subscription.current_period_end,
       });
       
-      const productId = subscription.items.data[0]?.price?.product as string;
-      tier = productId ? (TIER_FROM_PRODUCT[productId] || "starter") : "starter";
-      employeeLimit = EMPLOYEE_LIMITS[tier] || 5;
-      logStep("Determined subscription tier", { productId, tier, employeeLimit });
+      tier = "standard";
+      logStep("Determined subscription tier", { tier, employeeLimit: EMPLOYEE_LIMIT });
 
       // Update subscription record in database
       if (profile?.business_id) {
@@ -225,7 +210,7 @@ serve(async (req) => {
             plan_tier: tier,
             status: "active",
             current_period_end: subscriptionEnd,
-            employee_limit: employeeLimit,
+            employee_limit: EMPLOYEE_LIMIT,
           }, { onConflict: "business_id" });
         logStep("Database subscription record updated");
       }
@@ -237,7 +222,7 @@ serve(async (req) => {
       subscribed: hasActiveSub,
       tier,
       subscription_end: subscriptionEnd,
-      employee_limit: employeeLimit,
+      employee_limit: EMPLOYEE_LIMIT,
       is_exempt: false,
     }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

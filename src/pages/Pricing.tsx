@@ -6,234 +6,190 @@ import { Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SEOHead } from "@/components/seo/SEOHead";
 
-const PRICING_TIERS = [{
-  name: "Starter",
-  price: 79,
-  description: "Solo concreters, 1–3 person crews, small residential outfits.",
-  features: [
-    "1 Business",
-    "Up to 5 employees",
-    "Unlimited jobs",
-    "Job scheduling",
-    "Project Startup checklist",
-    "ITPs & SWMS",
-    "Concrete test result tracking",
-    "Photo & document uploads",
-    "Job Pack PDF export",
-    "Equipment register (basic)",
-  ],
-  highlight: false,
-  trialBadge: "One month free trial"
-}, {
-  name: "Professional",
-  price: 199,
-  description: "Growing concreting businesses, multiple crews, builder work.",
-  features: [
-    "Everything in Starter, plus:",
-    "Unlimited employees",
-    "Unlimited crews",
-    "Advanced scheduling (conflict warnings)",
-    "Concrete test result alerts",
-    "Equipment service reminders",
-    "Priority support",
-    "Custom ITP & SWMS templates",
-    "Business branding on PDFs",
-  ],
-  highlight: true,
-  badge: "Most Popular",
-  trialBadge: "One month free trial"
-}];
 const Pricing = () => {
   return (
     <>
       <SEOHead
-        title="PourHub Pricing - Plans from $79/month | Concreting Software Australia"
-        description="Simple, transparent pricing for PourHub concreting business management software. Starter plan $79/month, Professional plan $199/month. One month free trial included."
+        title="PourHub Pricing - $100/month | Concreting Software Australia"
+        description="Simple, all-inclusive pricing for PourHub concreting business management software. $100/month with one month free trial. All features included."
         canonicalPath="/pricing"
         keywords="concreting software pricing, construction management software cost, ITP SWMS software price"
       />
       <div className="min-h-screen bg-charcoal-dark">
-      {/* Header */}
-      <header className="px-4 py-6 border-b border-border/30">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <Logo size="lg" className="rounded-lg" />
-            <span className="text-2xl font-bold text-primary-foreground">
-              Pour<span className="text-primary">Hub</span>
-            </span>
-          </Link>
-          <Link to="/auth">
-            <Button variant="outline" className="touch-target border-primary-foreground/50 text-primary-foreground bg-primary-foreground/10 hover:bg-primary-foreground/20">
-              Sign In
-            </Button>
-          </Link>
-        </div>
-      </header>
+        {/* Header */}
+        <header className="px-4 py-6 border-b border-border/30">
+          <div className="max-w-6xl mx-auto flex items-center justify-between">
+            <Link to="/" className="flex items-center gap-2">
+              <Logo size="lg" className="rounded-lg" />
+              <span className="text-2xl font-bold text-primary-foreground">
+                Pour<span className="text-primary">Hub</span>
+              </span>
+            </Link>
+            <Link to="/auth">
+              <Button variant="outline" className="touch-target border-primary-foreground/50 text-primary-foreground bg-primary-foreground/10 hover:bg-primary-foreground/20">
+                Sign In
+              </Button>
+            </Link>
+          </div>
+        </header>
 
-      {/* Hero */}
-      <div className="px-4 py-16 sm:py-20">
-        <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold text-primary-foreground mb-4">
-            Simple, Transparent Pricing
-          </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Choose the plan that fits your business. No hidden fees, cancel anytime.
-          </p>
-        </div>
-      </div>
-
-      {/* Pricing Cards */}
-      <div className="px-4 pb-20">
-        <div className="max-w-6xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8 max-w-4xl mx-auto">
-            {PRICING_TIERS.map(tier => <Card key={tier.name} className={`relative flex flex-col ${tier.highlight ? "border-primary shadow-lg shadow-primary/20 scale-[1.02]" : "border-border"}`}>
-                {tier.badge && <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
-                    {tier.badge}
-                  </Badge>}
-                <CardHeader className="text-center pb-2">
-                  <h2 className="text-2xl font-bold">{tier.name}</h2>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold text-primary">${tier.price}</span>
-                    <span className="text-muted-foreground"> / month</span>
-                  </div>
-                  {tier.trialBadge && (
-                    <div className="mt-2">
-                      <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
-                        {tier.trialBadge}
-                      </Badge>
-                    </div>
-                  )}
-                  <p className="text-sm text-muted-foreground mt-3">{tier.description}</p>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col">
-                  <ul className="space-y-3 flex-1">
-                    {tier.features.map((feature, idx) => {
-                      const isHeader = feature.includes("Everything in");
-                      return (
-                        <li key={idx} className="flex items-start gap-3">
-                          {isHeader ? (
-                            <span className="text-sm text-muted-foreground font-medium">
-                              {feature}
-                            </span>
-                          ) : (
-                            <>
-                              <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                              <span className="text-sm">{feature}</span>
-                            </>
-                          )}
-                        </li>
-                      );
-                    })}
-                  </ul>
-                  <Link to={`/signup?plan=${tier.name.toLowerCase()}`} className="mt-6">
-                    <Button className="w-full touch-target" variant={tier.highlight ? "default" : "outline"}>
-                      Start Free Trial
-                      <ArrowRight className="ml-2 w-4 h-4" />
-                    </Button>
-                  </Link>
-                </CardContent>
-              </Card>)}
+        {/* Hero */}
+        <div className="px-4 py-16 sm:py-20">
+          <div className="max-w-4xl mx-auto text-center">
+            <h1 className="text-4xl sm:text-5xl font-bold text-primary-foreground mb-4">
+              Simple, All-Inclusive Pricing
+            </h1>
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              One plan. All features. No hidden fees, cancel anytime.
+            </p>
           </div>
         </div>
-      </div>
 
-      {/* Value Props */}
-      <div className="bg-charcoal py-16 px-4">
-        <div className="max-w-4xl mx-auto">
-          <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-secondary">
-            Why Concreters Choose <span className="text-primary">PourHub</span>
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">$79</div>
-              <p className="text-primary-foreground/90">Less than one hour of labour per month</p>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">100%</div>
-              <p className="text-primary-foreground/90">Digital compliance documentation</p>
-            </div>
-            <div>
-              <div className="text-4xl font-bold text-primary mb-2">0</div>
-              <p className="text-primary-foreground/90">Missed test results or expired tickets</p>
+        {/* Pricing Card */}
+        <div className="px-4 pb-20">
+          <div className="max-w-lg mx-auto">
+            <Card className="relative border-primary shadow-lg shadow-primary/20">
+              <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
+                All Features Included
+              </Badge>
+              <CardHeader className="text-center pb-2">
+                <h2 className="text-2xl font-bold">PourHub</h2>
+                <div className="mt-4">
+                  <span className="text-5xl font-bold text-primary">$100</span>
+                  <span className="text-muted-foreground"> / month</span>
+                </div>
+                <div className="mt-2">
+                  <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
+                    One month free trial
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mt-3">
+                  Complete job management for concreting businesses
+                </p>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                <ul className="space-y-3 flex-1">
+                  {[
+                    "Unlimited employees",
+                    "Unlimited jobs",
+                    "Unlimited crews",
+                    "Job scheduling with conflict warnings",
+                    "Project Startup checklist",
+                    "ITPs & SWMS",
+                    "Concrete test result tracking & alerts",
+                    "Photo & document uploads",
+                    "Job Pack PDF export",
+                    "Equipment register with service reminders",
+                    "Custom ITP & SWMS templates",
+                    "Business branding on PDFs",
+                    "Priority support",
+                  ].map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/signup" className="mt-6">
+                  <Button className="w-full touch-target" size="lg">
+                    Start Free Trial
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Value Props */}
+        <div className="bg-charcoal py-16 px-4">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-secondary">
+              Why Concreters Choose <span className="text-primary">PourHub</span>
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">$100</div>
+                <p className="text-primary-foreground/90">Less than 2 hours of labour per month</p>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">100%</div>
+                <p className="text-primary-foreground/90">Digital compliance documentation</p>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">0</div>
+                <p className="text-primary-foreground/90">Missed test results or expired tickets</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* FAQ-style Value */}
-      <div className="bg-background py-16 px-4">
-        <div className="max-w-3xl mx-auto">
-          <h2 className="text-2xl font-bold text-center mb-8">Why These Prices?</h2>
-          <div className="space-y-6">
+        {/* Value Explanation */}
+        <div className="bg-background py-16 px-4">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-2xl font-bold text-center mb-8">Why $100/month?</h2>
             <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="font-semibold mb-2">Starter at $79/month</h3>
-              <p className="text-muted-foreground text-sm">
-                Under $80 makes it an easy decision. It's cheaper than one hour of labour, 
-                but still feels like professional software. Perfect for solo operators who 
-                want to look professional to builders.
-              </p>
-            </div>
-            <div className="bg-card border border-border rounded-lg p-6">
-              <h3 className="font-semibold mb-2">Professional at $199/month</h3>
-              <p className="text-muted-foreground text-sm">
-                Full unrestricted access to everything PourHub offers. One failed ITP or missing 
-                concrete test can cost thousands. Builders love clean compliance packs, and this 
-                tier makes it easy to deliver professional documentation every time.
+              <p className="text-muted-foreground">
+                One failed ITP or missing concrete test can cost thousands. Builders love clean 
+                compliance packs, and PourHub makes it easy to deliver professional documentation 
+                every time. At $100/month, it's less than 2 hours of labour—but saves you countless 
+                hours of paperwork and prevents costly compliance issues. Every feature included, 
+                no restrictions.
               </p>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* CTA */}
-      <div className="bg-primary py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h3 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4">
-            Ready to Get Started?
-          </h3>
-          <p className="text-primary-foreground/90 mb-8">
-            Sign up today and get your business organized in minutes.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/signup?plan=starter">
-              <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">
-                Get Started Now
-                <ArrowRight className="ml-2 w-5 h-5" />
-              </Button>
-            </Link>
-            <Link to="/">
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6 touch-target bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
-                <ArrowLeft className="mr-2 w-5 h-5" />
-                Back to Home
-              </Button>
-            </Link>
+        {/* CTA */}
+        <div className="bg-primary py-16 px-4">
+          <div className="max-w-4xl mx-auto text-center">
+            <h3 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4">
+              Ready to Get Started?
+            </h3>
+            <p className="text-primary-foreground/90 mb-8">
+              Sign up today and get your business organized in minutes.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Link to="/signup">
+                <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">
+                  Get Started Now
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+              </Link>
+              <Link to="/">
+                <Button size="lg" variant="outline" className="text-lg px-8 py-6 touch-target bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
+                  <ArrowLeft className="mr-2 w-5 h-5" />
+                  Back to Home
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* Footer */}
-      <footer className="bg-charcoal-dark py-8 px-4 text-center">
-        <div className="max-w-4xl mx-auto">
-          <p className="text-muted-foreground text-sm mb-4">
-            © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
-          </p>
-          <div className="flex justify-center gap-4 text-sm">
-            <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
-              Privacy Policy
-            </Link>
-            <span className="text-muted-foreground">•</span>
-            <Link to="/terms" className="text-muted-foreground hover:text-primary transition-colors">
-              Terms & Conditions
-            </Link>
-            <span className="text-muted-foreground">•</span>
-            <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
-              Home
-            </Link>
+        {/* Footer */}
+        <footer className="bg-charcoal-dark py-8 px-4 text-center">
+          <div className="max-w-4xl mx-auto">
+            <p className="text-muted-foreground text-sm mb-4">
+              © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
+            </p>
+            <div className="flex justify-center gap-4 text-sm">
+              <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
+                Privacy Policy
+              </Link>
+              <span className="text-muted-foreground">•</span>
+              <Link to="/terms" className="text-muted-foreground hover:text-primary transition-colors">
+                Terms & Conditions
+              </Link>
+              <span className="text-muted-foreground">•</span>
+              <Link to="/" className="text-muted-foreground hover:text-primary transition-colors">
+                Home
+              </Link>
+            </div>
           </div>
-        </div>
-      </footer>
+        </footer>
       </div>
     </>
   );
 };
+
 export default Pricing;
