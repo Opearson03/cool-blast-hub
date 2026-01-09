@@ -2,6 +2,7 @@ import { useDroppable } from "@dnd-kit/core";
 import { format, isToday } from "date-fns";
 import { cn } from "@/lib/utils";
 import { DraggablePour } from "./DraggablePour";
+import { DraggableEstimate, ScheduleEstimate, EstimateEventType } from "./DraggableEstimate";
 import { Badge } from "@/components/ui/badge";
 import { Palmtree } from "lucide-react";
 
@@ -21,6 +22,12 @@ type Pour = {
   };
 };
 
+type EstimateEvent = {
+  estimate: ScheduleEstimate;
+  eventType: EstimateEventType;
+  date: string;
+};
+
 interface EmployeeOnLeave {
   employee_id: string;
   employee_name: string;
@@ -31,9 +38,11 @@ interface DroppablePourDayProps {
   date: Date;
   dateKey: string;
   pours: Pour[];
+  estimateEvents?: EstimateEvent[];
   isWeekView?: boolean;
   isCurrentMonth?: boolean;
   onPourClick?: (pour: Pour) => void;
+  onEstimateClick?: (estimate: ScheduleEstimate, eventType: EstimateEventType) => void;
   employeesOnLeave?: EmployeeOnLeave[];
 }
 
@@ -41,9 +50,11 @@ export function DroppablePourDay({
   date,
   dateKey,
   pours,
+  estimateEvents = [],
   isWeekView = false,
   isCurrentMonth = true,
   onPourClick,
+  onEstimateClick,
   employeesOnLeave = [],
 }: DroppablePourDayProps) {
   const { isOver, setNodeRef } = useDroppable({
@@ -51,6 +62,7 @@ export function DroppablePourDay({
   });
 
   const today = isToday(date);
+  const totalEvents = pours.length + estimateEvents.length;
 
   if (isWeekView) {
     return (
@@ -72,9 +84,9 @@ export function DroppablePourDay({
             >
               {format(date, "EEE d")}
             </span>
-            {pours.length > 0 && (
+            {totalEvents > 0 && (
               <span className="text-xs text-muted-foreground">
-                {pours.length} pour{pours.length !== 1 ? "s" : ""}
+                {totalEvents} event{totalEvents !== 1 ? "s" : ""}
               </span>
             )}
           </div>
@@ -105,12 +117,22 @@ export function DroppablePourDay({
         )}
 
         <div className="space-y-2">
+          {/* Estimate Events */}
+          {estimateEvents.map((event) => (
+            <DraggableEstimate 
+              key={`${event.eventType}-${event.estimate.id}`} 
+              estimate={event.estimate} 
+              eventType={event.eventType}
+              onClick={onEstimateClick} 
+            />
+          ))}
+          {/* Pours */}
           {pours.map((pour) => (
             <DraggablePour key={pour.id} pour={pour} onClick={onPourClick} />
           ))}
         </div>
-        {pours.length === 0 && employeesOnLeave.length === 0 && (
-          <p className="text-xs text-muted-foreground text-center py-2">No pours</p>
+        {totalEvents === 0 && employeesOnLeave.length === 0 && (
+          <p className="text-xs text-muted-foreground text-center py-2">No events</p>
         )}
       </div>
     );
@@ -143,9 +165,21 @@ export function DroppablePourDay({
       
       {/* Mobile: Show dots/count indicator */}
       <div className="sm:hidden">
-        {pours.length > 0 && (
+        {totalEvents > 0 && (
           <div className="flex flex-wrap gap-0.5 justify-center">
-            {pours.slice(0, 4).map((pour) => (
+            {/* Estimate dots first */}
+            {estimateEvents.slice(0, 2).map((event) => (
+              <div
+                key={`${event.eventType}-${event.estimate.id}`}
+                className={cn(
+                  "w-2 h-2 rounded-full",
+                  event.eventType === "site_visit" ? "bg-purple-500" : "bg-cyan-500"
+                )}
+                onClick={() => onEstimateClick?.(event.estimate, event.eventType)}
+              />
+            ))}
+            {/* Pour dots */}
+            {pours.slice(0, 4 - estimateEvents.length).map((pour) => (
               <div
                 key={pour.id}
                 className={cn(
@@ -156,29 +190,40 @@ export function DroppablePourDay({
                 onClick={() => onPourClick?.(pour)}
               />
             ))}
-            {pours.length > 4 && (
-              <span className="text-[10px] text-muted-foreground">+{pours.length - 4}</span>
+            {totalEvents > 4 && (
+              <span className="text-[10px] text-muted-foreground">+{totalEvents - 4}</span>
             )}
           </div>
         )}
-        {pours.length > 0 && (
+        {totalEvents > 0 && (
           <p className="text-[10px] text-center text-muted-foreground mt-0.5 truncate">
-            {pours.length} {pours.length === 1 ? "pour" : "pours"}
+            {totalEvents} {totalEvents === 1 ? "event" : "events"}
           </p>
         )}
       </div>
 
-      {/* Desktop: Show pour cards */}
+      {/* Desktop: Show event cards */}
       <div className="hidden sm:block space-y-1">
-        {pours.slice(0, 2).map((pour) => (
+        {/* Show estimate events first */}
+        {estimateEvents.slice(0, 1).map((event) => (
+          <DraggableEstimate 
+            key={`${event.eventType}-${event.estimate.id}`} 
+            estimate={event.estimate} 
+            eventType={event.eventType}
+            compact 
+            onClick={onEstimateClick} 
+          />
+        ))}
+        {/* Show pours */}
+        {pours.slice(0, estimateEvents.length > 0 ? 1 : 2).map((pour) => (
           <DraggablePour key={pour.id} pour={pour} compact onClick={onPourClick} />
         ))}
-        {pours.length > 2 && (
+        {totalEvents > 2 && (
           <p className="text-xs text-muted-foreground text-center">
-            +{pours.length - 2} more
+            +{totalEvents - 2} more
           </p>
         )}
-        {employeesOnLeave.length > 0 && pours.length <= 1 && (
+        {employeesOnLeave.length > 0 && totalEvents <= 1 && (
           <div className="text-xs text-amber-500 truncate">
             {employeesOnLeave.length} on leave
           </div>

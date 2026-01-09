@@ -458,11 +458,13 @@ export type Database = {
           description: string | null
           estimate_number: string | null
           estimate_type: string
+          follow_up_date: string | null
           id: string
           notes: string | null
           scope_data: Json | null
           selected_scopes: Json | null
           site_address: string
+          site_visit_date: string | null
           status: Database["public"]["Enums"]["estimate_status"]
           total_amount: number | null
           updated_at: string
@@ -479,11 +481,13 @@ export type Database = {
           description?: string | null
           estimate_number?: string | null
           estimate_type?: string
+          follow_up_date?: string | null
           id?: string
           notes?: string | null
           scope_data?: Json | null
           selected_scopes?: Json | null
           site_address: string
+          site_visit_date?: string | null
           status?: Database["public"]["Enums"]["estimate_status"]
           total_amount?: number | null
           updated_at?: string
@@ -500,11 +504,13 @@ export type Database = {
           description?: string | null
           estimate_number?: string | null
           estimate_type?: string
+          follow_up_date?: string | null
           id?: string
           notes?: string | null
           scope_data?: Json | null
           selected_scopes?: Json | null
           site_address?: string
+          site_visit_date?: string | null
           status?: Database["public"]["Enums"]["estimate_status"]
           total_amount?: number | null
           updated_at?: string
