@@ -39,6 +39,8 @@ interface Estimate {
   estimate_type: EstimateType;
   scope_data: Record<string, unknown> | null;
   selected_scopes: string[] | null;
+  site_visit_date: string | null;
+  follow_up_date: string | null;
 }
 
 const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Car }> = {

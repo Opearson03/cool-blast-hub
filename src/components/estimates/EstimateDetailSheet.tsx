@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import {
   Dialog,
   DialogContent,
@@ -9,11 +9,18 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Printer, Calendar, DollarSign, Mail, Phone, MapPin, Send, Loader2, Briefcase } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Printer, Calendar as CalendarIcon, DollarSign, Mail, Phone, MapPin, Send, Loader2, Briefcase, Eye, PhoneCall } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PrintableEstimate } from "./PrintableEstimate";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
 
@@ -31,6 +38,8 @@ interface Estimate {
   created_at: string;
   valid_until: string | null;
   notes: string | null;
+  site_visit_date?: string | null;
+  follow_up_date?: string | null;
 }
 
 interface EstimateDetailSheetProps {
@@ -50,6 +59,8 @@ const statusConfig: Record<EstimateStatus, { label: string; variant: "default" |
 export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJob }: EstimateDetailSheetProps) {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [siteVisitOpen, setSiteVisitOpen] = useState(false);
+  const [followUpOpen, setFollowUpOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -153,6 +164,34 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
     }
   };
 
+  const updateDateMutation = useMutation({
+    mutationFn: async ({ field, date }: { field: 'site_visit_date' | 'follow_up_date'; date: Date | null }) => {
+      if (!estimate) throw new Error("No estimate");
+      const { error } = await supabase
+        .from("estimates")
+        .update({ [field]: date ? format(date, "yyyy-MM-dd") : null })
+        .eq("id", estimate.id);
+      if (error) throw error;
+    },
+    onSuccess: (_, { field }) => {
+      queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      queryClient.invalidateQueries({ queryKey: ["scheduled-estimates"] });
+      toast({
+        title: field === 'site_visit_date' ? "Site visit scheduled" : "Follow-up scheduled",
+        description: "The date has been saved to the schedule.",
+      });
+      if (field === 'site_visit_date') setSiteVisitOpen(false);
+      else setFollowUpOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to schedule",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   if (!estimate) return null;
 
   // Render printable content in a portal outside the dialog for proper print isolation
@@ -195,6 +234,45 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
               Convert to Job
             </Button>
           )}
+
+          {/* Schedule Buttons */}
+          <div className="grid grid-cols-2 gap-3">
+            <Popover open={siteVisitOpen} onOpenChange={setSiteVisitOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 h-12 border-purple-500/50 text-purple-600 hover:bg-purple-500/10">
+                  <Eye className="w-4 h-4" />
+                  {estimate.site_visit_date ? format(new Date(estimate.site_visit_date), "d MMM") : "Site Visit"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={estimate.site_visit_date ? new Date(estimate.site_visit_date) : undefined}
+                  onSelect={(date) => updateDateMutation.mutate({ field: 'site_visit_date', date: date || null })}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Popover open={followUpOpen} onOpenChange={setFollowUpOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2 h-12 border-cyan-500/50 text-cyan-600 hover:bg-cyan-500/10">
+                  <PhoneCall className="w-4 h-4" />
+                  {estimate.follow_up_date ? format(new Date(estimate.follow_up_date), "d MMM") : "Follow Up"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={estimate.follow_up_date ? new Date(estimate.follow_up_date) : undefined}
+                  onSelect={(date) => updateDateMutation.mutate({ field: 'follow_up_date', date: date || null })}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
 
           {/* Actions - Central prominent buttons */}
           <div className="grid grid-cols-2 gap-3">
