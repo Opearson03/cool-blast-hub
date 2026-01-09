@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
-import { Users, Calendar, ClipboardCheck, Truck, CheckCircle, ArrowRight, Shield, Loader2, BarChart3, Clock, FileText } from "lucide-react";
+import { Calendar, CheckCircle, ArrowRight, Loader2, BarChart3, Clock, FileText, Calculator, Settings } from "lucide-react";
 import heroPourBackground from "@/assets/hero-pour-background.png";
 import dashboardScreenshot from "@/assets/dashboard-screenshot.png";
 import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
@@ -59,9 +59,9 @@ const Index = () => {
     <>
       <SEOHead
         title="PourHub - Concreting Business Management Software | NSW Australia"
-        description="PourHub is the all-in-one management platform for concreting businesses in NSW, Australia. Manage jobs, crews, schedules, timesheets, ITPs, SWMS, and concrete test results."
+        description="PourHub is the all-in-one management platform for concreting businesses in NSW, Australia. Manage jobs, estimates, schedules, and concrete test results."
         canonicalPath="/"
-        keywords="concreting software, concrete business management, ITP software, SWMS software, NSW concreting, crew management"
+        keywords="concreting software, concrete business management, job scheduling, estimates, NSW concreting"
       />
       <div className="min-h-screen bg-charcoal-dark">
       {/* Hero Section with Background Image */}
@@ -87,7 +87,7 @@ const Index = () => {
             </h2>
             
             <p className="text-xl text-primary-foreground/80 mb-8 max-w-xl">
-              Jobs, crews, schedules, compliance, and test results — all in one place. Built for NSW concreters who want to work smarter.
+              Jobs, estimates, schedules, and test results — all in one place. Built for NSW concreters who want to work smarter.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4">
@@ -117,31 +117,21 @@ const Index = () => {
             Everything you need to manage your concreting business from the job site.
           </p>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <FeatureCard
+              icon={<FileText className="w-8 h-8" />}
+              title="Job Management"
+              description="Track jobs from quote to completion with full concrete specs"
+            />
+            <FeatureCard
+              icon={<Calculator className="w-8 h-8" />}
+              title="Estimates"
+              description="Generate professional quotes with built-in calculators"
+            />
             <FeatureCard
               icon={<Calendar className="w-8 h-8" />}
-              title="Job Scheduling"
-              description="Drag and drop calendar, crew allocation, and conflict management"
-            />
-            <FeatureCard
-              icon={<Users className="w-8 h-8" />}
-              title="Crew Management"
-              description="Organize teams, assign supervisors, and track availability"
-            />
-            <FeatureCard
-              icon={<ClipboardCheck className="w-8 h-8" />}
-              title="ITPs & SWMS"
-              description="Digital inspection checklists and safety documentation"
-            />
-            <FeatureCard
-              icon={<Truck className="w-8 h-8" />}
-              title="Equipment Register"
-              description="Track plant, service schedules, and job assignments"
-            />
-            <FeatureCard
-              icon={<Shield className="w-8 h-8" />}
-              title="Compliance Tracking"
-              description="Tickets, certifications, and expiry reminders"
+              title="Scheduling"
+              description="Drag and drop calendar to plan pours and manage your week"
             />
             <FeatureCard
               icon={<CheckCircle className="w-8 h-8" />}
@@ -162,12 +152,12 @@ const Index = () => {
             Real tools designed for real concreters. Here's what you'll get.
           </p>
 
-          {/* Feature 1: Dashboard & Team Communication */}
+          {/* Feature 1: Dashboard & Overview */}
           <div className="grid lg:grid-cols-2 gap-8 mb-16 items-center">
             <div className="relative rounded-xl overflow-hidden shadow-2xl order-2 lg:order-1 border border-border/30">
               <img 
                 src={dashboardScreenshot}
-                alt="PourHub dashboard showing concreting job scheduling, crew management, and daily pour overview for NSW businesses" 
+                alt="PourHub dashboard showing job overview and daily pour schedule for NSW concreting businesses" 
                 className="w-full h-64 lg:h-80 object-cover object-top"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/90 to-transparent" />
@@ -178,7 +168,7 @@ const Index = () => {
                   </div>
                   <div>
                     <h4 className="font-semibold">Live Dashboard</h4>
-                    <p className="text-sm text-primary-foreground/70">Track pours, crews & alerts at a glance</p>
+                    <p className="text-sm text-primary-foreground/70">Track jobs, pours & schedules at a glance</p>
                   </div>
                 </div>
               </div>
@@ -188,21 +178,21 @@ const Index = () => {
                 Your Business at a Glance
               </h3>
               <p className="text-primary-foreground/70 mb-6">
-                See today's pours, active crews, upcoming jobs and alerts all in one dashboard. 
-                Share updates with your team using @mentions and keep everyone on the same page.
+                See today's pours, upcoming jobs, and pending estimates all in one dashboard. 
+                Stay on top of your schedule and never miss a pour date.
               </p>
               <ul className="space-y-3">
                 <li className="flex items-center gap-3 text-primary-foreground/80">
                   <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Daily pour counts and crew overview</span>
+                  <span>Daily pour counts and job overview</span>
                 </li>
                 <li className="flex items-center gap-3 text-primary-foreground/80">
                   <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Team feed with @mentions and crew tagging</span>
+                  <span>Upcoming schedule at a glance</span>
                 </li>
                 <li className="flex items-center gap-3 text-primary-foreground/80">
                   <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Leave request management</span>
+                  <span>Estimate status tracking</span>
                 </li>
               </ul>
             </div>
