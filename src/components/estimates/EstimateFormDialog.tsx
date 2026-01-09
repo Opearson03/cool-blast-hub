@@ -56,6 +56,8 @@ interface Estimate {
   estimate_type?: EstimateType;
   scope_data?: ScopeCalculatorData | null;
   selected_scopes?: ScopeType[] | null;
+  site_visit_date?: string | null;
+  follow_up_date?: string | null;
 }
 
 interface EstimateFormDialogProps {
@@ -74,6 +76,8 @@ interface FormData {
   valid_until: string;
   notes: string;
   markupPercent: string;
+  site_visit_date: string;
+  follow_up_date: string;
 }
 
 const initialFormData: FormData = {
@@ -86,6 +90,8 @@ const initialFormData: FormData = {
   valid_until: "",
   notes: "",
   markupPercent: "15",
+  site_visit_date: "",
+  follow_up_date: "",
 };
 
 // Default inclusions and exclusions for concreting quotes
@@ -293,6 +299,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         valid_until: editEstimate.valid_until || "",
         notes: editEstimate.notes || "",
         markupPercent: "15",
+        site_visit_date: editEstimate.site_visit_date || "",
+        follow_up_date: editEstimate.follow_up_date || "",
       });
       setEstimateType(editEstimate.estimate_type || "driveway");
       setFormStep("calculator");
@@ -396,6 +404,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         status: "draft" as const,
         scope_data: scopeData as unknown as Json,
         selected_scopes: Array.from(selectedScopes) as unknown as Json,
+        site_visit_date: formData.site_visit_date || null,
+        follow_up_date: formData.follow_up_date || null,
       };
 
       if (editEstimate) {
@@ -490,6 +500,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         estimate_type: estimateType || "driveway",
         scope_data: JSON.parse(JSON.stringify(scopeData)) as Json,
         selected_scopes: Array.from(selectedScopes) as unknown as Json,
+        site_visit_date: formData.site_visit_date || null,
+        follow_up_date: formData.follow_up_date || null,
       };
 
       if (editEstimate) {
@@ -772,6 +784,29 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     placeholder="e.g., Any additional notes about the project"
                     rows={2}
                   />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="site_visit_date">Site Visit Date</Label>
+                    <Input
+                      id="site_visit_date"
+                      name="site_visit_date"
+                      type="date"
+                      value={formData.site_visit_date}
+                      onChange={handleChange}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="follow_up_date">Follow Up Date</Label>
+                    <Input
+                      id="follow_up_date"
+                      name="follow_up_date"
+                      type="date"
+                      value={formData.follow_up_date}
+                      onChange={handleChange}
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">

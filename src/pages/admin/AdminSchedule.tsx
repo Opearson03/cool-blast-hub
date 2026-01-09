@@ -38,6 +38,7 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 import { DraggablePour } from "@/components/schedule/DraggablePour";
+import { DraggableEstimate, ScheduleEstimate, EstimateEventType } from "@/components/schedule/DraggableEstimate";
 import { DroppablePourDay } from "@/components/schedule/DroppablePourDay";
 import { PourDetailSheet } from "@/components/schedule/PourDetailSheet";
 import { useEmployeesOnLeave, getEmployeesOnLeaveForDate } from "@/hooks/useEmployeesOnLeave";
@@ -58,12 +59,19 @@ type Pour = {
   };
 };
 
+type EstimateEvent = {
+  estimate: ScheduleEstimate;
+  eventType: EstimateEventType;
+  date: string;
+};
+
 type ViewMode = "week" | "month";
 
 export default function AdminSchedule() {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [activePour, setActivePour] = useState<Pour | null>(null);
+  const [activeEstimate, setActiveEstimate] = useState<{ estimate: ScheduleEstimate; eventType: EstimateEventType } | null>(null);
   const [selectedPour, setSelectedPour] = useState<Pour | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
@@ -116,6 +124,33 @@ export default function AdminSchedule() {
     },
   });
 
+  const { data: estimates = [] } = useQuery({
+    queryKey: ["schedule-estimates"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+      
+      if (!profile?.business_id) return [];
+
+      const { data, error } = await supabase
+        .from("estimates")
+        .select("id, client_name, site_address, estimate_number, site_visit_date, follow_up_date, status, total_amount")
+        .eq("business_id", profile.business_id)
+        .neq("status", "accepted")
+        .neq("status", "declined")
+        .or("site_visit_date.not.is.null,follow_up_date.not.is.null");
+      
+      if (error) throw error;
+      return data as ScheduleEstimate[];
+    },
+  });
+
   const updatePourDate = useMutation({
     mutationFn: async ({ pourId, newDate }: { pourId: string; newDate: string }) => {
       const { error } = await supabase
@@ -127,6 +162,23 @@ export default function AdminSchedule() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
       toast({ title: "Pour rescheduled" });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateEstimateDate = useMutation({
+    mutationFn: async ({ estimateId, field, newDate }: { estimateId: string; field: "site_visit_date" | "follow_up_date"; newDate: string }) => {
+      const { error } = await supabase
+        .from("estimates")
+        .update({ [field]: newDate })
+        .eq("id", estimateId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["schedule-estimates"] });
+      toast({ title: "Estimate rescheduled" });
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -161,6 +213,24 @@ export default function AdminSchedule() {
     return map;
   }, [pours]);
 
+  // Group estimate events by date
+  const estimateEventsByDate = useMemo(() => {
+    const map = new Map<string, EstimateEvent[]>();
+    estimates.forEach((estimate) => {
+      if (estimate.site_visit_date) {
+        const dateKey = estimate.site_visit_date;
+        if (!map.has(dateKey)) map.set(dateKey, []);
+        map.get(dateKey)!.push({ estimate, eventType: "site_visit", date: dateKey });
+      }
+      if (estimate.follow_up_date) {
+        const dateKey = estimate.follow_up_date;
+        if (!map.has(dateKey)) map.set(dateKey, []);
+        map.get(dateKey)!.push({ estimate, eventType: "follow_up", date: dateKey });
+      }
+    });
+    return map;
+  }, [estimates]);
+
   const unscheduledPours = useMemo(() => {
     return pours.filter((pour) => !pour.pour_date);
   }, [pours]);
@@ -186,20 +256,46 @@ export default function AdminSchedule() {
   };
 
   const handleDragStart = (event: DragStartEvent) => {
-    const pour = pours.find((p) => p.id === event.active.id);
-    if (pour) setActivePour(pour);
+    const activeId = event.active.id as string;
+    
+    // Check if it's an estimate drag
+    if (activeId.startsWith("estimate-")) {
+      const data = event.active.data.current as { estimate: ScheduleEstimate; eventType: EstimateEventType } | undefined;
+      if (data) {
+        setActiveEstimate(data);
+        setActivePour(null);
+      }
+    } else {
+      // It's a pour drag
+      const pour = pours.find((p) => p.id === activeId);
+      if (pour) {
+        setActivePour(pour);
+        setActiveEstimate(null);
+      }
+    }
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     setActivePour(null);
+    setActiveEstimate(null);
     const { active, over } = event;
 
     if (over && active.id !== over.id) {
-      const pourId = active.id as string;
+      const activeId = active.id as string;
       const newDate = over.id as string;
 
       if (newDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        updatePourDate.mutate({ pourId, newDate });
+        // Check if it's an estimate drag
+        if (activeId.startsWith("estimate-")) {
+          const data = active.data.current as { estimate: ScheduleEstimate; eventType: EstimateEventType } | undefined;
+          if (data) {
+            const field = data.eventType === "site_visit" ? "site_visit_date" : "follow_up_date";
+            updateEstimateDate.mutate({ estimateId: data.estimate.id, field, newDate });
+          }
+        } else {
+          // It's a pour
+          updatePourDate.mutate({ pourId: activeId, newDate });
+        }
       }
     }
   };
@@ -210,7 +306,10 @@ export default function AdminSchedule() {
   };
 
   const handleRefresh = useCallback(async () => {
-    await queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["schedule-pours"] }),
+      queryClient.invalidateQueries({ queryKey: ["schedule-estimates"] }),
+    ]);
   }, [queryClient]);
 
   return (
@@ -287,6 +386,7 @@ export default function AdminSchedule() {
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd");
                 const dayPours = poursByDate.get(dateKey) || [];
+                const dayEstimates = estimateEventsByDate.get(dateKey) || [];
                 const onLeave = getEmployeesOnLeaveForDate(dateKey, employeesOnLeave);
                 
                 return (
@@ -295,6 +395,7 @@ export default function AdminSchedule() {
                     date={day}
                     dateKey={dateKey}
                     pours={dayPours}
+                    estimateEvents={dayEstimates}
                     isWeekView
                     onPourClick={handlePourClick}
                     employeesOnLeave={onLeave}
@@ -315,6 +416,7 @@ export default function AdminSchedule() {
               {days.map((day) => {
                 const dateKey = format(day, "yyyy-MM-dd");
                 const dayPours = poursByDate.get(dateKey) || [];
+                const dayEstimates = estimateEventsByDate.get(dateKey) || [];
                 const isCurrentMonth = isSameMonth(day, currentDate);
                 const onLeave = getEmployeesOnLeaveForDate(dateKey, employeesOnLeave);
                 
@@ -324,6 +426,7 @@ export default function AdminSchedule() {
                     date={day}
                     dateKey={dateKey}
                     pours={dayPours}
+                    estimateEvents={dayEstimates}
                     isCurrentMonth={isCurrentMonth}
                     onPourClick={handlePourClick}
                     employeesOnLeave={onLeave}
@@ -343,6 +446,11 @@ export default function AdminSchedule() {
               {activePour.job && (
                 <p className="text-xs opacity-80">{activePour.job.name}</p>
               )}
+            </div>
+          ) : activeEstimate ? (
+            <div className={`px-3 py-2 rounded-lg shadow-lg ${activeEstimate.eventType === "site_visit" ? "bg-purple-500" : "bg-cyan-500"} text-white`}>
+              <p className="text-sm font-medium">{activeEstimate.estimate.client_name}</p>
+              <p className="text-xs opacity-80">{activeEstimate.eventType === "site_visit" ? "Site Visit" : "Follow Up"}</p>
             </div>
           ) : null}
         </DragOverlay>
