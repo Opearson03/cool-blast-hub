@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   Popover,
-  PopoverContent,
+  PopoverContentWithoutPortal,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { CalendarIcon } from "lucide-react";
@@ -116,7 +116,7 @@ export function QuickSiteVisitDialog({
           </div>
           <div className="space-y-2">
             <Label>Visit Date</Label>
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen} modal={true}>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -129,7 +129,7 @@ export function QuickSiteVisitDialog({
                   {visitDate ? format(visitDate, "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-[200]" align="start">
+              <PopoverContentWithoutPortal className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
                   selected={visitDate}
@@ -137,10 +137,9 @@ export function QuickSiteVisitDialog({
                     setVisitDate(date);
                     setCalendarOpen(false);
                   }}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
+                  className="p-3 pointer-events-auto"
                 />
-              </PopoverContent>
+              </PopoverContentWithoutPortal>
             </Popover>
           </div>
           <DialogFooter>

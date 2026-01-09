@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
-  PopoverContent,
+  PopoverContentWithoutPortal,
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Printer, Calendar as CalendarIcon, DollarSign, Mail, Phone, MapPin, Send, Loader2, Briefcase, Eye, PhoneCall } from "lucide-react";
@@ -237,40 +237,38 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
 
           {/* Schedule Buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <Popover open={siteVisitOpen} onOpenChange={setSiteVisitOpen} modal={true}>
+            <Popover open={siteVisitOpen} onOpenChange={setSiteVisitOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
                   <Eye className="w-4 h-4" />
                   {estimate.site_visit_date ? format(new Date(estimate.site_visit_date), "d MMM") : "Site Visit"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-[200]" align="start" side="bottom" sideOffset={4}>
+              <PopoverContentWithoutPortal className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
                 <Calendar
                   mode="single"
                   selected={estimate.site_visit_date ? new Date(estimate.site_visit_date) : undefined}
                   onSelect={(date) => updateDateMutation.mutate({ field: 'site_visit_date', date: date || null })}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
+                  className="p-3 pointer-events-auto"
                 />
-              </PopoverContent>
+              </PopoverContentWithoutPortal>
             </Popover>
 
-            <Popover open={followUpOpen} onOpenChange={setFollowUpOpen} modal={true}>
+            <Popover open={followUpOpen} onOpenChange={setFollowUpOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
                   <PhoneCall className="w-4 h-4" />
                   {estimate.follow_up_date ? format(new Date(estimate.follow_up_date), "d MMM") : "Follow Up"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-[200]" align="end" side="bottom" sideOffset={4}>
+              <PopoverContentWithoutPortal className="w-auto p-0" align="end" side="bottom" sideOffset={4}>
                 <Calendar
                   mode="single"
                   selected={estimate.follow_up_date ? new Date(estimate.follow_up_date) : undefined}
                   onSelect={(date) => updateDateMutation.mutate({ field: 'follow_up_date', date: date || null })}
-                  initialFocus
-                  className={cn("p-3 pointer-events-auto")}
+                  className="p-3 pointer-events-auto"
                 />
-              </PopoverContent>
+              </PopoverContentWithoutPortal>
             </Popover>
           </div>
 
