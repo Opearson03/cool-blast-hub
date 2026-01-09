@@ -167,14 +167,11 @@ export function DroppablePourDay({
       <div className="sm:hidden">
         {totalEvents > 0 && (
           <div className="flex flex-wrap gap-0.5 justify-center">
-            {/* Estimate dots first */}
+            {/* Estimate dots first - all orange */}
             {estimateEvents.slice(0, 2).map((event) => (
               <div
                 key={`${event.eventType}-${event.estimate.id}`}
-                className={cn(
-                  "w-2 h-2 rounded-full",
-                  event.eventType === "site_visit" ? "bg-purple-500" : "bg-cyan-500"
-                )}
+                className="w-2 h-2 rounded-full bg-primary"
                 onClick={() => onEstimateClick?.(event.estimate, event.eventType)}
               />
             ))}
