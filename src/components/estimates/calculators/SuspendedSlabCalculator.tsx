@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/accordion";
 import { ShieldCheck, Truck, Users, DollarSign, Plus, Trash2, Layers, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { VisualAreaBuilder } from "./VisualAreaBuilder";
+
 import { InternalCostNotice } from "./shared";
 
 // ============= CONSTANTS =============
@@ -323,10 +323,12 @@ export function SuspendedSlabCalculator({ data, onChange }: SuspendedSlabCalcula
           <AccordionContent className="px-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <VisualAreaBuilder
+                <Label>Slab Area (m²)</Label>
+                <Input
+                  type="number"
+                  step="0.01"
                   value={data.slabArea}
-                  onChange={(v) => onChange({ ...data, slabArea: v })}
-                  label="Slab Area (m²)"
+                  onChange={(e) => onChange({ ...data, slabArea: e.target.value })}
                   placeholder="e.g. 200"
                 />
               </div>
