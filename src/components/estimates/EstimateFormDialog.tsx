@@ -187,6 +187,14 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [selectedScopes, setSelectedScopes] = useState<Set<ScopeType>>(new Set());
   const [scopeData, setScopeData] = useState<ScopeCalculatorData>(defaultScopeData);
   const [activeScopeIndex, setActiveScopeIndex] = useState(0);
+  const scopeContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Scroll to top when changing scope
+  useEffect(() => {
+    if (currentStep === "configure" && scopeContainerRef.current) {
+      scopeContainerRef.current.scrollTop = 0;
+    }
+  }, [activeScopeIndex, currentStep]);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -873,7 +881,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                   </div>
 
                   {/* Calculator */}
-                  <div className="min-h-[400px]">
+                  <div ref={scopeContainerRef} className="min-h-[400px] overflow-y-auto">
                     {activeScopeType && renderScopeCalculator(activeScopeType)}
                   </div>
 

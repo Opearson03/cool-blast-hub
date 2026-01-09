@@ -10,7 +10,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Square, ShieldCheck, Users, DollarSign, Layers } from "lucide-react";
+import { Square, ShieldCheck, Users, DollarSign, Layers, Check } from "lucide-react";
 import {
   MPA_STRENGTHS,
   MESH_TYPES,
@@ -18,6 +18,7 @@ import {
   formatCurrency,
   InternalCostNotice,
   CostSummaryCard,
+  AccordionDoneBadge,
 } from "./shared";
 
 
@@ -187,17 +188,26 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
     };
   }, [data]);
 
+  // Completion checks for accordion sections
+  const sectionComplete = {
+    slab: parseFloat(data.slabArea) > 0 && parseFloat(data.slabPerimeter) > 0,
+    pods: parseFloat(data.podPriceEach) > 0,
+    materials: parseFloat(data.concretePricePerM3) > 0,
+    labour: parseFloat(data.labourHourlyRate) > 0 && parseFloat(data.labourHoursPerM2) > 0,
+  };
+
   return (
     <div className="space-y-4">
       <InternalCostNotice />
 
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion type="multiple" defaultValue={["slab"]} className="space-y-2">
         {/* Slab Dimensions */}
         <AccordionItem value="slab" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <Square className="w-4 h-4 text-primary" />
               <span className="font-medium">Slab Dimensions</span>
+              {sectionComplete.slab && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
@@ -236,9 +246,10 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
         {/* Waffle Pods */}
         <AccordionItem value="pods" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <Layers className="w-4 h-4 text-primary" />
               <span className="font-medium">Waffle Pods & Beams</span>
+              {sectionComplete.pods && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4 space-y-4">
@@ -310,9 +321,10 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
         {/* Materials */}
         <AccordionItem value="materials" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <ShieldCheck className="w-4 h-4 text-primary" />
               <span className="font-medium">Materials Pricing</span>
+              {sectionComplete.materials && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
@@ -359,9 +371,10 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
         {/* Labour & Markup */}
         <AccordionItem value="labour" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <Users className="w-4 h-4 text-primary" />
               <span className="font-medium">Labour & Markup</span>
+              {sectionComplete.labour && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">

@@ -19,7 +19,7 @@ import {
 import { Square, ShieldCheck, Truck, Users, DollarSign, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-import { InternalCostNotice } from "./shared";
+import { InternalCostNotice, AccordionDoneBadge } from "./shared";
 
 // ============= CONSTANTS =============
 
@@ -269,18 +269,29 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
     };
   }, [data]);
 
+  // Completion checks for accordion sections
+  const sectionComplete = useMemo(() => ({
+    slab: parseFloat(data.slabArea) > 0 && parseFloat(data.slabPerimeter) > 0,
+    materials: parseFloat(data.meshPrice) > 0 && parseFloat(data.concretePrice) > 0,
+    delivery: parseFloat(data.concreteDeliveryCost) > 0 || parseFloat(data.meshDeliveryCost) > 0,
+    labour: parseFloat(data.hourlyRate) > 0 && (parseFloat(data.prepDays) > 0 || parseFloat(data.pourHoursPerMan) > 0),
+    markup: parseFloat(data.materialsMarkupPercent) > 0 || parseFloat(data.labourMarkupPercent) > 0,
+  }), [data]);
+
+
   return (
     <div className="space-y-4">
       <InternalCostNotice />
       
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion type="multiple" defaultValue={["slab"]} className="space-y-2">
         
         {/* Slab Dimensions */}
         <AccordionItem value="slab" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <Square className="w-4 h-4 text-primary" />
               <span className="font-medium">Slab Dimensions</span>
+              {sectionComplete.slab && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
@@ -354,9 +365,10 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
         {/* Materials & Reinforcement */}
         <AccordionItem value="materials" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <ShieldCheck className="w-4 h-4 text-primary" />
               <span className="font-medium">Materials & Reinforcement</span>
+              {sectionComplete.materials && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
@@ -526,9 +538,10 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
         {/* Delivery */}
         <AccordionItem value="delivery" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <Truck className="w-4 h-4 text-primary" />
               <span className="font-medium">Delivery Costs</span>
+              {sectionComplete.delivery && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
@@ -558,9 +571,10 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
         {/* Labour */}
         <AccordionItem value="labour" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <Users className="w-4 h-4 text-primary" />
               <span className="font-medium">Labour</span>
+              {sectionComplete.labour && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
@@ -689,9 +703,10 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
         {/* Markup */}
         <AccordionItem value="markup" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-1">
               <DollarSign className="w-4 h-4 text-primary" />
               <span className="font-medium">Markup</span>
+              {sectionComplete.markup && <AccordionDoneBadge />}
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">

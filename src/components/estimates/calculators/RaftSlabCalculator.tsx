@@ -880,7 +880,7 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
         </p>
       </div>
 
-      <Accordion type="multiple" className="space-y-4">
+      <Accordion type="multiple" defaultValue={["slab-core"]} className="space-y-4">
         {/* Raft Slab Core */}
         <AccordionItem value="slab-core" className="border rounded-lg px-4">
           <AccordionTrigger className="hover:no-underline">
