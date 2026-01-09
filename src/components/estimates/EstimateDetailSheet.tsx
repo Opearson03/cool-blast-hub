@@ -72,6 +72,10 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
   const [isSending, setIsSending] = useState(false);
   const [siteVisitOpen, setSiteVisitOpen] = useState(false);
   const [followUpOpen, setFollowUpOpen] = useState(false);
+  const [pendingSiteVisitDate, setPendingSiteVisitDate] = useState<Date | null>(null);
+  const [pendingFollowUpDate, setPendingFollowUpDate] = useState<Date | null>(null);
+  const [isSendingSiteVisitEmail, setIsSendingSiteVisitEmail] = useState(false);
+  const [isSendingFollowUpEmail, setIsSendingFollowUpEmail] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -183,42 +187,24 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
         .update({ [field]: date ? format(date, "yyyy-MM-dd") : null })
         .eq("id", estimate.id);
       if (error) throw error;
-      
-      // Send confirmation email for site visits only (not follow-ups)
-      if (field === 'site_visit_date' && date && estimate.client_email) {
-        try {
-          await supabase.functions.invoke("send-site-visit-email", {
-            body: {
-              clientEmail: estimate.client_email,
-              clientName: estimate.client_name,
-              siteAddress: estimate.site_address,
-              visitDate: format(date, "yyyy-MM-dd"),
-              businessName: business?.name || "PourHub",
-              businessPhone: business?.phone || null,
-              businessEmail: business?.email || null,
-            },
-          });
-        } catch (emailError) {
-          console.error("Failed to send site visit email:", emailError);
-          // Don't fail the mutation if email fails - the date is already saved
-        }
-      }
     },
     onSuccess: (_, { field, date }) => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
       queryClient.invalidateQueries({ queryKey: ["scheduled-estimates"] });
       
-      const hasEmail = estimate?.client_email;
-      const isSiteVisit = field === 'site_visit_date';
+      // Store the pending date for confirmation email
+      if (field === 'site_visit_date') {
+        setPendingSiteVisitDate(date);
+        setSiteVisitOpen(false);
+      } else {
+        setPendingFollowUpDate(date);
+        setFollowUpOpen(false);
+      }
       
       toast({
-        title: isSiteVisit ? "Site visit scheduled" : "Follow-up scheduled",
-        description: isSiteVisit && date && hasEmail 
-          ? `Confirmation email sent to ${estimate.client_email}` 
-          : "The date has been saved to the schedule.",
+        title: field === 'site_visit_date' ? "Site visit scheduled" : "Follow-up scheduled",
+        description: "The date has been saved. Click 'Send Confirmation' to notify the client.",
       });
-      if (isSiteVisit) setSiteVisitOpen(false);
-      else setFollowUpOpen(false);
     },
     onError: (error: any) => {
       toast({
@@ -229,7 +215,111 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
     },
   });
 
+  const handleSendSiteVisitConfirmation = async () => {
+    if (!estimate?.client_email) {
+      toast({
+        title: "No email address",
+        description: "This client doesn't have an email address on file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const dateToSend = pendingSiteVisitDate || (estimate.site_visit_date ? new Date(estimate.site_visit_date) : null);
+    if (!dateToSend) {
+      toast({
+        title: "No date selected",
+        description: "Please select a site visit date first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingSiteVisitEmail(true);
+    try {
+      await supabase.functions.invoke("send-site-visit-email", {
+        body: {
+          clientEmail: estimate.client_email,
+          clientName: estimate.client_name,
+          siteAddress: estimate.site_address,
+          visitDate: format(dateToSend, "yyyy-MM-dd"),
+          businessName: business?.name || "PourHub",
+          businessPhone: business?.phone || null,
+          businessEmail: business?.email || null,
+        },
+      });
+      toast({
+        title: "Confirmation sent!",
+        description: `Site visit confirmation sent to ${estimate.client_email}`,
+      });
+      setPendingSiteVisitDate(null);
+    } catch (error: any) {
+      console.error("Failed to send site visit email:", error);
+      toast({
+        title: "Failed to send",
+        description: error.message || "Could not send the confirmation email.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingSiteVisitEmail(false);
+    }
+  };
+
+  const handleSendFollowUpConfirmation = async () => {
+    if (!estimate?.client_email) {
+      toast({
+        title: "No email address",
+        description: "This client doesn't have an email address on file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const dateToSend = pendingFollowUpDate || (estimate.follow_up_date ? new Date(estimate.follow_up_date) : null);
+    if (!dateToSend) {
+      toast({
+        title: "No date selected",
+        description: "Please select a follow-up date first.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSendingFollowUpEmail(true);
+    try {
+      await supabase.functions.invoke("send-site-visit-email", {
+        body: {
+          clientEmail: estimate.client_email,
+          clientName: estimate.client_name,
+          siteAddress: estimate.site_address,
+          visitDate: format(dateToSend, "yyyy-MM-dd"),
+          businessName: business?.name || "PourHub",
+          businessPhone: business?.phone || null,
+          businessEmail: business?.email || null,
+          isFollowUp: true,
+        },
+      });
+      toast({
+        title: "Confirmation sent!",
+        description: `Follow-up confirmation sent to ${estimate.client_email}`,
+      });
+      setPendingFollowUpDate(null);
+    } catch (error: any) {
+      console.error("Failed to send follow-up email:", error);
+      toast({
+        title: "Failed to send",
+        description: error.message || "Could not send the confirmation email.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSendingFollowUpEmail(false);
+    }
+  };
+
   if (!estimate) return null;
+
+  const hasSiteVisitDate = pendingSiteVisitDate || estimate.site_visit_date;
+  const hasFollowUpDate = pendingFollowUpDate || estimate.follow_up_date;
 
   // Render printable content in a portal outside the dialog for proper print isolation
   const printablePortal = isPrinting ? createPortal(
@@ -273,40 +363,81 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
           )}
 
           {/* Schedule Buttons */}
-          <div className="grid grid-cols-2 gap-3">
-            <Popover open={siteVisitOpen} onOpenChange={setSiteVisitOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
-                  <Eye className="w-4 h-4" />
-                  {estimate.site_visit_date ? format(new Date(estimate.site_visit_date), "d MMM") : "Site Visit"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContentWithoutPortal className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
-                <DatePickerCalendar
-                  mode="single"
-                  selected={estimate.site_visit_date ? new Date(estimate.site_visit_date) : undefined}
-                  onSelect={(date) => updateDateMutation.mutate({ field: 'site_visit_date', date: date || null })}
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContentWithoutPortal>
-            </Popover>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Popover open={siteVisitOpen} onOpenChange={setSiteVisitOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
+                    <Eye className="w-4 h-4" />
+                    {estimate.site_visit_date ? format(new Date(estimate.site_visit_date), "d MMM") : "Site Visit"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContentWithoutPortal className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
+                  <DatePickerCalendar
+                    mode="single"
+                    selected={pendingSiteVisitDate || (estimate.site_visit_date ? new Date(estimate.site_visit_date) : undefined)}
+                    onSelect={(date) => updateDateMutation.mutate({ field: 'site_visit_date', date: date || null })}
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContentWithoutPortal>
+              </Popover>
 
-            <Popover open={followUpOpen} onOpenChange={setFollowUpOpen}>
-              <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
-                  <PhoneCall className="w-4 h-4" />
-                  {estimate.follow_up_date ? format(new Date(estimate.follow_up_date), "d MMM") : "Follow Up"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContentWithoutPortal className="w-auto p-0" align="end" side="bottom" sideOffset={4}>
-                <DatePickerCalendar
-                  mode="single"
-                  selected={estimate.follow_up_date ? new Date(estimate.follow_up_date) : undefined}
-                  onSelect={(date) => updateDateMutation.mutate({ field: 'follow_up_date', date: date || null })}
-                  className="p-3 pointer-events-auto"
-                />
-              </PopoverContentWithoutPortal>
-            </Popover>
+              <Popover open={followUpOpen} onOpenChange={setFollowUpOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
+                    <PhoneCall className="w-4 h-4" />
+                    {estimate.follow_up_date ? format(new Date(estimate.follow_up_date), "d MMM") : "Follow Up"}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContentWithoutPortal className="w-auto p-0" align="end" side="bottom" sideOffset={4}>
+                  <DatePickerCalendar
+                    mode="single"
+                    selected={pendingFollowUpDate || (estimate.follow_up_date ? new Date(estimate.follow_up_date) : undefined)}
+                    onSelect={(date) => updateDateMutation.mutate({ field: 'follow_up_date', date: date || null })}
+                    className="p-3 pointer-events-auto"
+                  />
+                </PopoverContentWithoutPortal>
+              </Popover>
+            </div>
+
+            {/* Confirmation Email Buttons - only show when dates are set */}
+            {(hasSiteVisitDate || hasFollowUpDate) && (
+              <div className="grid grid-cols-2 gap-3">
+                {hasSiteVisitDate && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendSiteVisitConfirmation}
+                    disabled={isSendingSiteVisitEmail || !estimate.client_email}
+                    className="gap-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    {isSendingSiteVisitEmail ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Mail className="w-3 h-3" />
+                    )}
+                    Send Site Visit Email
+                  </Button>
+                )}
+                {!hasSiteVisitDate && hasFollowUpDate && <div />}
+                {hasFollowUpDate && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleSendFollowUpConfirmation}
+                    disabled={isSendingFollowUpEmail || !estimate.client_email}
+                    className="gap-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+                  >
+                    {isSendingFollowUpEmail ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Mail className="w-3 h-3" />
+                    )}
+                    Send Follow-up Email
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Actions - Central prominent buttons */}

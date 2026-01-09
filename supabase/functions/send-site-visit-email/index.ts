@@ -12,11 +12,12 @@ interface SiteVisitEmailRequest {
   clientEmail: string;
   clientName: string;
   siteAddress: string;
-  siteVisitDate: string;
+  visitDate: string;
   siteVisitTime?: string;
   businessName: string;
   businessPhone: string | null;
   businessEmail: string | null;
+  isFollowUp?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -29,21 +30,23 @@ const handler = async (req: Request): Promise<Response> => {
       clientEmail, 
       clientName,
       siteAddress,
-      siteVisitDate,
+      visitDate,
       siteVisitTime,
       businessName,
       businessPhone,
       businessEmail,
+      isFollowUp,
     }: SiteVisitEmailRequest = await req.json();
 
-    console.log(`Sending site visit confirmation to ${clientEmail} for ${siteVisitDate} at ${siteVisitTime || 'TBC'}`);
+    const eventType = isFollowUp ? 'follow-up call' : 'site visit';
+    console.log(`Sending ${eventType} confirmation to ${clientEmail} for ${visitDate} at ${siteVisitTime || 'TBC'}`);
 
     if (!clientEmail) {
       throw new Error("Client email is required");
     }
 
     // Format the date nicely
-    const formattedDate = new Date(siteVisitDate).toLocaleDateString('en-AU', {
+    const formattedDate = new Date(visitDate).toLocaleDateString('en-AU', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
@@ -72,10 +75,25 @@ const handler = async (req: Request): Promise<Response> => {
       `;
     }
 
+    // Dynamic content based on type
+    const emailSubject = isFollowUp 
+      ? `Follow-up Call Scheduled - ${formattedDate}`
+      : `Site Visit Confirmed - ${formattedDate}`;
+    
+    const headerEmoji = isFollowUp ? '📞' : '📅';
+    const cardTitle = isFollowUp ? 'Follow-up Call Details' : 'Site Visit Details';
+    const introText = isFollowUp
+      ? `We've scheduled a follow-up call to discuss your project and answer any questions you may have.`
+      : `Great news! Your site visit has been confirmed. We're looking forward to meeting with you to discuss your project.`;
+    const locationLabel = isFollowUp ? 'Regarding Property' : 'Location';
+    const closingText = isFollowUp
+      ? `We'll be calling you on the scheduled date. Please ensure you're available to take our call.`
+      : `Please ensure access to the site is available on the scheduled date. If you have any specific requirements or concerns, feel free to let us know beforehand.`;
+
     const emailResponse = await resend.emails.send({
       from: "PourHub <Hello@contact.pourhub.au>",
       to: [clientEmail],
-      subject: `Site Visit Confirmed - ${formattedDate}`,
+      subject: emailSubject,
       html: `
         <!DOCTYPE html>
         <html>
@@ -108,10 +126,10 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <div class="content">
               <p class="greeting">Hi ${clientName},</p>
-              <p>Great news! Your site visit has been confirmed. We're looking forward to meeting with you to discuss your project.</p>
+              <p>${introText}</p>
               
               <div class="visit-card">
-                <h2>📅 Site Visit Details</h2>
+                <h2>${headerEmoji} ${cardTitle}</h2>
                 
                 <div class="visit-detail">
                   <div class="visit-info">
@@ -122,7 +140,7 @@ const handler = async (req: Request): Promise<Response> => {
                 
                 <div class="visit-detail">
                   <div class="visit-info">
-                    <div class="visit-label">Location</div>
+                    <div class="visit-label">${locationLabel}</div>
                     <div class="visit-value">${siteAddress}</div>
                   </div>
                 </div>
@@ -130,9 +148,9 @@ const handler = async (req: Request): Promise<Response> => {
 
               ${contactInfo}
               
-              <p>Please ensure access to the site is available on the scheduled date. If you have any specific requirements or concerns, feel free to let us know beforehand.</p>
+              <p>${closingText}</p>
               
-              <p>We look forward to seeing you!</p>
+              <p>We look forward to speaking with you!</p>
               
               <p style="margin-top: 25px;">
                 Kind regards,<br>
