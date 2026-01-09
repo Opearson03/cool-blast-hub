@@ -37,6 +37,7 @@ import { CrossoversCalculator, CrossoversData, initialCrossoversData, calculateC
 import { PathsSurroundsCalculator, PathsSurroundsData, initialPathsSurroundsData, calculatePathsSurroundsTotals } from "./calculators/PathsSurroundsCalculator";
 import { RaftSlabCalculator, RaftSlabData, initialRaftSlabData, calculateRaftSlabTotals } from "./calculators/RaftSlabCalculator";
 import { StandardSlabCalculator, StandardSlabData, initialStandardSlabData, calculateStandardSlabTotals } from "./calculators/StandardSlabCalculator";
+import { DrivewayCalculator, DrivewayData, initialDrivewayData } from "./calculators/DrivewayCalculator";
 import { SuspendedSlabCalculator, SuspendedSlabData, initialSuspendedSlabData, calculateSuspendedSlabTotals } from "./calculators/SuspendedSlabCalculator";
 
 interface Estimate {
@@ -120,7 +121,7 @@ export interface ScopeCalculatorData {
   raft_slab: RaftSlabData;
   waffle_pod: WafflePodData;
   suspended_slab: SuspendedSlabData;
-  driveway: StandardSlabData; // Simple slab calculator for driveways
+  driveway: DrivewayData;
   paths_surrounds: PathsSurroundsData;
   crossovers: CrossoversData;
 }
@@ -134,7 +135,7 @@ const defaultScopeData: ScopeCalculatorData = {
   raft_slab: initialRaftSlabData,
   waffle_pod: initialWafflePodData,
   suspended_slab: initialSuspendedSlabData,
-  driveway: initialStandardSlabData,
+  driveway: initialDrivewayData,
   paths_surrounds: initialPathsSurroundsData,
   crossovers: initialCrossoversData,
 };
@@ -614,7 +615,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         );
       case "driveway":
         return (
-          <StandardSlabCalculator
+          <DrivewayCalculator
             data={scopeData.driveway}
             onChange={(data) => updateScopeData("driveway", data)}
           />

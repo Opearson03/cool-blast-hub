@@ -8,6 +8,7 @@ import { initialCrossoversData } from "@/components/estimates/calculators/Crosso
 import { initialPathsSurroundsData } from "@/components/estimates/calculators/PathsSurroundsCalculator";
 import { initialRaftSlabData } from "@/components/estimates/calculators/RaftSlabCalculator";
 import { initialStandardSlabData } from "@/components/estimates/calculators/StandardSlabCalculator";
+import { initialDrivewayData } from "@/components/estimates/calculators/DrivewayCalculator";
 import { initialSuspendedSlabData } from "@/components/estimates/calculators/SuspendedSlabCalculator";
 
 /**
@@ -117,7 +118,7 @@ export function useEstimateInitialData() {
       
       // Driveway (uses Standard Slab) - uses: concretePrice, meshPrice, polyPrice, hourlyRate
       driveway: {
-        ...initialStandardSlabData,
+        ...initialDrivewayData,
         concretePrice: concretePrice32,
         meshPrice: meshPriceSL82,
         polyPrice: polyPrice,
