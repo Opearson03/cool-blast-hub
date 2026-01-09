@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -41,6 +42,7 @@ import { DraggablePour } from "@/components/schedule/DraggablePour";
 import { DraggableEstimate, ScheduleEstimate, EstimateEventType } from "@/components/schedule/DraggableEstimate";
 import { DroppablePourDay } from "@/components/schedule/DroppablePourDay";
 import { PourDetailSheet } from "@/components/schedule/PourDetailSheet";
+import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 import { useEmployeesOnLeave, getEmployeesOnLeaveForDate } from "@/hooks/useEmployeesOnLeave";
 
 type Pour = {
@@ -65,6 +67,24 @@ type EstimateEvent = {
   date: string;
 };
 
+type FullEstimate = {
+  id: string;
+  estimate_number: string;
+  client_name: string;
+  company_name: string | null;
+  client_email: string | null;
+  client_phone: string | null;
+  site_address: string;
+  description: string | null;
+  total_amount: number;
+  status: "draft" | "sent" | "accepted" | "declined";
+  created_at: string;
+  valid_until: string | null;
+  notes: string | null;
+  site_visit_date: string | null;
+  follow_up_date: string | null;
+};
+
 type ViewMode = "week" | "month";
 
 export default function AdminSchedule() {
@@ -73,10 +93,13 @@ export default function AdminSchedule() {
   const [activePour, setActivePour] = useState<Pour | null>(null);
   const [activeEstimate, setActiveEstimate] = useState<{ estimate: ScheduleEstimate; eventType: EstimateEventType } | null>(null);
   const [selectedPour, setSelectedPour] = useState<Pour | null>(null);
+  const [selectedEstimate, setSelectedEstimate] = useState<FullEstimate | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
+  const [estimateSheetOpen, setEstimateSheetOpen] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadBusinessId = async () => {
@@ -305,6 +328,36 @@ export default function AdminSchedule() {
     setDetailSheetOpen(true);
   };
 
+  const handleEstimateClick = async (estimate: ScheduleEstimate, _eventType: EstimateEventType) => {
+    // Fetch full estimate details
+    const { data, error } = await supabase
+      .from("estimates")
+      .select("*")
+      .eq("id", estimate.id)
+      .single();
+    
+    if (error) {
+      toast({ title: "Error loading estimate", variant: "destructive" });
+      return;
+    }
+    
+    setSelectedEstimate(data as FullEstimate);
+    setEstimateSheetOpen(true);
+  };
+
+  const handleConvertToJob = (estimate: FullEstimate) => {
+    navigate("/admin/jobs", { 
+      state: { 
+        createJobFromEstimate: {
+          name: `${estimate.client_name} - ${estimate.site_address.split(",")[0]}`,
+          site_address: estimate.site_address,
+          builder_client: estimate.client_name,
+          job_notes: `Converted from estimate ${estimate.estimate_number}\nQuote Total: $${estimate.total_amount?.toFixed(2)}`,
+        }
+      }
+    });
+  };
+
   const handleRefresh = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] }),
@@ -398,6 +451,7 @@ export default function AdminSchedule() {
                     estimateEvents={dayEstimates}
                     isWeekView
                     onPourClick={handlePourClick}
+                    onEstimateClick={handleEstimateClick}
                     employeesOnLeave={onLeave}
                   />
                 );
@@ -429,6 +483,7 @@ export default function AdminSchedule() {
                     estimateEvents={dayEstimates}
                     isCurrentMonth={isCurrentMonth}
                     onPourClick={handlePourClick}
+                    onEstimateClick={handleEstimateClick}
                     employeesOnLeave={onLeave}
                   />
                 );
@@ -448,7 +503,7 @@ export default function AdminSchedule() {
               )}
             </div>
           ) : activeEstimate ? (
-            <div className={`px-3 py-2 rounded-lg shadow-lg ${activeEstimate.eventType === "site_visit" ? "bg-purple-500" : "bg-cyan-500"} text-white`}>
+            <div className="bg-primary text-primary-foreground px-3 py-2 rounded-lg shadow-lg">
               <p className="text-sm font-medium">{activeEstimate.estimate.client_name}</p>
               <p className="text-xs opacity-80">{activeEstimate.eventType === "site_visit" ? "Site Visit" : "Follow Up"}</p>
             </div>
@@ -461,6 +516,14 @@ export default function AdminSchedule() {
         pour={selectedPour}
         open={detailSheetOpen}
         onOpenChange={setDetailSheetOpen}
+      />
+
+      {/* Estimate Detail Sheet */}
+      <EstimateDetailSheet
+        estimate={selectedEstimate}
+        open={estimateSheetOpen}
+        onOpenChange={setEstimateSheetOpen}
+        onConvertToJob={handleConvertToJob}
       />
     </AdminLayout>
   );
