@@ -50,6 +50,7 @@ export interface AdditionalCostItem {
 export interface StandardSlabData {
   // Slab dimensions
   slabArea: string;
+  slabPerimeter: string;
   slabThickness: string;
   concreteStrength: string;
   
@@ -61,6 +62,10 @@ export interface StandardSlabData {
   polyMembrane: boolean;
   polyLayers: string;
   polyPrice: string;
+  
+  // Formwork
+  formworkIncluded: boolean;
+  formworkPricePerM: string;
   
   // Concrete pricing
   concretePrice: string;
@@ -91,6 +96,7 @@ export interface StandardSlabData {
 
 export const initialStandardSlabData: StandardSlabData = {
   slabArea: "",
+  slabPerimeter: "",
   slabThickness: "100",
   concreteStrength: "32",
   
@@ -100,6 +106,9 @@ export const initialStandardSlabData: StandardSlabData = {
   polyMembrane: true,
   polyLayers: "1",
   polyPrice: "2.50",
+  
+  formworkIncluded: true,
+  formworkPricePerM: "15",
   
   concretePrice: "280",
   wastagePercent: "5",
@@ -174,6 +183,7 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
   
   const calculations = useMemo(() => {
     const slabArea = parseFloat(data.slabArea) || 0;
+    const slabPerimeter = parseFloat(data.slabPerimeter) || 0;
     const slabThickness = (parseFloat(data.slabThickness) || 0) / 1000;
     const slabVolume = slabArea * slabThickness;
     
@@ -192,6 +202,11 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
       ? slabArea * (parseInt(data.polyLayers) || 1) * (parseFloat(data.polyPrice) || 2.5)
       : 0;
     
+    // Formwork
+    const formworkCost = data.formworkIncluded 
+      ? slabPerimeter * (parseFloat(data.formworkPricePerM) || 15)
+      : 0;
+    
     // Delivery
     const deliveryCosts = (parseFloat(data.concreteDeliveryCost) || 0) +
       (parseFloat(data.meshDeliveryCost) || 0);
@@ -202,7 +217,7 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
     );
     
     // Materials totals
-    const materialsSubtotal = concreteCost + meshCost + polyCost + deliveryCosts + additionalMaterialsCost;
+    const materialsSubtotal = concreteCost + meshCost + polyCost + formworkCost + deliveryCosts + additionalMaterialsCost;
     const materialsMarkup = materialsSubtotal * ((parseFloat(data.materialsMarkupPercent) || 0) / 100);
     const materialsTotal = materialsSubtotal + materialsMarkup;
     
@@ -230,11 +245,13 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
     
     return {
       slabArea,
+      slabPerimeter,
       volumeWithWastage,
       concreteCost,
       meshSheets,
       meshCost,
       polyCost,
+      formworkCost,
       deliveryCosts,
       additionalMaterialsCost,
       materialsSubtotal,
@@ -267,7 +284,7 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div>
                 <Label>Slab Area (m²)</Label>
                 <Input
@@ -276,6 +293,16 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
                   value={data.slabArea}
                   onChange={(e) => onChange({ ...data, slabArea: e.target.value })}
                   placeholder="e.g. 120"
+                />
+              </div>
+              <div>
+                <Label>Perimeter (m)</Label>
+                <Input
+                  type="number"
+                  step="0.1"
+                  value={data.slabPerimeter}
+                  onChange={(e) => onChange({ ...data, slabPerimeter: e.target.value })}
+                  placeholder="e.g. 44"
                 />
               </div>
               <div>
@@ -395,6 +422,34 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
                     value={data.polyPrice}
                     onChange={(e) => onChange({ ...data, polyPrice: e.target.value })}
                   />
+                </div>
+              </div>
+            )}
+            
+            {/* Formwork */}
+            <div className="flex items-center gap-3 mt-4">
+              <Switch
+                checked={data.formworkIncluded}
+                onCheckedChange={(checked) => onChange({ ...data, formworkIncluded: checked })}
+              />
+              <Label>Include Formwork</Label>
+            </div>
+            
+            {data.formworkIncluded && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div>
+                  <Label>Formwork Price ($/m)</Label>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    value={data.formworkPricePerM}
+                    onChange={(e) => onChange({ ...data, formworkPricePerM: e.target.value })}
+                  />
+                </div>
+                <div className="flex items-end">
+                  <p className="text-sm text-muted-foreground">
+                    {calculations.slabPerimeter > 0 ? `${calculations.slabPerimeter.toFixed(1)}m × $${data.formworkPricePerM || 15}/m = ${formatCurrency(calculations.formworkCost)}` : 'Enter perimeter to calculate'}
+                  </p>
                 </div>
               </div>
             )}
@@ -687,6 +742,12 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
                 <span>{formatCurrency(calculations.polyCost)}</span>
               </div>
             )}
+            {calculations.formworkCost > 0 && (
+              <div className="flex justify-between pl-3">
+                <span>Formwork ({calculations.slabPerimeter.toFixed(1)}m)</span>
+                <span>{formatCurrency(calculations.formworkCost)}</span>
+              </div>
+            )}
             {calculations.deliveryCosts > 0 && (
               <div className="flex justify-between pl-3">
                 <span>Delivery</span>
@@ -764,6 +825,7 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
 // Export calculation helper for totals
 export function calculateStandardSlabTotals(data: StandardSlabData) {
   const slabArea = parseFloat(data.slabArea) || 0;
+  const slabPerimeter = parseFloat(data.slabPerimeter) || 0;
   const slabThickness = (parseFloat(data.slabThickness) || 0) / 1000;
   const slabVolume = slabArea * slabThickness;
   
@@ -782,6 +844,11 @@ export function calculateStandardSlabTotals(data: StandardSlabData) {
     ? slabArea * (parseInt(data.polyLayers) || 1) * (parseFloat(data.polyPrice) || 2.5)
     : 0;
   
+  // Formwork
+  const formworkCost = data.formworkIncluded 
+    ? slabPerimeter * (parseFloat(data.formworkPricePerM) || 15)
+    : 0;
+  
   // Delivery
   const deliveryCosts = (parseFloat(data.concreteDeliveryCost) || 0) +
     (parseFloat(data.meshDeliveryCost) || 0);
@@ -792,7 +859,7 @@ export function calculateStandardSlabTotals(data: StandardSlabData) {
   );
   
   // Materials totals
-  const materialsSubtotal = concreteCost + meshCost + polyCost + deliveryCosts + additionalMaterialsCost;
+  const materialsSubtotal = concreteCost + meshCost + polyCost + formworkCost + deliveryCosts + additionalMaterialsCost;
   const materialsMarkup = materialsSubtotal * ((parseFloat(data.materialsMarkupPercent) || 0) / 100);
   const materialsTotal = materialsSubtotal + materialsMarkup;
   
@@ -820,11 +887,13 @@ export function calculateStandardSlabTotals(data: StandardSlabData) {
   
   return {
     slabArea,
+    slabPerimeter,
     volumeWithWastage,
     concreteCost,
     meshSheets,
     meshCost,
     polyCost,
+    formworkCost,
     materialsSubtotal,
     materialsMarkup,
     materialsTotal,
