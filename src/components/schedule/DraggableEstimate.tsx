@@ -38,10 +38,11 @@ export function DraggableEstimate({ estimate, eventType, compact = false, onClic
     : undefined;
 
   const isSiteVisit = eventType === "site_visit";
-  const bgColor = isSiteVisit ? "bg-purple-500/10" : "bg-cyan-500/10";
-  const borderColor = isSiteVisit ? "border-purple-500/30" : "border-cyan-500/30";
-  const textColor = isSiteVisit ? "text-purple-600 dark:text-purple-400" : "text-cyan-600 dark:text-cyan-400";
-  const dotColor = isSiteVisit ? "bg-purple-500" : "bg-cyan-500";
+  // Use orange theme colors for both event types, with subtle differentiation via opacity
+  const bgColor = isSiteVisit ? "bg-primary/10" : "bg-primary/5";
+  const borderColor = isSiteVisit ? "border-primary/40" : "border-primary/25";
+  const textColor = "text-primary";
+  const dotColor = isSiteVisit ? "bg-primary" : "bg-primary/70";
 
   const handleClick = (e: React.MouseEvent) => {
     if (!isDragging && onClick) {
