@@ -244,7 +244,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                   {estimate.site_visit_date ? format(new Date(estimate.site_visit_date), "d MMM") : "Site Visit"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto p-0 z-[100]" align="start" side="bottom" sideOffset={4}>
                 <Calendar
                   mode="single"
                   selected={estimate.site_visit_date ? new Date(estimate.site_visit_date) : undefined}
@@ -262,7 +262,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                   {estimate.follow_up_date ? format(new Date(estimate.follow_up_date), "d MMM") : "Follow Up"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
+              <PopoverContent className="w-auto p-0 z-[100]" align="end" side="bottom" sideOffset={4}>
                 <Calendar
                   mode="single"
                   selected={estimate.follow_up_date ? new Date(estimate.follow_up_date) : undefined}
