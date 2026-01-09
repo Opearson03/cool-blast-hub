@@ -12,7 +12,8 @@ interface SiteVisitEmailRequest {
   clientEmail: string;
   clientName: string;
   siteAddress: string;
-  visitDate: string;
+  siteVisitDate: string;
+  siteVisitTime?: string;
   businessName: string;
   businessPhone: string | null;
   businessEmail: string | null;
@@ -28,25 +29,35 @@ const handler = async (req: Request): Promise<Response> => {
       clientEmail, 
       clientName,
       siteAddress,
-      visitDate,
+      siteVisitDate,
+      siteVisitTime,
       businessName,
       businessPhone,
       businessEmail,
     }: SiteVisitEmailRequest = await req.json();
 
-    console.log(`Sending site visit confirmation to ${clientEmail} for ${visitDate}`);
+    console.log(`Sending site visit confirmation to ${clientEmail} for ${siteVisitDate} at ${siteVisitTime || 'TBC'}`);
 
     if (!clientEmail) {
       throw new Error("Client email is required");
     }
 
     // Format the date nicely
-    const formattedDate = new Date(visitDate).toLocaleDateString('en-AU', {
+    const formattedDate = new Date(siteVisitDate).toLocaleDateString('en-AU', {
       weekday: 'long',
       year: 'numeric',
       month: 'long',
       day: 'numeric'
     });
+
+    // Format time for display (convert 24h to 12h format)
+    let formattedTime = 'Time to be confirmed';
+    if (siteVisitTime) {
+      const [hours, minutes] = siteVisitTime.split(':').map(Number);
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      formattedTime = `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
+    }
 
     // Build contact details section
     let contactInfo = '';
@@ -104,8 +115,8 @@ const handler = async (req: Request): Promise<Response> => {
                 
                 <div class="visit-detail">
                   <div class="visit-info">
-                    <div class="visit-label">Date</div>
-                    <div class="visit-value">${formattedDate}</div>
+                    <div class="visit-label">Date & Time</div>
+                    <div class="visit-value">${formattedDate} at ${formattedTime}</div>
                   </div>
                 </div>
                 
