@@ -116,7 +116,7 @@ export function QuickSiteVisitDialog({
           </div>
           <div className="space-y-2">
             <Label>Visit Date</Label>
-            <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <Popover open={calendarOpen} onOpenChange={setCalendarOpen} modal={true}>
               <PopoverTrigger asChild>
                 <Button
                   variant="outline"
@@ -129,7 +129,7 @@ export function QuickSiteVisitDialog({
                   {visitDate ? format(visitDate, "PPP") : "Pick a date"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-[100]" align="start">
+              <PopoverContent className="w-auto p-0 z-[200]" align="start">
                 <Calendar
                   mode="single"
                   selected={visitDate}

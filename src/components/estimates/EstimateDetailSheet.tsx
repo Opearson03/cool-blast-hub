@@ -237,14 +237,14 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
 
           {/* Schedule Buttons */}
           <div className="grid grid-cols-2 gap-3">
-            <Popover open={siteVisitOpen} onOpenChange={setSiteVisitOpen}>
+            <Popover open={siteVisitOpen} onOpenChange={setSiteVisitOpen} modal={true}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
                   <Eye className="w-4 h-4" />
                   {estimate.site_visit_date ? format(new Date(estimate.site_visit_date), "d MMM") : "Site Visit"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-[100]" align="start" side="bottom" sideOffset={4}>
+              <PopoverContent className="w-auto p-0 z-[200]" align="start" side="bottom" sideOffset={4}>
                 <Calendar
                   mode="single"
                   selected={estimate.site_visit_date ? new Date(estimate.site_visit_date) : undefined}
@@ -255,14 +255,14 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
               </PopoverContent>
             </Popover>
 
-            <Popover open={followUpOpen} onOpenChange={setFollowUpOpen}>
+            <Popover open={followUpOpen} onOpenChange={setFollowUpOpen} modal={true}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
                   <PhoneCall className="w-4 h-4" />
                   {estimate.follow_up_date ? format(new Date(estimate.follow_up_date), "d MMM") : "Follow Up"}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0 z-[100]" align="end" side="bottom" sideOffset={4}>
+              <PopoverContent className="w-auto p-0 z-[200]" align="end" side="bottom" sideOffset={4}>
                 <Calendar
                   mode="single"
                   selected={estimate.follow_up_date ? new Date(estimate.follow_up_date) : undefined}
