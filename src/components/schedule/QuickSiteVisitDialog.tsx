@@ -88,7 +88,7 @@ export function QuickSiteVisitDialog({
           site_address: siteAddress.trim() || "TBC",
           site_visit_date: formattedDate,
           status: "draft",
-          estimate_type: "Driveway",
+          estimate_type: "driveway",
           created_by: user.id,
         })
         .select()
