@@ -138,6 +138,7 @@ export function QuickSiteVisitDialog({
                     setCalendarOpen(false);
                   }}
                   initialFocus
+                  className={cn("p-3 pointer-events-auto")}
                 />
               </PopoverContent>
             </Popover>
