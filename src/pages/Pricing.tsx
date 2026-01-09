@@ -106,9 +106,7 @@ const Pricing = () => {
           <div className="max-w-3xl mx-auto">
             <h2 className="text-2xl font-bold text-center mb-8">Why $100/month?</h2>
             <div className="bg-card border border-border rounded-lg p-6">
-              <p className="text-muted-foreground">
-                One blown estimate can wipe out the profit on a job. PourHub helps you quote accurately, track costs, and present professional estimates every time. At $100/month, it’s less than two hours of admin—but saves you countless hours of rework, underquoting, and back-and-forth. Everything included. No limits.
-              </p>
+              <p className="text-muted-foreground text-center">One blown estimate can wipe out the profit on a job. PourHub helps you quote accurately, track costs, and present professional estimates every time. At $100/month, it’s less than one hour of admin—but saves you countless hours of rework, underquoting, and back-and-forth. Everything included. No limits.</p>
             </div>
           </div>
         </div>
