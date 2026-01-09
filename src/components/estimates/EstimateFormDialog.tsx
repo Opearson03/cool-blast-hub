@@ -578,43 +578,41 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     }
   };
 
-  // Navigation footer component
-  const WizardFooter = ({ nextLabel, onNext, showBack = true, showSaveDraft = true }: { 
-    nextLabel?: string; 
-    onNext?: () => void;
-    showBack?: boolean;
-    showSaveDraft?: boolean;
-  }) => (
-    <div className="flex items-center justify-between pt-4 border-t mt-4">
-      <div className="flex gap-2">
-        {showBack && currentStepIndex > 0 && (
-          <Button type="button" variant="outline" onClick={goBack} className="gap-1">
-            <ChevronLeft className="w-4 h-4" /> Back
-          </Button>
-        )}
-        {showSaveDraft && (
-          <Button 
-            type="button" 
-            variant="ghost" 
-            onClick={() => saveDraftMutation.mutate()}
-            disabled={saveDraftMutation.isPending}
-            className="text-muted-foreground"
-          >
-            {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-            Save Draft
-          </Button>
-        )}
+  // Render wizard footer inline to avoid re-creating component on every render
+  const renderWizardFooter = (options: { nextLabel?: string; onNext?: () => void; showBack?: boolean; showSaveDraft?: boolean } = {}) => {
+    const { nextLabel, onNext, showBack = true, showSaveDraft = true } = options;
+    return (
+      <div className="flex items-center justify-between pt-4 border-t mt-4">
+        <div className="flex gap-2">
+          {showBack && currentStepIndex > 0 && (
+            <Button type="button" variant="outline" onClick={goBack} className="gap-1">
+              <ChevronLeft className="w-4 h-4" /> Back
+            </Button>
+          )}
+          {showSaveDraft && (
+            <Button 
+              type="button" 
+              variant="ghost" 
+              onClick={() => saveDraftMutation.mutate()}
+              disabled={saveDraftMutation.isPending}
+              className="text-muted-foreground"
+            >
+              {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              Save Draft
+            </Button>
+          )}
+        </div>
+        <Button 
+          type="button" 
+          onClick={onNext || goNext} 
+          disabled={!canProceed}
+          className="gap-1"
+        >
+          {nextLabel || "Continue"} <ChevronRight className="w-4 h-4" />
+        </Button>
       </div>
-      <Button 
-        type="button" 
-        onClick={onNext || goNext} 
-        disabled={!canProceed}
-        className="gap-1"
-      >
-        {nextLabel || "Continue"} <ChevronRight className="w-4 h-4" />
-      </Button>
-    </div>
-  );
+    );
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -682,7 +680,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 })}
               </div>
 
-              <WizardFooter showBack={false} showSaveDraft={false} />
+              {renderWizardFooter({ showBack: false, showSaveDraft: false })}
             </div>
           )}
 
@@ -779,7 +777,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </div>
               </div>
 
-              <WizardFooter />
+              {renderWizardFooter()}
             </div>
           )}
 
@@ -824,7 +822,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </p>
               )}
 
-              <WizardFooter nextLabel={`Configure ${selectedScopes.size} Scope${selectedScopes.size !== 1 ? "s" : ""}`} />
+              {renderWizardFooter({ nextLabel: `Configure ${selectedScopes.size} Scope${selectedScopes.size !== 1 ? "s" : ""}` })}
             </div>
           )}
 
@@ -983,7 +981,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 </CardContent>
               </Card>
 
-              <WizardFooter nextLabel="Review Summary" />
+              {renderWizardFooter({ nextLabel: "Review Summary" })}
             </div>
           )}
 
