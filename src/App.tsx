@@ -52,18 +52,19 @@ const AppContent = () => {
       <Route path="/admin/jobs" element={<ProtectedRoute allowedRole="admin"><AdminJobs /></ProtectedRoute>} />
       <Route path="/admin/jobs/:id" element={<ProtectedRoute allowedRole="admin"><AdminJobDetail /></ProtectedRoute>} />
       <Route path="/admin/schedule" element={<ProtectedRoute allowedRole="admin"><AdminSchedule /></ProtectedRoute>} />
-      <Route path="/admin/crews" element={<ProtectedRoute allowedRole="admin"><AdminCrews /></ProtectedRoute>} />
-      <Route path="/admin/employees" element={<ProtectedRoute allowedRole="admin"><AdminEmployees /></ProtectedRoute>} />
-      <Route path="/admin/equipment" element={<ProtectedRoute allowedRole="admin"><AdminEquipment /></ProtectedRoute>} />
+      {/* Hidden for now - keeping code for future: */}
+      {/* <Route path="/admin/crews" element={<ProtectedRoute allowedRole="admin"><AdminCrews /></ProtectedRoute>} /> */}
+      {/* <Route path="/admin/employees" element={<ProtectedRoute allowedRole="admin"><AdminEmployees /></ProtectedRoute>} /> */}
+      {/* <Route path="/admin/equipment" element={<ProtectedRoute allowedRole="admin"><AdminEquipment /></ProtectedRoute>} /> */}
       <Route path="/admin/estimates" element={<ProtectedRoute allowedRole="admin"><AdminEstimates /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRole="admin"><AdminSettings /></ProtectedRoute>} />
       
-      {/* Employee Routes */}
-      <Route path="/employee" element={<ProtectedRoute allowedRole="staff"><EmployeeDashboard /></ProtectedRoute>} />
-      <Route path="/employee/schedule" element={<ProtectedRoute allowedRole="staff"><EmployeeSchedule /></ProtectedRoute>} />
-      <Route path="/employee/leave" element={<ProtectedRoute allowedRole="staff"><EmployeeLeave /></ProtectedRoute>} />
-      <Route path="/employee/contacts" element={<ProtectedRoute allowedRole="staff"><EmployeeContacts /></ProtectedRoute>} />
-      <Route path="/employee/profile" element={<ProtectedRoute allowedRole="staff"><EmployeeProfile /></ProtectedRoute>} />
+      {/* Employee Routes - Hidden for now - keeping code for future: */}
+      {/* <Route path="/employee" element={<ProtectedRoute allowedRole="staff"><EmployeeDashboard /></ProtectedRoute>} /> */}
+      {/* <Route path="/employee/schedule" element={<ProtectedRoute allowedRole="staff"><EmployeeSchedule /></ProtectedRoute>} /> */}
+      {/* <Route path="/employee/leave" element={<ProtectedRoute allowedRole="staff"><EmployeeLeave /></ProtectedRoute>} /> */}
+      {/* <Route path="/employee/contacts" element={<ProtectedRoute allowedRole="staff"><EmployeeContacts /></ProtectedRoute>} /> */}
+      {/* <Route path="/employee/profile" element={<ProtectedRoute allowedRole="staff"><EmployeeProfile /></ProtectedRoute>} /> */}
       
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
