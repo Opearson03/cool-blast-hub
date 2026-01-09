@@ -19,7 +19,7 @@ import {
   InternalCostNotice,
   CostSummaryCard,
 } from "./shared";
-import { VisualAreaBuilder } from "./VisualAreaBuilder";
+
 
 export interface WafflePodData {
   slabArea: string;
@@ -192,13 +192,9 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-              <div className="space-y-1 md:col-span-2">
-                <VisualAreaBuilder
-                  value={data.slabArea}
-                  onChange={(v) => updateField("slabArea", v)}
-                  label="Slab Area (m²)"
-                  placeholder="e.g. 180"
-                />
+              <div className="space-y-1">
+                <Label className="text-xs">Slab Area (m²)</Label>
+                <Input type="number" step="0.01" value={data.slabArea} onChange={(e) => updateField("slabArea", e.target.value)} placeholder="e.g. 180" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Perimeter (m)</Label>
