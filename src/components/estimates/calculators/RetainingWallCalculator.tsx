@@ -178,7 +178,7 @@ export function RetainingWallCalculator({ data, onChange }: RetainingWallCalcula
     <div className="space-y-4">
       <InternalCostNotice />
 
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion type="multiple" defaultValue={["footings"]} className="space-y-2">
         {/* Footing Types */}
         <AccordionItem value="footings" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">

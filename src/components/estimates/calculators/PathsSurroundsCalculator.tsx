@@ -165,7 +165,7 @@ export function PathsSurroundsCalculator({ data, onChange }: PathsSurroundsCalcu
     <div className="space-y-4">
       <InternalCostNotice />
 
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion type="multiple" defaultValue={["sections"]} className="space-y-2">
         {/* Path Sections */}
         <AccordionItem value="sections" className="border rounded-lg">
           <AccordionTrigger className="px-4 hover:no-underline">
