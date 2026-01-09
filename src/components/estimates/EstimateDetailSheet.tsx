@@ -172,15 +172,41 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
         .update({ [field]: date ? format(date, "yyyy-MM-dd") : null })
         .eq("id", estimate.id);
       if (error) throw error;
+      
+      // Send confirmation email for site visits only (not follow-ups)
+      if (field === 'site_visit_date' && date && estimate.client_email) {
+        try {
+          await supabase.functions.invoke("send-site-visit-email", {
+            body: {
+              clientEmail: estimate.client_email,
+              clientName: estimate.client_name,
+              siteAddress: estimate.site_address,
+              visitDate: format(date, "yyyy-MM-dd"),
+              businessName: business?.name || "PourHub",
+              businessPhone: business?.phone || null,
+              businessEmail: business?.email || null,
+            },
+          });
+        } catch (emailError) {
+          console.error("Failed to send site visit email:", emailError);
+          // Don't fail the mutation if email fails - the date is already saved
+        }
+      }
     },
-    onSuccess: (_, { field }) => {
+    onSuccess: (_, { field, date }) => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
       queryClient.invalidateQueries({ queryKey: ["scheduled-estimates"] });
+      
+      const hasEmail = estimate?.client_email;
+      const isSiteVisit = field === 'site_visit_date';
+      
       toast({
-        title: field === 'site_visit_date' ? "Site visit scheduled" : "Follow-up scheduled",
-        description: "The date has been saved to the schedule.",
+        title: isSiteVisit ? "Site visit scheduled" : "Follow-up scheduled",
+        description: isSiteVisit && date && hasEmail 
+          ? `Confirmation email sent to ${estimate.client_email}` 
+          : "The date has been saved to the schedule.",
       });
-      if (field === 'site_visit_date') setSiteVisitOpen(false);
+      if (isSiteVisit) setSiteVisitOpen(false);
       else setFollowUpOpen(false);
     },
     onError: (error: any) => {
