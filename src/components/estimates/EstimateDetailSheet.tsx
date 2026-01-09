@@ -239,7 +239,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
           <div className="grid grid-cols-2 gap-3">
             <Popover open={siteVisitOpen} onOpenChange={setSiteVisitOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 h-12 border-purple-500/50 text-purple-600 hover:bg-purple-500/10">
+                <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
                   <Eye className="w-4 h-4" />
                   {estimate.site_visit_date ? format(new Date(estimate.site_visit_date), "d MMM") : "Site Visit"}
                 </Button>
@@ -257,7 +257,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
 
             <Popover open={followUpOpen} onOpenChange={setFollowUpOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" className="gap-2 h-12 border-cyan-500/50 text-cyan-600 hover:bg-cyan-500/10">
+                <Button variant="outline" className="gap-2 h-12 border-primary/50 text-primary hover:bg-primary/10">
                   <PhoneCall className="w-4 h-4" />
                   {estimate.follow_up_date ? format(new Date(estimate.follow_up_date), "d MMM") : "Follow Up"}
                 </Button>
