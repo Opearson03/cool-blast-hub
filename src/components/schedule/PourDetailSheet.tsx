@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
@@ -8,34 +8,10 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
-import { toast } from "sonner";
-import { useState, useEffect } from "react";
-import { Check, ChevronsUpDown, X, MapPin, Clock, Building2, Calendar, Users, Palmtree, AlertTriangle } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { MapPin, Clock, Building2, Calendar } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
-import { isEmployeeOnLeave, useEmployeesOnLeave } from "@/hooks/useEmployeesOnLeave";
-import { useEmployeeConflicts, getEmployeeConflict } from "@/hooks/useEmployeeConflicts";
 
 type Pour = {
   id: string;
@@ -89,28 +65,6 @@ const statusLabels: Record<string, string> = {
 };
 
 export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetProps) {
-  const queryClient = useQueryClient();
-  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
-  const [employeesOpen, setEmployeesOpen] = useState(false);
-  const [businessId, setBusinessId] = useState<string | null>(null);
-
-  useEffect(() => {
-    const loadBusinessId = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .single();
-      if (profile?.business_id) setBusinessId(profile.business_id);
-    };
-    loadBusinessId();
-  }, []);
-
-  const { data: employeesOnLeave = [] } = useEmployeesOnLeave(businessId);
-  const { data: conflictAssignments = [] } = useEmployeeConflicts(pour?.pour_date);
-
   // Fetch full pour details
   const { data: pourDetails } = useQuery({
     queryKey: ["pour-details", pour?.id],
@@ -128,96 +82,6 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
       return data;
     },
   });
-
-  // Fetch all employees
-  const { data: employees = [] } = useQuery({
-    queryKey: ["employees"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .order("full_name");
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  // Fetch assigned employees for this pour
-  const { data: assignedEmployees = [] } = useQuery({
-    queryKey: ["pour-employees", pour?.id],
-    enabled: !!pour?.id && open,
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pour_employees")
-        .select("employee_id, profiles(id, full_name)")
-        .eq("pour_id", pour!.id);
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  useEffect(() => {
-    if (assignedEmployees.length > 0) {
-      setSelectedEmployees(assignedEmployees.map((e) => e.employee_id));
-    } else {
-      setSelectedEmployees([]);
-    }
-  }, [assignedEmployees]);
-
-  const updateEmployees = useMutation({
-    mutationFn: async (newEmployees: string[]) => {
-      if (!pour) return;
-      
-      // Delete existing assignments
-      await supabase.from("pour_employees").delete().eq("pour_id", pour.id);
-
-      // Insert new assignments
-      if (newEmployees.length > 0) {
-        const employeeAssignments = newEmployees.map((empId) => ({
-          pour_id: pour.id,
-          employee_id: empId,
-        }));
-        const { error } = await supabase
-          .from("pour_employees")
-          .insert(employeeAssignments);
-        if (error) throw error;
-      }
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["pour-employees", pour?.id] });
-      queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
-      toast.success("Employees updated");
-    },
-    onError: () => {
-      toast.error("Failed to update employees");
-    },
-  });
-
-  const toggleEmployee = (employeeId: string) => {
-    // Check if adding (not removing)
-    if (!selectedEmployees.includes(employeeId)) {
-      const conflict = getEmployeeConflict(employeeId, conflictAssignments, pour?.id);
-      if (conflict) {
-        const emp = employees.find((e) => e.id === employeeId);
-        toast.error(
-          `${emp?.full_name} is already assigned to "${conflict.pour_name}" at ${conflict.job_name} on this date`
-        );
-        return;
-      }
-    }
-    const newSelection = selectedEmployees.includes(employeeId)
-      ? selectedEmployees.filter((id) => id !== employeeId)
-      : [...selectedEmployees, employeeId];
-    
-    setSelectedEmployees(newSelection);
-    updateEmployees.mutate(newSelection);
-  };
-
-  const removeEmployee = (employeeId: string) => {
-    const newSelection = selectedEmployees.filter((id) => id !== employeeId);
-    setSelectedEmployees(newSelection);
-    updateEmployees.mutate(newSelection);
-  };
 
   if (!pour) return null;
 
@@ -289,109 +153,6 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
               </div>
             </div>
           )}
-
-          <Separator />
-
-          {/* Assigned Employees */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <h4 className="text-sm font-medium">Assigned Employees</h4>
-            </div>
-
-            {/* Selected employees badges */}
-            {selectedEmployees.length > 0 && (
-              <div className="flex flex-wrap gap-1">
-                {selectedEmployees.map((empId) => {
-                  const emp = employees.find((e) => e.id === empId);
-                  const onLeave = pour?.pour_date && isEmployeeOnLeave(empId, pour.pour_date, employeesOnLeave);
-                  return emp ? (
-                    <Badge 
-                      key={empId} 
-                      variant="secondary" 
-                      className={cn(
-                        "flex items-center gap-1",
-                        onLeave && "bg-amber-500/20 text-amber-500 border-amber-500/30"
-                      )}
-                    >
-                      {onLeave && <Palmtree className="h-3 w-3" />}
-                      {emp.full_name}
-                      {onLeave && <span className="text-xs">(ON LEAVE)</span>}
-                      <button
-                        type="button"
-                        onClick={() => removeEmployee(empId)}
-                        className="ml-1 hover:text-destructive"
-                      >
-                        <X className="h-3 w-3" />
-                      </button>
-                    </Badge>
-                  ) : null;
-                })}
-              </div>
-            )}
-
-            {/* Add employee dropdown */}
-            <Popover open={employeesOpen} onOpenChange={setEmployeesOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  role="combobox"
-                  className="w-full justify-between"
-                >
-                  Add employees...
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-full p-0 bg-popover" align="start">
-                <Command>
-                  <CommandInput placeholder="Search employees..." />
-                  <CommandList>
-                    <CommandEmpty>No employees found.</CommandEmpty>
-                    <CommandGroup>
-                      {employees.map((emp) => {
-                        const conflict = getEmployeeConflict(emp.id, conflictAssignments, pour?.id);
-                        const isSelected = selectedEmployees.includes(emp.id);
-                        return (
-                          <TooltipProvider key={emp.id}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <CommandItem
-                                  value={emp.full_name}
-                                  onSelect={() => {
-                                    toggleEmployee(emp.id);
-                                  }}
-                                  className={cn(
-                                    conflict && !isSelected && "text-muted-foreground"
-                                  )}
-                                >
-                                  <Check
-                                    className={cn(
-                                      "mr-2 h-4 w-4",
-                                      isSelected ? "opacity-100" : "opacity-0"
-                                    )}
-                                  />
-                                  {emp.full_name}
-                                  {conflict && !isSelected && (
-                                    <AlertTriangle className="ml-auto h-4 w-4 text-amber-500" />
-                                  )}
-                                </CommandItem>
-                              </TooltipTrigger>
-                              {conflict && !isSelected && (
-                                <TooltipContent side="right">
-                                  <p>Already assigned to "{conflict.pour_name}" at {conflict.job_name}</p>
-                                </TooltipContent>
-                              )}
-                            </Tooltip>
-                          </TooltipProvider>
-                        );
-                      })}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </PopoverContent>
-            </Popover>
-          </div>
 
           {/* Concrete Details (if pour type) */}
           {visitType === "pour" && (
