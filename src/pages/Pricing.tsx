@@ -87,7 +87,7 @@ const Pricing = () => {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
               <div>
                 <div className="text-4xl font-bold text-primary mb-2">$100</div>
-                <p className="text-primary-foreground/90">Less than 2 hours of labour per month</p>
+                <p className="text-primary-foreground/90">Less than 1 hour of labour per month</p>
               </div>
               <div>
                 <div className="text-4xl font-bold text-primary mb-2">100%</div>
@@ -95,7 +95,7 @@ const Pricing = () => {
               </div>
               <div>
                 <div className="text-4xl font-bold text-primary mb-2">0</div>
-                <p className="text-primary-foreground/90">Missed test results or expired tickets</p>
+                <p className="text-primary-foreground/90">Missed test results</p>
               </div>
             </div>
           </div>
@@ -107,11 +107,7 @@ const Pricing = () => {
             <h2 className="text-2xl font-bold text-center mb-8">Why $100/month?</h2>
             <div className="bg-card border border-border rounded-lg p-6">
               <p className="text-muted-foreground">
-                One failed ITP or missing concrete test can cost thousands. Builders love clean 
-                compliance packs, and PourHub makes it easy to deliver professional documentation 
-                every time. At $100/month, it's less than 2 hours of labour—but saves you countless 
-                hours of paperwork and prevents costly compliance issues. Every feature included, 
-                no restrictions.
+                One blown estimate can wipe out the profit on a job. PourHub helps you quote accurately, track costs, and present professional estimates every time. At $100/month, it’s less than two hours of admin—but saves you countless hours of rework, underquoting, and back-and-forth. Everything included. No limits.
               </p>
             </div>
           </div>
