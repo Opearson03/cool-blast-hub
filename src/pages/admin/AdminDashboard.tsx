@@ -1,12 +1,11 @@
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Users, Calendar, AlertTriangle, CalendarDays } from "lucide-react";
+import { Briefcase, Calendar, AlertTriangle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useBusinessData } from "@/hooks/useBusinessData";
-import { FeedWidget } from "@/components/feed/FeedWidget";
+import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget";
 
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -113,9 +112,8 @@ export default function AdminDashboard() {
           </Card>
         </div>
 
-        {/* Team Feed */}
-        {businessId && userId && (
-          <FeedWidget businessId={businessId} userId={userId} isAdmin={true} />
+        {businessId && (
+          <DailyScheduleWidget businessId={businessId} />
         )}
       </div>
     </AdminLayout>
