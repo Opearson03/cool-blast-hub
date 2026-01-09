@@ -15,9 +15,10 @@ const navItems = [
   { href: "/admin/jobs", label: "Jobs", icon: Briefcase },
   { href: "/admin/estimates", label: "Estimates", icon: FileText },
   { href: "/admin/schedule", label: "Schedule", icon: Calendar },
-  { href: "/admin/crews", label: "Crews", icon: Users },
-  { href: "/admin/employees", label: "Employees", icon: UserCheck },
-  { href: "/admin/equipment", label: "Equipment", icon: Truck },
+  // Hidden for now - keeping code for future:
+  // { href: "/admin/crews", label: "Crews", icon: Users },
+  // { href: "/admin/employees", label: "Employees", icon: UserCheck },
+  // { href: "/admin/equipment", label: "Equipment", icon: Truck },
   { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 

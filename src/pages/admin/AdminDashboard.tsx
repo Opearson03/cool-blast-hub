@@ -74,7 +74,7 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -84,18 +84,6 @@ export default function AdminDashboard() {
             <CardContent>
               <p className="text-2xl font-bold">
                 {businessData.isLoading ? "..." : businessData.todayPoursCount}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Users className="w-4 h-4" /> Active Crews
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {businessData.isLoading ? "..." : businessData.activeCrewsCount}
               </p>
             </CardContent>
           </Card>
@@ -124,25 +112,6 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
         </div>
-
-        {businessData.pendingLeaveCount > 0 && (
-          <Card className="border-amber-500/50 bg-amber-500/5">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium flex items-center gap-2">
-                <CalendarDays className="w-4 h-4 text-amber-500" />
-                Pending Leave Requests
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground mb-2">
-                You have {businessData.pendingLeaveCount} leave request{businessData.pendingLeaveCount > 1 ? "s" : ""} awaiting approval.
-              </p>
-              <Link to="/admin/employees" className="text-primary hover:underline text-sm">
-                Review leave requests →
-              </Link>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Team Feed */}
         {businessId && userId && (

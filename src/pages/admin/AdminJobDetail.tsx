@@ -217,26 +217,30 @@ export default function AdminJobDetail() {
             <TabsTrigger value="pours" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Pours
             </TabsTrigger>
+            {/* Hidden for now - keeping code for future:
             <TabsTrigger value="itps" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               ITPs
             </TabsTrigger>
             <TabsTrigger value="swms" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               SWMS
             </TabsTrigger>
+            */}
             <TabsTrigger value="tests" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Test Results
             </TabsTrigger>
             <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Documents
             </TabsTrigger>
+            {/* Hidden for now - keeping code for future:
             <TabsTrigger value="equipment" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Equipment
             </TabsTrigger>
+            */}
           </TabsList>
 
           <div className="mt-6">
             <TabsContent value="overview" className="m-0">
-              <JobOverviewTab job={job} crewName={crewName} />
+              <JobOverviewTab job={job} />
             </TabsContent>
             <TabsContent value="startup" className="m-0">
               <JobProjectStartupTab jobId={job.id} job={job} />
@@ -244,21 +248,25 @@ export default function AdminJobDetail() {
             <TabsContent value="pours" className="m-0">
               <JobPoursTab jobId={job.id} />
             </TabsContent>
+            {/* Hidden for now - keeping code for future:
             <TabsContent value="itps" className="m-0">
               <JobITPsTab jobId={job.id} />
             </TabsContent>
             <TabsContent value="swms" className="m-0">
               <JobSWMSTab jobId={job.id} />
             </TabsContent>
+            */}
             <TabsContent value="tests" className="m-0">
               <JobTestResultsTab jobId={job.id} />
             </TabsContent>
             <TabsContent value="documents" className="m-0">
               <JobDocumentsTab jobId={job.id} businessId={job.business_id} />
             </TabsContent>
+            {/* Hidden for now - keeping code for future:
             <TabsContent value="equipment" className="m-0">
               <JobEquipmentTab jobId={job.id} />
             </TabsContent>
+            */}
           </div>
         </Tabs>
       </div>

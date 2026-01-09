@@ -487,11 +487,12 @@ export function PourFormDialog({
               />
             </div>
 
-            {/* Employee Assignment */}
+            {/* Hidden for now - keeping code for future:
+            {/* Employee Assignment *}
             <div className="space-y-2">
               <FormLabel>Assigned Employees</FormLabel>
               
-              {/* Crew quick-assign buttons */}
+              {/* Crew quick-assign buttons *}
               {crews.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-2">
                   <span className="text-xs text-muted-foreground self-center">Assign crew:</span>
@@ -517,7 +518,7 @@ export function PourFormDialog({
                 </div>
               )}
               
-              {/* Selected employees badges */}
+              {/* Selected employees badges *}
               {selectedEmployees.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">
                   {selectedEmployees.map((empId) => {
@@ -538,7 +539,7 @@ export function PourFormDialog({
                 </div>
               )}
 
-              {/* Searchable employee selector */}
+              {/* Searchable employee selector *}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -601,11 +602,11 @@ export function PourFormDialog({
               </Popover>
             </div>
 
-            {/* Equipment Assignment */}
+            {/* Equipment Assignment *}
             <div className="space-y-2">
               <FormLabel>Assigned Equipment</FormLabel>
               
-              {/* Selected equipment badges */}
+              {/* Selected equipment badges *}
               {selectedEquipment.length > 0 && (
                 <div className="flex flex-wrap gap-1 mb-2">
                   {selectedEquipment.map((eqId) => {
@@ -627,7 +628,7 @@ export function PourFormDialog({
                 </div>
               )}
 
-              {/* Searchable equipment selector */}
+              {/* Searchable equipment selector *}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -677,6 +678,7 @@ export function PourFormDialog({
                 </PopoverContent>
               </Popover>
             </div>
+            */}
 
             {/* Concrete-specific fields - only show for pour type */}
             {isPour && (

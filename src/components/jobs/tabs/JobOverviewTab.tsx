@@ -7,10 +7,10 @@ type Job = Tables<"jobs">;
 
 interface JobOverviewTabProps {
   job: Job;
-  crewName?: string;
+  // Hidden for now - keeping for future: crewName?: string;
 }
 
-export function JobOverviewTab({ job, crewName }: JobOverviewTabProps) {
+export function JobOverviewTab({ job }: JobOverviewTabProps) {
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {/* Job Details Card */}
@@ -30,6 +30,7 @@ export function JobOverviewTab({ job, crewName }: JobOverviewTabProps) {
             </div>
           </div>
 
+          {/* Hidden for now - keeping code for future:
           {crewName && (
             <div className="flex items-start gap-3">
               <Users className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
@@ -39,6 +40,7 @@ export function JobOverviewTab({ job, crewName }: JobOverviewTabProps) {
               </div>
             </div>
           )}
+          */}
 
           {job.builder_client && (
             <div className="flex items-start gap-3">

@@ -325,7 +325,7 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
             </div>
           </div>
 
-          {/* Crew Assignment */}
+          {/* Crew Assignment - Hidden for now - keeping code for future:
           <div>
             <Label htmlFor="crew_id">Assign Crew</Label>
             <Select value={formData.crew_id} onValueChange={(v) => handleChange("crew_id", v)}>
@@ -341,6 +341,7 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
               </SelectContent>
             </Select>
           </div>
+          */}
 
           {/* Concrete Info */}
           <div className="space-y-3">
