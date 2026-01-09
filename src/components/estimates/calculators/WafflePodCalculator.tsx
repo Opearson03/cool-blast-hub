@@ -42,6 +42,8 @@ export interface WafflePodData {
   internalBeamMesh: string;
   polyMembrane: boolean;
   polyPricePerM2: string;
+  formworkIncluded: boolean;
+  formworkPricePerM: string;
   labourHourlyRate: string;
   labourHoursPerM2: string;
   materialsMarkupPercent: string;
@@ -69,6 +71,8 @@ export const initialWafflePodData: WafflePodData = {
   internalBeamMesh: "F62",
   polyMembrane: true,
   polyPricePerM2: "2.50",
+  formworkIncluded: true,
+  formworkPricePerM: "15",
   labourHourlyRate: "85",
   labourHoursPerM2: "0.35",
   materialsMarkupPercent: "20",
@@ -142,8 +146,13 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
     // Poly membrane
     const polyCost = data.polyMembrane ? slabArea * (parseFloat(data.polyPricePerM2) || 0) : 0;
 
+    // Formwork
+    const formworkCost = data.formworkIncluded 
+      ? perimeter * (parseFloat(data.formworkPricePerM) || 15)
+      : 0;
+
     // Materials total
-    const materialsCost = concreteCost + podsCost + meshCost + polyCost;
+    const materialsCost = concreteCost + podsCost + meshCost + polyCost + formworkCost;
     const materialsMarkup = (parseFloat(data.materialsMarkupPercent) || 0) / 100;
     const materialsTotal = materialsCost * (1 + materialsMarkup);
 
@@ -168,6 +177,7 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
       meshSheets,
       meshCost,
       polyCost,
+      formworkCost,
       materialsCost,
       materialsTotal,
       labourHours,
@@ -336,6 +346,13 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
                 <Input type="number" step="0.01" value={data.polyPricePerM2} onChange={(e) => updateField("polyPricePerM2", e.target.value)} className="w-24" placeholder="$/m²" />
               )}
             </div>
+            <div className="flex items-center gap-4 mt-3">
+              <Switch checked={data.formworkIncluded} onCheckedChange={(v) => updateField("formworkIncluded", v)} />
+              <Label>Include formwork</Label>
+              {data.formworkIncluded && (
+                <Input type="number" step="0.01" value={data.formworkPricePerM} onChange={(e) => updateField("formworkPricePerM", e.target.value)} className="w-24" placeholder="$/m" />
+              )}
+            </div>
           </AccordionContent>
         </AccordionItem>
 
@@ -377,6 +394,7 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
           { label: "Waffle Pods", value: calculations.podsCost, detail: `${calculations.totalPods}` },
           { label: "Mesh", value: calculations.meshCost, detail: `${calculations.meshSheets} sheets` },
           ...(data.polyMembrane ? [{ label: "Poly Membrane", value: calculations.polyCost }] : []),
+          ...(data.formworkIncluded ? [{ label: "Formwork", value: calculations.formworkCost, detail: `${calculations.perimeter.toFixed(1)}m` }] : []),
         ]}
         materialsMarkupPercent={data.materialsMarkupPercent}
         materialsTotal={calculations.materialsTotal}
@@ -439,8 +457,12 @@ export function calculateWafflePodTotals(data: WafflePodData) {
   const meshCost = meshSheets * meshPrice;
 
   const polyCost = data.polyMembrane ? slabArea * (parseFloat(data.polyPricePerM2) || 0) : 0;
+  
+  const formworkCost = data.formworkIncluded 
+    ? perimeter * (parseFloat(data.formworkPricePerM) || 15)
+    : 0;
 
-  const materialsCost = concreteCost + podsCost + meshCost + polyCost;
+  const materialsCost = concreteCost + podsCost + meshCost + polyCost + formworkCost;
   const materialsMarkup = (parseFloat(data.materialsMarkupPercent) || 0) / 100;
   const materialsTotal = materialsCost * (1 + materialsMarkup);
 
@@ -464,6 +486,7 @@ export function calculateWafflePodTotals(data: WafflePodData) {
     meshSheets,
     meshCost,
     polyCost,
+    formworkCost,
     materialsCost,
     materialsTotal,
     labourHours,
