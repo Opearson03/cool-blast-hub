@@ -901,7 +901,7 @@ export function RaftSlabCalculator({ data, onChange }: RaftSlabCalculatorProps) 
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <AreaCalculator
+                <VisualAreaBuilder
                   value={data.raftArea}
                   onChange={(v) => onChange({ ...data, raftArea: v })}
                   label="Total Area (m²)"
