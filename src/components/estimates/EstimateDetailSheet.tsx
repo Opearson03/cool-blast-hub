@@ -9,18 +9,29 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as DatePickerCalendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContentWithoutPortal,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Printer, Calendar as CalendarIcon, DollarSign, Mail, Phone, MapPin, Send, Loader2, Briefcase, Eye, PhoneCall } from "lucide-react";
+import {
+  Printer,
+  Calendar as CalendarIcon,
+  DollarSign,
+  Mail,
+  Phone,
+  MapPin,
+  Send,
+  Loader2,
+  Briefcase,
+  Eye,
+  PhoneCall,
+} from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PrintableEstimate } from "./PrintableEstimate";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { cn } from "@/lib/utils";
 
 type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
 
@@ -271,7 +282,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                 </Button>
               </PopoverTrigger>
               <PopoverContentWithoutPortal className="w-auto p-0" align="start" side="bottom" sideOffset={4}>
-                <Calendar
+                <DatePickerCalendar
                   mode="single"
                   selected={estimate.site_visit_date ? new Date(estimate.site_visit_date) : undefined}
                   onSelect={(date) => updateDateMutation.mutate({ field: 'site_visit_date', date: date || null })}
@@ -288,7 +299,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                 </Button>
               </PopoverTrigger>
               <PopoverContentWithoutPortal className="w-auto p-0" align="end" side="bottom" sideOffset={4}>
-                <Calendar
+                <DatePickerCalendar
                   mode="single"
                   selected={estimate.follow_up_date ? new Date(estimate.follow_up_date) : undefined}
                   onSelect={(date) => updateDateMutation.mutate({ field: 'follow_up_date', date: date || null })}
@@ -358,7 +369,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
               <div>
                 <p className="text-xs text-muted-foreground">Created</p>
                 <p className="text-sm flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
+                  <CalendarIcon className="w-3.5 h-3.5" />
                   {format(new Date(estimate.created_at), "d MMM yyyy")}
                 </p>
               </div>
@@ -366,7 +377,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                 <div>
                   <p className="text-xs text-muted-foreground">Valid Until</p>
                   <p className="text-sm flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5" />
+                    <CalendarIcon className="w-3.5 h-3.5" />
                     {format(new Date(estimate.valid_until), "d MMM yyyy")}
                   </p>
                 </div>
