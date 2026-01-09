@@ -21,7 +21,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Plus, Trash2, EyeOff, Layers, Square, ShieldCheck, Truck, Users, DollarSign, Calendar } from "lucide-react";
-import { AreaCalculator } from "./AreaCalculator";
+import { VisualAreaBuilder } from "./VisualAreaBuilder";
 
 // ============= CONSTANTS =============
 

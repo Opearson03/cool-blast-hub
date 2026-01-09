@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/accordion";
 import { ShieldCheck, Truck, Users, DollarSign, Plus, Trash2, Layers, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AreaCalculator } from "./AreaCalculator";
+import { VisualAreaBuilder } from "./VisualAreaBuilder";
 import { InternalCostNotice } from "./shared";
 
 // ============= CONSTANTS =============

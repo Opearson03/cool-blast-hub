@@ -1,36 +1,6 @@
-import { useState, useEffect } from "react";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Calculator, X } from "lucide-react";
-import { cn } from "@/lib/utils";
-
-interface AreaCalculatorProps {
-  value: string;
-  onChange: (value: string) => void;
-  label?: string;
-  placeholder?: string;
-}
-
-export function AreaCalculator({ 
-  value, 
-  onChange, 
-  label = "Area (m²)",
-  placeholder = "e.g. 120"
-}: AreaCalculatorProps) {
-  const [showCalculator, setShowCalculator] = useState(false);
-  const [length, setLength] = useState("");
-  const [width, setWidth] = useState("");
-
-  // Calculate area when length/width change
-  useEffect(() => {
-    if (showCalculator && length && width) {
-      const l = parseFloat(length) || 0;
-      const w = parseFloat(width) || 0;
-      if (l > 0 && w > 0) {
-        onChange((l * w).toFixed(2));
-      }
-    }
+// Re-export the new VisualAreaBuilder as AreaCalculator for backwards compatibility
+export { VisualAreaBuilder as AreaCalculator } from "./VisualAreaBuilder";
+export type { VisualAreaBuilderProps as AreaCalculatorProps } from "./VisualAreaBuilder";
   }, [length, width, showCalculator, onChange]);
 
   // Reset calculator inputs when hiding
