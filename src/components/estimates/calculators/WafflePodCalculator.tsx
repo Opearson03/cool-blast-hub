@@ -19,10 +19,11 @@ import {
   InternalCostNotice,
   CostSummaryCard,
 } from "./shared";
+import { VisualAreaBuilder } from "./VisualAreaBuilder";
 
 export interface WafflePodData {
-  slabLength: string;
-  slabWidth: string;
+  slabArea: string;
+  slabPerimeter: string;
   topSlabThickness: string;
   concreteStrength: string;
   concretePricePerM3: string;
@@ -48,8 +49,8 @@ export interface WafflePodData {
 }
 
 export const initialWafflePodData: WafflePodData = {
-  slabLength: "",
-  slabWidth: "",
+  slabArea: "",
+  slabPerimeter: "",
   topSlabThickness: "85",
   concreteStrength: "25",
   concretePricePerM3: "280",
@@ -85,10 +86,11 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
   };
 
   const calculations = useMemo(() => {
-    const length = parseFloat(data.slabLength) || 0;
-    const width = parseFloat(data.slabWidth) || 0;
-    const slabArea = length * width;
-    const perimeter = 2 * (length + width);
+    const slabArea = parseFloat(data.slabArea) || 0;
+    const perimeter = parseFloat(data.slabPerimeter) || 0;
+    
+    // Estimate dimensions for internal beam calculations (assuming roughly square)
+    const estimatedSide = Math.sqrt(slabArea) || 1;
 
     // Parse pod size for calculations
     const podParts = data.podSize.split("x");
@@ -109,15 +111,12 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
     const internalBeamWidthM = (parseFloat(data.internalBeamWidth) || 110) / 1000;
     const internalBeamDepthM = (parseFloat(data.internalBeamDepth) || 300) / 1000;
     
-    // Calculate number of internal beams
-    const effectiveWidth = width - 2 * edgeBeamWidthM;
-    const effectiveLength = length - 2 * edgeBeamWidthM;
-    const beamsAlongLength = Math.floor(effectiveLength / (podWidthM + internalBeamWidthM));
-    const beamsAlongWidth = Math.floor(effectiveWidth / (podWidthM + internalBeamWidthM));
+    // Calculate number of internal beams (using estimated side for grid)
+    const effectiveSide = estimatedSide - 2 * edgeBeamWidthM;
+    const beamsPerDirection = Math.floor(effectiveSide / (podWidthM + internalBeamWidthM));
     
-    const lengthwiseBeamsVolume = beamsAlongLength * width * internalBeamWidthM * internalBeamDepthM;
-    const widthwiseBeamsVolume = beamsAlongWidth * length * internalBeamWidthM * internalBeamDepthM;
-    const internalBeamVolume = lengthwiseBeamsVolume + widthwiseBeamsVolume;
+    // Approximate internal beam volume based on grid
+    const internalBeamVolume = beamsPerDirection * 2 * estimatedSide * internalBeamWidthM * internalBeamDepthM;
 
     // Total concrete
     const totalConcreteVolume = topSlabVolume + edgeBeamVolume + internalBeamVolume;
@@ -126,10 +125,9 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
     const concretePricePerM3 = parseFloat(data.concretePricePerM3) || 0;
     const concreteCost = volumeWithWastage * concretePricePerM3;
 
-    // Pods calculation
-    const podsAlongLength = Math.floor(effectiveLength / podWidthM);
-    const podsAlongWidth = Math.floor(effectiveWidth / podWidthM);
-    const totalPods = podsAlongLength * podsAlongWidth;
+    // Pods calculation (using estimated side for grid)
+    const podsPerDirection = Math.floor(effectiveSide / podWidthM);
+    const totalPods = podsPerDirection * podsPerDirection;
     const podPrice = parseFloat(data.podPriceEach) || 0;
     const podsCost = totalPods * podPrice;
 
@@ -193,14 +191,18 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
             </div>
           </AccordionTrigger>
           <AccordionContent className="px-4 pb-4">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Length (m)</Label>
-                <Input type="number" step="0.1" value={data.slabLength} onChange={(e) => updateField("slabLength", e.target.value)} placeholder="e.g., 15" />
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <div className="space-y-1 md:col-span-2">
+                <VisualAreaBuilder
+                  value={data.slabArea}
+                  onChange={(v) => updateField("slabArea", v)}
+                  label="Slab Area (m²)"
+                  placeholder="e.g. 180"
+                />
               </div>
               <div className="space-y-1">
-                <Label className="text-xs">Width (m)</Label>
-                <Input type="number" step="0.1" value={data.slabWidth} onChange={(e) => updateField("slabWidth", e.target.value)} placeholder="e.g., 12" />
+                <Label className="text-xs">Perimeter (m)</Label>
+                <Input type="number" step="0.1" value={data.slabPerimeter} onChange={(e) => updateField("slabPerimeter", e.target.value)} placeholder="e.g., 54" />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs">Top Slab Thickness (mm)</Label>
@@ -394,10 +396,11 @@ export function WafflePodCalculator({ data, onChange }: WafflePodCalculatorProps
 }
 
 export function calculateWafflePodTotals(data: WafflePodData) {
-  const length = parseFloat(data.slabLength) || 0;
-  const width = parseFloat(data.slabWidth) || 0;
-  const slabArea = length * width;
-  const perimeter = 2 * (length + width);
+  const slabArea = parseFloat(data.slabArea) || 0;
+  const perimeter = parseFloat(data.slabPerimeter) || 0;
+  
+  // Estimate dimensions for internal beam calculations (assuming roughly square)
+  const estimatedSide = Math.sqrt(slabArea) || 1;
 
   const podParts = data.podSize.split("x");
   const podWidth = parseInt(podParts[0]) || 1090;
@@ -413,14 +416,12 @@ export function calculateWafflePodTotals(data: WafflePodData) {
   const internalBeamWidthM = (parseFloat(data.internalBeamWidth) || 110) / 1000;
   const internalBeamDepthM = (parseFloat(data.internalBeamDepth) || 300) / 1000;
   
-  const effectiveWidth = width - 2 * edgeBeamWidthM;
-  const effectiveLength = length - 2 * edgeBeamWidthM;
-  const beamsAlongLength = Math.floor(effectiveLength / (podWidthM + internalBeamWidthM));
-  const beamsAlongWidth = Math.floor(effectiveWidth / (podWidthM + internalBeamWidthM));
+  // Calculate number of internal beams (using estimated side for grid)
+  const effectiveSide = estimatedSide - 2 * edgeBeamWidthM;
+  const beamsPerDirection = Math.floor(effectiveSide / (podWidthM + internalBeamWidthM));
   
-  const lengthwiseBeamsVolume = beamsAlongLength * width * internalBeamWidthM * internalBeamDepthM;
-  const widthwiseBeamsVolume = beamsAlongWidth * length * internalBeamWidthM * internalBeamDepthM;
-  const internalBeamVolume = lengthwiseBeamsVolume + widthwiseBeamsVolume;
+  // Approximate internal beam volume based on grid
+  const internalBeamVolume = beamsPerDirection * 2 * estimatedSide * internalBeamWidthM * internalBeamDepthM;
 
   const totalConcreteVolume = topSlabVolume + edgeBeamVolume + internalBeamVolume;
   const wastage = (parseFloat(data.wastagePercent) || 0) / 100;
@@ -428,9 +429,9 @@ export function calculateWafflePodTotals(data: WafflePodData) {
   const concretePricePerM3 = parseFloat(data.concretePricePerM3) || 0;
   const concreteCost = volumeWithWastage * concretePricePerM3;
 
-  const podsAlongLength = Math.floor(effectiveLength / podWidthM);
-  const podsAlongWidth = Math.floor(effectiveWidth / podWidthM);
-  const totalPods = podsAlongLength * podsAlongWidth;
+  // Pods calculation (using estimated side for grid)
+  const podsPerDirection = Math.floor(effectiveSide / podWidthM);
+  const totalPods = podsPerDirection * podsPerDirection;
   const podPrice = parseFloat(data.podPriceEach) || 0;
   const podsCost = totalPods * podPrice;
 

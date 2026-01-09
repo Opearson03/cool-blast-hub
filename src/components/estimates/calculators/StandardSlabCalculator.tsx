@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/accordion";
 import { Square, ShieldCheck, Truck, Users, DollarSign, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AreaCalculator } from "./AreaCalculator";
+import { VisualAreaBuilder } from "./VisualAreaBuilder";
 import { InternalCostNotice } from "./shared";
 
 // ============= CONSTANTS =============
@@ -269,7 +269,7 @@ export function StandardSlabCalculator({ data, onChange }: StandardSlabCalculato
           <AccordionContent className="px-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
-                <AreaCalculator
+                <VisualAreaBuilder
                   value={data.slabArea}
                   onChange={(v) => onChange({ ...data, slabArea: v })}
                   label="Slab Area (m²)"

@@ -323,7 +323,7 @@ export function SuspendedSlabCalculator({ data, onChange }: SuspendedSlabCalcula
           <AccordionContent className="px-4 pb-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <AreaCalculator
+                <VisualAreaBuilder
                   value={data.slabArea}
                   onChange={(v) => onChange({ ...data, slabArea: v })}
                   label="Slab Area (m²)"

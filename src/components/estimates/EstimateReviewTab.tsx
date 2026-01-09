@@ -254,7 +254,7 @@ export function EstimateReviewTab({
 
   const renderWafflePodReview = () => {
     const data = scopeData.waffle_pod;
-    const area = (parseFloat(data.slabLength) || 0) * (parseFloat(data.slabWidth) || 0);
+    const area = parseFloat(data.slabArea) || 0;
     return (
       <Card key="waffle_pod">
         <CardHeader className="pb-3">
@@ -268,22 +268,22 @@ export function EstimateReviewTab({
         </CardHeader>
         <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Length (m)</Label>
+            <Label className="text-xs text-muted-foreground">Area (m²)</Label>
             <Input
               type="number"
-              value={data.slabLength}
+              value={data.slabArea}
               onChange={(e) =>
-                onScopeDataChange("waffle_pod", { ...data, slabLength: e.target.value })
+                onScopeDataChange("waffle_pod", { ...data, slabArea: e.target.value })
               }
             />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Width (m)</Label>
+            <Label className="text-xs text-muted-foreground">Perimeter (m)</Label>
             <Input
               type="number"
-              value={data.slabWidth}
+              value={data.slabPerimeter}
               onChange={(e) =>
-                onScopeDataChange("waffle_pod", { ...data, slabWidth: e.target.value })
+                onScopeDataChange("waffle_pod", { ...data, slabPerimeter: e.target.value })
               }
             />
           </div>

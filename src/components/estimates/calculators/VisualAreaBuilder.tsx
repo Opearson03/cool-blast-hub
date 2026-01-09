@@ -765,7 +765,7 @@ function LShapeForm({ shape, onChange, onComplete, onCancel, isEditing }: LShape
 
 // ============= MAIN COMPONENT =============
 
-interface VisualAreaBuilderProps {
+export interface VisualAreaBuilderProps {
   value: string;
   onChange: (value: string) => void;
   label?: string;
