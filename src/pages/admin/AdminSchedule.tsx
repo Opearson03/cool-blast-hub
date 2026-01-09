@@ -12,8 +12,10 @@ import {
   ChevronRight, 
   List,
   Grid3X3,
-  Palmtree
+  Palmtree,
+  Plus
 } from "lucide-react";
+import { QuickSiteVisitDialog } from "@/components/schedule/QuickSiteVisitDialog";
 import { 
   format, 
   startOfWeek, 
@@ -96,6 +98,7 @@ export default function AdminSchedule() {
   const [selectedEstimate, setSelectedEstimate] = useState<FullEstimate | null>(null);
   const [detailSheetOpen, setDetailSheetOpen] = useState(false);
   const [estimateSheetOpen, setEstimateSheetOpen] = useState(false);
+  const [siteVisitDialogOpen, setSiteVisitDialogOpen] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -376,7 +379,13 @@ export default function AdminSchedule() {
         <div className="space-y-4">
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <h1 className="text-2xl font-bold">Schedule</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold">Schedule</h1>
+              <Button size="sm" onClick={() => setSiteVisitDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-1" />
+                Site Visit
+              </Button>
+            </div>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={goToToday}>
                 Today
@@ -524,6 +533,12 @@ export default function AdminSchedule() {
         open={estimateSheetOpen}
         onOpenChange={setEstimateSheetOpen}
         onConvertToJob={handleConvertToJob}
+      />
+
+      {/* Quick Site Visit Dialog */}
+      <QuickSiteVisitDialog
+        open={siteVisitDialogOpen}
+        onOpenChange={setSiteVisitDialogOpen}
       />
     </AdminLayout>
   );
