@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown, Palette, FileText, Eye } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown, Palette, FileText, Eye, DollarSign } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PriceListSection } from "@/components/settings/PriceListSection";
@@ -779,8 +779,32 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
-          {/* My Price List */}
-          <PriceListSection />
+          {/* My Price List - Collapsible */}
+          <Collapsible defaultOpen={false}>
+            <Card>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-lg bg-primary/10">
+                        <DollarSign className="w-5 h-5 text-primary" />
+                      </div>
+                      <div>
+                        <CardTitle>My Price List</CardTitle>
+                        <CardDescription>
+                          Set your custom prices for materials and labour
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <PriceListSection />
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
 
           {/* Account Security */}
           <Card>
