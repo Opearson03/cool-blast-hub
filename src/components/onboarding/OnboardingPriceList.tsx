@@ -66,33 +66,48 @@ export function OnboardingPriceList({ priceOverrides, onPriceOverridesChange }: 
     setEditingKey(key);
     const override = getOverride(item.category, item.item_code);
     setEditValue((override ?? item.default_price).toString());
+    setEditDirty(false);
   };
 
   const handleSaveEdit = (item: PriceListItem) => {
     const price = parseFloat(editValue);
-    if (!isNaN(price) && price !== item.default_price) {
-      const existingIndex = priceOverrides.findIndex(
-        o => o.category === item.category && o.item_code === item.item_code
+
+    // If invalid, keep the editor open
+    if (Number.isNaN(price)) return;
+
+    if (price !== item.default_price) {
+      // Add/update override
+      onPriceOverridesChange((prev) => {
+        const existingIndex = prev.findIndex(
+          (o) => o.category === item.category && o.item_code === item.item_code
+        );
+
+        if (existingIndex >= 0) {
+          const updated = [...prev];
+          updated[existingIndex] = { category: item.category, item_code: item.item_code, custom_price: price };
+          return updated;
+        }
+
+        return [...prev, { category: item.category, item_code: item.item_code, custom_price: price }];
+      });
+    } else {
+      // Remove override if set back to default
+      onPriceOverridesChange((prev) =>
+        prev.filter(
+          (o) => !(o.category === item.category && o.item_code === item.item_code)
+        )
       );
-      if (existingIndex >= 0) {
-        const updated = [...priceOverrides];
-        updated[existingIndex] = { category: item.category, item_code: item.item_code, custom_price: price };
-        onPriceOverridesChange(updated);
-      } else {
-        onPriceOverridesChange([...priceOverrides, { category: item.category, item_code: item.item_code, custom_price: price }]);
-      }
-    } else if (!isNaN(price) && price === item.default_price) {
-      onPriceOverridesChange(priceOverrides.filter(
-        o => !(o.category === item.category && o.item_code === item.item_code)
-      ));
     }
+
     setEditingKey(null);
     setEditValue("");
+    setEditDirty(false);
   };
 
   const handleCancelEdit = () => {
     setEditingKey(null);
     setEditValue("");
+    setEditDirty(false);
   };
 
   const formatPrice = (price: number, unit: string) => {
@@ -205,7 +220,10 @@ export function OnboardingPriceList({ priceOverrides, onPriceOverridesChange }: 
                                   type="number"
                                   step="0.01"
                                   value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
+                                  onChange={(e) => {
+                                    setEditValue(e.target.value);
+                                    setEditDirty(true);
+                                  }}
                                   className="h-7 text-sm w-16"
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter') {
@@ -246,16 +264,21 @@ export function OnboardingPriceList({ priceOverrides, onPriceOverridesChange }: 
                                   e.stopPropagation();
                                   handleStartEdit(item);
                                 }}
-                                className={`w-full text-right px-2 py-1 rounded text-xs font-medium transition-all ${
+                                className={`w-full px-2 py-1 rounded text-xs font-medium transition-all border flex items-center justify-end gap-1 ${
                                   hasCustomPrice
-                                    ? 'bg-primary/20 text-primary border border-primary/30'
-                                    : 'border border-dashed border-muted-foreground/30 text-muted-foreground hover:border-primary/50 hover:text-primary/80'
+                                    ? 'bg-primary/20 text-primary border-primary/30'
+                                    : 'bg-muted/20 text-foreground border-border/60 hover:border-primary/40'
                                 }`}
-                              >
-                                {hasCustomPrice
-                                  ? formatPrice(override!, item.unit)
-                                  : 'Set price'
+                                aria-label={
+                                  hasCustomPrice
+                                    ? `Custom price ${formatPrice(override!, item.unit)}. Click to edit.`
+                                    : `Default price ${formatPrice(item.default_price, item.unit)}. Click to set a custom price.`
                                 }
+                              >
+                                <span>{formatPrice(hasCustomPrice ? override! : item.default_price, item.unit)}</span>
+                                {!hasCustomPrice && (
+                                  <span className="text-[10px] font-normal text-muted-foreground">Default</span>
+                                )}
                               </button>
                             )}
                           </div>
@@ -271,7 +294,7 @@ export function OnboardingPriceList({ priceOverrides, onPriceOverridesChange }: 
       </ScrollArea>
 
       <p className="text-xs text-muted-foreground">
-        Click "Set price" to customize any item. Your prices will be highlighted. You can always change these later in Settings.
+        Click any price to edit. Custom prices are highlighted in orange. You can always change these later in Settings.
       </p>
     </div>
   );
