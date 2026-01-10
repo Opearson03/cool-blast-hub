@@ -2,7 +2,9 @@
 
 export { formworkModule } from './formwork';
 export { excavationModule } from './excavation';
-export { reinforcementModule } from './reinforcement';
+export { reinforcementPiersModule } from './reinforcement-piers';
+export { reinforcementSlabModule } from './reinforcement-slab';
+export { reinforcementFootingModule } from './reinforcement-footing';
 export { concreteSupplyModule } from './concrete-supply';
 export { concretePlacementModule } from './concrete-placement';
 export { concretePumpingModule } from './concrete-pumping';
@@ -15,7 +17,9 @@ export { marginModule } from './margin';
 
 import { formworkModule } from './formwork';
 import { excavationModule } from './excavation';
-import { reinforcementModule } from './reinforcement';
+import { reinforcementPiersModule } from './reinforcement-piers';
+import { reinforcementSlabModule } from './reinforcement-slab';
+import { reinforcementFootingModule } from './reinforcement-footing';
 import { concreteSupplyModule } from './concrete-supply';
 import { concretePlacementModule } from './concrete-placement';
 import { concretePumpingModule } from './concrete-pumping';
@@ -33,7 +37,10 @@ import type { EstimateModule } from '../types';
 export const MODULE_REGISTRY: Record<string, EstimateModule> = {
   'formwork': formworkModule,
   'excavation': excavationModule,
-  'reinforcement': reinforcementModule,
+  'reinforcement': reinforcementPiersModule, // Legacy alias for piers
+  'reinforcement-piers': reinforcementPiersModule,
+  'reinforcement-slab': reinforcementSlabModule,
+  'reinforcement-footing': reinforcementFootingModule,
   'concrete-supply': concreteSupplyModule,
   'concrete-placement': concretePlacementModule,
   'concrete-pumping': concretePumpingModule,

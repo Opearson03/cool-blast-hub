@@ -41,7 +41,7 @@ export const PIERS_SCOPE: ScopeDefinition = {
   moduleIds: [
     'formwork',
     'excavation',
-    'reinforcement',
+    'reinforcement-piers',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -101,7 +101,7 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   moduleIds: [
     'formwork',
     'excavation',
-    'reinforcement',
+    'reinforcement-slab',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -168,7 +168,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
   moduleIds: [
     'formwork',
     'excavation',
-    'reinforcement',
+    'reinforcement-slab',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -225,7 +225,7 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
   ],
   moduleIds: [
     'formwork',
-    'reinforcement',
+    'reinforcement-slab',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -284,7 +284,7 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
   moduleIds: [
     'formwork',
     'excavation',
-    'reinforcement',
+    'reinforcement-slab',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -342,7 +342,7 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
   moduleIds: [
     'formwork',
     'excavation',
-    'reinforcement',
+    'reinforcement-slab',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -400,7 +400,7 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
   moduleIds: [
     'formwork',
     'excavation',
-    'reinforcement',
+    'reinforcement-slab',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -458,7 +458,7 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
   moduleIds: [
     'formwork',
     'excavation',
-    'reinforcement',
+    'reinforcement-footing',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -517,7 +517,7 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
   moduleIds: [
     'formwork',
     'excavation',
-    'reinforcement',
+    'reinforcement-footing',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -583,7 +583,7 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
   ],
   moduleIds: [
     'formwork',
-    'reinforcement',
+    'reinforcement-slab',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
@@ -650,21 +650,10 @@ export const ARCHITECTURAL_CONCRETE_SCOPE: ScopeDefinition = {
       unit: 'm²',
       helpText: 'Combined exposed surface area',
     },
-    {
-      id: 'complexity',
-      type: 'select',
-      label: 'Overall Complexity',
-      required: true,
-      options: [
-        { value: 'simple', label: 'Simple (rectangular, standard forms)' },
-        { value: 'moderate', label: 'Moderate (curves, angles, cutouts)' },
-        { value: 'complex', label: 'Complex (intricate shapes, multiple levels)' },
-      ],
-    },
   ],
   moduleIds: [
     'architectural-formwork',
-    'reinforcement',
+    'reinforcement-slab',
     'concrete-supply',
     'concrete-placement',
     'concrete-pumping',
