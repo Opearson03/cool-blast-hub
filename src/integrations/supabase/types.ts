@@ -75,6 +75,10 @@ export type Database = {
           owner_id: string
           phone: string | null
           preferred_suppliers: Json | null
+          quote_font: string | null
+          quote_primary_color: string | null
+          quote_secondary_color: string | null
+          quote_template: string | null
           subscription_exempt: boolean | null
           updated_at: string | null
         }
@@ -91,6 +95,10 @@ export type Database = {
           owner_id: string
           phone?: string | null
           preferred_suppliers?: Json | null
+          quote_font?: string | null
+          quote_primary_color?: string | null
+          quote_secondary_color?: string | null
+          quote_template?: string | null
           subscription_exempt?: boolean | null
           updated_at?: string | null
         }
@@ -107,6 +115,10 @@ export type Database = {
           owner_id?: string
           phone?: string | null
           preferred_suppliers?: Json | null
+          quote_font?: string | null
+          quote_primary_color?: string | null
+          quote_secondary_color?: string | null
+          quote_template?: string | null
           subscription_exempt?: boolean | null
           updated_at?: string | null
         }
