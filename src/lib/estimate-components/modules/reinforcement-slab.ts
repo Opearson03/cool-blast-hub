@@ -75,11 +75,28 @@ export const reinforcementSlabModule: EstimateModule = {
       type: 'select',
       label: 'Bar Size',
       options: [
+        { value: 'N10', label: 'N10 (10mm)' },
         { value: 'N12', label: 'N12 (12mm)' },
         { value: 'N16', label: 'N16 (16mm)' },
         { value: 'N20', label: 'N20 (20mm)' },
+        { value: 'N24', label: 'N24 (24mm)' },
+        { value: 'N28', label: 'N28 (28mm)' },
+        { value: 'N32', label: 'N32 (32mm)' },
+        { value: 'N36', label: 'N36 (36mm)' },
+        { value: 'N40', label: 'N40 (40mm)' },
       ],
       defaultValue: 'N12',
+      showIf: (answers) => answers.reo_type === 'bar',
+    },
+    {
+      id: 'bar_supply_type',
+      type: 'select',
+      label: 'Rebar Supply Type',
+      options: [
+        { value: 'cut_bend', label: 'Cut & Bend (Scheduled)' },
+        { value: 'stock', label: 'Stock Lengths' },
+      ],
+      defaultValue: 'cut_bend',
       showIf: (answers) => answers.reo_type === 'bar',
     },
     {
@@ -124,13 +141,27 @@ export const reinforcementSlabModule: EstimateModule = {
       unit: '/tonne',
       showIf: (answers) => answers.reo_type === 'bar',
     },
-    // Bar chairs
+    // Bar chairs - enhanced with size selection
     {
       id: 'bar_chairs',
       type: 'boolean',
       label: 'Include Bar Chairs/Spacers',
       defaultValue: true,
       showIf: (answers) => answers.reo_type === 'mesh' || answers.reo_type === 'bar',
+    },
+    {
+      id: 'chair_type',
+      type: 'select',
+      label: 'Chair Size',
+      options: [
+        { value: '2540C', label: '25-40mm (Paths/Surrounds)' },
+        { value: '5065C', label: '50-65mm (Standard Slabs)' },
+        { value: '7590C', label: '75-90mm (Driveways)' },
+        { value: '100120C', label: '100-120mm (Industrial)' },
+        { value: '125150C', label: '125-150mm (Heavy Duty)' },
+      ],
+      defaultValue: '5065C',
+      showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.bar_chairs === true,
     },
     {
       id: 'chairs_per_m2',
@@ -148,6 +179,66 @@ export const reinforcementSlabModule: EstimateModule = {
       defaultValue: 0.35,
       unit: '/each',
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.bar_chairs === true,
+    },
+    // Tie Wire
+    {
+      id: 'tie_wire',
+      type: 'boolean',
+      label: 'Include Tie Wire',
+      defaultValue: true,
+      showIf: (answers) => answers.reo_type === 'mesh' || answers.reo_type === 'bar',
+    },
+    {
+      id: 'tie_wire_type',
+      type: 'select',
+      label: 'Tie Wire Type',
+      options: [
+        { value: 'TIE WIRE', label: 'Standard Black Tie Wire' },
+        { value: 'TIE WIRE GAL', label: 'Galvanised Tie Wire' },
+      ],
+      defaultValue: 'TIE WIRE',
+      showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.tie_wire === true,
+    },
+    {
+      id: 'tie_wire_coils',
+      type: 'number',
+      label: 'Number of Coils',
+      defaultValue: 2,
+      min: 1,
+      showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.tie_wire === true,
+    },
+    {
+      id: 'tie_wire_price',
+      type: 'currency',
+      label: 'Tie Wire Price per Coil',
+      defaultValue: 15,
+      unit: '/coil',
+      showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.tie_wire === true,
+    },
+    // Rebar Caps
+    {
+      id: 'rebar_caps',
+      type: 'boolean',
+      label: 'Include Rebar Safety Caps',
+      defaultValue: false,
+      helpText: 'Protective caps for exposed bar ends',
+      showIf: (answers) => answers.reo_type === 'bar',
+    },
+    {
+      id: 'rebar_caps_count',
+      type: 'number',
+      label: 'Number of Rebar Caps',
+      defaultValue: 50,
+      min: 1,
+      showIf: (answers) => answers.reo_type === 'bar' && answers.rebar_caps === true,
+    },
+    {
+      id: 'rebar_cap_price',
+      type: 'currency',
+      label: 'Rebar Cap Price Each',
+      defaultValue: 0.25,
+      unit: '/each',
+      showIf: (answers) => answers.reo_type === 'bar' && answers.rebar_caps === true,
     },
     // Labour
     {
@@ -212,12 +303,13 @@ export const reinforcementSlabModule: EstimateModule = {
       
       const sheetArea = 14.4; // 6m x 2.4m standard sheet
       const sheetsRequired = Math.ceil(totalMeshArea / sheetArea);
-      const pricePerSheet = Number(answers.mesh_price_per_sheet) || 95;
+      const meshType = answers.mesh_type || 'SL72';
+      const pricePerSheet = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', meshType, 95);
       const meshCost = sheetsRequired * pricePerSheet;
 
       lineItems.push({
         id: 'steel_mesh',
-        description: `Steel Mesh ${answers.mesh_type || 'SL72'} (${sheetsRequired} sheets)`,
+        description: `Steel Mesh ${meshType} (${sheetsRequired} sheets)`,
         quantity: sheetsRequired,
         unit: 'sheets',
         unitPrice: pricePerSheet,
@@ -233,6 +325,7 @@ export const reinforcementSlabModule: EstimateModule = {
       const spacing = Number(answers.bar_spacing) || 200;
       const layers = Number(answers.bar_layers) || 1;
       const barSize = answers.bar_size || 'N12';
+      const supplyType = answers.bar_supply_type || 'cut_bend';
       
       // Calculate total bar length (both directions)
       const barsPerMetre = 1000 / spacing;
@@ -244,12 +337,19 @@ export const reinforcementSlabModule: EstimateModule = {
       const totalWeight = totalBarLength * weightPerMetre * 1.1; // 10% lap allowance
       const totalTonnes = totalWeight / 1000;
       
-      const pricePerTonne = Number(answers.rebar_price_per_tonne) || 2100;
+      // Get price based on supply type
+      let pricePerTonne = Number(answers.rebar_price_per_tonne) || 2100;
+      const priceListKey = supplyType === 'cut_bend' ? `${barSize} C&B` : `${barSize} Stock`;
+      const catalogPrice = getPrice(priceMap, 'rebar', priceListKey, 0);
+      if (catalogPrice > 0) {
+        pricePerTonne = catalogPrice;
+      }
+      
       const barCost = totalTonnes * pricePerTonne;
 
       lineItems.push({
         id: 'bar_reinforcement',
-        description: `Bar Reinforcement ${barSize} @ ${spacing}mm centres (${layers} layer${layers > 1 ? 's' : ''})`,
+        description: `Bar Reinforcement ${barSize} @ ${spacing}mm centres (${layers} layer${layers > 1 ? 's' : ''}) - ${supplyType === 'cut_bend' ? 'Cut & Bend' : 'Stock'}`,
         quantity: Math.round(totalWeight),
         unit: 'kg',
         unitPrice: pricePerTonne / 1000,
@@ -264,12 +364,21 @@ export const reinforcementSlabModule: EstimateModule = {
       const area = Number(answers.mesh_area) || Number(answers.bar_area) || Number(scopeData.area) || 100;
       const chairsPerM2 = Number(answers.chairs_per_m2) || 4;
       const totalChairs = Math.ceil(area * chairsPerM2);
-      const chairPrice = Number(answers.chair_price_each) || 0.35;
+      const chairType = answers.chair_type || '5065C';
+      const chairPrice = Number(answers.chair_price_each) || getPrice(priceMap, 'rebar', chairType, 0.35);
       const chairCost = totalChairs * chairPrice;
+
+      const chairLabels: Record<string, string> = {
+        '2540C': '25-40mm',
+        '5065C': '50-65mm',
+        '7590C': '75-90mm',
+        '100120C': '100-120mm',
+        '125150C': '125-150mm',
+      };
 
       lineItems.push({
         id: 'bar_chairs',
-        description: `Bar Chairs/Spacers (${totalChairs} pcs)`,
+        description: `Bar Chairs ${chairLabels[chairType] || chairType} (${totalChairs} pcs)`,
         quantity: totalChairs,
         unit: 'pcs',
         unitPrice: chairPrice,
@@ -277,6 +386,43 @@ export const reinforcementSlabModule: EstimateModule = {
         category: 'materials',
       });
       subtotal += chairCost;
+    }
+
+    // Tie Wire
+    if (answers.tie_wire) {
+      const wireType = answers.tie_wire_type || 'TIE WIRE';
+      const coils = Number(answers.tie_wire_coils) || 2;
+      const pricePerCoil = Number(answers.tie_wire_price) || getPrice(priceMap, 'consumables', wireType, 15);
+      const wireCost = coils * pricePerCoil;
+
+      lineItems.push({
+        id: 'tie_wire',
+        description: `Tie Wire ${wireType === 'TIE WIRE GAL' ? 'Galvanised' : 'Black'} (${coils} coils)`,
+        quantity: coils,
+        unit: 'coils',
+        unitPrice: pricePerCoil,
+        total: Math.round(wireCost * 100) / 100,
+        category: 'materials',
+      });
+      subtotal += wireCost;
+    }
+
+    // Rebar Caps
+    if (answers.rebar_caps && reoType === 'bar') {
+      const capCount = Number(answers.rebar_caps_count) || 50;
+      const capPrice = Number(answers.rebar_cap_price) || getPrice(priceMap, 'consumables', 'REBAR CAP', 0.25);
+      const capCost = capCount * capPrice;
+
+      lineItems.push({
+        id: 'rebar_caps',
+        description: `Rebar Safety Caps (${capCount} pcs)`,
+        quantity: capCount,
+        unit: 'pcs',
+        unitPrice: capPrice,
+        total: Math.round(capCost * 100) / 100,
+        category: 'materials',
+      });
+      subtotal += capCost;
     }
 
     // Labour

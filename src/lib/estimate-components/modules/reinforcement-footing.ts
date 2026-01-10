@@ -21,17 +21,22 @@ export const reinforcementFootingModule: EstimateModule = {
       ],
       defaultValue: 'trench_mesh',
     },
-    // Trench mesh options
+    // Trench mesh options - enhanced with full type selection
     {
       id: 'trench_mesh_type',
       type: 'select',
       label: 'Trench Mesh Type',
       options: [
-        { value: 'L8TM', label: 'L8TM (8mm ligature)' },
-        { value: 'L11TM', label: 'L11TM (11mm ligature)' },
-        { value: 'L12TM', label: 'L12TM (12mm ligature)' },
+        { value: 'L8TM3', label: 'L8TM3 (8mm × 300mm wide)' },
+        { value: 'L8TM4', label: 'L8TM4 (8mm × 400mm wide)' },
+        { value: 'L11TM3', label: 'L11TM3 (11mm × 300mm wide)' },
+        { value: 'L11TM4', label: 'L11TM4 (11mm × 400mm wide)' },
+        { value: 'L12TM3', label: 'L12TM3 (12mm × 300mm wide)' },
+        { value: 'L12TM4', label: 'L12TM4 (12mm × 400mm wide)' },
+        { value: 'L12TM5', label: 'L12TM5 (12mm × 500mm wide)' },
+        { value: 'L16TM3', label: 'L16TM3 (16mm × 300mm wide)' },
       ],
-      defaultValue: 'L11TM',
+      defaultValue: 'L11TM4',
       showIf: (answers) => answers.reo_type === 'trench_mesh' || answers.reo_type === 'both',
     },
     {
@@ -40,7 +45,7 @@ export const reinforcementFootingModule: EstimateModule = {
       label: 'Total Trench Length',
       unit: 'm',
       min: 1,
-      deriveFrom: (scopeData) => scopeData.perimeter || undefined,
+      deriveFrom: (scopeData) => scopeData.perimeter || scopeData.total_length || undefined,
       showIf: (answers) => answers.reo_type === 'trench_mesh' || answers.reo_type === 'both',
     },
     {
@@ -62,6 +67,32 @@ export const reinforcementFootingModule: EstimateModule = {
       unit: '/m',
       showIf: (answers) => answers.reo_type === 'trench_mesh' || answers.reo_type === 'both',
     },
+    // Trench Mesh Chairs
+    {
+      id: 'trench_mesh_chairs',
+      type: 'boolean',
+      label: 'Include Trench Mesh Chairs',
+      defaultValue: true,
+      showIf: (answers) => answers.reo_type === 'trench_mesh' || answers.reo_type === 'both',
+    },
+    {
+      id: 'tm_chairs_per_metre',
+      type: 'number',
+      label: 'Chairs per Linear Metre',
+      defaultValue: 2,
+      min: 1,
+      max: 5,
+      showIf: (answers) => (answers.reo_type === 'trench_mesh' || answers.reo_type === 'both') && answers.trench_mesh_chairs === true,
+    },
+    {
+      id: 'tm_chair_price',
+      type: 'currency',
+      label: 'Trench Mesh Chair Price',
+      defaultValue: 1.50,
+      priceListKey: 'rebar.TMCHAIR',
+      unit: '/each',
+      showIf: (answers) => (answers.reo_type === 'trench_mesh' || answers.reo_type === 'both') && answers.trench_mesh_chairs === true,
+    },
     // Longitudinal bar options
     {
       id: 'long_bars',
@@ -79,6 +110,7 @@ export const reinforcementFootingModule: EstimateModule = {
         { value: 'N12', label: 'N12 (12mm)' },
         { value: 'N16', label: 'N16 (16mm)' },
         { value: 'N20', label: 'N20 (20mm)' },
+        { value: 'N24', label: 'N24 (24mm)' },
       ],
       defaultValue: 'N16',
       showIf: (answers) => (answers.reo_type === 'bar' || answers.reo_type === 'both') && answers.long_bars === true,
@@ -107,7 +139,7 @@ export const reinforcementFootingModule: EstimateModule = {
       label: 'Total Footing Length',
       unit: 'm',
       min: 1,
-      deriveFrom: (scopeData) => scopeData.perimeter || undefined,
+      deriveFrom: (scopeData) => scopeData.perimeter || scopeData.total_length || undefined,
       showIf: (answers) => answers.reo_type === 'bar' || answers.reo_type === 'both',
     },
     {
@@ -124,14 +156,39 @@ export const reinforcementFootingModule: EstimateModule = {
       type: 'boolean',
       label: 'Include Bar Chairs/Spacers',
       defaultValue: true,
-      showIf: (answers) => answers.reo_type !== 'none',
+      showIf: (answers) => answers.reo_type === 'bar' || answers.reo_type === 'both',
     },
     {
       id: 'chairs_allowance',
       type: 'currency',
       label: 'Bar Chairs Allowance',
       defaultValue: 100,
-      showIf: (answers) => answers.reo_type !== 'none' && answers.bar_chairs === true,
+      showIf: (answers) => (answers.reo_type === 'bar' || answers.reo_type === 'both') && answers.bar_chairs === true,
+    },
+    // Tie Wire
+    {
+      id: 'tie_wire',
+      type: 'boolean',
+      label: 'Include Tie Wire',
+      defaultValue: true,
+      showIf: (answers) => answers.reo_type !== 'none',
+    },
+    {
+      id: 'tie_wire_coils',
+      type: 'number',
+      label: 'Number of Coils',
+      defaultValue: 2,
+      min: 1,
+      showIf: (answers) => answers.reo_type !== 'none' && answers.tie_wire === true,
+    },
+    {
+      id: 'tie_wire_price',
+      type: 'currency',
+      label: 'Tie Wire Price per Coil',
+      defaultValue: 15,
+      priceListKey: 'consumables.TIE WIRE',
+      unit: '/coil',
+      showIf: (answers) => answers.reo_type !== 'none' && answers.tie_wire === true,
     },
     // Labour
     {
@@ -190,15 +247,16 @@ export const reinforcementFootingModule: EstimateModule = {
 
     // Trench mesh calculation
     if (reoType === 'trench_mesh' || reoType === 'both') {
-      const trenchLength = Number(answers.trench_mesh_length) || Number(scopeData.perimeter) || 50;
+      const trenchLength = Number(answers.trench_mesh_length) || Number(scopeData.perimeter) || Number(scopeData.total_length) || 50;
       const lapAllowance = 1 + (Number(answers.trench_mesh_lap) || 15) / 100;
       const totalLength = trenchLength * lapAllowance;
-      const pricePerM = Number(answers.trench_mesh_price_per_m) || 18;
+      const meshType = answers.trench_mesh_type || 'L11TM4';
+      const pricePerM = Number(answers.trench_mesh_price_per_m) || getPrice(priceMap, 'trench_mesh', meshType, 18);
       const meshCost = totalLength * pricePerM;
 
       lineItems.push({
         id: 'trench_mesh',
-        description: `Trench Mesh ${answers.trench_mesh_type || 'L11TM'} (${Math.round(totalLength)}m)`,
+        description: `Trench Mesh ${meshType} (${Math.round(totalLength)}m)`,
         quantity: Math.round(totalLength),
         unit: 'm',
         unitPrice: pricePerM,
@@ -206,11 +264,30 @@ export const reinforcementFootingModule: EstimateModule = {
         category: 'materials',
       });
       subtotal += meshCost;
+
+      // Trench mesh chairs
+      if (answers.trench_mesh_chairs) {
+        const chairsPerM = Number(answers.tm_chairs_per_metre) || 2;
+        const totalChairs = Math.ceil(trenchLength * chairsPerM);
+        const chairPrice = Number(answers.tm_chair_price) || getPrice(priceMap, 'rebar', 'TMCHAIR', 1.50);
+        const chairCost = totalChairs * chairPrice;
+
+        lineItems.push({
+          id: 'trench_mesh_chairs',
+          description: `Trench Mesh Chairs (${totalChairs} pcs)`,
+          quantity: totalChairs,
+          unit: 'pcs',
+          unitPrice: chairPrice,
+          total: Math.round(chairCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += chairCost;
+      }
     }
 
     // Longitudinal bars calculation
     if ((reoType === 'bar' || reoType === 'both') && answers.long_bars) {
-      const footingLength = Number(answers.footing_length) || Number(scopeData.perimeter) || 50;
+      const footingLength = Number(answers.footing_length) || Number(scopeData.perimeter) || Number(scopeData.total_length) || 50;
       const barSize = answers.long_bar_size || 'N16';
       const topBars = Number(answers.long_bars_top) || 2;
       const bottomBars = Number(answers.long_bars_bottom) || 2;
@@ -236,8 +313,8 @@ export const reinforcementFootingModule: EstimateModule = {
       subtotal += barCost;
     }
 
-    // Bar chairs
-    if (answers.bar_chairs) {
+    // Bar chairs (for bar reo only)
+    if ((reoType === 'bar' || reoType === 'both') && answers.bar_chairs) {
       const chairAllowance = Number(answers.chairs_allowance) || 100;
       
       lineItems.push({
@@ -250,6 +327,24 @@ export const reinforcementFootingModule: EstimateModule = {
         category: 'materials',
       });
       subtotal += chairAllowance;
+    }
+
+    // Tie Wire
+    if (answers.tie_wire) {
+      const coils = Number(answers.tie_wire_coils) || 2;
+      const pricePerCoil = Number(answers.tie_wire_price) || getPrice(priceMap, 'consumables', 'TIE WIRE', 15);
+      const wireCost = coils * pricePerCoil;
+
+      lineItems.push({
+        id: 'tie_wire',
+        description: `Tie Wire (${coils} coils)`,
+        quantity: coils,
+        unit: 'coils',
+        unitPrice: pricePerCoil,
+        total: Math.round(wireCost * 100) / 100,
+        category: 'materials',
+      });
+      subtotal += wireCost;
     }
 
     // Labour
