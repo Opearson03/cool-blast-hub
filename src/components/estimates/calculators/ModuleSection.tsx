@@ -175,18 +175,26 @@ export function ModuleSection({
   subtotal,
   lineItems,
 }: ModuleSectionProps) {
-  // Check if section is complete (all required questions answered)
-  const isComplete = module.questions.every((q) => {
-    if (!q.required) return true;
-    if (q.showIf && !q.showIf(answers)) return true;
-    const val = answers[q.id];
-    return val !== undefined && val !== '' && val !== null;
-  });
-
   // Get visible questions
   const visibleQuestions = module.questions.filter(
     (q) => !q.showIf || q.showIf(answers)
   );
+
+  // Check if section is complete:
+  // 1. Must have at least one visible question
+  // 2. All required visible questions must be answered
+  // 3. User must have actually entered something (not just defaults with no interaction)
+  const hasRequiredQuestions = visibleQuestions.some((q) => q.required);
+  const allRequiredAnswered = visibleQuestions.every((q) => {
+    if (!q.required) return true;
+    const val = answers[q.id];
+    return val !== undefined && val !== '' && val !== null;
+  });
+  
+  // Only mark as complete if there are required questions AND they're all answered
+  // AND the user has actually provided meaningful answers (subtotal > 0 indicates real input)
+  const isComplete = hasRequiredQuestions && allRequiredAnswered && subtotal > 0;
+
 
   return (
     <Accordion
