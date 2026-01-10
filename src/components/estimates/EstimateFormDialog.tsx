@@ -695,6 +695,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     const currentState = modularScopeStates[scope];
     return (
       <ModularCalculator
+        key={scope}
         scope={scopeDefinition}
         initialScopeAnswers={currentState?.scopeAnswers}
         initialModuleAnswers={currentState?.moduleAnswers}
