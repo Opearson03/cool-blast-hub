@@ -64,6 +64,9 @@ export function ModularCalculator({
     initialModuleAnswers
   );
 
+  // Track which fields have been manually overridden by user
+  const [userOverrides, setUserOverrides] = useState<Record<string, Set<string>>>({});
+
   // Custom exclusions
   const [customExclusions, setCustomExclusions] = useState<ExclusionItem[]>(
     initialCustomExclusions
@@ -128,6 +131,45 @@ export function ModularCalculator({
       volume: scopeVolume,
     };
   }, [scopeAnswers, scopeVolume]);
+
+  // Apply derived values when scope data or module answers change
+  useEffect(() => {
+    if (priceListLoading || !priceListItems) return;
+
+    const newModuleAnswers = { ...moduleAnswers };
+    let hasChanges = false;
+
+    modules.forEach((module) => {
+      const currentModuleAnswers = moduleAnswers[module.id] || {};
+      
+      module.questions.forEach((question) => {
+        if (question.deriveFrom) {
+          // Check if user has manually overridden this field
+          const isOverridden = userOverrides[module.id]?.has(question.id);
+          
+          if (!isOverridden) {
+            const derivedValue = question.deriveFrom(scopeData, currentModuleAnswers, priceMap);
+            
+            // Only update if derived value is defined and different from current
+            if (derivedValue !== undefined && derivedValue !== currentModuleAnswers[question.id]) {
+              if (!newModuleAnswers[module.id]) {
+                newModuleAnswers[module.id] = {};
+              }
+              newModuleAnswers[module.id] = {
+                ...newModuleAnswers[module.id],
+                [question.id]: derivedValue,
+              };
+              hasChanges = true;
+            }
+          }
+        }
+      });
+    });
+
+    if (hasChanges) {
+      setModuleAnswers(newModuleAnswers);
+    }
+  }, [scopeData, priceMap, modules, priceListLoading, priceListItems, userOverrides]);
 
   // Calculate costs for each module
   const moduleCosts = useMemo<ComponentCost[]>(() => {
@@ -209,7 +251,18 @@ export function ModularCalculator({
     setScopeAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
-  const handleModuleAnswerChange = (moduleId: string, questionId: string, value: any) => {
+  const handleModuleAnswerChange = (moduleId: string, questionId: string, value: any, isUserInput = true) => {
+    // When user manually changes a derived field, mark it as overridden
+    const module = modules.find((m) => m.id === moduleId);
+    const question = module?.questions.find((q) => q.id === questionId);
+    
+    if (isUserInput && question?.deriveFrom && !question.derivedReadOnly) {
+      setUserOverrides((prev) => ({
+        ...prev,
+        [moduleId]: new Set([...(prev[moduleId] || []), questionId]),
+      }));
+    }
+    
     setModuleAnswers((prev) => ({
       ...prev,
       [moduleId]: {
