@@ -490,8 +490,20 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     const newScopes = new Set(selectedScopes);
     if (checked) {
       newScopes.add(scopeId);
+      // Clear any stale state for this scope so it starts fresh
+      setModularScopeStates(prev => {
+        const updated = { ...prev };
+        delete updated[scopeId];
+        return updated;
+      });
     } else {
       newScopes.delete(scopeId);
+      // Also clear the state when removing a scope
+      setModularScopeStates(prev => {
+        const updated = { ...prev };
+        delete updated[scopeId];
+        return updated;
+      });
     }
     setSelectedScopes(newScopes);
     // Reset active scope index if needed
