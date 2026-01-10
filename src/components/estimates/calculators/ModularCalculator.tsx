@@ -77,10 +77,8 @@ export function ModularCalculator({
     scope.moduleIds[0] || null
   );
 
-  // Track which modules have been opened at least once (for "done" badge)
-  const [openedModules, setOpenedModules] = useState<Set<string>>(
-    () => new Set(scope.moduleIds[0] ? [scope.moduleIds[0]] : [])
-  );
+  // Track which modules have been manually marked as done
+  const [doneModules, setDoneModules] = useState<Set<string>>(new Set());
 
   // Build price map from price list
   const priceMap = useMemo<PriceMap>(() => {
@@ -349,12 +347,15 @@ export function ModularCalculator({
                 isOpen={openModuleId === module.id}
                 onToggle={() => {
                   setOpenModuleId((prev) => (prev === module.id ? null : module.id));
-                  // Mark as opened when user opens the module
-                  setOpenedModules((prev) => new Set([...prev, module.id]));
                 }}
                 subtotal={cost?.subtotal || 0}
                 lineItems={cost?.lineItems || []}
-                hasBeenOpened={openedModules.has(module.id)}
+                isMarkedDone={doneModules.has(module.id)}
+                onMarkDone={() => {
+                  // Mark as done and close accordion
+                  setDoneModules((prev) => new Set([...prev, module.id]));
+                  setOpenModuleId(null);
+                }}
               />
             );
           })}

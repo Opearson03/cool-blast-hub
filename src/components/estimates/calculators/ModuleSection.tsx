@@ -2,6 +2,7 @@ import { ComponentQuestion, EstimateModule, CostLineItem } from "@/lib/estimate-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -16,7 +17,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { AccordionDoneBadge } from "./shared/AccordionDoneBadge";
-import { HelpCircle } from "lucide-react";
+import { HelpCircle, Check } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -32,7 +33,8 @@ interface ModuleSectionProps {
   onToggle: () => void;
   subtotal: number;
   lineItems: CostLineItem[];
-  hasBeenOpened: boolean;
+  isMarkedDone: boolean;
+  onMarkDone: () => void;
 }
 
 function formatCurrency(value: number): string {
@@ -187,30 +189,13 @@ export function ModuleSection({
   onToggle,
   subtotal,
   lineItems,
-  hasBeenOpened,
+  isMarkedDone,
+  onMarkDone,
 }: ModuleSectionProps) {
   // Get visible questions
   const visibleQuestions = module.questions.filter(
     (q) => !q.showIf || q.showIf(answers)
   );
-
-  // Check if section is complete:
-  // 1. Must have been opened by the user at least once
-  // 2. Must have at least one visible question
-  // 3. All required visible questions must be answered
-  // 4. Must have a subtotal > 0 (indicates real calculation)
-  const hasRequiredQuestions = visibleQuestions.some((q) => q.required);
-  const allRequiredAnswered = visibleQuestions.every((q) => {
-    if (!q.required) return true;
-    const val = answers[q.id];
-    return val !== undefined && val !== '' && val !== null;
-  });
-  
-  // Only mark as complete if:
-  // - User has opened the module at least once
-  // - Required questions are answered
-  // - There's actual cost calculated
-  const isComplete = hasBeenOpened && hasRequiredQuestions && allRequiredAnswered && subtotal > 0;
 
   // Handle accordion toggle without scroll jumping
   const handleValueChange = (val: string) => {
@@ -237,7 +222,7 @@ export function ModuleSection({
         >
           <div className="flex items-center gap-3 flex-1">
             <span className="font-medium">{module.name}</span>
-            {isComplete && <AccordionDoneBadge />}
+            {isMarkedDone && <AccordionDoneBadge />}
             {subtotal > 0 && (
               <span className="ml-auto mr-4 text-sm font-medium text-primary">
                 {formatCurrency(subtotal)}
@@ -283,6 +268,20 @@ export function ModuleSection({
                     <span className="text-primary">{formatCurrency(subtotal)}</span>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Mark as Done button */}
+            {!isMarkedDone && (
+              <div className="border-t pt-4 mt-4">
+                <Button
+                  onClick={onMarkDone}
+                  className="w-full"
+                  variant="default"
+                >
+                  <Check className="h-4 w-4 mr-2" />
+                  Mark as Done
+                </Button>
               </div>
             )}
           </div>
