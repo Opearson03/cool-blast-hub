@@ -13,7 +13,7 @@ import { usePlatform } from "@/hooks/usePlatform";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/jobs", label: "Jobs", icon: Briefcase },
-  { href: "/admin/estimates", label: "Estimates", icon: FileText },
+  { href: "/admin/estimates", label: "Quotes", icon: FileText },
   { href: "/admin/schedule", label: "Schedule", icon: Calendar },
   // Hidden for now - keeping code for future:
   // { href: "/admin/crews", label: "Crews", icon: Users },
