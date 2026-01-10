@@ -2,7 +2,7 @@ import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceM
 import { getPrice } from '../types';
 
 export const concretePlacementModule: EstimateModule = {
-  id: 'concrete_placement',
+  id: 'concrete-placement',
   name: 'Concrete Placement',
   description: 'Labour for placing and finishing concrete',
   icon: 'Users',
@@ -111,7 +111,7 @@ export const concretePlacementModule: EstimateModule = {
     }
 
     return {
-      moduleId: 'concrete_placement',
+      moduleId: 'concrete-placement',
       moduleName: 'Concrete Placement',
       lineItems,
       subtotal: Math.round(subtotal * 100) / 100,

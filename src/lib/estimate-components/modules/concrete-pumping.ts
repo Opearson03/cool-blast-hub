@@ -2,7 +2,7 @@ import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceM
 import { getPrice } from '../types';
 
 export const concretePumpingModule: EstimateModule = {
-  id: 'concrete_pumping',
+  id: 'concrete-pumping',
   name: 'Concrete Pumping',
   description: 'Pump hire, travel, and associated costs',
   icon: 'Truck',
@@ -143,7 +143,7 @@ export const concretePumpingModule: EstimateModule = {
 
     if (!answers.pump_required) {
       return {
-        moduleId: 'concrete_pumping',
+        moduleId: 'concrete-pumping',
         moduleName: 'Concrete Pumping',
         lineItems,
         subtotal: 0,
@@ -267,7 +267,7 @@ export const concretePumpingModule: EstimateModule = {
     }
 
     return {
-      moduleId: 'concrete_pumping',
+      moduleId: 'concrete-pumping',
       moduleName: 'Concrete Pumping',
       lineItems,
       subtotal: Math.round(subtotal * 100) / 100,
@@ -281,7 +281,7 @@ export const concretePumpingModule: EstimateModule = {
         {
           id: 'no_pumping',
           text: 'Concrete pumping is not included. Direct chute or alternative placement method assumed.',
-          moduleId: 'concrete_pumping',
+          moduleId: 'concrete-pumping',
         },
       ];
     }

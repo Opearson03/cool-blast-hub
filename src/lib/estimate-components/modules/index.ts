@@ -25,15 +25,15 @@ import type { EstimateModule } from '../types';
  * Registry of all available modules
  */
 export const MODULE_REGISTRY: Record<string, EstimateModule> = {
-  formwork: formworkModule,
-  excavation: excavationModule,
-  reinforcement: reinforcementModule,
-  concrete_supply: concreteSupplyModule,
-  concrete_placement: concretePlacementModule,
-  concrete_pumping: concretePumpingModule,
-  cleanup: cleanupModule,
-  sundries: sundriesModule,
-  margin: marginModule,
+  'formwork': formworkModule,
+  'excavation': excavationModule,
+  'reinforcement': reinforcementModule,
+  'concrete-supply': concreteSupplyModule,
+  'concrete-placement': concretePlacementModule,
+  'concrete-pumping': concretePumpingModule,
+  'cleanup': cleanupModule,
+  'sundries': sundriesModule,
+  'margin': marginModule,
 };
 
 /**
