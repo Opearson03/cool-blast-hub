@@ -1,5 +1,4 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useEstimateInitialData } from "@/hooks/useEstimateInitialData";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Dialog,
@@ -39,19 +38,7 @@ import { EstimateType } from "./EstimateTypeSelector";
 import { ScopeType, SCOPE_OPTIONS } from "./ScopeSelector";
 import { ModularCalculator } from "./calculators/ModularCalculator";
 import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
-import { EstimateState, ComponentCost, ExclusionItem } from "@/lib/estimate-components/types";
-
-// Legacy calculator imports - kept for backwards compatibility with existing estimates
-import { PiersCalculator, PiersData, initialPiersData, calculatePiersTotals } from "./calculators/PiersCalculator";
-import { WafflePodCalculator, WafflePodData, initialWafflePodData, calculateWafflePodTotals } from "./calculators/WafflePodCalculator";
-import { RetainingWallCalculator, RetainingWallData, initialRetainingWallData, calculateRetainingWallTotals } from "./calculators/RetainingWallCalculator";
-import { StripFootingsCalculator, StripFootingsData, initialStripFootingsData, calculateStripFootingsTotals } from "./calculators/StripFootingsCalculator";
-import { CrossoversCalculator, CrossoversData, initialCrossoversData, calculateCrossoversTotals } from "./calculators/CrossoversCalculator";
-import { PathsSurroundsCalculator, PathsSurroundsData, initialPathsSurroundsData, calculatePathsSurroundsTotals } from "./calculators/PathsSurroundsCalculator";
-import { RaftSlabCalculator, RaftSlabData, initialRaftSlabData, calculateRaftSlabTotals } from "./calculators/RaftSlabCalculator";
-import { StandardSlabCalculator, StandardSlabData, initialStandardSlabData, calculateStandardSlabTotals } from "./calculators/StandardSlabCalculator";
-import { DrivewayCalculator, DrivewayData, initialDrivewayData } from "./calculators/DrivewayCalculator";
-import { SuspendedSlabCalculator, SuspendedSlabData, initialSuspendedSlabData, calculateSuspendedSlabTotals } from "./calculators/SuspendedSlabCalculator";
+import { ExclusionItem } from "@/lib/estimate-components/types";
 
 interface Estimate {
   id: string;
@@ -67,7 +54,7 @@ interface Estimate {
   valid_until: string | null;
   notes: string | null;
   estimate_type?: EstimateType;
-  scope_data?: ScopeCalculatorData | null;
+  scope_data?: Record<string, any> | null;
   selected_scopes?: ScopeType[] | null;
   site_visit_date?: string | null;
   follow_up_date?: string | null;
@@ -128,34 +115,7 @@ const DEFAULT_EXCLUSIONS = [
   { id: "exc_engineering", label: "Engineering certification" },
 ];
 
-// Legacy interface - kept for backwards compatibility
-export interface ScopeCalculatorData {
-  piers: PiersData;
-  retaining_wall_footings: RetainingWallData;
-  strip_footings: StripFootingsData;
-  standard_slab: StandardSlabData;
-  raft_slab: RaftSlabData;
-  waffle_pod: WafflePodData;
-  suspended_slab: SuspendedSlabData;
-  driveway: DrivewayData;
-  paths_surrounds: PathsSurroundsData;
-  crossovers: CrossoversData;
-}
-
-const defaultScopeData: ScopeCalculatorData = {
-  piers: initialPiersData,
-  retaining_wall_footings: initialRetainingWallData,
-  strip_footings: initialStripFootingsData,
-  standard_slab: initialStandardSlabData,
-  raft_slab: initialRaftSlabData,
-  waffle_pod: initialWafflePodData,
-  suspended_slab: initialSuspendedSlabData,
-  driveway: initialDrivewayData,
-  paths_surrounds: initialPathsSurroundsData,
-  crossovers: initialCrossoversData,
-};
-
-// New modular calculator state type
+// Modular calculator state type
 export interface ModularScopeState {
   scopeAnswers: Record<string, any>;
   moduleAnswers: Record<string, Record<string, any>>;
@@ -188,8 +148,137 @@ const ESTIMATE_TYPES = [
   { id: "commercial_slab" as EstimateType, title: "Commercial Slab", description: "Industrial and commercial foundations", icon: Building2 },
 ];
 
+/**
+ * Migrate legacy estimate scope_data to new modular format
+ * Returns the migrated modular scope states
+ */
+function migrateLegacyScopeData(
+  scopeData: Record<string, any> | null,
+  selectedScopes: ScopeType[] | null
+): Record<ScopeType, ModularScopeState> {
+  const result: Record<ScopeType, ModularScopeState> = {} as Record<ScopeType, ModularScopeState>;
+  
+  if (!scopeData || !selectedScopes) return result;
+  
+  for (const scopeType of selectedScopes) {
+    const legacyData = scopeData[scopeType];
+    if (!legacyData) continue;
+    
+    // Check if this is already new modular format (has scopeAnswers property)
+    if (legacyData.scopeAnswers !== undefined) {
+      result[scopeType] = {
+        scopeAnswers: legacyData.scopeAnswers || {},
+        moduleAnswers: legacyData.moduleAnswers || {},
+        customExclusions: legacyData.customExclusions || [],
+        calculatedTotal: legacyData.calculatedTotal || 0,
+      };
+      continue;
+    }
+    
+    // Migrate legacy format to new modular format
+    const scopeAnswers: Record<string, any> = {};
+    const moduleAnswers: Record<string, Record<string, any>> = {};
+    
+    // Common field mappings from legacy to new format
+    switch (scopeType) {
+      case 'piers':
+        if (legacyData.piers) {
+          const totalPiers = legacyData.piers.reduce((sum: number, p: any) => sum + (parseInt(p.quantity) || 0), 0);
+          scopeAnswers.num_piers = totalPiers;
+          const firstPier = legacyData.piers[0];
+          if (firstPier) {
+            scopeAnswers.diameter = parseInt(firstPier.diameter) || 450;
+            scopeAnswers.depth = parseInt(firstPier.depth) || 600;
+          }
+        }
+        break;
+        
+      case 'standard_slab':
+      case 'driveway':
+        scopeAnswers.area = parseFloat(legacyData.slabArea) || parseFloat(legacyData.length) * parseFloat(legacyData.width) || 0;
+        scopeAnswers.perimeter = parseFloat(legacyData.perimeter) || (parseFloat(legacyData.length) + parseFloat(legacyData.width)) * 2 || 0;
+        scopeAnswers.thickness = parseInt(legacyData.slabThickness) || parseInt(legacyData.thickness) || 100;
+        break;
+        
+      case 'raft_slab':
+        scopeAnswers.area = parseFloat(legacyData.raftArea) || parseFloat(legacyData.length) * parseFloat(legacyData.width) || 0;
+        scopeAnswers.perimeter = parseFloat(legacyData.perimeter) || (parseFloat(legacyData.length) + parseFloat(legacyData.width)) * 2 || 0;
+        scopeAnswers.thickness = parseInt(legacyData.raftThickness) || 300;
+        scopeAnswers.edge_beam_depth = parseInt(legacyData.edgeBeamDepth) || 450;
+        break;
+        
+      case 'waffle_pod':
+        scopeAnswers.area = parseFloat(legacyData.slabArea) || parseFloat(legacyData.length) * parseFloat(legacyData.width) || 0;
+        scopeAnswers.perimeter = parseFloat(legacyData.perimeter) || 0;
+        scopeAnswers.pod_count = parseInt(legacyData.podCount) || Math.ceil((scopeAnswers.area || 0) / 1.1);
+        break;
+        
+      case 'strip_footings':
+        scopeAnswers.total_length = parseFloat(legacyData.totalLength) || 
+          (legacyData.footings?.reduce((sum: number, f: any) => sum + (parseFloat(f.length) || 0), 0)) || 0;
+        scopeAnswers.width = parseInt(legacyData.width) || 450;
+        scopeAnswers.depth = parseInt(legacyData.depth) || 300;
+        break;
+        
+      case 'retaining_wall_footings':
+        scopeAnswers.total_length = parseFloat(legacyData.totalLength) || 
+          (legacyData.footings?.reduce((sum: number, f: any) => sum + (parseFloat(f.length) || 0), 0)) || 0;
+        scopeAnswers.footing_width = parseInt(legacyData.width) || 600;
+        scopeAnswers.footing_depth = parseInt(legacyData.depth) || 300;
+        break;
+        
+      case 'suspended_slab':
+        scopeAnswers.area = parseFloat(legacyData.slabArea) || parseFloat(legacyData.length) * parseFloat(legacyData.width) || 0;
+        scopeAnswers.perimeter = parseFloat(legacyData.perimeter) || 0;
+        scopeAnswers.thickness = parseInt(legacyData.slabThickness) || 200;
+        scopeAnswers.height = parseInt(legacyData.height) || 3000;
+        break;
+        
+      case 'paths_surrounds':
+        scopeAnswers.area = parseFloat(legacyData.totalArea) || 
+          (legacyData.sections?.reduce((sum: number, s: any) => sum + ((parseFloat(s.length) || 0) * (parseFloat(s.width) || 0)), 0)) || 0;
+        scopeAnswers.perimeter = parseFloat(legacyData.perimeter) || 0;
+        scopeAnswers.thickness = parseInt(legacyData.thickness) || 75;
+        break;
+        
+      case 'crossovers':
+        scopeAnswers.area = parseFloat(legacyData.totalArea) ||
+          (legacyData.crossovers?.reduce((sum: number, c: any) => sum + ((parseFloat(c.length) || 0) * (parseFloat(c.width) || 0)), 0)) || 0;
+        scopeAnswers.perimeter = parseFloat(legacyData.perimeter) || 0;
+        scopeAnswers.thickness = parseInt(legacyData.thickness) || 125;
+        break;
+    }
+    
+    // Migrate pricing fields to module answers
+    if (legacyData.concreteRate) {
+      moduleAnswers['concrete-supply'] = moduleAnswers['concrete-supply'] || {};
+      moduleAnswers['concrete-supply'].concrete_rate = parseFloat(legacyData.concreteRate);
+    }
+    if (legacyData.labourRate) {
+      moduleAnswers['concrete-placement'] = moduleAnswers['concrete-placement'] || {};
+      moduleAnswers['concrete-placement'].placement_rate = parseFloat(legacyData.labourRate);
+    }
+    if (legacyData.formworkRate) {
+      moduleAnswers['formwork'] = moduleAnswers['formwork'] || {};
+      moduleAnswers['formwork'].formwork_rate = parseFloat(legacyData.formworkRate);
+    }
+    if (legacyData.marginPercent) {
+      moduleAnswers['margin'] = moduleAnswers['margin'] || {};
+      moduleAnswers['margin'].margin_percent = parseFloat(legacyData.marginPercent);
+    }
+    
+    result[scopeType] = {
+      scopeAnswers,
+      moduleAnswers,
+      customExclusions: [],
+      calculatedTotal: 0, // Will be recalculated by the modular calculator
+    };
+  }
+  
+  return result;
+}
+
 export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
-  const { initialScopeData } = useEstimateInitialData();
   const hasInitializedOnOpenRef = useRef(false);
   
   const [currentStep, setCurrentStep] = useState<WizardStep>("type");
@@ -199,13 +288,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
   
   const [selectedScopes, setSelectedScopes] = useState<Set<ScopeType>>(new Set());
-  const [scopeData, setScopeData] = useState<ScopeCalculatorData>(defaultScopeData);
   const [modularScopeStates, setModularScopeStates] = useState<Record<ScopeType, ModularScopeState>>({} as Record<ScopeType, ModularScopeState>);
   const [activeScopeIndex, setActiveScopeIndex] = useState(0);
   const scopeContainerRef = useRef<HTMLDivElement>(null);
-  
-  // Flag to determine if we use new modular calculator
-  const useModularCalculator = true;
   
   // Scroll to top when changing scope
   useEffect(() => {
@@ -220,7 +305,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const selectedScopesArray = useMemo(() => Array.from(selectedScopes), [selectedScopes]);
   const activeScopeType = selectedScopesArray[activeScopeIndex] || null;
 
-  // Calculate totals for each scope
+  // Calculate totals for each scope from modular calculator
   const scopeTotals = useMemo(() => {
     const totals: Record<ScopeType, { total: number; description: string }> = {
       piers: { total: 0, description: "" },
@@ -235,64 +320,32 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       crossovers: { total: 0, description: "" },
     };
 
-    // Use modular calculator totals when available
-    if (useModularCalculator) {
-      for (const scopeType of Array.from(selectedScopes)) {
-        const state = modularScopeStates[scopeType];
-        if (state?.calculatedTotal > 0) {
-          const scopeDef = SCOPE_REGISTRY[scopeType];
-          totals[scopeType] = { 
-            total: state.calculatedTotal, 
-            description: scopeDef?.name || scopeType 
-          };
+    for (const scopeType of Array.from(selectedScopes)) {
+      const state = modularScopeStates[scopeType];
+      const scopeDef = SCOPE_REGISTRY[scopeType];
+      
+      if (state?.calculatedTotal > 0) {
+        // Build description from scope answers
+        let desc = scopeDef?.name || scopeType;
+        if (state.scopeAnswers) {
+          if (state.scopeAnswers.area) {
+            desc = `${state.scopeAnswers.area}m²`;
+          } else if (state.scopeAnswers.num_piers) {
+            desc = `${state.scopeAnswers.num_piers} piers`;
+          } else if (state.scopeAnswers.total_length) {
+            desc = `${state.scopeAnswers.total_length}m`;
+          }
         }
-      }
-    } else {
-      // Legacy calculator totals
-      if (selectedScopes.has("piers")) {
-        const calcs = calculatePiersTotals(scopeData.piers);
-        totals.piers = { total: calcs.grandTotal, description: `${scopeData.piers.piers.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)} piers` };
-      }
-      if (selectedScopes.has("retaining_wall_footings")) {
-        const calcs = calculateRetainingWallTotals(scopeData.retaining_wall_footings);
-        totals.retaining_wall_footings = { total: calcs.grandTotal, description: `${scopeData.retaining_wall_footings.footings.length} footing types` };
-      }
-      if (selectedScopes.has("strip_footings")) {
-        const calcs = calculateStripFootingsTotals(scopeData.strip_footings);
-        totals.strip_footings = { total: calcs.grandTotal, description: `${calcs.totalLength.toFixed(1)}m strip footings` };
-      }
-      if (selectedScopes.has("standard_slab")) {
-        const calcs = calculateStandardSlabTotals(scopeData.standard_slab);
-        totals.standard_slab = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² standard slab` };
-      }
-      if (selectedScopes.has("raft_slab")) {
-        const calcs = calculateRaftSlabTotals(scopeData.raft_slab);
-        totals.raft_slab = { total: calcs.grandTotal, description: `${calcs.raftArea.toFixed(1)}m² slab` };
-      }
-      if (selectedScopes.has("waffle_pod")) {
-        const calcs = calculateWafflePodTotals(scopeData.waffle_pod);
-        totals.waffle_pod = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² waffle pod` };
-      }
-      if (selectedScopes.has("suspended_slab")) {
-        const calcs = calculateSuspendedSlabTotals(scopeData.suspended_slab);
-        totals.suspended_slab = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² suspended slab` };
-      }
-      if (selectedScopes.has("driveway")) {
-        const calcs = calculateStandardSlabTotals(scopeData.driveway);
-        totals.driveway = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² driveway` };
-      }
-      if (selectedScopes.has("paths_surrounds")) {
-        const calcs = calculatePathsSurroundsTotals(scopeData.paths_surrounds);
-        totals.paths_surrounds = { total: calcs.grandTotal, description: `${scopeData.paths_surrounds.sections.length} path sections` };
-      }
-      if (selectedScopes.has("crossovers")) {
-        const calcs = calculateCrossoversTotals(scopeData.crossovers);
-        totals.crossovers = { total: calcs.grandTotal, description: `${scopeData.crossovers.crossovers.length} crossovers` };
+        
+        totals[scopeType] = { 
+          total: state.calculatedTotal, 
+          description: desc
+        };
       }
     }
 
     return totals;
-  }, [selectedScopes, scopeData, modularScopeStates, useModularCalculator]);
+  }, [selectedScopes, modularScopeStates]);
 
   const combinedTotal = useMemo(() => {
     return selectedScopesArray.reduce((sum, scope) => sum + scopeTotals[scope].total, 0);
@@ -333,13 +386,16 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       setEstimateType(editEstimate.estimate_type || "driveway");
       setCurrentStep("summary");
 
-      if (editEstimate.scope_data) {
-        setScopeData({ ...initialScopeData, ...editEstimate.scope_data });
-      } else {
-        setScopeData(initialScopeData);
-      }
+      // Set selected scopes
       if (editEstimate.selected_scopes && Array.isArray(editEstimate.selected_scopes)) {
         setSelectedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
+        
+        // Migrate legacy scope data to new modular format
+        const migratedStates = migrateLegacyScopeData(
+          editEstimate.scope_data,
+          editEstimate.selected_scopes as ScopeType[]
+        );
+        setModularScopeStates(migratedStates);
       }
     } else {
       setCurrentStep("type");
@@ -348,18 +404,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
       setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
       setSelectedScopes(new Set());
-      setScopeData(initialScopeData);
+      setModularScopeStates({} as Record<ScopeType, ModularScopeState>);
       setActiveScopeIndex(0);
     }
-  }, [editEstimate, open, initialScopeData]);
-
-  // Update scope data with price list defaults
-  useEffect(() => {
-    if (!open || editEstimate) return;
-    if (currentStep !== "type") return;
-    if (selectedScopes.size > 0) return;
-    setScopeData(initialScopeData);
-  }, [open, editEstimate, currentStep, selectedScopes.size, initialScopeData]);
+  }, [editEstimate, open]);
 
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
   const progressPercent = ((currentStepIndex + 1) / STEP_ORDER.length) * 100;
@@ -414,6 +462,25 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     }
   };
 
+  // Build scope_data for saving (new modular format)
+  const buildScopeDataForSave = (): Record<string, any> => {
+    const data: Record<string, any> = {};
+    
+    for (const scopeType of selectedScopesArray) {
+      const state = modularScopeStates[scopeType];
+      if (state) {
+        data[scopeType] = {
+          scopeAnswers: state.scopeAnswers,
+          moduleAnswers: state.moduleAnswers,
+          customExclusions: state.customExclusions,
+          calculatedTotal: state.calculatedTotal,
+        };
+      }
+    }
+    
+    return data;
+  };
+
   // Save Draft mutation
   const saveDraftMutation = useMutation({
     mutationFn: async () => {
@@ -448,7 +515,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         total_amount: combinedTotal,
         estimate_type: estimateType || "driveway",
         status: "draft" as const,
-        scope_data: scopeData as unknown as Json,
+        scope_data: buildScopeDataForSave() as unknown as Json,
         selected_scopes: selectedScopesArray as unknown as Json,
         site_visit_date: formData.site_visit_date || null,
         follow_up_date: formData.follow_up_date || null,
@@ -537,7 +604,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         notes: fullNotes || null,
         created_by: user.id,
         estimate_type: estimateType || "driveway",
-        scope_data: JSON.parse(JSON.stringify(scopeData)) as Json,
+        scope_data: buildScopeDataForSave() as unknown as Json,
         selected_scopes: selectedScopesArray as unknown as Json,
         site_visit_date: formData.site_visit_date || null,
         follow_up_date: formData.follow_up_date || null,
@@ -588,10 +655,6 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     }));
   };
 
-  const updateScopeData = <K extends ScopeType>(scope: K, data: ScopeCalculatorData[K]) => {
-    setScopeData(prev => ({ ...prev, [scope]: data }));
-  };
-
   // Handler for modular calculator state changes
   const handleModularStateChange = useCallback((scopeType: ScopeType, state: {
     scopeAnswers: Record<string, any>;
@@ -611,48 +674,25 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   }, []);
 
   const renderScopeCalculator = (scope: ScopeType) => {
-    // Use new modular calculator for all scopes
-    if (useModularCalculator) {
-      const scopeDefinition = SCOPE_REGISTRY[scope];
-      if (scopeDefinition) {
-        const currentState = modularScopeStates[scope];
-        return (
-          <ModularCalculator
-            scope={scopeDefinition}
-            initialScopeAnswers={currentState?.scopeAnswers}
-            initialModuleAnswers={currentState?.moduleAnswers}
-            initialCustomExclusions={currentState?.customExclusions}
-            onStateChange={(state) => handleModularStateChange(scope, state)}
-          />
-        );
-      }
+    const scopeDefinition = SCOPE_REGISTRY[scope];
+    if (!scopeDefinition) {
+      return (
+        <Card className="p-8 text-center">
+          <p className="text-muted-foreground">Calculator not available for this scope type.</p>
+        </Card>
+      );
     }
-
-    // Legacy calculators fallback
-    switch (scope) {
-      case "piers":
-        return <PiersCalculator data={scopeData.piers} onChange={(data) => updateScopeData("piers", data)} />;
-      case "retaining_wall_footings":
-        return <RetainingWallCalculator data={scopeData.retaining_wall_footings} onChange={(data) => updateScopeData("retaining_wall_footings", data)} />;
-      case "strip_footings":
-        return <StripFootingsCalculator data={scopeData.strip_footings} onChange={(data) => updateScopeData("strip_footings", data)} />;
-      case "standard_slab":
-        return <StandardSlabCalculator data={scopeData.standard_slab} onChange={(data) => updateScopeData("standard_slab", data)} />;
-      case "raft_slab":
-        return <RaftSlabCalculator data={scopeData.raft_slab} onChange={(data) => updateScopeData("raft_slab", data)} />;
-      case "waffle_pod":
-        return <WafflePodCalculator data={scopeData.waffle_pod} onChange={(data) => updateScopeData("waffle_pod", data)} />;
-      case "suspended_slab":
-        return <SuspendedSlabCalculator data={scopeData.suspended_slab} onChange={(data) => updateScopeData("suspended_slab", data)} />;
-      case "driveway":
-        return <DrivewayCalculator data={scopeData.driveway} onChange={(data) => updateScopeData("driveway", data)} />;
-      case "paths_surrounds":
-        return <PathsSurroundsCalculator data={scopeData.paths_surrounds} onChange={(data) => updateScopeData("paths_surrounds", data)} />;
-      case "crossovers":
-        return <CrossoversCalculator data={scopeData.crossovers} onChange={(data) => updateScopeData("crossovers", data)} />;
-      default:
-        return null;
-    }
+    
+    const currentState = modularScopeStates[scope];
+    return (
+      <ModularCalculator
+        scope={scopeDefinition}
+        initialScopeAnswers={currentState?.scopeAnswers}
+        initialModuleAnswers={currentState?.moduleAnswers}
+        initialCustomExclusions={currentState?.customExclusions}
+        onStateChange={(state) => handleModularStateChange(scope, state)}
+      />
+    );
   };
 
   // Render wizard footer inline to avoid re-creating component on every render
