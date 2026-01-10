@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -8,7 +8,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Search, Check, ChevronDown } from "lucide-react";
+import { Search, Check, X } from "lucide-react";
 import { DEFAULT_PRICE_LIST, PRICE_LIST_CATEGORIES, PriceListItem } from "@/lib/price-list-defaults";
 
 interface PriceOverride {
@@ -26,6 +26,15 @@ export function OnboardingPriceList({ priceOverrides, onPriceOverridesChange }: 
   const [searchQuery, setSearchQuery] = useState("");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Focus input when editing starts
+  useEffect(() => {
+    if (editingKey && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingKey]);
 
   // Filter items based on search
   const filteredItems = DEFAULT_PRICE_LIST.filter(item =>
@@ -187,32 +196,55 @@ export function OnboardingPriceList({ priceOverrides, onPriceOverridesChange }: 
                           </div>
 
                           {/* Custom price input/display */}
-                          <div className="w-24">
+                          <div className="w-28">
                             {isEditing ? (
                               <div className="flex items-center gap-1">
                                 <Input
+                                  ref={inputRef}
                                   type="number"
                                   step="0.01"
                                   value={editValue}
                                   onChange={(e) => setEditValue(e.target.value)}
                                   className="h-7 text-sm w-16"
-                                  autoFocus
                                   onKeyDown={(e) => {
-                                    if (e.key === 'Enter') handleSaveEdit(item);
-                                    if (e.key === 'Escape') handleCancelEdit();
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleSaveEdit(item);
+                                    }
+                                    if (e.key === 'Escape') {
+                                      e.preventDefault();
+                                      handleCancelEdit();
+                                    }
                                   }}
-                                  onBlur={() => handleSaveEdit(item)}
                                 />
                                 <button
-                                  onClick={() => handleSaveEdit(item)}
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSaveEdit(item);
+                                  }}
                                   className="p-1 hover:bg-primary/20 rounded"
                                 >
                                   <Check className="w-3 h-3 text-primary" />
                                 </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleCancelEdit();
+                                  }}
+                                  className="p-1 hover:bg-destructive/20 rounded"
+                                >
+                                  <X className="w-3 h-3 text-destructive" />
+                                </button>
                               </div>
                             ) : (
                               <button
-                                onClick={() => handleStartEdit(item)}
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleStartEdit(item);
+                                }}
                                 className={`w-full text-right px-2 py-1 rounded text-xs font-medium transition-all ${
                                   hasCustomPrice
                                     ? 'bg-primary/20 text-primary border border-primary/30'
