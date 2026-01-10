@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { DollarSign, Download, Upload, Search, RefreshCw } from "lucide-react";
+import { Download, Upload, Search, RefreshCw } from "lucide-react";
 import { usePriceList } from "@/hooks/usePriceList";
 import { PriceListTable } from "./PriceListTable";
 import { PriceListImportDialog } from "./PriceListImportDialog";
@@ -17,13 +17,14 @@ export function PriceListSection() {
     priceListItems, 
     isLoading, 
     initializePriceList, 
+    resyncPriceList,
     updateItem, 
     resetToDefault, 
     bulkUpdate,
     getMergedPriceList,
   } = usePriceList();
 
-  // Initialize price list on first load
+  // Initialize or re-sync price list on first load
   useEffect(() => {
     if (!isLoading && (!priceListItems || priceListItems.length === 0)) {
       initializePriceList.mutate();
@@ -81,6 +82,15 @@ export function PriceListSection() {
               )}
             </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => resyncPriceList.mutate()}
+                disabled={resyncPriceList.isPending}
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${resyncPriceList.isPending ? 'animate-spin' : ''}`} />
+                Sync
+              </Button>
               <Button variant="outline" size="sm" onClick={handleExport}>
                 <Download className="w-4 h-4 mr-2" />
                 Export

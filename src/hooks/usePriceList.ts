@@ -69,6 +69,62 @@ export function usePriceList() {
     },
   });
 
+  // Re-sync price list with latest defaults (preserves custom prices)
+  const resyncPriceList = useMutation({
+    mutationFn: async () => {
+      if (!businessId) throw new Error('No business ID');
+
+      // Fetch current custom prices to preserve
+      const { data: currentItems } = await supabase
+        .from('price_list_items')
+        .select('item_code, category, custom_price, notes')
+        .eq('business_id', businessId);
+
+      const customPricesMap = new Map<string, { custom_price: number | null; notes: string | null }>();
+      currentItems?.forEach(item => {
+        if (item.custom_price !== null) {
+          customPricesMap.set(`${item.category}:${item.item_code}`, {
+            custom_price: item.custom_price,
+            notes: item.notes,
+          });
+        }
+      });
+
+      // Delete all existing items
+      const { error: deleteError } = await supabase
+        .from('price_list_items')
+        .delete()
+        .eq('business_id', businessId);
+
+      if (deleteError) throw deleteError;
+
+      // Insert fresh items from defaults, preserving custom prices
+      const itemsToInsert = DEFAULT_PRICE_LIST.map(item => {
+        const key = `${item.category}:${item.item_code}`;
+        const customData = customPricesMap.get(key);
+        return {
+          business_id: businessId,
+          ...item,
+          custom_price: customData?.custom_price ?? null,
+          notes: customData?.notes ?? null,
+        };
+      });
+
+      const { error: insertError } = await supabase
+        .from('price_list_items')
+        .insert(itemsToInsert);
+
+      if (insertError) throw insertError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['price-list', businessId] });
+      toast.success('Price list synced with latest catalog');
+    },
+    onError: (error) => {
+      toast.error('Failed to sync price list: ' + error.message);
+    },
+  });
+
   // Update a single price list item
   const updateItem = useMutation({
     mutationFn: async ({ id, custom_price, notes }: { id: string; custom_price: number | null; notes?: string | null }) => {
@@ -165,6 +221,7 @@ export function usePriceList() {
     isLoading,
     refetch,
     initializePriceList,
+    resyncPriceList,
     updateItem,
     resetToDefault,
     bulkUpdate,
