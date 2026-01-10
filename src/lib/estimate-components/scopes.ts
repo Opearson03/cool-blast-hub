@@ -475,9 +475,9 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
 /**
  * Retaining Wall Scope Definition
  */
-export const RETAINING_WALL_SCOPE: ScopeDefinition = {
-  id: 'retaining_wall',
-  name: 'Retaining Wall',
+export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
+  id: 'retaining_wall_footings',
+  name: 'Retaining Wall Footings',
   description: 'Retaining wall footing foundations',
   icon: 'brick-wall',
   questions: [
@@ -526,8 +526,8 @@ export const RETAINING_WALL_SCOPE: ScopeDefinition = {
     return length * widthM * depthM;
   },
   defaultExclusions: [
-    { id: 'engineering', text: 'Engineering design and certification', moduleId: 'retaining_wall' },
-    { id: 'wall', text: 'Retaining wall construction (footing only)', moduleId: 'retaining_wall' },
+    { id: 'engineering', text: 'Engineering design and certification', moduleId: 'retaining_wall_footings' },
+    { id: 'wall', text: 'Retaining wall construction (footing only)', moduleId: 'retaining_wall_footings' },
   ],
 };
 
@@ -597,7 +597,7 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
   ],
 };
 
-// Registry of all scopes
+// Registry of all scopes - keys must match ScopeType in ScopeSelector.tsx
 export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   piers: PIERS_SCOPE,
   standard_slab: STANDARD_SLAB_SCOPE,
@@ -607,7 +607,7 @@ export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   crossovers: CROSSOVERS_SCOPE,
   paths_surrounds: PATHS_SURROUNDS_SCOPE,
   strip_footings: STRIP_FOOTINGS_SCOPE,
-  retaining_wall: RETAINING_WALL_SCOPE,
+  retaining_wall_footings: RETAINING_WALL_FOOTINGS_SCOPE,
   suspended_slab: SUSPENDED_SLAB_SCOPE,
 };
 

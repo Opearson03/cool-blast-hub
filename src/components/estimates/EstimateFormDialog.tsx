@@ -37,6 +37,11 @@ import { cn } from "@/lib/utils";
 
 import { EstimateType } from "./EstimateTypeSelector";
 import { ScopeType, SCOPE_OPTIONS } from "./ScopeSelector";
+import { ModularCalculator } from "./calculators/ModularCalculator";
+import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
+import { EstimateState, ComponentCost, ExclusionItem } from "@/lib/estimate-components/types";
+
+// Legacy calculator imports - kept for backwards compatibility with existing estimates
 import { PiersCalculator, PiersData, initialPiersData, calculatePiersTotals } from "./calculators/PiersCalculator";
 import { WafflePodCalculator, WafflePodData, initialWafflePodData, calculateWafflePodTotals } from "./calculators/WafflePodCalculator";
 import { RetainingWallCalculator, RetainingWallData, initialRetainingWallData, calculateRetainingWallTotals } from "./calculators/RetainingWallCalculator";
@@ -123,6 +128,7 @@ const DEFAULT_EXCLUSIONS = [
   { id: "exc_engineering", label: "Engineering certification" },
 ];
 
+// Legacy interface - kept for backwards compatibility
 export interface ScopeCalculatorData {
   piers: PiersData;
   retaining_wall_footings: RetainingWallData;
@@ -148,6 +154,14 @@ const defaultScopeData: ScopeCalculatorData = {
   paths_surrounds: initialPathsSurroundsData,
   crossovers: initialCrossoversData,
 };
+
+// New modular calculator state type
+export interface ModularScopeState {
+  scopeAnswers: Record<string, any>;
+  moduleAnswers: Record<string, Record<string, any>>;
+  customExclusions: ExclusionItem[];
+  calculatedTotal: number;
+}
 
 // Step definitions for clarity
 type WizardStep = 
@@ -186,8 +200,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   
   const [selectedScopes, setSelectedScopes] = useState<Set<ScopeType>>(new Set());
   const [scopeData, setScopeData] = useState<ScopeCalculatorData>(defaultScopeData);
+  const [modularScopeStates, setModularScopeStates] = useState<Record<ScopeType, ModularScopeState>>({} as Record<ScopeType, ModularScopeState>);
   const [activeScopeIndex, setActiveScopeIndex] = useState(0);
   const scopeContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Flag to determine if we use new modular calculator
+  const useModularCalculator = true;
   
   // Scroll to top when changing scope
   useEffect(() => {
@@ -217,49 +235,64 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       crossovers: { total: 0, description: "" },
     };
 
-    if (selectedScopes.has("piers")) {
-      const calcs = calculatePiersTotals(scopeData.piers);
-      totals.piers = { total: calcs.grandTotal, description: `${scopeData.piers.piers.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)} piers` };
-    }
-    if (selectedScopes.has("retaining_wall_footings")) {
-      const calcs = calculateRetainingWallTotals(scopeData.retaining_wall_footings);
-      totals.retaining_wall_footings = { total: calcs.grandTotal, description: `${scopeData.retaining_wall_footings.footings.length} footing types` };
-    }
-    if (selectedScopes.has("strip_footings")) {
-      const calcs = calculateStripFootingsTotals(scopeData.strip_footings);
-      totals.strip_footings = { total: calcs.grandTotal, description: `${calcs.totalLength.toFixed(1)}m strip footings` };
-    }
-    if (selectedScopes.has("standard_slab")) {
-      const calcs = calculateStandardSlabTotals(scopeData.standard_slab);
-      totals.standard_slab = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² standard slab` };
-    }
-    if (selectedScopes.has("raft_slab")) {
-      const calcs = calculateRaftSlabTotals(scopeData.raft_slab);
-      totals.raft_slab = { total: calcs.grandTotal, description: `${calcs.raftArea.toFixed(1)}m² slab` };
-    }
-    if (selectedScopes.has("waffle_pod")) {
-      const calcs = calculateWafflePodTotals(scopeData.waffle_pod);
-      totals.waffle_pod = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² waffle pod` };
-    }
-    if (selectedScopes.has("suspended_slab")) {
-      const calcs = calculateSuspendedSlabTotals(scopeData.suspended_slab);
-      totals.suspended_slab = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² suspended slab` };
-    }
-    if (selectedScopes.has("driveway")) {
-      const calcs = calculateStandardSlabTotals(scopeData.driveway);
-      totals.driveway = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² driveway` };
-    }
-    if (selectedScopes.has("paths_surrounds")) {
-      const calcs = calculatePathsSurroundsTotals(scopeData.paths_surrounds);
-      totals.paths_surrounds = { total: calcs.grandTotal, description: `${scopeData.paths_surrounds.sections.length} path sections` };
-    }
-    if (selectedScopes.has("crossovers")) {
-      const calcs = calculateCrossoversTotals(scopeData.crossovers);
-      totals.crossovers = { total: calcs.grandTotal, description: `${scopeData.crossovers.crossovers.length} crossovers` };
+    // Use modular calculator totals when available
+    if (useModularCalculator) {
+      for (const scopeType of Array.from(selectedScopes)) {
+        const state = modularScopeStates[scopeType];
+        if (state?.calculatedTotal > 0) {
+          const scopeDef = SCOPE_REGISTRY[scopeType];
+          totals[scopeType] = { 
+            total: state.calculatedTotal, 
+            description: scopeDef?.name || scopeType 
+          };
+        }
+      }
+    } else {
+      // Legacy calculator totals
+      if (selectedScopes.has("piers")) {
+        const calcs = calculatePiersTotals(scopeData.piers);
+        totals.piers = { total: calcs.grandTotal, description: `${scopeData.piers.piers.reduce((sum, p) => sum + (parseInt(p.quantity) || 0), 0)} piers` };
+      }
+      if (selectedScopes.has("retaining_wall_footings")) {
+        const calcs = calculateRetainingWallTotals(scopeData.retaining_wall_footings);
+        totals.retaining_wall_footings = { total: calcs.grandTotal, description: `${scopeData.retaining_wall_footings.footings.length} footing types` };
+      }
+      if (selectedScopes.has("strip_footings")) {
+        const calcs = calculateStripFootingsTotals(scopeData.strip_footings);
+        totals.strip_footings = { total: calcs.grandTotal, description: `${calcs.totalLength.toFixed(1)}m strip footings` };
+      }
+      if (selectedScopes.has("standard_slab")) {
+        const calcs = calculateStandardSlabTotals(scopeData.standard_slab);
+        totals.standard_slab = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² standard slab` };
+      }
+      if (selectedScopes.has("raft_slab")) {
+        const calcs = calculateRaftSlabTotals(scopeData.raft_slab);
+        totals.raft_slab = { total: calcs.grandTotal, description: `${calcs.raftArea.toFixed(1)}m² slab` };
+      }
+      if (selectedScopes.has("waffle_pod")) {
+        const calcs = calculateWafflePodTotals(scopeData.waffle_pod);
+        totals.waffle_pod = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² waffle pod` };
+      }
+      if (selectedScopes.has("suspended_slab")) {
+        const calcs = calculateSuspendedSlabTotals(scopeData.suspended_slab);
+        totals.suspended_slab = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² suspended slab` };
+      }
+      if (selectedScopes.has("driveway")) {
+        const calcs = calculateStandardSlabTotals(scopeData.driveway);
+        totals.driveway = { total: calcs.grandTotal, description: `${calcs.slabArea.toFixed(1)}m² driveway` };
+      }
+      if (selectedScopes.has("paths_surrounds")) {
+        const calcs = calculatePathsSurroundsTotals(scopeData.paths_surrounds);
+        totals.paths_surrounds = { total: calcs.grandTotal, description: `${scopeData.paths_surrounds.sections.length} path sections` };
+      }
+      if (selectedScopes.has("crossovers")) {
+        const calcs = calculateCrossoversTotals(scopeData.crossovers);
+        totals.crossovers = { total: calcs.grandTotal, description: `${scopeData.crossovers.crossovers.length} crossovers` };
+      }
     }
 
     return totals;
-  }, [selectedScopes, scopeData]);
+  }, [selectedScopes, scopeData, modularScopeStates, useModularCalculator]);
 
   const combinedTotal = useMemo(() => {
     return selectedScopesArray.reduce((sum, scope) => sum + scopeTotals[scope].total, 0);
@@ -559,7 +592,43 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     setScopeData(prev => ({ ...prev, [scope]: data }));
   };
 
+  // Handler for modular calculator state changes
+  const handleModularStateChange = useCallback((scopeType: ScopeType, state: {
+    scopeAnswers: Record<string, any>;
+    moduleAnswers: Record<string, Record<string, any>>;
+    customExclusions: ExclusionItem[];
+    total: number;
+  }) => {
+    setModularScopeStates(prev => ({
+      ...prev,
+      [scopeType]: {
+        scopeAnswers: state.scopeAnswers,
+        moduleAnswers: state.moduleAnswers,
+        customExclusions: state.customExclusions,
+        calculatedTotal: state.total,
+      },
+    }));
+  }, []);
+
   const renderScopeCalculator = (scope: ScopeType) => {
+    // Use new modular calculator for all scopes
+    if (useModularCalculator) {
+      const scopeDefinition = SCOPE_REGISTRY[scope];
+      if (scopeDefinition) {
+        const currentState = modularScopeStates[scope];
+        return (
+          <ModularCalculator
+            scope={scopeDefinition}
+            initialScopeAnswers={currentState?.scopeAnswers}
+            initialModuleAnswers={currentState?.moduleAnswers}
+            initialCustomExclusions={currentState?.customExclusions}
+            onStateChange={(state) => handleModularStateChange(scope, state)}
+          />
+        );
+      }
+    }
+
+    // Legacy calculators fallback
     switch (scope) {
       case "piers":
         return <PiersCalculator data={scopeData.piers} onChange={(data) => updateScopeData("piers", data)} />;

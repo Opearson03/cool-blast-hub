@@ -2,7 +2,7 @@ import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceM
 import { getPrice } from '../types';
 
 export const concreteSupplyModule: EstimateModule = {
-  id: 'concrete_supply',
+  id: 'concrete-supply',
   name: 'Concrete Supply',
   description: 'Readymix concrete, testing, and waiting time',
   icon: 'Droplets',
@@ -163,7 +163,7 @@ export const concreteSupplyModule: EstimateModule = {
     }
 
     return {
-      moduleId: 'concrete_supply',
+      moduleId: 'concrete-supply',
       moduleName: 'Concrete Supply',
       lineItems,
       subtotal: Math.round(subtotal * 100) / 100,
@@ -178,7 +178,7 @@ export const concreteSupplyModule: EstimateModule = {
       exclusions.push({
         id: 'no_testing',
         text: 'Concrete testing is not included.',
-        moduleId: 'concrete_supply',
+        moduleId: 'concrete-supply',
       });
     }
 
