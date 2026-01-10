@@ -8,11 +8,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Users, Briefcase, CheckCircle, ArrowRight, ArrowLeft, Palette, Upload, FileText } from "lucide-react";
+import { Loader2, Building2, Users, Briefcase, CheckCircle, ArrowRight, ArrowLeft, Palette, Upload, FileText, DollarSign } from "lucide-react";
+import { OnboardingPriceList } from "./OnboardingPriceList";
+import { DEFAULT_PRICE_LIST } from "@/lib/price-list-defaults";
 
 interface OnboardingWizardProps {
   businessId: string;
   onComplete: () => void;
+}
+
+interface PriceOverride {
+  category: string;
+  item_code: string;
+  custom_price: number;
 }
 
 export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardProps) {
@@ -34,11 +42,14 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
   const [quoteSecondaryColor, setQuoteSecondaryColor] = useState("#1f2937");
   const [uploading, setUploading] = useState(false);
 
+  // Price list overrides
+  const [priceOverrides, setPriceOverrides] = useState<PriceOverride[]>([]);
+
   // Invite employee
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
 
-  const totalSteps = 4;
+  const totalSteps = 5;
 
   const handleSaveBusinessDetails = async () => {
     setLoading(true);
@@ -125,9 +136,52 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
     }
   };
 
+  const handleSavePriceList = async () => {
+    setLoading(true);
+    try {
+      // First, initialize the price list with defaults
+      const itemsToInsert = DEFAULT_PRICE_LIST.map(item => {
+        const override = priceOverrides.find(
+          o => o.category === item.category && o.item_code === item.item_code
+        );
+        return {
+          business_id: businessId,
+          category: item.category,
+          item_code: item.item_code,
+          item_name: item.item_name,
+          unit: item.unit,
+          default_price: item.default_price,
+          custom_price: override?.custom_price ?? null,
+          notes: null,
+        };
+      });
+
+      const { error } = await supabase
+        .from('price_list_items')
+        .insert(itemsToInsert);
+
+      if (error) throw error;
+
+      await supabase
+        .from("businesses")
+        .update({ onboarding_step: 4 })
+        .eq("id", businessId);
+
+      setStep(4);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleInviteEmployee = async () => {
     if (!inviteEmail || !inviteName) {
-      setStep(4);
+      setStep(5);
       return;
     }
 
@@ -152,10 +206,10 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
 
       await supabase
         .from("businesses")
-        .update({ onboarding_step: 4 })
+        .update({ onboarding_step: 5 })
         .eq("id", businessId);
 
-      setStep(4);
+      setStep(5);
     } catch (error: any) {
       toast({
         title: "Error",
@@ -174,7 +228,7 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
         .from("businesses")
         .update({
           onboarding_completed: true,
-          onboarding_step: 4,
+          onboarding_step: 5,
         })
         .eq("id", businessId);
 
@@ -428,8 +482,43 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
           </div>
         )}
 
-        {/* Step 3: Invite Employee */}
+        {/* Step 3: My Price List */}
         {step === 3 && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold">My Price List</h3>
+                <p className="text-sm text-muted-foreground">Set your rates for estimates</p>
+              </div>
+            </div>
+
+            <OnboardingPriceList
+              priceOverrides={priceOverrides}
+              onPriceOverridesChange={setPriceOverrides}
+            />
+
+            <div className="flex gap-2 pt-4">
+              <Button variant="outline" onClick={() => setStep(2)} disabled={loading}>
+                <ArrowLeft className="mr-2 w-4 h-4" />
+                Back
+              </Button>
+              <Button variant="ghost" onClick={skipStep} disabled={loading}>
+                Skip
+              </Button>
+              <Button onClick={handleSavePriceList} disabled={loading} className="flex-1">
+                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Continue
+                <ArrowRight className="ml-2 w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 4: Invite Employee */}
+        {step === 4 && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
@@ -464,7 +553,7 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
               </div>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button variant="outline" onClick={() => setStep(2)} disabled={loading}>
+              <Button variant="outline" onClick={() => setStep(3)} disabled={loading}>
                 <ArrowLeft className="mr-2 w-4 h-4" />
                 Back
               </Button>
@@ -480,8 +569,8 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
           </div>
         )}
 
-        {/* Step 4: Complete */}
-        {step === 4 && (
+        {/* Step 5: Complete */}
+        {step === 5 && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
@@ -513,7 +602,7 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
               </Card>
             </div>
             <div className="flex gap-2 pt-4">
-              <Button variant="outline" onClick={() => setStep(3)} disabled={loading}>
+              <Button variant="outline" onClick={() => setStep(4)} disabled={loading}>
                 <ArrowLeft className="mr-2 w-4 h-4" />
                 Back
               </Button>
