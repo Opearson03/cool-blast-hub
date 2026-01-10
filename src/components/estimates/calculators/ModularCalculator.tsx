@@ -135,7 +135,7 @@ export function ModularCalculator({
     };
   }, [scopeAnswers, scopeVolume]);
 
-  // Apply derived values when scope data or module answers change
+  // Apply derived values and auto-fill from price list when fields become visible
   useEffect(() => {
     if (priceListLoading || !priceListItems) return;
 
@@ -146,11 +146,15 @@ export function ModularCalculator({
       const currentModuleAnswers = moduleAnswers[module.id] || {};
       
       module.questions.forEach((question) => {
-        if (question.deriveFrom) {
-          // Check if user has manually overridden this field
-          const isOverridden = userOverrides[module.id]?.has(question.id);
-          
-          if (!isOverridden) {
+        // Check if user has manually overridden this field
+        const isOverridden = userOverrides[module.id]?.has(question.id);
+        
+        // Check if field is visible (using showIf)
+        const isVisible = !question.showIf || question.showIf(currentModuleAnswers);
+        
+        if (!isOverridden && isVisible) {
+          // Handle deriveFrom values
+          if (question.deriveFrom) {
             const derivedValue = question.deriveFrom(scopeData, currentModuleAnswers, priceMap);
             
             // Only update if derived value is defined and different from current
@@ -165,6 +169,22 @@ export function ModularCalculator({
               hasChanges = true;
             }
           }
+          
+          // Handle priceListKey auto-fill when field becomes visible
+          if (question.priceListKey && currentModuleAnswers[question.id] === undefined) {
+            const [category, itemCode] = question.priceListKey.split('.');
+            const price = priceMap[category]?.[itemCode];
+            if (price !== undefined) {
+              if (!newModuleAnswers[module.id]) {
+                newModuleAnswers[module.id] = {};
+              }
+              newModuleAnswers[module.id] = {
+                ...newModuleAnswers[module.id],
+                [question.id]: price,
+              };
+              hasChanges = true;
+            }
+          }
         }
       });
     });
@@ -172,7 +192,7 @@ export function ModularCalculator({
     if (hasChanges) {
       setModuleAnswers(newModuleAnswers);
     }
-  }, [scopeData, priceMap, modules, priceListLoading, priceListItems, userOverrides]);
+  }, [scopeData, priceMap, modules, priceListLoading, priceListItems, userOverrides, moduleAnswers]);
 
   // Calculate costs for each module
   const moduleCosts = useMemo<ComponentCost[]>(() => {

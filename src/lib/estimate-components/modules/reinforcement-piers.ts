@@ -142,6 +142,7 @@ export const reinforcementPiersModule: EstimateModule = {
       type: 'currency',
       label: 'Reo delivery charge',
       defaultValue: 150,
+      priceListKey: 'rebar.REO DELIVERY',
       showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
     },
     {

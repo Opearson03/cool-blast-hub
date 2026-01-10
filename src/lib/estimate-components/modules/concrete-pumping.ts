@@ -124,20 +124,14 @@ export const concretePumpingModule: EstimateModule = {
       showIf: (answers) => answers.pump_required === true && answers.additional_pumpy === true,
     },
     {
-      id: 'charge_per_m3',
-      type: 'boolean',
-      label: 'Apply per-m³ pumping charge?',
-      defaultValue: true,
-      showIf: (answers) => answers.pump_required === true,
-    },
-    {
       id: 'm3_rate',
       type: 'currency',
       label: 'Pumping charge per m³',
       defaultValue: 8,
       priceListKey: 'pumping.PUMP M3',
       unit: '/m³',
-      showIf: (answers) => answers.pump_required === true && answers.charge_per_m3 === true,
+      helpText: 'Always applied when pumping is required',
+      showIf: (answers) => answers.pump_required === true,
     },
   ],
 
@@ -240,34 +234,32 @@ export const concretePumpingModule: EstimateModule = {
       subtotal += pumpyCost;
     }
 
-    // Per m³ charge
-    if (answers.charge_per_m3) {
-      let volume = Number(scopeData.concrete_volume) || 0;
-      
-      // Calculate volume for piers if scope provides dimensions
-      if (scopeData.num_piers && scopeData.diameter && scopeData.depth) {
-        const numPiers = Number(scopeData.num_piers);
-        const diameter = Number(scopeData.diameter) / 1000;
-        const depth = Number(scopeData.depth) / 1000;
-        const radius = diameter / 2;
-        volume = numPiers * Math.PI * radius * radius * depth;
-      }
+    // Per m³ charge - always applied when pumping is required
+    let volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
+    
+    // Calculate volume for piers if scope provides dimensions
+    if (scopeData.num_piers && scopeData.diameter && scopeData.depth) {
+      const numPiers = Number(scopeData.num_piers);
+      const diameter = Number(scopeData.diameter) / 1000;
+      const depth = Number(scopeData.depth) / 1000;
+      const radius = diameter / 2;
+      volume = numPiers * Math.PI * radius * radius * depth;
+    }
 
-      if (volume > 0) {
-        const m3Rate = Number(answers.m3_rate) || getPrice(priceMap, 'pumping', 'PUMP M3', 8);
-        const m3Cost = volume * m3Rate;
+    if (volume > 0) {
+      const m3Rate = Number(answers.m3_rate) || getPrice(priceMap, 'pumping', 'PUMP M3', 8);
+      const m3Cost = volume * m3Rate;
 
-        lineItems.push({
-          id: 'pump_per_m3',
-          description: `Pumping Charge (${volume.toFixed(2)} m³)`,
-          quantity: Math.round(volume * 100) / 100,
-          unit: 'm³',
-          unitPrice: m3Rate,
-          total: Math.round(m3Cost * 100) / 100,
-          category: 'plant',
-        });
-        subtotal += m3Cost;
-      }
+      lineItems.push({
+        id: 'pump_per_m3',
+        description: `Pumping Charge (${volume.toFixed(2)} m³)`,
+        quantity: Math.round(volume * 100) / 100,
+        unit: 'm³',
+        unitPrice: m3Rate,
+        total: Math.round(m3Cost * 100) / 100,
+        category: 'plant',
+      });
+      subtotal += m3Cost;
     }
 
     return {
