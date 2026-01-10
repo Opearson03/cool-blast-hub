@@ -55,6 +55,18 @@ serve(async (req) => {
     if (profileData?.business_id) {
       logStep("Found user business", { businessId: profileData.business_id });
       
+      // Check if business is subscription exempt (demo accounts)
+      const { data: businessData } = await supabaseClient
+        .from("businesses")
+        .select("subscription_exempt")
+        .eq("id", profileData.business_id)
+        .single();
+      
+      if (businessData?.subscription_exempt) {
+        logStep("Business is subscription exempt, customer portal not available");
+        throw new Error("Subscription management is not available for demo accounts.");
+      }
+      
       const { data: subscriptionData } = await supabaseClient
         .from("business_subscriptions")
         .select("stripe_customer_id")
