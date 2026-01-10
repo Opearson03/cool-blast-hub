@@ -604,6 +604,86 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
   ],
 };
 
+/**
+ * Architectural Concrete Scope Definition
+ * Custom elements: benchtops, garden walls, tables, seats, planters
+ */
+export const ARCHITECTURAL_CONCRETE_SCOPE: ScopeDefinition = {
+  id: 'architectural_concrete',
+  name: 'Architectural Concrete',
+  description: 'Custom concrete elements: benchtops, walls, furniture',
+  icon: 'gem',
+  questions: [
+    {
+      id: 'item_types',
+      type: 'text',
+      label: 'Item Types (comma-separated)',
+      required: true,
+      placeholder: 'e.g., Bench Tops, Garden Walls, Tables',
+      helpText: 'List the types of items to quote',
+    },
+    {
+      id: 'total_items',
+      type: 'number',
+      label: 'Total Number of Items',
+      required: true,
+      min: 1,
+      defaultValue: 1,
+    },
+    {
+      id: 'total_volume',
+      type: 'number',
+      label: 'Total Concrete Volume (m³)',
+      required: true,
+      min: 0.01,
+      defaultValue: 0.1,
+      unit: 'm³',
+      helpText: 'Combined volume of all items',
+    },
+    {
+      id: 'total_surface_area',
+      type: 'number',
+      label: 'Total Surface Area to Finish (m²)',
+      required: true,
+      min: 0.1,
+      defaultValue: 2,
+      unit: 'm²',
+      helpText: 'Combined exposed surface area',
+    },
+    {
+      id: 'complexity',
+      type: 'select',
+      label: 'Overall Complexity',
+      required: true,
+      options: [
+        { value: 'simple', label: 'Simple (rectangular, standard forms)' },
+        { value: 'moderate', label: 'Moderate (curves, angles, cutouts)' },
+        { value: 'complex', label: 'Complex (intricate shapes, multiple levels)' },
+      ],
+    },
+  ],
+  moduleIds: [
+    'architectural-formwork',
+    'reinforcement',
+    'concrete-supply',
+    'concrete-placement',
+    'concrete-pumping',
+    'architectural-finishing',
+    'cleanup',
+    'sundries',
+    'margin',
+  ],
+  calculateVolume: (answers) => {
+    return Number(answers.total_volume) || 0.1;
+  },
+  defaultExclusions: [
+    { id: 'engineering', text: 'Structural engineering certification', moduleId: 'architectural_concrete' },
+    { id: 'installation', text: 'Installation and fixing to substrate', moduleId: 'architectural_concrete' },
+    { id: 'delivery', text: 'Delivery of finished items to site', moduleId: 'architectural_concrete' },
+    { id: 'craneage', text: 'Crane hire for heavy items', moduleId: 'architectural_concrete' },
+  ],
+};
+
 // Registry of all scopes - keys must match ScopeType in ScopeSelector.tsx
 export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   piers: PIERS_SCOPE,
@@ -616,6 +696,7 @@ export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   strip_footings: STRIP_FOOTINGS_SCOPE,
   retaining_wall_footings: RETAINING_WALL_FOOTINGS_SCOPE,
   suspended_slab: SUSPENDED_SLAB_SCOPE,
+  architectural_concrete: ARCHITECTURAL_CONCRETE_SCOPE,
 };
 
 // Get scope by ID
