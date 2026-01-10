@@ -1,10 +1,10 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
 
-export const reinforcementModule: EstimateModule = {
-  id: 'reinforcement',
+export const reinforcementPiersModule: EstimateModule = {
+  id: 'reinforcement-piers',
   name: 'Reinforcement',
-  description: 'Rebar, starter bars, vertical bars, and ligatures',
+  description: 'Starter bars, vertical bars, and ligatures for piers',
   icon: 'Grid3X3',
 
   questions: [
@@ -301,7 +301,7 @@ export const reinforcementModule: EstimateModule = {
     }
 
     return {
-      moduleId: 'reinforcement',
+      moduleId: 'reinforcement-piers',
       moduleName: 'Reinforcement',
       lineItems,
       subtotal: Math.round(subtotal * 100) / 100,
@@ -316,7 +316,7 @@ export const reinforcementModule: EstimateModule = {
       exclusions.push({
         id: 'no_reinforcement',
         text: 'Reinforcement and starter bars are not included in this quote.',
-        moduleId: 'reinforcement',
+        moduleId: 'reinforcement-piers',
       });
     }
 
