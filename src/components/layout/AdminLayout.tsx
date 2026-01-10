@@ -2,13 +2,14 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, FileText, Settings, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, FileText, Settings, LogOut, Menu, X, MessageSquareHeart } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useThemeOnAuth } from "@/hooks/useThemeOnAuth";
 import { usePlatform } from "@/hooks/usePlatform";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -110,7 +111,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-2">
+          <FeedbackDialog
+            trigger={
+              <Button variant="ghost" className="w-full justify-start gap-3 text-muted-foreground hover:text-foreground">
+                <MessageSquareHeart className="w-5 h-5" />
+                Send Feedback
+              </Button>
+            }
+          />
           <Button variant="ghost" onClick={handleLogout} className="w-full justify-start gap-3">
             <LogOut className="w-5 h-5" />
             Sign Out
