@@ -18,6 +18,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
 import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
+import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracker";
 
 type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
 type EstimateType = "driveway" | "house_slab" | "commercial_slab";
@@ -433,6 +434,11 @@ export default function AdminEstimates() {
                         </Badge>
                       </div>
                       
+                      {/* Draft Progress Tracker */}
+                      {estimate.status === "draft" && (
+                        <DraftProgressTracker estimate={estimate} variant="compact" />
+                      )}
+                      
                       {estimate.description && <p className="text-sm line-clamp-1">{estimate.description}</p>}
                       <p className="text-xs text-muted-foreground">{estimate.site_address}</p>
                       
@@ -534,10 +540,16 @@ export default function AdminEstimates() {
                           <td className="p-4 max-w-[250px] truncate">{estimate.description || "-"}</td>
                           <td className="p-4 font-semibold">{formatCurrency(estimate.total_amount || 0)}</td>
                           <td className="p-4">
-                            <Badge variant={statusConfig[estimate.status].variant} className="gap-1">
-                              <StatusIcon className="w-3 h-3" />
-                              {statusConfig[estimate.status].label}
-                            </Badge>
+                            {estimate.status === "draft" ? (
+                              <div className="min-w-[140px]">
+                                <DraftProgressTracker estimate={estimate} variant="compact" />
+                              </div>
+                            ) : (
+                              <Badge variant={statusConfig[estimate.status].variant} className="gap-1">
+                                <StatusIcon className="w-3 h-3" />
+                                {statusConfig[estimate.status].label}
+                              </Badge>
+                            )}
                           </td>
                           <td className="p-4 text-muted-foreground">{formatDate(estimate.created_at)}</td>
                           <td className="p-4 text-muted-foreground">{formatDate(estimate.valid_until)}</td>
