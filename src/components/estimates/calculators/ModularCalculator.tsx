@@ -6,6 +6,7 @@ import {
   ComponentCost,
   ExclusionItem,
   PriceMap,
+  MeasurementArea,
   createPriceMap,
 } from "@/lib/estimate-components/types";
 import { MODULE_REGISTRY } from "@/lib/estimate-components/modules";
@@ -13,6 +14,7 @@ import { usePriceList } from "@/hooks/usePriceList";
 import { ModuleSection } from "./ModuleSection";
 import { ModularCostSummary } from "./ModularCostSummary";
 import { ExclusionsSummary } from "./ExclusionsSummary";
+import { MultiAreaInput } from "./MultiAreaInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -56,6 +58,12 @@ export function ModularCalculator({
         defaults[q.id] = q.defaultValue;
       }
     });
+    
+    // Initialize areas array for multi-area scopes
+    if (scope.supportsMultipleAreas && !initialScopeAnswers.areas) {
+      defaults.areas = [{ id: 'area-1', name: 'Area 1', length: 0, width: 0 }];
+    }
+    
     return { ...defaults, ...initialScopeAnswers };
   });
 
@@ -274,6 +282,32 @@ export function ModularCalculator({
     setScopeAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
+  // Handler for multi-area changes
+  const handleAreasChange = (areas: MeasurementArea[]) => {
+    // Calculate combined area and perimeter from areas
+    const totalArea = areas.reduce((sum, area) => {
+      const l = Number(area.length) || 0;
+      const w = Number(area.width) || 0;
+      return sum + l * w;
+    }, 0);
+    
+    const totalPerimeter = areas.reduce((sum, area) => {
+      const l = Number(area.length) || 0;
+      const w = Number(area.width) || 0;
+      if (l > 0 && w > 0) {
+        return sum + 2 * (l + w);
+      }
+      return sum;
+    }, 0);
+    
+    setScopeAnswers((prev) => ({
+      ...prev,
+      areas,
+      area: totalArea,
+      perimeter: totalPerimeter,
+    }));
+  };
+
   const handleModuleAnswerChange = (moduleId: string, questionId: string, value: any, isUserInput = true) => {
     // When user manually changes a derived field, mark it as overridden
     const module = modules.find((m) => m.id === moduleId);
@@ -328,29 +362,48 @@ export function ModularCalculator({
         </AlertDescription>
       </Alert>
 
-      {/* Scope-level questions (dimensions) */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">{scope.name} Dimensions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {scope.questions.map((question) => (
-              <ScopeQuestionInput
-                key={question.id}
-                question={question}
-                value={scopeAnswers[question.id]}
-                onChange={(val) => handleScopeAnswerChange(question.id, val)}
-              />
-            ))}
-          </div>
-          {scopeVolume > 0 && (
-            <p className="mt-4 text-sm text-muted-foreground">
-              Calculated Volume: <span className="font-medium">{scopeVolume.toFixed(2)} m³</span>
-            </p>
-          )}
-        </CardContent>
-      </Card>
+      {/* Multi-area input OR standard scope-level questions */}
+      {scope.supportsMultipleAreas ? (
+        <MultiAreaInput
+          label={scope.areasLabel || `${scope.name} Areas`}
+          areas={scopeAnswers.areas || [{ id: 'area-1', name: 'Area 1', length: 0, width: 0 }]}
+          onChange={handleAreasChange}
+          thickness={scopeAnswers.thickness || scope.questions.find(q => q.id === 'thickness')?.defaultValue || 100}
+          onThicknessChange={(val) => handleScopeAnswerChange('thickness', val)}
+          thicknessDefault={scope.questions.find(q => q.id === 'thickness')?.defaultValue as number || 100}
+          thicknessMin={scope.questions.find(q => q.id === 'thickness')?.min || 50}
+        />
+      ) : (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{scope.name} Dimensions</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {scope.questions.map((question) => (
+                <ScopeQuestionInput
+                  key={question.id}
+                  question={question}
+                  value={scopeAnswers[question.id]}
+                  onChange={(val) => handleScopeAnswerChange(question.id, val)}
+                />
+              ))}
+            </div>
+            {scopeVolume > 0 && (
+              <p className="mt-4 text-sm text-muted-foreground">
+                Calculated Volume: <span className="font-medium">{scopeVolume.toFixed(2)} m³</span>
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Show calculated volume for multi-area scopes */}
+      {scope.supportsMultipleAreas && scopeVolume > 0 && (
+        <p className="text-sm text-muted-foreground -mt-4 px-1">
+          Calculated Volume: <span className="font-medium">{scopeVolume.toFixed(2)} m³</span>
+        </p>
+      )}
 
       {/* Main content grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

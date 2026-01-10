@@ -22,6 +22,8 @@ export interface ScopeBreakdown {
   volume: number;
   area?: number;
   details: string;
+  /** Individual areas for multi-area scopes */
+  areas?: Array<{ name: string; length: number; width: number; area: number }>;
 }
 
 export interface QuoteLineItem {
@@ -96,11 +98,16 @@ export function extractProjectSummary(
       summary.totalVolume += Number(scopeAnswers.volume) || 0;
     }
     
-    // Extract area
-    if (scopeAnswers.area) {
+    // Extract area - check for multi-area format first
+    if (scopeAnswers.areas && Array.isArray(scopeAnswers.areas)) {
+      summary.totalArea += scopeAnswers.areas.reduce((sum: number, area: any) => {
+        const l = Number(area.length) || 0;
+        const w = Number(area.width) || 0;
+        return sum + l * w;
+      }, 0);
+    } else if (scopeAnswers.area) {
       summary.totalArea += Number(scopeAnswers.area) || 0;
-    }
-    if (scopeAnswers.length && scopeAnswers.width) {
+    } else if (scopeAnswers.length && scopeAnswers.width) {
       summary.totalArea += (Number(scopeAnswers.length) || 0) * (Number(scopeAnswers.width) || 0);
     }
     
@@ -199,11 +206,25 @@ export function extractScopeBreakdowns(
     
     const thickness = scopeAnswers.thickness || scopeAnswers.slab_thickness;
     
+    // Extract individual areas for multi-area scopes
+    let individualAreas: Array<{ name: string; length: number; width: number; area: number }> | undefined;
+    if (scopeAnswers.areas && Array.isArray(scopeAnswers.areas)) {
+      individualAreas = scopeAnswers.areas
+        .filter((a: any) => (Number(a.length) || 0) > 0 && (Number(a.width) || 0) > 0)
+        .map((a: any) => ({
+          name: a.name || 'Unnamed Area',
+          length: Number(a.length) || 0,
+          width: Number(a.width) || 0,
+          area: (Number(a.length) || 0) * (Number(a.width) || 0),
+        }));
+    }
+    
     breakdowns.push({
       scopeName: formatScopeName(scopeId),
       volume,
       area: area > 0 ? area : undefined,
       details: thickness ? `${thickness}mm thick` : '',
+      areas: individualAreas,
     });
   }
   
