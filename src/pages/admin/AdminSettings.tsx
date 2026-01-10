@@ -285,7 +285,7 @@ export default function AdminSettings() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">Plan:</span>
                     <Badge variant="secondary" className="bg-primary/20 text-primary">
-                      {subscription.tierConfig?.name || subscription.tier}
+                      {business?.subscription_exempt ? "Demo Account" : (subscription.tierConfig?.name || subscription.tier)}
                     </Badge>
                   </div>
                   <div className="flex items-center gap-2">
@@ -294,7 +294,7 @@ export default function AdminSettings() {
                       {subscription.employeeLimit === 999 ? "Unlimited" : subscription.employeeLimit}
                     </span>
                   </div>
-                  {subscription.subscriptionEnd && (
+                  {subscription.subscriptionEnd && !business?.subscription_exempt && (
                     <div className="flex items-center gap-2">
                       <span className="text-sm text-muted-foreground">Renews:</span>
                       <span className="text-sm">
@@ -302,15 +302,21 @@ export default function AdminSettings() {
                       </span>
                     </div>
                   )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => subscription.openCustomerPortal()}
-                    className="touch-target"
-                  >
-                    <ExternalLink className="w-4 h-4 mr-2" />
-                    Manage Subscription
-                  </Button>
+                  {business?.subscription_exempt ? (
+                    <p className="text-sm text-muted-foreground">
+                      This is a demo account. Subscription management is not available.
+                    </p>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => subscription.openCustomerPortal()}
+                      className="touch-target"
+                    >
+                      <ExternalLink className="w-4 h-4 mr-2" />
+                      Manage Subscription
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-3">
@@ -888,7 +894,7 @@ export default function AdminSettings() {
           </Button>
 
           {/* Hidden Danger Zone - Collapsible at the very bottom */}
-          {subscription.isSubscribed && (
+          {subscription.isSubscribed && !business?.subscription_exempt && (
             <div className="mt-16 pt-8">
               <Collapsible>
                 <CollapsibleTrigger asChild>
