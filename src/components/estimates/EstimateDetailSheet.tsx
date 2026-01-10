@@ -51,6 +51,8 @@ interface Estimate {
   notes: string | null;
   site_visit_date?: string | null;
   follow_up_date?: string | null;
+  scope_data?: Record<string, any> | null;
+  selected_scopes?: string[] | null;
 }
 
 interface EstimateDetailSheetProps {
@@ -328,6 +330,8 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
         ref={printRef}
         estimate={estimate}
         business={business}
+        scopeData={estimate.scope_data}
+        selectedScopes={estimate.selected_scopes}
       />
     </div>,
     document.body

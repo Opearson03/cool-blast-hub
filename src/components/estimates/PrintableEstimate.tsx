@@ -1,5 +1,6 @@
 import { forwardRef } from "react";
 import { format } from "date-fns";
+import { extractQuotePDFData, hasDetailedData, type QuotePDFData } from "@/lib/quote-pdf-data";
 
 interface EstimateLineItem {
   description: string;
@@ -39,10 +40,263 @@ interface PrintableEstimateProps {
     abn: string | null;
   } & BrandingSettings | null;
   lineItems?: EstimateLineItem[];
+  scopeData?: Record<string, any> | null;
+  selectedScopes?: string[] | null;
 }
 
+// Project Summary Component
+const ProjectSummarySection = ({ 
+  data, 
+  primaryColor, 
+  secondaryColor,
+  template 
+}: { 
+  data: QuotePDFData; 
+  primaryColor: string; 
+  secondaryColor: string;
+  template: string;
+}) => {
+  const { projectSummary, reinforcement } = data;
+  
+  if (!hasDetailedData(data)) return null;
+
+  const summaryItems = [
+    projectSummary.totalVolume > 0 && {
+      label: 'Concrete Volume',
+      value: `${projectSummary.totalVolume.toFixed(2)} m³`,
+      sub: projectSummary.concreteStrength || undefined,
+    },
+    projectSummary.totalArea > 0 && {
+      label: 'Total Area',
+      value: `${projectSummary.totalArea.toFixed(1)} m²`,
+    },
+    projectSummary.thickness > 0 && {
+      label: 'Thickness',
+      value: `${projectSummary.thickness} mm`,
+    },
+    reinforcement && {
+      label: 'Reinforcement',
+      value: reinforcement.meshType,
+      sub: reinforcement.meshSheets > 0 ? `${reinforcement.meshSheets} sheets` : undefined,
+    },
+    projectSummary.perimeter > 0 && {
+      label: 'Perimeter',
+      value: `${projectSummary.perimeter.toFixed(1)} m`,
+    },
+  ].filter(Boolean) as Array<{ label: string; value: string; sub?: string }>;
+
+  if (summaryItems.length === 0) return null;
+
+  if (template === 'modern') {
+    return (
+      <div className="page-break-avoid mb-6">
+        <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Project Summary</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {summaryItems.map((item, index) => (
+            <div 
+              key={index} 
+              className="p-3 rounded-lg"
+              style={{ backgroundColor: "#f9fafb", borderLeft: `3px solid ${primaryColor}` }}
+            >
+              <p className="text-xs text-gray-500 uppercase">{item.label}</p>
+              <p className="text-lg font-bold text-gray-900">{item.value}</p>
+              {item.sub && <p className="text-xs text-gray-600">{item.sub}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (template === 'minimal') {
+    return (
+      <div className="page-break-avoid mb-10">
+        <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Project Details</p>
+        <div className="flex flex-wrap gap-x-8 gap-y-2">
+          {summaryItems.map((item, index) => (
+            <div key={index} className="text-sm">
+              <span className="text-gray-500">{item.label}: </span>
+              <span className="font-medium text-gray-900">{item.value}</span>
+              {item.sub && <span className="text-gray-500"> ({item.sub})</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Classic template
+  return (
+    <div className="page-break-avoid mb-6">
+      <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Project Summary</h3>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {summaryItems.map((item, index) => (
+            <div key={index}>
+              <p className="text-xs text-gray-500">{item.label}</p>
+              <p className="text-base font-semibold text-gray-900">{item.value}</p>
+              {item.sub && <p className="text-xs text-gray-600">{item.sub}</p>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Scope Breakdown Component
+const ScopeBreakdownSection = ({ 
+  data, 
+  primaryColor, 
+  secondaryColor,
+  template,
+  formatCurrency 
+}: { 
+  data: QuotePDFData; 
+  primaryColor: string; 
+  secondaryColor: string;
+  template: string;
+  formatCurrency: (amount: number) => string;
+}) => {
+  const { scopeBreakdowns } = data;
+  
+  if (scopeBreakdowns.length <= 1) return null;
+
+  if (template === 'minimal') {
+    return (
+      <div className="page-break-avoid mb-10">
+        <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Scope Breakdown</p>
+        <table className="w-full">
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${secondaryColor}` }}>
+              <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Scope</th>
+              <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-24">Volume</th>
+              <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-24">Area</th>
+              <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-32">Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scopeBreakdowns.map((scope, index) => (
+              <tr key={index} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                <td className="py-3 text-sm text-gray-700">{scope.scopeName}</td>
+                <td className="py-3 text-sm text-right text-gray-600">{scope.volume.toFixed(2)} m³</td>
+                <td className="py-3 text-sm text-right text-gray-600">{scope.area ? `${scope.area.toFixed(1)} m²` : '—'}</td>
+                <td className="py-3 text-sm text-right text-gray-500">{scope.details || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // Modern and Classic templates
+  return (
+    <div className="page-break-avoid mb-6">
+      <h3 className={`text-sm font-${template === 'modern' ? 'bold' : 'semibold'} uppercase mb-2`} 
+          style={{ color: template === 'modern' ? secondaryColor : '#6b7280' }}>
+        Scope Breakdown
+      </h3>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
+            <th className="text-left py-2 px-3 text-sm font-semibold">Scope</th>
+            <th className="text-right py-2 px-3 text-sm font-semibold w-24">Volume</th>
+            <th className="text-right py-2 px-3 text-sm font-semibold w-24">Area</th>
+            <th className="text-right py-2 px-3 text-sm font-semibold w-32">Details</th>
+          </tr>
+        </thead>
+        <tbody>
+          {scopeBreakdowns.map((scope, index) => (
+            <tr key={index} className="border-b border-gray-200" style={{ backgroundColor: index % 2 === 0 ? "#f9fafb" : "white" }}>
+              <td className="py-2 px-3 text-sm font-medium">{scope.scopeName}</td>
+              <td className="py-2 px-3 text-sm text-right">{scope.volume.toFixed(2)} m³</td>
+              <td className="py-2 px-3 text-sm text-right">{scope.area ? `${scope.area.toFixed(1)} m²` : '—'}</td>
+              <td className="py-2 px-3 text-sm text-right text-gray-500">{scope.details || '—'}</td>
+            </tr>
+          ))}
+          <tr style={{ backgroundColor: "#f3f4f6", fontWeight: "bold" }}>
+            <td className="py-2 px-3 text-sm">Total</td>
+            <td className="py-2 px-3 text-sm text-right">{scopeBreakdowns.reduce((sum, s) => sum + s.volume, 0).toFixed(2)} m³</td>
+            <td className="py-2 px-3 text-sm text-right">{scopeBreakdowns.reduce((sum, s) => sum + (s.area || 0), 0).toFixed(1)} m²</td>
+            <td className="py-2 px-3 text-sm text-right"></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+// Exclusions Component
+const ExclusionsSection = ({ 
+  exclusions, 
+  primaryColor, 
+  secondaryColor,
+  template 
+}: { 
+  exclusions: string[]; 
+  primaryColor: string; 
+  secondaryColor: string;
+  template: string;
+}) => {
+  if (exclusions.length === 0) return null;
+
+  if (template === 'minimal') {
+    return (
+      <div className="page-break-avoid mb-8">
+        <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Exclusions</p>
+        <div className="text-xs text-gray-500 space-y-1">
+          {exclusions.map((exc, index) => (
+            <p key={index} className="flex items-start gap-2">
+              <span className="text-gray-400">×</span>
+              <span>{exc}</span>
+            </p>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (template === 'modern') {
+    return (
+      <div className="page-break-avoid mb-6">
+        <h3 className="text-sm font-bold uppercase mb-2" style={{ color: secondaryColor }}>Exclusions</h3>
+        <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+          <p className="text-xs text-red-800 mb-2">The following items are NOT included in this quote:</p>
+          <ul className="space-y-1">
+            {exclusions.map((exc, index) => (
+              <li key={index} className="text-xs text-red-700 flex items-start gap-2">
+                <span className="text-red-400">✕</span>
+                <span>{exc}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
+
+  // Classic template
+  return (
+    <div className="page-break-avoid mb-6">
+      <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Exclusions</h3>
+      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+        <p className="text-xs text-orange-800 mb-2">The following items are NOT included in this quote:</p>
+        <ul className="space-y-1">
+          {exclusions.map((exc, index) => (
+            <li key={index} className="text-xs text-orange-700 flex items-start gap-2">
+              <span style={{ color: primaryColor }}>✕</span>
+              <span>{exc}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+};
+
 export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimateProps>(
-  ({ estimate, business, lineItems = [] }, ref) => {
+  ({ estimate, business, lineItems = [], scopeData = null, selectedScopes = null }, ref) => {
     const formatCurrency = (amount: number) => {
       return new Intl.NumberFormat("en-AU", {
         style: "currency",
@@ -56,6 +310,9 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     const primaryColor = business?.quote_primary_color || "#f97316";
     const secondaryColor = business?.quote_secondary_color || "#1f2937";
     const fontFamily = business?.quote_font || "Arial";
+
+    // Extract rich data from scope_data
+    const quotePDFData = extractQuotePDFData(scopeData, selectedScopes, estimate.description);
 
     // Parse description to extract calculated items if no line items provided
     const parsedItems: EstimateLineItem[] = lineItems.length > 0 ? lineItems : [];
@@ -141,6 +398,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             </div>
           </div>
 
+          {/* Project Summary */}
+          <ProjectSummarySection 
+            data={quotePDFData} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="modern"
+          />
+
+          {/* Scope Breakdown */}
+          <ScopeBreakdownSection 
+            data={quotePDFData} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="modern"
+            formatCurrency={formatCurrency}
+          />
+
           {/* Scope */}
           {descriptionParts.length > 0 && (
             <div className="page-break-avoid mb-6">
@@ -207,6 +481,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               </div>
             </div>
           </div>
+
+          {/* Exclusions */}
+          <ExclusionsSection 
+            exclusions={quotePDFData.exclusions} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="modern"
+          />
 
           {/* Terms */}
           <div className="page-break-avoid border-t-2 border-gray-200 pt-4 mb-6">
@@ -328,6 +610,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             </div>
           </div>
 
+          {/* Project Summary */}
+          <ProjectSummarySection 
+            data={quotePDFData} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="minimal"
+          />
+
+          {/* Scope Breakdown */}
+          <ScopeBreakdownSection 
+            data={quotePDFData} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="minimal"
+            formatCurrency={formatCurrency}
+          />
+
           {/* Scope - simple list */}
           {descriptionParts.length > 0 && (
             <div className="page-break-avoid mb-10">
@@ -388,6 +687,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               </div>
             </div>
           </div>
+
+          {/* Exclusions */}
+          <ExclusionsSection 
+            exclusions={quotePDFData.exclusions} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="minimal"
+          />
 
           {/* Terms - minimal */}
           <div className="page-break-avoid mb-8">
@@ -480,7 +787,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             </div>
           </div>
           <div className="text-right">
-            <h2 className="text-2xl font-bold text-gray-900">ESTIMATE</h2>
+            <h2 className="text-2xl font-bold text-gray-900">QUOTE</h2>
             <p className="text-lg font-semibold mt-1" style={{ color: primaryColor }}>{estimate.estimate_number}</p>
             <p className="text-sm text-gray-600 mt-2">
               Date: {format(new Date(estimate.created_at), "d MMMM yyyy")}
@@ -507,6 +814,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             <p className="text-gray-900">{estimate.site_address}</p>
           </div>
         </div>
+
+        {/* Project Summary */}
+        <ProjectSummarySection 
+          data={quotePDFData} 
+          primaryColor={primaryColor} 
+          secondaryColor={secondaryColor}
+          template="classic"
+        />
+
+        {/* Scope Breakdown */}
+        <ScopeBreakdownSection 
+          data={quotePDFData} 
+          primaryColor={primaryColor} 
+          secondaryColor={secondaryColor}
+          template="classic"
+          formatCurrency={formatCurrency}
+        />
 
         {/* Description / Scope */}
         {descriptionParts.length > 0 && (
@@ -579,6 +903,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
         </div>
 
+        {/* Exclusions */}
+        <ExclusionsSection 
+          exclusions={quotePDFData.exclusions} 
+          primaryColor={primaryColor} 
+          secondaryColor={secondaryColor}
+          template="classic"
+        />
+
         {/* Terms & Notes */}
         <div className="page-break-avoid border-t border-gray-300 pt-4 mb-6">
           <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Terms & Conditions</h3>
@@ -601,7 +933,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
         <div className="page-break-avoid bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Acceptance</h3>
           <p className="text-xs text-gray-600 mb-4">
-            I accept this estimate and authorize the commencement of works as described above.
+            I accept this quote and authorize the commencement of works as described above.
           </p>
           <div className="grid grid-cols-2 gap-8">
             <div>
