@@ -38,6 +38,7 @@ export const cleanupModule: EstimateModule = {
       type: 'currency',
       label: 'Disposal / tip cost',
       defaultValue: 100,
+      priceListKey: 'materials.DISPOSAL',
       helpText: 'Waste removal and tip fees',
     },
   ],

@@ -275,6 +275,7 @@ export const reinforcementSlabModule: EstimateModule = {
       type: 'currency',
       label: 'Reinforcement Delivery',
       defaultValue: 150,
+      priceListKey: 'rebar.REO DELIVERY',
       showIf: (answers) => answers.reo_type === 'mesh' || answers.reo_type === 'bar',
     },
   ],

@@ -225,6 +225,7 @@ export const reinforcementFootingModule: EstimateModule = {
       type: 'currency',
       label: 'Reinforcement Delivery',
       defaultValue: 150,
+      priceListKey: 'rebar.REO DELIVERY',
       showIf: (answers) => answers.reo_type !== 'none',
     },
   ],

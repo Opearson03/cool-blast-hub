@@ -189,6 +189,10 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
 
   // Materials
   { category: 'materials', item_code: 'DUST', item_name: 'Supply of Crusher Dust', unit: '/m3', default_price: 60 },
+  { category: 'materials', item_code: 'DISPOSAL', item_name: 'Waste Disposal / Tip Cost', unit: '/item', default_price: 100 },
+
+  // Delivery
+  { category: 'rebar', item_code: 'REO DELIVERY', item_name: 'Reinforcement Delivery Charge', unit: '/item', default_price: 150 },
 ];
 
 // CSV headers for import/export
