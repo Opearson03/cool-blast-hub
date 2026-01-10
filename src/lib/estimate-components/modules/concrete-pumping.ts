@@ -38,8 +38,12 @@ export const concretePumpingModule: EstimateModule = {
       label: 'Pump hourly rate',
       defaultValue: 180,
       unit: '/hr',
-      helpText: 'Rate will auto-fill based on pump type selected',
+      helpText: 'Auto-fills from price list based on pump type',
       showIf: (answers) => answers.pump_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const pumpType = moduleAnswers.pump_type || 'LINE PUMP';
+        return priceMap['pumping']?.[pumpType];
+      },
     },
     {
       id: 'standard_travel_sufficient',

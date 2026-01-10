@@ -28,14 +28,23 @@ export const concreteSupplyModule: EstimateModule = {
       label: 'Concrete price per m³',
       defaultValue: 245,
       unit: '/m³',
-      helpText: 'Will auto-fill from price list based on concrete type selected',
+      helpText: 'Auto-fills from price list based on concrete type',
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const concreteType = moduleAnswers.concrete_type || '32MPA';
+        return priceMap['concrete']?.[concreteType];
+      },
     },
     {
       id: 'calculated_volume',
       type: 'number',
       label: 'Calculated volume (m³)',
-      helpText: 'Auto-calculated from dimensions',
+      helpText: 'Auto-calculated from scope dimensions',
       defaultValue: 0,
+      derivedReadOnly: true,
+      deriveFrom: (scopeData) => {
+        const volume = Number(scopeData.volume) || 0;
+        return volume > 0 ? Math.round(volume * 100) / 100 : undefined;
+      },
     },
     {
       id: 'wastage_percent',

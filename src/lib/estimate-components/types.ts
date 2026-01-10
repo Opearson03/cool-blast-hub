@@ -18,6 +18,22 @@ export interface ComponentQuestion {
   showIf?: (answers: Record<string, any>) => boolean;  // Conditional display
   required?: boolean;
   placeholder?: string;
+  
+  /** 
+   * Function to derive this field's value from scope data, module answers, and price map
+   * Returns undefined if no auto-fill should occur
+   */
+  deriveFrom?: (
+    scopeData: Record<string, any>,
+    moduleAnswers: Record<string, any>,
+    priceMap: PriceMap
+  ) => any | undefined;
+  
+  /**
+   * If true, user cannot edit the derived value (read-only)
+   * If false (default), user can override the derived value
+   */
+  derivedReadOnly?: boolean;
 }
 
 /**

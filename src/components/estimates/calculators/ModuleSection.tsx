@@ -27,7 +27,7 @@ import {
 interface ModuleSectionProps {
   module: EstimateModule;
   answers: Record<string, any>;
-  onAnswerChange: (questionId: string, value: any) => void;
+  onAnswerChange: (questionId: string, value: any, isUserInput?: boolean) => void;
   isOpen: boolean;
   onToggle: () => void;
   subtotal: number;
@@ -106,11 +106,17 @@ function QuestionInput({
             max={question.max}
             step={question.step ?? 1}
             placeholder={question.placeholder}
-            className="pr-12"
+            className={`pr-12 ${question.derivedReadOnly ? 'bg-muted' : ''}`}
+            readOnly={question.derivedReadOnly}
           />
           {question.unit && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
               {question.unit}
+            </span>
+          )}
+          {question.deriveFrom && !question.derivedReadOnly && value !== undefined && (
+            <span className="absolute -top-2 right-0 text-[10px] text-muted-foreground bg-background px-1">
+              Auto-filled
             </span>
           )}
         </div>
@@ -130,8 +136,14 @@ function QuestionInput({
             max={question.max}
             step={question.step ?? 0.01}
             placeholder={question.placeholder}
-            className="pl-7"
+            className={`pl-7 ${question.derivedReadOnly ? 'bg-muted' : ''}`}
+            readOnly={question.derivedReadOnly}
           />
+          {question.deriveFrom && !question.derivedReadOnly && value !== undefined && (
+            <span className="absolute -top-2 right-0 text-[10px] text-muted-foreground bg-background px-1">
+              Auto-filled
+            </span>
+          )}
         </div>
       )}
 

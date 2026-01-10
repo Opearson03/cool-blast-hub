@@ -65,8 +65,12 @@ export const excavationModule: EstimateModule = {
       label: 'Machine hourly rate',
       defaultValue: 150,
       unit: '/hr',
-      helpText: 'Rate will auto-fill from price list based on machine selected',
+      helpText: 'Auto-fills from price list based on machine selected',
       showIf: (answers) => answers.excavation_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const machineType = moduleAnswers.machine_type || 'EXC 3.2T';
+        return priceMap['excavation']?.[machineType];
+      },
     },
     {
       id: 'float_charge',
