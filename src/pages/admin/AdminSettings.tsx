@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown, Palette, FileText } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PriceListSection } from "@/components/settings/PriceListSection";
 import {
@@ -36,6 +37,10 @@ export default function AdminSettings() {
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [quoteTemplate, setQuoteTemplate] = useState("classic");
+  const [quotePrimaryColor, setQuotePrimaryColor] = useState("#f97316");
+  const [quoteSecondaryColor, setQuoteSecondaryColor] = useState("#1f2937");
+  const [quoteFont, setQuoteFont] = useState("Arial");
   const [newSupplier, setNewSupplier] = useState("");
   const [suppliers, setSuppliers] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -88,6 +93,10 @@ export default function AdminSettings() {
       setPhone(business.phone || "");
       setEmail(business.email || "");
       setLogoUrl(business.logo_url || null);
+      setQuoteTemplate((business as any).quote_template || "classic");
+      setQuotePrimaryColor((business as any).quote_primary_color || "#f97316");
+      setQuoteSecondaryColor((business as any).quote_secondary_color || "#1f2937");
+      setQuoteFont((business as any).quote_font || "Arial");
       setSuppliers((business.preferred_suppliers as string[]) || []);
     }
   }, [business]);
@@ -178,6 +187,10 @@ export default function AdminSettings() {
             phone: phone || null,
             email: email || null,
             preferred_suppliers: suppliers,
+            quote_template: quoteTemplate,
+            quote_primary_color: quotePrimaryColor,
+            quote_secondary_color: quoteSecondaryColor,
+            quote_font: quoteFont,
           })
           .eq("id", business.id);
 
@@ -317,61 +330,164 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
-          {/* Business Logo */}
+          {/* Branding & Quote Templates */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Image className="w-5 h-5" />
-                Business Logo
+                <Palette className="w-5 h-5" />
+                Branding & Quote Templates
               </CardTitle>
               <CardDescription>
-                Your logo will appear on ITPs, SWMS, and other documents
+                Customize your logo, colors, and quote template style
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-4">
-                {logoUrl ? (
-                  <img
-                    src={logoUrl}
-                    alt="Business logo"
-                    className="h-20 w-20 object-contain border rounded-lg bg-white"
-                  />
-                ) : (
-                  <div className="h-20 w-20 border rounded-lg bg-muted flex items-center justify-center">
-                    <Building2 className="w-8 h-8 text-muted-foreground" />
-                  </div>
-                )}
-                <div>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    className="hidden"
-                    accept="image/*"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleLogoUpload(file);
-                    }}
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading || !business}
-                    className="touch-target"
-                  >
-                    {uploading ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <Upload className="w-4 h-4 mr-2" />
-                    )}
-                    {logoUrl ? "Change Logo" : "Upload Logo"}
-                  </Button>
-                  {!business && (
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Save business details first to upload logo
-                    </p>
+            <CardContent className="space-y-6">
+              {/* Logo Upload */}
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Business Logo</Label>
+                <div className="flex items-center gap-4">
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt="Business logo"
+                      className="h-20 w-20 object-contain border rounded-lg bg-white"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 border rounded-lg bg-muted flex items-center justify-center">
+                      <Building2 className="w-8 h-8 text-muted-foreground" />
+                    </div>
                   )}
+                  <div>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleLogoUpload(file);
+                      }}
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading || !business}
+                      className="touch-target"
+                    >
+                      {uploading ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Upload className="w-4 h-4 mr-2" />
+                      )}
+                      {logoUrl ? "Change Logo" : "Upload Logo"}
+                    </Button>
+                    {!business && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Save business details first to upload logo
+                      </p>
+                    )}
+                  </div>
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* Quote Template Selection */}
+              <div>
+                <Label className="text-sm font-medium mb-2 block">Quote Template</Label>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { id: "classic", name: "Classic", desc: "Traditional professional layout" },
+                    { id: "modern", name: "Modern", desc: "Clean, bold design" },
+                    { id: "minimal", name: "Minimal", desc: "Simple and elegant" },
+                  ].map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => setQuoteTemplate(template.id)}
+                      className={`p-3 border rounded-lg text-left transition-all ${
+                        quoteTemplate === template.id
+                          ? "border-primary bg-primary/10 ring-2 ring-primary"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 mb-1">
+                        <FileText className="w-4 h-4" />
+                        <span className="font-medium text-sm">{template.name}</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{template.desc}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Brand Colors */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="primaryColor" className="text-sm font-medium mb-2 block">
+                    Primary Color (Highlights)
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      id="primaryColor"
+                      value={quotePrimaryColor}
+                      onChange={(e) => setQuotePrimaryColor(e.target.value)}
+                      className="w-12 h-10 rounded border cursor-pointer"
+                    />
+                    <Input
+                      value={quotePrimaryColor}
+                      onChange={(e) => setQuotePrimaryColor(e.target.value)}
+                      placeholder="#f97316"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="secondaryColor" className="text-sm font-medium mb-2 block">
+                    Secondary Color (Headers)
+                  </Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      id="secondaryColor"
+                      value={quoteSecondaryColor}
+                      onChange={(e) => setQuoteSecondaryColor(e.target.value)}
+                      className="w-12 h-10 rounded border cursor-pointer"
+                    />
+                    <Input
+                      value={quoteSecondaryColor}
+                      onChange={(e) => setQuoteSecondaryColor(e.target.value)}
+                      placeholder="#1f2937"
+                      className="font-mono text-sm"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <Separator />
+
+              {/* Font Selection */}
+              <div>
+                <Label htmlFor="quoteFont" className="text-sm font-medium mb-2 block">
+                  Quote Font
+                </Label>
+                <Select value={quoteFont} onValueChange={setQuoteFont}>
+                  <SelectTrigger className="w-full sm:w-64">
+                    <SelectValue placeholder="Select a font" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Arial">Arial (Default)</SelectItem>
+                    <SelectItem value="Helvetica">Helvetica</SelectItem>
+                    <SelectItem value="Georgia">Georgia</SelectItem>
+                    <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+                    <SelectItem value="Verdana">Verdana</SelectItem>
+                    <SelectItem value="Trebuchet MS">Trebuchet MS</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
