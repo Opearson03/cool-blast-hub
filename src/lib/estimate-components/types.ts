@@ -116,6 +116,16 @@ export interface ScopeQuestion extends ComponentQuestion {
 }
 
 /**
+ * Individual measurement area for multi-area scopes
+ */
+export interface MeasurementArea {
+  id: string;
+  name: string;
+  length: number;
+  width: number;
+}
+
+/**
  * Definition of a scope (e.g., Piers, Slab, Driveway)
  */
 export interface ScopeDefinition {
@@ -135,6 +145,12 @@ export interface ScopeDefinition {
   
   /** Default exclusions that always apply to this scope */
   defaultExclusions?: ExclusionItem[];
+  
+  /** If true, allows multiple measurement areas within this scope */
+  supportsMultipleAreas?: boolean;
+  
+  /** Label for the areas section (e.g., "Driveway Areas") */
+  areasLabel?: string;
 }
 
 /**

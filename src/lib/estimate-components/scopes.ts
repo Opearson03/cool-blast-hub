@@ -253,17 +253,21 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
 
 /**
  * Driveway Scope Definition
+ * Supports multiple measurement areas (e.g., driveway + porch + patio)
  */
 export const DRIVEWAY_SCOPE: ScopeDefinition = {
   id: 'driveway',
   name: 'Driveway',
   description: 'Concrete driveway installation',
   icon: 'car',
+  supportsMultipleAreas: true,
+  areasLabel: 'Driveway Areas',
   questions: [
+    // These questions are now derived from the multi-area input
     {
       id: 'area',
       type: 'number',
-      label: 'Driveway Area (m²)',
+      label: 'Total Area (m²)',
       required: true,
       min: 1,
       unit: 'm²',
@@ -271,7 +275,7 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     {
       id: 'perimeter',
       type: 'number',
-      label: 'Perimeter (m)',
+      label: 'Total Perimeter (m)',
       required: true,
       min: 1,
       unit: 'm',
@@ -316,17 +320,20 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
 
 /**
  * Crossovers Scope Definition
+ * Supports multiple measurement areas
  */
 export const CROSSOVERS_SCOPE: ScopeDefinition = {
   id: 'crossovers',
   name: 'Crossovers',
   description: 'Vehicle crossover/layback installation',
   icon: 'move-horizontal',
+  supportsMultipleAreas: true,
+  areasLabel: 'Crossover Areas',
   questions: [
     {
       id: 'area',
       type: 'number',
-      label: 'Crossover Area (m²)',
+      label: 'Total Area (m²)',
       required: true,
       min: 1,
       unit: 'm²',
@@ -334,7 +341,7 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     {
       id: 'perimeter',
       type: 'number',
-      label: 'Perimeter (m)',
+      label: 'Total Perimeter (m)',
       required: true,
       min: 1,
       unit: 'm',
@@ -374,12 +381,15 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
 
 /**
  * Paths & Surrounds Scope Definition
+ * Supports multiple measurement areas
  */
 export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
   id: 'paths_surrounds',
   name: 'Paths & Surrounds',
   description: 'Concrete pathways and house surrounds',
   icon: 'footprints',
+  supportsMultipleAreas: true,
+  areasLabel: 'Path & Surround Areas',
   questions: [
     {
       id: 'area',
@@ -392,7 +402,7 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
     {
       id: 'perimeter',
       type: 'number',
-      label: 'Perimeter (m)',
+      label: 'Total Perimeter (m)',
       required: true,
       min: 1,
       unit: 'm',
