@@ -2,7 +2,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, ArrowRight, Loader2, BarChart3, Clock, FileText, Calculator, Settings } from "lucide-react";
+import { Calendar, CheckCircle, ArrowRight, Loader2, BarChart3, Clock, FileText, Calculator, MessageSquare } from "lucide-react";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import heroPourBackground from "@/assets/hero-pour-background.png";
 import dashboardScreenshot from "@/assets/dashboard-screenshot.png";
 import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
@@ -326,7 +327,7 @@ const Index = () => {
           <p className="text-muted-foreground text-sm mb-4">
             © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
           </p>
-          <div className="flex justify-center gap-4 text-sm">
+          <div className="flex flex-wrap justify-center items-center gap-4 text-sm">
             <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
               Privacy Policy
             </Link>
@@ -338,6 +339,15 @@ const Index = () => {
             <Link to="/pricing" className="text-muted-foreground hover:text-primary transition-colors">
               Pricing
             </Link>
+            <span className="text-muted-foreground">•</span>
+            <FeedbackDialog 
+              trigger={
+                <button className="text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1">
+                  <MessageSquare className="w-3 h-3" />
+                  Feedback
+                </button>
+              }
+            />
           </div>
         </div>
       </footer>
