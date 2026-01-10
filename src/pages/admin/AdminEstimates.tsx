@@ -49,11 +49,11 @@ const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Car
   commercial_slab: { label: "Commercial", icon: Building2 },
 };
 
-const statusConfig: Record<EstimateStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }> = {
-  draft: { label: "Draft", variant: "secondary", icon: FileText },
-  sent: { label: "Sent", variant: "default", icon: Send },
-  accepted: { label: "Accepted", variant: "default", icon: CheckCircle },
-  declined: { label: "Declined", variant: "destructive", icon: XCircle },
+const statusConfig: Record<EstimateStatus, { label: string; docType: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }> = {
+  draft: { label: "Draft", docType: "Estimate", variant: "secondary", icon: FileText },
+  sent: { label: "Sent", docType: "Quote", variant: "default", icon: Send },
+  accepted: { label: "Accepted", docType: "Quote", variant: "default", icon: CheckCircle },
+  declined: { label: "Declined", docType: "Quote", variant: "destructive", icon: XCircle },
 };
 
 export default function AdminEstimates() {
@@ -320,7 +320,7 @@ export default function AdminEstimates() {
   return (
     <AdminLayout>
       <SEOHead
-        title="Estimates | PourHub"
+        title="Quotes | PourHub"
         description="Create and manage job estimates and quotes"
       />
       
@@ -328,8 +328,8 @@ export default function AdminEstimates() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Estimates</h1>
-            <p className="text-muted-foreground">Create and manage job quotes</p>
+            <h1 className="text-2xl font-bold">Quotes</h1>
+            <p className="text-muted-foreground">Estimates become quotes once sent</p>
           </div>
           <Button className="gap-2" onClick={() => setFormOpen(true)}>
             <Plus className="w-4 h-4" />
@@ -341,7 +341,7 @@ export default function AdminEstimates() {
         <div className="relative max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
-            placeholder="Search estimates..."
+            placeholder="Search quotes..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -352,10 +352,18 @@ export default function AdminEstimates() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Estimates</CardTitle>
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{estimates.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Drafts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">{estimates.filter(e => e.status === "draft").length}</p>
             </CardContent>
           </Card>
           <Card>
@@ -364,14 +372,6 @@ export default function AdminEstimates() {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold">{estimates.filter(e => e.status === "sent").length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Accepted</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-green-600">{estimates.filter(e => e.status === "accepted").length}</p>
             </CardContent>
           </Card>
           <Card>
@@ -397,7 +397,7 @@ export default function AdminEstimates() {
             {filteredEstimates.length === 0 ? (
               <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
-                  {estimates.length === 0 ? "No estimates yet. Create your first one!" : "No estimates found"}
+                  {estimates.length === 0 ? "No quotes yet. Create your first estimate!" : "No quotes found"}
                 </CardContent>
               </Card>
             ) : (
@@ -483,7 +483,7 @@ export default function AdminEstimates() {
                 <thead className="border-b border-border">
                   <tr className="text-left">
                     <th className="p-4 font-medium text-muted-foreground">Type</th>
-                    <th className="p-4 font-medium text-muted-foreground">Estimate #</th>
+                    <th className="p-4 font-medium text-muted-foreground">Quote #</th>
                     <th className="p-4 font-medium text-muted-foreground">Client</th>
                     <th className="p-4 font-medium text-muted-foreground">Description</th>
                     <th className="p-4 font-medium text-muted-foreground">Amount</th>
@@ -497,7 +497,7 @@ export default function AdminEstimates() {
                   {filteredEstimates.length === 0 ? (
                     <tr>
                       <td colSpan={9} className="p-8 text-center text-muted-foreground">
-                        {estimates.length === 0 ? "No estimates yet. Create your first one!" : "No estimates found"}
+                        {estimates.length === 0 ? "No quotes yet. Create your first estimate!" : "No quotes found"}
                       </td>
                     </tr>
                   ) : (
