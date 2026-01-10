@@ -160,7 +160,13 @@ export default function AdminEstimates() {
   };
 
   const handleRowClick = (estimate: Estimate) => {
-    setViewingEstimate(estimate);
+    // For drafts, open the edit form to continue working
+    if (estimate.status === "draft") {
+      setEditingEstimate(estimate);
+      setFormOpen(true);
+    } else {
+      setViewingEstimate(estimate);
+    }
   };
 
   // Parse estimate scope_data to extract structured data for job creation
