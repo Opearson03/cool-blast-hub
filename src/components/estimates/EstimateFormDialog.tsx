@@ -393,10 +393,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         follow_up_date: editEstimate.follow_up_date || "",
       });
       setEstimateType(editEstimate.estimate_type || "driveway");
-      setCurrentStep("summary");
 
       // Set selected scopes
-      if (editEstimate.selected_scopes && Array.isArray(editEstimate.selected_scopes)) {
+      const hasScopes = editEstimate.selected_scopes && Array.isArray(editEstimate.selected_scopes) && editEstimate.selected_scopes.length > 0;
+      if (hasScopes) {
         setSelectedScopes(new Set(editEstimate.selected_scopes as ScopeType[]));
         
         // Migrate legacy scope data to new modular format
@@ -405,6 +405,35 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           editEstimate.selected_scopes as ScopeType[]
         );
         setModularScopeStates(migratedStates);
+      }
+
+      // Determine starting step based on draft progress
+      if (editEstimate.status === "draft") {
+        // Check how much data we have to determine where to resume
+        const hasClientInfo = editEstimate.client_name && editEstimate.site_address;
+        const hasScopeData = editEstimate.scope_data && Object.keys(editEstimate.scope_data).length > 0;
+        
+        if (!editEstimate.estimate_type) {
+          // No type selected yet
+          setCurrentStep("type");
+        } else if (!hasClientInfo) {
+          // Has type but no client info
+          setCurrentStep("client");
+        } else if (!hasScopes) {
+          // Has client info but no scopes selected
+          setCurrentStep("scopes");
+        } else if (hasScopeData) {
+          // Has scope data - go to configure to continue or review
+          setCurrentStep("configure");
+          setActiveScopeIndex(0);
+        } else {
+          // Has scopes but no data entered yet
+          setCurrentStep("configure");
+          setActiveScopeIndex(0);
+        }
+      } else {
+        // Non-draft estimates go to summary for viewing
+        setCurrentStep("summary");
       }
     } else {
       setCurrentStep("type");
