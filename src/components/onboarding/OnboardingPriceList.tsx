@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, type Dispatch, type SetStateAction } from "react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -19,13 +19,14 @@ interface PriceOverride {
 
 interface OnboardingPriceListProps {
   priceOverrides: PriceOverride[];
-  onPriceOverridesChange: (overrides: PriceOverride[]) => void;
+  onPriceOverridesChange: Dispatch<SetStateAction<PriceOverride[]>>;
 }
 
 export function OnboardingPriceList({ priceOverrides, onPriceOverridesChange }: OnboardingPriceListProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [editDirty, setEditDirty] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Focus input when editing starts
