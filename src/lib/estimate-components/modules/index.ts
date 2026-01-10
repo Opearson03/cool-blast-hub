@@ -6,6 +6,7 @@ export { reinforcementModule } from './reinforcement';
 export { concreteSupplyModule } from './concrete-supply';
 export { concretePlacementModule } from './concrete-placement';
 export { concretePumpingModule } from './concrete-pumping';
+export { surfaceFinishingModule } from './surface-finishing';
 export { cleanupModule } from './cleanup';
 export { sundriesModule } from './sundries';
 export { marginModule } from './margin';
@@ -16,6 +17,7 @@ import { reinforcementModule } from './reinforcement';
 import { concreteSupplyModule } from './concrete-supply';
 import { concretePlacementModule } from './concrete-placement';
 import { concretePumpingModule } from './concrete-pumping';
+import { surfaceFinishingModule } from './surface-finishing';
 import { cleanupModule } from './cleanup';
 import { sundriesModule } from './sundries';
 import { marginModule } from './margin';
@@ -31,6 +33,7 @@ export const MODULE_REGISTRY: Record<string, EstimateModule> = {
   'concrete-supply': concreteSupplyModule,
   'concrete-placement': concretePlacementModule,
   'concrete-pumping': concretePumpingModule,
+  'surface-finishing': surfaceFinishingModule,
   'cleanup': cleanupModule,
   'sundries': sundriesModule,
   'margin': marginModule,
