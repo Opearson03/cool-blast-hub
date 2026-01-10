@@ -326,6 +326,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       driveway: { total: 0, description: "" },
       paths_surrounds: { total: 0, description: "" },
       crossovers: { total: 0, description: "" },
+      architectural_concrete: { total: 0, description: "" },
     };
 
     for (const scopeType of Array.from(selectedScopes)) {
