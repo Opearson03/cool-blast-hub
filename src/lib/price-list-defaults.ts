@@ -1,5 +1,5 @@
 // Default price list items for concrete construction estimates
-// These are industry-standard Australian prices
+// Sourced from Pour Hub master price list CSV
 
 export interface PriceListItem {
   category: string;
@@ -10,101 +10,182 @@ export interface PriceListItem {
 }
 
 export const PRICE_LIST_CATEGORIES = [
-  { id: 'concrete', label: 'Concrete' },
+  { id: 'labour', label: 'Labour' },
+  { id: 'excavation', label: 'Excavation & Plant' },
+  { id: 'concrete', label: 'Concrete Supply' },
+  { id: 'pumping', label: 'Concrete Pumping' },
+  { id: 'rebar', label: 'Rebar' },
   { id: 'mesh', label: 'Steel Mesh' },
   { id: 'trench_mesh', label: 'Trench Mesh' },
-  { id: 'rebar', label: 'Rebar' },
-  { id: 'ligatures', label: 'Ligatures' },
-  { id: 'formwork', label: 'Formwork' },
+  { id: 'dowel', label: 'Dowels' },
   { id: 'consumables', label: 'Consumables' },
-  { id: 'equipment', label: 'Equipment' },
-  { id: 'labour', label: 'Labour' },
-  { id: 'markup', label: 'Markup' },
-  { id: 'pods', label: 'Waffle Pods' },
+  { id: 'joints_expansion', label: 'Expansion Joints' },
+  { id: 'joints_key', label: 'Key Joints' },
+  { id: 'joint_foam', label: 'Joint Foam' },
+  { id: 'joint_caulking', label: 'Joint Caulking' },
+  { id: 'joint_saw_cutting', label: 'Saw Cutting' },
 ] as const;
 
 export type PriceListCategory = typeof PRICE_LIST_CATEGORIES[number]['id'];
 
 export const DEFAULT_PRICE_LIST: PriceListItem[] = [
-  // Concrete (per m³)
-  { category: 'concrete', item_code: '20MPA', item_name: '20 MPa Concrete', unit: '/m³', default_price: 280 },
-  { category: 'concrete', item_code: '25MPA', item_name: '25 MPa Concrete', unit: '/m³', default_price: 290 },
-  { category: 'concrete', item_code: '32MPA', item_name: '32 MPa Concrete', unit: '/m³', default_price: 300 },
-  { category: 'concrete', item_code: '40MPA', item_name: '40 MPa Concrete', unit: '/m³', default_price: 310 },
-  { category: 'concrete', item_code: '50MPA', item_name: '50 MPa Concrete', unit: '/m³', default_price: 320 },
-  { category: 'concrete', item_code: '65MPA', item_name: '65 MPa Concrete', unit: '/m³', default_price: 350 },
+  // Labour
+  { category: 'labour', item_code: 'LABOUR HR', item_name: 'Labour Hour Charge', unit: '/h', default_price: 75 },
 
-  // Steel Mesh (per sheet - 6m x 2.4m)
-  { category: 'mesh', item_code: 'SL62', item_name: 'SL62 Mesh (6.0mm)', unit: '/sheet', default_price: 45 },
-  { category: 'mesh', item_code: 'SL72', item_name: 'SL72 Mesh (6.75mm)', unit: '/sheet', default_price: 55 },
-  { category: 'mesh', item_code: 'SL82', item_name: 'SL82 Mesh (8.0mm)', unit: '/sheet', default_price: 75 },
-  { category: 'mesh', item_code: 'SL92', item_name: 'SL92 Mesh (9.0mm)', unit: '/sheet', default_price: 95 },
-  { category: 'mesh', item_code: 'SL102', item_name: 'SL102 Mesh (10.0mm)', unit: '/sheet', default_price: 110 },
+  // Excavation & Plant
+  { category: 'excavation', item_code: 'EXC 1.4T', item_name: 'Excavator 1.4 T With Operator', unit: '/h', default_price: 140 },
+  { category: 'excavation', item_code: 'EXC 3.2T', item_name: 'Excavator 3.2 T With Operator', unit: '/h', default_price: 150 },
+  { category: 'excavation', item_code: 'EXC 4T', item_name: 'Excavator 4 T With Operator', unit: '/h', default_price: 160 },
+  { category: 'excavation', item_code: 'EXC 6T', item_name: 'Excavator 6 T With Operator', unit: '/h', default_price: 180 },
+  { category: 'excavation', item_code: 'EXC 9T', item_name: 'Excavator 9 T', unit: '/h', default_price: 200 },
+  { category: 'excavation', item_code: 'FLOAT', item_name: 'Float Charge to Site', unit: '/item', default_price: 150 },
+  { category: 'excavation', item_code: 'AUGER DRIVE', item_name: 'Additional Cost For Auger Driver', unit: '/day', default_price: 100 },
+  { category: 'excavation', item_code: 'AUGER HIRE', item_name: 'Additional Charge Auger Hire', unit: '/day', default_price: 100 },
+  { category: 'excavation', item_code: 'POSI TRACK', item_name: 'Posi Track With Operator', unit: '/h', default_price: 150 },
+  { category: 'excavation', item_code: 'SPOTTER', item_name: 'Labour Charge Excavation Spotter', unit: '/h', default_price: 75 },
 
-  // Trench Mesh (per metre)
-  { category: 'trench_mesh', item_code: 'F62', item_name: 'F62 Trench Mesh', unit: '/m', default_price: 12 },
-  { category: 'trench_mesh', item_code: 'F72', item_name: 'F72 Trench Mesh', unit: '/m', default_price: 15 },
-  { category: 'trench_mesh', item_code: 'F82', item_name: 'F82 Trench Mesh', unit: '/m', default_price: 18 },
-  { category: 'trench_mesh', item_code: 'F92', item_name: 'F92 Trench Mesh', unit: '/m', default_price: 22 },
-  { category: 'trench_mesh', item_code: 'L8TM300', item_name: 'L8TM300 Trench Mesh', unit: '/m', default_price: 25 },
-  { category: 'trench_mesh', item_code: 'L11TM300', item_name: 'L11TM300 Trench Mesh', unit: '/m', default_price: 28 },
-  { category: 'trench_mesh', item_code: 'L12TM400', item_name: 'L12TM400 Trench Mesh', unit: '/m', default_price: 32 },
+  // Concrete Supply
+  { category: 'concrete', item_code: '15MPA', item_name: '15 Mpa Readymix Concrete', unit: '/m3', default_price: 200 },
+  { category: 'concrete', item_code: '20MPA', item_name: '20 Mpa Readymix Concrete', unit: '/m3', default_price: 220 },
+  { category: 'concrete', item_code: '25MPA', item_name: '25 Mpa Readymix Concrete', unit: '/m3', default_price: 235 },
+  { category: 'concrete', item_code: '32MPA', item_name: '32 Mpa Readymix Concrete', unit: '/m3', default_price: 245 },
+  { category: 'concrete', item_code: '40MPA', item_name: '40 Mpa Readymix Concrete', unit: '/m3', default_price: 265 },
+  { category: 'concrete', item_code: 'WAITING', item_name: 'Concrete Supply Waiting Time Charge', unit: '/min', default_price: 4 },
+  { category: 'concrete', item_code: 'TESTING', item_name: 'Concrete Testing Per 50m3', unit: '/item', default_price: 850 },
 
-  // Rebar (per kg)
-  { category: 'rebar', item_code: 'N10', item_name: 'N10 Rebar (10mm)', unit: '/kg', default_price: 1.85 },
-  { category: 'rebar', item_code: 'N12', item_name: 'N12 Rebar (12mm)', unit: '/kg', default_price: 1.85 },
-  { category: 'rebar', item_code: 'N16', item_name: 'N16 Rebar (16mm)', unit: '/kg', default_price: 1.85 },
-  { category: 'rebar', item_code: 'N20', item_name: 'N20 Rebar (20mm)', unit: '/kg', default_price: 1.85 },
-  { category: 'rebar', item_code: 'N24', item_name: 'N24 Rebar (24mm)', unit: '/kg', default_price: 1.85 },
-  { category: 'rebar', item_code: 'N28', item_name: 'N28 Rebar (28mm)', unit: '/kg', default_price: 1.85 },
-  { category: 'rebar', item_code: 'N32', item_name: 'N32 Rebar (32mm)', unit: '/kg', default_price: 1.85 },
-  { category: 'rebar', item_code: 'N36', item_name: 'N36 Rebar (36mm)', unit: '/kg', default_price: 1.85 },
+  // Concrete Pumping
+  { category: 'pumping', item_code: 'LINE PUMP', item_name: 'Line Pump', unit: '/h', default_price: 180 },
+  { category: 'pumping', item_code: '20M BOOM', item_name: '20M Boom Pump', unit: '/h', default_price: 220 },
+  { category: 'pumping', item_code: '32M BOOM', item_name: '32M Boom Pump', unit: '/h', default_price: 220 },
+  { category: 'pumping', item_code: '36M BOOM', item_name: '36M Boom Pump', unit: '/h', default_price: 230 },
+  { category: 'pumping', item_code: '38M BOOM', item_name: '38M Boom Pump', unit: '/h', default_price: 230 },
+  { category: 'pumping', item_code: '42M BOOM', item_name: '42M Boom Pump', unit: '/h', default_price: 240 },
+  { category: 'pumping', item_code: '48M BOOM', item_name: '48M Boom Pump', unit: '/h', default_price: 270 },
+  { category: 'pumping', item_code: '56M BOOM', item_name: '56M Boom Pump', unit: '/h', default_price: 350 },
+  { category: 'pumping', item_code: 'PUMP M3', item_name: 'Concrete Pumping Charge / M3', unit: '/m3', default_price: 8 },
+  { category: 'pumping', item_code: 'PUMP WASH', item_name: 'Concrete Pumping Offsite Washout', unit: '/each', default_price: 250 },
+  { category: 'pumping', item_code: 'PUMP LAB', item_name: 'Additional Man /h', unit: '/h', default_price: 95 },
+  { category: 'pumping', item_code: 'PRIMER', item_name: 'Primer Charge', unit: '/each', default_price: 20 },
 
-  // Ligatures (per kg)
-  { category: 'ligatures', item_code: 'R6', item_name: 'R6 Ligature', unit: '/kg', default_price: 2.20 },
-  { category: 'ligatures', item_code: 'R8', item_name: 'R8 Ligature', unit: '/kg', default_price: 2.20 },
-  { category: 'ligatures', item_code: 'R10', item_name: 'R10 Ligature', unit: '/kg', default_price: 2.20 },
-  { category: 'ligatures', item_code: 'R12', item_name: 'R12 Ligature', unit: '/kg', default_price: 2.20 },
+  // Rebar - Stock
+  { category: 'rebar', item_code: 'N10 STOCK', item_name: 'N10 Rebar (10mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'N12 STOCK', item_name: 'N12 Rebar (12mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'N16 STOCK', item_name: 'N16 Rebar (16mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'N20 STOCK', item_name: 'N20 Rebar (20mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'N24 STOCK', item_name: 'N24 Rebar (24mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'N28 STOCK', item_name: 'N28 Rebar (28mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'N32 STOCK', item_name: 'N32 Rebar (32mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'N36 STOCK', item_name: 'N36 Rebar (36mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'N40 STOCK', item_name: 'N40 Rebar (40mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'R10 STOCK', item_name: 'R10 Rebar (10mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'R12 STOCK', item_name: 'R12 Rebar (12mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'R16 STOCK', item_name: 'R16 Rebar (16mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'R20 STOCK', item_name: 'R20 Rebar (20mm) Stock', unit: '/tonne', default_price: 2100 },
+  { category: 'rebar', item_code: 'R24 STOCK', item_name: 'R24 Rebar (24mm) Stock', unit: '/tonne', default_price: 2100 },
+  
+  // Rebar - Cut & Bend
+  { category: 'rebar', item_code: 'N10 CB', item_name: 'N10 Rebar (10mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'N12 CB', item_name: 'N12 Rebar (12mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'N16 CB', item_name: 'N16 Rebar (16mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'N20 CB', item_name: 'N20 Rebar (20mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'N24 CB', item_name: 'N24 Rebar (24mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'N28 CB', item_name: 'N28 Rebar (28mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'N32 CB', item_name: 'N32 Rebar (32mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'N36 CB', item_name: 'N36 Rebar (36mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'N40 CB', item_name: 'N40 Rebar (40mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'R10 CB', item_name: 'R10 Rebar (10mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'R12 CB', item_name: 'R12 Rebar (12mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'R16 CB', item_name: 'R16 Rebar (16mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'R20 CB', item_name: 'R20 Rebar (20mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
+  { category: 'rebar', item_code: 'R24 CB', item_name: 'R24 Rebar (24mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
 
-  // Formwork
-  { category: 'formwork', item_code: 'EDGE_STD', item_name: 'Standard Edge Formwork', unit: '/m', default_price: 12 },
-  { category: 'formwork', item_code: 'EDGE_100', item_name: '100mm Edge Form', unit: '/m', default_price: 12 },
-  { category: 'formwork', item_code: 'EDGE_150', item_name: '150mm Edge Form', unit: '/m', default_price: 15 },
-  { category: 'formwork', item_code: 'EDGE_200', item_name: '200mm Edge Form', unit: '/m', default_price: 18 },
-  { category: 'formwork', item_code: 'EDGE_250', item_name: '250mm Edge Form', unit: '/m', default_price: 22 },
-  { category: 'formwork', item_code: 'EDGE_300', item_name: '300mm Edge Form', unit: '/m', default_price: 25 },
-  { category: 'formwork', item_code: 'SUSPENDED', item_name: 'Suspended Slab Formwork', unit: '/m²', default_price: 85 },
+  // Steel Mesh
+  { category: 'mesh', item_code: 'SL72', item_name: '6000mm x 2400mm - 7mm Mesh', unit: '/sheet', default_price: 76 },
+  { category: 'mesh', item_code: 'SL82', item_name: '6000mm x 2400mm - 8mm Mesh', unit: '/sheet', default_price: 97 },
+  { category: 'mesh', item_code: 'SL92', item_name: '6000mm x 2400mm - 9mm Mesh', unit: '/sheet', default_price: 125 },
+  { category: 'mesh', item_code: 'SL102', item_name: '6000mm x 2400mm - 10mm Mesh', unit: '/sheet', default_price: 153 },
+  { category: 'mesh', item_code: 'SL72 UTE', item_name: '4000mm x 2000mm - 7mm Mesh', unit: '/sheet', default_price: 47 },
+
+  // Trench Mesh
+  { category: 'trench_mesh', item_code: 'L8TM3', item_name: '6000mm - 3Bar 8mm', unit: '/sheet', default_price: 16 },
+  { category: 'trench_mesh', item_code: 'L8TM4', item_name: '6000mm - 4Bar 8mm', unit: '/sheet', default_price: 21 },
+  { category: 'trench_mesh', item_code: 'L11TM3', item_name: '6000mm - 3Bar 11mm', unit: '/sheet', default_price: 30 },
+  { category: 'trench_mesh', item_code: 'L11TM4', item_name: '6000mm - 4Bar 11mm', unit: '/sheet', default_price: 37 },
+  { category: 'trench_mesh', item_code: 'L12TM3', item_name: '6000mm - 3Bar 12mm', unit: '/sheet', default_price: 40 },
+  { category: 'trench_mesh', item_code: 'L12TM4', item_name: '6000mm - 4Bar 12mm', unit: '/sheet', default_price: 49 },
+  { category: 'trench_mesh', item_code: 'L12TM5', item_name: '6000mm - 5Bar 12mm', unit: '/sheet', default_price: 62 },
+  { category: 'trench_mesh', item_code: 'L16TM3', item_name: '6000mm - 3Bar 16mm', unit: '/sheet', default_price: 66 },
+
+  // Dowels
+  { category: 'dowel', item_code: 'R12-300 GAL', item_name: '300mm x 12mm Round Gal Dowel', unit: '/each', default_price: 1.32 },
+  { category: 'dowel', item_code: 'R12-450 GAL', item_name: '450mm x 12mm Round Gal Dowel', unit: '/each', default_price: 1.76 },
+  { category: 'dowel', item_code: 'R12-600 GAL', item_name: '600mm x 12mm Round Gal Dowel', unit: '/each', default_price: 2.64 },
+  { category: 'dowel', item_code: 'R16-450 GAL', item_name: '450mm x 16mm Round Gal Dowel', unit: '/each', default_price: 3.08 },
+  { category: 'dowel', item_code: 'R16-600 GAL', item_name: '600mm x 16mm Round Gal Dowel', unit: '/each', default_price: 4.84 },
+  { category: 'dowel', item_code: 'R20-450 GAL', item_name: '450mm x 20mm Round Gal Dowel', unit: '/each', default_price: 4.84 },
+  { category: 'dowel', item_code: 'R20-600 GAL', item_name: '600mm x 20mm Round Gal Dowel', unit: '/each', default_price: 6.60 },
+  { category: 'dowel', item_code: 'R24-450 GAL', item_name: '450mm x 24mm Round Gal Dowel', unit: '/each', default_price: 7.04 },
 
   // Consumables
-  { category: 'consumables', item_code: 'POLY', item_name: 'Poly Membrane (200um)', unit: '/m²', default_price: 2.50 },
-  { category: 'consumables', item_code: 'SEALING', item_name: 'Concrete Sealing', unit: '/m²', default_price: 8 },
-  { category: 'consumables', item_code: 'CURING', item_name: 'Curing Compound', unit: '/m²', default_price: 3.50 },
-  { category: 'consumables', item_code: 'CHAIRS', item_name: 'Bar Chairs', unit: '/m²', default_price: 2 },
-  { category: 'consumables', item_code: 'TIE_WIRE', item_name: 'Tie Wire', unit: '/kg', default_price: 4.50 },
+  { category: 'consumables', item_code: 'DUCT', item_name: 'Duct Tape 48mm x 30m', unit: '/roll', default_price: 4.50 },
+  { category: 'consumables', item_code: 'PLASTIC 4X50 HI', item_name: 'Plastic Black 4 x 50m 200um High Impact', unit: '/roll', default_price: 110 },
+  { category: 'consumables', item_code: 'PLASTIC 4X50 MED', item_name: 'Plastic Black 4 x 50m 200um Medium Impact', unit: '/roll', default_price: 100 },
+  { category: 'consumables', item_code: 'PLASTIC 4X25 ORG', item_name: 'Plastic Orange 4 x 25m 300um High Impact', unit: '/roll', default_price: 140 },
+  { category: 'consumables', item_code: 'TIE WIRE', item_name: 'Tie Wire 1.57mm x 95m Belt Wire Coil', unit: '/roll', default_price: 6 },
+  { category: 'consumables', item_code: 'TIE WIRE GAL', item_name: 'Tie Wire 1.57mm x 1.5kg Belt Wire Coil Gal', unit: '/roll', default_price: 18 },
+  { category: 'consumables', item_code: 'REBAR CAP', item_name: 'Reinforcement Bar Caps QTY 100', unit: '/bag', default_price: 55 },
+  { category: 'consumables', item_code: '2540C', item_name: 'Barchair & Base 25/40C NS Bag 100', unit: '/bag', default_price: 15.80 },
+  { category: 'consumables', item_code: '5065C', item_name: 'Barchair & Base 50/65C NS Bag 100', unit: '/bag', default_price: 16.80 },
+  { category: 'consumables', item_code: '7590C', item_name: 'Barchair & Base 75/90C NS Bag 100', unit: '/bag', default_price: 22.40 },
+  { category: 'consumables', item_code: '85100C', item_name: 'Barchair & Base 85/100C NS Bag 100', unit: '/bag', default_price: 23.90 },
+  { category: 'consumables', item_code: 'SOG105110', item_name: 'Barchair 105/110 PVC Bag 100', unit: '/bag', default_price: 48.80 },
+  { category: 'consumables', item_code: 'SOG115120', item_name: 'Barchair 115/120 PVC Bag 100', unit: '/bag', default_price: 53.30 },
+  { category: 'consumables', item_code: 'SOG125130', item_name: 'Barchair 125/130 PVC Bag 100', unit: '/bag', default_price: 57.90 },
+  { category: 'consumables', item_code: 'SOG135140', item_name: 'Barchair 135/140 PVC Bag 100', unit: '/bag', default_price: 62.70 },
+  { category: 'consumables', item_code: 'SOG145150', item_name: 'Barchair 145/150 PVC Bag 100', unit: '/bag', default_price: 67.30 },
+  { category: 'consumables', item_code: 'SOG165170', item_name: 'Barchair 165/170 PVC Bag 100', unit: '/bag', default_price: 81 },
+  { category: 'consumables', item_code: 'TMCHAIR', item_name: 'Trench Mesh Supports 8-12mm Bar Bag 25', unit: '/bag', default_price: 12.50 },
+  { category: 'consumables', item_code: 'POD RAIL', item_name: 'Podrial 560mm 40/55 Bag 20', unit: '/bag', default_price: 26 },
+  { category: 'consumables', item_code: 'DUST', item_name: 'Supply of Crusher Dust', unit: '/m3', default_price: 60 },
 
-  // Equipment
-  { category: 'equipment', item_code: 'PUMP', item_name: 'Concrete Pump Hire', unit: '/job', default_price: 1500 },
-  { category: 'equipment', item_code: 'PROPS', item_name: 'Props (Suspended Slab)', unit: '/m²', default_price: 35 },
-  { category: 'equipment', item_code: 'VIBRATOR', item_name: 'Concrete Vibrator', unit: '/day', default_price: 85 },
-  { category: 'equipment', item_code: 'POWER_FLOAT', item_name: 'Power Float', unit: '/day', default_price: 150 },
+  // Expansion Joints
+  { category: 'joints_expansion', item_code: 'EXJ10030', item_name: 'Expansion Joint 100mm 3000mm R12 - 300mm Dowel 335/c', unit: '/each', default_price: 95 },
+  { category: 'joints_expansion', item_code: 'EXJ12530', item_name: 'Expansion Joint 125mm 3000mm R16 - 450mm Dowel 450/c', unit: '/each', default_price: 119.30 },
+  { category: 'joints_expansion', item_code: 'EXJ15030', item_name: 'Expansion Joint 150mm 3000mm R16 - 450mm Dowel 450/c', unit: '/each', default_price: 156.90 },
+  { category: 'joints_expansion', item_code: 'EXJ20030', item_name: 'Expansion Joint 200mm 3000mm R24 - 450mm Dowel 450/c', unit: '/each', default_price: 217.80 },
+  { category: 'joints_expansion', item_code: 'EXJ CAP B', item_name: 'Permanent Capping Mould Black 3000mm', unit: '/each', default_price: 24 },
+  { category: 'joints_expansion', item_code: 'EXJ CAP G', item_name: 'Permanent Capping Mould Grey 3000mm', unit: '/each', default_price: 24 },
+  { category: 'joints_expansion', item_code: 'EXJ CAP RBM', item_name: 'Removable Rebate Mould 16mm x 10mm 3000mm', unit: '/each', default_price: 30.40 },
 
-  // Waffle Pods
-  { category: 'pods', item_code: 'POD_225', item_name: '225mm Waffle Pod', unit: '/each', default_price: 8.50 },
-  { category: 'pods', item_code: 'POD_275', item_name: '275mm Waffle Pod', unit: '/each', default_price: 10.50 },
-  { category: 'pods', item_code: 'POD_325', item_name: '325mm Waffle Pod', unit: '/each', default_price: 12.50 },
-  { category: 'pods', item_code: 'POD_375', item_name: '375mm Waffle Pod', unit: '/each', default_price: 14.50 },
-  { category: 'pods', item_code: 'POD_425', item_name: '425mm Waffle Pod', unit: '/each', default_price: 16.50 },
+  // Key Joints
+  { category: 'joints_key', item_code: 'KEY10030', item_name: 'Key Joint 100mm 3000mm', unit: '/each', default_price: 44.90 },
+  { category: 'joints_key', item_code: 'KEY10060', item_name: 'Key Joint 100mm 6000mm', unit: '/each', default_price: 89.80 },
+  { category: 'joints_key', item_code: 'KEY15030', item_name: 'Key Joint 150mm 3000mm', unit: '/each', default_price: 49.50 },
+  { category: 'joints_key', item_code: 'KEY15060', item_name: 'Key Joint 150mm 6000mm', unit: '/each', default_price: 99 },
+  { category: 'joints_key', item_code: 'KEY20030', item_name: 'Key Joint 200mm 3000mm', unit: '/each', default_price: 58.20 },
+  { category: 'joints_key', item_code: 'KEY20060', item_name: 'Key Joint 200mm 6000mm', unit: '/each', default_price: 116.40 },
+  { category: 'joints_key', item_code: 'KEY30030', item_name: 'Key Joint 300mm 3000mm', unit: '/each', default_price: 88.10 },
+  { category: 'joints_key', item_code: 'KEY30060', item_name: 'Key Joint 300mm 6000mm', unit: '/each', default_price: 176.20 },
 
-  // Labour
-  { category: 'labour', item_code: 'HOURLY', item_name: 'Standard Labour Rate', unit: '/hr', default_price: 85 },
-  { category: 'labour', item_code: 'FORMWORK_LABOUR', item_name: 'Formwork Labour', unit: '/m', default_price: 15 },
-  { category: 'labour', item_code: 'POUR_LABOUR', item_name: 'Pour & Finish Labour', unit: '/m²', default_price: 35 },
-  { category: 'labour', item_code: 'STEEL_LABOUR', item_name: 'Steel Fixing Labour', unit: '/kg', default_price: 0.85 },
+  // Joint Foam
+  { category: 'joint_foam', item_code: 'EJA1050SB', item_name: 'Joint Exp Sticky 50x10x25m', unit: '/roll', default_price: 17.80 },
+  { category: 'joint_foam', item_code: 'EJA1075SB', item_name: 'Joint Exp Sticky 75x10x25m', unit: '/roll', default_price: 23.40 },
+  { category: 'joint_foam', item_code: 'EJA10100SB', item_name: 'Joint Exp Sticky 100x10x25m', unit: '/roll', default_price: 30.50 },
+  { category: 'joint_foam', item_code: 'EJA10125SB', item_name: 'Joint Exp Sticky 125x10x25m', unit: '/roll', default_price: 39.60 },
+  { category: 'joint_foam', item_code: 'EJA10150SB', item_name: 'Joint Exp Sticky 150x10x25m', unit: '/roll', default_price: 45.70 },
+  { category: 'joint_foam', item_code: 'EJA10200SB', item_name: 'Joint Exp Sticky 200x10x25m', unit: '/roll', default_price: 56.90 },
+  { category: 'joint_foam', item_code: 'EJA10250SB', item_name: 'Joint Exp Sticky 250x10x25m', unit: '/roll', default_price: 68 },
+  { category: 'joint_foam', item_code: 'EJA10300SB', item_name: 'Joint Exp Sticky 300x10x25m', unit: '/roll', default_price: 91.40 },
+  { category: 'joint_foam', item_code: 'EJ1075', item_name: 'Joint Exp 75x10x25mt', unit: '/roll', default_price: 15.30 },
+  { category: 'joint_foam', item_code: 'EJ10100', item_name: 'Joint Exp 100x10x25mt', unit: '/roll', default_price: 20.30 },
 
-  // Markup Percentages
-  { category: 'markup', item_code: 'MATERIALS', item_name: 'Materials Markup', unit: '%', default_price: 15 },
-  { category: 'markup', item_code: 'LABOUR', item_name: 'Labour Markup', unit: '%', default_price: 20 },
-  { category: 'markup', item_code: 'EQUIPMENT', item_name: 'Equipment Markup', unit: '%', default_price: 10 },
+  // Joint Caulking
+  { category: 'joint_caulking', item_code: 'CAULKING', item_name: 'Labour & Materials Caulking Joints', unit: '/m', default_price: 10 },
+  { category: 'joint_caulking', item_code: 'CAULKING HRS', item_name: 'Labour Hours', unit: '/h', default_price: 75 },
+
+  // Saw Cutting
+  { category: 'joint_saw_cutting', item_code: 'JOINTCUT', item_name: 'Labour & Equipment Saw Cutting', unit: '/m', default_price: 6.50 },
+  { category: 'joint_saw_cutting', item_code: 'JOINTCUT HR', item_name: 'Labour Hours', unit: '/h', default_price: 75 },
 ];
 
 // CSV headers for import/export

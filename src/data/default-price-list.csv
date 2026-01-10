@@ -1,0 +1,129 @@
+category,item_code,item_name,unit,default_price
+labour,LABOUR HR,Labour Hour Charge,/h,75.00
+excavation,EXC 1.4T,Excavator 1.4 T With Operator,/h,140.00
+excavation,EXC 3.2T,Excavator 3.2 T With Operator,/h,150.00
+excavation,EXC 4T,Excavator 4 T With Operator,/h,160.00
+excavation,EXC 6T,Excavator 6 T With Operator,/h,180.00
+excavation,EXC 9T,Excavator 9 T,/h,200.00
+excavation,FLOAT,Float Charge to Site,/item,150.00
+excavation,AUGER DRIVE,Additional Cost For Auger Driver,/day,100.00
+excavation,AUGER HIRE,Additional Charge Auger Hire,/day,100.00
+excavation,POSI TRACK,Posi Track With Operator,/h,150.00
+excavation,SPOTTER,Labour Charge Excavation Spotter,/h,75.00
+concrete,15MPA,15 Mpa Readymix Concrete,/m3,200.00
+concrete,20MPA,20 Mpa Readymix Concrete,/m3,220.00
+concrete,25MPA,25 Mpa Readymix Concrete,/m3,235.00
+concrete,32MPA,32 Mpa Readymix Concrete,/m3,245.00
+concrete,40MPA,40 Mpa Readymix Concrete,/m3,265.00
+concrete,WAITING,Concrete Supply Waiting Time Charge,/min,4.00
+concrete,TESTING,Concrete Testing Per 50m3,/item,850.00
+pumping,LINE PUMP,Line Pump,/h,180.00
+pumping,20M BOOM,20M Boom Pump,/h,220.00
+pumping,32M BOOM,32M Boom Pump,/h,220.00
+pumping,36M BOOM,36M Boom Pump,/h,230.00
+pumping,38M BOOM,38M Boom Pump,/h,230.00
+pumping,42M BOOM,42M Boom Pump,/h,240.00
+pumping,48M BOOM,48M Boom Pump,/h,270.00
+pumping,56M BOOM,56M Boom Pump,/h,350.00
+pumping,PUMP M3,Concrete Pumping Charge / M3,/m3,8.00
+pumping,PUMP WASH,Concrete Pumping Offsite Washout,/each,250.00
+pumping,PUMP LAB,Additional Man /h,/h,95.00
+pumping,PRIMER,Primer Charge,/each,20.00
+rebar,N10 STOCK,N10 Rebar (10mm) Stock,/tonne,2100.00
+rebar,N12 STOCK,N12 Rebar (12mm) Stock,/tonne,2100.00
+rebar,N16 STOCK,N16 Rebar (16mm) Stock,/tonne,2100.00
+rebar,N20 STOCK,N20 Rebar (20mm) Stock,/tonne,2100.00
+rebar,N24 STOCK,N24 Rebar (24mm) Stock,/tonne,2100.00
+rebar,N28 STOCK,N28 Rebar (28mm) Stock,/tonne,2100.00
+rebar,N32 STOCK,N32 Rebar (32mm) Stock,/tonne,2100.00
+rebar,N36 STOCK,N36 Rebar (36mm) Stock,/tonne,2100.00
+rebar,N40 STOCK,N40 Rebar (40mm) Stock,/tonne,2100.00
+rebar,R10 STOCK,R10 Rebar (10mm) Stock,/tonne,2100.00
+rebar,R12 STOCK,R12 Rebar (12mm) Stock,/tonne,2100.00
+rebar,R16 STOCK,R16 Rebar (16mm) Stock,/tonne,2100.00
+rebar,R20 STOCK,R20 Rebar (20mm) Stock,/tonne,2100.00
+rebar,R24 STOCK,R24 Rebar (24mm) Stock,/tonne,2100.00
+rebar,N10 CB,N10 Rebar (10mm) Cut & Bend,/tonne,2240.00
+rebar,N12 CB,N12 Rebar (12mm) Cut & Bend,/tonne,2240.00
+rebar,N16 CB,N16 Rebar (16mm) Cut & Bend,/tonne,2240.00
+rebar,N20 CB,N20 Rebar (20mm) Cut & Bend,/tonne,2240.00
+rebar,N24 CB,N24 Rebar (24mm) Cut & Bend,/tonne,2240.00
+rebar,N28 CB,N28 Rebar (28mm) Cut & Bend,/tonne,2240.00
+rebar,N32 CB,N32 Rebar (32mm) Cut & Bend,/tonne,2240.00
+rebar,N36 CB,N36 Rebar (36mm) Cut & Bend,/tonne,2240.00
+rebar,N40 CB,N40 Rebar (40mm) Cut & Bend,/tonne,2240.00
+rebar,R10 CB,R10 Rebar (10mm) Cut & Bend,/tonne,2240.00
+rebar,R12 CB,R12 Rebar (12mm) Cut & Bend,/tonne,2240.00
+rebar,R16 CB,R16 Rebar (16mm) Cut & Bend,/tonne,2240.00
+rebar,R20 CB,R20 Rebar (20mm) Cut & Bend,/tonne,2240.00
+rebar,R24 CB,R24 Rebar (24mm) Cut & Bend,/tonne,2240.00
+mesh,SL72,6000mm x 2400mm - 7mm Mesh,/sheet,76.00
+mesh,SL82,6000mm x 2400mm - 8mm Mesh,/sheet,97.00
+mesh,SL92,6000mm x 2400mm - 9mm Mesh,/sheet,125.00
+mesh,SL102,6000mm x 2400mm - 10mm Mesh,/sheet,153.00
+mesh,SL72 UTE,4000mm x 2000mm - 7mm Mesh,/sheet,47.00
+trench_mesh,L8TM3,6000mm - 3Bar 8mm,/sheet,16.00
+trench_mesh,L8TM4,6000mm - 4Bar 8mm,/sheet,21.00
+trench_mesh,L11TM3,6000mm - 3Bar 11mm,/sheet,30.00
+trench_mesh,L11TM4,6000mm - 4Bar 11mm,/sheet,37.00
+trench_mesh,L12TM3,6000mm - 3Bar 12mm,/sheet,40.00
+trench_mesh,L12TM4,6000mm - 4Bar 12mm,/sheet,49.00
+trench_mesh,L12TM5,6000mm - 5Bar 12mm,/sheet,62.00
+trench_mesh,L16TM3,6000mm - 3Bar 16mm,/sheet,66.00
+dowel,R12-300 GAL,300mm x 12mm Round Gal Dowel,/each,1.32
+dowel,R12-450 GAL,450mm x 12mm Round Gal Dowel,/each,1.76
+dowel,R12-600 GAL,600mm x 12mm Round Gal Dowel,/each,2.64
+dowel,R16-450 GAL,450mm x 16mm Round Gal Dowel,/each,3.08
+dowel,R16-600 GAL,600mm x 16mm Round Gal Dowel,/each,4.84
+dowel,R20-450 GAL,450mm x 20mm Round Gal Dowel,/each,4.84
+dowel,R20-600 GAL,600mm x 20mm Round Gal Dowel,/each,6.60
+dowel,R24-450 GAL,450mm x 24mm Round Gal Dowel,/each,7.04
+consumables,DUCT,Duct Tape 48mm x 30m,/roll,4.50
+consumables,PLASTIC 4X50 HI,Plastic Black 4 x 50m 200um High Impact,/roll,110.00
+consumables,PLASTIC 4X50 MED,Plastic Black 4 x 50m 200um Medium Impact,/roll,100.00
+consumables,PLASTIC 4X25 ORG,Plastic Orange 4 x 25m 300um High Impact,/roll,140.00
+consumables,TIE WIRE,Tie Wire 1.57mm x 95m Belt Wire Coil,/roll,6.00
+consumables,TIE WIRE GAL,Tie Wire 1.57mm x 1.5kg Belt Wire Coil Gal,/roll,18.00
+consumables,REBAR CAP,Reinforcement Bar Caps QTY 100,/bag,55.00
+consumables,2540C,Barchair & Base 25/40C NS Bag 100,/bag,15.80
+consumables,5065C,Barchair & Base 50/65C NS Bag 100,/bag,16.80
+consumables,7590C,Barchair & Base 75/90C NS Bag 100,/bag,22.40
+consumables,85100C,Barchair & Base 85/100C NS Bag 100,/bag,23.90
+consumables,SOG105110,Barchair 105/110 PVC Bag 100,/bag,48.80
+consumables,SOG115120,Barchair 115/120 PVC Bag 100,/bag,53.30
+consumables,SOG125130,Barchair 125/130 PVC Bag 100,/bag,57.90
+consumables,SOG135140,Barchair 135/140 PVC Bag 100,/bag,62.70
+consumables,SOG145150,Barchair 145/150 PVC Bag 100,/bag,67.30
+consumables,SOG165170,Barchair 165/170 PVC Bag 100,/bag,81.00
+consumables,TMCHAIR,Trench Mesh Supports 8-12mm Bar Bag 25,/bag,12.50
+consumables,POD RAIL,Podrial 560mm 40/55 Bag 20,/bag,26.00
+consumables,DUST,Supply of Crusher Dust,/m3,60.00
+joints_expansion,EXJ10030,Expansion Joint 100mm 3000mm R12 - 300mm Dowel 335/c,/each,95.00
+joints_expansion,EXJ12530,Expansion Joint 125mm 3000mm R16 - 450mm Dowel 450/c,/each,119.30
+joints_expansion,EXJ15030,Expansion Joint 150mm 3000mm R16 - 450mm Dowel 450/c,/each,156.90
+joints_expansion,EXJ20030,Expansion Joint 200mm 3000mm R24 - 450mm Dowel 450/c,/each,217.80
+joints_expansion,EXJ CAP B,Permanent Capping Mould Black 3000mm,/each,24.00
+joints_expansion,EXJ CAP G,Permanent Capping Mould Grey 3000mm,/each,24.00
+joints_expansion,EXJ CAP RBM,Removable Rebate Mould 16mm x 10mm 3000mm,/each,30.40
+joints_key,KEY10030,Key Joint 100mm 3000mm,/each,44.90
+joints_key,KEY10060,Key Joint 100mm 6000mm,/each,89.80
+joints_key,KEY15030,Key Joint 150mm 3000mm,/each,49.50
+joints_key,KEY15060,Key Joint 150mm 6000mm,/each,99.00
+joints_key,KEY20030,Key Joint 200mm 3000mm,/each,58.20
+joints_key,KEY20060,Key Joint 200mm 6000mm,/each,116.40
+joints_key,KEY30030,Key Joint 300mm 3000mm,/each,88.10
+joints_key,KEY30060,Key Joint 300mm 6000mm,/each,176.20
+joint_foam,EJA1050SB,Joint Exp Sticky 50x10x25m,/roll,17.80
+joint_foam,EJA1075SB,Joint Exp Sticky 75x10x25m,/roll,23.40
+joint_foam,EJA10100SB,Joint Exp Sticky 100x10x25m,/roll,30.50
+joint_foam,EJA10125SB,Joint Exp Sticky 125x10x25m,/roll,39.60
+joint_foam,EJA10150SB,Joint Exp Sticky 150x10x25m,/roll,45.70
+joint_foam,EJA10200SB,Joint Exp Sticky 200x10x25m,/roll,56.90
+joint_foam,EJA10250SB,Joint Exp Sticky 250x10x25m,/roll,68.00
+joint_foam,EJA10300SB,Joint Exp Sticky 300x10x25m,/roll,91.40
+joint_foam,EJ1075,Joint Exp 75x10x25mt,/roll,15.30
+joint_foam,EJ10100,Joint Exp 100x10x25mt,/roll,20.30
+joint_caulking,CAULKING,Labour & Materials Caulking Joints,/m,10.00
+joint_caulking,CAULKING HRS,Labour Hours,/h,75.00
+joint_saw_cutting,JOINTCUT,Labour & Equipment Saw Cutting,/m,6.50
+joint_saw_cutting,JOINTCUT HR,Labour Hours,/h,75.00
