@@ -32,6 +32,7 @@ interface ModuleSectionProps {
   onToggle: () => void;
   subtotal: number;
   lineItems: CostLineItem[];
+  hasBeenOpened: boolean;
 }
 
 function formatCurrency(value: number): string {
@@ -186,6 +187,7 @@ export function ModuleSection({
   onToggle,
   subtotal,
   lineItems,
+  hasBeenOpened,
 }: ModuleSectionProps) {
   // Get visible questions
   const visibleQuestions = module.questions.filter(
@@ -193,9 +195,10 @@ export function ModuleSection({
   );
 
   // Check if section is complete:
-  // 1. Must have at least one visible question
-  // 2. All required visible questions must be answered
-  // 3. User must have actually entered something (not just defaults with no interaction)
+  // 1. Must have been opened by the user at least once
+  // 2. Must have at least one visible question
+  // 3. All required visible questions must be answered
+  // 4. Must have a subtotal > 0 (indicates real calculation)
   const hasRequiredQuestions = visibleQuestions.some((q) => q.required);
   const allRequiredAnswered = visibleQuestions.every((q) => {
     if (!q.required) return true;
@@ -203,26 +206,35 @@ export function ModuleSection({
     return val !== undefined && val !== '' && val !== null;
   });
   
-  // Only mark as complete if there are required questions AND they're all answered
-  // AND the user has actually provided meaningful answers (subtotal > 0 indicates real input)
-  const isComplete = hasRequiredQuestions && allRequiredAnswered && subtotal > 0;
+  // Only mark as complete if:
+  // - User has opened the module at least once
+  // - Required questions are answered
+  // - There's actual cost calculated
+  const isComplete = hasBeenOpened && hasRequiredQuestions && allRequiredAnswered && subtotal > 0;
 
+  // Handle accordion toggle without scroll jumping
+  const handleValueChange = (val: string) => {
+    if (val === module.id || val === '') {
+      onToggle();
+    }
+  };
 
   return (
     <Accordion
       type="single"
       collapsible
       value={isOpen ? module.id : ''}
-      onValueChange={(val) => {
-        if (val === module.id) {
-          onToggle();
-        } else if (val === '') {
-          onToggle();
-        }
-      }}
+      onValueChange={handleValueChange}
     >
       <AccordionItem value={module.id} className="border rounded-lg px-4">
-        <AccordionTrigger className="hover:no-underline py-4">
+        <AccordionTrigger 
+          className="hover:no-underline py-4"
+          onClick={(e) => {
+            // Prevent default scroll-into-view behavior
+            e.preventDefault();
+            onToggle();
+          }}
+        >
           <div className="flex items-center gap-3 flex-1">
             <span className="font-medium">{module.name}</span>
             {isComplete && <AccordionDoneBadge />}
