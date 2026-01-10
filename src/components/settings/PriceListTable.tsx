@@ -60,15 +60,10 @@ export function PriceListTable({ items, onUpdateItem, onResetItem, searchQuery }
     return `$${price.toFixed(2)}`;
   };
 
-  // Calculate categories with items for default expansion
-  const categoriesWithItems = PRICE_LIST_CATEGORIES
-    .filter(cat => groupedItems[cat.id]?.length > 0)
-    .map(cat => cat.id);
-
   return (
     <Accordion 
       type="multiple" 
-      defaultValue={categoriesWithItems}
+      defaultValue={[]}
       className="space-y-2"
     >
       {PRICE_LIST_CATEGORIES.map(category => {
