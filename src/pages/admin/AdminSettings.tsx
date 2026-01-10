@@ -336,6 +336,76 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
+          {/* Business Details */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Business Details
+              </CardTitle>
+              <CardDescription>Your company information for documents and invoices</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <Label htmlFor="name">Business Name *</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., Smith Concreting Pty Ltd"
+                  className="touch-target"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="abn">ABN</Label>
+                <Input
+                  id="abn"
+                  value={abn}
+                  onChange={(e) => setAbn(e.target.value)}
+                  placeholder="e.g., 12 345 678 901"
+                  className="touch-target"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="address">Business Address</Label>
+                <Input
+                  id="address"
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="e.g., 123 Main St, Sydney NSW 2000"
+                  className="touch-target"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="e.g., 0412 345 678"
+                    className="touch-target"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="e.g., admin@company.com"
+                    className="touch-target"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Branding & Quote Templates */}
           <Card>
             <CardHeader>
@@ -667,75 +737,6 @@ export default function AdminSettings() {
             </CardContent>
           </Card>
 
-          {/* Business Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                Business Details
-              </CardTitle>
-              <CardDescription>Your company information for documents and invoices</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="name">Business Name *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Smith Concreting Pty Ltd"
-                  className="touch-target"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="abn">ABN</Label>
-                <Input
-                  id="abn"
-                  value={abn}
-                  onChange={(e) => setAbn(e.target.value)}
-                  placeholder="e.g., 12 345 678 901"
-                  className="touch-target"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="address">Business Address</Label>
-                <Input
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g., 123 Main St, Sydney NSW 2000"
-                  className="touch-target"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g., 0412 345 678"
-                    className="touch-target"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g., admin@company.com"
-                    className="touch-target"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Preferred Suppliers */}
           <Card>
