@@ -10,7 +10,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown, Palette, FileText, Eye, DollarSign } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown, Palette, FileText, Eye, DollarSign, MessageSquare } from "lucide-react";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PriceListSection } from "@/components/settings/PriceListSection";
@@ -859,6 +860,30 @@ export default function AdminSettings() {
                 )}
                 Change Password
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* Feedback */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                Feedback
+              </CardTitle>
+              <CardDescription>Help us improve PourHub</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                We'd love to hear your thoughts, suggestions, or any issues you've encountered.
+              </p>
+              <FeedbackDialog 
+                trigger={
+                  <Button variant="outline" className="touch-target">
+                    <MessageSquare className="w-4 h-4 mr-2" />
+                    Send Feedback
+                  </Button>
+                }
+              />
             </CardContent>
           </Card>
 
