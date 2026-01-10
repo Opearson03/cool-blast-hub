@@ -38,6 +38,7 @@ interface PriceOverride {
 export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [previewExpanded, setPreviewExpanded] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -273,8 +274,9 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
   };
 
   return (
+    <>
     <Dialog open onOpenChange={() => {}}>
-      <DialogContent className={`[&>button]:hidden max-h-[90vh] overflow-y-auto ${step === 2 ? 'sm:max-w-2xl' : 'sm:max-w-lg'}`}>
+      <DialogContent className="sm:max-w-lg [&>button]:hidden max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <div className="flex items-center justify-between">
             <DialogTitle>Getting Started</DialogTitle>
@@ -362,146 +364,146 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
               </div>
             </div>
 
-            {/* Two column layout: Options + Preview */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Left column: Options */}
-              <div className="space-y-4">
-                {/* Logo Upload */}
+            {/* Logo Upload */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Business Logo</Label>
+              <div className="flex items-center gap-3">
+                {logoUrl ? (
+                  <img
+                    src={logoUrl}
+                    alt="Business logo"
+                    className="h-12 w-12 object-contain border rounded-lg bg-white"
+                  />
+                ) : (
+                  <div className="h-12 w-12 border rounded-lg bg-muted flex items-center justify-center">
+                    <Building2 className="w-5 h-5 text-muted-foreground" />
+                  </div>
+                )}
                 <div>
-                  <Label className="text-sm font-medium mb-2 block">Business Logo</Label>
-                  <div className="flex items-center gap-3">
-                    {logoUrl ? (
-                      <img
-                        src={logoUrl}
-                        alt="Business logo"
-                        className="h-12 w-12 object-contain border rounded-lg bg-white"
-                      />
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    className="hidden"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) handleLogoUpload(file);
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     ) : (
-                      <div className="h-12 w-12 border rounded-lg bg-muted flex items-center justify-center">
-                        <Building2 className="w-5 h-5 text-muted-foreground" />
-                      </div>
+                      <Upload className="w-4 h-4 mr-2" />
                     )}
-                    <div>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept="image/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleLogoUpload(file);
-                        }}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={uploading}
-                      >
-                        {uploading ? (
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 mr-2" />
-                        )}
-                        {logoUrl ? "Change" : "Upload"}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quote Template Selection */}
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Template</Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { id: "classic", name: "Classic" },
-                      { id: "modern", name: "Modern" },
-                      { id: "minimal", name: "Minimal" },
-                    ].map((template) => (
-                      <button
-                        key={template.id}
-                        type="button"
-                        onClick={() => setQuoteTemplate(template.id)}
-                        className={`p-2 border rounded-lg text-center transition-all ${
-                          quoteTemplate === template.id
-                            ? "border-primary bg-primary/10 ring-2 ring-primary"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                      >
-                        <FileText className="w-3 h-3 mx-auto mb-0.5" />
-                        <span className="font-medium text-xs">{template.name}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Font Selection */}
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Font</Label>
-                  <Select value={quoteFont} onValueChange={setQuoteFont}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select font" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {FONT_OPTIONS.map((font) => (
-                        <SelectItem key={font.value} value={font.value}>
-                          <span style={{ fontFamily: font.value }}>{font.label}</span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* Brand Colors */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <Label htmlFor="primaryColor" className="text-sm font-medium mb-2 block">
-                      Primary
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        id="primaryColor"
-                        value={quotePrimaryColor}
-                        onChange={(e) => setQuotePrimaryColor(e.target.value)}
-                        className="w-8 h-8 rounded border cursor-pointer"
-                      />
-                      <Input
-                        value={quotePrimaryColor}
-                        onChange={(e) => setQuotePrimaryColor(e.target.value)}
-                        placeholder="#f97316"
-                        className="font-mono text-xs flex-1"
-                      />
-                    </div>
-                  </div>
-                  <div>
-                    <Label htmlFor="secondaryColor" className="text-sm font-medium mb-2 block">
-                      Secondary
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="color"
-                        id="secondaryColor"
-                        value={quoteSecondaryColor}
-                        onChange={(e) => setQuoteSecondaryColor(e.target.value)}
-                        className="w-8 h-8 rounded border cursor-pointer"
-                      />
-                      <Input
-                        value={quoteSecondaryColor}
-                        onChange={(e) => setQuoteSecondaryColor(e.target.value)}
-                        placeholder="#1f2937"
-                        className="font-mono text-xs flex-1"
-                      />
-                    </div>
-                  </div>
+                    {logoUrl ? "Change" : "Upload Logo"}
+                  </Button>
                 </div>
               </div>
+            </div>
 
-              {/* Right column: Live Preview */}
+            {/* Quote Template Selection */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Template</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  { id: "classic", name: "Classic" },
+                  { id: "modern", name: "Modern" },
+                  { id: "minimal", name: "Minimal" },
+                ].map((template) => (
+                  <button
+                    key={template.id}
+                    type="button"
+                    onClick={() => setQuoteTemplate(template.id)}
+                    className={`p-3 border rounded-lg text-center transition-all ${
+                      quoteTemplate === template.id
+                        ? "border-primary bg-primary/10 ring-2 ring-primary"
+                        : "border-border hover:border-primary/50"
+                    }`}
+                  >
+                    <FileText className="w-4 h-4 mx-auto mb-1" />
+                    <span className="font-medium text-sm">{template.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Font Selection */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Font</Label>
+              <Select value={quoteFont} onValueChange={setQuoteFont}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select font" />
+                </SelectTrigger>
+                <SelectContent>
+                  {FONT_OPTIONS.map((font) => (
+                    <SelectItem key={font.value} value={font.value}>
+                      <span style={{ fontFamily: font.value }}>{font.label}</span>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Brand Colors */}
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label className="text-sm font-medium mb-2 block">Preview</Label>
-                <div className="border rounded-lg bg-muted/30 p-2">
+                <Label htmlFor="primaryColor" className="text-sm font-medium mb-2 block">
+                  Primary Color
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="primaryColor"
+                    value={quotePrimaryColor}
+                    onChange={(e) => setQuotePrimaryColor(e.target.value)}
+                    className="w-10 h-8 rounded border cursor-pointer"
+                  />
+                  <Input
+                    value={quotePrimaryColor}
+                    onChange={(e) => setQuotePrimaryColor(e.target.value)}
+                    placeholder="#f97316"
+                    className="font-mono text-sm flex-1"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="secondaryColor" className="text-sm font-medium mb-2 block">
+                  Secondary Color
+                </Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="color"
+                    id="secondaryColor"
+                    value={quoteSecondaryColor}
+                    onChange={(e) => setQuoteSecondaryColor(e.target.value)}
+                    className="w-10 h-8 rounded border cursor-pointer"
+                  />
+                  <Input
+                    value={quoteSecondaryColor}
+                    onChange={(e) => setQuoteSecondaryColor(e.target.value)}
+                    placeholder="#1f2937"
+                    className="font-mono text-sm flex-1"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Preview - Clickable to expand */}
+            <div>
+              <Label className="text-sm font-medium mb-2 block">Preview</Label>
+              <button
+                type="button"
+                onClick={() => setPreviewExpanded(true)}
+                className="w-full border rounded-lg bg-muted/30 p-3 hover:bg-muted/50 transition-colors cursor-pointer group"
+              >
+                <div className="max-w-[200px] mx-auto">
                   <QuoteTemplatePreview
                     template={quoteTemplate}
                     primaryColor={quotePrimaryColor}
@@ -511,7 +513,10 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
                     businessName={businessName || "Your Business"}
                   />
                 </div>
-              </div>
+                <p className="text-xs text-muted-foreground mt-2 group-hover:text-primary transition-colors">
+                  Click to expand preview
+                </p>
+              </button>
             </div>
 
             <div className="flex gap-2 pt-4">
@@ -664,5 +669,25 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Expanded Preview Dialog */}
+    <Dialog open={previewExpanded} onOpenChange={setPreviewExpanded}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Quote Preview</DialogTitle>
+        </DialogHeader>
+        <div className="p-4">
+          <QuoteTemplatePreview
+            template={quoteTemplate}
+            primaryColor={quotePrimaryColor}
+            secondaryColor={quoteSecondaryColor}
+            font={quoteFont}
+            logoUrl={logoUrl}
+            businessName={businessName || "Your Business"}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
