@@ -64,7 +64,9 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
 
-  const totalSteps = 5;
+  // HIDDEN: Employee management is currently disabled
+  // const totalSteps = 5;
+  const totalSteps = 4;
 
   const handleSaveBusinessDetails = async () => {
     setLoading(true);
@@ -188,9 +190,11 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
 
       await supabase
         .from("businesses")
+        // HIDDEN: Skip to step 4 (Complete) since employee invite is disabled
         .update({ onboarding_step: 4 })
         .eq("id", businessId);
 
+      // HIDDEN: Skip step 4 (Invite Employee) - go directly to Complete
       setStep(4);
     } catch (error: any) {
       toast({
@@ -579,7 +583,7 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
           </div>
         )}
 
-        {/* Step 4: Invite Employee */}
+        {/* HIDDEN: Step 4 (Invite Employee) - Employee management is currently disabled
         {step === 4 && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 mb-4">
@@ -630,9 +634,10 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
             </div>
           </div>
         )}
+        */}
 
-        {/* Step 5: Complete */}
-        {step === 5 && (
+        {/* Step 4: Complete (was Step 5 before employee invite was hidden) */}
+        {step === 4 && (
           <div className="space-y-4">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center">
@@ -653,6 +658,7 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
                   </div>
                 </CardContent>
               </Card>
+              {/* HIDDEN: Employee management is currently disabled
               <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { handleComplete(); navigate("/admin/employees"); }}>
                 <CardContent className="p-4 flex items-center gap-3">
                   <Users className="w-5 h-5 text-primary" />
@@ -662,9 +668,10 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
                   </div>
                 </CardContent>
               </Card>
+              */}
             </div>
             <div className="flex gap-2 pt-4">
-              <Button variant="outline" onClick={() => setStep(4)} disabled={loading}>
+              <Button variant="outline" onClick={() => setStep(3)} disabled={loading}>
                 <ArrowLeft className="mr-2 w-4 h-4" />
                 Back
               </Button>
