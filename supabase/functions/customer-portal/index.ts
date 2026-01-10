@@ -42,12 +42,44 @@ serve(async (req) => {
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
-    const customers = await stripe.customers.list({ email: user.email, limit: 1 });
-    if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user");
+    
+    let customerId: string | null = null;
+
+    // First, try to get stripe_customer_id from business_subscriptions via user's profile
+    const { data: profileData } = await supabaseClient
+      .from("profiles")
+      .select("business_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profileData?.business_id) {
+      logStep("Found user business", { businessId: profileData.business_id });
+      
+      const { data: subscriptionData } = await supabaseClient
+        .from("business_subscriptions")
+        .select("stripe_customer_id")
+        .eq("business_id", profileData.business_id)
+        .single();
+      
+      if (subscriptionData?.stripe_customer_id) {
+        customerId = subscriptionData.stripe_customer_id;
+        logStep("Found Stripe customer ID from database", { customerId });
+      }
     }
-    const customerId = customers.data[0].id;
-    logStep("Found Stripe customer", { customerId });
+
+    // Fallback: search Stripe by email if not found in database
+    if (!customerId) {
+      logStep("No customer ID in database, searching Stripe by email");
+      const customers = await stripe.customers.list({ email: user.email, limit: 1 });
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        logStep("Found Stripe customer by email", { customerId });
+      }
+    }
+
+    if (!customerId) {
+      throw new Error("No Stripe customer found for this user. Please ensure you have an active subscription.");
+    }
 
     const origin = req.headers.get("origin") || "http://localhost:3000";
     const portalSession = await stripe.billingPortal.sessions.create({
