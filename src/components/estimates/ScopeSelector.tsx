@@ -13,7 +13,8 @@ export type ScopeType =
   | "suspended_slab"
   | "driveway"
   | "paths_surrounds"
-  | "crossovers";
+  | "crossovers"
+  | "architectural_concrete";
 
 export interface ScopeOption {
   id: ScopeType;
@@ -82,6 +83,12 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     label: "Crossovers", 
     description: "Council crossover / vehicle crossing",
     availableFor: ["driveway", "house_slab", "commercial_slab"]
+  },
+  { 
+    id: "architectural_concrete", 
+    label: "Architectural Concrete", 
+    description: "Bench tops, garden walls, tables, seats, planters",
+    availableFor: ["house_slab"]
   },
 ];
 
