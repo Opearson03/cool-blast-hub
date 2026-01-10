@@ -155,7 +155,7 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
   const handleSavePriceList = async () => {
     setLoading(true);
     try {
-      // First, initialize the price list with defaults
+      // Build the full price list payload (defaults + any overrides)
       const itemsToInsert = DEFAULT_PRICE_LIST.map(item => {
         const override = priceOverrides.find(
           o => o.category === item.category && o.item_code === item.item_code
@@ -172,11 +172,19 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
         };
       });
 
-      const { error } = await supabase
+      // If onboarding is restarted, the price list may already exist — clear it first
+      const { error: deleteError } = await supabase
+        .from('price_list_items')
+        .delete()
+        .eq('business_id', businessId);
+
+      if (deleteError) throw deleteError;
+
+      const { error: insertError } = await supabase
         .from('price_list_items')
         .insert(itemsToInsert);
 
-      if (error) throw error;
+      if (insertError) throw insertError;
 
       await supabase
         .from("businesses")
