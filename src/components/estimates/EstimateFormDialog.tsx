@@ -291,11 +291,19 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [modularScopeStates, setModularScopeStates] = useState<Record<ScopeType, ModularScopeState>>({} as Record<ScopeType, ModularScopeState>);
   const [activeScopeIndex, setActiveScopeIndex] = useState(0);
   const scopeContainerRef = useRef<HTMLDivElement>(null);
+  const dialogScrollRef = useRef<HTMLDivElement>(null);
   
   // Scroll to top when changing scope
   useEffect(() => {
-    if (currentStep === "configure" && scopeContainerRef.current) {
-      scopeContainerRef.current.scrollTop = 0;
+    if (currentStep === "configure") {
+      // Scroll the scope calculator container
+      if (scopeContainerRef.current) {
+        scopeContainerRef.current.scrollTop = 0;
+      }
+      // Also scroll the main dialog content area
+      if (dialogScrollRef.current) {
+        dialogScrollRef.current.scrollTop = 0;
+      }
     }
   }, [activeScopeIndex, currentStep]);
   
@@ -754,7 +762,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           </div>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto py-2">
+        <div ref={dialogScrollRef} className="flex-1 overflow-y-auto py-2">
           {/* Step 1: Project Type */}
           {currentStep === "type" && (
             <div className="space-y-4">
