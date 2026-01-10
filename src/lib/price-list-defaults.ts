@@ -24,6 +24,7 @@ export const PRICE_LIST_CATEGORIES = [
   { id: 'joint_foam', label: 'Joint Foam' },
   { id: 'joint_caulking', label: 'Joint Caulking' },
   { id: 'joint_saw_cutting', label: 'Saw Cutting' },
+  { id: 'materials', label: 'Materials' },
 ] as const;
 
 export type PriceListCategory = typeof PRICE_LIST_CATEGORIES[number]['id'];
@@ -40,7 +41,7 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'excavation', item_code: 'EXC 9T', item_name: 'Excavator 9 T', unit: '/h', default_price: 200 },
   { category: 'excavation', item_code: 'FLOAT', item_name: 'Float Charge to Site', unit: '/item', default_price: 150 },
   { category: 'excavation', item_code: 'AUGER DRIVE', item_name: 'Additional Cost For Auger Driver', unit: '/day', default_price: 100 },
-  { category: 'excavation', item_code: 'AUGER HIRE', item_name: 'Additional Charge Auger Hire', unit: '/day', default_price: 100 },
+  { category: 'excavation', item_code: 'AUGER HIRE', item_name: 'Additonal Charge Auger Hire', unit: '/day', default_price: 100 },
   { category: 'excavation', item_code: 'POSI TRACK', item_name: 'Posi Track With Operator', unit: '/h', default_price: 150 },
   { category: 'excavation', item_code: 'SPOTTER', item_name: 'Labour Charge Excavation Spotter', unit: '/h', default_price: 75 },
 
@@ -146,7 +147,6 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'consumables', item_code: 'SOG165170', item_name: 'Barchair 165/170 PVC Bag 100', unit: '/bag', default_price: 81 },
   { category: 'consumables', item_code: 'TMCHAIR', item_name: 'Trench Mesh Supports 8-12mm Bar Bag 25', unit: '/bag', default_price: 12.50 },
   { category: 'consumables', item_code: 'POD RAIL', item_name: 'Podrial 560mm 40/55 Bag 20', unit: '/bag', default_price: 26 },
-  { category: 'consumables', item_code: 'DUST', item_name: 'Supply of Crusher Dust', unit: '/m3', default_price: 60 },
 
   // Expansion Joints
   { category: 'joints_expansion', item_code: 'EXJ10030', item_name: 'Expansion Joint 100mm 3000mm R12 - 300mm Dowel 335/c', unit: '/each', default_price: 95 },
@@ -186,6 +186,9 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   // Saw Cutting
   { category: 'joint_saw_cutting', item_code: 'JOINTCUT', item_name: 'Labour & Equipment Saw Cutting', unit: '/m', default_price: 6.50 },
   { category: 'joint_saw_cutting', item_code: 'JOINTCUT HR', item_name: 'Labour Hours', unit: '/h', default_price: 75 },
+
+  // Materials
+  { category: 'materials', item_code: 'DUST', item_name: 'Supply of Crusher Dust', unit: '/m3', default_price: 60 },
 ];
 
 // CSV headers for import/export
@@ -221,7 +224,7 @@ export function parsePriceListCSV(csvContent: string): Array<Partial<PriceListIt
   const items: Array<Partial<PriceListItem> & { custom_price?: number | null; notes?: string | null }> = [];
   
   for (const line of dataLines) {
-    // Handle quoted values
+    // Parse CSV line, handling quoted values
     const values: string[] = [];
     let current = '';
     let inQuotes = false;
@@ -240,17 +243,38 @@ export function parsePriceListCSV(csvContent: string): Array<Partial<PriceListIt
     values.push(current.trim());
     
     if (values.length >= 5) {
+      const customPrice = values[5] ? parseFloat(values[5]) : null;
       items.push({
         category: values[0],
         item_code: values[1],
         item_name: values[2],
         unit: values[3],
         default_price: parseFloat(values[4]) || 0,
-        custom_price: values[5] ? parseFloat(values[5]) : null,
+        custom_price: isNaN(customPrice as number) ? null : customPrice,
         notes: values[6] || null,
       });
     }
   }
   
   return items;
+}
+
+// Helper to get price by category and item code
+export function getPriceFromList(
+  priceList: PriceListItem[],
+  category: string,
+  itemCode: string
+): number {
+  const item = priceList.find(
+    p => p.category === category && p.item_code === itemCode
+  );
+  return item?.default_price ?? 0;
+}
+
+// Helper to get all items in a category
+export function getItemsByCategory(
+  priceList: PriceListItem[],
+  category: string
+): PriceListItem[] {
+  return priceList.filter(p => p.category === category);
 }
