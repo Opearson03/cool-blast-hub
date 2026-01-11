@@ -42,8 +42,11 @@ interface ModuleAnswers {
     mesh_sheets?: number;
     mesh_price_per_sheet?: number;
     mesh_area?: number;
-    bar_type?: string;
-    bar_kg?: number;
+    mesh_lap_allowance?: number;
+    bar_size?: string;
+    bar_area?: number;
+    bar_spacing?: number;
+    bar_layers?: number;
     rebar_price_per_tonne?: number;
     bar_chairs?: boolean;
     chair_type?: string;
@@ -118,7 +121,7 @@ interface ModuleAnswers {
     dowel_price_each?: number;
     chemical_anchor?: boolean;
     chemical_cartridges?: number;
-    chemical_price_each?: number;
+    chemical_price?: number;
   };
   "joints-foam"?: {
     foam_required?: boolean;
@@ -160,18 +163,19 @@ interface ModuleAnswers {
     sealing_required?: boolean;
     sealer_required?: boolean;
     sealer_type?: string;
-    sealer_litres?: number;
-    sealer_price_per_litre?: number;
+    sealer_coverage_rate?: number;
     sealer_coats?: number;
+    sealer_price_per_litre?: number;
     slip_additive_required?: boolean;
-    slip_additive_kg?: number;
+    slip_additive_rate?: number;
     slip_additive_price?: number;
     curing_required?: boolean;
     curing_method?: string;
-    curing_litres?: number;
-    curing_price_per_litre?: number;
+    curing_coverage_rate?: number;
+    curing_coats?: number;
+    curing_product_price?: number;
     retarder_required?: boolean;
-    retarder_litres?: number;
+    retarder_coverage_rate?: number;
     retarder_price_per_litre?: number;
   };
   "sundries"?: {
@@ -378,17 +382,34 @@ export function generateBOQFromEstimate(
         }
       }
       
-      // Bar reinforcement
-      if (reoSlabModule.reo_type === "bar" && reoSlabModule.bar_kg) {
+      // Bar reinforcement - calculate weight from estimate data
+      if (reoSlabModule.reo_type === "bar" && reoSlabModule.bar_size) {
+        const barArea = reoSlabModule.bar_area || scopeAnswers.area || 0;
+        const spacing = Number(reoSlabModule.bar_spacing) || 200;
+        const layers = Number(reoSlabModule.bar_layers) || 1;
+        const barSize = reoSlabModule.bar_size || 'N12';
+        
+        // Calculate total bar length (both directions)
+        const barsPerMetre = 1000 / spacing;
+        const sideLength = Math.sqrt(barArea);
+        const barsPerDirection = Math.ceil(sideLength * barsPerMetre);
+        const totalBarLength = barsPerDirection * sideLength * 2 * layers;
+        
+        const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
+        const totalWeight = totalBarLength * weightPerMetre * 1.1; // 10% lap
+        
         const pricePerTonne = reoSlabModule.rebar_price_per_tonne || 2100;
-        const unitPrice = pricePerTonne / 1000; // price per kg
-        addItem(
-          "reinforcement",
-          `${reoSlabModule.bar_type || "N12"} Rebar`,
-          reoSlabModule.bar_kg,
-          "kg",
-          unitPrice
-        );
+        const unitPrice = pricePerTonne / 1000;
+        
+        if (totalWeight > 0) {
+          addItem(
+            "reinforcement",
+            `${barSize} Rebar @ ${spacing}mm ctrs`,
+            Math.round(totalWeight),
+            "kg",
+            Math.round(unitPrice * 1000) / 1000
+          );
+        }
       }
 
       // Bar chairs/spacers
@@ -507,7 +528,7 @@ export function generateBOQFromEstimate(
       const trenchLength = reoFootingModule.trench_mesh_length || scopeAnswers.trench_length || scopeAnswers.connection_length || 0;
       
       // Trench mesh with type
-      if ((reoFootingModule.reo_type === "mesh" || reoFootingModule.mesh_type === "trench_mesh") && trenchLength > 0) {
+      if ((reoFootingModule.reo_type === "trench_mesh" || reoFootingModule.reo_type === "both") && trenchLength > 0) {
         const meshType = reoFootingModule.trench_mesh_type || "L11TM4";
         addItem(
           "reinforcement",
@@ -636,15 +657,20 @@ export function generateBOQFromEstimate(
           formworkModule.timber_price
         );
 
-        // Stakes
-        if (formworkModule.stakes_included && formworkModule.stake_count) {
-          addItem(
-            "formwork",
-            "Timber Stakes",
-            formworkModule.stake_count,
-            "pcs",
-            formworkModule.stake_price
-          );
+        // Stakes - calculate from formwork metres if not explicitly stored
+        if (formworkModule.stakes_included) {
+          const stakeSpacing = 0.6; // FORMWORK_CONSTANTS.stakeSpacing
+          const stakeCount = Math.ceil(formworkMetres / stakeSpacing) + 1;
+          
+          if (stakeCount > 0) {
+            addItem(
+              "formwork",
+              "Timber Stakes",
+              stakeCount,
+              "pcs",
+              formworkModule.stake_price
+            );
+          }
         }
 
         // Sundry fixings
@@ -682,7 +708,7 @@ export function generateBOQFromEstimate(
           "Chemical Anchor Cartridges",
           dowelsModule.chemical_cartridges,
           "pcs",
-          dowelsModule.chemical_price_each
+          dowelsModule.chemical_price
         );
       }
     }
@@ -781,54 +807,76 @@ export function generateBOQFromEstimate(
     if (finishingModule && finishingModule.finish_required) {
       const finishArea = finishingModule.finish_area || scopeAnswers.area || 0;
       
-      // Sealer with type and litres
+      // Sealer - calculate litres from area and coverage rate
       if ((finishingModule.sealing_required || finishingModule.sealer_required) && finishingModule.sealer_type) {
+        const coverageRate = finishingModule.sealer_coverage_rate || 8; // m²/L default
+        const coats = finishingModule.sealer_coats || 2;
+        const sealerLitres = Math.ceil((finishArea * coats) / coverageRate);
+        
         const sealerLabel = finishingModule.sealer_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-        const sealerLitres = finishingModule.sealer_litres || Math.ceil(finishArea / 5); // ~5m² per litre
-        addItem(
-          "finishing",
-          `${sealerLabel} Sealer`,
-          sealerLitres,
-          "L",
-          finishingModule.sealer_price_per_litre
-        );
-      }
-
-      // Slip additive
-      if (finishingModule.slip_additive_required && finishingModule.slip_additive_kg) {
-        addItem(
-          "finishing",
-          "Slip-Resistant Additive",
-          finishingModule.slip_additive_kg,
-          "kg",
-          finishingModule.slip_additive_price
-        );
-      }
-      
-      // Curing compound with litres
-      if (finishingModule.curing_required) {
-        const curingMethod = finishingModule.curing_method || "spray";
-        const curingLitres = finishingModule.curing_litres || Math.ceil(finishArea / 4); // ~4m² per litre
-        if (curingMethod !== "water" && curingMethod !== "plastic") {
+        
+        if (sealerLitres > 0) {
           addItem(
             "finishing",
-            "Curing Compound",
-            curingLitres,
+            `${sealerLabel} Sealer`,
+            sealerLitres,
             "L",
-            finishingModule.curing_price_per_litre
+            finishingModule.sealer_price_per_litre
           );
         }
       }
 
-      // Retarder for exposed aggregate
-      if (finishingModule.retarder_required && finishingModule.retarder_litres) {
-        addItem(
-          "finishing",
-          "Surface Retarder",
-          finishingModule.retarder_litres,
-          "L",
-          finishingModule.retarder_price_per_litre
-        );
+      // Slip additive - calculate kg from area and rate
+      if (finishingModule.slip_additive_required) {
+        const additiveRate = finishingModule.slip_additive_rate || 0.05; // kg/m²
+        const slipKg = Math.ceil(finishArea * additiveRate * 10) / 10;
+        
+        if (slipKg > 0) {
+          addItem(
+            "finishing",
+            "Slip-Resistant Additive",
+            slipKg,
+            "kg",
+            finishingModule.slip_additive_price
+          );
+        }
+      }
+      
+      // Curing compound - calculate litres from area and coverage rate
+      if (finishingModule.curing_required) {
+        const curingMethod = finishingModule.curing_method || "spray";
+        
+        if (curingMethod !== "water" && curingMethod !== "plastic") {
+          const coverageRate = finishingModule.curing_coverage_rate || 6; // m²/L default
+          const coats = finishingModule.curing_coats || 1;
+          const curingLitres = Math.ceil((finishArea * coats) / coverageRate);
+          
+          if (curingLitres > 0) {
+            addItem(
+              "finishing",
+              "Curing Compound",
+              curingLitres,
+              "L",
+              finishingModule.curing_product_price
+            );
+          }
+        }
+      }
+
+      // Retarder for exposed aggregate - calculate litres from area and coverage rate
+      if (finishingModule.retarder_required) {
+        const coverageRate = finishingModule.retarder_coverage_rate || 5; // m²/L default
+        const retarderLitres = Math.ceil(finishArea / coverageRate);
+        
+        if (retarderLitres > 0) {
+          addItem(
+            "finishing",
+            "Surface Retarder",
+            retarderLitres,
+            "L",
+            finishingModule.retarder_price_per_litre
+          );
+        }
       }
     }
 
