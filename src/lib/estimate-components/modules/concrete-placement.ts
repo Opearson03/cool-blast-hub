@@ -12,29 +12,30 @@ export const concretePlacementModule: EstimateModule = {
       id: 'placement_men',
       type: 'number',
       label: 'How many men for concrete placement?',
-      defaultValue: 3,
       min: 1,
       max: 20,
       required: true,
+      placeholder: 'Enter number of men',
     },
     {
       id: 'placement_hours_per_man',
       type: 'number',
       label: 'How many hours per man?',
-      defaultValue: 4,
       min: 0.5,
       step: 0.5,
       unit: 'hrs',
       required: true,
+      placeholder: 'Enter hours',
     },
     {
       id: 'highest_rate',
       type: 'currency',
       label: 'What is your highest paid man costing per hour?',
       helpText: 'Including all expenses (super, insurance, tools, etc.)',
-      defaultValue: 95,
+      priceListKey: 'labour.LABOUR LEAD',
       unit: '/hr',
       required: true,
+      placeholder: 'Enter rate',
     },
     {
       id: 'use_average_rate',
@@ -58,11 +59,22 @@ export const concretePlacementModule: EstimateModule = {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
-    const men = Number(answers.placement_men) || 3;
-    const hoursPerMan = Number(answers.placement_hours_per_man) || 4;
-    const highestRate = Number(answers.highest_rate) || 95;
+    const men = Number(answers.placement_men) || 0;
+    const hoursPerMan = Number(answers.placement_hours_per_man) || 0;
+    const highestRate = Number(answers.highest_rate) || 0;
     const useAverageRate = answers.use_average_rate !== false;
     const standardRate = Number(answers.standard_labour_rate) || getPrice(priceMap, 'labour', 'LABOUR HR', 75);
+
+    // Don't calculate if no labor inputs provided
+    if (men === 0 || hoursPerMan === 0) {
+      return {
+        moduleId: 'concrete-placement',
+        moduleName: 'Concrete Placement',
+        lineItems: [],
+        subtotal: 0,
+        exclusions: [],
+      };
+    }
 
     if (useAverageRate) {
       // All workers at the highest rate

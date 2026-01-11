@@ -11,8 +11,8 @@ export const sundriesModule: EstimateModule = {
       id: 'sundries_amount',
       type: 'currency',
       label: 'Sundry materials allowance',
-      defaultValue: 100,
       helpText: 'Miscellaneous items: fuel, small tools, safety gear, etc.',
+      placeholder: 'Enter amount',
     },
   ],
 
