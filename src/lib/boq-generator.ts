@@ -4,6 +4,72 @@ interface ScopeData {
   [key: string]: any;
 }
 
+interface ScopeAnswers {
+  area?: number;
+  perimeter?: number;
+  thickness?: number;
+  depth?: number;
+  diameter?: number;
+  num_piers?: number;
+  length?: number;
+  width?: number;
+  [key: string]: any;
+}
+
+interface ModuleAnswers {
+  "concrete-supply"?: {
+    calculated_volume?: number;
+    concrete_price?: number;
+    concrete_type?: string;
+    wastage_percent?: number;
+  };
+  "reinforcement-slab"?: {
+    mesh_type?: string;
+    mesh_price_per_sheet?: number;
+    mesh_area?: number;
+    bar_type?: string;
+    bar_kg?: number;
+    reo_type?: string;
+  };
+  "reinforcement-piers"?: {
+    is_reinforced?: boolean;
+    vertical_bars_count?: number;
+    vertical_bar_size?: string;
+    lig_count?: number;
+    lig_size?: string;
+  };
+  "reinforcement-footing"?: {
+    mesh_type?: string;
+    trench_mesh_length?: number;
+  };
+  "base-preparation"?: {
+    crusher_dust_required?: boolean;
+    crusher_dust_area?: number;
+    crusher_dust_depth?: number;
+  };
+  "formwork"?: {
+    formwork_required?: boolean;
+    formwork_metres?: number;
+  };
+  "surface-finishing"?: {
+    finish_type?: string;
+    finish_area?: number;
+    finish_required?: boolean;
+    sealing_required?: boolean;
+    sealer_type?: string;
+    curing_required?: boolean;
+    curing_method?: string;
+  };
+  [key: string]: any;
+}
+
+interface ScopeEntry {
+  scopeAnswers?: ScopeAnswers;
+  moduleAnswers?: ModuleAnswers;
+  calculatedTotal?: number;
+  [key: string]: any;
+}
+
 /**
  * Generates Bill of Quantities items from estimate description (fallback)
  */
@@ -82,7 +148,27 @@ export function generateBOQFromDescription(description: string | null): BOQItem[
 }
 
 /**
+ * Maps scope key to human-readable label
+ */
+function getScopeLabel(scopeKey: string): string {
+  const labels: Record<string, string> = {
+    standard_slab: "Standard Slab",
+    raft_slab: "Raft Slab",
+    waffle_pod: "Waffle Pod",
+    strip_footings: "Strip Footings",
+    piers: "Piers",
+    suspended_slab: "Suspended Slab",
+    crossovers: "Crossover",
+    driveway: "Driveway",
+    paths_surrounds: "Paths & Surrounds",
+    retaining_wall: "Retaining Wall",
+  };
+  return labels[scopeKey] || scopeKey.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+}
+
+/**
  * Generates Bill of Quantities items from estimate scope data
+ * Handles the actual scope_data structure with scopeAnswers and moduleAnswers
  */
 export function generateBOQFromEstimate(
   scopeData: ScopeData | null,
@@ -91,7 +177,10 @@ export function generateBOQFromEstimate(
 ): BOQItem[] {
   // Check if scopeData is empty or has no valid scopes
   const hasValidScopeData = scopeData && selectedScopes && selectedScopes.length > 0 &&
-    Object.keys(scopeData).some(key => scopeData[key] && Object.keys(scopeData[key]).length > 0);
+    Object.keys(scopeData).some(key => {
+      const entry = scopeData[key];
+      return entry && (entry.scopeAnswers || entry.moduleAnswers);
+    });
 
   // If no valid scope data, try to generate from description
   if (!hasValidScopeData) {
@@ -123,197 +212,173 @@ export function generateBOQFromEstimate(
     }
   };
 
-  // Process Standard Slab
-  if (selectedScopes.includes("standard_slab") && scopeData.standard_slab) {
-    const slab = scopeData.standard_slab;
-    const area = parseFloat(slab.slabArea) || 0;
-    const thickness = (parseFloat(slab.slabThickness) || 100) / 1000;
-    const wastage = (parseFloat(slab.wastagePercent) || 5) / 100;
-    const volume = area * thickness * (1 + wastage);
-    const strength = slab.concreteStrength || "32";
+  // Process each selected scope
+  for (const scopeKey of selectedScopes || []) {
+    const scopeEntry = scopeData[scopeKey] as ScopeEntry | undefined;
+    if (!scopeEntry) continue;
 
-    addItem("concrete", `N${strength} Concrete`, volume, "m³", parseFloat(slab.concretePrice) || undefined);
+    const scopeAnswers = scopeEntry.scopeAnswers || {};
+    const moduleAnswers = scopeEntry.moduleAnswers || {};
+    const label = getScopeLabel(scopeKey);
 
-    // Mesh
-    if (slab.meshType) {
-      const meshArea = 14.4; // Standard sheet size
-      const meshSheets = Math.ceil((area * 1.1) / meshArea);
-      addItem("reinforcement", `${slab.meshType} Mesh`, meshSheets, "sheets", parseFloat(slab.meshPrice) || undefined);
+    // Get concrete data from concrete-supply module
+    const concreteModule = moduleAnswers["concrete-supply"];
+    if (concreteModule) {
+      const volume = concreteModule.calculated_volume || 0;
+      const concreteType = concreteModule.concrete_type || "32MPA";
+      const mpa = concreteType.replace(/MPA/i, "").trim();
+      
+      if (volume > 0) {
+        addItem(
+          "concrete",
+          `N${mpa} Concrete (${label})`,
+          volume,
+          "m³",
+          concreteModule.concrete_price
+        );
+      }
     }
 
-    // Poly membrane
-    if (slab.polyMembrane) {
-      const polyArea = area * (parseInt(slab.polyLayers) || 1);
-      addItem("other", "Poly Membrane", polyArea, "m²", parseFloat(slab.polyPrice) || undefined);
-    }
-  }
-
-  // Process Raft Slab
-  if (selectedScopes.includes("raft_slab") && scopeData.raft_slab) {
-    const raft = scopeData.raft_slab;
-    const length = parseFloat(raft.slabLength) || 0;
-    const width = parseFloat(raft.slabWidth) || 0;
-    const area = length * width;
-    const depth = (parseFloat(raft.slabDepth) || 100) / 1000;
-    const wastage = (parseFloat(raft.wastagePercent) || 5) / 100;
-    const volume = area * depth * (1 + wastage);
-    const strength = raft.concreteStrength || "32";
-
-    addItem("concrete", `N${strength} Concrete (Raft Slab)`, volume, "m³", parseFloat(raft.concretePrice) || undefined);
-
-    // Edge beams
-    if (raft.edgeBeams && raft.edgeBeamWidth && raft.edgeBeamDepth) {
-      const perimeter = 2 * (length + width);
-      const edgeBeamVolume = perimeter * (parseFloat(raft.edgeBeamWidth) / 1000) * (parseFloat(raft.edgeBeamDepth) / 1000);
-      addItem("concrete", "Edge Beam Concrete", edgeBeamVolume, "m³");
-    }
-
-    // Mesh
-    if (raft.meshType) {
-      const meshArea = 14.4;
-      const meshSheets = Math.ceil((area * 1.1) / meshArea);
-      addItem("reinforcement", `${raft.meshType} Mesh`, meshSheets, "sheets", parseFloat(raft.meshPrice) || undefined);
+    // Get reinforcement data from reinforcement modules
+    const reoSlabModule = moduleAnswers["reinforcement-slab"];
+    if (reoSlabModule) {
+      if (reoSlabModule.reo_type === "mesh" && reoSlabModule.mesh_type) {
+        const meshArea = reoSlabModule.mesh_area || scopeAnswers.area || 0;
+        const meshSheetArea = 14.4; // Standard sheet size (6m x 2.4m)
+        const lapAllowance = 1.1; // 10% lap allowance
+        const meshSheets = Math.ceil((meshArea * lapAllowance) / meshSheetArea);
+        
+        if (meshSheets > 0) {
+          addItem(
+            "reinforcement",
+            `${reoSlabModule.mesh_type} Mesh`,
+            meshSheets,
+            "sheets",
+            reoSlabModule.mesh_price_per_sheet
+          );
+        }
+      } else if (reoSlabModule.reo_type === "bar" && reoSlabModule.bar_kg) {
+        addItem(
+          "reinforcement",
+          `${reoSlabModule.bar_type || "N12"} Rebar`,
+          reoSlabModule.bar_kg,
+          "kg"
+        );
+      }
     }
 
-    // Rebar if specified
-    if (raft.rebarType && raft.rebarSpacing) {
-      const rebarCount = Math.ceil((length / (parseFloat(raft.rebarSpacing) / 1000)) + (width / (parseFloat(raft.rebarSpacing) / 1000)));
-      addItem("reinforcement", `${raft.rebarType} Rebar`, rebarCount, "bars");
+    // Get pier reinforcement
+    const reoPiersModule = moduleAnswers["reinforcement-piers"];
+    if (reoPiersModule && reoPiersModule.is_reinforced) {
+      const pierCount = scopeAnswers.num_piers || 0;
+      if (pierCount > 0) {
+        addItem(
+          "reinforcement",
+          `Pier Cages (${reoPiersModule.vertical_bar_size || "N20"} x ${reoPiersModule.vertical_bars_count || 4})`,
+          pierCount,
+          "units"
+        );
+      }
     }
-  }
 
-  // Process Waffle Pod
-  if (selectedScopes.includes("waffle_pod") && scopeData.waffle_pod) {
-    const waffle = scopeData.waffle_pod;
-    const length = parseFloat(waffle.slabLength) || 0;
-    const width = parseFloat(waffle.slabWidth) || 0;
-    const area = length * width;
-    const strength = waffle.concreteStrength || "32";
-
-    // Waffle pods
-    const podArea = 1.04; // Typical pod area
-    const podCount = Math.ceil(area / podArea);
-    addItem("formwork", "Waffle Pods", podCount, "units", parseFloat(waffle.podPrice) || undefined);
-
-    // Concrete volume (reduced due to voids)
-    const volume = parseFloat(waffle.concreteVolume) || area * 0.15;
-    addItem("concrete", `N${strength} Concrete (Waffle)`, volume, "m³", parseFloat(waffle.concretePrice) || undefined);
-
-    // Mesh
-    if (waffle.meshType) {
-      const meshArea = 14.4;
-      const meshSheets = Math.ceil((area * 1.1) / meshArea);
-      addItem("reinforcement", `${waffle.meshType} Mesh`, meshSheets, "sheets", parseFloat(waffle.meshPrice) || undefined);
+    // Get footing reinforcement (trench mesh)
+    const reoFootingModule = moduleAnswers["reinforcement-footing"];
+    if (reoFootingModule) {
+      if (reoFootingModule.mesh_type === "trench_mesh" && reoFootingModule.trench_mesh_length) {
+        addItem(
+          "reinforcement",
+          "Trench Mesh",
+          reoFootingModule.trench_mesh_length,
+          "m"
+        );
+      }
     }
-  }
 
-  // Process Strip Footings
-  if (selectedScopes.includes("strip_footings") && scopeData.strip_footings) {
-    const footings = scopeData.strip_footings;
-    const length = parseFloat(footings.totalLength) || 0;
-    const width = (parseFloat(footings.footingWidth) || 450) / 1000;
-    const depth = (parseFloat(footings.footingDepth) || 300) / 1000;
-    const volume = length * width * depth;
-    const strength = footings.concreteStrength || "25";
+    // Get base preparation data
+    const basePrepModule = moduleAnswers["base-preparation"];
+    if (basePrepModule && basePrepModule.crusher_dust_required) {
+      const area = basePrepModule.crusher_dust_area || scopeAnswers.area || 0;
+      const depth = (basePrepModule.crusher_dust_depth || 50) / 1000;
+      const volume = area * depth;
+      const tonnes = volume * 1.6; // Crusher dust bulk density
+      
+      if (volume > 0) {
+        addItem(
+          "other",
+          `Crusher Dust (${Math.round(depth * 1000)}mm)`,
+          volume,
+          "m³",
+          undefined,
+          `~${tonnes.toFixed(1)} tonnes`
+        );
+      }
 
-    addItem("concrete", `N${strength} Concrete (Strip Footings)`, volume, "m³", parseFloat(footings.concretePrice) || undefined);
-
-    // Trench mesh
-    if (footings.trenchMesh) {
-      addItem("reinforcement", "Trench Mesh", length, "m");
+      // Add poly membrane
+      if (area > 0) {
+        addItem("other", "Poly Membrane", area, "m²");
+      }
     }
-  }
 
-  // Process Piers
-  if (selectedScopes.includes("piers") && scopeData.piers) {
-    const piers = scopeData.piers;
-    const count = parseInt(piers.pierCount) || 0;
-    const diameter = (parseFloat(piers.pierDiameter) || 450) / 1000;
-    const depth = parseFloat(piers.pierDepth) || 1;
-    const radius = diameter / 2;
-    const volumePerPier = Math.PI * radius * radius * depth;
-    const totalVolume = count * volumePerPier;
-    const strength = piers.concreteStrength || "25";
-
-    addItem("concrete", `N${strength} Concrete (Piers)`, totalVolume, "m³", parseFloat(piers.concretePrice) || undefined);
-
-    // Pier cages
-    if (piers.pierCages) {
-      addItem("reinforcement", "Pier Cages", count, "units", parseFloat(piers.cagePrice) || undefined);
+    // Get formwork data
+    const formworkModule = moduleAnswers["formwork"];
+    if (formworkModule && formworkModule.formwork_required) {
+      const formworkMetres = formworkModule.formwork_metres || scopeAnswers.perimeter || 0;
+      if (formworkMetres > 0) {
+        addItem("formwork", "Edge Formwork", formworkMetres, "lm");
+      }
     }
-  }
 
-  // Process Suspended Slab
-  if (selectedScopes.includes("suspended_slab") && scopeData.suspended_slab) {
-    const suspended = scopeData.suspended_slab;
-    const area = parseFloat(suspended.slabArea) || 0;
-    const thickness = (parseFloat(suspended.slabThickness) || 200) / 1000;
-    const wastage = (parseFloat(suspended.wastagePercent) || 5) / 100;
-    const volume = area * thickness * (1 + wastage);
-    const strength = suspended.concreteStrength || "40";
-
-    addItem("concrete", `N${strength} Concrete (Suspended)`, volume, "m³", parseFloat(suspended.concretePrice) || undefined);
-
-    // Formwork
-    addItem("formwork", "Formwork/Propping", area, "m²", parseFloat(suspended.formworkPrice) || undefined);
-
-    // Rebar
-    if (suspended.topRebarType) {
-      addItem("reinforcement", `${suspended.topRebarType} Top Rebar`, area * 15, "kg");
+    // Get surface finishing data
+    const finishingModule = moduleAnswers["surface-finishing"];
+    if (finishingModule && finishingModule.finish_required) {
+      const finishArea = finishingModule.finish_area || scopeAnswers.area || 0;
+      
+      // Sealer if required
+      if (finishingModule.sealing_required && finishingModule.sealer_type) {
+        const sealerLabel = finishingModule.sealer_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+        addItem("finishing", `${sealerLabel} Sealer`, finishArea, "m²");
+      }
+      
+      // Curing compound if required
+      if (finishingModule.curing_required && finishingModule.curing_method) {
+        addItem("finishing", "Curing Compound", finishArea, "m²");
+      }
     }
-    if (suspended.bottomRebarType) {
-      addItem("reinforcement", `${suspended.bottomRebarType} Bottom Rebar`, area * 15, "kg");
+
+    // Handle specific scope types for additional items
+    if (scopeKey === "piers" && scopeAnswers.num_piers) {
+      const pierCount = scopeAnswers.num_piers;
+      const diameter = scopeAnswers.diameter || 450;
+      const depth = scopeAnswers.depth || 1000;
+      
+      // If no concrete module data, calculate from scope answers
+      if (!concreteModule?.calculated_volume) {
+        const radiusM = (diameter / 1000) / 2;
+        const depthM = depth / 1000;
+        const volumePerPier = Math.PI * radiusM * radiusM * depthM;
+        const totalVolume = pierCount * volumePerPier * 1.1; // 10% wastage
+        
+        addItem(
+          "concrete",
+          `N25 Concrete (${label})`,
+          totalVolume,
+          "m³"
+        );
+      }
     }
-  }
 
-  // Process Crossovers
-  if (selectedScopes.includes("crossovers") && scopeData.crossovers) {
-    const crossovers = scopeData.crossovers;
-    const area = parseFloat(crossovers.area) || 0;
-    const thickness = (parseFloat(crossovers.thickness) || 150) / 1000;
-    const volume = area * thickness;
-    const strength = crossovers.concreteStrength || "32";
-
-    addItem("concrete", `N${strength} Concrete (Crossover)`, volume, "m³", parseFloat(crossovers.concretePrice) || undefined);
-
-    if (crossovers.meshType) {
-      const meshArea = 14.4;
-      const meshSheets = Math.ceil((area * 1.1) / meshArea);
-      addItem("reinforcement", `${crossovers.meshType} Mesh`, meshSheets, "sheets");
-    }
-  }
-
-  // Process Paths & Surrounds
-  if (selectedScopes.includes("paths_surrounds") && scopeData.paths_surrounds) {
-    const paths = scopeData.paths_surrounds;
-    const area = parseFloat(paths.area) || 0;
-    const thickness = (parseFloat(paths.thickness) || 100) / 1000;
-    const volume = area * thickness;
-    const strength = paths.concreteStrength || "25";
-
-    addItem("concrete", `N${strength} Concrete (Paths)`, volume, "m³", parseFloat(paths.concretePrice) || undefined);
-
-    if (paths.meshType) {
-      const meshArea = 14.4;
-      const meshSheets = Math.ceil((area * 1.1) / meshArea);
-      addItem("reinforcement", `${paths.meshType} Mesh`, meshSheets, "sheets");
+    if (scopeKey === "waffle_pod" && scopeAnswers.area) {
+      // Add waffle pods quantity
+      const area = scopeAnswers.area;
+      const podArea = 1.04; // ~1m² per pod
+      const podCount = Math.ceil(area / podArea);
+      addItem("formwork", "Waffle Pods", podCount, "units");
     }
   }
 
-  // Process Retaining Wall Footings
-  if (selectedScopes.includes("retaining_wall") && scopeData.retaining_wall) {
-    const wall = scopeData.retaining_wall;
-    const length = parseFloat(wall.wallLength) || 0;
-    const footingWidth = (parseFloat(wall.footingWidth) || 600) / 1000;
-    const footingDepth = (parseFloat(wall.footingDepth) || 300) / 1000;
-    const volume = length * footingWidth * footingDepth;
-    const strength = wall.concreteStrength || "25";
-
-    addItem("concrete", `N${strength} Concrete (Retaining Wall Footing)`, volume, "m³", parseFloat(wall.concretePrice) || undefined);
-
-    if (wall.rebarType) {
-      addItem("reinforcement", `${wall.rebarType} Rebar`, length * 8, "m");
-    }
+  // If no items were generated, fall back to description
+  if (items.length === 0) {
+    return generateBOQFromDescription(description || null);
   }
 
   return items;
