@@ -94,11 +94,12 @@ interface ModuleAnswers {
     crusher_dust_required?: boolean;
     crusher_dust_area?: number;
     crusher_dust_depth?: number;
-    crusher_dust_price_per_tonne?: number;
+    crusher_dust_price?: number; // per m³
     membrane_required?: boolean;
     membrane_type?: string;
     membrane_area?: number;
-    membrane_price?: number;
+    membrane_overlap?: number;
+    membrane_price?: number; // per roll (200m² standard)
   };
   "formwork"?: {
     formwork_required?: boolean;
@@ -570,32 +571,53 @@ export function generateBOQFromEstimate(
     const basePrepModule = moduleAnswers["base-preparation"];
     if (basePrepModule && basePrepModule.crusher_dust_required) {
       const area = basePrepModule.crusher_dust_area || scopeAnswers.area || 0;
-      const depth = (basePrepModule.crusher_dust_depth || 50) / 1000;
-      const volume = area * depth;
-      const tonnes = volume * 1.6; // Crusher dust bulk density
+      const depthMM = Number(basePrepModule.crusher_dust_depth) || 75;
+      const depthM = depthMM / 1000;
+      const volume = area * depthM;
+      const tonnes = volume * 1.6; // Crusher dust bulk density ~1.6t/m³
+      
+      // Price is stored per m³, convert to per tonne for BOQ display
+      const pricePerM3 = basePrepModule.crusher_dust_price || 60;
+      const pricePerTonne = pricePerM3 / 1.6;
       
       if (tonnes > 0) {
         addItem(
           "other",
-          `Crusher Dust (${Math.round(depth * 1000)}mm)`,
+          `Crusher Dust (${depthMM}mm)`,
           Math.round(tonnes * 10) / 10,
           "tonnes",
-          basePrepModule.crusher_dust_price_per_tonne
+          Math.round(pricePerTonne * 100) / 100
         );
       }
     }
 
-    // Membrane with type
+    // Membrane with type - price is per roll (200m²), calculate rolls needed
     if (basePrepModule && basePrepModule.membrane_required !== false) {
       const membraneArea = basePrepModule.membrane_area || scopeAnswers.area || 0;
+      const overlapPercent = 1 + (Number(basePrepModule.membrane_overlap) || 15) / 100;
+      const totalArea = membraneArea * overlapPercent;
       const membraneType = basePrepModule.membrane_type || "Black 200um";
-      if (membraneArea > 0) {
+      
+      // Price is per roll (200m² standard), calculate rolls required
+      const rollArea = 200;
+      const rollsRequired = Math.ceil(totalArea / rollArea);
+      const pricePerRoll = basePrepModule.membrane_price || 180;
+      
+      if (rollsRequired > 0) {
+        const typeLabels: Record<string, string> = {
+          'PLASTIC 4X50 MED': 'Black 200um Medium',
+          'PLASTIC 4X50 HI': 'Black 200um High Impact',
+          'PLASTIC 4X25 ORG': 'Orange 300um',
+        };
+        const displayType = typeLabels[membraneType] || membraneType;
+        
         addItem(
           "other",
-          `Poly Membrane (${membraneType})`,
-          membraneArea,
-          "m²",
-          basePrepModule.membrane_price
+          `Poly Membrane (${displayType})`,
+          rollsRequired,
+          "rolls",
+          pricePerRoll,
+          `Covers ${Math.round(totalArea)}m² incl. overlap`
         );
       }
     }
