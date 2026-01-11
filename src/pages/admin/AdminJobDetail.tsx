@@ -164,6 +164,11 @@ export default function AdminJobDetail() {
                 <span className="text-sm text-muted-foreground font-mono">
                   {job.job_number}
                 </span>
+                {(job as any).job_type === "misc" && (
+                  <Badge variant="outline" className="bg-purple-500/20 text-purple-600 border-purple-500/30">
+                    Misc
+                  </Badge>
+                )}
                 <Badge variant="outline" className={statusColors[job.status || "scheduled"]}>
                   {statusLabels[job.status || "scheduled"]}
                 </Badge>
@@ -211,23 +216,27 @@ export default function AdminJobDetail() {
             <TabsTrigger value="overview" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="startup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Project Startup
-            </TabsTrigger>
-            <TabsTrigger value="pours" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Pours
-            </TabsTrigger>
-            {/* Hidden for now - keeping code for future:
-            <TabsTrigger value="itps" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              ITPs
-            </TabsTrigger>
-            <TabsTrigger value="swms" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              SWMS
-            </TabsTrigger>
-            */}
-            <TabsTrigger value="tests" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Test Results
-            </TabsTrigger>
+            {(job as any).job_type !== "misc" && (
+              <>
+                <TabsTrigger value="startup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  Project Startup
+                </TabsTrigger>
+                <TabsTrigger value="pours" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  Pours
+                </TabsTrigger>
+                {/* Hidden for now - keeping code for future:
+                <TabsTrigger value="itps" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  ITPs
+                </TabsTrigger>
+                <TabsTrigger value="swms" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  SWMS
+                </TabsTrigger>
+                */}
+                <TabsTrigger value="tests" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  Test Results
+                </TabsTrigger>
+              </>
+            )}
             <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Documents
             </TabsTrigger>
@@ -242,23 +251,27 @@ export default function AdminJobDetail() {
             <TabsContent value="overview" className="m-0">
               <JobOverviewTab job={job} />
             </TabsContent>
-            <TabsContent value="startup" className="m-0">
-              <JobProjectStartupTab jobId={job.id} job={job} />
-            </TabsContent>
-            <TabsContent value="pours" className="m-0">
-              <JobPoursTab jobId={job.id} />
-            </TabsContent>
-            {/* Hidden for now - keeping code for future:
-            <TabsContent value="itps" className="m-0">
-              <JobITPsTab jobId={job.id} />
-            </TabsContent>
-            <TabsContent value="swms" className="m-0">
-              <JobSWMSTab jobId={job.id} />
-            </TabsContent>
-            */}
-            <TabsContent value="tests" className="m-0">
-              <JobTestResultsTab jobId={job.id} />
-            </TabsContent>
+            {(job as any).job_type !== "misc" && (
+              <>
+                <TabsContent value="startup" className="m-0">
+                  <JobProjectStartupTab jobId={job.id} job={job} />
+                </TabsContent>
+                <TabsContent value="pours" className="m-0">
+                  <JobPoursTab jobId={job.id} />
+                </TabsContent>
+                {/* Hidden for now - keeping code for future:
+                <TabsContent value="itps" className="m-0">
+                  <JobITPsTab jobId={job.id} />
+                </TabsContent>
+                <TabsContent value="swms" className="m-0">
+                  <JobSWMSTab jobId={job.id} />
+                </TabsContent>
+                */}
+                <TabsContent value="tests" className="m-0">
+                  <JobTestResultsTab jobId={job.id} />
+                </TabsContent>
+              </>
+            )}
             <TabsContent value="documents" className="m-0">
               <JobDocumentsTab jobId={job.id} businessId={job.business_id} />
             </TabsContent>

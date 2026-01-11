@@ -6,9 +6,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Search, CheckCircle, ChevronDown, ChevronRight, Archive } from "lucide-react";
+import { Plus, Search, CheckCircle, ChevronDown, ChevronRight, Archive, Briefcase } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { JobFormDialog } from "@/components/jobs/JobFormDialog";
+import { MiscJobFormDialog } from "@/components/jobs/MiscJobFormDialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -38,6 +39,7 @@ type Job = {
   slump: string | null;
   finish_type: string | null;
   job_notes: string | null;
+  job_type: string;
   created_at: string;
 };
 
@@ -67,6 +69,7 @@ export default function AdminJobs() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("active");
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isMiscOpen, setIsMiscOpen] = useState(false);
   const [archiveOpen, setArchiveOpen] = useState(false);
   const [initialJobData, setInitialJobData] = useState<any>(null);
 
@@ -165,10 +168,16 @@ export default function AdminJobs() {
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="text-xs text-muted-foreground font-mono">
                 {job.job_number}
               </span>
+              {job.job_type === "misc" && (
+                <Badge variant="outline" className="bg-purple-500/20 text-purple-600 border-purple-500/30">
+                  <Briefcase className="w-3 h-3 mr-1" />
+                  Misc
+                </Badge>
+              )}
               <Badge variant="outline" className={statusColors[job.status]}>
                 {statusLabels[job.status]}
               </Badge>
@@ -205,7 +214,7 @@ export default function AdminJobs() {
             )}
           </div>
         </div>
-        {(job.estimated_m3 || job.mpa_strength) && (
+        {job.job_type !== "misc" && (job.estimated_m3 || job.mpa_strength) && (
           <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
             {job.estimated_m3 && <span>{job.estimated_m3}m³</span>}
             {job.mpa_strength && <span>{job.mpa_strength} MPa</span>}
@@ -221,10 +230,16 @@ export default function AdminJobs() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold">Jobs</h1>
-          <Button onClick={() => setIsCreateOpen(true)} className="touch-target">
-            <Plus className="w-5 h-5 mr-2" />
-            New Job
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => setIsMiscOpen(true)} className="touch-target">
+              <Briefcase className="w-4 h-4 mr-2" />
+              Misc Job
+            </Button>
+            <Button onClick={() => setIsCreateOpen(true)} className="touch-target">
+              <Plus className="w-5 h-5 mr-2" />
+              New Job
+            </Button>
+          </div>
         </div>
 
         {/* Search & Filter */}
@@ -328,6 +343,9 @@ export default function AdminJobs() {
         crews={crews}
         initialData={initialJobData}
       />
+
+      {/* Misc Job Dialog */}
+      <MiscJobFormDialog open={isMiscOpen} onOpenChange={setIsMiscOpen} />
     </AdminLayout>
   );
 }

@@ -63,6 +63,15 @@ type Pour = {
   };
 };
 
+type MiscJob = {
+  id: string;
+  name: string;
+  site_address: string;
+  scheduled_date: string | null;
+  status: string | null;
+  job_notes: string | null;
+};
+
 type EstimateEvent = {
   estimate: ScheduleEstimate;
   eventType: EstimateEventType;
@@ -147,6 +156,33 @@ export default function AdminSchedule() {
         .order("scheduled_time", { ascending: true });
       if (error) throw error;
       return data as Pour[];
+    },
+  });
+
+  const { data: miscJobs = [] } = useQuery({
+    queryKey: ["schedule-misc-jobs"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+      
+      if (!profile?.business_id) return [];
+
+      const { data, error } = await supabase
+        .from("jobs")
+        .select("id, name, site_address, scheduled_date, status, job_notes")
+        .eq("business_id", profile.business_id)
+        .eq("job_type", "misc")
+        .neq("status", "cancelled")
+        .neq("status", "completed");
+      
+      if (error) throw error;
+      return data as MiscJob[];
     },
   });
 
@@ -257,6 +293,21 @@ export default function AdminSchedule() {
     return map;
   }, [estimates]);
 
+  // Group misc jobs by date
+  const miscJobsByDate = useMemo(() => {
+    const map = new Map<string, MiscJob[]>();
+    miscJobs.forEach((job) => {
+      if (job.scheduled_date) {
+        const dateKey = job.scheduled_date;
+        if (!map.has(dateKey)) {
+          map.set(dateKey, []);
+        }
+        map.get(dateKey)!.push(job);
+      }
+    });
+    return map;
+  }, [miscJobs]);
+
   const unscheduledPours = useMemo(() => {
     return pours.filter((pour) => !pour.pour_date);
   }, [pours]);
@@ -361,10 +412,15 @@ export default function AdminSchedule() {
     });
   };
 
+  const handleMiscJobClick = (job: MiscJob) => {
+    navigate(`/admin/jobs/${job.id}`);
+  };
+
   const handleRefresh = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] }),
       queryClient.invalidateQueries({ queryKey: ["schedule-estimates"] }),
+      queryClient.invalidateQueries({ queryKey: ["schedule-misc-jobs"] }),
     ]);
   }, [queryClient]);
 
@@ -449,6 +505,7 @@ export default function AdminSchedule() {
                 const dateKey = format(day, "yyyy-MM-dd");
                 const dayPours = poursByDate.get(dateKey) || [];
                 const dayEstimates = estimateEventsByDate.get(dateKey) || [];
+                const dayMiscJobs = miscJobsByDate.get(dateKey) || [];
                 const onLeave = getEmployeesOnLeaveForDate(dateKey, employeesOnLeave);
                 
                 return (
@@ -458,9 +515,11 @@ export default function AdminSchedule() {
                     dateKey={dateKey}
                     pours={dayPours}
                     estimateEvents={dayEstimates}
+                    miscJobs={dayMiscJobs}
                     isWeekView
                     onPourClick={handlePourClick}
                     onEstimateClick={handleEstimateClick}
+                    onMiscJobClick={handleMiscJobClick}
                     employeesOnLeave={onLeave}
                   />
                 );
@@ -480,6 +539,7 @@ export default function AdminSchedule() {
                 const dateKey = format(day, "yyyy-MM-dd");
                 const dayPours = poursByDate.get(dateKey) || [];
                 const dayEstimates = estimateEventsByDate.get(dateKey) || [];
+                const dayMiscJobs = miscJobsByDate.get(dateKey) || [];
                 const isCurrentMonth = isSameMonth(day, currentDate);
                 const onLeave = getEmployeesOnLeaveForDate(dateKey, employeesOnLeave);
                 
@@ -490,9 +550,11 @@ export default function AdminSchedule() {
                     dateKey={dateKey}
                     pours={dayPours}
                     estimateEvents={dayEstimates}
+                    miscJobs={dayMiscJobs}
                     isCurrentMonth={isCurrentMonth}
                     onPourClick={handlePourClick}
                     onEstimateClick={handleEstimateClick}
+                    onMiscJobClick={handleMiscJobClick}
                     employeesOnLeave={onLeave}
                   />
                 );
