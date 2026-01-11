@@ -37,6 +37,37 @@ export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Fetch business branding for the printed BOQ
+  const { data: business } = useQuery({
+    queryKey: ["business-branding-boq"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return null;
+      
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      
+      if (!profile?.business_id) return null;
+      
+      const { data, error } = await supabase
+        .from("businesses")
+        .select("name, logo_url, quote_primary_color, quote_font")
+        .eq("id", profile.business_id)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return data ? {
+        name: data.name,
+        logo_url: data.logo_url,
+        primary_color: data.quote_primary_color,
+        font: data.quote_font,
+      } : null;
+    },
+  });
+
   const { data: boq, isLoading } = useQuery({
     queryKey: ["job-boq", jobId],
     queryFn: async () => {
@@ -247,7 +278,8 @@ export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
         <PrintableBOQ 
           boq={boq} 
           jobName={jobName} 
-          jobNumber={jobNumber} 
+          jobNumber={jobNumber}
+          business={business}
         />,
         document.body
       )}
