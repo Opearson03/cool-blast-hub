@@ -176,6 +176,7 @@ export default function AdminEstimates() {
     let mpaStrength = "";
     let slump = "";
     let finishType = "";
+    let concreteSupplier = "";
     const pours: Array<{
       pour_name: string;
       estimated_m3: number;
@@ -184,32 +185,64 @@ export default function AdminEstimates() {
       notes: string;
     }> = [];
 
-    // Try to extract from structured scope_data first
+    // Try to extract from structured scope_data first (new modular calculator format)
     if (estimate.scope_data && estimate.selected_scopes) {
       const scopeData = estimate.scope_data as Record<string, any>;
       
       // Calculate total m³ from all scopes
       let totalM3 = 0;
       
-      // Check raft_slab for pours data
-      if (estimate.selected_scopes.includes("raft_slab") && scopeData.raft_slab) {
-        const raftData = scopeData.raft_slab;
-        mpaStrength = raftData.concreteStrength || "";
+      // Iterate through selected scopes to extract data from moduleAnswers
+      for (const scopeKey of estimate.selected_scopes) {
+        const scopeEntry = scopeData[scopeKey];
+        if (!scopeEntry) continue;
         
-        // Calculate volume from dimensions
-        const length = parseFloat(raftData.slabLength) || 0;
-        const width = parseFloat(raftData.slabWidth) || 0;
-        const depth = parseFloat(raftData.slabDepth) || 0;
-        const wastage = parseFloat(raftData.wastagePercent) || 5;
-        const volume = (length * width * (depth / 1000)) * (1 + wastage / 100);
-        totalM3 += volume;
+        const moduleAnswers = scopeEntry.moduleAnswers || {};
+        const scopeAnswers = scopeEntry.scopeAnswers || {};
         
-        // Extract pours if defined
-        if (raftData.pours && Array.isArray(raftData.pours)) {
-          raftData.pours.forEach((pour: any, index: number) => {
+        // Extract from concrete-supply module
+        const concreteModule = moduleAnswers["concrete-supply"];
+        if (concreteModule) {
+          const volume = Number(concreteModule.calculated_volume) || 0;
+          if (volume > 0) {
+            totalM3 += volume;
+          }
+          
+          // Get MPa from concrete type (e.g., "32MPA" -> "32")
+          if (concreteModule.concrete_type && !mpaStrength) {
+            mpaStrength = concreteModule.concrete_type.replace(/MPA/i, "").trim();
+          }
+        }
+        
+        // Extract from surface-finishing module
+        const finishModule = moduleAnswers["surface-finishing"];
+        if (finishModule && finishModule.finish_type && !finishType) {
+          // Convert snake_case to Title Case
+          finishType = finishModule.finish_type
+            .split("_")
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
+        }
+        
+        // Extract slump if stored (check common locations)
+        if (scopeAnswers.slump && !slump) {
+          slump = String(scopeAnswers.slump);
+        } else if (concreteModule?.slump && !slump) {
+          slump = String(concreteModule.slump);
+        }
+        
+        // Try to get concrete supplier from scope or module answers
+        if (scopeAnswers.concrete_supplier && !concreteSupplier) {
+          concreteSupplier = scopeAnswers.concrete_supplier;
+        }
+        
+        // Extract pours if defined in scope
+        if (scopeEntry.pours && Array.isArray(scopeEntry.pours)) {
+          const scopeLabel = scopeKey.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
+          scopeEntry.pours.forEach((pour: any, index: number) => {
             pours.push({
-              pour_name: pour.name || `Pour ${index + 1}`,
-              estimated_m3: Math.round((volume / raftData.pours.length) * 100) / 100,
+              pour_name: pour.name || `${scopeLabel} Pour ${index + 1}`,
+              estimated_m3: Math.round((Number(concreteModule?.calculated_volume) / scopeEntry.pours.length) * 100) / 100,
               mpa_strength: mpaStrength,
               slump: slump,
               notes: `Crew: ${pour.crewSize || 4} | Hours: ${pour.hoursPerMan || 8}h per person`,
@@ -218,42 +251,46 @@ export default function AdminEstimates() {
         }
       }
       
-      // Check suspended_slab
-      if (estimate.selected_scopes.includes("suspended_slab") && scopeData.suspended_slab) {
-        const suspendedData = scopeData.suspended_slab;
-        mpaStrength = mpaStrength || suspendedData.concreteStrength || "";
+      // Fallback to old format if no volume found
+      if (totalM3 === 0) {
+        // Check raft_slab for pours data (legacy format)
+        if (estimate.selected_scopes.includes("raft_slab") && scopeData.raft_slab) {
+          const raftData = scopeData.raft_slab;
+          mpaStrength = mpaStrength || raftData.concreteStrength || "";
+          
+          const length = parseFloat(raftData.slabLength) || 0;
+          const width = parseFloat(raftData.slabWidth) || 0;
+          const depth = parseFloat(raftData.slabDepth) || 0;
+          const wastage = parseFloat(raftData.wastagePercent) || 5;
+          const volume = (length * width * (depth / 1000)) * (1 + wastage / 100);
+          totalM3 += volume;
+          
+          if (raftData.pours && Array.isArray(raftData.pours)) {
+            raftData.pours.forEach((pour: any, index: number) => {
+              pours.push({
+                pour_name: pour.name || `Pour ${index + 1}`,
+                estimated_m3: Math.round((volume / raftData.pours.length) * 100) / 100,
+                mpa_strength: mpaStrength,
+                slump: slump,
+                notes: `Crew: ${pour.crewSize || 4} | Hours: ${pour.hoursPerMan || 8}h per person`,
+              });
+            });
+          }
+        }
         
-        const length = parseFloat(suspendedData.slabLength) || 0;
-        const width = parseFloat(suspendedData.slabWidth) || 0;
-        const depth = parseFloat(suspendedData.slabDepth) || 0;
-        const wastage = parseFloat(suspendedData.wastagePercent) || 5;
-        totalM3 += (length * width * (depth / 1000)) * (1 + wastage / 100);
-      }
-      
-      // Check standard_slab or driveway
-      const slabScope = estimate.selected_scopes.includes("standard_slab") ? "standard_slab" 
-        : estimate.selected_scopes.includes("driveway") ? "driveway" : null;
-      if (slabScope && scopeData[slabScope]) {
-        const slabData = scopeData[slabScope];
-        mpaStrength = mpaStrength || slabData.concreteStrength || "";
-        
-        const length = parseFloat(slabData.slabLength) || 0;
-        const width = parseFloat(slabData.slabWidth) || 0;
-        const depth = parseFloat(slabData.slabDepth) || 0;
-        const wastage = parseFloat(slabData.wastagePercent) || 5;
-        totalM3 += (length * width * (depth / 1000)) * (1 + wastage / 100);
-      }
-      
-      // Check waffle_pod
-      if (estimate.selected_scopes.includes("waffle_pod") && scopeData.waffle_pod) {
-        const waffleData = scopeData.waffle_pod;
-        mpaStrength = mpaStrength || waffleData.concreteStrength || "";
-        
-        const length = parseFloat(waffleData.slabLength) || 0;
-        const width = parseFloat(waffleData.slabWidth) || 0;
-        const depth = parseFloat(waffleData.slabDepth) || 0;
-        const wastage = parseFloat(waffleData.wastagePercent) || 5;
-        totalM3 += (length * width * (depth / 1000)) * (1 + wastage / 100);
+        // Check standard_slab or driveway (legacy format)
+        const slabScope = estimate.selected_scopes.includes("standard_slab") ? "standard_slab" 
+          : estimate.selected_scopes.includes("driveway") ? "driveway" : null;
+        if (slabScope && scopeData[slabScope]) {
+          const slabData = scopeData[slabScope];
+          mpaStrength = mpaStrength || slabData.concreteStrength || "";
+          
+          const length = parseFloat(slabData.slabLength) || 0;
+          const width = parseFloat(slabData.slabWidth) || 0;
+          const depth = parseFloat(slabData.slabDepth) || 0;
+          const wastage = parseFloat(slabData.wastagePercent) || 5;
+          totalM3 += (length * width * (depth / 1000)) * (1 + wastage / 100);
+        }
       }
       
       if (totalM3 > 0) {
@@ -277,6 +314,16 @@ export default function AdminEstimates() {
       if (mpaMatch) {
         mpaStrength = mpaMatch[1];
       }
+    }
+    
+    // Default slump if not found
+    if (!slump && mpaStrength) {
+      // Standard slumps based on MPa
+      const mpaValue = parseInt(mpaStrength);
+      if (mpaValue >= 40) slump = "100";
+      else if (mpaValue >= 32) slump = "100";
+      else if (mpaValue >= 25) slump = "80";
+      else slump = "80";
     }
 
     // Build comprehensive job notes
@@ -303,6 +350,7 @@ export default function AdminEstimates() {
       mpa_strength: mpaStrength,
       slump: slump,
       finish_type: finishType,
+      concrete_supplier: concreteSupplier,
       job_notes: noteParts.join("\n").trim(),
       pours: pours,
       estimate_id: estimate.estimate_number,
