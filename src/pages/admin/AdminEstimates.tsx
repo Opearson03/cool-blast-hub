@@ -20,7 +20,7 @@ import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
 import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracker";
 
-type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
+type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
 type EstimateType = "driveway" | "house_slab" | "commercial_slab";
 
 interface Estimate {
@@ -52,6 +52,7 @@ const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Car
 
 const statusConfig: Record<EstimateStatus, { label: string; docType: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }> = {
   draft: { label: "Draft", docType: "Estimate", variant: "secondary", icon: FileText },
+  pending: { label: "Finalized", docType: "Quote", variant: "outline", icon: Clock },
   sent: { label: "Sent", docType: "Quote", variant: "default", icon: Send },
   accepted: { label: "Accepted", docType: "Quote", variant: "default", icon: CheckCircle },
   declined: { label: "Declined", docType: "Quote", variant: "destructive", icon: XCircle },

@@ -1695,7 +1695,7 @@ export type Database = {
         | "job"
         | "general"
       document_type: "swms" | "risk_assessment" | "permit" | "jsa" | "other"
-      estimate_status: "draft" | "sent" | "accepted" | "declined"
+      estimate_status: "draft" | "pending" | "sent" | "accepted" | "declined"
       invoice_status: "draft" | "sent" | "paid" | "overdue" | "cancelled"
       itp_type:
         | "formwork"
@@ -1857,7 +1857,7 @@ export const Constants = {
         "general",
       ],
       document_type: ["swms", "risk_assessment", "permit", "jsa", "other"],
-      estimate_status: ["draft", "sent", "accepted", "declined"],
+      estimate_status: ["draft", "pending", "sent", "accepted", "declined"],
       invoice_status: ["draft", "sent", "paid", "overdue", "cancelled"],
       itp_type: [
         "formwork",
