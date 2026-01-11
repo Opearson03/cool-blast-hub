@@ -10,32 +10,34 @@ export const PIERS_SCOPE: ScopeDefinition = {
   name: 'Piers',
   description: 'Concrete pier foundations including excavation, reinforcement, and placement',
   icon: 'construction',
+  supportsMultiplePiers: true,
+  piersLabel: 'Pier Configurations',
   questions: [
+    // These questions are derived from the multi-pier input
     {
       id: 'num_piers',
       type: 'number',
-      label: 'Number of Piers',
+      label: 'Total Number of Piers',
       required: true,
       min: 1,
-      defaultValue: 1,
     },
     {
       id: 'diameter',
       type: 'number',
-      label: 'Diameter of piers (mm)',
+      label: 'Average Diameter (mm)',
       required: true,
       min: 100,
-      defaultValue: 450,
       unit: 'mm',
+      helpText: 'Derived from pier configurations',
     },
     {
       id: 'depth',
       type: 'number',
-      label: 'Depth of piers (mm)',
+      label: 'Average Depth (mm)',
       required: true,
       min: 100,
-      defaultValue: 600,
       unit: 'mm',
+      helpText: 'Derived from pier configurations',
     },
   ],
   moduleIds: [
@@ -50,6 +52,18 @@ export const PIERS_SCOPE: ScopeDefinition = {
     'margin',
   ],
   calculateVolume: (answers) => {
+    // If we have pier configs, calculate from those
+    const piers = answers.piers || [];
+    if (piers.length > 0) {
+      return piers.reduce((sum: number, pier: any) => {
+        const qty = Number(pier.quantity) || 0;
+        const diamM = (Number(pier.diameter) || 0) / 1000;
+        const depthM = (Number(pier.depth) || 0) / 1000;
+        const radius = diamM / 2;
+        return sum + qty * Math.PI * radius * radius * depthM;
+      }, 0);
+    }
+    // Fallback to individual questions
     const numPiers = Number(answers.num_piers) || 0;
     const diameterM = (Number(answers.diameter) || 0) / 1000;
     const depthM = (Number(answers.depth) || 0) / 1000;
@@ -596,13 +610,17 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
 
 /**
  * Strip Footings Scope Definition
+ * Supports multiple footing configurations
  */
 export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
   id: 'strip_footings',
   name: 'Strip Footings',
   description: 'Strip footing foundations',
   icon: 'minus',
+  supportsMultipleFootings: true,
+  footingsLabel: 'Footing Sections',
   questions: [
+    // These questions are derived from the multi-footing input
     {
       id: 'total_length',
       type: 'number',
@@ -614,19 +632,17 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
     {
       id: 'width',
       type: 'number',
-      label: 'Width (mm)',
+      label: 'Average Width (mm)',
       required: true,
       min: 200,
-      defaultValue: 450,
       unit: 'mm',
     },
     {
       id: 'depth',
       type: 'number',
-      label: 'Depth (mm)',
+      label: 'Average Depth (mm)',
       required: true,
       min: 200,
-      defaultValue: 300,
       unit: 'mm',
     },
   ],
@@ -642,6 +658,17 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
     'margin',
   ],
   calculateVolume: (answers) => {
+    // If we have footing configs, calculate from those
+    const footings = answers.footings || [];
+    if (footings.length > 0) {
+      return footings.reduce((sum: number, footing: any) => {
+        const length = Number(footing.length) || 0;
+        const widthM = (Number(footing.width) || 0) / 1000;
+        const depthM = (Number(footing.depth) || 0) / 1000;
+        return sum + length * widthM * depthM;
+      }, 0);
+    }
+    // Fallback to individual questions
     const length = Number(answers.total_length) || 0;
     const widthM = (Number(answers.width) || 0) / 1000;
     const depthM = (Number(answers.depth) || 0) / 1000;
@@ -655,13 +682,17 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
 
 /**
  * Retaining Wall Scope Definition
+ * Supports multiple footing configurations
  */
 export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
   id: 'retaining_wall_footings',
   name: 'Retaining Wall Footings',
   description: 'Retaining wall footing foundations',
   icon: 'brick-wall',
+  supportsMultipleFootings: true,
+  footingsLabel: 'Footing Sections',
   questions: [
+    // These questions are derived from the multi-footing input
     {
       id: 'total_length',
       type: 'number',
@@ -673,19 +704,17 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     {
       id: 'footing_width',
       type: 'number',
-      label: 'Footing Width (mm)',
+      label: 'Average Footing Width (mm)',
       required: true,
       min: 300,
-      defaultValue: 600,
       unit: 'mm',
     },
     {
       id: 'footing_depth',
       type: 'number',
-      label: 'Footing Depth (mm)',
+      label: 'Average Footing Depth (mm)',
       required: true,
       min: 200,
-      defaultValue: 300,
       unit: 'mm',
     },
   ],
@@ -701,6 +730,17 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     'margin',
   ],
   calculateVolume: (answers) => {
+    // If we have footing configs, calculate from those
+    const footings = answers.footings || [];
+    if (footings.length > 0) {
+      return footings.reduce((sum: number, footing: any) => {
+        const length = Number(footing.length) || 0;
+        const widthM = (Number(footing.width) || 0) / 1000;
+        const depthM = (Number(footing.depth) || 0) / 1000;
+        return sum + length * widthM * depthM;
+      }, 0);
+    }
+    // Fallback to individual questions
     const length = Number(answers.total_length) || 0;
     const widthM = (Number(answers.footing_width) || 0) / 1000;
     const depthM = (Number(answers.footing_depth) || 0) / 1000;
@@ -711,6 +751,7 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     { id: 'wall', text: 'Retaining wall construction (footing only)', moduleId: 'retaining_wall_footings' },
   ],
 };
+
 
 /**
  * Suspended Slab Scope Definition

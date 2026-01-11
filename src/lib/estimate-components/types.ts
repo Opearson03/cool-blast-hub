@@ -126,6 +126,28 @@ export interface MeasurementArea {
 }
 
 /**
+ * Individual pier configuration for multi-pier scopes
+ */
+export interface PierConfig {
+  id: string;
+  name: string;
+  quantity: number;
+  diameter: number;  // mm
+  depth: number;     // mm
+}
+
+/**
+ * Individual footing configuration for multi-footing scopes
+ */
+export interface FootingConfig {
+  id: string;
+  name: string;
+  length: number;    // m
+  width: number;     // mm
+  depth: number;     // mm
+}
+
+/**
  * Definition of a scope (e.g., Piers, Slab, Driveway)
  */
 export interface ScopeDefinition {
@@ -151,6 +173,18 @@ export interface ScopeDefinition {
   
   /** Label for the areas section (e.g., "Driveway Areas") */
   areasLabel?: string;
+  
+  /** If true, allows multiple pier configurations within this scope */
+  supportsMultiplePiers?: boolean;
+  
+  /** Label for the piers section (e.g., "Pier Configurations") */
+  piersLabel?: string;
+  
+  /** If true, allows multiple footing configurations within this scope */
+  supportsMultipleFootings?: boolean;
+  
+  /** Label for the footings section (e.g., "Footing Sections") */
+  footingsLabel?: string;
 }
 
 /**
