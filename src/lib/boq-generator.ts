@@ -649,12 +649,14 @@ export function generateBOQFromEstimate(
       const formworkMetres = formworkModule.formwork_metres || scopeAnswers.perimeter || 0;
       if (formworkMetres > 0) {
         const timberType = formworkModule.timber_type || "90x45";
+        // Default timber price per metre if not stored
+        const timberPrice = formworkModule.timber_price || 8;
         addItem(
           "formwork",
           `Formwork Timber (${timberType})`,
           formworkMetres,
           "lm",
-          formworkModule.timber_price
+          timberPrice
         );
 
         // Stakes - calculate from formwork metres if not explicitly stored
@@ -663,12 +665,14 @@ export function generateBOQFromEstimate(
           const stakeCount = Math.ceil(formworkMetres / stakeSpacing) + 1;
           
           if (stakeCount > 0) {
+            // Default stake price if not stored
+            const stakePrice = formworkModule.stake_price || 3;
             addItem(
               "formwork",
               "Timber Stakes",
               stakeCount,
               "pcs",
-              formworkModule.stake_price
+              stakePrice
             );
           }
         }
@@ -691,24 +695,28 @@ export function generateBOQFromEstimate(
     if (dowelsModule && dowelsModule.dowels_required) {
       const dowelCount = dowelsModule.dowel_count || 0;
       const dowelSize = dowelsModule.dowel_size || "N12";
+      // Default dowel price if not stored
+      const dowelPrice = dowelsModule.dowel_price_each || 5;
       if (dowelCount > 0) {
         addItem(
           "reinforcement",
           `Dowel Bars (${dowelSize})`,
           dowelCount,
           "pcs",
-          dowelsModule.dowel_price_each
+          dowelPrice
         );
       }
 
       // Chemical anchors
       if (dowelsModule.chemical_anchor && dowelsModule.chemical_cartridges) {
+        // Default chemical anchor price if not stored
+        const chemicalPrice = dowelsModule.chemical_price || 35;
         addItem(
           "other",
           "Chemical Anchor Cartridges",
           dowelsModule.chemical_cartridges,
           "pcs",
-          dowelsModule.chemical_price
+          chemicalPrice
         );
       }
     }
@@ -814,6 +822,8 @@ export function generateBOQFromEstimate(
         const sealerLitres = Math.ceil((finishArea * coats) / coverageRate);
         
         const sealerLabel = finishingModule.sealer_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+        // Default sealer price if not stored
+        const sealerPrice = finishingModule.sealer_price_per_litre || 35;
         
         if (sealerLitres > 0) {
           addItem(
@@ -821,7 +831,7 @@ export function generateBOQFromEstimate(
             `${sealerLabel} Sealer`,
             sealerLitres,
             "L",
-            finishingModule.sealer_price_per_litre
+            sealerPrice
           );
         }
       }
@@ -830,6 +840,8 @@ export function generateBOQFromEstimate(
       if (finishingModule.slip_additive_required) {
         const additiveRate = finishingModule.slip_additive_rate || 0.05; // kg/m²
         const slipKg = Math.ceil(finishArea * additiveRate * 10) / 10;
+        // Default slip additive price if not stored
+        const slipPrice = finishingModule.slip_additive_price || 45;
         
         if (slipKg > 0) {
           addItem(
@@ -837,7 +849,7 @@ export function generateBOQFromEstimate(
             "Slip-Resistant Additive",
             slipKg,
             "kg",
-            finishingModule.slip_additive_price
+            slipPrice
           );
         }
       }
@@ -850,6 +862,8 @@ export function generateBOQFromEstimate(
           const coverageRate = finishingModule.curing_coverage_rate || 6; // m²/L default
           const coats = finishingModule.curing_coats || 1;
           const curingLitres = Math.ceil((finishArea * coats) / coverageRate);
+          // Default curing price if not stored
+          const curingPrice = finishingModule.curing_product_price || 25;
           
           if (curingLitres > 0) {
             addItem(
@@ -857,7 +871,7 @@ export function generateBOQFromEstimate(
               "Curing Compound",
               curingLitres,
               "L",
-              finishingModule.curing_product_price
+              curingPrice
             );
           }
         }
@@ -867,6 +881,8 @@ export function generateBOQFromEstimate(
       if (finishingModule.retarder_required) {
         const coverageRate = finishingModule.retarder_coverage_rate || 5; // m²/L default
         const retarderLitres = Math.ceil(finishArea / coverageRate);
+        // Default retarder price if not stored
+        const retarderPrice = finishingModule.retarder_price_per_litre || 45;
         
         if (retarderLitres > 0) {
           addItem(
@@ -874,7 +890,7 @@ export function generateBOQFromEstimate(
             "Surface Retarder",
             retarderLitres,
             "L",
-            finishingModule.retarder_price_per_litre
+            retarderPrice
           );
         }
       }
