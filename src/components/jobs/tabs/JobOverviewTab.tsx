@@ -180,16 +180,12 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Summary stats */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-3 gap-4">
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Estimated</p>
               <p className="text-xl font-semibold">
                 {job.estimated_m3 ?? (totalEstimatedVolume > 0 ? totalEstimatedVolume.toFixed(1) : "—")} m³
               </p>
-            </div>
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground">Ordered</p>
-              <p className="text-xl font-semibold">{job.ordered_m3 ?? "—"} m³</p>
             </div>
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Strength</p>
@@ -199,7 +195,9 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
             </div>
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Slump</p>
-              <p className="text-xl font-semibold">{job.slump ?? "—"}</p>
+              <p className="text-xl font-semibold">
+                {job.slump ?? (scopeSpecs.length === 1 && scopeSpecs[0].slump ? scopeSpecs[0].slump : "—")}
+              </p>
             </div>
           </div>
 
@@ -221,6 +219,7 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
                     </div>
                     <div className="flex gap-4 text-xs text-muted-foreground">
                       {spec.strength && <span>N{spec.strength}</span>}
+                      {spec.slump && <span>Slump: {spec.slump}</span>}
                       {spec.finishType && <span>{spec.finishType}</span>}
                     </div>
                   </div>
