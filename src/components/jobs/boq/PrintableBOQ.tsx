@@ -1,12 +1,20 @@
 import { BOQItem, BOQ_CATEGORIES, JobBOQ } from "./BOQTypes";
 
+interface BusinessBranding {
+  logo_url?: string | null;
+  name?: string;
+  primary_color?: string | null;
+  font?: string | null;
+}
+
 interface PrintableBOQProps {
   boq: JobBOQ;
   jobName: string;
   jobNumber?: string;
+  business?: BusinessBranding | null;
 }
 
-export function PrintableBOQ({ boq, jobName, jobNumber }: PrintableBOQProps) {
+export function PrintableBOQ({ boq, jobName, jobNumber, business }: PrintableBOQProps) {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-AU", {
       style: "currency",
@@ -23,57 +31,104 @@ export function PrintableBOQ({ boq, jobName, jobNumber }: PrintableBOQProps) {
 
   const totalValue = boq.items.reduce((sum, item) => sum + (item.totalPrice || 0), 0);
 
+  // Use business branding or defaults
+  const primaryColor = business?.primary_color || '#f97316'; // Default orange
+  const fontFamily = business?.font || 'Inter, system-ui, sans-serif';
+
   return (
     <div className="print-estimate-portal">
-      <div className="print-container">
+      <div className="print-container" style={{ fontFamily }}>
         <div className="max-w-4xl mx-auto">
-          {/* Header */}
-          <div style={{ borderBottom: '2px solid #1f2937', paddingBottom: '16px', marginBottom: '24px' }}>
-            <h1 style={{ fontSize: '24px', fontWeight: 'bold', color: '#111827', margin: 0 }}>Bill of Quantities</h1>
-            <div style={{ marginTop: '8px', color: '#4b5563' }}>
-              <p style={{ fontWeight: '500', margin: '4px 0' }}>{jobName}</p>
-              {jobNumber && <p style={{ fontSize: '14px', margin: '4px 0' }}>Job: {jobNumber}</p>}
-              <p style={{ fontSize: '14px', margin: '4px 0' }}>Generated: {new Date().toLocaleDateString("en-AU")}</p>
+          {/* Header with Logo */}
+          <div style={{ 
+            borderBottom: `3px solid ${primaryColor}`, 
+            paddingBottom: '20px', 
+            marginBottom: '24px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-start'
+          }}>
+            <div>
+              <h1 style={{ 
+                fontSize: '28px', 
+                fontWeight: 'bold', 
+                color: '#111827', 
+                margin: 0,
+                fontFamily 
+              }}>
+                Bill of Quantities
+              </h1>
+              <div style={{ marginTop: '12px', color: '#4b5563' }}>
+                <p style={{ fontWeight: '600', margin: '4px 0', fontSize: '16px' }}>{jobName}</p>
+                {jobNumber && <p style={{ fontSize: '14px', margin: '4px 0' }}>Job #: {jobNumber}</p>}
+                <p style={{ fontSize: '14px', margin: '4px 0', color: '#6b7280' }}>
+                  Generated: {new Date().toLocaleDateString("en-AU", { 
+                    day: 'numeric', 
+                    month: 'long', 
+                    year: 'numeric' 
+                  })}
+                </p>
+              </div>
             </div>
+            {business?.logo_url && (
+              <div style={{ flexShrink: 0 }}>
+                <img 
+                  src={business.logo_url} 
+                  alt={business.name || 'Business logo'} 
+                  style={{ 
+                    maxHeight: '80px', 
+                    maxWidth: '200px', 
+                    objectFit: 'contain' 
+                  }} 
+                />
+              </div>
+            )}
           </div>
 
           {/* Items by Category */}
           {Object.entries(groupedItems).map(([category, items]) => (
             <div key={category} style={{ marginBottom: '24px' }}>
               <h2 style={{ 
-                fontSize: '16px', 
+                fontSize: '14px', 
                 fontWeight: '600', 
-                backgroundColor: '#f3f4f6', 
-                padding: '8px 12px', 
-                marginBottom: '8px' 
+                backgroundColor: primaryColor,
+                color: '#ffffff',
+                padding: '10px 14px', 
+                marginBottom: '0',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                fontFamily
               }}>
                 {BOQ_CATEGORIES[category as keyof typeof BOQ_CATEGORIES]?.label || category}
               </h2>
               <table style={{ width: '100%', fontSize: '14px', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #d1d5db' }}>
-                    <th style={{ textAlign: 'left', padding: '8px', fontWeight: '600' }}>Description</th>
-                    <th style={{ textAlign: 'right', padding: '8px', width: '80px', fontWeight: '600' }}>Qty</th>
-                    <th style={{ textAlign: 'left', padding: '8px', width: '64px', fontWeight: '600' }}>Unit</th>
-                    <th style={{ textAlign: 'right', padding: '8px', width: '96px', fontWeight: '600' }}>Unit Price</th>
-                    <th style={{ textAlign: 'right', padding: '8px', width: '96px', fontWeight: '600' }}>Total</th>
+                  <tr style={{ backgroundColor: '#f9fafb' }}>
+                    <th style={{ textAlign: 'left', padding: '10px 12px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Description</th>
+                    <th style={{ textAlign: 'right', padding: '10px 12px', width: '80px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Qty</th>
+                    <th style={{ textAlign: 'left', padding: '10px 12px', width: '64px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Unit</th>
+                    <th style={{ textAlign: 'right', padding: '10px 12px', width: '100px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Unit Price</th>
+                    <th style={{ textAlign: 'right', padding: '10px 12px', width: '100px', fontWeight: '600', borderBottom: '1px solid #e5e7eb' }}>Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {items.map((item) => (
-                    <tr key={item.id} style={{ borderBottom: '1px solid #e5e7eb' }}>
-                      <td style={{ padding: '8px' }}>
+                  {items.map((item, idx) => (
+                    <tr key={item.id} style={{ 
+                      borderBottom: '1px solid #e5e7eb',
+                      backgroundColor: idx % 2 === 1 ? '#fafafa' : 'transparent'
+                    }}>
+                      <td style={{ padding: '10px 12px' }}>
                         {item.description}
                         {item.notes && (
-                          <span style={{ display: 'block', fontSize: '12px', color: '#6b7280' }}>{item.notes}</span>
+                          <span style={{ display: 'block', fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>{item.notes}</span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right', padding: '8px' }}>{item.quantity}</td>
-                      <td style={{ padding: '8px' }}>{item.unit}</td>
-                      <td style={{ textAlign: 'right', padding: '8px' }}>
+                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>{item.quantity}</td>
+                      <td style={{ padding: '10px 12px', color: '#6b7280' }}>{item.unit}</td>
+                      <td style={{ textAlign: 'right', padding: '10px 12px' }}>
                         {item.unitPrice ? formatCurrency(item.unitPrice) : '-'}
                       </td>
-                      <td style={{ textAlign: 'right', padding: '8px', fontWeight: '500' }}>
+                      <td style={{ textAlign: 'right', padding: '10px 12px', fontWeight: '500' }}>
                         {item.totalPrice ? formatCurrency(item.totalPrice) : '-'}
                       </td>
                     </tr>
@@ -84,11 +139,20 @@ export function PrintableBOQ({ boq, jobName, jobNumber }: PrintableBOQProps) {
           ))}
 
           {/* Total */}
-          <div style={{ borderTop: '2px solid #1f2937', paddingTop: '16px', marginTop: '24px' }}>
+          <div style={{ 
+            borderTop: `3px solid ${primaryColor}`, 
+            paddingTop: '20px', 
+            marginTop: '32px' 
+          }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <div style={{ textAlign: 'right' }}>
-                <p style={{ fontSize: '14px', color: '#4b5563', margin: '0 0 4px 0' }}>Total Value</p>
-                <p style={{ fontSize: '24px', fontWeight: 'bold', margin: 0 }}>{formatCurrency(totalValue)}</p>
+              <div style={{ 
+                textAlign: 'right',
+                backgroundColor: '#f9fafb',
+                padding: '16px 24px',
+                borderRadius: '8px'
+              }}>
+                <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Value</p>
+                <p style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: primaryColor }}>{formatCurrency(totalValue)}</p>
               </div>
             </div>
           </div>
@@ -96,8 +160,22 @@ export function PrintableBOQ({ boq, jobName, jobNumber }: PrintableBOQProps) {
           {/* Notes */}
           {boq.notes && (
             <div style={{ marginTop: '24px', paddingTop: '16px', borderTop: '1px solid #e5e7eb' }}>
-              <h3 style={{ fontWeight: '600', marginBottom: '8px' }}>Notes</h3>
+              <h3 style={{ fontWeight: '600', marginBottom: '8px', fontSize: '14px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Notes</h3>
               <p style={{ fontSize: '14px', color: '#4b5563', whiteSpace: 'pre-wrap', margin: 0 }}>{boq.notes}</p>
+            </div>
+          )}
+
+          {/* Footer with business name */}
+          {business?.name && (
+            <div style={{ 
+              marginTop: '40px', 
+              paddingTop: '16px', 
+              borderTop: '1px solid #e5e7eb',
+              textAlign: 'center'
+            }}>
+              <p style={{ fontSize: '12px', color: '#9ca3af', margin: 0 }}>
+                Prepared by {business.name}
+              </p>
             </div>
           )}
         </div>
