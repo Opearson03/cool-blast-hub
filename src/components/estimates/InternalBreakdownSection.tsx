@@ -4,44 +4,16 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 
-interface ScopeAnswers {
-  area?: number;
-  totalVolume?: number;
-  thickness?: number;
-  perimeter?: number;
-  concreteType?: string;
+interface ScopeEntry {
+  scopeAnswers?: Record<string, any>;
+  moduleAnswers?: Record<string, Record<string, any>>;
+  calculatedTotal?: number;
+  customExclusions?: string[];
   [key: string]: any;
-}
-
-interface LineItem {
-  description: string;
-  quantity: number;
-  unit: string;
-  unitPrice: number;
-  total: number;
-  category: string;
-}
-
-interface ModuleCost {
-  moduleId: string;
-  moduleName: string;
-  lineItems: LineItem[];
-  subtotal: number;
 }
 
 interface ScopeData {
-  scopeAnswers?: Record<string, ScopeAnswers>;
-  moduleAnswers?: Record<string, Record<string, any>>;
-  moduleCosts?: Record<string, ModuleCost[]>;
-  calculatedTotal?: {
-    subtotal?: number;
-    marginPercent?: number;
-    marginAmount?: number;
-    subtotalWithMargin?: number;
-    gst?: number;
-    grandTotal?: number;
-  };
-  [key: string]: any;
+  [scopeId: string]: ScopeEntry | any;
 }
 
 interface InternalBreakdownSectionProps {
@@ -60,14 +32,51 @@ const formatCurrency = (value: number): string => {
 const formatModuleName = (moduleId: string): string => {
   return moduleId
     .replace(/-/g, " ")
+    .replace(/_/g, " ")
     .replace(/\b\w/g, (l) => l.toUpperCase());
 };
 
 const formatScopeName = (scopeId: string): string => {
   return scopeId
     .replace(/-/g, " ")
+    .replace(/_/g, " ")
     .replace(/\b\w/g, (l) => l.toUpperCase());
 };
+
+const formatAnswerKey = (key: string): string => {
+  return key
+    .replace(/([A-Z])/g, ' $1')
+    .replace(/-/g, " ")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (l) => l.toUpperCase())
+    .trim();
+};
+
+const formatAnswerValue = (key: string, value: any): string => {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "boolean") return value ? "Yes" : "No";
+  if (typeof value === "number") {
+    // Check if it looks like a currency value
+    if (key.toLowerCase().includes("price") || key.toLowerCase().includes("rate") || key.toLowerCase().includes("cost")) {
+      return formatCurrency(value);
+    }
+    // Format with appropriate precision
+    return value % 1 === 0 ? value.toString() : value.toFixed(2);
+  }
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "-";
+    // Handle multi-area arrays
+    if (typeof value[0] === "object" && value[0] !== null) {
+      return `${value.length} area(s)`;
+    }
+    return value.join(", ");
+  }
+  if (typeof value === "object") return JSON.stringify(value);
+  return String(value);
+};
+
+// Keys to skip showing in the breakdown
+const skipKeys = new Set(["areas", "enabled", "visible"]);
 
 const categoryConfig: Record<string, { label: string; icon: typeof Users; className: string }> = {
   labour: { label: "Labour", icon: Users, className: "bg-green-500/20 text-green-700 dark:text-green-400" },
@@ -82,51 +91,33 @@ export function InternalBreakdownSection({ scopeData, selectedScopes }: Internal
 
   if (!scopeData) return null;
 
-  const { scopeAnswers, moduleCosts, calculatedTotal } = scopeData;
-  const scopes = selectedScopes || Object.keys(scopeAnswers || {});
-
-  // Aggregate all module costs across scopes
-  const allModuleCosts: ModuleCost[] = [];
-  const categoryTotals: Record<string, number> = {
-    labour: 0,
-    materials: 0,
-    plant: 0,
-    subcontractor: 0,
-    other: 0,
-  };
-
-  // Process each scope
-  scopes.forEach((scopeId) => {
-    const scopeCosts = moduleCosts?.[scopeId] || [];
-    scopeCosts.forEach((moduleCost) => {
-      if (moduleCost.subtotal > 0) {
-        allModuleCosts.push({ ...moduleCost, moduleName: `${formatScopeName(scopeId)} - ${moduleCost.moduleName}` });
-        
-        // Aggregate by category
-        moduleCost.lineItems.forEach((item) => {
-          const cat = item.category || "other";
-          categoryTotals[cat] = (categoryTotals[cat] || 0) + item.total;
-        });
-      }
-    });
+  // Determine which scopes to display - the actual structure has scope IDs at the top level
+  const availableScopes = Object.keys(scopeData).filter(key => {
+    const entry = scopeData[key];
+    return (
+      typeof entry === "object" &&
+      entry !== null &&
+      (entry.scopeAnswers || entry.moduleAnswers || entry.calculatedTotal !== undefined)
+    );
   });
 
-  // Get project summary from first scope's answers
-  const firstScopeId = scopes[0];
-  const firstScopeAnswers = scopeAnswers?.[firstScopeId] || {};
+  const scopes = selectedScopes?.filter(s => availableScopes.includes(s)) || availableScopes;
 
-  // Calculate totals
-  const subtotal = calculatedTotal?.subtotal || allModuleCosts.reduce((acc, m) => acc + m.subtotal, 0);
-  const marginPercent = calculatedTotal?.marginPercent || 0;
-  const marginAmount = calculatedTotal?.marginAmount || (subtotal * marginPercent) / 100;
-  const subtotalWithMargin = calculatedTotal?.subtotalWithMargin || subtotal + marginAmount;
-  const gst = calculatedTotal?.gst || subtotalWithMargin * 0.1;
-  const grandTotal = calculatedTotal?.grandTotal || subtotalWithMargin + gst;
+  if (scopes.length === 0) return null;
 
-  // Check if there's any data to show
-  if (allModuleCosts.length === 0 && !calculatedTotal) {
-    return null;
-  }
+  // Calculate overall totals
+  let overallSubtotal = 0;
+  scopes.forEach(scopeId => {
+    const entry = scopeData[scopeId] as ScopeEntry;
+    overallSubtotal += entry?.calculatedTotal || 0;
+  });
+
+  // Default margin (15%) and GST (10%)
+  const marginPercent = 15;
+  const marginAmount = overallSubtotal * (marginPercent / 100);
+  const subtotalWithMargin = overallSubtotal + marginAmount;
+  const gst = subtotalWithMargin * 0.1;
+  const grandTotal = subtotalWithMargin + gst;
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>
@@ -150,115 +141,96 @@ export function InternalBreakdownSection({ scopeData, selectedScopes }: Internal
       </CollapsibleTrigger>
       
       <CollapsibleContent className="space-y-4 pt-2">
-        {/* Project Summary */}
-        {(firstScopeAnswers.area || firstScopeAnswers.totalVolume || firstScopeAnswers.thickness) && (
-          <div className="bg-muted/30 rounded-lg p-3 space-y-1">
-            <p className="text-xs font-medium text-muted-foreground uppercase mb-2">Project Summary</p>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-              {firstScopeAnswers.area && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Area</span>
-                  <span className="font-medium">{firstScopeAnswers.area} m²</span>
-                </div>
-              )}
-              {firstScopeAnswers.totalVolume && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Volume</span>
-                  <span className="font-medium">{firstScopeAnswers.totalVolume.toFixed(2)} m³</span>
-                </div>
-              )}
-              {firstScopeAnswers.thickness && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Thickness</span>
-                  <span className="font-medium">{firstScopeAnswers.thickness} mm</span>
-                </div>
-              )}
-              {firstScopeAnswers.perimeter && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Perimeter</span>
-                  <span className="font-medium">{firstScopeAnswers.perimeter} m</span>
-                </div>
-              )}
-              {firstScopeAnswers.concreteType && (
-                <div className="flex justify-between col-span-2">
-                  <span className="text-muted-foreground">Concrete</span>
-                  <span className="font-medium">{firstScopeAnswers.concreteType}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Per-Scope Breakdown */}
+        {scopes.map((scopeId) => {
+          const scopeEntry = scopeData[scopeId] as ScopeEntry;
+          if (!scopeEntry) return null;
 
-        {/* Module Breakdown */}
-        {allModuleCosts.length > 0 && (
-          <div className="space-y-3">
-            <p className="text-xs font-medium text-muted-foreground uppercase">Module Breakdown</p>
-            {allModuleCosts.map((moduleCost, idx) => (
-              <div key={idx} className="border rounded-lg overflow-hidden">
-                <div className="bg-muted/30 px-3 py-2 flex justify-between items-center">
-                  <span className="text-sm font-medium">{moduleCost.moduleName}</span>
-                  <span className="text-sm font-semibold">{formatCurrency(moduleCost.subtotal)}</span>
-                </div>
-                {moduleCost.lineItems.length > 0 && (
-                  <div className="px-3 py-2 space-y-1 text-xs">
-                    {moduleCost.lineItems.map((item, itemIdx) => (
-                      <div key={itemIdx} className="flex justify-between text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />
-                          {item.description}
-                          {item.quantity > 1 && (
-                            <span className="text-muted-foreground/60">
-                              ({item.quantity} {item.unit} × {formatCurrency(item.unitPrice)})
-                            </span>
-                          )}
-                        </span>
-                        <span>{formatCurrency(item.total)}</span>
-                      </div>
-                    ))}
+          const scopeAnswers = scopeEntry.scopeAnswers || {};
+          const moduleAnswers = scopeEntry.moduleAnswers || {};
+          const scopeTotal = scopeEntry.calculatedTotal || 0;
+
+          // Filter out empty/meta values from scope answers
+          const displayableScopeAnswers = Object.entries(scopeAnswers).filter(
+            ([key, value]) => !skipKeys.has(key) && value !== null && value !== undefined && value !== ""
+          );
+
+          // Get modules with answers
+          const modulesWithAnswers = Object.entries(moduleAnswers).filter(([_, answers]) => {
+            if (!answers || typeof answers !== "object") return false;
+            return Object.keys(answers).length > 0;
+          });
+
+          return (
+            <div key={scopeId} className="border rounded-lg overflow-hidden">
+              {/* Scope Header */}
+              <div className="bg-primary/10 px-3 py-2 flex justify-between items-center">
+                <span className="text-sm font-semibold">{formatScopeName(scopeId)}</span>
+                <span className="text-sm font-semibold text-primary">{formatCurrency(scopeTotal)}</span>
+              </div>
+
+              <div className="p-3 space-y-3">
+                {/* Scope Measurements */}
+                {displayableScopeAnswers.length > 0 && (
+                  <div className="space-y-1">
+                    <p className="text-xs font-medium text-muted-foreground uppercase">Measurements</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                      {displayableScopeAnswers.map(([key, value]) => (
+                        <div key={key} className="flex justify-between">
+                          <span className="text-muted-foreground">{formatAnswerKey(key)}</span>
+                          <span className="font-medium">{formatAnswerValue(key, value)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Module Inputs */}
+                {modulesWithAnswers.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground uppercase">Module Inputs</p>
+                    {modulesWithAnswers.map(([moduleId, answers]) => {
+                      const answerEntries = Object.entries(answers as Record<string, any>).filter(
+                        ([key, value]) => !skipKeys.has(key) && value !== null && value !== undefined && value !== ""
+                      );
+
+                      if (answerEntries.length === 0) return null;
+
+                      return (
+                        <div key={moduleId} className="bg-muted/30 rounded p-2 space-y-1">
+                          <p className="text-xs font-medium">{formatModuleName(moduleId)}</p>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                            {answerEntries.map(([key, value]) => (
+                              <div key={key} className="flex justify-between text-muted-foreground">
+                                <span>{formatAnswerKey(key)}</span>
+                                <span className="font-medium text-foreground">{formatAnswerValue(key, value)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
-            ))}
-          </div>
-        )}
-
-        {/* Category Totals */}
-        {Object.values(categoryTotals).some(v => v > 0) && (
-          <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase">By Category</p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(categoryTotals)
-                .filter(([_, value]) => value > 0)
-                .map(([category, value]) => {
-                  const config = categoryConfig[category] || categoryConfig.other;
-                  const Icon = config.icon;
-                  return (
-                    <Badge key={category} variant="secondary" className={`${config.className} gap-1`}>
-                      <Icon className="w-3 h-3" />
-                      {config.label}: {formatCurrency(value)}
-                    </Badge>
-                  );
-                })}
             </div>
-          </div>
-        )}
+          );
+        })}
 
         <Separator />
 
-        {/* Financial Breakdown */}
+        {/* Financial Summary */}
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase">Financial Summary</p>
           <div className="bg-muted/30 rounded-lg p-3 space-y-2 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal (ex GST)</span>
-              <span>{formatCurrency(subtotal)}</span>
+              <span>{formatCurrency(overallSubtotal)}</span>
             </div>
-            {marginPercent > 0 && (
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Margin ({marginPercent}%)</span>
-                <span>{formatCurrency(marginAmount)}</span>
-              </div>
-            )}
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Margin ({marginPercent}%)</span>
+              <span>{formatCurrency(marginAmount)}</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Subtotal + Margin</span>
               <span>{formatCurrency(subtotalWithMargin)}</span>
