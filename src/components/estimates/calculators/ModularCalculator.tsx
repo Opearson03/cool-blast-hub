@@ -7,6 +7,8 @@ import {
   ExclusionItem,
   PriceMap,
   MeasurementArea,
+  PierConfig,
+  FootingConfig,
   createPriceMap,
 } from "@/lib/estimate-components/types";
 import { MODULE_REGISTRY } from "@/lib/estimate-components/modules";
@@ -15,6 +17,8 @@ import { ModuleSection } from "./ModuleSection";
 import { ModularCostSummary } from "./ModularCostSummary";
 import { ExclusionsSummary } from "./ExclusionsSummary";
 import { MultiAreaInput } from "./MultiAreaInput";
+import { MultiPierInput } from "./MultiPierInput";
+import { MultiFootingInput } from "./MultiFootingInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -59,9 +63,17 @@ export function ModularCalculator({
       }
     });
     
-    // Initialize areas array for multi-area scopes
+    // Initialize arrays for multi-area, multi-pier, and multi-footing scopes
     if (scope.supportsMultipleAreas && !initialScopeAnswers.areas) {
       defaults.areas = [{ id: 'area-1', name: 'Area 1', length: 0, width: 0 }];
+    }
+    
+    if (scope.supportsMultiplePiers && !initialScopeAnswers.piers) {
+      defaults.piers = [{ id: 'pier-1', name: 'Pier Type 1', quantity: 1, diameter: 450, depth: 600 }];
+    }
+    
+    if (scope.supportsMultipleFootings && !initialScopeAnswers.footings) {
+      defaults.footings = [{ id: 'footing-1', name: 'Footing 1', length: 0, width: 450, depth: 300 }];
     }
     
     return { ...defaults, ...initialScopeAnswers };
@@ -308,6 +320,62 @@ export function ModularCalculator({
     }));
   };
 
+  // Handler for multi-pier changes
+  const handlePiersChange = (piers: PierConfig[]) => {
+    // Calculate totals from pier configs
+    const totalPiers = piers.reduce((sum, pier) => sum + (Number(pier.quantity) || 0), 0);
+    
+    // Calculate weighted averages for diameter and depth
+    let weightedDiameter = 0;
+    let weightedDepth = 0;
+    if (totalPiers > 0) {
+      piers.forEach(pier => {
+        const qty = Number(pier.quantity) || 0;
+        weightedDiameter += qty * (Number(pier.diameter) || 0);
+        weightedDepth += qty * (Number(pier.depth) || 0);
+      });
+      weightedDiameter = weightedDiameter / totalPiers;
+      weightedDepth = weightedDepth / totalPiers;
+    }
+    
+    setScopeAnswers((prev) => ({
+      ...prev,
+      piers,
+      num_piers: totalPiers,
+      diameter: weightedDiameter,
+      depth: weightedDepth,
+    }));
+  };
+
+  // Handler for multi-footing changes
+  const handleFootingsChange = (footings: FootingConfig[]) => {
+    // Calculate totals from footing configs
+    const totalLength = footings.reduce((sum, footing) => sum + (Number(footing.length) || 0), 0);
+    
+    // Calculate weighted averages for width and depth
+    let weightedWidth = 0;
+    let weightedDepth = 0;
+    if (totalLength > 0) {
+      footings.forEach(footing => {
+        const length = Number(footing.length) || 0;
+        weightedWidth += length * (Number(footing.width) || 0);
+        weightedDepth += length * (Number(footing.depth) || 0);
+      });
+      weightedWidth = weightedWidth / totalLength;
+      weightedDepth = weightedDepth / totalLength;
+    }
+    
+    setScopeAnswers((prev) => ({
+      ...prev,
+      footings,
+      total_length: totalLength,
+      width: weightedWidth,
+      depth: weightedDepth,
+      footing_width: weightedWidth,
+      footing_depth: weightedDepth,
+    }));
+  };
+
   const handleModuleAnswerChange = (moduleId: string, questionId: string, value: any, isUserInput = true) => {
     // When user manually changes a derived field, mark it as overridden
     const module = modules.find((m) => m.id === moduleId);
@@ -362,8 +430,8 @@ export function ModularCalculator({
         </AlertDescription>
       </Alert>
 
-      {/* Multi-area input OR standard scope-level questions */}
-      {scope.supportsMultipleAreas ? (
+      {/* Multi-area input */}
+      {scope.supportsMultipleAreas && (
         <MultiAreaInput
           label={scope.areasLabel || `${scope.name} Areas`}
           areas={scopeAnswers.areas || [{ id: 'area-1', name: 'Area 1', length: 0, width: 0 }]}
@@ -373,7 +441,30 @@ export function ModularCalculator({
           thicknessDefault={scope.questions.find(q => q.id === 'thickness')?.defaultValue as number || 100}
           thicknessMin={scope.questions.find(q => q.id === 'thickness')?.min || 50}
         />
-      ) : (
+      )}
+
+      {/* Multi-pier input */}
+      {scope.supportsMultiplePiers && (
+        <MultiPierInput
+          label={scope.piersLabel || 'Pier Configurations'}
+          piers={scopeAnswers.piers || [{ id: 'pier-1', name: 'Pier Type 1', quantity: 1, diameter: 450, depth: 600 }]}
+          onChange={handlePiersChange}
+        />
+      )}
+
+      {/* Multi-footing input */}
+      {scope.supportsMultipleFootings && (
+        <MultiFootingInput
+          label={scope.footingsLabel || 'Footing Sections'}
+          footings={scopeAnswers.footings || [{ id: 'footing-1', name: 'Footing 1', length: 0, width: 450, depth: 300 }]}
+          onChange={handleFootingsChange}
+          widthLabel={scope.id === 'retaining_wall_footings' ? 'Footing Width' : 'Width'}
+          depthLabel={scope.id === 'retaining_wall_footings' ? 'Footing Depth' : 'Depth'}
+        />
+      )}
+
+      {/* Standard scope-level questions (for scopes without multi-input) */}
+      {!scope.supportsMultipleAreas && !scope.supportsMultiplePiers && !scope.supportsMultipleFootings && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{scope.name} Dimensions</CardTitle>
@@ -398,8 +489,8 @@ export function ModularCalculator({
         </Card>
       )}
 
-      {/* Show calculated volume for multi-area scopes */}
-      {scope.supportsMultipleAreas && scopeVolume > 0 && (
+      {/* Show calculated volume for multi-input scopes */}
+      {(scope.supportsMultipleAreas || scope.supportsMultiplePiers || scope.supportsMultipleFootings) && scopeVolume > 0 && (
         <p className="text-sm text-muted-foreground -mt-4 px-1">
           Calculated Volume: <span className="font-medium">{scopeVolume.toFixed(2)} m³</span>
         </p>
