@@ -1,5 +1,5 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
-import { getPrice } from '../types';
+import { getPrice, EXCAVATOR_CAPACITY } from '../types';
 
 export const excavationModule: EstimateModule = {
   id: 'excavation',
@@ -43,6 +43,42 @@ export const excavationModule: EstimateModule = {
       helpText: 'Pegs, string lines, spray paint, etc.',
       showIf: (answers) => answers.excavation_required === true,
     },
+    // Cut depth and volume estimation
+    {
+      id: 'cut_depth',
+      type: 'number',
+      label: 'Average cut depth (mm)',
+      defaultValue: 0,
+      min: 0,
+      max: 2000,
+      unit: 'mm',
+      helpText: 'Average depth of excavation cut (0 if no bulk cut needed)',
+      showIf: (answers) => answers.excavation_required === true,
+    },
+    {
+      id: 'excavation_area',
+      type: 'number',
+      label: 'Area to excavate (m²)',
+      unit: 'm²',
+      min: 0,
+      helpText: 'Auto-fills from scope area',
+      deriveFrom: (scopeData) => scopeData.area || undefined,
+      showIf: (answers) => answers.excavation_required === true && Number(answers.cut_depth) > 0,
+    },
+    {
+      id: 'estimated_cut_volume',
+      type: 'text',
+      label: 'Estimated cut volume',
+      derivedReadOnly: true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
+        const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
+        if (cutDepthM <= 0 || area <= 0) return undefined;
+        const volume = area * cutDepthM;
+        return `~${volume.toFixed(1)}m³`;
+      },
+      showIf: (answers) => answers.excavation_required === true && Number(answers.cut_depth) > 0,
+    },
     // Machine section
     {
       id: 'machine_type',
@@ -81,14 +117,51 @@ export const excavationModule: EstimateModule = {
       showIf: (answers) => answers.excavation_required === true,
     },
     {
+      id: 'suggested_hours',
+      type: 'text',
+      label: 'Suggested excavation hours',
+      derivedReadOnly: true,
+      helpText: 'Based on cut volume and machine capacity',
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
+        const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
+        const machineType = moduleAnswers.machine_type || 'EXC 3.2T';
+        
+        if (cutDepthM <= 0 || area <= 0) return undefined;
+        
+        const volume = area * cutDepthM;
+        const capacity = EXCAVATOR_CAPACITY[machineType] || 12;
+        const estimatedHours = Math.ceil(volume / capacity * 10) / 10;
+        
+        return `~${estimatedHours} hrs (${volume.toFixed(1)}m³ @ ${capacity}m³/hr)`;
+      },
+      showIf: (answers) => answers.excavation_required === true && Number(answers.cut_depth) > 0,
+    },
+    {
       id: 'excavation_hours',
       type: 'number',
-      label: 'How many hours do you expect excavation to take?',
+      label: 'Excavation hours',
       defaultValue: 4,
       min: 0.5,
       step: 0.5,
       unit: 'hrs',
+      helpText: 'Override the suggested hours if needed',
       showIf: (answers) => answers.excavation_required === true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
+        const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
+        const machineType = moduleAnswers.machine_type || 'EXC 3.2T';
+        
+        // Only derive if we have cut depth set
+        if (cutDepthM <= 0) return undefined;
+        if (area <= 0) return undefined;
+        
+        const volume = area * cutDepthM;
+        const capacity = EXCAVATOR_CAPACITY[machineType] || 12;
+        const estimatedHours = Math.ceil(volume / capacity * 2) / 2; // Round to nearest 0.5
+        
+        return Math.max(1, estimatedHours); // Minimum 1 hour
+      },
     },
     {
       id: 'spotter_required',
