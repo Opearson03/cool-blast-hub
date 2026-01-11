@@ -94,6 +94,8 @@ type FullEstimate = {
   notes: string | null;
   site_visit_date: string | null;
   follow_up_date: string | null;
+  scope_data: Record<string, unknown> | null;
+  selected_scopes: string[] | null;
 };
 
 type ViewMode = "week" | "month";
@@ -400,13 +402,69 @@ export default function AdminSchedule() {
   };
 
   const handleConvertToJob = (estimate: FullEstimate) => {
+    // Parse structured data from estimate scope_data
+    let estimatedM3 = "";
+    let mpaStrength = "";
+    let slump = "";
+    let finishType = "";
+    
+    if (estimate.scope_data && estimate.selected_scopes) {
+      const scopeData = estimate.scope_data as Record<string, any>;
+      let totalM3 = 0;
+      
+      for (const scopeKey of estimate.selected_scopes) {
+        const scopeEntry = scopeData[scopeKey];
+        if (!scopeEntry) continue;
+        
+        const moduleAnswers = scopeEntry.moduleAnswers || {};
+        
+        // Extract from concrete-supply module
+        const concreteModule = moduleAnswers["concrete-supply"];
+        if (concreteModule) {
+          const volume = Number(concreteModule.calculated_volume) || 0;
+          if (volume > 0) totalM3 += volume;
+          
+          if (concreteModule.concrete_type && !mpaStrength) {
+            mpaStrength = concreteModule.concrete_type.replace(/MPA/i, "").trim();
+          }
+        }
+        
+        // Extract from surface-finishing module
+        const finishModule = moduleAnswers["surface-finishing"];
+        if (finishModule && finishModule.finish_type && !finishType) {
+          finishType = finishModule.finish_type
+            .split("_")
+            .map((word: string) => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(" ");
+        }
+      }
+      
+      if (totalM3 > 0) {
+        estimatedM3 = totalM3.toFixed(2);
+      }
+      
+      // Default slump based on MPa
+      if (!slump && mpaStrength) {
+        const mpaValue = parseInt(mpaStrength);
+        if (mpaValue >= 32) slump = "100";
+        else slump = "80";
+      }
+    }
+    
     navigate("/admin/jobs", { 
       state: { 
         createJobFromEstimate: {
           name: `${estimate.client_name} - ${estimate.site_address.split(",")[0]}`,
           site_address: estimate.site_address,
           builder_client: estimate.client_name,
+          estimated_m3: estimatedM3,
+          mpa_strength: mpaStrength,
+          slump: slump,
+          finish_type: finishType,
           job_notes: `Converted from estimate ${estimate.estimate_number}\nQuote Total: $${estimate.total_amount?.toFixed(2)}`,
+          source_estimate_id: estimate.id,
+          scope_data: estimate.scope_data,
+          selected_scopes: estimate.selected_scopes,
         }
       }
     });
