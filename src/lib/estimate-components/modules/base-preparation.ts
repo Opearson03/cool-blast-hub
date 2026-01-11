@@ -108,12 +108,13 @@ export const basePreparationModule: EstimateModule = {
       const depthMM = Number(answers.crusher_dust_depth) || 75;
       const depthM = depthMM / 1000;
       const volume = area * depthM;
+      const tonnes = volume * 1.6; // Crusher dust bulk density
       const pricePerM3 = Number(answers.crusher_dust_price) || getPrice(priceMap, 'materials', 'DUST', 60);
       const cost = volume * pricePerM3;
 
       lineItems.push({
         id: 'crusher_dust',
-        description: `Crusher Dust ${depthMM}mm thick (${volume.toFixed(1)}m³)`,
+        description: `Crusher Dust ${depthMM}mm thick (${volume.toFixed(1)}m³ ≈ ${tonnes.toFixed(1)}t for ordering)`,
         quantity: Math.round(volume * 10) / 10,
         unit: 'm³',
         unitPrice: pricePerM3,

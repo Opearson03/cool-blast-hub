@@ -1,5 +1,23 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
-import { getPrice } from '../types';
+import { getPrice, PUMP_RECOMMENDATIONS } from '../types';
+
+// Helper function to get pump recommendation based on volume
+function getPumpRecommendation(volume: number): { type: string; label: string } {
+  if (volume <= 0) return { type: '', label: '' };
+  if (volume <= PUMP_RECOMMENDATIONS.directChute.maxVolume) {
+    return { type: 'DIRECT', label: PUMP_RECOMMENDATIONS.directChute.label };
+  }
+  if (volume <= PUMP_RECOMMENDATIONS.linePump.maxVolume) {
+    return { type: 'LINE PUMP', label: PUMP_RECOMMENDATIONS.linePump.label };
+  }
+  if (volume <= PUMP_RECOMMENDATIONS.smallBoom.maxVolume) {
+    return { type: '32M BOOM', label: PUMP_RECOMMENDATIONS.smallBoom.label };
+  }
+  if (volume <= PUMP_RECOMMENDATIONS.largeBoom.maxVolume) {
+    return { type: '42M BOOM', label: PUMP_RECOMMENDATIONS.largeBoom.label };
+  }
+  return { type: '56M BOOM', label: PUMP_RECOMMENDATIONS.multiple.label };
+}
 
 export const concretePumpingModule: EstimateModule = {
   id: 'concrete-pumping',
@@ -16,6 +34,20 @@ export const concretePumpingModule: EstimateModule = {
       required: true,
     },
     {
+      id: 'pump_recommendation',
+      type: 'text',
+      label: 'Recommended Pump',
+      helpText: 'Based on calculated concrete volume',
+      derivedReadOnly: true,
+      deriveFrom: (scopeData) => {
+        const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
+        if (volume <= 0) return undefined;
+        const rec = getPumpRecommendation(volume);
+        return rec.label || undefined;
+      },
+      showIf: (answers) => answers.pump_required === true,
+    },
+    {
       id: 'pump_type',
       type: 'select',
       label: 'What pump size?',
@@ -30,7 +62,18 @@ export const concretePumpingModule: EstimateModule = {
         { value: '56M BOOM', label: '56M Boom Pump', priceKey: 'pumping.56M BOOM' },
       ],
       defaultValue: 'LINE PUMP',
+      helpText: 'Select based on site access and volume',
       showIf: (answers) => answers.pump_required === true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        // Only suggest if user hasn't already selected
+        if (moduleAnswers.pump_type) return undefined;
+        const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
+        if (volume <= 0) return undefined;
+        const rec = getPumpRecommendation(volume);
+        // Don't auto-select direct chute option
+        if (rec.type === 'DIRECT' || rec.type === '') return undefined;
+        return rec.type;
+      },
     },
     {
       id: 'pump_rate',

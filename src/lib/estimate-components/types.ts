@@ -223,3 +223,44 @@ export const MESH_DIMENSIONS = {
   standard: { width: 2.4, length: 6 },  // metres
   ute: { width: 2, length: 4 },
 };
+
+/**
+ * Excavator capacity (m³/hr) for estimating machine hours
+ */
+export const EXCAVATOR_CAPACITY: Record<string, number> = {
+  'EXC 1.4T': 8,
+  'EXC 3.2T': 12,
+  'EXC 4T': 15,
+  'EXC 6T': 20,
+  'EXC 9T': 30,
+  'POSI TRACK': 10,
+};
+
+/**
+ * Material density constants for takeoff calculations
+ */
+export const MATERIAL_DENSITY = {
+  crusherDust: 1.6,  // tonnes per m³
+  concrete: 2.4,     // tonnes per m³
+  gravel: 1.5,       // tonnes per m³
+};
+
+/**
+ * Formwork constants for takeoff calculations
+ */
+export const FORMWORK_CONSTANTS = {
+  stakeSpacing: 0.6,        // metres between stakes
+  fixingsPerMetre: 2,       // nails/screws per metre
+  timberWastePercent: 10,   // 10% waste allowance
+};
+
+/**
+ * Pump size recommendations based on volume (m³)
+ */
+export const PUMP_RECOMMENDATIONS = {
+  directChute: { maxVolume: 10, label: 'Direct chute may suffice' },
+  linePump: { maxVolume: 30, label: 'Line Pump recommended' },
+  smallBoom: { maxVolume: 60, label: '32M Boom Pump recommended' },
+  largeBoom: { maxVolume: 100, label: '42M+ Boom Pump recommended' },
+  multiple: { label: 'Large boom or multiple loads recommended' },
+};
