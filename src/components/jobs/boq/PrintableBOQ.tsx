@@ -138,7 +138,7 @@ export function PrintableBOQ({ boq, jobName, jobNumber, business }: PrintableBOQ
             </div>
           ))}
 
-          {/* Total */}
+          {/* GST Breakdown */}
           <div style={{ 
             borderTop: `3px solid ${primaryColor}`, 
             paddingTop: '20px', 
@@ -146,13 +146,46 @@ export function PrintableBOQ({ boq, jobName, jobNumber, business }: PrintableBOQ
           }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <div style={{ 
-                textAlign: 'right',
                 backgroundColor: '#f9fafb',
-                padding: '16px 24px',
-                borderRadius: '8px'
+                padding: '20px 28px',
+                borderRadius: '8px',
+                minWidth: '280px'
               }}>
-                <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 4px 0', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Value</p>
-                <p style={{ fontSize: '28px', fontWeight: 'bold', margin: 0, color: primaryColor }}>{formatCurrency(totalValue)}</p>
+                {/* Subtotal ex GST */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '8px',
+                  paddingBottom: '8px',
+                  borderBottom: '1px solid #e5e7eb'
+                }}>
+                  <span style={{ fontSize: '14px', color: '#4b5563' }}>Subtotal (ex GST)</span>
+                  <span style={{ fontSize: '16px', fontWeight: '500' }}>{formatCurrency(totalValue)}</span>
+                </div>
+                
+                {/* GST 10% */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '12px',
+                  paddingBottom: '12px',
+                  borderBottom: '1px solid #e5e7eb'
+                }}>
+                  <span style={{ fontSize: '14px', color: '#4b5563' }}>GST (10%)</span>
+                  <span style={{ fontSize: '16px', fontWeight: '500' }}>{formatCurrency(totalValue * 0.10)}</span>
+                </div>
+                
+                {/* Total inc GST */}
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center'
+                }}>
+                  <span style={{ fontSize: '14px', fontWeight: '600', color: '#111827', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total (inc GST)</span>
+                  <span style={{ fontSize: '24px', fontWeight: 'bold', color: primaryColor }}>{formatCurrency(totalValue * 1.10)}</span>
+                </div>
               </div>
             </div>
           </div>
