@@ -919,6 +919,7 @@ export type Database = {
           scheduled_date: string | null
           site_address: string
           slump: string | null
+          source_estimate_id: string | null
           status: Database["public"]["Enums"]["job_status"] | null
           updated_at: string | null
         }
@@ -942,6 +943,7 @@ export type Database = {
           scheduled_date?: string | null
           site_address: string
           slump?: string | null
+          source_estimate_id?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
           updated_at?: string | null
         }
@@ -965,6 +967,7 @@ export type Database = {
           scheduled_date?: string | null
           site_address?: string
           slump?: string | null
+          source_estimate_id?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
           updated_at?: string | null
         }
@@ -981,6 +984,13 @@ export type Database = {
             columns: ["crew_id"]
             isOneToOne: false
             referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "jobs_source_estimate_id_fkey"
+            columns: ["source_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
             referencedColumns: ["id"]
           },
         ]

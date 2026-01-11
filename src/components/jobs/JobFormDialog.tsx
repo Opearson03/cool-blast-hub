@@ -53,6 +53,7 @@ type PourData = {
 type InitialJobData = Partial<JobFormData> & {
   pours?: PourData[];
   estimate_id?: string;
+  source_estimate_id?: string;
   scope_data?: Record<string, unknown>;
   selected_scopes?: string[];
   estimate_description?: string;
@@ -175,6 +176,7 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
         job_notes: data.job_notes || null,
         business_id: businessId,
         created_by: userData.user.id,
+        source_estimate_id: initialData?.source_estimate_id || null,
       };
 
       if (editJob) {
