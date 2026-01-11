@@ -73,7 +73,7 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
@@ -95,18 +95,6 @@ export default function AdminDashboard() {
             <CardContent>
               <p className="text-2xl font-bold">
                 {businessData.isLoading ? "..." : businessData.weekPoursCount}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4" /> Alerts
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className={`text-2xl font-bold ${businessData.alertsCount > 0 ? "text-amber-500" : ""}`}>
-                {businessData.isLoading ? "..." : businessData.alertsCount}
               </p>
             </CardContent>
           </Card>
