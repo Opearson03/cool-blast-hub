@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { PrintableEstimate } from "./PrintableEstimate";
+import { InternalBreakdownSection } from "./InternalBreakdownSection";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -535,6 +536,16 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                   ))}
                 </ul>
               </div>
+            </div>
+          )}
+
+          {/* Internal Breakdown - only shown for finalized quotes with scope_data */}
+          {estimate.status !== 'draft' && estimate.scope_data && (
+            <div className="space-y-3">
+              <InternalBreakdownSection 
+                scopeData={estimate.scope_data as any} 
+                selectedScopes={estimate.selected_scopes}
+              />
             </div>
           )}
 
