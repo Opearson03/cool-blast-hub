@@ -24,6 +24,8 @@ interface ScopeAnswers {
   num_piers?: number;
   length?: number;
   width?: number;
+  trench_length?: number;
+  connection_length?: number;
   [key: string]: any;
 }
 
@@ -35,12 +37,24 @@ interface ModuleAnswers {
     wastage_percent?: number;
   };
   "reinforcement-slab"?: {
+    reo_type?: string;
     mesh_type?: string;
+    mesh_sheets?: number;
     mesh_price_per_sheet?: number;
     mesh_area?: number;
     bar_type?: string;
     bar_kg?: number;
-    reo_type?: string;
+    rebar_price_per_tonne?: number;
+    bar_chairs?: boolean;
+    chair_type?: string;
+    chairs_per_m2?: number;
+    chair_price_each?: number;
+    tie_wire?: boolean;
+    tie_wire_coils?: number;
+    tie_wire_price?: number;
+    rebar_caps?: boolean;
+    rebar_caps_count?: number;
+    rebar_cap_price?: number;
   };
   "reinforcement-piers"?: {
     is_reinforced?: boolean;
@@ -50,28 +64,118 @@ interface ModuleAnswers {
     lig_size?: string;
     rebar_price_per_tonne?: number;
     rebar_type?: string;
+    has_starters?: boolean;
+    starter_count?: number;
+    starter_size?: string;
+    starter_length?: number;
+    tie_wire?: boolean;
+    tie_wire_coils?: number;
+    tie_wire_price?: number;
   };
   "reinforcement-footing"?: {
+    reo_type?: string;
     mesh_type?: string;
+    trench_mesh_type?: string;
     trench_mesh_length?: number;
+    trench_mesh_price_per_m?: number;
+    trench_mesh_chairs?: boolean;
+    tm_chairs_per_metre?: number;
+    tm_chair_price?: number;
+    long_bars?: boolean;
+    long_bar_size?: string;
+    long_bars_top?: number;
+    long_bars_bottom?: number;
+    rebar_price_per_tonne?: number;
+    tie_wire?: boolean;
+    tie_wire_coils?: number;
+    tie_wire_price?: number;
   };
   "base-preparation"?: {
     crusher_dust_required?: boolean;
     crusher_dust_area?: number;
     crusher_dust_depth?: number;
+    crusher_dust_price_per_tonne?: number;
+    membrane_required?: boolean;
+    membrane_type?: string;
+    membrane_area?: number;
+    membrane_price?: number;
   };
   "formwork"?: {
     formwork_required?: boolean;
     formwork_metres?: number;
+    timber_type?: string;
+    timber_price?: number;
+    stakes_included?: boolean;
+    stake_count?: number;
+    stake_price?: number;
+    sundry_fixings?: number;
+  };
+  "dowels"?: {
+    dowels_required?: boolean;
+    dowel_size?: string;
+    dowel_count?: number;
+    dowel_price_each?: number;
+    chemical_anchor?: boolean;
+    chemical_cartridges?: number;
+    chemical_price_each?: number;
+  };
+  "joints-foam"?: {
+    foam_required?: boolean;
+    foam_type?: string;
+    foam_height?: number;
+    foam_length?: number;
+    foam_price_per_m?: number;
+  };
+  "joints-expansion"?: {
+    expansion_joints_required?: boolean;
+    joint_depth?: number;
+    joint_length?: number;
+    joint_quantity?: number;
+    joint_price_each?: number;
+    capping_required?: boolean;
+    capping_type?: string;
+    capping_length?: number;
+    capping_price_per_m?: number;
+  };
+  "joints-key"?: {
+    key_joints_required?: boolean;
+    key_depth?: number;
+    key_length?: number;
+    key_quantity?: number;
+    key_price_each?: number;
+  };
+  "joints-control"?: {
+    saw_cutting_required?: boolean;
+    saw_cut_metres?: number;
+    saw_cut_price_per_m?: number;
+    caulking_required?: boolean;
+    caulking_metres?: number;
+    caulking_price_per_m?: number;
   };
   "surface-finishing"?: {
+    finish_required?: boolean;
     finish_type?: string;
     finish_area?: number;
-    finish_required?: boolean;
     sealing_required?: boolean;
+    sealer_required?: boolean;
     sealer_type?: string;
+    sealer_litres?: number;
+    sealer_price_per_litre?: number;
+    sealer_coats?: number;
+    slip_additive_required?: boolean;
+    slip_additive_kg?: number;
+    slip_additive_price?: number;
     curing_required?: boolean;
     curing_method?: string;
+    curing_litres?: number;
+    curing_price_per_litre?: number;
+    retarder_required?: boolean;
+    retarder_litres?: number;
+    retarder_price_per_litre?: number;
+  };
+  "sundries"?: {
+    sundries_required?: boolean;
+    sundries_total?: number;
   };
   [key: string]: any;
 }
@@ -255,11 +359,12 @@ export function generateBOQFromEstimate(
     // Get reinforcement data from reinforcement modules
     const reoSlabModule = moduleAnswers["reinforcement-slab"];
     if (reoSlabModule) {
-      if (reoSlabModule.reo_type === "mesh" && reoSlabModule.mesh_type) {
+      // Mesh reinforcement
+      if ((reoSlabModule.reo_type === "mesh" || !reoSlabModule.reo_type) && reoSlabModule.mesh_type) {
         const meshArea = reoSlabModule.mesh_area || scopeAnswers.area || 0;
         const meshSheetArea = 14.4; // Standard sheet size (6m x 2.4m)
         const lapAllowance = 1.1; // 10% lap allowance
-        const meshSheets = Math.ceil((meshArea * lapAllowance) / meshSheetArea);
+        const meshSheets = reoSlabModule.mesh_sheets || Math.ceil((meshArea * lapAllowance) / meshSheetArea);
         
         if (meshSheets > 0) {
           addItem(
@@ -270,12 +375,57 @@ export function generateBOQFromEstimate(
             reoSlabModule.mesh_price_per_sheet
           );
         }
-      } else if (reoSlabModule.reo_type === "bar" && reoSlabModule.bar_kg) {
+      }
+      
+      // Bar reinforcement
+      if (reoSlabModule.reo_type === "bar" && reoSlabModule.bar_kg) {
+        const pricePerTonne = reoSlabModule.rebar_price_per_tonne || 2100;
+        const unitPrice = pricePerTonne / 1000; // price per kg
         addItem(
           "reinforcement",
           `${reoSlabModule.bar_type || "N12"} Rebar`,
           reoSlabModule.bar_kg,
-          "kg"
+          "kg",
+          unitPrice
+        );
+      }
+
+      // Bar chairs/spacers
+      if (reoSlabModule.bar_chairs) {
+        const area = scopeAnswers.area || 0;
+        const chairsPerM2 = reoSlabModule.chairs_per_m2 || 4;
+        const chairCount = Math.ceil(area * chairsPerM2);
+        const chairType = reoSlabModule.chair_type || "Standard";
+        if (chairCount > 0) {
+          addItem(
+            "reinforcement",
+            `Bar Chairs (${chairType})`,
+            chairCount,
+            "pcs",
+            reoSlabModule.chair_price_each
+          );
+        }
+      }
+
+      // Tie wire
+      if (reoSlabModule.tie_wire && reoSlabModule.tie_wire_coils) {
+        addItem(
+          "reinforcement",
+          "Tie Wire (1.6mm)",
+          reoSlabModule.tie_wire_coils,
+          "coils",
+          reoSlabModule.tie_wire_price
+        );
+      }
+
+      // Rebar safety caps
+      if (reoSlabModule.rebar_caps && reoSlabModule.rebar_caps_count) {
+        addItem(
+          "reinforcement",
+          "Rebar Safety Caps",
+          reoSlabModule.rebar_caps_count,
+          "pcs",
+          reoSlabModule.rebar_cap_price
         );
       }
     }
@@ -315,18 +465,103 @@ export function generateBOQFromEstimate(
           Math.round(unitPrice * 100) / 100,
           `~${weightPerPier.toFixed(1)}kg each`
         );
+
+        // Starter bars
+        if (reoPiersModule.has_starters) {
+          const starterCount = reoPiersModule.starter_count || 4;
+          const starterSize = reoPiersModule.starter_size || 'N16';
+          const starterLength = (reoPiersModule.starter_length || 600) / 1000; // mm to m
+          const starterWeightPerM = REBAR_WEIGHTS[starterSize] || 1.58;
+          
+          const totalStarters = pierCount * starterCount;
+          const totalStarterWeight = totalStarters * starterLength * starterWeightPerM * 1.1; // 10% lap
+          const starterPrice = (totalStarterWeight / 1000) * pricePerTonne;
+          
+          addItem(
+            "reinforcement",
+            `Starter Bars ${starterSize} (${starterCount} per pier)`,
+            totalStarters,
+            "pcs",
+            Math.round((starterPrice / totalStarters) * 100) / 100,
+            `~${totalStarterWeight.toFixed(1)}kg total`
+          );
+        }
+
+        // Tie wire for piers
+        if (reoPiersModule.tie_wire && reoPiersModule.tie_wire_coils) {
+          addItem(
+            "reinforcement",
+            "Tie Wire (1.6mm)",
+            reoPiersModule.tie_wire_coils,
+            "coils",
+            reoPiersModule.tie_wire_price
+          );
+        }
       }
     }
 
     // Get footing reinforcement (trench mesh)
     const reoFootingModule = moduleAnswers["reinforcement-footing"];
     if (reoFootingModule) {
-      if (reoFootingModule.mesh_type === "trench_mesh" && reoFootingModule.trench_mesh_length) {
+      const trenchLength = reoFootingModule.trench_mesh_length || scopeAnswers.trench_length || scopeAnswers.connection_length || 0;
+      
+      // Trench mesh with type
+      if ((reoFootingModule.reo_type === "mesh" || reoFootingModule.mesh_type === "trench_mesh") && trenchLength > 0) {
+        const meshType = reoFootingModule.trench_mesh_type || "L11TM4";
         addItem(
           "reinforcement",
-          "Trench Mesh",
-          reoFootingModule.trench_mesh_length,
-          "m"
+          `Trench Mesh (${meshType})`,
+          trenchLength,
+          "m",
+          reoFootingModule.trench_mesh_price_per_m
+        );
+      }
+
+      // Trench mesh chairs
+      if (reoFootingModule.trench_mesh_chairs && trenchLength > 0) {
+        const chairsPerM = reoFootingModule.tm_chairs_per_metre || 2;
+        const chairCount = Math.ceil(trenchLength * chairsPerM);
+        if (chairCount > 0) {
+          addItem(
+            "reinforcement",
+            "Trench Mesh Chairs",
+            chairCount,
+            "pcs",
+            reoFootingModule.tm_chair_price
+          );
+        }
+      }
+
+      // Longitudinal bars for footings
+      if (reoFootingModule.long_bars || reoFootingModule.reo_type === "bar") {
+        const longBarSize = reoFootingModule.long_bar_size || "N12";
+        const topBars = reoFootingModule.long_bars_top || 2;
+        const bottomBars = reoFootingModule.long_bars_bottom || 2;
+        const totalBarCount = topBars + bottomBars;
+        const barWeight = REBAR_WEIGHTS[longBarSize] || 0.888;
+        const totalWeight = totalBarCount * trenchLength * barWeight * 1.1; // 10% lap
+        
+        if (totalWeight > 0) {
+          const pricePerTonne = reoFootingModule.rebar_price_per_tonne || 2100;
+          const unitPrice = pricePerTonne / 1000;
+          addItem(
+            "reinforcement",
+            `${longBarSize} Longitudinal Bars (${topBars}T/${bottomBars}B)`,
+            Math.round(totalWeight * 10) / 10,
+            "kg",
+            unitPrice
+          );
+        }
+      }
+
+      // Tie wire for footings
+      if (reoFootingModule.tie_wire && reoFootingModule.tie_wire_coils) {
+        addItem(
+          "reinforcement",
+          "Tie Wire (1.6mm)",
+          reoFootingModule.tie_wire_coils,
+          "coils",
+          reoFootingModule.tie_wire_price
         );
       }
     }
@@ -339,46 +574,239 @@ export function generateBOQFromEstimate(
       const volume = area * depth;
       const tonnes = volume * 1.6; // Crusher dust bulk density
       
-      if (volume > 0) {
+      if (tonnes > 0) {
         addItem(
           "other",
           `Crusher Dust (${Math.round(depth * 1000)}mm)`,
-          volume,
-          "m³",
-          undefined,
-          `~${tonnes.toFixed(1)} tonnes`
+          Math.round(tonnes * 10) / 10,
+          "tonnes",
+          basePrepModule.crusher_dust_price_per_tonne
         );
-      }
-
-      // Add poly membrane
-      if (area > 0) {
-        addItem("other", "Poly Membrane", area, "m²");
       }
     }
 
-    // Get formwork data
+    // Membrane with type
+    if (basePrepModule && basePrepModule.membrane_required !== false) {
+      const membraneArea = basePrepModule.membrane_area || scopeAnswers.area || 0;
+      const membraneType = basePrepModule.membrane_type || "Black 200um";
+      if (membraneArea > 0) {
+        addItem(
+          "other",
+          `Poly Membrane (${membraneType})`,
+          membraneArea,
+          "m²",
+          basePrepModule.membrane_price
+        );
+      }
+    }
+
+    // Get formwork data with detailed breakdown
     const formworkModule = moduleAnswers["formwork"];
     if (formworkModule && formworkModule.formwork_required) {
       const formworkMetres = formworkModule.formwork_metres || scopeAnswers.perimeter || 0;
       if (formworkMetres > 0) {
-        addItem("formwork", "Edge Formwork", formworkMetres, "lm");
+        const timberType = formworkModule.timber_type || "90x45";
+        addItem(
+          "formwork",
+          `Formwork Timber (${timberType})`,
+          formworkMetres,
+          "lm",
+          formworkModule.timber_price
+        );
+
+        // Stakes
+        if (formworkModule.stakes_included && formworkModule.stake_count) {
+          addItem(
+            "formwork",
+            "Timber Stakes",
+            formworkModule.stake_count,
+            "pcs",
+            formworkModule.stake_price
+          );
+        }
+
+        // Sundry fixings
+        if (formworkModule.sundry_fixings && formworkModule.sundry_fixings > 0) {
+          addItem(
+            "formwork",
+            "Formwork Fixings & Sundries",
+            1,
+            "lot",
+            formworkModule.sundry_fixings
+          );
+        }
       }
     }
 
-    // Get surface finishing data
+    // Dowels
+    const dowelsModule = moduleAnswers["dowels"];
+    if (dowelsModule && dowelsModule.dowels_required) {
+      const dowelCount = dowelsModule.dowel_count || 0;
+      const dowelSize = dowelsModule.dowel_size || "N12";
+      if (dowelCount > 0) {
+        addItem(
+          "reinforcement",
+          `Dowel Bars (${dowelSize})`,
+          dowelCount,
+          "pcs",
+          dowelsModule.dowel_price_each
+        );
+      }
+
+      // Chemical anchors
+      if (dowelsModule.chemical_anchor && dowelsModule.chemical_cartridges) {
+        addItem(
+          "other",
+          "Chemical Anchor Cartridges",
+          dowelsModule.chemical_cartridges,
+          "pcs",
+          dowelsModule.chemical_price_each
+        );
+      }
+    }
+
+    // Expansion foam
+    const foamModule = moduleAnswers["joints-foam"];
+    if (foamModule && foamModule.foam_required) {
+      const foamLength = foamModule.foam_length || 0;
+      const foamHeight = foamModule.foam_height || 100;
+      const foamType = foamModule.foam_type || "Standard";
+      if (foamLength > 0) {
+        addItem(
+          "other",
+          `Expansion Foam ${foamHeight}mm (${foamType})`,
+          foamLength,
+          "m",
+          foamModule.foam_price_per_m
+        );
+      }
+    }
+
+    // Expansion joints
+    const expansionModule = moduleAnswers["joints-expansion"];
+    if (expansionModule && expansionModule.expansion_joints_required) {
+      const jointQty = expansionModule.joint_quantity || 0;
+      const jointDepth = expansionModule.joint_depth || 100;
+      const jointLength = expansionModule.joint_length || 3000;
+      if (jointQty > 0) {
+        addItem(
+          "other",
+          `Expansion Joints ${jointDepth}mm × ${jointLength / 1000}m`,
+          jointQty,
+          "pcs",
+          expansionModule.joint_price_each
+        );
+      }
+
+      // Joint capping
+      if (expansionModule.capping_required && expansionModule.capping_length) {
+        const cappingType = expansionModule.capping_type || "Standard";
+        addItem(
+          "other",
+          `Joint Capping (${cappingType})`,
+          expansionModule.capping_length,
+          "m",
+          expansionModule.capping_price_per_m
+        );
+      }
+    }
+
+    // Key joints
+    const keyModule = moduleAnswers["joints-key"];
+    if (keyModule && keyModule.key_joints_required) {
+      const keyQty = keyModule.key_quantity || 0;
+      const keyDepth = keyModule.key_depth || 100;
+      const keyLength = (keyModule.key_length || 3000) / 1000;
+      if (keyQty > 0) {
+        addItem(
+          "other",
+          `Key Joints ${keyDepth}mm × ${keyLength}m`,
+          keyQty,
+          "pcs",
+          keyModule.key_price_each
+        );
+      }
+    }
+
+    // Control joints (saw cutting & caulking)
+    const controlModule = moduleAnswers["joints-control"];
+    if (controlModule) {
+      // Saw cutting
+      if (controlModule.saw_cutting_required && controlModule.saw_cut_metres) {
+        addItem(
+          "finishing",
+          "Saw Cut Control Joints",
+          controlModule.saw_cut_metres,
+          "m",
+          controlModule.saw_cut_price_per_m
+        );
+      }
+
+      // Caulking
+      if (controlModule.caulking_required && controlModule.caulking_metres) {
+        addItem(
+          "finishing",
+          "Joint Caulking/Sealant",
+          controlModule.caulking_metres,
+          "m",
+          controlModule.caulking_price_per_m
+        );
+      }
+    }
+
+    // Get surface finishing data with detailed products
     const finishingModule = moduleAnswers["surface-finishing"];
     if (finishingModule && finishingModule.finish_required) {
       const finishArea = finishingModule.finish_area || scopeAnswers.area || 0;
       
-      // Sealer if required
-      if (finishingModule.sealing_required && finishingModule.sealer_type) {
+      // Sealer with type and litres
+      if ((finishingModule.sealing_required || finishingModule.sealer_required) && finishingModule.sealer_type) {
         const sealerLabel = finishingModule.sealer_type.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
-        addItem("finishing", `${sealerLabel} Sealer`, finishArea, "m²");
+        const sealerLitres = finishingModule.sealer_litres || Math.ceil(finishArea / 5); // ~5m² per litre
+        addItem(
+          "finishing",
+          `${sealerLabel} Sealer`,
+          sealerLitres,
+          "L",
+          finishingModule.sealer_price_per_litre
+        );
+      }
+
+      // Slip additive
+      if (finishingModule.slip_additive_required && finishingModule.slip_additive_kg) {
+        addItem(
+          "finishing",
+          "Slip-Resistant Additive",
+          finishingModule.slip_additive_kg,
+          "kg",
+          finishingModule.slip_additive_price
+        );
       }
       
-      // Curing compound if required
-      if (finishingModule.curing_required && finishingModule.curing_method) {
-        addItem("finishing", "Curing Compound", finishArea, "m²");
+      // Curing compound with litres
+      if (finishingModule.curing_required) {
+        const curingMethod = finishingModule.curing_method || "spray";
+        const curingLitres = finishingModule.curing_litres || Math.ceil(finishArea / 4); // ~4m² per litre
+        if (curingMethod !== "water" && curingMethod !== "plastic") {
+          addItem(
+            "finishing",
+            "Curing Compound",
+            curingLitres,
+            "L",
+            finishingModule.curing_price_per_litre
+          );
+        }
+      }
+
+      // Retarder for exposed aggregate
+      if (finishingModule.retarder_required && finishingModule.retarder_litres) {
+        addItem(
+          "finishing",
+          "Surface Retarder",
+          finishingModule.retarder_litres,
+          "L",
+          finishingModule.retarder_price_per_litre
+        );
       }
     }
 
