@@ -150,6 +150,28 @@ const ESTIMATE_TYPES = [
 ];
 
 /**
+ * Extract only user-entered notes, stripping out generated content
+ * (SCOPE BREAKDOWN, INCLUSIONS, EXCLUSIONS sections)
+ */
+function extractUserNotes(notes: string | null): string {
+  if (!notes) return "";
+  
+  // Find the start of generated content markers
+  const scopeBreakdownIndex = notes.indexOf("SCOPE BREAKDOWN:");
+  const inclusionsIndex = notes.indexOf("INCLUSIONS:");
+  const exclusionsIndex = notes.indexOf("EXCLUSIONS:");
+  
+  // Get the earliest marker, or -1 if none found
+  const markers = [scopeBreakdownIndex, inclusionsIndex, exclusionsIndex]
+    .filter(i => i !== -1);
+  
+  if (markers.length === 0) return notes.trim();
+  
+  const firstMarker = Math.min(...markers);
+  return notes.substring(0, firstMarker).trim();
+}
+
+/**
  * Migrate legacy estimate scope_data to new modular format
  * Returns the migrated modular scope states
  */
@@ -387,9 +409,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         client_email: editEstimate.client_email || "",
         client_phone: editEstimate.client_phone || "",
         site_address: editEstimate.site_address,
-        description: editEstimate.description || "",
+        description: "", // Description is rebuilt fresh from scope data, not stored
         valid_until: editEstimate.valid_until || "",
-        notes: editEstimate.notes || "",
+        notes: extractUserNotes(editEstimate.notes), // Strip generated content
         site_visit_date: editEstimate.site_visit_date || "",
         follow_up_date: editEstimate.follow_up_date || "",
       });
@@ -616,15 +638,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
       if (!profile?.business_id) throw new Error("No business found");
 
+      // Build description fresh from scope data (don't use formData.description to avoid duplication)
       const descriptionParts = selectedScopesArray.map(scope => {
         const label = getScopeLabel(scope);
         const { description } = scopeTotals[scope];
         return `${label}: ${description}`;
       });
-      
-      if (formData.description) {
-        descriptionParts.push(formData.description);
-      }
 
       const inclusionsList = DEFAULT_INCLUSIONS
         .filter(i => selectedInclusions.has(i.id))
@@ -633,21 +652,32 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         .filter(e => selectedExclusions.has(e.id))
         .map(e => e.label);
 
-      let fullNotes = formData.notes || "";
-      if (inclusionsList.length > 0) {
-        fullNotes += (fullNotes ? "\n\n" : "") + "INCLUSIONS:\n• " + inclusionsList.join("\n• ");
-      }
-      if (exclusionsList.length > 0) {
-        fullNotes += (fullNotes ? "\n\n" : "") + "EXCLUSIONS:\n• " + exclusionsList.join("\n• ");
-      }
-
+      // Build notes fresh: start with user notes only, then append generated content
+      let fullNotes = "";
+      
+      // Scope breakdown first
       let scopeBreakdown = "SCOPE BREAKDOWN:\n";
       selectedScopesArray.forEach(scope => {
         const label = getScopeLabel(scope);
         const { total } = scopeTotals[scope];
         scopeBreakdown += `• ${label}: ${formatCurrency(total)}\n`;
       });
-      fullNotes = scopeBreakdown + "\n" + fullNotes;
+      fullNotes = scopeBreakdown;
+      
+      // User notes (already cleaned of generated content when loaded)
+      const userNotes = formData.notes?.trim();
+      if (userNotes) {
+        fullNotes += "\n" + userNotes;
+      }
+      
+      // Inclusions
+      if (inclusionsList.length > 0) {
+        fullNotes += "\n\nINCLUSIONS:\n• " + inclusionsList.join("\n• ");
+      }
+      // Exclusions
+      if (exclusionsList.length > 0) {
+        fullNotes += "\n\nEXCLUSIONS:\n• " + exclusionsList.join("\n• ");
+      }
 
       const estimateData = {
         business_id: profile.business_id,
@@ -709,15 +739,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
       if (!profile?.business_id) throw new Error("No business found");
 
+      // Build description fresh from scope data (don't use formData.description to avoid duplication)
       const descriptionParts = selectedScopesArray.map(scope => {
         const label = getScopeLabel(scope);
         const { description } = scopeTotals[scope];
         return `${label}: ${description}`;
       });
-      
-      if (formData.description) {
-        descriptionParts.push(formData.description);
-      }
 
       const inclusionsList = DEFAULT_INCLUSIONS
         .filter(i => selectedInclusions.has(i.id))
@@ -726,21 +753,32 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         .filter(e => selectedExclusions.has(e.id))
         .map(e => e.label);
 
-      let fullNotes = formData.notes || "";
-      if (inclusionsList.length > 0) {
-        fullNotes += (fullNotes ? "\n\n" : "") + "INCLUSIONS:\n• " + inclusionsList.join("\n• ");
-      }
-      if (exclusionsList.length > 0) {
-        fullNotes += (fullNotes ? "\n\n" : "") + "EXCLUSIONS:\n• " + exclusionsList.join("\n• ");
-      }
-
+      // Build notes fresh: start with user notes only, then append generated content
+      let fullNotes = "";
+      
+      // Scope breakdown first
       let scopeBreakdown = "SCOPE BREAKDOWN:\n";
       selectedScopesArray.forEach(scope => {
         const label = getScopeLabel(scope);
         const { total } = scopeTotals[scope];
         scopeBreakdown += `• ${label}: ${formatCurrency(total)}\n`;
       });
-      fullNotes = scopeBreakdown + "\n" + fullNotes;
+      fullNotes = scopeBreakdown;
+      
+      // User notes (already cleaned of generated content when loaded)
+      const userNotes = formData.notes?.trim();
+      if (userNotes) {
+        fullNotes += "\n" + userNotes;
+      }
+      
+      // Inclusions
+      if (inclusionsList.length > 0) {
+        fullNotes += "\n\nINCLUSIONS:\n• " + inclusionsList.join("\n• ");
+      }
+      // Exclusions
+      if (exclusionsList.length > 0) {
+        fullNotes += "\n\nEXCLUSIONS:\n• " + exclusionsList.join("\n• ");
+      }
 
       const estimateData = {
         business_id: profile.business_id,
