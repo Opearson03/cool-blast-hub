@@ -33,7 +33,7 @@ import { PrintableEstimate } from "./PrintableEstimate";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
-type EstimateStatus = "draft" | "sent" | "accepted" | "declined";
+type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
 
 interface Estimate {
   id: string;
@@ -64,6 +64,7 @@ interface EstimateDetailSheetProps {
 
 const statusConfig: Record<EstimateStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "Draft", variant: "secondary" },
+  pending: { label: "Finalized", variant: "outline" },
   sent: { label: "Sent", variant: "default" },
   accepted: { label: "Accepted", variant: "default" },
   declined: { label: "Declined", variant: "destructive" },

@@ -30,7 +30,8 @@ import {
   User,
   MapPin,
   ListChecks,
-  Wrench
+  Wrench,
+  CheckCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -591,6 +592,106 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     },
     onError: (error: Error) => {
       toast({ title: "Error saving draft", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Finalize Quote mutation - marks estimate as pending (ready to send)
+  const finalizeMutation = useMutation({
+    mutationFn: async () => {
+      if (!formData.client_name || !formData.site_address) {
+        throw new Error("Please fill in client name and site address");
+      }
+      if (selectedScopes.size === 0) {
+        throw new Error("Please select at least one scope of work");
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.business_id) throw new Error("No business found");
+
+      const descriptionParts = selectedScopesArray.map(scope => {
+        const label = getScopeLabel(scope);
+        const { description } = scopeTotals[scope];
+        return `${label}: ${description}`;
+      });
+      
+      if (formData.description) {
+        descriptionParts.push(formData.description);
+      }
+
+      const inclusionsList = DEFAULT_INCLUSIONS
+        .filter(i => selectedInclusions.has(i.id))
+        .map(i => i.label);
+      const exclusionsList = DEFAULT_EXCLUSIONS
+        .filter(e => selectedExclusions.has(e.id))
+        .map(e => e.label);
+
+      let fullNotes = formData.notes || "";
+      if (inclusionsList.length > 0) {
+        fullNotes += (fullNotes ? "\n\n" : "") + "INCLUSIONS:\n• " + inclusionsList.join("\n• ");
+      }
+      if (exclusionsList.length > 0) {
+        fullNotes += (fullNotes ? "\n\n" : "") + "EXCLUSIONS:\n• " + exclusionsList.join("\n• ");
+      }
+
+      let scopeBreakdown = "SCOPE BREAKDOWN:\n";
+      selectedScopesArray.forEach(scope => {
+        const label = getScopeLabel(scope);
+        const { total } = scopeTotals[scope];
+        scopeBreakdown += `• ${label}: ${formatCurrency(total)}\n`;
+      });
+      fullNotes = scopeBreakdown + "\n" + fullNotes;
+
+      const estimateData = {
+        business_id: profile.business_id,
+        client_name: formData.client_name,
+        company_name: formData.company_name || null,
+        client_email: formData.client_email || null,
+        client_phone: formData.client_phone || null,
+        site_address: formData.site_address,
+        description: descriptionParts.join(" | ") || null,
+        total_amount: combinedTotal,
+        valid_until: formData.valid_until || null,
+        notes: fullNotes || null,
+        created_by: user.id,
+        estimate_type: estimateType || "driveway",
+        scope_data: buildScopeDataForSave() as unknown as Json,
+        selected_scopes: selectedScopesArray as unknown as Json,
+        site_visit_date: formData.site_visit_date || null,
+        follow_up_date: formData.follow_up_date || null,
+        status: "pending" as const,
+      };
+
+      if (editEstimate) {
+        const { error } = await supabase
+          .from("estimates")
+          .update(estimateData)
+          .eq("id", editEstimate.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from("estimates")
+          .insert(estimateData);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      toast({ 
+        title: "Quote finalized", 
+        description: "Ready to send to the client when you're ready." 
+      });
+      onOpenChange(false);
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error finalizing quote", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1224,34 +1325,96 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 />
               </div>
 
-              {/* Footer with Create button */}
+              {/* Footer with Create/Update/Finalize buttons */}
               <div className="flex items-center justify-between pt-4 border-t">
                 <div className="flex gap-2">
                   <Button type="button" variant="outline" onClick={goBack} className="gap-1">
                     <ChevronLeft className="w-4 h-4" /> Back
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="ghost" 
-                    onClick={() => saveDraftMutation.mutate()}
-                    disabled={saveDraftMutation.isPending}
-                    className="text-muted-foreground"
-                  >
-                    Save Draft
-                  </Button>
+                  {(!editEstimate || editEstimate.status === "draft") && (
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      onClick={() => saveDraftMutation.mutate()}
+                      disabled={saveDraftMutation.isPending}
+                      className="text-muted-foreground"
+                    >
+                      {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                      Save Draft
+                    </Button>
+                  )}
                 </div>
-                <Button 
-                  type="button"
-                  onClick={handleSubmit}
-                  disabled={mutation.isPending || selectedScopes.size === 0}
-                  className="gap-2"
-                >
-                  {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {editEstimate ? "Update" : "Create"} Estimate
-                  <Badge variant="secondary" className="ml-1 font-mono">
-                    {formatCurrency(combinedTotal * 1.1)}
-                  </Badge>
-                </Button>
+                <div className="flex gap-2">
+                  {/* For drafts: show Update and Finalize buttons */}
+                  {editEstimate && editEstimate.status === "draft" && (
+                    <>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        onClick={handleSubmit}
+                        disabled={mutation.isPending || selectedScopes.size === 0}
+                      >
+                        {mutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                        Update Draft
+                      </Button>
+                      <Button 
+                        type="button"
+                        onClick={() => finalizeMutation.mutate()}
+                        disabled={finalizeMutation.isPending || selectedScopes.size === 0}
+                        className="gap-2"
+                      >
+                        {finalizeMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <CheckCircle className="w-4 h-4" />
+                        Finalize Quote
+                        <Badge variant="secondary" className="ml-1 font-mono">
+                          {formatCurrency(combinedTotal * 1.1)}
+                        </Badge>
+                      </Button>
+                    </>
+                  )}
+                  {/* For non-drafts being edited: just show Update */}
+                  {editEstimate && editEstimate.status !== "draft" && (
+                    <Button 
+                      type="button"
+                      onClick={handleSubmit}
+                      disabled={mutation.isPending || selectedScopes.size === 0}
+                      className="gap-2"
+                    >
+                      {mutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                      Update Quote
+                      <Badge variant="secondary" className="ml-1 font-mono">
+                        {formatCurrency(combinedTotal * 1.1)}
+                      </Badge>
+                    </Button>
+                  )}
+                  {/* For new estimates: show Create and Finalize */}
+                  {!editEstimate && (
+                    <>
+                      <Button 
+                        type="button"
+                        variant="outline"
+                        onClick={handleSubmit}
+                        disabled={mutation.isPending || selectedScopes.size === 0}
+                      >
+                        {mutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                        Save as Draft
+                      </Button>
+                      <Button 
+                        type="button"
+                        onClick={() => finalizeMutation.mutate()}
+                        disabled={finalizeMutation.isPending || selectedScopes.size === 0}
+                        className="gap-2"
+                      >
+                        {finalizeMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
+                        <CheckCircle className="w-4 h-4" />
+                        Finalize Quote
+                        <Badge variant="secondary" className="ml-1 font-mono">
+                          {formatCurrency(combinedTotal * 1.1)}
+                        </Badge>
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           )}
