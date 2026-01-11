@@ -1,5 +1,16 @@
 import { BOQItem } from "@/components/jobs/boq/BOQTypes";
 
+// Rebar weights in kg per metre
+const REBAR_WEIGHTS: Record<string, number> = {
+  'N12': 0.888,
+  'N16': 1.58,
+  'N20': 2.47,
+  'N24': 3.55,
+  'N28': 4.83,
+  'R10': 0.617,
+  'R12': 0.888,
+};
+
 interface ScopeData {
   [key: string]: any;
 }
@@ -37,6 +48,8 @@ interface ModuleAnswers {
     vertical_bar_size?: string;
     lig_count?: number;
     lig_size?: string;
+    rebar_price_per_tonne?: number;
+    rebar_type?: string;
   };
   "reinforcement-footing"?: {
     mesh_type?: string;
@@ -267,16 +280,40 @@ export function generateBOQFromEstimate(
       }
     }
 
-    // Get pier reinforcement
+    // Get pier reinforcement with calculated pricing
     const reoPiersModule = moduleAnswers["reinforcement-piers"];
     if (reoPiersModule && reoPiersModule.is_reinforced) {
       const pierCount = scopeAnswers.num_piers || 0;
+      const pierDepth = (scopeAnswers.depth || 600) / 1000; // mm to m
+      const pierDiameter = (scopeAnswers.diameter || 450) / 1000; // mm to m
+      
       if (pierCount > 0) {
+        // Calculate cage weight based on rebar sizes
+        const verticalBars = reoPiersModule.vertical_bars_count || 4;
+        const verticalSize = reoPiersModule.vertical_bar_size || 'N16';
+        const ligCount = reoPiersModule.lig_count || 4;
+        const ligSize = reoPiersModule.lig_size || 'R10';
+        
+        const verticalWeightPerM = REBAR_WEIGHTS[verticalSize] || 1.58;
+        const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
+        const ligCircumference = Math.PI * (pierDiameter - 0.05); // 50mm cover allowance
+        
+        // Weight per pier cage
+        const verticalWeight = verticalBars * pierDepth * verticalWeightPerM;
+        const ligWeight = ligCount * ligCircumference * ligWeightPerM;
+        const weightPerPier = verticalWeight + ligWeight;
+        
+        // Calculate price per pier based on rebar cost
+        const pricePerTonne = reoPiersModule.rebar_price_per_tonne || 2100;
+        const unitPrice = (weightPerPier / 1000) * pricePerTonne;
+        
         addItem(
           "reinforcement",
-          `Pier Cages (${reoPiersModule.vertical_bar_size || "N20"} x ${reoPiersModule.vertical_bars_count || 4})`,
+          `Pier Cages (${verticalSize} x ${verticalBars})`,
           pierCount,
-          "units"
+          "units",
+          Math.round(unitPrice * 100) / 100,
+          `~${weightPerPier.toFixed(1)}kg each`
         );
       }
     }
