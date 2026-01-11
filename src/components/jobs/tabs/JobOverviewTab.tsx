@@ -1,5 +1,7 @@
+import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Users, Truck, FileText, Package } from "lucide-react";
+import { MapPin, Truck, FileText, Package } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { BOQCard } from "@/components/jobs/boq/BOQCard";
 
@@ -7,10 +9,122 @@ type Job = Tables<"jobs">;
 
 interface JobOverviewTabProps {
   job: Job;
-  // Hidden for now - keeping for future: crewName?: string;
+}
+
+interface ScopeConcreteSpec {
+  scopeKey: string;
+  label: string;
+  volume: number;
+  strength: string;
+  slump?: string;
+  supplier?: string;
+  finishType?: string;
+}
+
+const SCOPE_LABELS: Record<string, string> = {
+  standard_slab: "Standard Slab",
+  raft_slab: "Raft Slab",
+  waffle_pod: "Waffle Pod",
+  strip_footings: "Strip Footings",
+  piers: "Piers",
+  suspended_slab: "Suspended Slab",
+  crossovers: "Crossover",
+  driveway: "Driveway",
+  paths_surrounds: "Paths & Surrounds",
+  retaining_wall: "Retaining Wall",
+  architectural: "Architectural Concrete",
+};
+
+function extractConcreteSpecsFromEstimate(
+  scopeData: Record<string, any> | null,
+  selectedScopes: string[] | null
+): ScopeConcreteSpec[] {
+  if (!scopeData || !selectedScopes || selectedScopes.length === 0) {
+    return [];
+  }
+
+  const specs: ScopeConcreteSpec[] = [];
+
+  for (const scopeKey of selectedScopes) {
+    const scopeEntry = scopeData[scopeKey];
+    if (!scopeEntry) continue;
+
+    const scopeAnswers = scopeEntry.scopeAnswers || {};
+    const moduleAnswers = scopeEntry.moduleAnswers || {};
+    const concreteModule = moduleAnswers["concrete-supply"] || {};
+    const finishingModule = moduleAnswers["surface-finishing"] || {};
+
+    // Get volume from concrete-supply module or calculate from scope answers
+    let volume = concreteModule.calculated_volume || 0;
+    
+    // Fallback: calculate from scope answers if no module data
+    if (!volume && scopeAnswers.area && scopeAnswers.thickness) {
+      const area = Number(scopeAnswers.area) || 0;
+      const thickness = (Number(scopeAnswers.thickness) || 100) / 1000;
+      const wastage = (Number(concreteModule.wastage_percent) || 5) / 100;
+      volume = area * thickness * (1 + wastage);
+    }
+
+    // For piers, calculate from pier data
+    if (scopeKey === "piers" && !volume && scopeAnswers.num_piers) {
+      const count = Number(scopeAnswers.num_piers) || 0;
+      const diameter = (Number(scopeAnswers.diameter) || 450) / 1000;
+      const depth = (Number(scopeAnswers.depth) || 1000) / 1000;
+      const radius = diameter / 2;
+      volume = count * Math.PI * radius * radius * depth * 1.1; // 10% wastage
+    }
+
+    // Get concrete type/strength
+    const concreteType = concreteModule.concrete_type || "";
+    const strength = concreteType.replace(/MPA/i, "").trim() || "";
+
+    // Get finish type
+    const finishType = finishingModule.finish_type?.replace(/_/g, " ") || "";
+
+    if (volume > 0 || strength) {
+      specs.push({
+        scopeKey,
+        label: SCOPE_LABELS[scopeKey] || scopeKey.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
+        volume: Math.round(volume * 100) / 100,
+        strength,
+        slump: concreteModule.slump || "",
+        supplier: concreteModule.supplier || "",
+        finishType: finishType ? finishType.replace(/\b\w/g, l => l.toUpperCase()) : "",
+      });
+    }
+  }
+
+  return specs;
 }
 
 export function JobOverviewTab({ job }: JobOverviewTabProps) {
+  // Fetch source estimate if job was converted from a quote
+  const { data: sourceEstimate } = useQuery({
+    queryKey: ["source-estimate-specs", job.source_estimate_id],
+    queryFn: async () => {
+      if (!job.source_estimate_id) return null;
+      const { data, error } = await supabase
+        .from("estimates")
+        .select("scope_data, selected_scopes")
+        .eq("id", job.source_estimate_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!job.source_estimate_id,
+  });
+
+  const scopeSpecs = sourceEstimate
+    ? extractConcreteSpecsFromEstimate(
+        sourceEstimate.scope_data as Record<string, any> | null,
+        sourceEstimate.selected_scopes as string[] | null
+      )
+    : [];
+
+  // Calculate totals from scope specs
+  const totalEstimatedVolume = scopeSpecs.reduce((sum, s) => sum + s.volume, 0);
+  const hasMultipleScopes = scopeSpecs.length > 1;
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
       {/* Job Details Card */}
@@ -29,18 +143,6 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
               <p className="text-sm text-muted-foreground">{job.site_address}</p>
             </div>
           </div>
-
-          {/* Hidden for now - keeping code for future:
-          {crewName && (
-            <div className="flex items-start gap-3">
-              <Users className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
-              <div>
-                <p className="text-sm font-medium">Assigned Crew</p>
-                <p className="text-sm text-muted-foreground">{crewName}</p>
-              </div>
-            </div>
-          )}
-          */}
 
           {job.builder_client && (
             <div className="flex items-start gap-3">
@@ -76,11 +178,14 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
             Concrete Specifications
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {/* Summary stats */}
           <div className="grid grid-cols-2 gap-4">
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Estimated</p>
-              <p className="text-xl font-semibold">{job.estimated_m3 ?? "—"} m³</p>
+              <p className="text-xl font-semibold">
+                {job.estimated_m3 ?? (totalEstimatedVolume > 0 ? totalEstimatedVolume.toFixed(1) : "—")} m³
+              </p>
             </div>
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Ordered</p>
@@ -88,7 +193,9 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
             </div>
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Strength</p>
-              <p className="text-xl font-semibold">{job.mpa_strength ?? "—"} MPa</p>
+              <p className="text-xl font-semibold">
+                {job.mpa_strength ?? (scopeSpecs.length === 1 && scopeSpecs[0].strength ? scopeSpecs[0].strength : "—")} MPa
+              </p>
             </div>
             <div className="p-3 bg-muted rounded-lg">
               <p className="text-xs text-muted-foreground">Slump</p>
@@ -96,8 +203,35 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
             </div>
           </div>
 
+          {/* Show per-scope breakdown if multiple scopes from estimate */}
+          {hasMultipleScopes && scopeSpecs.length > 0 && (
+            <div className="pt-4 border-t space-y-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                Per Scope Breakdown
+              </p>
+              <div className="space-y-2">
+                {scopeSpecs.map((spec) => (
+                  <div
+                    key={spec.scopeKey}
+                    className="p-3 bg-muted/50 rounded-lg border border-border/50"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium">{spec.label}</p>
+                      <p className="text-sm font-semibold">{spec.volume.toFixed(1)} m³</p>
+                    </div>
+                    <div className="flex gap-4 text-xs text-muted-foreground">
+                      {spec.strength && <span>N{spec.strength}</span>}
+                      {spec.finishType && <span>{spec.finishType}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Supplier and finish type */}
           {(job.concrete_supplier || job.finish_type) && (
-            <div className="mt-4 space-y-3">
+            <div className="pt-4 border-t space-y-3">
               {job.concrete_supplier && (
                 <div className="p-3 bg-muted rounded-lg">
                   <p className="text-xs text-muted-foreground">Supplier</p>
