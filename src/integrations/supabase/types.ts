@@ -911,6 +911,7 @@ export type Database = {
           id: string
           job_notes: string | null
           job_number: string | null
+          job_type: string
           mpa_strength: string | null
           name: string
           ordered_m3: number | null
@@ -935,6 +936,7 @@ export type Database = {
           id?: string
           job_notes?: string | null
           job_number?: string | null
+          job_type?: string
           mpa_strength?: string | null
           name: string
           ordered_m3?: number | null
@@ -959,6 +961,7 @@ export type Database = {
           id?: string
           job_notes?: string | null
           job_number?: string | null
+          job_type?: string
           mpa_strength?: string | null
           name?: string
           ordered_m3?: number | null

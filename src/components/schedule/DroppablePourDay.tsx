@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { DraggablePour } from "./DraggablePour";
 import { DraggableEstimate, ScheduleEstimate, EstimateEventType } from "./DraggableEstimate";
 import { Badge } from "@/components/ui/badge";
-import { Palmtree } from "lucide-react";
+import { Palmtree, Briefcase } from "lucide-react";
 
 type Pour = {
   id: string;
@@ -20,6 +20,15 @@ type Pour = {
     site_address: string;
     job_number: string | null;
   };
+};
+
+type MiscJob = {
+  id: string;
+  name: string;
+  site_address: string;
+  scheduled_date: string | null;
+  status: string | null;
+  job_notes: string | null;
 };
 
 type EstimateEvent = {
@@ -39,10 +48,12 @@ interface DroppablePourDayProps {
   dateKey: string;
   pours: Pour[];
   estimateEvents?: EstimateEvent[];
+  miscJobs?: MiscJob[];
   isWeekView?: boolean;
   isCurrentMonth?: boolean;
   onPourClick?: (pour: Pour) => void;
   onEstimateClick?: (estimate: ScheduleEstimate, eventType: EstimateEventType) => void;
+  onMiscJobClick?: (job: MiscJob) => void;
   employeesOnLeave?: EmployeeOnLeave[];
 }
 
@@ -51,10 +62,12 @@ export function DroppablePourDay({
   dateKey,
   pours,
   estimateEvents = [],
+  miscJobs = [],
   isWeekView = false,
   isCurrentMonth = true,
   onPourClick,
   onEstimateClick,
+  onMiscJobClick,
   employeesOnLeave = [],
 }: DroppablePourDayProps) {
   const { isOver, setNodeRef } = useDroppable({
@@ -62,7 +75,7 @@ export function DroppablePourDay({
   });
 
   const today = isToday(date);
-  const totalEvents = pours.length + estimateEvents.length;
+  const totalEvents = pours.length + estimateEvents.length + miscJobs.length;
 
   if (isWeekView) {
     return (
@@ -117,6 +130,20 @@ export function DroppablePourDay({
         )}
 
         <div className="space-y-2">
+          {/* Misc Jobs */}
+          {miscJobs.map((job) => (
+            <div
+              key={job.id}
+              className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-2 cursor-pointer hover:bg-purple-500/20 transition-colors"
+              onClick={() => onMiscJobClick?.(job)}
+            >
+              <div className="flex items-center gap-1.5">
+                <Briefcase className="w-3.5 h-3.5 text-purple-600" />
+                <span className="text-sm font-medium text-purple-600 truncate">{job.name}</span>
+              </div>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">{job.site_address}</p>
+            </div>
+          ))}
           {/* Estimate Events */}
           {estimateEvents.map((event) => (
             <DraggableEstimate 
@@ -167,8 +194,16 @@ export function DroppablePourDay({
       <div className="sm:hidden">
         {totalEvents > 0 && (
           <div className="flex flex-wrap gap-0.5 justify-center">
-            {/* Estimate dots first - all orange */}
-            {estimateEvents.slice(0, 2).map((event) => (
+            {/* Misc job dots - purple */}
+            {miscJobs.slice(0, 1).map((job) => (
+              <div
+                key={job.id}
+                className="w-2 h-2 rounded-full bg-purple-500"
+                onClick={() => onMiscJobClick?.(job)}
+              />
+            ))}
+            {/* Estimate dots - orange */}
+            {estimateEvents.slice(0, 2 - miscJobs.length).map((event) => (
               <div
                 key={`${event.eventType}-${event.estimate.id}`}
                 className="w-2 h-2 rounded-full bg-primary"
@@ -176,7 +211,7 @@ export function DroppablePourDay({
               />
             ))}
             {/* Pour dots */}
-            {pours.slice(0, 4 - estimateEvents.length).map((pour) => (
+            {pours.slice(0, 4 - estimateEvents.length - miscJobs.length).map((pour) => (
               <div
                 key={pour.id}
                 className={cn(
@@ -201,8 +236,21 @@ export function DroppablePourDay({
 
       {/* Desktop: Show event cards */}
       <div className="hidden sm:block space-y-1">
-        {/* Show estimate events first */}
-        {estimateEvents.slice(0, 1).map((event) => (
+        {/* Show misc jobs first */}
+        {miscJobs.slice(0, 1).map((job) => (
+          <div
+            key={job.id}
+            className="bg-purple-500/10 border border-purple-500/30 rounded p-1 cursor-pointer hover:bg-purple-500/20"
+            onClick={() => onMiscJobClick?.(job)}
+          >
+            <div className="flex items-center gap-1">
+              <Briefcase className="w-3 h-3 text-purple-600" />
+              <span className="text-xs font-medium text-purple-600 truncate">{job.name}</span>
+            </div>
+          </div>
+        ))}
+        {/* Show estimate events */}
+        {estimateEvents.slice(0, miscJobs.length > 0 ? 0 : 1).map((event) => (
           <DraggableEstimate 
             key={`${event.eventType}-${event.estimate.id}`} 
             estimate={event.estimate} 
@@ -212,7 +260,7 @@ export function DroppablePourDay({
           />
         ))}
         {/* Show pours */}
-        {pours.slice(0, estimateEvents.length > 0 ? 1 : 2).map((pour) => (
+        {pours.slice(0, (miscJobs.length + estimateEvents.length) > 0 ? 1 : 2).map((pour) => (
           <DraggablePour key={pour.id} pour={pour} compact onClick={onPourClick} />
         ))}
         {totalEvents > 2 && (
