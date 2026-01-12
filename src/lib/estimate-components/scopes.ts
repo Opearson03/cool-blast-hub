@@ -41,7 +41,8 @@ export const PIERS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'excavation',
     'reinforcement-piers',
@@ -113,7 +114,8 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'excavation',
     'base-preparation',
@@ -225,7 +227,8 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'excavation',
     'base-preparation',
@@ -368,7 +371,8 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'base-preparation',
     'reinforcement-slab',
@@ -484,7 +488,8 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'excavation',
     'base-preparation',
@@ -565,7 +570,8 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'excavation',
     'reinforcement-slab',
@@ -626,7 +632,8 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'excavation',
     'reinforcement-slab',
@@ -687,7 +694,8 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'excavation',
     'reinforcement-footing',
@@ -759,7 +767,8 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'excavation',
     'reinforcement-footing',
@@ -838,7 +847,8 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'formwork',
     'reinforcement-slab',
     'concrete-supply',
@@ -908,7 +918,8 @@ export const ARCHITECTURAL_CONCRETE_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'labour',
+    'labour-prep',
+    'labour-place',
     'architectural-formwork',
     'reinforcement-slab',
     'concrete-supply',

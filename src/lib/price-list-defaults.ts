@@ -33,7 +33,11 @@ export type PriceListCategory = typeof PRICE_LIST_CATEGORIES[number]['id'];
 export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   // Labour
   { category: 'labour', item_code: 'LABOUR HR', item_name: 'Labour Hour Charge', unit: '/h', default_price: 75 },
-
+  { category: 'labour', item_code: 'LABOUR LEAD', item_name: 'Labour Lead Hour', unit: '/h', default_price: 95 },
+  { category: 'labour', item_code: 'LABOUR PREP HR', item_name: 'Labour Prep Hour', unit: '/h', default_price: 75 },
+  { category: 'labour', item_code: 'LABOUR PREP LEAD', item_name: 'Labour Prep Lead Hour', unit: '/h', default_price: 95 },
+  { category: 'labour', item_code: 'LABOUR PLACE HR', item_name: 'Labour Place Hour', unit: '/h', default_price: 75 },
+  { category: 'labour', item_code: 'LABOUR PLACE LEAD', item_name: 'Labour Place Lead Hour', unit: '/h', default_price: 95 },
   // Excavation & Plant
   { category: 'excavation', item_code: 'EXC 1.4T', item_name: 'Excavator 1.4 T With Operator', unit: '/h', default_price: 140 },
   { category: 'excavation', item_code: 'EXC 3.2T', item_name: 'Excavator 3.2 T With Operator', unit: '/h', default_price: 150 },
