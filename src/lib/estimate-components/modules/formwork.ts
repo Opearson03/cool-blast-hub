@@ -62,9 +62,20 @@ export const formworkModule: EstimateModule = {
       type: 'currency',
       label: 'Timber price per metre',
       defaultValue: 8,
-      priceListKey: 'formwork.FORM TIMBER',
       unit: '/m',
       showIf: (answers) => answers.formwork_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const timberType = moduleAnswers?.timber_type || '90x45';
+        // Map timber type to price list key
+        const timberPriceKeys: Record<string, string> = {
+          '100x35': 'FORM TIMBER 100x35',
+          '150x35': 'FORM TIMBER 150x35',
+          '170x35': 'FORM TIMBER 170x35',
+          '200x35': 'FORM TIMBER 200x35',
+        };
+        const priceKey = timberPriceKeys[timberType] || 'FORM TIMBER';
+        return getPrice(priceMap, 'formwork', priceKey, 8);
+      },
     },
     {
       id: 'stakes_included',
