@@ -2,10 +2,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, ArrowRight, Loader2, BarChart3, FileText, Calculator, MessageSquare } from "lucide-react";
+import { Calendar, CheckCircle, ArrowRight, Loader2, FileText, Calculator, MessageSquare } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import heroPourBackground from "@/assets/hero-pour-background.png";
-import dashboardScreenshot from "@/assets/dashboard-screenshot.png";
 import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
 import estimateScreenshot from "@/assets/estimate-screenshot.png";
 import scheduleScreenshot from "@/assets/schedule-screenshot.png";
@@ -154,53 +153,6 @@ const Index = () => {
           <p className="text-primary-foreground/70 text-center mb-12 max-w-2xl mx-auto">
             Real tools designed for real concreters. Here's what you'll get.
           </p>
-
-          {/* Feature 1: Dashboard & Overview */}
-          <div className="grid lg:grid-cols-2 gap-8 mb-16 items-center">
-            <div className="relative rounded-xl overflow-hidden shadow-2xl order-2 lg:order-1 border border-border/30">
-              <img 
-                src={dashboardScreenshot}
-                alt="PourHub dashboard showing job overview and daily pour schedule for NSW concreting businesses" 
-                className="w-full h-64 lg:h-80 object-cover object-top"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/90 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="flex items-center gap-4 text-primary-foreground">
-                  <div className="bg-primary/20 p-3 rounded-lg">
-                    <BarChart3 className="w-6 h-6 text-primary" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold">Live Dashboard</h4>
-                    <p className="text-sm text-primary-foreground/70">Track jobs, pours & schedules at a glance</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-            <div className="order-1 lg:order-2">
-              <h3 className="text-2xl font-bold text-primary-foreground mb-4">
-                Your Business at a Glance
-              </h3>
-              <p className="text-primary-foreground/70 mb-6">
-                See today's pours, upcoming jobs, and pending estimates all in one dashboard. 
-                Stay on top of your schedule and never miss a pour date.
-              </p>
-              <ul className="space-y-3">
-                <li className="flex items-center gap-3 text-primary-foreground/80">
-                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Daily pour counts and job overview</span>
-                </li>
-                <li className="flex items-center gap-3 text-primary-foreground/80">
-                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Upcoming schedule at a glance</span>
-                </li>
-                <li className="flex items-center gap-3 text-primary-foreground/80">
-                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Estimate status tracking</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-
           {/* Feature 2: Job Management */}
           <div className="grid lg:grid-cols-2 gap-8 mb-16 items-center">
             <div>
