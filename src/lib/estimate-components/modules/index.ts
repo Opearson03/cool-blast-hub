@@ -20,6 +20,7 @@ export { architecturalFinishingModule } from './architectural-finishing';
 export { cleanupModule } from './cleanup';
 export { sundriesModule } from './sundries';
 export { marginModule } from './margin';
+export { plumbingModule } from './plumbing';
 
 import { formworkModule } from './formwork';
 import { excavationModule } from './excavation';
@@ -41,6 +42,7 @@ import { architecturalFinishingModule } from './architectural-finishing';
 import { cleanupModule } from './cleanup';
 import { sundriesModule } from './sundries';
 import { marginModule } from './margin';
+import { plumbingModule } from './plumbing';
 import type { EstimateModule } from '../types';
 
 /**
@@ -68,6 +70,7 @@ export const MODULE_REGISTRY: Record<string, EstimateModule> = {
   'cleanup': cleanupModule,
   'sundries': sundriesModule,
   'margin': marginModule,
+  'plumbing': plumbingModule,
 };
 
 /**

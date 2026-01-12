@@ -24,6 +24,7 @@ export const PRICE_LIST_CATEGORIES = [
   { id: 'joint_foam', label: 'Joint Foam' },
   { id: 'joint_caulking', label: 'Joint Caulking' },
   { id: 'joint_saw_cutting', label: 'Saw Cutting' },
+  { id: 'plumbing', label: 'Plumbing' },
   { id: 'materials', label: 'Materials' },
 ] as const;
 
@@ -186,6 +187,11 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   // Saw Cutting
   { category: 'joint_saw_cutting', item_code: 'JOINTCUT', item_name: 'Labour & Equipment Saw Cutting', unit: '/m', default_price: 6.50 },
   { category: 'joint_saw_cutting', item_code: 'JOINTCUT HR', item_name: 'Labour Hours', unit: '/h', default_price: 75 },
+
+  // Plumbing
+  { category: 'plumbing', item_code: 'STRIP DRAIN 1M', item_name: 'Strip Drain (per metre)', unit: '/m', default_price: 85 },
+  { category: 'plumbing', item_code: 'PLUMBER HR', item_name: 'Plumber Labour Hour', unit: '/h', default_price: 95 },
+  { category: 'plumbing', item_code: 'PLUMBER SUNDRIES', item_name: 'Plumber Sundries Allowance', unit: '/item', default_price: 150 },
 
   // Materials
   { category: 'materials', item_code: 'DUST', item_name: 'Supply of Crusher Dust', unit: '/m3', default_price: 60 },
