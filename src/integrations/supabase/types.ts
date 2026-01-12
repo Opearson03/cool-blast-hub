@@ -1672,6 +1672,12 @@ export type Database = {
         }[]
       }
       get_user_business_id: { Args: { _user_id: string }; Returns: string }
+      get_user_crew_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_user_estimate_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_user_job_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_user_pour_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_user_swms_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_user_team_ids: { Args: { _user_id: string }; Returns: string[] }
       has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
