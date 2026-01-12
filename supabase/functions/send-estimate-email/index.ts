@@ -21,6 +21,11 @@ interface SendEstimateRequest {
   businessPhone: string | null;
   businessEmail: string | null;
   businessAbn: string | null;
+  businessLogoUrl: string | null;
+  quoteTemplate: string;
+  quotePrimaryColor: string;
+  quoteSecondaryColor: string;
+  quoteFont: string;
   totalAmount: string;
   siteAddress: string;
   description: string | null;
@@ -32,6 +37,67 @@ interface SendEstimateRequest {
 // Helper to wrap text for PDF
 function splitTextToLines(doc: jsPDF, text: string, maxWidth: number): string[] {
   return doc.splitTextToSize(text, maxWidth);
+}
+
+// Helper to parse hex color to RGB
+function hexToRgb(hex: string): [number, number, number] {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? [parseInt(result[1], 16), parseInt(result[2], 16), parseInt(result[3], 16)]
+    : [249, 115, 22]; // Default orange
+}
+
+// Helper to fetch logo and convert to base64
+async function fetchLogoAsBase64(logoUrl: string | null): Promise<{ base64: string; format: string } | null> {
+  if (!logoUrl) return null;
+  
+  try {
+    console.log("Fetching logo from:", logoUrl);
+    const response = await fetch(logoUrl);
+    
+    if (!response.ok) {
+      console.error("Failed to fetch logo:", response.status);
+      return null;
+    }
+    
+    const arrayBuffer = await response.arrayBuffer();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8Array.length; i++) {
+      binary += String.fromCharCode(uint8Array[i]);
+    }
+    const base64 = btoa(binary);
+    
+    const contentType = response.headers.get('content-type') || 'image/png';
+    let format = 'PNG';
+    if (contentType.includes('jpeg') || contentType.includes('jpg')) {
+      format = 'JPEG';
+    } else if (contentType.includes('gif')) {
+      format = 'GIF';
+    }
+    
+    console.log("Logo fetched successfully, format:", format);
+    return { base64, format };
+  } catch (error) {
+    console.error('Failed to fetch logo:', error);
+    return null;
+  }
+}
+
+// Map PDF-safe fonts
+function getPdfFont(fontName: string): string {
+  const fontMap: Record<string, string> = {
+    'Arial': 'helvetica',
+    'Helvetica': 'helvetica',
+    'Times New Roman': 'times',
+    'Times': 'times',
+    'Courier': 'courier',
+    'Courier New': 'courier',
+    'Georgia': 'times',
+    'Inter': 'helvetica',
+    'Roboto': 'helvetica',
+  };
+  return fontMap[fontName] || 'helvetica';
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -52,6 +118,11 @@ const handler = async (req: Request): Promise<Response> => {
       businessPhone,
       businessEmail,
       businessAbn,
+      businessLogoUrl,
+      quoteTemplate = 'classic',
+      quotePrimaryColor = '#f97316',
+      quoteSecondaryColor = '#1f2937',
+      quoteFont = 'Arial',
       totalAmount,
       siteAddress,
       description,
@@ -60,11 +131,14 @@ const handler = async (req: Request): Promise<Response> => {
       validUntil
     }: SendEstimateRequest = await req.json();
 
-    console.log(`Generating PDF and sending estimate ${estimateNumber} to ${clientEmail}`);
+    console.log(`Generating PDF with template "${quoteTemplate}" and sending estimate ${estimateNumber} to ${clientEmail}`);
 
     if (!clientEmail) {
       throw new Error("Client email is required");
     }
+
+    // Fetch logo
+    const logoData = await fetchLogoAsBase64(businessLogoUrl);
 
     // Generate PDF using jsPDF
     const doc = new jsPDF({
@@ -79,113 +153,310 @@ const handler = async (req: Request): Promise<Response> => {
     const contentWidth = pageWidth - (margin * 2);
     let yPos = margin;
 
-    // Colors
-    const primaryColor = [249, 115, 22]; // Orange
-    const darkColor = [51, 51, 51];
-    const grayColor = [102, 102, 102];
+    // Colors from branding
+    const primaryColor = hexToRgb(quotePrimaryColor);
+    const secondaryColor = hexToRgb(quoteSecondaryColor);
+    const darkColor = [51, 51, 51] as [number, number, number];
+    const grayColor = [102, 102, 102] as [number, number, number];
+    const pdfFont = getPdfFont(quoteFont);
 
-    // Header - Business Name
-    doc.setFontSize(20);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text(businessName || "Company Name", margin, yPos);
+    // Generate PDF based on template
+    if (quoteTemplate === 'modern') {
+      // ====== MODERN TEMPLATE ======
+      // Dark header bar
+      doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.rect(0, 0, pageWidth, 40, 'F');
 
-    // Business Details (right side)
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    
-    let rightY = yPos;
-    if (businessAddress) {
-      doc.text(businessAddress, pageWidth - margin, rightY, { align: 'right' });
-      rightY += 5;
-    }
-    if (businessPhone) {
-      doc.text(`Ph: ${businessPhone}`, pageWidth - margin, rightY, { align: 'right' });
-      rightY += 5;
-    }
-    if (businessEmail) {
-      doc.text(businessEmail, pageWidth - margin, rightY, { align: 'right' });
-      rightY += 5;
-    }
-    if (businessAbn) {
-      doc.text(`ABN: ${businessAbn}`, pageWidth - margin, rightY, { align: 'right' });
-      rightY += 5;
-    }
+      // Logo in header
+      if (logoData) {
+        try {
+          doc.addImage(`data:image/${logoData.format.toLowerCase()};base64,${logoData.base64}`, logoData.format, margin, 8, 24, 24);
+        } catch (e) {
+          console.error("Failed to add logo to PDF:", e);
+        }
+      }
 
-    yPos = Math.max(yPos + 15, rightY + 5);
+      // Business name in header
+      doc.setFontSize(18);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(businessName || "Company Name", logoData ? margin + 30 : margin, 20);
+      
+      if (businessAbn) {
+        doc.setFontSize(9);
+        doc.setFont(pdfFont, "normal");
+        doc.text(`ABN: ${businessAbn}`, logoData ? margin + 30 : margin, 28);
+      }
 
-    // ESTIMATE title
-    doc.setFontSize(24);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text("ESTIMATE", pageWidth - margin, yPos, { align: 'right' });
-    
-    yPos += 8;
-    doc.setFontSize(14);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text(estimateNumber, pageWidth - margin, yPos, { align: 'right' });
+      // QUOTE title
+      doc.setFontSize(24);
+      doc.setFont(pdfFont, "bold");
+      doc.text("QUOTE", pageWidth - margin, 18, { align: 'right' });
+      
+      doc.setFontSize(14);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(estimateNumber, pageWidth - margin, 28, { align: 'right' });
 
-    yPos += 8;
-    doc.setFontSize(10);
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    doc.text(`Date: ${createdAt}`, pageWidth - margin, yPos, { align: 'right' });
-    
-    if (validUntil) {
+      yPos = 48;
+
+      // Contact strip with primary color underline
+      doc.setFontSize(9);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      
+      let contactX = margin;
+      if (businessPhone) {
+        doc.text(`📞 ${businessPhone}`, contactX, yPos);
+        contactX += 50;
+      }
+      if (businessEmail) {
+        doc.text(`✉️ ${businessEmail}`, contactX, yPos);
+      }
+      
+      doc.text(`Date: ${createdAt}`, pageWidth - margin, yPos, { align: 'right' });
+      
+      yPos += 4;
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setLineWidth(1);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 12;
+
+      // Client and Site boxes
+      const boxWidth = (contentWidth - 10) / 2;
+      
+      // Client box
+      doc.setFillColor(249, 250, 251);
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, yPos, boxWidth, 30, 'FD');
+      doc.line(margin, yPos, margin, yPos + 30); // Left accent
+      doc.setLineWidth(2);
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.line(margin, yPos, margin, yPos + 30);
+      
+      doc.setFontSize(8);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text("CLIENT", margin + 5, yPos + 6);
+      
+      doc.setFontSize(12);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text(clientName, margin + 5, yPos + 14);
+      
+      doc.setFontSize(9);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      if (clientEmail) doc.text(clientEmail, margin + 5, yPos + 21);
+      if (clientPhone) doc.text(clientPhone, margin + 5, yPos + 27);
+
+      // Site box
+      doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.setLineWidth(0.5);
+      doc.rect(margin + boxWidth + 10, yPos, boxWidth, 30, 'FD');
+      doc.setLineWidth(2);
+      doc.line(margin + boxWidth + 10, yPos, margin + boxWidth + 10, yPos + 30);
+      
+      doc.setFontSize(8);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text("SITE LOCATION", margin + boxWidth + 15, yPos + 6);
+      
+      doc.setFontSize(10);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      const siteLines = splitTextToLines(doc, siteAddress, boxWidth - 10);
+      doc.text(siteLines, margin + boxWidth + 15, yPos + 14);
+
+      yPos += 40;
+
+    } else if (quoteTemplate === 'minimal') {
+      // ====== MINIMAL TEMPLATE ======
+      // Clean, spacious layout
+      
+      // Logo top left
+      if (logoData) {
+        try {
+          doc.addImage(`data:image/${logoData.format.toLowerCase()};base64,${logoData.base64}`, logoData.format, margin, yPos, 30, 30);
+          yPos += 35;
+        } catch (e) {
+          console.error("Failed to add logo to PDF:", e);
+        }
+      }
+
+      // Business name - understated
+      doc.setFontSize(14);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      doc.text(businessName || "Company Name", margin, yPos);
+      yPos += 15;
+
+      // Quote number and date - minimal style
+      doc.setFontSize(10);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Quote ${estimateNumber}  •  ${createdAt}`, margin, yPos);
+      if (validUntil) {
+        doc.text(`Valid until ${validUntil}`, margin, yPos + 5);
+        yPos += 5;
+      }
+      yPos += 15;
+
+      // Thin divider
+      doc.setDrawColor(230, 230, 230);
+      doc.setLineWidth(0.3);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 15;
+
+      // Client info - minimal
+      doc.setFontSize(9);
+      doc.setTextColor(150, 150, 150);
+      doc.text("To", margin, yPos);
       yPos += 5;
-      doc.text(`Valid Until: ${validUntil}`, pageWidth - margin, yPos, { align: 'right' });
-    }
-
-    yPos += 5;
-
-    // Divider line
-    doc.setDrawColor(51, 51, 51);
-    doc.setLineWidth(0.5);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 10;
-
-    // Client Details Section
-    const colWidth = contentWidth / 2;
-    
-    // Bill To
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    doc.text("BILL TO", margin, yPos);
-    
-    // Site Address
-    doc.text("SITE ADDRESS", margin + colWidth, yPos);
-    yPos += 6;
-
-    doc.setFontSize(11);
-    doc.setFont("helvetica", "bold");
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text(clientName, margin, yPos);
-    
-    doc.setFont("helvetica", "normal");
-    const siteLines = splitTextToLines(doc, siteAddress, colWidth - 10);
-    doc.text(siteLines, margin + colWidth, yPos);
-    
-    yPos += 5;
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    
-    if (clientEmail) {
-      doc.text(clientEmail, margin, yPos);
+      
+      doc.setFontSize(11);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text(clientName, margin, yPos);
       yPos += 5;
-    }
-    if (clientPhone) {
-      doc.text(clientPhone, margin, yPos);
+      
+      doc.setFont(pdfFont, "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      if (clientEmail) {
+        doc.text(clientEmail, margin, yPos);
+        yPos += 5;
+      }
+      
       yPos += 5;
+      doc.setFontSize(9);
+      doc.setTextColor(150, 150, 150);
+      doc.text("Site", margin, yPos);
+      yPos += 5;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text(siteAddress, margin, yPos);
+      yPos += 15;
+
+    } else {
+      // ====== CLASSIC TEMPLATE (default) ======
+      
+      // Logo and business name side by side
+      let logoWidth = 0;
+      if (logoData) {
+        try {
+          doc.addImage(`data:image/${logoData.format.toLowerCase()};base64,${logoData.base64}`, logoData.format, margin, yPos - 5, 25, 25);
+          logoWidth = 30;
+        } catch (e) {
+          console.error("Failed to add logo to PDF:", e);
+        }
+      }
+
+      // Header - Business Name
+      doc.setFontSize(20);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text(businessName || "Company Name", margin + logoWidth, yPos);
+
+      // Business Details (right side)
+      doc.setFontSize(10);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      
+      let rightY = yPos;
+      if (businessAddress) {
+        doc.text(businessAddress, pageWidth - margin, rightY, { align: 'right' });
+        rightY += 5;
+      }
+      if (businessPhone) {
+        doc.text(`Ph: ${businessPhone}`, pageWidth - margin, rightY, { align: 'right' });
+        rightY += 5;
+      }
+      if (businessEmail) {
+        doc.text(businessEmail, pageWidth - margin, rightY, { align: 'right' });
+        rightY += 5;
+      }
+      if (businessAbn) {
+        doc.text(`ABN: ${businessAbn}`, pageWidth - margin, rightY, { align: 'right' });
+        rightY += 5;
+      }
+
+      yPos = Math.max(yPos + 20, rightY + 5);
+
+      // ESTIMATE title
+      doc.setFontSize(24);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text("ESTIMATE", pageWidth - margin, yPos, { align: 'right' });
+      
+      yPos += 8;
+      doc.setFontSize(14);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(estimateNumber, pageWidth - margin, yPos, { align: 'right' });
+
+      yPos += 8;
+      doc.setFontSize(10);
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      doc.text(`Date: ${createdAt}`, pageWidth - margin, yPos, { align: 'right' });
+      
+      if (validUntil) {
+        yPos += 5;
+        doc.text(`Valid Until: ${validUntil}`, pageWidth - margin, yPos, { align: 'right' });
+      }
+
+      yPos += 5;
+
+      // Divider line
+      doc.setDrawColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.setLineWidth(0.5);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 10;
+
+      // Client Details Section
+      const colWidth = contentWidth / 2;
+      
+      // Bill To
+      doc.setFontSize(9);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      doc.text("BILL TO", margin, yPos);
+      
+      // Site Address
+      doc.text("SITE ADDRESS", margin + colWidth, yPos);
+      yPos += 6;
+
+      doc.setFontSize(11);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text(clientName, margin, yPos);
+      
+      doc.setFont(pdfFont, "normal");
+      const siteLines = splitTextToLines(doc, siteAddress, colWidth - 10);
+      doc.text(siteLines, margin + colWidth, yPos);
+      
+      yPos += 5;
+      doc.setFontSize(10);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      
+      if (clientEmail) {
+        doc.text(clientEmail, margin, yPos);
+        yPos += 5;
+      }
+      if (clientPhone) {
+        doc.text(clientPhone, margin, yPos);
+        yPos += 5;
+      }
+
+      yPos = Math.max(yPos, yPos + (siteLines.length * 5)) + 10;
     }
 
-    yPos = Math.max(yPos, yPos + (siteLines.length * 5)) + 10;
+    // ====== COMMON SECTIONS FOR ALL TEMPLATES ======
 
     // Scope of Works
     if (description) {
       doc.setFontSize(9);
-      doc.setFont("helvetica", "bold");
+      doc.setFont(pdfFont, "bold");
       doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
       doc.text("SCOPE OF WORKS", margin, yPos);
       yPos += 6;
@@ -200,7 +471,7 @@ const handler = async (req: Request): Promise<Response> => {
       
       yPos += 4;
       doc.setFontSize(10);
-      doc.setFont("helvetica", "normal");
+      doc.setFont(pdfFont, "normal");
       doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
       
       scopeItems.forEach((item) => {
@@ -228,14 +499,14 @@ const handler = async (req: Request): Promise<Response> => {
       }).format(amount);
     };
 
-    doc.setDrawColor(51, 51, 51);
+    doc.setDrawColor(darkColor[0], darkColor[1], darkColor[2]);
     doc.setLineWidth(0.5);
     doc.line(pageWidth - margin - 90, yPos, pageWidth - margin, yPos);
     yPos += 8;
 
     // Subtotal (ex GST)
     doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
     doc.text("Subtotal (ex GST)", pageWidth - margin - 90, yPos);
     doc.text(formatCurrency(exGstAmount), pageWidth - margin, yPos, { align: 'right' });
@@ -254,7 +525,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Total (inc GST)
     doc.setFontSize(12);
-    doc.setFont("helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
     doc.text("Total (inc GST)", pageWidth - margin - 90, yPos);
     
@@ -270,13 +541,13 @@ const handler = async (req: Request): Promise<Response> => {
     yPos += 8;
 
     doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
     doc.text("TERMS & CONDITIONS", margin, yPos);
     yPos += 6;
 
     doc.setFontSize(9);
-    doc.setFont("helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
 
     if (notes) {
@@ -319,12 +590,12 @@ const handler = async (req: Request): Promise<Response> => {
     yPos += 6;
 
     doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
     doc.text("ACCEPTANCE", margin + 4, yPos);
     yPos += 5;
 
-    doc.setFont("helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     doc.setFontSize(8);
     doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
     doc.text("I accept this estimate and authorize the commencement of works as described above.", margin + 4, yPos);
@@ -375,10 +646,10 @@ const handler = async (req: Request): Promise<Response> => {
           <style>
             body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
             .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-            .header { background: #1a1a1a; color: white; padding: 20px; text-align: center; }
+            .header { background: ${quoteSecondaryColor}; color: white; padding: 20px; text-align: center; }
             .content { padding: 30px 20px; background: #f9f9f9; }
-            .highlight { background: #f0f9ff; border-left: 4px solid #f97316; padding: 15px; margin: 20px 0; }
-            .total { font-size: 24px; font-weight: bold; color: #f97316; }
+            .highlight { background: #f0f9ff; border-left: 4px solid ${quotePrimaryColor}; padding: 15px; margin: 20px 0; }
+            .total { font-size: 24px; font-weight: bold; color: ${quotePrimaryColor}; }
             .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
           </style>
         </head>
