@@ -101,7 +101,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
 
       const { data: businessData } = await supabase
         .from("businesses")
-        .select("name, logo_url, address, phone, email, abn")
+        .select("name, logo_url, address, phone, email, abn, quote_template, quote_primary_color, quote_secondary_color, quote_font")
         .eq("id", profile.business_id)
         .single();
 
@@ -153,6 +153,11 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
           businessPhone: business?.phone,
           businessEmail: business?.email,
           businessAbn: business?.abn,
+          businessLogoUrl: business?.logo_url,
+          quoteTemplate: business?.quote_template || 'classic',
+          quotePrimaryColor: business?.quote_primary_color || '#f97316',
+          quoteSecondaryColor: business?.quote_secondary_color || '#1f2937',
+          quoteFont: business?.quote_font || 'Arial',
           totalAmount: formatCurrency(estimate.total_amount),
           siteAddress: estimate.site_address,
           description: estimate.description,
