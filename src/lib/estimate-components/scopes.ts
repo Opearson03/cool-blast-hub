@@ -488,6 +488,7 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
+    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -527,7 +528,6 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'driveway' },
-    { id: 'demolition', text: 'Demolition and removal of existing driveway', moduleId: 'driveway' },
   ],
 };
 
@@ -570,6 +570,7 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
+    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -632,6 +633,7 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
+    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',

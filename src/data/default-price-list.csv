@@ -1,4 +1,5 @@
 category,item_code,item_name,unit,default_price
+demolition,DEMOLITION,Concrete Demolition (incl. labour & disposal),/m3,2400.00
 labour,LABOUR HR,Labour Hour Charge,/h,75.00
 labour,LABOUR LEAD,Labour Lead Hour,/h,95.00
 labour,LABOUR PREP HR,Labour Prep Hour,/h,75.00
