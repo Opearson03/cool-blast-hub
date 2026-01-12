@@ -92,10 +92,8 @@ export function ModularCalculator({
     initialCustomExclusions
   );
 
-  // Track open accordion sections
-  const [openModuleId, setOpenModuleId] = useState<string | null>(
-    scope.moduleIds[0] || null
-  );
+  // Track open accordion sections - start closed by default
+  const [openModuleId, setOpenModuleId] = useState<string | null>(null);
 
   // Track which modules have been manually marked as done
   const [doneModules, setDoneModules] = useState<Set<string>>(new Set());
