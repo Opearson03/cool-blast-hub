@@ -192,13 +192,15 @@ export function ModularCalculator({
           if (question.priceListKey && currentModuleAnswers[question.id] === undefined) {
             const [category, itemCode] = question.priceListKey.split('.');
             const price = priceMap[category]?.[itemCode];
-            if (price !== undefined) {
+            // Use price from price list, or fall back to defaultValue
+            const valueToUse = price !== undefined ? price : question.defaultValue;
+            if (valueToUse !== undefined) {
               if (!newModuleAnswers[module.id]) {
                 newModuleAnswers[module.id] = {};
               }
               newModuleAnswers[module.id] = {
                 ...newModuleAnswers[module.id],
-                [question.id]: price,
+                [question.id]: valueToUse,
               };
               hasChanges = true;
             }
