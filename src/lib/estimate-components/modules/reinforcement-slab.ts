@@ -240,35 +240,6 @@ export const reinforcementSlabModule: EstimateModule = {
       unit: '/each',
       showIf: (answers) => answers.reo_type === 'bar' && answers.rebar_caps === true,
     },
-    // Labour
-    {
-      id: 'reo_men',
-      type: 'number',
-      label: 'How many men for reo fixing?',
-      defaultValue: 2,
-      min: 1,
-      max: 10,
-      showIf: (answers) => answers.reo_type === 'mesh' || answers.reo_type === 'bar',
-    },
-    {
-      id: 'reo_hours_per_man',
-      type: 'number',
-      label: 'How many hours per man?',
-      defaultValue: 4,
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.reo_type === 'mesh' || answers.reo_type === 'bar',
-    },
-    {
-      id: 'reo_labour_rate',
-      type: 'currency',
-      label: 'Labour Rate per Hour',
-      defaultValue: 75,
-      priceListKey: 'labour.LABOUR HR',
-      unit: '/hr',
-      showIf: (answers) => answers.reo_type === 'mesh' || answers.reo_type === 'bar',
-    },
     // Delivery
     {
       id: 'reo_delivery',
@@ -426,26 +397,8 @@ export const reinforcementSlabModule: EstimateModule = {
       subtotal += capCost;
     }
 
-    // Labour
+    // Delivery
     if (reoType === 'mesh' || reoType === 'bar') {
-      const reoMen = Number(answers.reo_men) || 2;
-      const reoHoursPerMan = Number(answers.reo_hours_per_man) || 4;
-      const reoRate = Number(answers.reo_labour_rate) || getPrice(priceMap, 'labour', 'LABOUR HR', 75);
-      const totalReoHours = reoMen * reoHoursPerMan;
-      const reoLabourCost = totalReoHours * reoRate;
-
-      lineItems.push({
-        id: 'reo_labour',
-        description: `Reinforcement Fixing Labour (${reoMen} men × ${reoHoursPerMan} hrs)`,
-        quantity: totalReoHours,
-        unit: 'hrs',
-        unitPrice: reoRate,
-        total: reoLabourCost,
-        category: 'labour',
-      });
-      subtotal += reoLabourCost;
-
-      // Delivery
       const delivery = Number(answers.reo_delivery) || 150;
       if (delivery > 0) {
         lineItems.push({

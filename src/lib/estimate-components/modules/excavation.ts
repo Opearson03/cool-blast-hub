@@ -15,26 +15,6 @@ export const excavationModule: EstimateModule = {
       defaultValue: false,
       required: true,
     },
-    // Setout section
-    {
-      id: 'setout_men',
-      type: 'number',
-      label: 'How many men for setout?',
-      defaultValue: 2,
-      min: 1,
-      max: 10,
-      showIf: (answers) => answers.excavation_required === true,
-    },
-    {
-      id: 'setout_hours_per_man',
-      type: 'number',
-      label: 'How many hours per man for setout?',
-      defaultValue: 2,
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.excavation_required === true,
-    },
     {
       id: 'setout_materials',
       type: 'currency',
@@ -163,22 +143,6 @@ export const excavationModule: EstimateModule = {
         return Math.max(1, estimatedHours); // Minimum 1 hour
       },
     },
-    {
-      id: 'spotter_required',
-      type: 'boolean',
-      label: 'Will the machine require a spotter?',
-      defaultValue: false,
-      showIf: (answers) => answers.excavation_required === true,
-    },
-    {
-      id: 'spotter_rate',
-      type: 'currency',
-      label: 'Spotter hourly rate',
-      defaultValue: 75,
-      priceListKey: 'excavation.SPOTTER',
-      unit: '/hr',
-      showIf: (answers) => answers.excavation_required === true && answers.spotter_required === true,
-    },
     // Auger options
     {
       id: 'auger_required',
@@ -217,27 +181,6 @@ export const excavationModule: EstimateModule = {
         subtotal: 0,
         exclusions: [],
       };
-    }
-
-    const labourRate = getPrice(priceMap, 'labour', 'LABOUR HR', 75);
-
-    // Setout labour
-    const setoutMen = Number(answers.setout_men) || 2;
-    const setoutHoursPerMan = Number(answers.setout_hours_per_man) || 2;
-    const setoutTotalHours = setoutMen * setoutHoursPerMan;
-    const setoutLabourCost = setoutTotalHours * labourRate;
-
-    if (setoutLabourCost > 0) {
-      lineItems.push({
-        id: 'setout_labour',
-        description: `Setout Labour (${setoutMen} men × ${setoutHoursPerMan} hrs)`,
-        quantity: setoutTotalHours,
-        unit: 'hrs',
-        unitPrice: labourRate,
-        total: setoutLabourCost,
-        category: 'labour',
-      });
-      subtotal += setoutLabourCost;
     }
 
     // Setout materials
@@ -285,23 +228,6 @@ export const excavationModule: EstimateModule = {
         category: 'plant',
       });
       subtotal += floatCharge;
-    }
-
-    // Spotter
-    if (answers.spotter_required) {
-      const spotterRate = Number(answers.spotter_rate) || getPrice(priceMap, 'excavation', 'SPOTTER', 75);
-      const spotterCost = excavationHours * spotterRate;
-
-      lineItems.push({
-        id: 'spotter',
-        description: `Excavation Spotter (${excavationHours} hrs)`,
-        quantity: excavationHours,
-        unit: 'hrs',
-        unitPrice: spotterRate,
-        total: spotterCost,
-        category: 'labour',
-      });
-      subtotal += spotterCost;
     }
 
     // Auger

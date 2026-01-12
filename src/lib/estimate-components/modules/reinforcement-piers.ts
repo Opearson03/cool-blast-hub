@@ -107,35 +107,6 @@ export const reinforcementPiersModule: EstimateModule = {
       defaultValue: 'R10',
       showIf: (answers) => answers.is_reinforced === true,
     },
-    // Labour
-    {
-      id: 'reo_men',
-      type: 'number',
-      label: 'How many men for reo fixing?',
-      defaultValue: 2,
-      min: 1,
-      max: 10,
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
-    },
-    {
-      id: 'reo_hours_per_man',
-      type: 'number',
-      label: 'How many hours per man?',
-      defaultValue: 4,
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
-    },
-    {
-      id: 'reo_labour_rate',
-      type: 'currency',
-      label: 'Labour rate per hour',
-      defaultValue: 75,
-      priceListKey: 'labour.LABOUR HR',
-      unit: '/hr',
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
-    },
     // Delivery and sundries
     {
       id: 'reo_delivery',
@@ -251,25 +222,8 @@ export const reinforcementPiersModule: EstimateModule = {
       }
     }
 
-    // Labour for reo fixing
+    // Delivery and sundries (materials only, no labour)
     if (answers.has_starters || answers.is_reinforced) {
-      const reoMen = Number(answers.reo_men) || 2;
-      const reoHoursPerMan = Number(answers.reo_hours_per_man) || 4;
-      const reoRate = Number(answers.reo_labour_rate) || getPrice(priceMap, 'labour', 'LABOUR HR', 75);
-      const totalReoHours = reoMen * reoHoursPerMan;
-      const reoLabourCost = totalReoHours * reoRate;
-
-      lineItems.push({
-        id: 'reo_labour',
-        description: `Reinforcement Fixing Labour (${reoMen} men × ${reoHoursPerMan} hrs)`,
-        quantity: totalReoHours,
-        unit: 'hrs',
-        unitPrice: reoRate,
-        total: reoLabourCost,
-        category: 'labour',
-      });
-      subtotal += reoLabourCost;
-
       // Delivery
       const delivery = Number(answers.reo_delivery) || 150;
       if (delivery > 0) {
