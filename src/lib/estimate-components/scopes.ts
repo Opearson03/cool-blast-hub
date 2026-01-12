@@ -458,6 +458,32 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
       defaultValue: 100,
       unit: 'mm',
     },
+    // Thickening/edge beam questions
+    {
+      id: 'hasThickening',
+      type: 'boolean',
+      label: 'Has Thickening/Edge Beams',
+      required: false,
+      defaultValue: false,
+    },
+    {
+      id: 'thickeningDepth',
+      type: 'number',
+      label: 'Thickening Depth (mm)',
+      required: false,
+      min: 100,
+      defaultValue: 300,
+      unit: 'mm',
+    },
+    {
+      id: 'thickeningWidth',
+      type: 'number',
+      label: 'Thickening Width (mm)',
+      required: false,
+      min: 100,
+      defaultValue: 300,
+      unit: 'mm',
+    },
   ],
   moduleIds: [
     'labour',
@@ -480,7 +506,23 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 0) / 1000;
-    return area * thicknessM;
+    const perimeter = Number(answers.perimeter) || 0;
+    
+    // Base slab volume
+    let volume = area * thicknessM;
+    
+    // Add thickening/edge beam volume if enabled
+    if (answers.hasThickening) {
+      const thickeningDepthM = (Number(answers.thickeningDepth) || 300) / 1000;
+      const thickeningWidthM = (Number(answers.thickeningWidth) || 300) / 1000;
+      // Edge beam volume = perimeter × width × (depth - slab thickness)
+      // Only add the extra depth below the slab
+      const extraDepth = Math.max(0, thickeningDepthM - thicknessM);
+      const thickeningVolume = perimeter * thickeningWidthM * extraDepth;
+      volume += thickeningVolume;
+    }
+    
+    return volume;
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'driveway' },
