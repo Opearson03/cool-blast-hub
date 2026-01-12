@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
 import { MeasurementArea } from "@/lib/estimate-components/types";
 
 interface MultiAreaInputProps {
@@ -14,6 +15,14 @@ interface MultiAreaInputProps {
   onThicknessChange: (thickness: number) => void;
   thicknessDefault?: number;
   thicknessMin?: number;
+  // Thickening/edge beam support
+  showThickeningOption?: boolean;
+  hasThickening?: boolean;
+  onThickeningChange?: (hasThickening: boolean) => void;
+  thickeningDepth?: number;
+  onThickeningDepthChange?: (depth: number) => void;
+  thickeningWidth?: number;
+  onThickeningWidthChange?: (width: number) => void;
 }
 
 export function MultiAreaInput({
@@ -24,6 +33,13 @@ export function MultiAreaInput({
   onThicknessChange,
   thicknessDefault = 100,
   thicknessMin = 75,
+  showThickeningOption = false,
+  hasThickening = false,
+  onThickeningChange,
+  thickeningDepth = 300,
+  onThickeningDepthChange,
+  thickeningWidth = 300,
+  onThickeningWidthChange,
 }: MultiAreaInputProps) {
   const [newAreaName, setNewAreaName] = useState("");
 
@@ -260,6 +276,73 @@ export function MultiAreaInput({
             </span>
           </div>
         </div>
+
+        {/* Thickening / Edge Beams option */}
+        {showThickeningOption && (
+          <div className="pt-3 border-t space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">
+                Thickening / Edge Beams
+              </Label>
+              <Switch
+                checked={hasThickening}
+                onCheckedChange={(checked) => onThickeningChange?.(checked)}
+              />
+            </div>
+            
+            {hasThickening && (
+              <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Thickening Depth (mm)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={thickeningDepth || ""}
+                      onChange={(e) =>
+                        onThickeningDepthChange?.(
+                          e.target.value === "" ? 300 : Number(e.target.value)
+                        )
+                      }
+                      min={100}
+                      step={50}
+                      className="pr-12"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      mm
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Thickening Width (mm)
+                  </Label>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      value={thickeningWidth || ""}
+                      onChange={(e) =>
+                        onThickeningWidthChange?.(
+                          e.target.value === "" ? 300 : Number(e.target.value)
+                        )
+                      }
+                      min={100}
+                      step={50}
+                      className="pr-12"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                      mm
+                    </span>
+                  </div>
+                </div>
+                <p className="col-span-2 text-xs text-muted-foreground">
+                  Extra volume will be calculated based on perimeter × depth × width
+                </p>
+              </div>
+            )}
+          </div>
+        )}
       </CardContent>
     </Card>
   );
