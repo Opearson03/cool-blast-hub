@@ -1,5 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, FileText, Settings, LogOut, Menu, X } from "lucide-react";
@@ -27,12 +28,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { isNative } = usePlatform();
   
   // Set dark mode as default for authenticated users
   useThemeOnAuth();
 
   const handleLogout = async () => {
+    // Clear all cached queries before signing out to prevent cross-business data leakage
+    queryClient.clear();
     await supabase.auth.signOut();
     navigate("/auth");
   };

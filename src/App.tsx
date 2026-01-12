@@ -1,9 +1,10 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQueryClient } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
+import { useEffect } from "react";
 import Index from "./pages/Index";
 import Pricing from "./pages/Pricing";
 import Auth from "./pages/Auth";
@@ -29,12 +30,26 @@ import EmployeeLeave from "./pages/employee/EmployeeLeave";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
+import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
+  const queryClientInstance = useQueryClient();
+  
   // Initialize native capabilities (push notifications, geolocation)
   useNativeCapabilities();
+  
+  // Clear ALL cached queries when auth state changes to prevent cross-business data leakage
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT' || event === 'SIGNED_IN' || event === 'USER_UPDATED') {
+        queryClientInstance.clear();
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [queryClientInstance]);
 
   return (
     <Routes>
