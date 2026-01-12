@@ -138,3 +138,9 @@ plumbing,PLUMBER HR,Plumber Labour Hour,/h,95.00
 plumbing,PLUMBER SUNDRIES,Plumber Sundries Allowance,/item,150.00
 materials,ROADBASE 20MM,Road Base 20mm (Class 2),/m3,55.00
 materials,ROADBASE 40MM,Road Base 40mm (Class 3),/m3,50.00
+formwork,FORM TIMBER,Formwork Timber (generic),/m,8.00
+formwork,FORM TIMBER 100x35,Formwork Timber 100x35mm,/m,5.75
+formwork,FORM TIMBER 150x35,Formwork Timber 150x35mm,/m,8.38
+formwork,FORM TIMBER 170x35,Formwork Timber 170x35mm,/m,9.50
+formwork,FORM TIMBER 200x35,Formwork Timber 200x35mm,/m,11.18
+formwork,FORM STAKE,Timber Stake,/each,3.00
