@@ -199,6 +199,8 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
 
   // Materials
   { category: 'materials', item_code: 'DUST', item_name: 'Supply of Crusher Dust', unit: '/m3', default_price: 60 },
+  { category: 'materials', item_code: 'ROADBASE 20MM', item_name: 'Road Base 20mm (Class 2)', unit: '/m3', default_price: 55 },
+  { category: 'materials', item_code: 'ROADBASE 40MM', item_name: 'Road Base 40mm (Class 3)', unit: '/m3', default_price: 50 },
   { category: 'materials', item_code: 'DISPOSAL', item_name: 'Waste Disposal / Tip Cost', unit: '/item', default_price: 100 },
 
   // Delivery

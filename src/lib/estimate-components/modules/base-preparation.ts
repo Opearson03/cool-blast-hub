@@ -4,7 +4,7 @@ import { getPrice } from '../types';
 export const basePreparationModule: EstimateModule = {
   id: 'base-preparation',
   name: 'Base Preparation',
-  description: 'Crusher dust and plastic membrane for slab preparation',
+  description: 'Road base, crusher dust and plastic membrane for slab preparation',
   icon: 'Layers',
 
   questions: [
@@ -46,6 +46,56 @@ export const basePreparationModule: EstimateModule = {
       priceListKey: 'materials.DUST',
       unit: '/m³',
       showIf: (answers) => answers.crusher_dust_required === true,
+    },
+    // Road Base
+    {
+      id: 'road_base_required',
+      type: 'boolean',
+      label: 'Is road base required?',
+      defaultValue: false,
+      required: true,
+    },
+    {
+      id: 'road_base_type',
+      type: 'select',
+      label: 'Road Base Size',
+      options: [
+        { value: 'ROADBASE 20MM', label: '20mm (Class 2)' },
+        { value: 'ROADBASE 40MM', label: '40mm (Class 3)' },
+      ],
+      defaultValue: 'ROADBASE 20MM',
+      showIf: (answers) => answers.road_base_required === true,
+    },
+    {
+      id: 'road_base_depth',
+      type: 'select',
+      label: 'Road Base Depth',
+      options: [
+        { value: '75', label: '75mm' },
+        { value: '100', label: '100mm' },
+        { value: '150', label: '150mm' },
+        { value: '200', label: '200mm' },
+      ],
+      defaultValue: '100',
+      showIf: (answers) => answers.road_base_required === true,
+    },
+    {
+      id: 'road_base_area',
+      type: 'number',
+      label: 'Area to Cover',
+      unit: 'm²',
+      min: 1,
+      deriveFrom: (scopeData) => scopeData.area || undefined,
+      showIf: (answers) => answers.road_base_required === true,
+    },
+    {
+      id: 'road_base_price',
+      type: 'currency',
+      label: 'Road Base Price',
+      defaultValue: 55,
+      priceListKey: 'materials.ROADBASE 20MM',
+      unit: '/m³',
+      showIf: (answers) => answers.road_base_required === true,
     },
     // Plastic Membrane
     {
@@ -124,6 +174,36 @@ export const basePreparationModule: EstimateModule = {
       subtotal += cost;
     }
 
+    // Road Base
+    if (answers.road_base_required) {
+      const area = Number(answers.road_base_area) || Number(scopeData.area) || 100;
+      const depthMM = Number(answers.road_base_depth) || 100;
+      const depthM = depthMM / 1000;
+      const volume = area * depthM;
+      const tonnes = volume * 1.8; // Road base bulk density ~1.8t/m³
+      
+      const roadBaseType = String(answers.road_base_type) || 'ROADBASE 20MM';
+      const defaultPrice = roadBaseType === 'ROADBASE 40MM' ? 50 : 55;
+      const pricePerM3 = Number(answers.road_base_price) || getPrice(priceMap, 'materials', roadBaseType, defaultPrice);
+      const cost = volume * pricePerM3;
+
+      const typeLabels: Record<string, string> = {
+        'ROADBASE 20MM': '20mm (Class 2)',
+        'ROADBASE 40MM': '40mm (Class 3)',
+      };
+
+      lineItems.push({
+        id: 'road_base',
+        description: `Road Base ${typeLabels[roadBaseType] || roadBaseType} ${depthMM}mm thick (${volume.toFixed(1)}m³ ≈ ${tonnes.toFixed(1)}t for ordering)`,
+        quantity: Math.round(volume * 10) / 10,
+        unit: 'm³',
+        unitPrice: pricePerM3,
+        total: Math.round(cost * 100) / 100,
+        category: 'materials',
+      });
+      subtotal += cost;
+    }
+
     // Plastic Membrane
     if (answers.membrane_required) {
       const area = Number(answers.membrane_area) || Number(scopeData.area) || 100;
@@ -185,6 +265,14 @@ export const basePreparationModule: EstimateModule = {
       });
     }
 
+    if (!answers.road_base_required) {
+      exclusions.push({
+        id: 'no_road_base',
+        text: 'Road base/sub-base material is not included.',
+        moduleId: 'base-preparation',
+      });
+    }
+
     if (!answers.membrane_required) {
       exclusions.push({
         id: 'no_membrane',
@@ -201,6 +289,10 @@ export const basePreparationModule: EstimateModule = {
 
     if (answers.crusher_dust_required && (!answers.crusher_dust_area || answers.crusher_dust_area < 1)) {
       errors.push('Please specify the area for crusher dust');
+    }
+
+    if (answers.road_base_required && (!answers.road_base_area || answers.road_base_area < 1)) {
+      errors.push('Please specify the area for road base');
     }
 
     if (answers.membrane_required && (!answers.membrane_area || answers.membrane_area < 1)) {
