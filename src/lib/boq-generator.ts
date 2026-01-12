@@ -182,6 +182,17 @@ interface ModuleAnswers {
     sundries_required?: boolean;
     sundries_total?: number;
   };
+  "plumbing"?: {
+    plumbing_required?: boolean;
+    strip_drain_required?: boolean;
+    strip_drain_length?: number;
+    strip_drain_price?: number;
+    plumber_allowance?: boolean;
+    plumber_hours?: number;
+    plumber_rate?: number;
+    plumber_sundries?: boolean;
+    sundries_amount?: number;
+  };
   [key: string]: any;
 }
 
@@ -806,6 +817,43 @@ export function generateBOQFromEstimate(
           controlModule.caulking_metres,
           "m",
           controlModule.caulking_price_per_m
+        );
+      }
+    }
+
+    // Plumbing / Strip Drain
+    const plumbingModule = moduleAnswers["plumbing"];
+    if (plumbingModule && plumbingModule.plumbing_required) {
+      // Strip drain
+      if (plumbingModule.strip_drain_required && plumbingModule.strip_drain_length && plumbingModule.strip_drain_length > 0) {
+        addItem(
+          "other",
+          "Strip Drain",
+          plumbingModule.strip_drain_length,
+          "m",
+          plumbingModule.strip_drain_price || 85
+        );
+      }
+      
+      // Plumber labour (add as line item for BOQ)
+      if (plumbingModule.plumber_allowance && plumbingModule.plumber_hours && plumbingModule.plumber_hours > 0) {
+        addItem(
+          "other",
+          "Plumber Labour Allowance",
+          plumbingModule.plumber_hours,
+          "hrs",
+          plumbingModule.plumber_rate || 95
+        );
+      }
+      
+      // Plumber sundries
+      if (plumbingModule.plumber_sundries && plumbingModule.sundries_amount && plumbingModule.sundries_amount > 0) {
+        addItem(
+          "other",
+          "Plumber Sundries",
+          1,
+          "allowance",
+          plumbingModule.sundries_amount
         );
       }
     }

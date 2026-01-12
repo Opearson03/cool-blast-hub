@@ -127,3 +127,6 @@ joint_caulking,CAULKING,Labour & Materials Caulking Joints,/m,10.00
 joint_caulking,CAULKING HRS,Labour Hours,/h,75.00
 joint_saw_cutting,JOINTCUT,Labour & Equipment Saw Cutting,/m,6.50
 joint_saw_cutting,JOINTCUT HR,Labour Hours,/h,75.00
+plumbing,STRIP DRAIN 1M,Strip Drain (per metre),/m,85.00
+plumbing,PLUMBER HR,Plumber Labour Hour,/h,95.00
+plumbing,PLUMBER SUNDRIES,Plumber Sundries Allowance,/item,150.00
