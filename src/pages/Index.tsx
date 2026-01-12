@@ -2,11 +2,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, ArrowRight, Loader2, BarChart3, Clock, FileText, Calculator, MessageSquare } from "lucide-react";
+import { Calendar, CheckCircle, ArrowRight, Loader2, BarChart3, FileText, Calculator, MessageSquare } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import heroPourBackground from "@/assets/hero-pour-background.png";
 import dashboardScreenshot from "@/assets/dashboard-screenshot.png";
 import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
+import estimateScreenshot from "@/assets/estimate-screenshot.png";
+import scheduleScreenshot from "@/assets/schedule-screenshot.png";
 import { Logo } from "@/components/ui/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { SEOHead } from "@/components/seo/SEOHead";
@@ -245,60 +247,95 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Feature 3: Testing & Compliance */}
-          <div className="grid lg:grid-cols-2 gap-8 items-center">
-            <div className="relative rounded-xl overflow-hidden shadow-2xl order-2 lg:order-1">
-              <div className="bg-gradient-to-br from-charcoal/80 to-charcoal-dark p-8 h-64 lg:h-80 flex flex-col justify-center">
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 text-center">
-                    <CheckCircle className="w-6 h-6 text-green-500 mx-auto mb-2" />
-                    <span className="text-2xl font-bold text-green-500">12</span>
-                    <p className="text-xs text-primary-foreground/60">Passed</p>
+          {/* Feature 3: Estimates */}
+          <div className="grid lg:grid-cols-2 gap-8 mb-16 items-center">
+            <div className="relative rounded-xl overflow-hidden shadow-2xl order-2 lg:order-1 border border-border/30">
+              <img 
+                src={estimateScreenshot}
+                alt="PourHub estimate calculator showing concrete costing modules with automatic GST calculations" 
+                className="w-full h-64 lg:h-80 object-cover object-top"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/90 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex items-center gap-4 text-primary-foreground">
+                  <div className="bg-primary/20 p-3 rounded-lg">
+                    <Calculator className="w-6 h-6 text-primary" />
                   </div>
-                  <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 text-center">
-                    <span className="text-2xl font-bold text-red-500">1</span>
-                    <p className="text-xs text-primary-foreground/60">Failed</p>
-                  </div>
-                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-4 text-center">
-                    <Clock className="w-6 h-6 text-amber-500 mx-auto mb-2" />
-                    <span className="text-2xl font-bold text-amber-500">3</span>
-                    <p className="text-xs text-primary-foreground/60">Pending</p>
-                  </div>
-                </div>
-                <div className="bg-background/10 rounded-lg p-4">
-                  <div className="flex justify-between text-sm text-primary-foreground/70 mb-2">
-                    <span>Test ID: P241036-685B</span>
-                    <span className="text-green-500">Pass</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-primary-foreground/50">
-                    <span>28-Day • Target: 32 MPa</span>
-                    <span>Actual: 38 MPa</span>
+                  <div>
+                    <h4 className="font-semibold">Smart Estimates</h4>
+                    <p className="text-sm text-primary-foreground/70">Built-in calculators for accurate quotes</p>
                   </div>
                 </div>
               </div>
             </div>
             <div className="order-1 lg:order-2">
               <h3 className="text-2xl font-bold text-primary-foreground mb-4">
-                Never Miss a Test Result
+                Quote Jobs in Minutes
               </h3>
               <p className="text-primary-foreground/70 mb-6">
-                Track 7-day, 28-day and slump tests with pass/fail status. 
-                Upload lab reports and get instant visibility on concrete quality across all jobs.
+                Built-in calculators for driveways, slabs, piers, footings and more. 
+                Select your scope, enter dimensions, and get accurate costing with GST automatically.
               </p>
               <ul className="space-y-3">
                 <li className="flex items-center gap-3 text-primary-foreground/80">
                   <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>7, 14, 28-day strength tracking</span>
+                  <span>Modular calculators for every scope</span>
                 </li>
                 <li className="flex items-center gap-3 text-primary-foreground/80">
                   <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Lab report uploads & storage</span>
+                  <span>Customizable price lists</span>
                 </li>
                 <li className="flex items-center gap-3 text-primary-foreground/80">
                   <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Automatic pass/fail based on target MPa</span>
+                  <span>Professional PDF quotes to email</span>
                 </li>
               </ul>
+            </div>
+          </div>
+
+          {/* Feature 4: Schedule */}
+          <div className="grid lg:grid-cols-2 gap-8 items-center">
+            <div>
+              <h3 className="text-2xl font-bold text-primary-foreground mb-4">
+                Plan Your Week with Ease
+              </h3>
+              <p className="text-primary-foreground/70 mb-6">
+                Drag and drop pours onto your calendar. See your week at a glance with 
+                job details, times, and addresses all in one view.
+              </p>
+              <ul className="space-y-3">
+                <li className="flex items-center gap-3 text-primary-foreground/80">
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span>Week and month calendar views</span>
+                </li>
+                <li className="flex items-center gap-3 text-primary-foreground/80">
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span>Drag and drop scheduling</span>
+                </li>
+                <li className="flex items-center gap-3 text-primary-foreground/80">
+                  <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
+                  <span>Quick site visit bookings</span>
+                </li>
+              </ul>
+            </div>
+            <div className="relative rounded-xl overflow-hidden shadow-2xl border border-border/30">
+              <img 
+                src={scheduleScreenshot}
+                alt="PourHub scheduling calendar showing weekly pour schedule for concreting jobs" 
+                className="w-full h-64 lg:h-80 object-cover object-top"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-charcoal-dark/90 to-transparent" />
+              <div className="absolute bottom-0 left-0 right-0 p-6">
+                <div className="flex items-center gap-4 text-primary-foreground">
+                  <div className="bg-primary/20 p-3 rounded-lg">
+                    <Calendar className="w-6 h-6 text-primary" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold">Visual Schedule</h4>
+                    <p className="text-sm text-primary-foreground/70">Weekly & monthly pour planning</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
