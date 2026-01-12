@@ -9,30 +9,6 @@ export const cleanupModule: EstimateModule = {
 
   questions: [
     {
-      id: 'cleanup_men',
-      type: 'number',
-      label: 'How many men for cleanup?',
-      min: 1,
-      max: 10,
-      placeholder: 'Enter number of men',
-    },
-    {
-      id: 'cleanup_hours',
-      type: 'number',
-      label: 'How many hours?',
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
-      placeholder: 'Enter hours',
-    },
-    {
-      id: 'cleanup_labour_rate',
-      type: 'currency',
-      label: 'Labour rate per hour',
-      priceListKey: 'labour.LABOUR HR',
-      unit: '/hr',
-    },
-    {
       id: 'disposal_cost',
       type: 'currency',
       label: 'Disposal / tip cost',
@@ -45,56 +21,7 @@ export const cleanupModule: EstimateModule = {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
-    const men = Number(answers.cleanup_men) || 0;
-    const hours = Number(answers.cleanup_hours) || 0;
-    const labourRate = Number(answers.cleanup_labour_rate) || getPrice(priceMap, 'labour', 'LABOUR HR', 75);
     const disposalCost = Number(answers.disposal_cost) || 0;
-
-    // Don't calculate labor cost if no labor inputs provided
-    if (men === 0 || hours === 0) {
-      // Still include disposal if specified
-      if (disposalCost > 0) {
-        lineItems.push({
-          id: 'disposal',
-          description: 'Waste Disposal / Tip Fees',
-          quantity: 1,
-          unit: 'lot',
-          unitPrice: disposalCost,
-          total: disposalCost,
-          category: 'other',
-        });
-        return {
-          moduleId: 'cleanup',
-          moduleName: 'Cleanup',
-          lineItems,
-          subtotal: disposalCost,
-          exclusions: [],
-        };
-      }
-      return {
-        moduleId: 'cleanup',
-        moduleName: 'Cleanup',
-        lineItems: [],
-        subtotal: 0,
-        exclusions: [],
-      };
-    }
-
-    const totalHours = men * hours;
-    const labourCost = totalHours * labourRate;
-
-    if (labourCost > 0) {
-      lineItems.push({
-        id: 'cleanup_labour',
-        description: `Cleanup Labour (${men} men × ${hours} hrs)`,
-        quantity: totalHours,
-        unit: 'hrs',
-        unitPrice: labourRate,
-        total: labourCost,
-        category: 'labour',
-      });
-      subtotal += labourCost;
-    }
 
     if (disposalCost > 0) {
       lineItems.push({
@@ -123,16 +50,8 @@ export const cleanupModule: EstimateModule = {
     return [];
   },
 
-  validate: (answers) => {
-    const errors: string[] = [];
-
-    if (!answers.cleanup_men || answers.cleanup_men < 1) {
-      errors.push('Please specify the number of men for cleanup');
-    }
-    if (!answers.cleanup_hours || answers.cleanup_hours < 0.5) {
-      errors.push('Please specify cleanup hours');
-    }
-
-    return { valid: errors.length === 0, errors };
+  validate: (_answers) => {
+    // No required fields - disposal is optional
+    return { valid: true, errors: [] };
   },
 };
