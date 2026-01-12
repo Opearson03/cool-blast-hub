@@ -27,6 +27,7 @@ export const PRICE_LIST_CATEGORIES = [
   { id: 'joint_saw_cutting', label: 'Saw Cutting' },
   { id: 'plumbing', label: 'Plumbing' },
   { id: 'materials', label: 'Materials' },
+  { id: 'formwork', label: 'Formwork' },
 ] as const;
 
 export type PriceListCategory = typeof PRICE_LIST_CATEGORIES[number]['id'];
@@ -208,6 +209,14 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
 
   // Delivery
   { category: 'rebar', item_code: 'REO DELIVERY', item_name: 'Reinforcement Delivery Charge', unit: '/item', default_price: 150 },
+
+  // Formwork
+  { category: 'formwork', item_code: 'FORM TIMBER', item_name: 'Formwork Timber (generic)', unit: '/m', default_price: 8 },
+  { category: 'formwork', item_code: 'FORM TIMBER 100x35', item_name: 'Formwork Timber 100x35mm', unit: '/m', default_price: 5.75 },
+  { category: 'formwork', item_code: 'FORM TIMBER 150x35', item_name: 'Formwork Timber 150x35mm', unit: '/m', default_price: 8.38 },
+  { category: 'formwork', item_code: 'FORM TIMBER 170x35', item_name: 'Formwork Timber 170x35mm', unit: '/m', default_price: 9.50 },
+  { category: 'formwork', item_code: 'FORM TIMBER 200x35', item_name: 'Formwork Timber 200x35mm', unit: '/m', default_price: 11.18 },
+  { category: 'formwork', item_code: 'FORM STAKE', item_name: 'Timber Stake', unit: '/each', default_price: 3 },
 ];
 
 // CSV headers for import/export
