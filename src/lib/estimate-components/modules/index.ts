@@ -6,15 +6,13 @@ export { basePreparationModule } from './base-preparation';
 export { reinforcementPiersModule } from './reinforcement-piers';
 export { reinforcementSlabModule } from './reinforcement-slab';
 export { reinforcementFootingModule } from './reinforcement-footing';
-export { dowelsModule } from './dowels';
+export { connectionsJointsModule } from './connections-joints';
 export { concreteSupplyModule } from './concrete-supply';
 export { labourModule } from './labour';
 export { concretePumpingModule } from './concrete-pumping';
 export { surfaceFinishingModule } from './surface-finishing';
 export { jointsControlModule } from './joints-control';
-export { jointsExpansionModule } from './joints-expansion';
 export { jointsKeyModule } from './joints-key';
-export { jointsFoamModule } from './joints-foam';
 export { architecturalFormworkModule } from './architectural-formwork';
 export { architecturalFinishingModule } from './architectural-finishing';
 export { cleanupModule } from './cleanup';
@@ -28,15 +26,13 @@ import { basePreparationModule } from './base-preparation';
 import { reinforcementPiersModule } from './reinforcement-piers';
 import { reinforcementSlabModule } from './reinforcement-slab';
 import { reinforcementFootingModule } from './reinforcement-footing';
-import { dowelsModule } from './dowels';
+import { connectionsJointsModule } from './connections-joints';
 import { concreteSupplyModule } from './concrete-supply';
 import { labourModule } from './labour';
 import { concretePumpingModule } from './concrete-pumping';
 import { surfaceFinishingModule } from './surface-finishing';
 import { jointsControlModule } from './joints-control';
-import { jointsExpansionModule } from './joints-expansion';
 import { jointsKeyModule } from './joints-key';
-import { jointsFoamModule } from './joints-foam';
 import { architecturalFormworkModule } from './architectural-formwork';
 import { architecturalFinishingModule } from './architectural-finishing';
 import { cleanupModule } from './cleanup';
@@ -56,15 +52,13 @@ export const MODULE_REGISTRY: Record<string, EstimateModule> = {
   'reinforcement-piers': reinforcementPiersModule,
   'reinforcement-slab': reinforcementSlabModule,
   'reinforcement-footing': reinforcementFootingModule,
-  'dowels': dowelsModule,
+  'connections-joints': connectionsJointsModule,
   'concrete-supply': concreteSupplyModule,
   'labour': labourModule,
   'concrete-pumping': concretePumpingModule,
   'surface-finishing': surfaceFinishingModule,
   'joints-control': jointsControlModule,
-  'joints-expansion': jointsExpansionModule,
   'joints-key': jointsKeyModule,
-  'joints-foam': jointsFoamModule,
   'architectural-formwork': architecturalFormworkModule,
   'architectural-finishing': architecturalFinishingModule,
   'cleanup': cleanupModule,

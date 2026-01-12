@@ -114,6 +114,33 @@ interface ModuleAnswers {
     stake_price?: number;
     sundry_fixings?: number;
   };
+  "connections-joints"?: {
+    // Dowels
+    dowels_required?: boolean;
+    dowel_size?: string;
+    dowel_count?: number;
+    dowel_price_each?: number;
+    chemical_anchor?: boolean;
+    chemical_cartridges?: number;
+    chemical_price?: number;
+    // Expansion foam
+    foam_required?: boolean;
+    foam_type?: string;
+    foam_height?: number;
+    foam_length?: number;
+    foam_price_per_m?: number;
+    // Expansion joints
+    expansion_joints_required?: boolean;
+    joint_depth?: number;
+    joint_length?: number;
+    joint_quantity?: number;
+    joint_price_each?: number;
+    capping_required?: boolean;
+    capping_type?: string;
+    capping_length?: number;
+    capping_price_per_m?: number;
+  };
+  // Legacy support for old estimates
   "dowels"?: {
     dowels_required?: boolean;
     dowel_size?: string;
@@ -701,13 +728,22 @@ export function generateBOQFromEstimate(
       }
     }
 
+    // Connections & Joints (combined module) - also handles legacy keys
+    const connectionsModule = moduleAnswers["connections-joints"];
+    const legacyDowelsModule = moduleAnswers["dowels"];
+    const legacyFoamModule = moduleAnswers["joints-foam"];
+    const legacyExpansionModule = moduleAnswers["joints-expansion"];
+    
+    // Use combined module if available, fall back to legacy
+    const dowelsData = connectionsModule || legacyDowelsModule;
+    const foamData = connectionsModule || legacyFoamModule;
+    const expansionData = connectionsModule || legacyExpansionModule;
+
     // Dowels
-    const dowelsModule = moduleAnswers["dowels"];
-    if (dowelsModule && dowelsModule.dowels_required) {
-      const dowelCount = dowelsModule.dowel_count || 0;
-      const dowelSize = dowelsModule.dowel_size || "N12";
-      // Default dowel price if not stored
-      const dowelPrice = dowelsModule.dowel_price_each || 5;
+    if (dowelsData && dowelsData.dowels_required) {
+      const dowelCount = dowelsData.dowel_count || 0;
+      const dowelSize = dowelsData.dowel_size || "N12";
+      const dowelPrice = dowelsData.dowel_price_each || 5;
       if (dowelCount > 0) {
         addItem(
           "reinforcement",
@@ -719,13 +755,12 @@ export function generateBOQFromEstimate(
       }
 
       // Chemical anchors
-      if (dowelsModule.chemical_anchor && dowelsModule.chemical_cartridges) {
-        // Default chemical anchor price if not stored
-        const chemicalPrice = dowelsModule.chemical_price || 35;
+      if (dowelsData.chemical_anchor && dowelsData.chemical_cartridges) {
+        const chemicalPrice = dowelsData.chemical_price || 35;
         addItem(
           "other",
           "Chemical Anchor Cartridges",
-          dowelsModule.chemical_cartridges,
+          dowelsData.chemical_cartridges,
           "pcs",
           chemicalPrice
         );
@@ -733,47 +768,45 @@ export function generateBOQFromEstimate(
     }
 
     // Expansion foam
-    const foamModule = moduleAnswers["joints-foam"];
-    if (foamModule && foamModule.foam_required) {
-      const foamLength = foamModule.foam_length || 0;
-      const foamHeight = foamModule.foam_height || 100;
-      const foamType = foamModule.foam_type || "Standard";
+    if (foamData && foamData.foam_required) {
+      const foamLength = foamData.foam_length || 0;
+      const foamHeight = foamData.foam_height || 100;
+      const foamType = foamData.foam_type || "Standard";
       if (foamLength > 0) {
         addItem(
           "other",
           `Expansion Foam ${foamHeight}mm (${foamType})`,
           foamLength,
           "m",
-          foamModule.foam_price_per_m
+          foamData.foam_price_per_m
         );
       }
     }
 
     // Expansion joints
-    const expansionModule = moduleAnswers["joints-expansion"];
-    if (expansionModule && expansionModule.expansion_joints_required) {
-      const jointQty = expansionModule.joint_quantity || 0;
-      const jointDepth = expansionModule.joint_depth || 100;
-      const jointLength = expansionModule.joint_length || 3000;
+    if (expansionData && expansionData.expansion_joints_required) {
+      const jointQty = expansionData.joint_quantity || 0;
+      const jointDepth = expansionData.joint_depth || 100;
+      const jointLength = expansionData.joint_length || 3000;
       if (jointQty > 0) {
         addItem(
           "other",
           `Expansion Joints ${jointDepth}mm × ${jointLength / 1000}m`,
           jointQty,
           "pcs",
-          expansionModule.joint_price_each
+          expansionData.joint_price_each
         );
       }
 
       // Joint capping
-      if (expansionModule.capping_required && expansionModule.capping_length) {
-        const cappingType = expansionModule.capping_type || "Standard";
+      if (expansionData.capping_required && expansionData.capping_length) {
+        const cappingType = expansionData.capping_type || "Standard";
         addItem(
           "other",
           `Joint Capping (${cappingType})`,
-          expansionModule.capping_length,
+          expansionData.capping_length,
           "m",
-          expansionModule.capping_price_per_m
+          expansionData.capping_price_per_m
         );
       }
     }
