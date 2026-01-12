@@ -135,3 +135,5 @@ joint_saw_cutting,JOINTCUT HR,Labour Hours,/h,75.00
 plumbing,STRIP DRAIN 1M,Strip Drain (per metre),/m,85.00
 plumbing,PLUMBER HR,Plumber Labour Hour,/h,95.00
 plumbing,PLUMBER SUNDRIES,Plumber Sundries Allowance,/item,150.00
+materials,ROADBASE 20MM,Road Base 20mm (Class 2),/m3,55.00
+materials,ROADBASE 40MM,Road Base 40mm (Class 3),/m3,50.00

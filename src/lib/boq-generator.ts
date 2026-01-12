@@ -98,6 +98,11 @@ interface ModuleAnswers {
     crusher_dust_area?: number;
     crusher_dust_depth?: number;
     crusher_dust_price?: number; // per m³
+    road_base_required?: boolean;
+    road_base_type?: string;
+    road_base_depth?: number;
+    road_base_area?: number;
+    road_base_price?: number; // per m³
     membrane_required?: boolean;
     membrane_type?: string;
     membrane_area?: number;
@@ -643,6 +648,36 @@ export function generateBOQFromEstimate(
         addItem(
           "other",
           `Crusher Dust (${depthMM}mm)`,
+          Math.round(tonnes * 10) / 10,
+          "tonnes",
+          Math.round(pricePerTonne * 100) / 100
+        );
+      }
+    }
+
+    // Road Base
+    if (basePrepModule && basePrepModule.road_base_required) {
+      const area = basePrepModule.road_base_area || scopeAnswers.area || 0;
+      const depthMM = Number(basePrepModule.road_base_depth) || 100;
+      const depthM = depthMM / 1000;
+      const volume = area * depthM;
+      const tonnes = volume * 1.8; // Road base bulk density ~1.8t/m³
+      
+      const roadBaseType = basePrepModule.road_base_type || 'ROADBASE 20MM';
+      const typeLabels: Record<string, string> = {
+        'ROADBASE 20MM': '20mm (Class 2)',
+        'ROADBASE 40MM': '40mm (Class 3)',
+      };
+      const displayType = typeLabels[roadBaseType] || roadBaseType;
+      
+      // Price is stored per m³, convert to per tonne for BOQ display
+      const pricePerM3 = basePrepModule.road_base_price || 55;
+      const pricePerTonne = pricePerM3 / 1.8;
+      
+      if (tonnes > 0) {
+        addItem(
+          "other",
+          `Road Base ${displayType} (${depthMM}mm)`,
           Math.round(tonnes * 10) / 10,
           "tonnes",
           Math.round(pricePerTonne * 100) / 100
