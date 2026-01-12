@@ -9,6 +9,8 @@ export { reinforcementFootingModule } from './reinforcement-footing';
 export { connectionsJointsModule } from './connections-joints';
 export { concreteSupplyModule } from './concrete-supply';
 export { labourModule } from './labour';
+export { labourPrepModule } from './labour-prep';
+export { labourPlaceModule } from './labour-place';
 export { concretePumpingModule } from './concrete-pumping';
 export { surfaceFinishingModule } from './surface-finishing';
 export { jointsControlModule } from './joints-control';
@@ -29,6 +31,8 @@ import { reinforcementFootingModule } from './reinforcement-footing';
 import { connectionsJointsModule } from './connections-joints';
 import { concreteSupplyModule } from './concrete-supply';
 import { labourModule } from './labour';
+import { labourPrepModule } from './labour-prep';
+import { labourPlaceModule } from './labour-place';
 import { concretePumpingModule } from './concrete-pumping';
 import { surfaceFinishingModule } from './surface-finishing';
 import { jointsControlModule } from './joints-control';
@@ -55,6 +59,8 @@ export const MODULE_REGISTRY: Record<string, EstimateModule> = {
   'connections-joints': connectionsJointsModule,
   'concrete-supply': concreteSupplyModule,
   'labour': labourModule,
+  'labour-prep': labourPrepModule,
+  'labour-place': labourPlaceModule,
   'concrete-pumping': concretePumpingModule,
   'surface-finishing': surfaceFinishingModule,
   'joints-control': jointsControlModule,

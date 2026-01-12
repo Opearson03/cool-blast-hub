@@ -1,5 +1,10 @@
 category,item_code,item_name,unit,default_price
 labour,LABOUR HR,Labour Hour Charge,/h,75.00
+labour,LABOUR LEAD,Labour Lead Hour,/h,95.00
+labour,LABOUR PREP HR,Labour Prep Hour,/h,75.00
+labour,LABOUR PREP LEAD,Labour Prep Lead Hour,/h,95.00
+labour,LABOUR PLACE HR,Labour Place Hour,/h,75.00
+labour,LABOUR PLACE LEAD,Labour Place Lead Hour,/h,95.00
 excavation,EXC 1.4T,Excavator 1.4 T With Operator,/h,140.00
 excavation,EXC 3.2T,Excavator 3.2 T With Operator,/h,150.00
 excavation,EXC 4T,Excavator 4 T With Operator,/h,160.00

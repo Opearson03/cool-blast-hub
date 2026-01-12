@@ -46,7 +46,7 @@ export interface CostLineItem {
   unit: string;
   unitPrice: number;
   total: number;
-  category: 'labour' | 'materials' | 'plant' | 'subcontractor' | 'other';
+  category: 'labour' | 'labour-prep' | 'labour-place' | 'materials' | 'plant' | 'subcontractor' | 'other';
 }
 
 /**
