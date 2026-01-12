@@ -10,6 +10,7 @@ export interface PriceListItem {
 }
 
 export const PRICE_LIST_CATEGORIES = [
+  { id: 'demolition', label: 'Demolition' },
   { id: 'labour', label: 'Labour' },
   { id: 'excavation', label: 'Excavation & Plant' },
   { id: 'concrete', label: 'Concrete Supply' },
@@ -31,6 +32,8 @@ export const PRICE_LIST_CATEGORIES = [
 export type PriceListCategory = typeof PRICE_LIST_CATEGORIES[number]['id'];
 
 export const DEFAULT_PRICE_LIST: PriceListItem[] = [
+  // Demolition
+  { category: 'demolition', item_code: 'DEMOLITION', item_name: 'Concrete Demolition (incl. labour & disposal)', unit: '/m³', default_price: 2400 },
   // Labour
   { category: 'labour', item_code: 'LABOUR HR', item_name: 'Labour Hour Charge', unit: '/h', default_price: 75 },
   { category: 'labour', item_code: 'LABOUR LEAD', item_name: 'Labour Lead Hour', unit: '/h', default_price: 95 },
