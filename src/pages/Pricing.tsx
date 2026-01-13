@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui/Logo";
 import { SEOHead } from "@/components/seo/SEOHead";
 const Pricing = () => {
   return <>
-      <SEOHead title="PourHub Pricing - $100/month | Concreting Software Australia" description="Simple, all-inclusive pricing for PourHub concreting business management software. $100/month with one month free trial. All features included." canonicalPath="/pricing" keywords="concreting software pricing, construction management software cost, ITP SWMS software price" />
+      <SEOHead title="PourHub Pricing - $100/month | Concreting Software Australia" description="Simple, all-inclusive pricing for PourHub estimating and job tracking software. $100/month with one month free trial. All features included." canonicalPath="/pricing" keywords="concreting software pricing, construction estimating software cost, job tracking software price" />
       <div className="min-h-screen bg-charcoal-dark">
         {/* Header */}
         <header className="px-4 py-6 border-b border-border/30">
@@ -57,12 +57,12 @@ const Pricing = () => {
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-3">
-                  Complete job management for concreting businesses
+                  Estimating and job tracking built for concreting businesses
                 </p>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col">
                 <ul className="space-y-3 flex-1">
-                  {["Unlimited employees", "Unlimited jobs", "Unlimited crews", "Job scheduling with conflict warnings", "Project Startup checklist", "ITPs & SWMS", "Concrete test result tracking & alerts", "Photo & document uploads", "Job Pack PDF export", "Equipment register with service reminders", "Custom ITP & SWMS templates", "Business branding on PDFs", "Priority support"].map((feature, idx) => <li key={idx} className="flex items-start gap-3">
+                  {["Unlimited jobs", "Estimate builder with line-item pricing", "Quote-to-job conversion", "Job scheduling with conflict warnings", "Daily job progress tracking", "Costs vs budget tracking", "Photo & document uploads", "Job Pack PDF export", "Material and pour planning", "Equipment register with service reminders", "Business branding on PDFs", "Priority support"].map((feature, idx) => <li key={idx} className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                       <span className="text-sm">{feature}</span>
                     </li>)}
@@ -90,12 +90,12 @@ const Pricing = () => {
                 <p className="text-primary-foreground/90">Less than 1 hour of labour per month</p>
               </div>
               <div>
-                <div className="text-4xl font-bold text-primary mb-2">100%</div>
-                <p className="text-primary-foreground/90">Digital compliance documentation</p>
+                <div className="text-4xl font-bold text-primary mb-2">Fast</div>
+                <p className="text-primary-foreground/90">Turnaround for estimates and quotes</p>
               </div>
               <div>
-                <div className="text-4xl font-bold text-primary mb-2">0</div>
-                <p className="text-primary-foreground/90">Missed test results</p>
+                <div className="text-4xl font-bold text-primary mb-2">Live</div>
+                <p className="text-primary-foreground/90">Job status visibility for every pour</p>
               </div>
             </div>
           </div>
