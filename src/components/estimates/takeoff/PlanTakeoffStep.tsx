@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { FileUp, ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
 import { useTakeoffData } from '@/hooks/useTakeoffData';
 import { PlanUploader } from './PlanUploader';
+import { PlanViewer } from './PlanViewer';
+import { DrawingCanvas } from './DrawingCanvas';
 import { TakeoffToolbar } from './TakeoffToolbar';
 import { ScopeMarkupChecklist } from './ScopeMarkupChecklist';
 import { CalibrationDialog } from './CalibrationDialog';
@@ -42,6 +43,7 @@ export function PlanTakeoffStep({
     setScale,
     addMarkup,
     deleteMarkup,
+    setCurrentPage,
     detectScale
   } = useTakeoffData({ estimateId, businessId });
 
@@ -49,9 +51,11 @@ export function PlanTakeoffStep({
   const [activeScope, setActiveScope] = useState<string | null>(null);
   const [skippedScopes, setSkippedScopes] = useState<Set<string>>(new Set());
   const [showCalibration, setShowCalibration] = useState(false);
-  const [calibrationPoints, setCalibrationPoints] = useState<TakeoffPoint[]>([]);
   const [zoom, setZoom] = useState(1);
   const [selectedMarkupId, setSelectedMarkupId] = useState<string | null>(null);
+  const [drawingPoints, setDrawingPoints] = useState<TakeoffPoint[]>([]);
+  const [planDimensions, setPlanDimensions] = useState({ width: 0, height: 0 });
+  const [totalPages, setTotalPages] = useState(1);
 
   const isCalibrated = !!takeoff?.scale_pixels_per_meter;
   const hasPlan = !!takeoff?.plan_url;
@@ -61,10 +65,11 @@ export function PlanTakeoffStep({
     [selectedScopes, scopeLabels]
   );
 
-  const handleMarkArea = (scopeId: string) => {
+  const handleMarkArea = useCallback((scopeId: string) => {
     setActiveScope(scopeId);
     setActiveTool('polygon');
-  };
+    setDrawingPoints([]);
+  }, []);
 
   const handleSkipScope = (scopeId: string) => {
     setSkippedScopes(prev => new Set([...prev, scopeId]));
@@ -78,6 +83,39 @@ export function PlanTakeoffStep({
   const handleCalibrate = async (pixelsPerMeter: number, method: 'ai' | 'manual') => {
     await setScale(pixelsPerMeter, method);
   };
+
+  const handleMarkupComplete = useCallback(async (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => {
+    if (!activeScope) return;
+    
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    await addMarkup(activeScope, shapeType, points, color);
+    
+    // Clear drawing state
+    setDrawingPoints([]);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [activeScope, selectedScopes, addMarkup]);
+
+  const handleUndo = useCallback(() => {
+    if (drawingPoints.length > 0) {
+      setDrawingPoints(prev => prev.slice(0, -1));
+    }
+  }, [drawingPoints.length]);
+
+  const handleToolChange = useCallback((tool: DrawingTool['type']) => {
+    setActiveTool(tool);
+    if (tool !== 'polygon' && tool !== 'rectangle') {
+      setDrawingPoints([]);
+    }
+  }, []);
+
+  const handleDimensionsChange = useCallback((dimensions: { width: number; height: number }) => {
+    setPlanDimensions(dimensions);
+  }, []);
+
+  const handlePagesLoaded = useCallback((count: number) => {
+    setTotalPages(count);
+  }, []);
 
   const completedCount = markups.length + skippedScopes.size;
   const canContinue = completedCount === selectedScopes.length || !hasPlan;
@@ -130,14 +168,14 @@ export function PlanTakeoffStep({
       {/* Toolbar */}
       <TakeoffToolbar
         activeTool={activeTool}
-        onToolChange={setActiveTool}
+        onToolChange={handleToolChange}
         onCalibrate={() => setShowCalibration(true)}
-        onUndo={() => {}}
+        onUndo={handleUndo}
         onDelete={() => selectedMarkupId && handleDeleteMarkup(selectedMarkupId)}
         onZoomIn={() => setZoom(z => Math.min(z * 1.25, 3))}
         onZoomOut={() => setZoom(z => Math.max(z / 1.25, 0.25))}
         onFitToScreen={() => setZoom(1)}
-        canUndo={false}
+        canUndo={drawingPoints.length > 0}
         canDelete={!!selectedMarkupId}
         isCalibrated={isCalibrated}
         zoom={zoom}
@@ -145,28 +183,56 @@ export function PlanTakeoffStep({
 
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Plan viewer placeholder */}
+        {/* Plan viewer with drawing canvas */}
         <div className="lg:col-span-2">
-          <Card className="aspect-[4/3] flex items-center justify-center bg-muted/30">
-            {takeoff?.plan_url ? (
-              <div className="text-center p-8">
-                <FileUp className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-sm text-muted-foreground mb-2">
-                  Plan viewer with drawing canvas coming soon
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  For now, use the checklist to skip scopes and enter measurements manually
-                </p>
-                {activeScope && (
-                  <Badge className="mt-4" style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}>
-                    Drawing: {scopeLabels[activeScope]}
-                  </Badge>
-                )}
-              </div>
-            ) : (
+          {takeoff?.plan_url ? (
+            <PlanViewer
+              planUrl={takeoff.plan_url}
+              planType={takeoff.plan_type as 'pdf' | 'image'}
+              pageNumber={takeoff.current_page || 1}
+              totalPages={totalPages}
+              zoom={zoom}
+              onPageChange={setCurrentPage}
+              onPagesLoaded={handlePagesLoaded}
+              onDimensionsChange={handleDimensionsChange}
+            >
+              <DrawingCanvas
+                width={planDimensions.width}
+                height={planDimensions.height}
+                tool={activeTool}
+                activeScope={activeScope}
+                activeScopeColor={activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6'}
+                markups={markups}
+                selectedMarkupId={selectedMarkupId}
+                isCalibrated={isCalibrated}
+                pixelsPerMeter={takeoff.scale_pixels_per_meter}
+                onMarkupComplete={handleMarkupComplete}
+                onMarkupSelect={setSelectedMarkupId}
+                onMarkupUpdate={() => {}}
+                onPointsChange={setDrawingPoints}
+              />
+            </PlanViewer>
+          ) : (
+            <div className="aspect-[4/3] flex items-center justify-center bg-muted/30 rounded-lg">
               <p className="text-sm text-muted-foreground">Loading plan...</p>
-            )}
-          </Card>
+            </div>
+          )}
+          
+          {/* Active scope indicator */}
+          {activeScope && (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge 
+                style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}
+              >
+                Drawing: {scopeLabels[activeScope]}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                {activeTool === 'polygon' 
+                  ? 'Click to add points, double-click or click first point to close'
+                  : 'Click and drag to draw rectangle'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Scope checklist */}
@@ -207,7 +273,7 @@ export function PlanTakeoffStep({
         onCalibrate={handleCalibrate}
         onDetectScale={detectScale}
         isCalibrating={isCalibrating}
-        calibrationPoints={calibrationPoints}
+        calibrationPoints={drawingPoints}
         currentScale={takeoff?.scale_pixels_per_meter || null}
         currentMethod={takeoff?.scale_calibration_method || null}
       />
