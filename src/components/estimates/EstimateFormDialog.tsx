@@ -511,6 +511,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       case "type": return !!estimateType;
       case "client": return !!formData.client_name && !!formData.site_address;
       case "scopes": return selectedScopes.size > 0;
+      case "takeoff": return true; // Takeoff is optional, can always proceed
       case "configure": return true;
       case "inclusions": return true;
       case "summary": return true;
@@ -518,10 +519,94 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     }
   }, [currentStep, estimateType, formData.client_name, formData.site_address, selectedScopes.size]);
 
-  const goNext = () => {
+  // Create a draft estimate for takeoff step (needed for file uploads)
+  const createDraftForTakeoff = useCallback(async (): Promise<string | null> => {
+    if (draftEstimateId) return draftEstimateId;
+    if (!businessId) {
+      // Fetch business ID if not yet available
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: 'Error', description: 'Not authenticated', variant: 'destructive' });
+        return null;
+      }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+      if (!profile?.business_id) {
+        toast({ title: 'Error', description: 'No business found', variant: 'destructive' });
+        return null;
+      }
+      setBusinessId(profile.business_id);
+      
+      // Create minimal draft estimate
+      const { data, error } = await supabase
+        .from("estimates")
+        .insert({
+          business_id: profile.business_id,
+          client_name: formData.client_name || "Draft Estimate",
+          site_address: formData.site_address || "Draft",
+          estimate_type: estimateType || "driveway",
+          status: "draft",
+          selected_scopes: selectedScopesArray as unknown as Json,
+          created_by: user.id,
+        })
+        .select("id")
+        .single();
+      
+      if (error) {
+        console.error('Error creating draft:', error);
+        toast({ title: 'Error', description: 'Failed to create draft estimate', variant: 'destructive' });
+        return null;
+      }
+      
+      setDraftEstimateId(data.id);
+      return data.id;
+    }
+    
+    // businessId available, create draft
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    
+    const { data, error } = await supabase
+      .from("estimates")
+      .insert({
+        business_id: businessId,
+        client_name: formData.client_name || "Draft Estimate",
+        site_address: formData.site_address || "Draft",
+        estimate_type: estimateType || "driveway",
+        status: "draft",
+        selected_scopes: selectedScopesArray as unknown as Json,
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+    
+    if (error) {
+      console.error('Error creating draft:', error);
+      toast({ title: 'Error', description: 'Failed to create draft estimate', variant: 'destructive' });
+      return null;
+    }
+    
+    setDraftEstimateId(data.id);
+    return data.id;
+  }, [draftEstimateId, businessId, formData.client_name, formData.site_address, estimateType, selectedScopesArray, toast]);
+
+  const goNext = async () => {
     const nextIndex = currentStepIndex + 1;
     if (nextIndex < STEP_ORDER.length) {
-      setCurrentStep(STEP_ORDER[nextIndex]);
+      const nextStep = STEP_ORDER[nextIndex];
+      
+      // If entering takeoff step without a draft, create one
+      if (nextStep === "takeoff" && !draftEstimateId && !editEstimate) {
+        const newDraftId = await createDraftForTakeoff();
+        if (!newDraftId) {
+          return; // Failed to create draft, don't proceed
+        }
+      }
+      
+      setCurrentStep(nextStep);
     }
   };
 
