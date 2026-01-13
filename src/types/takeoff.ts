@@ -45,7 +45,7 @@ export interface CalibrationResult {
 }
 
 export interface DrawingTool {
-  type: 'polygon' | 'rectangle' | 'select' | 'pan';
+  type: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate';
 }
 
 export interface ScopeMarkupStatus {
