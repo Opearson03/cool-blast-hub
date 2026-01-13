@@ -238,6 +238,65 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
               // Don't throw - job was created successfully
             }
           }
+
+          // Copy building plan from estimate to job documents
+          if (initialData.source_estimate_id) {
+            try {
+              // Fetch takeoff for the source estimate
+              const { data: takeoff } = await supabase
+                .from("estimate_takeoffs")
+                .select("plan_url, plan_type")
+                .eq("estimate_id", initialData.source_estimate_id)
+                .maybeSingle();
+              
+              if (takeoff?.plan_url) {
+                // Get a fresh signed URL for the private bucket
+                const urlParts = takeoff.plan_url.split('/estimate-plans/');
+                if (urlParts[1]) {
+                  const filePath = decodeURIComponent(urlParts[1].split('?')[0]);
+                  const { data: signedData } = await supabase.storage
+                    .from("estimate-plans")
+                    .createSignedUrl(filePath, 60); // 1 minute for download
+                  
+                  if (signedData?.signedUrl) {
+                    // Download the file
+                    const response = await fetch(signedData.signedUrl);
+                    const blob = await response.blob();
+                    
+                    // Determine extension
+                    const ext = takeoff.plan_type === 'pdf' ? 'pdf' : 
+                                filePath.includes('.png') ? 'png' : 'jpg';
+                    const fileName = `${newJob.id}/${Date.now()}-building-plan.${ext}`;
+                    
+                    // Upload to documents bucket
+                    const { error: uploadError } = await supabase.storage
+                      .from("documents")
+                      .upload(fileName, blob);
+                    
+                    if (!uploadError) {
+                      // Get public URL
+                      const { data: urlData } = supabase.storage
+                        .from("documents")
+                        .getPublicUrl(fileName);
+                      
+                      // Create document record
+                      await supabase.from("documents").insert({
+                        business_id: businessId,
+                        file_name: `Building Plan.${ext}`,
+                        file_type: takeoff.plan_type === 'pdf' ? 'application/pdf' : `image/${ext}`,
+                        file_url: urlData.publicUrl,
+                        category: "job",
+                        reference_id: newJob.id,
+                      });
+                    }
+                  }
+                }
+              }
+            } catch (err) {
+              console.error("Failed to copy plan to job documents:", err);
+              // Don't throw - job was created successfully
+            }
+          }
         }
       }
     },
