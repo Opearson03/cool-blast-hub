@@ -93,9 +93,12 @@ export const basePreparationModule: EstimateModule = {
       type: 'currency',
       label: 'Road Base Price',
       defaultValue: 55,
-      priceListKey: 'materials.ROADBASE 20MM',
       unit: '/m³',
       showIf: (answers) => answers.road_base_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const roadBaseType = moduleAnswers.road_base_type || 'ROADBASE 20MM';
+        return priceMap?.['materials']?.[roadBaseType];
+      },
     },
     // Plastic Membrane
     {
@@ -141,10 +144,14 @@ export const basePreparationModule: EstimateModule = {
       id: 'membrane_price',
       type: 'currency',
       label: 'Membrane Price per Roll',
-      defaultValue: 180,
+      defaultValue: 100,
       unit: '/roll',
       helpText: 'Standard roll is 4m x 50m = 200m²',
       showIf: (answers) => answers.membrane_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const membraneType = moduleAnswers.membrane_type || 'PLASTIC 4X50 MED';
+        return priceMap?.['consumables']?.[membraneType];
+      },
     },
   ],
 

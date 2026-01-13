@@ -143,6 +143,11 @@ export const reinforcementPiersModule: EstimateModule = {
       defaultValue: 2100,
       unit: '/tonne',
       showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const barSize = moduleAnswers.starter_size || moduleAnswers.vertical_bar_size || 'N16';
+        const supplyType = moduleAnswers.rebar_type === 'cut_bend' ? 'CB' : 'STOCK';
+        return priceMap?.['rebar']?.[`${barSize} ${supplyType}`];
+      },
     },
   ],
 

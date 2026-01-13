@@ -110,11 +110,16 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'rebar', item_code: 'R24 CB', item_name: 'R24 Rebar (24mm) Cut & Bend', unit: '/tonne', default_price: 2240 },
 
   // Steel Mesh
+  { category: 'mesh', item_code: 'SL62', item_name: '6000mm x 2400mm - 6mm Mesh', unit: '/sheet', default_price: 55 },
   { category: 'mesh', item_code: 'SL72', item_name: '6000mm x 2400mm - 7mm Mesh', unit: '/sheet', default_price: 76 },
   { category: 'mesh', item_code: 'SL82', item_name: '6000mm x 2400mm - 8mm Mesh', unit: '/sheet', default_price: 97 },
   { category: 'mesh', item_code: 'SL92', item_name: '6000mm x 2400mm - 9mm Mesh', unit: '/sheet', default_price: 125 },
   { category: 'mesh', item_code: 'SL102', item_name: '6000mm x 2400mm - 10mm Mesh', unit: '/sheet', default_price: 153 },
   { category: 'mesh', item_code: 'SL72 UTE', item_name: '4000mm x 2000mm - 7mm Mesh', unit: '/sheet', default_price: 47 },
+  { category: 'mesh', item_code: 'RL718', item_name: '6000mm x 2400mm - 7mm x 100/200', unit: '/sheet', default_price: 95 },
+  { category: 'mesh', item_code: 'RL818', item_name: '6000mm x 2400mm - 8mm x 100/200', unit: '/sheet', default_price: 120 },
+  { category: 'mesh', item_code: 'RL918', item_name: '6000mm x 2400mm - 9mm x 100/200', unit: '/sheet', default_price: 155 },
+  { category: 'mesh', item_code: 'RL1018', item_name: '6000mm x 2400mm - 10mm x 100/200', unit: '/sheet', default_price: 190 },
 
   // Trench Mesh
   { category: 'trench_mesh', item_code: 'L8TM3', item_name: '6000mm - 3Bar 8mm', unit: '/sheet', default_price: 16 },
@@ -130,6 +135,7 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'dowel', item_code: 'R12-300 GAL', item_name: '300mm x 12mm Round Gal Dowel', unit: '/each', default_price: 1.32 },
   { category: 'dowel', item_code: 'R12-450 GAL', item_name: '450mm x 12mm Round Gal Dowel', unit: '/each', default_price: 1.76 },
   { category: 'dowel', item_code: 'R12-600 GAL', item_name: '600mm x 12mm Round Gal Dowel', unit: '/each', default_price: 2.64 },
+  { category: 'dowel', item_code: 'R16-300 GAL', item_name: '300mm x 16mm Round Gal Dowel', unit: '/each', default_price: 2.20 },
   { category: 'dowel', item_code: 'R16-450 GAL', item_name: '450mm x 16mm Round Gal Dowel', unit: '/each', default_price: 3.08 },
   { category: 'dowel', item_code: 'R16-600 GAL', item_name: '600mm x 16mm Round Gal Dowel', unit: '/each', default_price: 4.84 },
   { category: 'dowel', item_code: 'R20-450 GAL', item_name: '450mm x 20mm Round Gal Dowel', unit: '/each', default_price: 4.84 },
@@ -155,6 +161,8 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'consumables', item_code: 'SOG135140', item_name: 'Barchair 135/140 PVC Bag 100', unit: '/bag', default_price: 62.70 },
   { category: 'consumables', item_code: 'SOG145150', item_name: 'Barchair 145/150 PVC Bag 100', unit: '/bag', default_price: 67.30 },
   { category: 'consumables', item_code: 'SOG165170', item_name: 'Barchair 165/170 PVC Bag 100', unit: '/bag', default_price: 81 },
+  { category: 'consumables', item_code: '100120C', item_name: 'Barchair 100/120 PVC Bag 100', unit: '/bag', default_price: 45 },
+  { category: 'consumables', item_code: '125150C', item_name: 'Barchair 125/150 PVC Bag 100', unit: '/bag', default_price: 55 },
   { category: 'consumables', item_code: 'TMCHAIR', item_name: 'Trench Mesh Supports 8-12mm Bar Bag 25', unit: '/bag', default_price: 12.50 },
   { category: 'consumables', item_code: 'POD RAIL', item_name: 'Podrial 560mm 40/55 Bag 20', unit: '/bag', default_price: 26 },
 

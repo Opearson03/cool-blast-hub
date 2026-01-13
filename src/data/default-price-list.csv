@@ -68,6 +68,11 @@ mesh,SL82,6000mm x 2400mm - 8mm Mesh,/sheet,97.00
 mesh,SL92,6000mm x 2400mm - 9mm Mesh,/sheet,125.00
 mesh,SL102,6000mm x 2400mm - 10mm Mesh,/sheet,153.00
 mesh,SL72 UTE,4000mm x 2000mm - 7mm Mesh,/sheet,47.00
+mesh,SL62,6000mm x 2400mm - 6mm Mesh,/sheet,55.00
+mesh,RL718,6000mm x 2400mm - 7mm x 100/200,/sheet,95.00
+mesh,RL818,6000mm x 2400mm - 8mm x 100/200,/sheet,120.00
+mesh,RL918,6000mm x 2400mm - 9mm x 100/200,/sheet,155.00
+mesh,RL1018,6000mm x 2400mm - 10mm x 100/200,/sheet,190.00
 trench_mesh,L8TM3,6000mm - 3Bar 8mm,/sheet,16.00
 trench_mesh,L8TM4,6000mm - 4Bar 8mm,/sheet,21.00
 trench_mesh,L11TM3,6000mm - 3Bar 11mm,/sheet,30.00
@@ -84,6 +89,8 @@ dowel,R16-600 GAL,600mm x 16mm Round Gal Dowel,/each,4.84
 dowel,R20-450 GAL,450mm x 20mm Round Gal Dowel,/each,4.84
 dowel,R20-600 GAL,600mm x 20mm Round Gal Dowel,/each,6.60
 dowel,R24-450 GAL,450mm x 24mm Round Gal Dowel,/each,7.04
+dowel,R16-300 GAL,300mm x 16mm Round Gal Dowel,/each,2.20
+rebar,REO DELIVERY,Reinforcement Delivery,/item,150.00
 consumables,DUCT,Duct Tape 48mm x 30m,/roll,4.50
 consumables,PLASTIC 4X50 HI,Plastic Black 4 x 50m 200um High Impact,/roll,110.00
 consumables,PLASTIC 4X50 MED,Plastic Black 4 x 50m 200um Medium Impact,/roll,100.00
@@ -105,6 +112,8 @@ consumables,SOG165170,Barchair 165/170 PVC Bag 100,/bag,81.00
 consumables,TMCHAIR,Trench Mesh Supports 8-12mm Bar Bag 25,/bag,12.50
 consumables,POD RAIL,Podrial 560mm 40/55 Bag 20,/bag,26.00
 consumables,DUST,Supply of Crusher Dust,/m3,60.00
+consumables,100120C,Barchair 100/120 PVC Bag 100,/bag,45.00
+consumables,125150C,Barchair 125/150 PVC Bag 100,/bag,55.00
 joints_expansion,EXJ10030,Expansion Joint 100mm 3000mm R12 - 300mm Dowel 335/c,/each,95.00
 joints_expansion,EXJ12530,Expansion Joint 125mm 3000mm R16 - 450mm Dowel 450/c,/each,119.30
 joints_expansion,EXJ15030,Expansion Joint 150mm 3000mm R16 - 450mm Dowel 450/c,/each,156.90
