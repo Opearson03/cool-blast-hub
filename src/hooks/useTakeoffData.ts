@@ -23,7 +23,7 @@ interface UseTakeoffDataReturn {
   uploadPlan: (file: File) => Promise<void>;
   deletePlan: () => Promise<void>;
   setScale: (pixelsPerMeter: number, method: 'ai' | 'manual') => Promise<void>;
-  addMarkup: (scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string) => Promise<TakeoffMarkup | null>;
+  addMarkup: (scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, name?: string) => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
   deleteMarkup: (markupId: string) => Promise<void>;
   setCurrentPage: (page: number) => Promise<void>;
@@ -67,6 +67,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         
         setMarkups((markupsData || []).map(m => ({
           ...m,
+          name: m.name || null,
           shape_type: m.shape_type as 'polygon' | 'rectangle',
           points: m.points as unknown as TakeoffPoint[]
         })));
@@ -274,7 +275,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     scopeId: string, 
     shapeType: 'polygon' | 'rectangle', 
     points: TakeoffPoint[],
-    color: string
+    color: string,
+    name?: string
   ): Promise<TakeoffMarkup | null> => {
     if (!takeoff) return null;
 
@@ -304,6 +306,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           area_sqm: area,
           perimeter_m: perimeter,
           color: color,
+          name: name || null,
           page_number: takeoff.current_page
         })
         .select()
@@ -313,6 +316,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       const newMarkup: TakeoffMarkup = {
         ...data,
+        name: data.name || null,
         shape_type: data.shape_type as 'polygon' | 'rectangle',
         points: data.points as unknown as TakeoffPoint[]
       };

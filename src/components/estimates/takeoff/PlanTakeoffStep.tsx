@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
 import { useTakeoffData } from '@/hooks/useTakeoffData';
 import { PlanUploader } from './PlanUploader';
@@ -47,6 +48,7 @@ export function PlanTakeoffStep({
 
   const [activeTool, setActiveTool] = useState<DrawingTool['type']>('select');
   const [activeScope, setActiveScope] = useState<string | null>(null);
+  const [pendingMarkupName, setPendingMarkupName] = useState<string>('');
   const [skippedScopes, setSkippedScopes] = useState<Set<string>>(new Set());
   const [showCalibration, setShowCalibration] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -67,9 +69,15 @@ export function PlanTakeoffStep({
 
   const handleMarkArea = useCallback((scopeId: string) => {
     setActiveScope(scopeId);
+    // Generate default name based on existing markups for this scope
+    const existingForScope = markups.filter(m => m.scope_id === scopeId);
+    const defaultName = existingForScope.length === 0 
+      ? 'Area 1' 
+      : `Area ${existingForScope.length + 1}`;
+    setPendingMarkupName(defaultName);
     setActiveTool('polygon');
     setDrawingPoints([]);
-  }, []);
+  }, [markups]);
 
   const handleSkipScope = (scopeId: string) => {
     setSkippedScopes(prev => new Set([...prev, scopeId]));
@@ -99,13 +107,15 @@ export function PlanTakeoffStep({
     if (!activeScope) return;
     
     const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-    await addMarkup(activeScope, shapeType, points, color);
+    const name = pendingMarkupName.trim() || `Area ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
+    await addMarkup(activeScope, shapeType, points, color, name);
     
     // Clear drawing state
     setDrawingPoints([]);
     setActiveTool('select');
     setActiveScope(null);
-  }, [activeScope, selectedScopes, addMarkup]);
+    setPendingMarkupName('');
+  }, [activeScope, selectedScopes, addMarkup, pendingMarkupName, markups]);
 
   const handleUndo = useCallback(() => {
     if (drawingPoints.length > 0) {
@@ -263,17 +273,26 @@ export function PlanTakeoffStep({
             </div>
           )}
 
-          {/* Active scope indicator */}
+          {/* Active scope indicator with name input */}
           {activeScope && !isCalibrationMode && (
-            <div className="mt-2 flex items-center gap-2">
+            <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge 
                 style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}
               >
                 Drawing: {scopeLabels[activeScope]}
               </Badge>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs text-muted-foreground">Name:</span>
+                <Input
+                  value={pendingMarkupName}
+                  onChange={(e) => setPendingMarkupName(e.target.value)}
+                  placeholder="Area 1"
+                  className="h-7 w-32 text-xs"
+                />
+              </div>
               <span className="text-xs text-muted-foreground">
                 {activeTool === 'polygon' 
-                  ? 'Click to add points, double-click or click first point to close'
+                  ? 'Click to add points, double-click to close'
                   : 'Click and drag to draw rectangle'}
               </span>
             </div>

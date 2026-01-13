@@ -330,6 +330,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     getAreaForScope, 
     getPerimeterForScope, 
     hasMarkupForScope,
+    getMarkupsForScope,
     refetch: refetchMarkups 
   } = useTakeoffMarkups(estimateIdForTakeoff);
   
@@ -1013,22 +1014,55 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     
     // Only pre-fill from takeoff if we have markup AND the user hasn't already entered data
     if (hasMarkup) {
-      const takeoffArea = getAreaForScope(scope);
-      const takeoffPerimeter = getPerimeterForScope(scope);
+      const scopeMarkups = getMarkupsForScope(scope);
       
-      // For multi-area scopes, pre-fill area and perimeter totals
-      // For standard scopes, pre-fill directly
-      if (takeoffArea !== null || takeoffPerimeter !== null) {
+      // For multi-area scopes (driveway, paths_surrounds, crossovers), 
+      // convert each markup into a named MeasurementArea
+      if (scopeDefinition.supportsMultipleAreas && scopeMarkups.length > 0) {
         // Check if user hasn't already overridden with their own values
-        const hasUserArea = initialScopeAnswers.area > 0 || (initialScopeAnswers.areas?.some((a: any) => a.length > 0 || a.width > 0));
+        const hasUserData = initialScopeAnswers.areas?.some((a: any) => a.length > 0 || a.width > 0);
         
-        if (!hasUserArea) {
+        if (!hasUserData) {
+          // Convert markups to MeasurementArea format
+          // Since we don't have length/width from polygon, we'll set area directly
+          // and use approximate square dimensions for display
+          const areasFromTakeoff = scopeMarkups.map((markup, index) => {
+            const area = markup.area_sqm || 0;
+            // Calculate approximate square dimensions for the area
+            const side = Math.sqrt(area);
+            return {
+              id: `takeoff-${markup.markup_id}`,
+              name: markup.name || `Area ${index + 1}`,
+              length: parseFloat(side.toFixed(2)),
+              width: parseFloat(side.toFixed(2)),
+              _fromTakeoff: true,
+              _actualArea: area, // Store actual area for reference
+            };
+          });
+          
           initialScopeAnswers = {
             ...initialScopeAnswers,
             _fromTakeoff: true,
-            ...(takeoffArea !== null && { area: takeoffArea }),
-            ...(takeoffPerimeter !== null && { perimeter: takeoffPerimeter }),
+            areas: areasFromTakeoff,
           };
+        }
+      } else {
+        // For standard scopes, pre-fill area and perimeter directly
+        const takeoffArea = getAreaForScope(scope);
+        const takeoffPerimeter = getPerimeterForScope(scope);
+        
+        if (takeoffArea !== null || takeoffPerimeter !== null) {
+          // Check if user hasn't already overridden with their own values
+          const hasUserArea = initialScopeAnswers.area > 0;
+          
+          if (!hasUserArea) {
+            initialScopeAnswers = {
+              ...initialScopeAnswers,
+              _fromTakeoff: true,
+              ...(takeoffArea !== null && { area: takeoffArea }),
+              ...(takeoffPerimeter !== null && { perimeter: takeoffPerimeter }),
+            };
+          }
         }
       }
     }
