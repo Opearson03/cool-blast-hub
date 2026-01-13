@@ -143,6 +143,7 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'consumables', item_code: 'PLASTIC 4X25 ORG', item_name: 'Plastic Orange 4 x 25m 300um High Impact', unit: '/roll', default_price: 140 },
   { category: 'consumables', item_code: 'TIE WIRE', item_name: 'Tie Wire 1.57mm x 95m Belt Wire Coil', unit: '/roll', default_price: 6 },
   { category: 'consumables', item_code: 'TIE WIRE GAL', item_name: 'Tie Wire 1.57mm x 1.5kg Belt Wire Coil Gal', unit: '/roll', default_price: 18 },
+  { category: 'consumables', item_code: 'TIE GUN WIRE', item_name: 'Tie Gun Wire Coil', unit: '/coil', default_price: 12 },
   { category: 'consumables', item_code: 'REBAR CAP', item_name: 'Reinforcement Bar Caps QTY 100', unit: '/bag', default_price: 55 },
   { category: 'consumables', item_code: '2540C', item_name: 'Barchair & Base 25/40C NS Bag 100', unit: '/bag', default_price: 15.80 },
   { category: 'consumables', item_code: '5065C', item_name: 'Barchair & Base 50/65C NS Bag 100', unit: '/bag', default_price: 16.80 },
