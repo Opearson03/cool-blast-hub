@@ -128,6 +128,14 @@ export function PlanTakeoffStep({
     setTotalPages(count);
   }, []);
 
+  const currentPage = takeoff?.current_page || 1;
+  
+  // Filter markups to only show those on the current page
+  const currentPageMarkups = useMemo(() => 
+    markups.filter(m => m.page_number === currentPage || m.page_number === null),
+    [markups, currentPage]
+  );
+
   const completedCount = markups.length + skippedScopes.size;
   const canContinue = completedCount === selectedScopes.length || !hasPlan;
 
@@ -213,7 +221,7 @@ export function PlanTakeoffStep({
                 tool={activeTool}
                 activeScope={activeScope}
                 activeScopeColor={activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6'}
-                markups={markups}
+                markups={currentPageMarkups}
                 selectedMarkupId={selectedMarkupId}
                 isCalibrated={isCalibrated}
                 pixelsPerMeter={takeoff.scale_pixels_per_meter}
