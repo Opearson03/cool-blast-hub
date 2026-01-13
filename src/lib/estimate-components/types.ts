@@ -123,6 +123,12 @@ export interface MeasurementArea {
   name: string;
   length: number;
   width: number;
+  /** If true, this area was imported from plan takeoff */
+  _fromTakeoff?: boolean;
+  /** Actual measured area from takeoff (more accurate than length x width) */
+  _actualArea?: number;
+  /** Actual measured perimeter from takeoff */
+  _actualPerimeter?: number;
 }
 
 /**

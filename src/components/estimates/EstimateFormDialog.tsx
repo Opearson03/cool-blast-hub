@@ -1028,6 +1028,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           // and use approximate square dimensions for display
           const areasFromTakeoff = scopeMarkups.map((markup, index) => {
             const area = markup.area_sqm || 0;
+            const perimeter = markup.perimeter_m || 0;
             // Calculate approximate square dimensions for the area
             const side = Math.sqrt(area);
             return {
@@ -1036,7 +1037,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               length: parseFloat(side.toFixed(2)),
               width: parseFloat(side.toFixed(2)),
               _fromTakeoff: true,
-              _actualArea: area, // Store actual area for reference
+              _actualArea: area, // Store actual measured area
+              _actualPerimeter: perimeter, // Store actual measured perimeter
             };
           });
           
