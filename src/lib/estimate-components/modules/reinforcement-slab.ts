@@ -184,16 +184,15 @@ export const reinforcementSlabModule: EstimateModule = {
     {
       id: 'chair_price_each',
       type: 'currency',
-      label: 'Chair Price Each',
-      defaultValue: 0.35,
-      unit: '/each',
-      helpText: 'Price per chair (derived from bag price ÷ 100)',
+      label: 'Chair Price per 100',
+      defaultValue: 35,
+      unit: '/100',
+      helpText: 'Price per bag of 100 chairs',
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.bar_chairs === true,
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
         const chairType = moduleAnswers.chair_type || '5065C';
-        const bagPrice = priceMap?.['consumables']?.[chairType];
-        // Bags contain 100 chairs, so divide by 100 to get per-chair price
-        return bagPrice ? bagPrice / 100 : undefined;
+        // Return the bag price directly (bag of 100)
+        return priceMap?.['consumables']?.[chairType];
       },
     },
     // Tie Wire
@@ -363,8 +362,9 @@ export const reinforcementSlabModule: EstimateModule = {
       const chairsPerM2 = Number(answers.chairs_per_m2) || 4;
       const totalChairs = Math.ceil(area * chairsPerM2);
       const chairType = answers.chair_type || '5065C';
-      const chairPrice = Number(answers.chair_price_each) || getPrice(priceMap, 'rebar', chairType, 0.35);
-      const chairCost = totalChairs * chairPrice;
+      const bagPricePer100 = Number(answers.chair_price_each) || getPrice(priceMap, 'consumables', chairType, 35);
+      const bagsNeeded = Math.ceil(totalChairs / 100);
+      const chairCost = bagsNeeded * bagPricePer100;
 
       const chairLabels: Record<string, string> = {
         '2540C': '25-40mm',
@@ -376,10 +376,10 @@ export const reinforcementSlabModule: EstimateModule = {
 
       lineItems.push({
         id: 'bar_chairs',
-        description: `Bar Chairs ${chairLabels[chairType] || chairType} (${totalChairs} pcs)`,
-        quantity: totalChairs,
-        unit: 'pcs',
-        unitPrice: chairPrice,
+        description: `Bar Chairs ${chairLabels[chairType] || chairType} (${bagsNeeded} bags of 100)`,
+        quantity: bagsNeeded,
+        unit: 'bags',
+        unitPrice: bagPricePer100,
         total: Math.round(chairCost * 100) / 100,
         category: 'materials',
       });
