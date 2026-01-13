@@ -118,8 +118,9 @@ Only return the JSON, no other text.`
 
   } catch (error) {
     console.error("Error in detect-plan-scale:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ detected: false, pixels_per_meter: null, confidence: 0, method: null, message: error.message }),
+      JSON.stringify({ detected: false, pixels_per_meter: null, confidence: 0, method: null, message: errorMessage }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
