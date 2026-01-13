@@ -140,11 +140,14 @@ export function PlanTakeoffStep({
 
   const currentPage = takeoff?.current_page || 1;
   
+  // Only show markups after plan dimensions are loaded (prevents misaligned rendering)
+  const dimensionsReady = planDimensions.width > 0 && planDimensions.height > 0;
+  
   // Filter markups to only show those on the current page
-  const currentPageMarkups = useMemo(() => 
-    markups.filter(m => m.page_number === currentPage || m.page_number === null),
-    [markups, currentPage]
-  );
+  const currentPageMarkups = useMemo(() => {
+    if (!dimensionsReady) return [];
+    return markups.filter(m => m.page_number === currentPage || m.page_number === null);
+  }, [markups, currentPage, dimensionsReady]);
 
   const completedCount = markups.length + skippedScopes.size;
   const canContinue = completedCount === selectedScopes.length || !hasPlan;
