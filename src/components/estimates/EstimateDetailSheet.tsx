@@ -27,7 +27,10 @@ import {
   Briefcase,
   Eye,
   PhoneCall,
+  FileImage,
+  Download,
 } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { PrintableEstimate } from "./PrintableEstimate";
 import { InternalBreakdownSection } from "./InternalBreakdownSection";
@@ -108,6 +111,37 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
       return businessData;
     },
     enabled: open,
+  });
+
+  // Fetch takeoff data (building plans) for this estimate
+  const { data: takeoff } = useQuery({
+    queryKey: ["estimate-takeoff", estimate?.id],
+    queryFn: async () => {
+      if (!estimate?.id) return null;
+      const { data, error } = await supabase
+        .from("estimate_takeoffs")
+        .select("*")
+        .eq("estimate_id", estimate.id)
+        .maybeSingle();
+      if (error) throw error;
+      
+      // If takeoff has a plan, generate fresh signed URL (bucket is private)
+      if (data?.plan_url) {
+        // Extract file path from URL
+        const urlParts = data.plan_url.split('/estimate-plans/');
+        if (urlParts[1]) {
+          const filePath = decodeURIComponent(urlParts[1].split('?')[0]);
+          const { data: signedData } = await supabase.storage
+            .from("estimate-plans")
+            .createSignedUrl(filePath, 3600); // 1 hour validity
+          if (signedData?.signedUrl) {
+            return { ...data, plan_url: signedData.signedUrl };
+          }
+        }
+      }
+      return data;
+    },
+    enabled: open && !!estimate?.id,
   });
 
   const formatCurrency = (amount: number) => {
@@ -551,6 +585,35 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                 scopeData={estimate.scope_data as any} 
                 selectedScopes={estimate.selected_scopes}
               />
+            </div>
+          )}
+
+          {/* Building Plans - only show if takeoff has a plan */}
+          {takeoff?.plan_url && (
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase">Building Plans</h3>
+              <Card className="p-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <FileImage className="w-8 h-8 text-primary" />
+                    <div>
+                      <p className="font-medium">Plan Document</p>
+                      <p className="text-xs text-muted-foreground">
+                        {takeoff.plan_type === 'pdf' ? 'PDF Document' : 'Image File'}
+                        {takeoff.page_count && takeoff.page_count > 1 ? ` • ${takeoff.page_count} pages` : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => window.open(takeoff.plan_url, '_blank')}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    View
+                  </Button>
+                </div>
+              </Card>
             </div>
           )}
 
