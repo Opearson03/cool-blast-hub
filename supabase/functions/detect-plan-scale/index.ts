@@ -27,7 +27,17 @@ serve(async (req) => {
     }
 
     const imageBuffer = await imageResponse.arrayBuffer();
-    const base64Image = btoa(String.fromCharCode(...new Uint8Array(imageBuffer)));
+    
+    // Convert to base64 in chunks to avoid stack overflow
+    const uint8Array = new Uint8Array(imageBuffer);
+    let base64Image = "";
+    const chunkSize = 8192;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      base64Image += String.fromCharCode(...chunk);
+    }
+    base64Image = btoa(base64Image);
+    
     const mimeType = imageResponse.headers.get("content-type") || "image/png";
 
     // Use Lovable AI Gateway for scale detection
