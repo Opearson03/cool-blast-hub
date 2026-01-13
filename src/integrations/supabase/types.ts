@@ -1549,6 +1549,7 @@ export type Database = {
           color: string | null
           created_at: string
           id: string
+          name: string | null
           page_number: number | null
           perimeter_m: number | null
           points: Json
@@ -1561,6 +1562,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          name?: string | null
           page_number?: number | null
           perimeter_m?: number | null
           points?: Json
@@ -1573,6 +1575,7 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          name?: string | null
           page_number?: number | null
           perimeter_m?: number | null
           points?: Json

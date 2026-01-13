@@ -4,6 +4,7 @@ import type { TakeoffMarkup, TakeoffPoint } from '@/types/takeoff';
 
 interface ScopeAreaData {
   scope_id: string;
+  name: string | null;
   area_sqm: number | null;
   perimeter_m: number | null;
   markup_id: string;
@@ -15,6 +16,7 @@ interface UseTakeoffMarkupsReturn {
   getAreaForScope: (scopeId: string) => number | null;
   getPerimeterForScope: (scopeId: string) => number | null;
   hasMarkupForScope: (scopeId: string) => boolean;
+  getMarkupsForScope: (scopeId: string) => ScopeAreaData[];
   refetch: () => Promise<void>;
 }
 
@@ -47,13 +49,15 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
       // Then get the markups for this takeoff
       const { data: markupsData, error: markupsError } = await supabase
         .from('takeoff_markups')
-        .select('id, scope_id, area_sqm, perimeter_m')
-        .eq('takeoff_id', takeoffData.id);
+        .select('id, scope_id, name, area_sqm, perimeter_m')
+        .eq('takeoff_id', takeoffData.id)
+        .order('created_at', { ascending: true });
 
       if (markupsError) throw markupsError;
 
       setMarkups((markupsData || []).map(m => ({
         scope_id: m.scope_id,
+        name: m.name,
         area_sqm: m.area_sqm,
         perimeter_m: m.perimeter_m,
         markup_id: m.id,
@@ -84,12 +88,17 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     return markups.some(m => m.scope_id === scopeId);
   }, [markups]);
 
+  const getMarkupsForScope = useCallback((scopeId: string): ScopeAreaData[] => {
+    return markups.filter(m => m.scope_id === scopeId);
+  }, [markups]);
+
   return {
     markups,
     isLoading,
     getAreaForScope,
     getPerimeterForScope,
     hasMarkupForScope,
+    getMarkupsForScope,
     refetch: fetchMarkups,
   };
 }

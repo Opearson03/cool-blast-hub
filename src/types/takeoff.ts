@@ -7,6 +7,7 @@ export interface TakeoffMarkup {
   id: string;
   takeoff_id: string;
   scope_id: string;
+  name: string | null;
   shape_type: 'polygon' | 'rectangle';
   points: TakeoffPoint[];
   area_sqm: number | null;
