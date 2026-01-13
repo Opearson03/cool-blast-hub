@@ -1,10 +1,17 @@
 import { useState } from "react";
-import { Plus, Trash2, Copy } from "lucide-react";
+import { Plus, Trash2, Copy, Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { MeasurementArea } from "@/lib/estimate-components/types";
 
 interface MultiAreaInputProps {
@@ -43,15 +50,24 @@ export function MultiAreaInput({
 }: MultiAreaInputProps) {
   const [newAreaName, setNewAreaName] = useState("");
 
-  // Calculate totals
+  // Check if any areas are from takeoff
+  const hasAnyTakeoffAreas = areas.some((area) => area._fromTakeoff);
+
+  // Calculate totals - use _actualArea if available, otherwise calculate
   const totalArea = areas.reduce((sum, area) => {
+    if (area._actualArea && area._actualArea > 0) {
+      return sum + area._actualArea;
+    }
     const l = Number(area.length) || 0;
     const w = Number(area.width) || 0;
     return sum + l * w;
   }, 0);
 
-  // Approximate perimeter (sum of individual perimeters)
+  // Approximate perimeter - use _actualPerimeter if available
   const totalPerimeter = areas.reduce((sum, area) => {
+    if (area._actualPerimeter && area._actualPerimeter > 0) {
+      return sum + area._actualPerimeter;
+    }
     const l = Number(area.length) || 0;
     const w = Number(area.width) || 0;
     if (l > 0 && w > 0) {
@@ -88,41 +104,88 @@ export function MultiAreaInput({
         ...area,
         id: `area-${Date.now()}`,
         name: `${area.name} (copy)`,
+        _fromTakeoff: false, // Duplicates are manual entries
+        _actualArea: undefined,
+        _actualPerimeter: undefined,
       },
     ]);
   };
 
   const updateArea = (id: string, field: keyof MeasurementArea, value: any) => {
     onChange(
-      areas.map((area) =>
-        area.id === id ? { ...area, [field]: value } : area
-      )
+      areas.map((area) => {
+        if (area.id !== id) return area;
+        
+        // If editing length or width, clear takeoff flags since user is overriding
+        if (field === "length" || field === "width") {
+          return {
+            ...area,
+            [field]: value,
+            _fromTakeoff: false,
+            _actualArea: undefined,
+            _actualPerimeter: undefined,
+          };
+        }
+        
+        return { ...area, [field]: value };
+      })
     );
   };
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">{label}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{label}</CardTitle>
+          {hasAnyTakeoffAreas && (
+            <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 gap-1">
+              <Ruler className="h-3 w-3" />
+              From plan takeoff
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Area list */}
         <div className="space-y-3">
           {areas.map((area, index) => {
-            const areaValue =
-              (Number(area.length) || 0) * (Number(area.width) || 0);
+            // Use actual area from takeoff if available
+            const displayArea = area._actualArea && area._actualArea > 0
+              ? area._actualArea
+              : (Number(area.length) || 0) * (Number(area.width) || 0);
+            
             return (
               <div
                 key={area.id}
-                className="border rounded-lg p-3 bg-muted/30 space-y-3"
+                className={`border rounded-lg p-3 space-y-3 ${
+                  area._fromTakeoff 
+                    ? "bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800" 
+                    : "bg-muted/30"
+                }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <Input
-                    value={area.name}
-                    onChange={(e) => updateArea(area.id, "name", e.target.value)}
-                    placeholder={`Area ${index + 1}`}
-                    className="font-medium flex-1"
-                  />
+                  <div className="flex items-center gap-2 flex-1">
+                    {area._fromTakeoff && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="shrink-0 w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                              <Ruler className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Measured from plan takeoff</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    <Input
+                      value={area.name}
+                      onChange={(e) => updateArea(area.id, "name", e.target.value)}
+                      placeholder={`Area ${index + 1}`}
+                      className="font-medium flex-1"
+                    />
+                  </div>
                   <div className="flex gap-1">
                     <Button
                       type="button"
@@ -202,12 +265,26 @@ export function MultiAreaInput({
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">
                       Area
+                      {area._fromTakeoff && area._actualArea && (
+                        <span className="ml-1 text-blue-600 dark:text-blue-400">(measured)</span>
+                      )}
                     </Label>
-                    <div className="h-9 flex items-center px-3 bg-muted rounded-md text-sm">
-                      {areaValue > 0 ? `${areaValue.toFixed(1)} m²` : "—"}
+                    <div className={`h-9 flex items-center px-3 rounded-md text-sm ${
+                      area._fromTakeoff && area._actualArea
+                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
+                        : "bg-muted"
+                    }`}>
+                      {displayArea > 0 ? `${displayArea.toFixed(1)} m²` : "—"}
                     </div>
                   </div>
                 </div>
+
+                {/* Show note for takeoff areas explaining dimensions are approximate */}
+                {area._fromTakeoff && area._actualArea && (
+                  <p className="text-xs text-blue-600 dark:text-blue-400">
+                    📐 Area measured from plan. Length/width are approximations for reference.
+                  </p>
+                )}
               </div>
             );
           })}
