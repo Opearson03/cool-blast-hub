@@ -94,15 +94,14 @@ export const reinforcementFootingModule: EstimateModule = {
     {
       id: 'tm_chair_price',
       type: 'currency',
-      label: 'Trench Mesh Chair Price',
-      defaultValue: 0.50,
-      unit: '/each',
-      helpText: 'Price per chair (bag of 25 ÷ 25)',
+      label: 'Trench Mesh Chair Price per 25',
+      defaultValue: 12.50,
+      unit: '/25',
+      helpText: 'Price per bag of 25 chairs',
       showIf: (answers) => (answers.reo_type === 'trench_mesh' || answers.reo_type === 'both') && answers.trench_mesh_chairs === true,
       deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
-        const bagPrice = priceMap?.['consumables']?.['TMCHAIR'];
-        // Bags contain 25 chairs
-        return bagPrice ? bagPrice / 25 : undefined;
+        // Return the bag price directly (bag of 25)
+        return priceMap?.['consumables']?.['TMCHAIR'];
       },
     },
     // Longitudinal bar options
@@ -260,15 +259,16 @@ export const reinforcementFootingModule: EstimateModule = {
       if (answers.trench_mesh_chairs) {
         const chairsPerM = Number(answers.tm_chairs_per_metre) || 2;
         const totalChairs = Math.ceil(trenchLength * chairsPerM);
-        const chairPrice = Number(answers.tm_chair_price) || getPrice(priceMap, 'rebar', 'TMCHAIR', 1.50);
-        const chairCost = totalChairs * chairPrice;
+        const bagPricePer25 = Number(answers.tm_chair_price) || getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
+        const bagsNeeded = Math.ceil(totalChairs / 25);
+        const chairCost = bagsNeeded * bagPricePer25;
 
         lineItems.push({
           id: 'trench_mesh_chairs',
-          description: `Trench Mesh Chairs (${totalChairs} pcs)`,
-          quantity: totalChairs,
-          unit: 'pcs',
-          unitPrice: chairPrice,
+          description: `Trench Mesh Chairs (${bagsNeeded} bags of 25)`,
+          quantity: bagsNeeded,
+          unit: 'bags',
+          unitPrice: bagPricePer25,
           total: Math.round(chairCost * 100) / 100,
           category: 'materials',
         });
