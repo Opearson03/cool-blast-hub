@@ -68,6 +68,10 @@ export const reinforcementSlabModule: EstimateModule = {
       unit: '/sheet',
       helpText: 'Standard sheet is 6m x 2.4m (14.4m²)',
       showIf: (answers) => answers.reo_type === 'mesh',
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const meshType = moduleAnswers.mesh_type || 'SL72';
+        return priceMap?.['mesh']?.[meshType];
+      },
     },
     // Bar reinforcement options
     {
@@ -140,6 +144,11 @@ export const reinforcementSlabModule: EstimateModule = {
       defaultValue: 2100,
       unit: '/tonne',
       showIf: (answers) => answers.reo_type === 'bar',
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const barSize = moduleAnswers.bar_size || 'N12';
+        const supplyType = moduleAnswers.bar_supply_type === 'stock' ? 'STOCK' : 'CB';
+        return priceMap?.['rebar']?.[`${barSize} ${supplyType}`];
+      },
     },
     // Bar chairs - enhanced with size selection
     {
@@ -178,7 +187,14 @@ export const reinforcementSlabModule: EstimateModule = {
       label: 'Chair Price Each',
       defaultValue: 0.35,
       unit: '/each',
+      helpText: 'Price per chair (derived from bag price ÷ 100)',
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.bar_chairs === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const chairType = moduleAnswers.chair_type || '5065C';
+        const bagPrice = priceMap?.['consumables']?.[chairType];
+        // Bags contain 100 chairs, so divide by 100 to get per-chair price
+        return bagPrice ? bagPrice / 100 : undefined;
+      },
     },
     // Tie Wire
     {
@@ -214,6 +230,10 @@ export const reinforcementSlabModule: EstimateModule = {
       defaultValue: 15,
       unit: '/coil',
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.tie_wire === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const wireType = moduleAnswers.tie_wire_type || 'TIE WIRE';
+        return priceMap?.['consumables']?.[wireType];
+      },
     },
     // Rebar Caps
     {
@@ -236,9 +256,15 @@ export const reinforcementSlabModule: EstimateModule = {
       id: 'rebar_cap_price',
       type: 'currency',
       label: 'Rebar Cap Price Each',
-      defaultValue: 0.25,
+      defaultValue: 0.55,
       unit: '/each',
+      helpText: 'Price per cap (derived from bag of 100)',
       showIf: (answers) => answers.reo_type === 'bar' && answers.rebar_caps === true,
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
+        const bagPrice = priceMap?.['consumables']?.['REBAR CAP'];
+        // Bags contain 100 caps
+        return bagPrice ? bagPrice / 100 : undefined;
+      },
     },
     // Delivery
     {

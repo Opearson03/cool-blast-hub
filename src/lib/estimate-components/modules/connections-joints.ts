@@ -94,6 +94,10 @@ export const connectionsJointsModule: EstimateModule = {
       defaultValue: 3.50,
       unit: '/each',
       showIf: (answers) => answers.dowels_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const dowelSize = moduleAnswers.dowel_size || 'R12-300 GAL';
+        return priceMap?.['dowel']?.[dowelSize];
+      },
     },
     {
       id: 'chemical_anchor',
@@ -171,9 +175,23 @@ export const connectionsJointsModule: EstimateModule = {
       id: 'foam_price_per_m',
       type: 'currency',
       label: 'Price per Metre',
-      defaultValue: 8,
+      defaultValue: 1.20,
       unit: '/m',
+      helpText: 'Price per metre (roll price ÷ 25m)',
       showIf: (answers) => answers.foam_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const foamHeight = moduleAnswers.foam_height || '100';
+        const foamType = moduleAnswers.foam_type || 'sticky_back';
+        let priceListKey = '';
+        if (foamType === 'sticky_back') {
+          priceListKey = `EJA10${foamHeight}SB`;
+        } else {
+          priceListKey = `EJ10${foamHeight}`;
+        }
+        const rollPrice = priceMap?.['joint_foam']?.[priceListKey];
+        // Rolls are 25m long
+        return rollPrice ? rollPrice / 25 : undefined;
+      },
     },
 
     // ============ EXPANSION JOINTS SECTION ============
@@ -221,9 +239,15 @@ export const connectionsJointsModule: EstimateModule = {
       id: 'joint_price_each',
       type: 'currency',
       label: 'Price per Joint Piece',
-      defaultValue: 35,
+      defaultValue: 95,
       unit: '/each',
       showIf: (answers) => answers.expansion_joints_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const jointDepth = moduleAnswers.joint_depth || '100';
+        const jointLength = moduleAnswers.joint_length || '3000';
+        const priceListKey = `EXJ${jointDepth}${jointLength === '3000' ? '30' : '60'}`;
+        return priceMap?.['joints_expansion']?.[priceListKey];
+      },
     },
     {
       id: 'capping_required',
@@ -262,9 +286,16 @@ export const connectionsJointsModule: EstimateModule = {
       id: 'capping_price_per_m',
       type: 'currency',
       label: 'Capping Price per Metre',
-      defaultValue: 4.50,
+      defaultValue: 8,
       unit: '/m',
+      helpText: 'Price per metre (piece price ÷ 3m)',
       showIf: (answers) => answers.expansion_joints_required === true && answers.capping_required === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const cappingType = moduleAnswers.capping_type || 'EXJ CAP B';
+        const piecePrice = priceMap?.['joints_expansion']?.[cappingType];
+        // Capping pieces are 3m long
+        return piecePrice ? piecePrice / 3 : undefined;
+      },
     },
   ],
 

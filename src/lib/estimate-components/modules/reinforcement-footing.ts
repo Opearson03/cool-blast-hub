@@ -65,7 +65,14 @@ export const reinforcementFootingModule: EstimateModule = {
       label: 'Trench Mesh Price per Metre',
       defaultValue: 18,
       unit: '/m',
+      helpText: 'Price per metre (sheet price ÷ 6m)',
       showIf: (answers) => answers.reo_type === 'trench_mesh' || answers.reo_type === 'both',
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const meshType = moduleAnswers.trench_mesh_type || 'L11TM4';
+        const sheetPrice = priceMap?.['trench_mesh']?.[meshType];
+        // Trench mesh sheets are 6m long
+        return sheetPrice ? sheetPrice / 6 : undefined;
+      },
     },
     // Trench Mesh Chairs
     {
@@ -88,10 +95,15 @@ export const reinforcementFootingModule: EstimateModule = {
       id: 'tm_chair_price',
       type: 'currency',
       label: 'Trench Mesh Chair Price',
-      defaultValue: 1.50,
-      priceListKey: 'rebar.TMCHAIR',
+      defaultValue: 0.50,
       unit: '/each',
+      helpText: 'Price per chair (bag of 25 ÷ 25)',
       showIf: (answers) => (answers.reo_type === 'trench_mesh' || answers.reo_type === 'both') && answers.trench_mesh_chairs === true,
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
+        const bagPrice = priceMap?.['consumables']?.['TMCHAIR'];
+        // Bags contain 25 chairs
+        return bagPrice ? bagPrice / 25 : undefined;
+      },
     },
     // Longitudinal bar options
     {
@@ -149,6 +161,11 @@ export const reinforcementFootingModule: EstimateModule = {
       defaultValue: 2100,
       unit: '/tonne',
       showIf: (answers) => answers.reo_type === 'bar' || answers.reo_type === 'both',
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const barSize = moduleAnswers.long_bar_size || 'N16';
+        // Footings typically use stock lengths
+        return priceMap?.['rebar']?.[`${barSize} STOCK`];
+      },
     },
     // Bar chairs
     {
@@ -185,10 +202,12 @@ export const reinforcementFootingModule: EstimateModule = {
       id: 'tie_wire_price',
       type: 'currency',
       label: 'Tie Wire Price per Coil',
-      defaultValue: 15,
-      priceListKey: 'consumables.TIE WIRE',
+      defaultValue: 6,
       unit: '/coil',
       showIf: (answers) => answers.reo_type !== 'none' && answers.tie_wire === true,
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
+        return priceMap?.['consumables']?.['TIE WIRE'];
+      },
     },
     // Delivery
     {
