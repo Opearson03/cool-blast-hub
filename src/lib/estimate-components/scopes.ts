@@ -150,6 +150,8 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
   icon: 'layers',
   supportsMultipleBeams: true,
   beamsLabel: 'Internal Stiffening Beams',
+  // Hide internal beam fields from standard rendering - they're managed by MultiBeamInput
+  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth'],
   questions: [
     {
       id: 'area',
