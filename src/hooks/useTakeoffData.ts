@@ -151,6 +151,34 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       await fetchTakeoffData();
       toast({ title: 'Plan uploaded', description: 'Your plan has been uploaded successfully.' });
+      
+      // Auto-detect scale in background (silently)
+      setTimeout(async () => {
+        try {
+          const { data, error } = await supabase.functions.invoke('detect-plan-scale', {
+            body: { planUrl: planUrl, pageNumber: 1 }
+          });
+          
+          if (!error && data?.detected && data?.pixels_per_meter) {
+            // Silently apply the detected scale
+            await supabase
+              .from('estimate_takeoffs')
+              .update({
+                scale_pixels_per_meter: data.pixels_per_meter,
+                scale_calibration_method: 'ai',
+                updated_at: new Date().toISOString()
+              })
+              .eq('estimate_id', estimateId);
+            
+            // Refetch to update state
+            await fetchTakeoffData();
+            toast({ title: 'Scale detected', description: 'Scale was automatically detected from your plan.' });
+          }
+        } catch (e) {
+          // Silently fail - user can still calibrate manually
+          console.log('Auto scale detection skipped:', e);
+        }
+      }, 500);
     } catch (error: any) {
       console.error('Error uploading plan:', error);
       toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });

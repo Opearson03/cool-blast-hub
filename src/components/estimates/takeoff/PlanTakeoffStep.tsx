@@ -37,14 +37,12 @@ export function PlanTakeoffStep({
     markups,
     isLoading,
     isUploading,
-    isCalibrating,
     uploadPlan,
     deletePlan,
     setScale,
     addMarkup,
     deleteMarkup,
-    setCurrentPage,
-    detectScale
+    setCurrentPage
   } = useTakeoffData({ estimateId, businessId });
 
   const [activeTool, setActiveTool] = useState<DrawingTool['type']>('select');
@@ -56,6 +54,8 @@ export function PlanTakeoffStep({
   const [drawingPoints, setDrawingPoints] = useState<TakeoffPoint[]>([]);
   const [planDimensions, setPlanDimensions] = useState({ width: 0, height: 0 });
   const [totalPages, setTotalPages] = useState(1);
+  const [calibrationPoints, setCalibrationPoints] = useState<TakeoffPoint[]>([]);
+  const [isCalibrationMode, setIsCalibrationMode] = useState(false);
 
   const isCalibrated = !!takeoff?.scale_pixels_per_meter;
   const hasPlan = !!takeoff?.plan_url;
@@ -82,7 +82,18 @@ export function PlanTakeoffStep({
 
   const handleCalibrate = async (pixelsPerMeter: number, method: 'ai' | 'manual') => {
     await setScale(pixelsPerMeter, method);
+    setIsCalibrationMode(false);
+    setCalibrationPoints([]);
   };
+
+  const handleCalibrationPointsChange = useCallback((points: TakeoffPoint[]) => {
+    setCalibrationPoints(points);
+    // When 2 points are placed, show the calibration dialog
+    if (points.length === 2) {
+      setIsCalibrationMode(false);
+      setShowCalibration(true);
+    }
+  }, []);
 
   const handleMarkupComplete = useCallback(async (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => {
     if (!activeScope) return;
@@ -206,10 +217,13 @@ export function PlanTakeoffStep({
                 selectedMarkupId={selectedMarkupId}
                 isCalibrated={isCalibrated}
                 pixelsPerMeter={takeoff.scale_pixels_per_meter}
+                isCalibrationMode={isCalibrationMode}
+                calibrationPoints={calibrationPoints}
                 onMarkupComplete={handleMarkupComplete}
                 onMarkupSelect={setSelectedMarkupId}
                 onMarkupUpdate={() => {}}
                 onPointsChange={setDrawingPoints}
+                onCalibrationPointsChange={handleCalibrationPointsChange}
               />
             </PlanViewer>
           ) : (
@@ -218,8 +232,31 @@ export function PlanTakeoffStep({
             </div>
           )}
           
+          {/* Calibration mode indicator */}
+          {isCalibrationMode && (
+            <div className="mt-2 flex items-center gap-2">
+              <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
+                Setting Scale: {calibrationPoints.length}/2 points placed
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                Click two points on the plan that are a known distance apart
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setIsCalibrationMode(false);
+                  setCalibrationPoints([]);
+                }}
+                className="text-xs h-6"
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
+
           {/* Active scope indicator */}
-          {activeScope && (
+          {activeScope && !isCalibrationMode && (
             <div className="mt-2 flex items-center gap-2">
               <Badge 
                 style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}
@@ -271,9 +308,12 @@ export function PlanTakeoffStep({
         open={showCalibration}
         onOpenChange={setShowCalibration}
         onCalibrate={handleCalibrate}
-        onDetectScale={detectScale}
-        isCalibrating={isCalibrating}
-        calibrationPoints={drawingPoints}
+        onStartCalibration={() => {
+          setCalibrationPoints([]);
+          setIsCalibrationMode(true);
+          setActiveTool('select');
+        }}
+        calibrationPoints={calibrationPoints}
         currentScale={takeoff?.scale_pixels_per_meter || null}
         currentMethod={takeoff?.scale_calibration_method || null}
       />

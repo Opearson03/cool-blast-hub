@@ -6,17 +6,20 @@ import type { TakeoffMarkup, TakeoffPoint } from '@/types/takeoff';
 interface DrawingCanvasProps {
   width: number;
   height: number;
-  tool: 'polygon' | 'rectangle' | 'select' | 'pan';
+  tool: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate';
   activeScope: string | null;
   activeScopeColor: string;
   markups: TakeoffMarkup[];
   selectedMarkupId: string | null;
   isCalibrated: boolean;
   pixelsPerMeter: number | null;
+  isCalibrationMode?: boolean;
+  calibrationPoints?: TakeoffPoint[];
   onMarkupComplete: (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => void;
   onMarkupSelect: (id: string | null) => void;
   onMarkupUpdate: (id: string, points: TakeoffPoint[]) => void;
   onPointsChange?: (points: TakeoffPoint[]) => void;
+  onCalibrationPointsChange?: (points: TakeoffPoint[]) => void;
 }
 
 export function DrawingCanvas({
@@ -29,10 +32,13 @@ export function DrawingCanvas({
   selectedMarkupId,
   isCalibrated,
   pixelsPerMeter,
+  isCalibrationMode,
+  calibrationPoints = [],
   onMarkupComplete,
   onMarkupSelect,
   onMarkupUpdate,
   onPointsChange,
+  onCalibrationPointsChange,
 }: DrawingCanvasProps) {
   const [drawingPoints, setDrawingPoints] = useState<TakeoffPoint[]>([]);
   const [rectStart, setRectStart] = useState<TakeoffPoint | null>(null);
@@ -74,6 +80,13 @@ export function DrawingCanvas({
 
     const point: TakeoffPoint = { x: pos.x, y: pos.y };
 
+    // Handle calibration mode clicks
+    if (isCalibrationMode && calibrationPoints.length < 2) {
+      const newPoints = [...calibrationPoints, point];
+      onCalibrationPointsChange?.(newPoints);
+      return;
+    }
+
     if (tool === 'select') {
       // Clicking on stage background deselects
       if (e.target === stage) {
@@ -104,7 +117,7 @@ export function DrawingCanvas({
       setDrawingPoints(newPoints);
       onPointsChange?.(newPoints);
     }
-  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange]);
+  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, calibrationPoints, onCalibrationPointsChange]);
 
   // Handle double click to close polygon
   const handleDoubleClick = useCallback(() => {
@@ -174,10 +187,63 @@ export function DrawingCanvas({
 
   // Get cursor style
   const getCursor = (): string => {
+    if (isCalibrationMode) return 'crosshair';
     if (tool === 'pan') return 'grab';
     if (tool === 'select') return 'pointer';
     if (isDrawing) return 'crosshair';
     return 'default';
+  };
+
+  // Render calibration points and line
+  const renderCalibrationOverlay = () => {
+    if (!isCalibrationMode && calibrationPoints.length === 0) return null;
+
+    return (
+      <Group>
+        {/* Line between calibration points */}
+        {calibrationPoints.length === 2 && (
+          <Line
+            points={flattenPoints(calibrationPoints)}
+            stroke="#f97316"
+            strokeWidth={3}
+            dash={[8, 4]}
+          />
+        )}
+        {/* Preview line to mouse */}
+        {calibrationPoints.length === 1 && currentMousePos && (
+          <Line
+            points={[calibrationPoints[0].x, calibrationPoints[0].y, currentMousePos.x, currentMousePos.y]}
+            stroke="#f97316"
+            strokeWidth={2}
+            dash={[5, 5]}
+            opacity={0.7}
+          />
+        )}
+        {/* Calibration points */}
+        {calibrationPoints.map((point, index) => (
+          <Group key={index}>
+            <Circle
+              x={point.x}
+              y={point.y}
+              radius={8}
+              fill="#f97316"
+              stroke="#fff"
+              strokeWidth={2}
+            />
+            <Text
+              x={point.x + 12}
+              y={point.y - 8}
+              text={`Point ${index + 1}`}
+              fontSize={12}
+              fontStyle="bold"
+              fill="#f97316"
+              stroke="#fff"
+              strokeWidth={0.5}
+            />
+          </Group>
+        ))}
+      </Group>
+    );
   };
 
   // Flatten points for Konva Line
@@ -360,6 +426,7 @@ export function DrawingCanvas({
       <Layer>
         {renderMarkups()}
         {renderDrawingPreview()}
+        {renderCalibrationOverlay()}
       </Layer>
     </Stage>
   );
