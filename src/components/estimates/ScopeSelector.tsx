@@ -14,7 +14,15 @@ export type ScopeType =
   | "driveway"
   | "paths_surrounds"
   | "crossovers"
-  | "architectural_concrete";
+  | "architectural_concrete"
+  // Commercial-specific scopes
+  | "pad_footings"
+  | "osd_tank"
+  | "kerbs_channels"
+  | "concrete_stairs"
+  | "retaining_walls"
+  | "pit_bases"
+  | "bollards";
 
 export interface ScopeOption {
   id: ScopeType;
@@ -89,6 +97,49 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     label: "Architectural Concrete", 
     description: "Bench tops, garden walls, tables, seats, planters",
     availableFor: ["house_slab"]
+  },
+  // Commercial-specific scopes
+  { 
+    id: "pad_footings", 
+    label: "Pad Footings", 
+    description: "Isolated pad/spread footings for columns",
+    availableFor: ["commercial_slab"]
+  },
+  { 
+    id: "osd_tank", 
+    label: "OSD Tank / Stormwater", 
+    description: "On-site detention tanks and stormwater pits",
+    availableFor: ["commercial_slab"]
+  },
+  { 
+    id: "kerbs_channels", 
+    label: "Kerbs & Channels", 
+    description: "Concrete kerbing and drainage channels",
+    availableFor: ["commercial_slab"]
+  },
+  { 
+    id: "concrete_stairs", 
+    label: "Concrete Stairs", 
+    description: "Cast-in-place concrete stairways",
+    availableFor: ["commercial_slab"]
+  },
+  { 
+    id: "retaining_walls", 
+    label: "Retaining Walls", 
+    description: "Full retaining wall construction",
+    availableFor: ["commercial_slab"]
+  },
+  { 
+    id: "pit_bases", 
+    label: "Pit Bases", 
+    description: "Pump pits, lift pits, sump bases",
+    availableFor: ["commercial_slab"]
+  },
+  { 
+    id: "bollards", 
+    label: "Bollards", 
+    description: "Concrete bollards for car parks and barriers",
+    availableFor: ["commercial_slab"]
   },
 ];
 

@@ -942,6 +942,768 @@ export const ARCHITECTURAL_CONCRETE_SCOPE: ScopeDefinition = {
   ],
 };
 
+// ============= COMMERCIAL-SPECIFIC SCOPES =============
+
+/**
+ * Pad Footings Scope Definition
+ * Isolated pad/spread footings for column support
+ */
+export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
+  id: 'pad_footings',
+  name: 'Pad Footings',
+  description: 'Isolated pad/spread footings for columns and point loads',
+  icon: 'square',
+  supportsMultipleFootings: true,
+  footingsLabel: 'Pad Footing Configurations',
+  questions: [
+    {
+      id: 'total_num_pads',
+      type: 'number',
+      label: 'Total Number of Pad Footings',
+      required: true,
+      min: 1,
+    },
+    {
+      id: 'total_length',
+      type: 'number',
+      label: 'Average Length (mm)',
+      required: true,
+      min: 100,
+      unit: 'mm',
+    },
+    {
+      id: 'total_width',
+      type: 'number',
+      label: 'Average Width (mm)',
+      required: true,
+      min: 100,
+      unit: 'mm',
+    },
+    {
+      id: 'total_depth',
+      type: 'number',
+      label: 'Average Depth (mm)',
+      required: true,
+      min: 100,
+      unit: 'mm',
+    },
+  ],
+  moduleIds: [
+    'labour-prep',
+    'labour-place',
+    'formwork',
+    'excavation',
+    'reinforcement-footing',
+    'concrete-supply',
+    'concrete-pumping',
+    'cleanup',
+    'sundries',
+    'margin',
+  ],
+  calculateVolume: (answers) => {
+    const footings = answers.footings || [];
+    if (footings.length > 0) {
+      return footings.reduce((sum: number, footing: any) => {
+        const qty = Number(footing.quantity) || 1;
+        const lengthM = (Number(footing.length) || 0) / 1000;
+        const widthM = (Number(footing.width) || 0) / 1000;
+        const depthM = (Number(footing.depth) || 0) / 1000;
+        return sum + qty * lengthM * widthM * depthM;
+      }, 0);
+    }
+    const numPads = Number(answers.total_num_pads) || 0;
+    const lengthM = (Number(answers.total_length) || 0) / 1000;
+    const widthM = (Number(answers.total_width) || 0) / 1000;
+    const depthM = (Number(answers.total_depth) || 0) / 1000;
+    return numPads * lengthM * widthM * depthM;
+  },
+  defaultExclusions: [
+    { id: 'engineering', text: 'Structural engineering design and certification', moduleId: 'pad_footings' },
+    { id: 'setout', text: 'Survey setout of footing locations', moduleId: 'pad_footings' },
+    { id: 'soil_testing', text: 'Soil bearing capacity testing', moduleId: 'pad_footings' },
+    { id: 'dewatering', text: 'Dewatering if groundwater encountered', moduleId: 'pad_footings' },
+  ],
+};
+
+/**
+ * OSD Tank / Stormwater Scope Definition
+ * On-site detention tanks and stormwater management structures
+ */
+export const OSD_TANK_SCOPE: ScopeDefinition = {
+  id: 'osd_tank',
+  name: 'OSD Tank / Stormwater',
+  description: 'On-site detention tanks and stormwater pits',
+  icon: 'box',
+  questions: [
+    {
+      id: 'internal_length',
+      type: 'number',
+      label: 'Internal Length (mm)',
+      required: true,
+      min: 500,
+      unit: 'mm',
+      defaultValue: 3000,
+    },
+    {
+      id: 'internal_width',
+      type: 'number',
+      label: 'Internal Width (mm)',
+      required: true,
+      min: 500,
+      unit: 'mm',
+      defaultValue: 2000,
+    },
+    {
+      id: 'internal_depth',
+      type: 'number',
+      label: 'Internal Depth (mm)',
+      required: true,
+      min: 300,
+      unit: 'mm',
+      defaultValue: 1500,
+    },
+    {
+      id: 'wall_thickness',
+      type: 'number',
+      label: 'Wall Thickness (mm)',
+      required: true,
+      min: 150,
+      unit: 'mm',
+      defaultValue: 200,
+    },
+    {
+      id: 'base_thickness',
+      type: 'number',
+      label: 'Base Thickness (mm)',
+      required: true,
+      min: 150,
+      unit: 'mm',
+      defaultValue: 200,
+    },
+    {
+      id: 'include_lid',
+      type: 'boolean',
+      label: 'Include Lid Slab',
+      defaultValue: true,
+    },
+    {
+      id: 'lid_thickness',
+      type: 'number',
+      label: 'Lid Thickness (mm)',
+      min: 150,
+      unit: 'mm',
+      defaultValue: 200,
+      showIf: (answers) => answers.include_lid === true,
+    },
+  ],
+  moduleIds: [
+    'labour-prep',
+    'labour-place',
+    'formwork',
+    'excavation',
+    'base-preparation',
+    'reinforcement-slab',
+    'concrete-supply',
+    'concrete-pumping',
+    'surface-finishing',
+    'cleanup',
+    'sundries',
+    'margin',
+  ],
+  calculateVolume: (answers) => {
+    const intLengthM = (Number(answers.internal_length) || 3000) / 1000;
+    const intWidthM = (Number(answers.internal_width) || 2000) / 1000;
+    const intDepthM = (Number(answers.internal_depth) || 1500) / 1000;
+    const wallThickM = (Number(answers.wall_thickness) || 200) / 1000;
+    const baseThickM = (Number(answers.base_thickness) || 200) / 1000;
+    
+    // External dimensions
+    const extLength = intLengthM + 2 * wallThickM;
+    const extWidth = intWidthM + 2 * wallThickM;
+    
+    // Base slab volume
+    const baseVolume = extLength * extWidth * baseThickM;
+    
+    // Wall volume (4 walls, accounting for corners)
+    const longWallsVolume = 2 * intLengthM * wallThickM * intDepthM;
+    const shortWallsVolume = 2 * (intWidthM + 2 * wallThickM) * wallThickM * intDepthM;
+    const wallsVolume = longWallsVolume + shortWallsVolume;
+    
+    // Lid volume (optional)
+    let lidVolume = 0;
+    if (answers.include_lid) {
+      const lidThickM = (Number(answers.lid_thickness) || 200) / 1000;
+      lidVolume = extLength * extWidth * lidThickM;
+    }
+    
+    return baseVolume + wallsVolume + lidVolume;
+  },
+  defaultExclusions: [
+    { id: 'engineering', text: 'Structural and hydraulic engineering design', moduleId: 'osd_tank' },
+    { id: 'waterproofing', text: 'Tanking and waterproofing membrane', moduleId: 'osd_tank' },
+    { id: 'pipework', text: 'Inlet/outlet pipework and connections', moduleId: 'osd_tank' },
+    { id: 'grates', text: 'Access hatches and grates', moduleId: 'osd_tank' },
+    { id: 'dewatering', text: 'Dewatering during construction', moduleId: 'osd_tank' },
+    { id: 'backfill', text: 'Backfilling around tank structure', moduleId: 'osd_tank' },
+  ],
+};
+
+/**
+ * Kerbs & Channels Scope Definition
+ * Concrete kerbing and drainage channels
+ */
+export const KERBS_CHANNELS_SCOPE: ScopeDefinition = {
+  id: 'kerbs_channels',
+  name: 'Kerbs & Channels',
+  description: 'Concrete kerbing and drainage channels',
+  icon: 'minus',
+  supportsMultipleFootings: true,
+  footingsLabel: 'Kerb Sections',
+  questions: [
+    {
+      id: 'total_length',
+      type: 'number',
+      label: 'Total Length (m)',
+      required: true,
+      min: 1,
+      unit: 'm',
+    },
+    {
+      id: 'kerb_type',
+      type: 'select',
+      label: 'Kerb Profile Type',
+      required: true,
+      options: [
+        { value: 'barrier', label: 'Barrier Kerb (150x300mm)' },
+        { value: 'mountable', label: 'Mountable Kerb (150x150mm)' },
+        { value: 'rollover', label: 'Roll-top Kerb (150x200mm)' },
+        { value: 'channel', label: 'Channel Only (300x75mm)' },
+        { value: 'kerb_channel', label: 'Kerb & Channel (450x300mm)' },
+      ],
+      defaultValue: 'barrier',
+    },
+  ],
+  moduleIds: [
+    'labour-prep',
+    'labour-place',
+    'formwork',
+    'excavation',
+    'concrete-supply',
+    'concrete-pumping',
+    'surface-finishing',
+    'cleanup',
+    'sundries',
+    'margin',
+  ],
+  calculateVolume: (answers) => {
+    const footings = answers.footings || [];
+    let totalLength = 0;
+    
+    if (footings.length > 0) {
+      totalLength = footings.reduce((sum: number, f: any) => sum + (Number(f.length) || 0), 0);
+    } else {
+      totalLength = Number(answers.total_length) || 0;
+    }
+    
+    // Cross-sectional areas for different kerb types (in m²)
+    const kerbAreas: Record<string, number> = {
+      barrier: 0.15 * 0.30,        // 150mm x 300mm
+      mountable: 0.15 * 0.15,      // 150mm x 150mm
+      rollover: 0.15 * 0.20,       // 150mm x 200mm
+      channel: 0.30 * 0.075,       // 300mm x 75mm
+      kerb_channel: 0.45 * 0.30,   // 450mm x 300mm (approximate)
+    };
+    
+    const kerbType = answers.kerb_type || 'barrier';
+    const crossSectionArea = kerbAreas[kerbType] || 0.045;
+    
+    return totalLength * crossSectionArea;
+  },
+  defaultExclusions: [
+    { id: 'setout', text: 'Survey setout and line marking', moduleId: 'kerbs_channels' },
+    { id: 'subgrade', text: 'Subgrade preparation and compaction', moduleId: 'kerbs_channels' },
+    { id: 'joints', text: 'Expansion and contraction joints', moduleId: 'kerbs_channels' },
+    { id: 'drainage', text: 'Stormwater drainage connections', moduleId: 'kerbs_channels' },
+  ],
+};
+
+/**
+ * Concrete Stairs Scope Definition
+ * Cast-in-place concrete stairways
+ */
+export const CONCRETE_STAIRS_SCOPE: ScopeDefinition = {
+  id: 'concrete_stairs',
+  name: 'Concrete Stairs',
+  description: 'Cast-in-place concrete stairways',
+  icon: 'stairs',
+  questions: [
+    {
+      id: 'num_flights',
+      type: 'number',
+      label: 'Number of Flights',
+      required: true,
+      min: 1,
+      defaultValue: 1,
+    },
+    {
+      id: 'treads_per_flight',
+      type: 'number',
+      label: 'Treads per Flight',
+      required: true,
+      min: 2,
+      defaultValue: 12,
+    },
+    {
+      id: 'tread_depth',
+      type: 'number',
+      label: 'Tread Depth (Going) (mm)',
+      required: true,
+      min: 250,
+      unit: 'mm',
+      defaultValue: 300,
+    },
+    {
+      id: 'riser_height',
+      type: 'number',
+      label: 'Riser Height (mm)',
+      required: true,
+      min: 150,
+      unit: 'mm',
+      defaultValue: 175,
+    },
+    {
+      id: 'stair_width',
+      type: 'number',
+      label: 'Stair Width (mm)',
+      required: true,
+      min: 900,
+      unit: 'mm',
+      defaultValue: 1200,
+    },
+    {
+      id: 'waist_thickness',
+      type: 'number',
+      label: 'Waist Thickness (mm)',
+      required: true,
+      min: 150,
+      unit: 'mm',
+      defaultValue: 200,
+      helpText: 'Minimum thickness of slab under treads',
+    },
+    {
+      id: 'include_landings',
+      type: 'boolean',
+      label: 'Include Landing Platforms',
+      defaultValue: true,
+    },
+    {
+      id: 'landing_area',
+      type: 'number',
+      label: 'Total Landing Area (m²)',
+      min: 0,
+      unit: 'm²',
+      defaultValue: 2,
+      showIf: (answers) => answers.include_landings === true,
+    },
+    {
+      id: 'landing_thickness',
+      type: 'number',
+      label: 'Landing Thickness (mm)',
+      min: 150,
+      unit: 'mm',
+      defaultValue: 200,
+      showIf: (answers) => answers.include_landings === true,
+    },
+  ],
+  moduleIds: [
+    'labour-prep',
+    'labour-place',
+    'formwork',
+    'reinforcement-slab',
+    'concrete-supply',
+    'concrete-pumping',
+    'surface-finishing',
+    'cleanup',
+    'sundries',
+    'margin',
+  ],
+  calculateVolume: (answers) => {
+    const numFlights = Number(answers.num_flights) || 1;
+    const treadsPerFlight = Number(answers.treads_per_flight) || 12;
+    const treadDepthM = (Number(answers.tread_depth) || 300) / 1000;
+    const riserHeightM = (Number(answers.riser_height) || 175) / 1000;
+    const stairWidthM = (Number(answers.stair_width) || 1200) / 1000;
+    const waistThickM = (Number(answers.waist_thickness) || 200) / 1000;
+    
+    // Flight length (horizontal run)
+    const flightLength = treadsPerFlight * treadDepthM;
+    // Flight rise (vertical)
+    const flightRise = treadsPerFlight * riserHeightM;
+    // Stair slope length (hypotenuse)
+    const slopeLength = Math.sqrt(flightLength * flightLength + flightRise * flightRise);
+    
+    // Waist slab volume (base slab following slope)
+    const waistVolume = slopeLength * stairWidthM * waistThickM;
+    
+    // Tread/riser volume (triangular sections on top of waist)
+    // Each tread adds approximately half a rectangular prism
+    const treadRiserVolume = treadsPerFlight * (treadDepthM * riserHeightM * stairWidthM) / 2;
+    
+    // Total flight volume
+    const flightVolume = (waistVolume + treadRiserVolume) * numFlights;
+    
+    // Landing volume
+    let landingVolume = 0;
+    if (answers.include_landings) {
+      const landingAreaM2 = Number(answers.landing_area) || 2;
+      const landingThickM = (Number(answers.landing_thickness) || 200) / 1000;
+      landingVolume = landingAreaM2 * landingThickM;
+    }
+    
+    return flightVolume + landingVolume;
+  },
+  defaultExclusions: [
+    { id: 'engineering', text: 'Structural engineering design', moduleId: 'concrete_stairs' },
+    { id: 'handrails', text: 'Handrails and balustrades', moduleId: 'concrete_stairs' },
+    { id: 'nosings', text: 'Stair nosing strips', moduleId: 'concrete_stairs' },
+    { id: 'propping', text: 'Temporary propping (if suspended)', moduleId: 'concrete_stairs' },
+    { id: 'finishes', text: 'Tiled or other surface finishes', moduleId: 'concrete_stairs' },
+  ],
+};
+
+/**
+ * Retaining Walls Scope Definition
+ * Full retaining wall construction including footing
+ */
+export const RETAINING_WALLS_SCOPE: ScopeDefinition = {
+  id: 'retaining_walls',
+  name: 'Retaining Walls',
+  description: 'Full retaining wall construction',
+  icon: 'layers',
+  supportsMultipleFootings: true,
+  footingsLabel: 'Wall Sections',
+  questions: [
+    {
+      id: 'total_length',
+      type: 'number',
+      label: 'Total Wall Length (m)',
+      required: true,
+      min: 1,
+      unit: 'm',
+    },
+    {
+      id: 'wall_height',
+      type: 'number',
+      label: 'Wall Height (mm)',
+      required: true,
+      min: 300,
+      unit: 'mm',
+      defaultValue: 1200,
+    },
+    {
+      id: 'wall_thickness',
+      type: 'number',
+      label: 'Wall Thickness (mm)',
+      required: true,
+      min: 150,
+      unit: 'mm',
+      defaultValue: 200,
+    },
+    {
+      id: 'include_footing',
+      type: 'boolean',
+      label: 'Include Strip Footing',
+      defaultValue: true,
+    },
+    {
+      id: 'footing_width',
+      type: 'number',
+      label: 'Footing Width (mm)',
+      min: 300,
+      unit: 'mm',
+      defaultValue: 600,
+      showIf: (answers) => answers.include_footing === true,
+    },
+    {
+      id: 'footing_depth',
+      type: 'number',
+      label: 'Footing Depth (mm)',
+      min: 200,
+      unit: 'mm',
+      defaultValue: 300,
+      showIf: (answers) => answers.include_footing === true,
+    },
+  ],
+  moduleIds: [
+    'labour-prep',
+    'labour-place',
+    'formwork',
+    'excavation',
+    'reinforcement-slab',
+    'concrete-supply',
+    'concrete-pumping',
+    'surface-finishing',
+    'cleanup',
+    'sundries',
+    'margin',
+  ],
+  calculateVolume: (answers) => {
+    const footings = answers.footings || [];
+    let totalLength = 0;
+    
+    if (footings.length > 0) {
+      totalLength = footings.reduce((sum: number, f: any) => sum + (Number(f.length) || 0), 0);
+    } else {
+      totalLength = Number(answers.total_length) || 0;
+    }
+    
+    const wallHeightM = (Number(answers.wall_height) || 1200) / 1000;
+    const wallThickM = (Number(answers.wall_thickness) || 200) / 1000;
+    
+    // Wall volume
+    const wallVolume = totalLength * wallHeightM * wallThickM;
+    
+    // Footing volume
+    let footingVolume = 0;
+    if (answers.include_footing) {
+      const footingWidthM = (Number(answers.footing_width) || 600) / 1000;
+      const footingDepthM = (Number(answers.footing_depth) || 300) / 1000;
+      footingVolume = totalLength * footingWidthM * footingDepthM;
+    }
+    
+    return wallVolume + footingVolume;
+  },
+  defaultExclusions: [
+    { id: 'engineering', text: 'Structural engineering and geotechnical design', moduleId: 'retaining_walls' },
+    { id: 'drainage', text: 'Weep holes and agricultural drain installation', moduleId: 'retaining_walls' },
+    { id: 'waterproofing', text: 'Waterproofing membrane to rear face', moduleId: 'retaining_walls' },
+    { id: 'backfill', text: 'Backfilling with drainage aggregate', moduleId: 'retaining_walls' },
+    { id: 'capping', text: 'Capping or coping to top of wall', moduleId: 'retaining_walls' },
+  ],
+};
+
+/**
+ * Pit Bases Scope Definition
+ * Pump pits, lift pits, sump bases
+ */
+export const PIT_BASES_SCOPE: ScopeDefinition = {
+  id: 'pit_bases',
+  name: 'Pit Bases',
+  description: 'Pump pits, lift pits, sump bases',
+  icon: 'box',
+  supportsMultipleFootings: true,
+  footingsLabel: 'Pit Configurations',
+  questions: [
+    {
+      id: 'total_num_pits',
+      type: 'number',
+      label: 'Total Number of Pits',
+      required: true,
+      min: 1,
+    },
+    {
+      id: 'pit_length',
+      type: 'number',
+      label: 'Average Pit Length (mm)',
+      required: true,
+      min: 300,
+      unit: 'mm',
+      defaultValue: 1000,
+    },
+    {
+      id: 'pit_width',
+      type: 'number',
+      label: 'Average Pit Width (mm)',
+      required: true,
+      min: 300,
+      unit: 'mm',
+      defaultValue: 800,
+    },
+    {
+      id: 'base_thickness',
+      type: 'number',
+      label: 'Base Thickness (mm)',
+      required: true,
+      min: 100,
+      unit: 'mm',
+      defaultValue: 150,
+    },
+    {
+      id: 'include_walls',
+      type: 'boolean',
+      label: 'Include Pit Walls',
+      defaultValue: false,
+    },
+    {
+      id: 'wall_height',
+      type: 'number',
+      label: 'Wall Height (mm)',
+      min: 200,
+      unit: 'mm',
+      defaultValue: 600,
+      showIf: (answers) => answers.include_walls === true,
+    },
+    {
+      id: 'wall_thickness',
+      type: 'number',
+      label: 'Wall Thickness (mm)',
+      min: 100,
+      unit: 'mm',
+      defaultValue: 150,
+      showIf: (answers) => answers.include_walls === true,
+    },
+  ],
+  moduleIds: [
+    'labour-prep',
+    'labour-place',
+    'formwork',
+    'excavation',
+    'base-preparation',
+    'reinforcement-slab',
+    'concrete-supply',
+    'concrete-pumping',
+    'cleanup',
+    'sundries',
+    'margin',
+  ],
+  calculateVolume: (answers) => {
+    const footings = answers.footings || [];
+    let totalPits = 0;
+    let avgLength = 0;
+    let avgWidth = 0;
+    
+    if (footings.length > 0) {
+      totalPits = footings.reduce((sum: number, f: any) => sum + (Number(f.quantity) || 1), 0);
+      // Use first config as representative (simplified)
+      avgLength = (Number(footings[0]?.length) || 1000) / 1000;
+      avgWidth = (Number(footings[0]?.width) || 800) / 1000;
+    } else {
+      totalPits = Number(answers.total_num_pits) || 1;
+      avgLength = (Number(answers.pit_length) || 1000) / 1000;
+      avgWidth = (Number(answers.pit_width) || 800) / 1000;
+    }
+    
+    const baseThickM = (Number(answers.base_thickness) || 150) / 1000;
+    
+    // Base volume
+    const baseVolume = totalPits * avgLength * avgWidth * baseThickM;
+    
+    // Wall volume
+    let wallVolume = 0;
+    if (answers.include_walls) {
+      const wallHeightM = (Number(answers.wall_height) || 600) / 1000;
+      const wallThickM = (Number(answers.wall_thickness) || 150) / 1000;
+      const perimeter = 2 * (avgLength + avgWidth);
+      wallVolume = totalPits * perimeter * wallHeightM * wallThickM;
+    }
+    
+    return baseVolume + wallVolume;
+  },
+  defaultExclusions: [
+    { id: 'engineering', text: 'Structural engineering design', moduleId: 'pit_bases' },
+    { id: 'waterproofing', text: 'Waterproofing and tanking', moduleId: 'pit_bases' },
+    { id: 'penetrations', text: 'Pipe penetrations and puddle flanges', moduleId: 'pit_bases' },
+    { id: 'grates', text: 'Grates and access covers', moduleId: 'pit_bases' },
+    { id: 'pumps', text: 'Pump equipment and pipework', moduleId: 'pit_bases' },
+  ],
+};
+
+/**
+ * Bollards Scope Definition
+ * Concrete bollards for car parks and barriers
+ */
+export const BOLLARDS_SCOPE: ScopeDefinition = {
+  id: 'bollards',
+  name: 'Bollards',
+  description: 'Concrete bollards for car parks and barriers',
+  icon: 'cylinder',
+  questions: [
+    {
+      id: 'num_bollards',
+      type: 'number',
+      label: 'Number of Bollards',
+      required: true,
+      min: 1,
+      defaultValue: 4,
+    },
+    {
+      id: 'diameter',
+      type: 'number',
+      label: 'Bollard Diameter (mm)',
+      required: true,
+      min: 150,
+      unit: 'mm',
+      defaultValue: 200,
+    },
+    {
+      id: 'height_above',
+      type: 'number',
+      label: 'Height Above Ground (mm)',
+      required: true,
+      min: 300,
+      unit: 'mm',
+      defaultValue: 900,
+    },
+    {
+      id: 'embedment_depth',
+      type: 'number',
+      label: 'Embedment Depth (mm)',
+      required: true,
+      min: 200,
+      unit: 'mm',
+      defaultValue: 400,
+      helpText: 'Depth of bollard below ground/slab level',
+    },
+    {
+      id: 'footing_diameter',
+      type: 'number',
+      label: 'Footing Diameter (mm)',
+      required: true,
+      min: 200,
+      unit: 'mm',
+      defaultValue: 400,
+      helpText: 'Diameter of concrete base around embedment',
+    },
+  ],
+  moduleIds: [
+    'labour-prep',
+    'labour-place',
+    'excavation',
+    'reinforcement-piers',
+    'concrete-supply',
+    'cleanup',
+    'sundries',
+    'margin',
+  ],
+  calculateVolume: (answers) => {
+    const numBollards = Number(answers.num_bollards) || 4;
+    const bollardDiamM = (Number(answers.diameter) || 200) / 1000;
+    const heightAboveM = (Number(answers.height_above) || 900) / 1000;
+    const embedDepthM = (Number(answers.embedment_depth) || 400) / 1000;
+    const footingDiamM = (Number(answers.footing_diameter) || 400) / 1000;
+    
+    const bollardRadius = bollardDiamM / 2;
+    const footingRadius = footingDiamM / 2;
+    
+    // Bollard column volume (above + embedment at bollard diameter)
+    const totalHeight = heightAboveM + embedDepthM;
+    const bollardVolume = Math.PI * bollardRadius * bollardRadius * totalHeight;
+    
+    // Additional footing volume around embedment (larger diameter base)
+    const footingVolume = Math.PI * footingRadius * footingRadius * embedDepthM;
+    // Subtract the bollard portion already counted
+    const additionalFootingVolume = footingVolume - (Math.PI * bollardRadius * bollardRadius * embedDepthM);
+    
+    return numBollards * (bollardVolume + Math.max(0, additionalFootingVolume));
+  },
+  defaultExclusions: [
+    { id: 'engineering', text: 'Engineering design for impact loading', moduleId: 'bollards' },
+    { id: 'paint', text: 'Safety painting and line marking', moduleId: 'bollards' },
+    { id: 'sleeves', text: 'Removable bollard sleeves', moduleId: 'bollards' },
+    { id: 'reflectors', text: 'Reflective tape or caps', moduleId: 'bollards' },
+  ],
+};
+
 // Registry of all scopes - keys must match ScopeType in ScopeSelector.tsx
 export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   piers: PIERS_SCOPE,
@@ -955,6 +1717,14 @@ export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   retaining_wall_footings: RETAINING_WALL_FOOTINGS_SCOPE,
   suspended_slab: SUSPENDED_SLAB_SCOPE,
   architectural_concrete: ARCHITECTURAL_CONCRETE_SCOPE,
+  // Commercial-specific scopes
+  pad_footings: PAD_FOOTINGS_SCOPE,
+  osd_tank: OSD_TANK_SCOPE,
+  kerbs_channels: KERBS_CHANNELS_SCOPE,
+  concrete_stairs: CONCRETE_STAIRS_SCOPE,
+  retaining_walls: RETAINING_WALLS_SCOPE,
+  pit_bases: PIT_BASES_SCOPE,
+  bollards: BOLLARDS_SCOPE,
 };
 
 // Get scope by ID
