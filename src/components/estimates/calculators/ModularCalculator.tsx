@@ -155,8 +155,24 @@ export function ModularCalculator({
 
   // Build scope data for calculations
   const scopeData = useMemo(() => {
+    // Calculate total area from multi-area inputs or length × width
+    let totalArea = scopeAnswers.area || 0;
+    
+    if (scopeAnswers.areas && Array.isArray(scopeAnswers.areas)) {
+      totalArea = scopeAnswers.areas.reduce((sum: number, a: any) => {
+        // Use _actualArea from takeoff if available, otherwise calculate from L×W
+        const areaValue = a._actualArea && a._actualArea > 0 
+          ? a._actualArea 
+          : (Number(a.length) || 0) * (Number(a.width) || 0);
+        return sum + areaValue;
+      }, 0);
+    } else if (scopeAnswers.length && scopeAnswers.width) {
+      totalArea = Number(scopeAnswers.length) * Number(scopeAnswers.width);
+    }
+    
     return {
       ...scopeAnswers,
+      area: totalArea,
       volume: scopeVolume,
     };
   }, [scopeAnswers, scopeVolume]);
