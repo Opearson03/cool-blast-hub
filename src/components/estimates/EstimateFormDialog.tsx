@@ -36,7 +36,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { EstimateType } from "./EstimateTypeSelector";
-import { ScopeType, SCOPE_OPTIONS } from "./ScopeSelector";
+import { ScopeType, SCOPE_OPTIONS, ScopeSelector } from "./ScopeSelector";
 import { ModularCalculator } from "./calculators/ModularCalculator";
 import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
@@ -1099,37 +1099,11 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           {/* Step 3: Scope Selection */}
           {currentStep === "scopes" && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                <ListChecks className="w-4 h-4" />
-                <span className="text-sm">Select all applicable scopes for this estimate</span>
-              </div>
-
-              <div className="grid gap-2">
-                {availableScopes.map((scope) => {
-                  const isSelected = selectedScopes.has(scope.id);
-                  return (
-                    <label
-                      key={scope.id}
-                      className={cn(
-                        "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
-                        isSelected 
-                          ? "border-primary bg-primary/5 shadow-sm" 
-                          : "border-border hover:border-muted-foreground/50 hover:bg-muted/30"
-                      )}
-                    >
-                      <Checkbox
-                        checked={isSelected}
-                        onCheckedChange={(checked) => handleScopeToggle(scope.id, checked === true)}
-                      />
-                      <div className="flex-1">
-                        <span className="font-medium">{scope.label}</span>
-                        <p className="text-xs text-muted-foreground">{scope.description}</p>
-                      </div>
-                      {isSelected && <Check className="w-4 h-4 text-primary" />}
-                    </label>
-                  );
-                })}
-              </div>
+              <ScopeSelector
+                selectedScopes={selectedScopes}
+                onScopesChange={setSelectedScopes}
+                estimateType={estimateType}
+              />
 
               {selectedScopes.size > 0 && (
                 <p className="text-sm text-muted-foreground text-center py-2">
