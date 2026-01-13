@@ -9,6 +9,7 @@ import {
   MeasurementArea,
   PierConfig,
   FootingConfig,
+  BeamConfig,
   createPriceMap,
 } from "@/lib/estimate-components/types";
 import { MODULE_REGISTRY } from "@/lib/estimate-components/modules";
@@ -19,11 +20,13 @@ import { ExclusionsSummary } from "./ExclusionsSummary";
 import { MultiAreaInput } from "./MultiAreaInput";
 import { MultiPierInput } from "./MultiPierInput";
 import { MultiFootingInput } from "./MultiFootingInput";
+import { MultiBeamInput } from "./MultiBeamInput";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Info } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Info, Ruler } from "lucide-react";
 
 interface ModularCalculatorProps {
   scope: ScopeDefinition;
@@ -63,7 +66,7 @@ export function ModularCalculator({
       }
     });
     
-    // Initialize arrays for multi-area, multi-pier, and multi-footing scopes
+    // Initialize arrays for multi-area, multi-pier, multi-footing, and multi-beam scopes
     if (scope.supportsMultipleAreas && !initialScopeAnswers.areas) {
       defaults.areas = [{ id: 'area-1', name: 'Area 1', length: 0, width: 0 }];
     }
@@ -74,6 +77,10 @@ export function ModularCalculator({
     
     if (scope.supportsMultipleFootings && !initialScopeAnswers.footings) {
       defaults.footings = [{ id: 'footing-1', name: 'Footing 1', length: 0, width: 450, depth: 300 }];
+    }
+    
+    if (scope.supportsMultipleBeams && !initialScopeAnswers.beams) {
+      defaults.beams = [{ id: 'beam-1', name: 'Internal Beam 1', length: 0, width: 300, depth: 400 }];
     }
     
     return { ...defaults, ...initialScopeAnswers };
@@ -376,6 +383,33 @@ export function ModularCalculator({
     }));
   };
 
+  // Handler for multi-beam changes
+  const handleBeamsChange = (beams: BeamConfig[]) => {
+    // Calculate totals from beam configs
+    const totalLength = beams.reduce((sum, beam) => sum + (Number(beam.length) || 0), 0);
+    
+    // Calculate weighted averages for width and depth
+    let weightedWidth = 0;
+    let weightedDepth = 0;
+    if (totalLength > 0) {
+      beams.forEach(beam => {
+        const length = Number(beam.length) || 0;
+        weightedWidth += length * (Number(beam.width) || 0);
+        weightedDepth += length * (Number(beam.depth) || 0);
+      });
+      weightedWidth = weightedWidth / totalLength;
+      weightedDepth = weightedDepth / totalLength;
+    }
+    
+    setScopeAnswers((prev) => ({
+      ...prev,
+      beams,
+      internal_beams_length: totalLength,
+      internal_beam_width: weightedWidth,
+      internal_beam_depth: weightedDepth,
+    }));
+  };
+
   const handleModuleAnswerChange = (moduleId: string, questionId: string, value: any, isUserInput = true) => {
     // When user manually changes a derived field, mark it as overridden
     const module = modules.find((m) => m.id === moduleId);
@@ -471,8 +505,25 @@ export function ModularCalculator({
         />
       )}
 
+      {/* Multi-beam input for raft slabs */}
+      {scope.supportsMultipleBeams && (
+        <MultiBeamInput
+          label={scope.beamsLabel || 'Internal Stiffening Beams'}
+          beams={scopeAnswers.beams || [{ id: 'beam-1', name: 'Internal Beam 1', length: 0, width: 300, depth: 400 }]}
+          onChange={handleBeamsChange}
+        />
+      )}
+
+      {/* From Plan indicator for takeoff-derived measurements */}
+      {scopeAnswers._fromTakeoff && (
+        <Badge variant="secondary" className="gap-1.5 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800">
+          <Ruler className="h-3.5 w-3.5" />
+          Measurements from plan takeoff
+        </Badge>
+      )}
+
       {/* Standard scope-level questions (for scopes without multi-input) */}
-      {!scope.supportsMultipleAreas && !scope.supportsMultiplePiers && !scope.supportsMultipleFootings && (
+      {!scope.supportsMultipleAreas && !scope.supportsMultiplePiers && !scope.supportsMultipleFootings && !scope.supportsMultipleBeams && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">{scope.name} Dimensions</CardTitle>
@@ -498,7 +549,7 @@ export function ModularCalculator({
       )}
 
       {/* Show calculated volume for multi-input scopes */}
-      {(scope.supportsMultipleAreas || scope.supportsMultiplePiers || scope.supportsMultipleFootings) && scopeVolume > 0 && (
+      {(scope.supportsMultipleAreas || scope.supportsMultiplePiers || scope.supportsMultipleFootings || scope.supportsMultipleBeams) && scopeVolume > 0 && (
         <p className="text-sm text-muted-foreground -mt-4 px-1">
           Calculated Volume: <span className="font-medium">{scopeVolume.toFixed(2)} m³</span>
         </p>
