@@ -522,34 +522,52 @@ export function ModularCalculator({
         </Badge>
       )}
 
-      {/* Standard scope-level questions (for scopes without multi-input) */}
-      {!scope.supportsMultipleAreas && !scope.supportsMultiplePiers && !scope.supportsMultipleFootings && !scope.supportsMultipleBeams && (
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">{scope.name} Dimensions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {scope.questions.map((question) => (
-                <ScopeQuestionInput
-                  key={question.id}
-                  question={question}
-                  value={scopeAnswers[question.id]}
-                  onChange={(val) => handleScopeAnswerChange(question.id, val)}
-                />
-              ))}
-            </div>
-            {scopeVolume > 0 && (
-              <p className="mt-4 text-sm text-muted-foreground">
-                Calculated Volume: <span className="font-medium">{scopeVolume.toFixed(2)} m³</span>
-              </p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {/* Standard scope-level questions */}
+      {(() => {
+        // Filter out questions that are replaced by multi-input components or explicitly hidden
+        const visibleQuestions = scope.questions.filter((q) => {
+          // Hide if explicitly listed in hideStandardQuestions
+          if (scope.hideStandardQuestions?.includes(q.id)) return false;
+          // Hide area/perimeter for multi-area scopes
+          if (scope.supportsMultipleAreas && ['area', 'perimeter'].includes(q.id)) return false;
+          // Hide pier fields for multi-pier scopes
+          if (scope.supportsMultiplePiers && ['num_piers', 'diameter', 'depth'].includes(q.id)) return false;
+          // Hide footing fields for multi-footing scopes
+          if (scope.supportsMultipleFootings && ['total_length', 'width', 'depth', 'footing_width', 'footing_depth'].includes(q.id)) return false;
+          return true;
+        });
 
-      {/* Show calculated volume for multi-input scopes */}
-      {(scope.supportsMultipleAreas || scope.supportsMultiplePiers || scope.supportsMultipleFootings || scope.supportsMultipleBeams) && scopeVolume > 0 && (
+        // Only show if there are visible questions
+        if (visibleQuestions.length === 0) return null;
+
+        return (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">{scope.name} Dimensions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {visibleQuestions.map((question) => (
+                  <ScopeQuestionInput
+                    key={question.id}
+                    question={question}
+                    value={scopeAnswers[question.id]}
+                    onChange={(val) => handleScopeAnswerChange(question.id, val)}
+                  />
+                ))}
+              </div>
+              {scopeVolume > 0 && (
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Calculated Volume: <span className="font-medium">{scopeVolume.toFixed(2)} m³</span>
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
+      {/* Show calculated volume when not shown inside the dimensions card */}
+      {scopeVolume > 0 && (scope.supportsMultipleAreas || scope.supportsMultiplePiers || scope.supportsMultipleFootings) && (
         <p className="text-sm text-muted-foreground -mt-4 px-1">
           Calculated Volume: <span className="font-medium">{scopeVolume.toFixed(2)} m³</span>
         </p>

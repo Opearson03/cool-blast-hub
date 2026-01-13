@@ -208,6 +208,9 @@ export interface ScopeDefinition {
   
   /** Label for the beams section (e.g., "Internal Stiffening Beams") */
   beamsLabel?: string;
+  
+  /** Question IDs that should be hidden from standard rendering (managed by multi-input components) */
+  hideStandardQuestions?: string[];
 }
 
 /**
