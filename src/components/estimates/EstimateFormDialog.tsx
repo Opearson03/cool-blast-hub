@@ -350,6 +350,14 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       paths_surrounds: { total: 0, description: "" },
       crossovers: { total: 0, description: "" },
       architectural_concrete: { total: 0, description: "" },
+      // Commercial-specific scopes
+      pad_footings: { total: 0, description: "" },
+      osd_tank: { total: 0, description: "" },
+      kerbs_channels: { total: 0, description: "" },
+      concrete_stairs: { total: 0, description: "" },
+      retaining_walls: { total: 0, description: "" },
+      pit_bases: { total: 0, description: "" },
+      bollards: { total: 0, description: "" },
     };
 
     for (const scopeType of Array.from(selectedScopes)) {
