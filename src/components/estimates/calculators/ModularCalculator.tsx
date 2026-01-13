@@ -157,6 +157,7 @@ export function ModularCalculator({
   const scopeData = useMemo(() => {
     // Calculate total area from multi-area inputs or length × width
     let totalArea = scopeAnswers.area || 0;
+    let totalPerimeter = scopeAnswers.perimeter || 0;
     
     if (scopeAnswers.areas && Array.isArray(scopeAnswers.areas)) {
       totalArea = scopeAnswers.areas.reduce((sum: number, a: any) => {
@@ -166,13 +167,28 @@ export function ModularCalculator({
           : (Number(a.length) || 0) * (Number(a.width) || 0);
         return sum + areaValue;
       }, 0);
+      
+      // Calculate total perimeter from areas - use _actualPerimeter if available
+      totalPerimeter = scopeAnswers.areas.reduce((sum: number, a: any) => {
+        if (a._actualPerimeter && a._actualPerimeter > 0) {
+          return sum + a._actualPerimeter;
+        }
+        const l = Number(a.length) || 0;
+        const w = Number(a.width) || 0;
+        if (l > 0 && w > 0) {
+          return sum + 2 * (l + w);
+        }
+        return sum;
+      }, 0);
     } else if (scopeAnswers.length && scopeAnswers.width) {
       totalArea = Number(scopeAnswers.length) * Number(scopeAnswers.width);
+      totalPerimeter = 2 * (Number(scopeAnswers.length) + Number(scopeAnswers.width));
     }
     
     return {
       ...scopeAnswers,
       area: totalArea,
+      perimeter: totalPerimeter,
       volume: scopeVolume,
     };
   }, [scopeAnswers, scopeVolume]);
