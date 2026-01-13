@@ -1,10 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Separator } from '@/components/ui/separator';
 import { 
-  Pentagon, 
-  Square, 
   MousePointer2, 
-  Hand,
   Ruler,
   Undo2,
   Trash2,
@@ -46,9 +43,6 @@ export function TakeoffToolbar({
 }: TakeoffToolbarProps) {
   const tools: { type: DrawingTool['type']; icon: React.ReactNode; label: string }[] = [
     { type: 'select', icon: <MousePointer2 className="h-4 w-4" />, label: 'Select' },
-    { type: 'pan', icon: <Hand className="h-4 w-4" />, label: 'Pan' },
-    { type: 'polygon', icon: <Pentagon className="h-4 w-4" />, label: 'Polygon' },
-    { type: 'rectangle', icon: <Square className="h-4 w-4" />, label: 'Rectangle' },
   ];
 
   return (
