@@ -458,6 +458,53 @@ export type Database = {
           },
         ]
       }
+      estimate_takeoffs: {
+        Row: {
+          created_at: string
+          current_page: number | null
+          estimate_id: string
+          id: string
+          page_count: number | null
+          plan_type: string
+          plan_url: string
+          scale_calibration_method: string | null
+          scale_pixels_per_meter: number | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          current_page?: number | null
+          estimate_id: string
+          id?: string
+          page_count?: number | null
+          plan_type: string
+          plan_url: string
+          scale_calibration_method?: string | null
+          scale_pixels_per_meter?: number | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          current_page?: number | null
+          estimate_id?: string
+          id?: string
+          page_count?: number | null
+          plan_type?: string
+          plan_url?: string
+          scale_calibration_method?: string | null
+          scale_pixels_per_meter?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_takeoffs_estimate_id_fkey"
+            columns: ["estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estimates: {
         Row: {
           business_id: string
@@ -1495,6 +1542,53 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      takeoff_markups: {
+        Row: {
+          area_sqm: number | null
+          color: string | null
+          created_at: string
+          id: string
+          page_number: number | null
+          perimeter_m: number | null
+          points: Json
+          scope_id: string
+          shape_type: string
+          takeoff_id: string
+        }
+        Insert: {
+          area_sqm?: number | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          page_number?: number | null
+          perimeter_m?: number | null
+          points?: Json
+          scope_id: string
+          shape_type: string
+          takeoff_id: string
+        }
+        Update: {
+          area_sqm?: number | null
+          color?: string | null
+          created_at?: string
+          id?: string
+          page_number?: number | null
+          perimeter_m?: number | null
+          points?: Json
+          scope_id?: string
+          shape_type?: string
+          takeoff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "takeoff_markups_takeoff_id_fkey"
+            columns: ["takeoff_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_takeoffs"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       timesheets: {
         Row: {
