@@ -94,6 +94,40 @@ export default function AdminEstimates() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
+      // First, clear any job references to this estimate
+      const { error: jobUpdateError } = await supabase
+        .from("jobs")
+        .update({ source_estimate_id: null })
+        .eq("source_estimate_id", id);
+      if (jobUpdateError) throw jobUpdateError;
+
+      // Delete related takeoff markups first (via takeoff)
+      const { data: takeoffs } = await supabase
+        .from("estimate_takeoffs")
+        .select("id")
+        .eq("estimate_id", id);
+      
+      if (takeoffs && takeoffs.length > 0) {
+        const takeoffIds = takeoffs.map(t => t.id);
+        await supabase
+          .from("takeoff_markups")
+          .delete()
+          .in("takeoff_id", takeoffIds);
+      }
+
+      // Delete estimate takeoffs
+      await supabase
+        .from("estimate_takeoffs")
+        .delete()
+        .eq("estimate_id", id);
+
+      // Delete estimate items
+      await supabase
+        .from("estimate_items")
+        .delete()
+        .eq("estimate_id", id);
+
+      // Finally delete the estimate
       const { error } = await supabase
         .from("estimates")
         .delete()
