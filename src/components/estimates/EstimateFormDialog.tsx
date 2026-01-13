@@ -38,6 +38,7 @@ import { cn } from "@/lib/utils";
 import { EstimateType } from "./EstimateTypeSelector";
 import { ScopeType, SCOPE_OPTIONS, ScopeSelector } from "./ScopeSelector";
 import { ModularCalculator } from "./calculators/ModularCalculator";
+import { PlanTakeoffStep } from "./takeoff/PlanTakeoffStep";
 import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
 
@@ -129,15 +130,17 @@ type WizardStep =
   | "type" 
   | "client" 
   | "scopes" 
+  | "takeoff"
   | "configure" 
   | "inclusions" 
   | "summary";
 
-const STEP_ORDER: WizardStep[] = ["type", "client", "scopes", "configure", "inclusions", "summary"];
+const STEP_ORDER: WizardStep[] = ["type", "client", "scopes", "takeoff", "configure", "inclusions", "summary"];
 const STEP_LABELS: Record<WizardStep, string> = {
   type: "Project Type",
   client: "Client Details",
   scopes: "Scope Selection",
+  takeoff: "Plan Takeoff",
   configure: "Configure",
   inclusions: "Inclusions",
   summary: "Summary",
@@ -316,6 +319,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const scopeContainerRef = useRef<HTMLDivElement>(null);
   const dialogScrollRef = useRef<HTMLDivElement>(null);
   
+  // Draft estimate ID for takeoff step (created when entering takeoff for new estimates)
+  const [draftEstimateId, setDraftEstimateId] = useState<string | null>(null);
+  const [businessId, setBusinessId] = useState<string | null>(null);
+  
   // Scroll to top when changing scope
   useEffect(() => {
     if (currentStep === "configure") {
@@ -424,6 +431,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         follow_up_date: editEstimate.follow_up_date || "",
       });
       setEstimateType(editEstimate.estimate_type || "driveway");
+      setDraftEstimateId(editEstimate.id);
 
       // Set selected scopes
       const hasScopes = editEstimate.selected_scopes && Array.isArray(editEstimate.selected_scopes) && editEstimate.selected_scopes.length > 0;
@@ -475,7 +483,24 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       setSelectedScopes(new Set());
       setModularScopeStates({} as Record<ScopeType, ModularScopeState>);
       setActiveScopeIndex(0);
+      setDraftEstimateId(null);
     }
+    
+    // Fetch business ID
+    const fetchBusinessId = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("business_id")
+          .eq("id", user.id)
+          .single();
+        if (profile?.business_id) {
+          setBusinessId(profile.business_id);
+        }
+      }
+    };
+    fetchBusinessId();
   }, [editEstimate, open]);
 
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
@@ -1107,15 +1132,30 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
               {selectedScopes.size > 0 && (
                 <p className="text-sm text-muted-foreground text-center py-2">
-                  {selectedScopes.size} scope{selectedScopes.size !== 1 ? "s" : ""} selected — you'll configure each one next
+                  {selectedScopes.size} scope{selectedScopes.size !== 1 ? "s" : ""} selected — upload plans or configure manually next
                 </p>
               )}
 
-              {renderWizardFooter({ nextLabel: `Configure ${selectedScopes.size} Scope${selectedScopes.size !== 1 ? "s" : ""}` })}
+              {renderWizardFooter({ nextLabel: "Continue" })}
             </div>
           )}
 
-          {/* Step 4: Configure Scopes */}
+          {/* Step 4: Plan Takeoff (Optional) */}
+          {currentStep === "takeoff" && (
+            <PlanTakeoffStep
+              estimateId={editEstimate?.id || draftEstimateId}
+              businessId={businessId}
+              selectedScopes={selectedScopesArray}
+              scopeLabels={Object.fromEntries(
+                selectedScopesArray.map(s => [s, getScopeLabel(s)])
+              )}
+              onContinue={goNext}
+              onBack={goBack}
+              onSkip={goNext}
+            />
+          )}
+
+          {/* Step 5: Configure Scopes */}
           {currentStep === "configure" && (
             <div className="space-y-4">
               {selectedScopesArray.length === 0 ? (
