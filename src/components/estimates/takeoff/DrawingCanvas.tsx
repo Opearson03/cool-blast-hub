@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Stage, Layer, Line, Rect, Circle, Group, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { TakeoffMarkup, TakeoffPoint } from '@/types/takeoff';
@@ -45,6 +45,23 @@ export function DrawingCanvas({
   const [currentMousePos, setCurrentMousePos] = useState<TakeoffPoint | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const stageRef = useRef<any>(null);
+
+  // Clear stale drawing state when activeScope changes to null or dimensions change significantly
+  useEffect(() => {
+    if (activeScope === null) {
+      setDrawingPoints([]);
+      setRectStart(null);
+      setCurrentMousePos(null);
+      onPointsChange?.([]);
+    }
+  }, [activeScope, onPointsChange]);
+
+  // Reset state when dimensions change (e.g., on reopen)
+  useEffect(() => {
+    setDrawingPoints([]);
+    setRectStart(null);
+    setCurrentMousePos(null);
+  }, [width, height]);
 
   const isDrawing = tool === 'polygon' || tool === 'rectangle';
 
