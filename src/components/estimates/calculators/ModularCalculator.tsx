@@ -26,6 +26,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { Info, Ruler } from "lucide-react";
 
 interface ModularCalculatorProps {
@@ -505,15 +506,6 @@ export function ModularCalculator({
         />
       )}
 
-      {/* Multi-beam input for raft slabs */}
-      {scope.supportsMultipleBeams && (
-        <MultiBeamInput
-          label={scope.beamsLabel || 'Internal Stiffening Beams'}
-          beams={scopeAnswers.beams || [{ id: 'beam-1', name: 'Internal Beam 1', length: 0, width: 300, depth: 400 }]}
-          onChange={handleBeamsChange}
-        />
-      )}
-
       {/* From Plan indicator for takeoff-derived measurements */}
       {scopeAnswers._fromTakeoff && (
         <Badge variant="secondary" className="gap-1.5 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800">
@@ -522,7 +514,7 @@ export function ModularCalculator({
         </Badge>
       )}
 
-      {/* Standard scope-level questions */}
+      {/* Standard scope-level questions - rendered BEFORE multi-beam input */}
       {(() => {
         // Filter out questions that are replaced by multi-input components or explicitly hidden
         const visibleQuestions = scope.questions.filter((q) => {
@@ -565,6 +557,36 @@ export function ModularCalculator({
           </Card>
         );
       })()}
+
+      {/* Multi-beam input for raft slabs - optional with toggle */}
+      {scope.supportsMultipleBeams && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{scope.beamsLabel || 'Internal Stiffening Beams'}</CardTitle>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="has-internal-beams" className="text-sm font-normal text-muted-foreground">
+                  Include internal beams?
+                </Label>
+                <Switch
+                  id="has-internal-beams"
+                  checked={scopeAnswers.hasInternalBeams ?? false}
+                  onCheckedChange={(checked) => handleScopeAnswerChange('hasInternalBeams', checked)}
+                />
+              </div>
+            </div>
+          </CardHeader>
+          {scopeAnswers.hasInternalBeams && (
+            <CardContent className="pt-0">
+              <MultiBeamInput
+                label=""
+                beams={scopeAnswers.beams || [{ id: 'beam-1', name: 'Internal Beam 1', length: 0, width: 300, depth: 400 }]}
+                onChange={handleBeamsChange}
+              />
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Show calculated volume when not shown inside the dimensions card */}
       {scopeVolume > 0 && (scope.supportsMultipleAreas || scope.supportsMultiplePiers || scope.supportsMultipleFootings) && (
