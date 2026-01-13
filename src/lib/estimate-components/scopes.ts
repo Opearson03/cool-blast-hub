@@ -86,6 +86,8 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   name: 'Standard Slab',
   description: 'Ground-bearing concrete slab on ground',
   icon: 'square',
+  supportsMultipleAreas: true,
+  areasLabel: 'Slab Areas',
   questions: [
     {
       id: 'area',
@@ -114,6 +116,7 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
+    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -148,6 +151,8 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
   name: 'Raft Slab',
   description: 'Reinforced raft foundation slab',
   icon: 'layers',
+  supportsMultipleAreas: true,
+  areasLabel: 'Raft Slab Areas',
   supportsMultipleBeams: true,
   beamsLabel: 'Internal Stiffening Beams',
   // Hide internal beam fields from standard rendering - they're managed by MultiBeamInput
@@ -232,6 +237,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
+    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -297,6 +303,8 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
   name: 'Waffle Pod',
   description: 'Waffle pod slab system',
   icon: 'grid3x3',
+  supportsMultipleAreas: true,
+  areasLabel: 'Waffle Pod Areas',
   questions: [
     {
       id: 'area',
@@ -390,6 +398,7 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
+    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -831,6 +840,8 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
   name: 'Suspended Slab',
   description: 'Elevated/suspended concrete slab',
   icon: 'layers-2',
+  supportsMultipleAreas: true,
+  areasLabel: 'Suspended Slab Areas',
   questions: [
     {
       id: 'area',
@@ -868,6 +879,7 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
+    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',

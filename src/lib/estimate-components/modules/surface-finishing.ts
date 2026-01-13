@@ -47,60 +47,6 @@ export const surfaceFinishingModule: EstimateModule = {
       deriveFrom: (scopeData) => scopeData.area || 0,
     },
 
-    // ========== Q4: Universal - Finishing Labour ==========
-    {
-      id: 'finishing_labour_required',
-      type: 'boolean',
-      label: 'Finishing labour required?',
-      defaultValue: true,
-      showIf: (answers) => answers.finish_required === true,
-    },
-    {
-      id: 'finishing_men',
-      type: 'number',
-      label: 'How many finishers?',
-      defaultValue: 2,
-      min: 1,
-      max: 10,
-      showIf: (answers) => answers.finish_required === true && answers.finishing_labour_required === true,
-    },
-    {
-      id: 'finishing_hours',
-      type: 'number',
-      label: 'Hours per finisher',
-      defaultValue: 4,
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && answers.finishing_labour_required === true,
-    },
-    {
-      id: 'finishing_rate',
-      type: 'currency',
-      label: 'Finisher hourly rate',
-      defaultValue: 85,
-      unit: '/hr',
-      priceListKey: 'labour.LABOUR HR',
-      showIf: (answers) => answers.finish_required === true && answers.finishing_labour_required === true,
-    },
-    {
-      id: 'finishing_overtime',
-      type: 'boolean',
-      label: 'Overtime / weekend rates apply?',
-      defaultValue: false,
-      showIf: (answers) => answers.finish_required === true && answers.finishing_labour_required === true,
-    },
-    {
-      id: 'overtime_multiplier',
-      type: 'number',
-      label: 'Overtime multiplier',
-      defaultValue: 1.5,
-      min: 1,
-      max: 2.5,
-      step: 0.1,
-      showIf: (answers) => answers.finish_required === true && answers.finishing_labour_required === true && answers.finishing_overtime === true,
-    },
-
     // ========== Steel / Machine Trowel Specific ==========
     {
       id: 'trowel_type',
@@ -573,29 +519,8 @@ export const surfaceFinishingModule: EstimateModule = {
     }
 
     const area = Number(answers.finish_area) || Number(scopeData.area) || 0;
-    const labourRate = Number(answers.finishing_rate) || getPrice(priceMap, 'labour', 'LABOUR HR', 85);
-    const overtimeMultiplier = answers.finishing_overtime ? (Number(answers.overtime_multiplier) || 1.5) : 1;
-    const effectiveRate = labourRate * overtimeMultiplier;
-
-    // ========== Finishing Labour ==========
-    if (answers.finishing_labour_required === true) {
-      const men = Number(answers.finishing_men) || 2;
-      const hours = Number(answers.finishing_hours) || 4;
-      const totalHours = men * hours;
-      const labourCost = totalHours * effectiveRate;
-
-      const finishTypeName = getFinishTypeName(answers.finish_type);
-      lineItems.push({
-        id: 'finishing_labour',
-        description: `${finishTypeName} Finishing Labour (${men} men × ${hours} hrs)`,
-        quantity: totalHours,
-        unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: labourCost,
-        category: 'labour',
-      });
-      subtotal += labourCost;
-    }
+    const labourRate = getPrice(priceMap, 'labour', 'LABOUR HR', 85);
+    const effectiveRate = labourRate;
 
     // ========== Machine Trowel Hire ==========
     if ((answers.finish_type === 'machine_trowel' || answers.trowel_type === 'machine') && 
