@@ -37,15 +37,6 @@ export default function Signup() {
     }
   }, [cancelled, toast]);
 
-  // Track Google Ads "Begin checkout" conversion
-  const trackBeginCheckoutConversion = () => {
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'conversion', {
-        'send_to': 'AW-17843911252/vwECCL6BudobENT00bxC'
-      });
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -59,9 +50,6 @@ export default function Signup() {
     }
     
     setLoading(true);
-    
-    // Track conversion before redirecting to Stripe
-    trackBeginCheckoutConversion();
 
     try {
       // Create Stripe checkout session

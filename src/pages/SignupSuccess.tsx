@@ -32,11 +32,11 @@ export default function SignupSuccess() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Track Google Ads "Purchase" conversion when payment is verified
-  const trackPurchaseConversion = () => {
+  // Track Google Ads "Begin checkout" conversion when payment is verified
+  const trackBeginCheckoutConversion = () => {
     if (typeof window !== 'undefined' && (window as any).gtag) {
       (window as any).gtag('event', 'conversion', {
-        'send_to': 'AW-17843911252/PURCHASE_LABEL' // Replace PURCHASE_LABEL with your purchase conversion label
+        'send_to': 'AW-17843911252/vwECCL6BudobENT00bxC'
       });
     }
   };
@@ -58,8 +58,8 @@ export default function SignupSuccess() {
         if (error) throw error;
         if (!data.success) throw new Error(data.error || "Verification failed");
 
-        // Track purchase conversion on successful payment verification
-        trackPurchaseConversion();
+        // Track Begin checkout conversion on successful payment verification
+        trackBeginCheckoutConversion();
 
         setCheckoutData({
           email: data.email || sessionStorage.getItem("signup_email") || "",
