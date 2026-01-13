@@ -41,6 +41,7 @@ import { ModularCalculator } from "./calculators/ModularCalculator";
 import { PlanTakeoffStep } from "./takeoff/PlanTakeoffStep";
 import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
+import { useTakeoffMarkups } from "@/hooks/useTakeoffMarkups";
 
 interface Estimate {
   id: string;
@@ -323,6 +324,15 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [draftEstimateId, setDraftEstimateId] = useState<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   
+  // Get takeoff markups for this estimate to pre-fill scope answers
+  const estimateIdForTakeoff = draftEstimateId || editEstimate?.id || null;
+  const { 
+    getAreaForScope, 
+    getPerimeterForScope, 
+    hasMarkupForScope,
+    refetch: refetchMarkups 
+  } = useTakeoffMarkups(estimateIdForTakeoff);
+  
   // Scroll to top when changing scope
   useEffect(() => {
     if (currentStep === "configure") {
@@ -604,6 +614,11 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         if (!newDraftId) {
           return; // Failed to create draft, don't proceed
         }
+      }
+      
+      // If leaving takeoff step, refetch markups so calculators get fresh data
+      if (currentStep === "takeoff" && nextStep === "configure") {
+        await refetchMarkups();
       }
       
       setCurrentStep(nextStep);
@@ -991,11 +1006,38 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     }
     
     const currentState = modularScopeStates[scope];
+    
+    // Check if there's takeoff data for this scope and merge it into initial answers
+    const hasMarkup = hasMarkupForScope(scope);
+    let initialScopeAnswers = currentState?.scopeAnswers || {};
+    
+    // Only pre-fill from takeoff if we have markup AND the user hasn't already entered data
+    if (hasMarkup) {
+      const takeoffArea = getAreaForScope(scope);
+      const takeoffPerimeter = getPerimeterForScope(scope);
+      
+      // For multi-area scopes, pre-fill area and perimeter totals
+      // For standard scopes, pre-fill directly
+      if (takeoffArea !== null || takeoffPerimeter !== null) {
+        // Check if user hasn't already overridden with their own values
+        const hasUserArea = initialScopeAnswers.area > 0 || (initialScopeAnswers.areas?.some((a: any) => a.length > 0 || a.width > 0));
+        
+        if (!hasUserArea) {
+          initialScopeAnswers = {
+            ...initialScopeAnswers,
+            _fromTakeoff: true,
+            ...(takeoffArea !== null && { area: takeoffArea }),
+            ...(takeoffPerimeter !== null && { perimeter: takeoffPerimeter }),
+          };
+        }
+      }
+    }
+    
     return (
       <ModularCalculator
         key={scope}
         scope={scopeDefinition}
-        initialScopeAnswers={currentState?.scopeAnswers}
+        initialScopeAnswers={initialScopeAnswers}
         initialModuleAnswers={currentState?.moduleAnswers}
         initialCustomExclusions={currentState?.customExclusions}
         onStateChange={(state) => handleModularStateChange(scope, state)}

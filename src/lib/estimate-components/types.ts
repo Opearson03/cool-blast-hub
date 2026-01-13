@@ -148,6 +148,17 @@ export interface FootingConfig {
 }
 
 /**
+ * Individual beam configuration for multi-beam scopes (raft slabs)
+ */
+export interface BeamConfig {
+  id: string;
+  name: string;
+  length: number;    // metres
+  width: number;     // mm
+  depth: number;     // mm
+}
+
+/**
  * Definition of a scope (e.g., Piers, Slab, Driveway)
  */
 export interface ScopeDefinition {
@@ -185,6 +196,12 @@ export interface ScopeDefinition {
   
   /** Label for the footings section (e.g., "Footing Sections") */
   footingsLabel?: string;
+  
+  /** If true, allows multiple internal beam configurations within this scope */
+  supportsMultipleBeams?: boolean;
+  
+  /** Label for the beams section (e.g., "Internal Stiffening Beams") */
+  beamsLabel?: string;
 }
 
 /**

@@ -148,6 +148,8 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
   name: 'Raft Slab',
   description: 'Reinforced raft foundation slab',
   icon: 'layers',
+  supportsMultipleBeams: true,
+  beamsLabel: 'Internal Stiffening Beams',
   questions: [
     {
       id: 'area',
@@ -195,6 +197,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
       unit: 'mm',
       helpText: 'Width of thickened edge (typically 450mm)',
     },
+    // These fields are derived from multi-beam input
     {
       id: 'internal_beams_length',
       type: 'number',
@@ -203,7 +206,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
       min: 0,
       defaultValue: 0,
       unit: 'm',
-      helpText: 'Combined length of all internal stiffening beams (if any)',
+      helpText: 'Derived from beam configurations',
     },
     {
       id: 'internal_beam_width',
@@ -213,7 +216,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
       min: 200,
       defaultValue: 300,
       unit: 'mm',
-      helpText: 'Width of internal stiffening beams',
+      helpText: 'Weighted average from beam configurations',
     },
     {
       id: 'internal_beam_depth',
@@ -223,7 +226,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
       min: 200,
       defaultValue: 400,
       unit: 'mm',
-      helpText: 'Depth of internal stiffening beams',
+      helpText: 'Weighted average from beam configurations',
     },
   ],
   moduleIds: [
@@ -254,12 +257,26 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
     const edgeBeamVolume = perimeter * edgeBeamWidthM * extraEdgeDepth;
 
-    // Internal beams volume (if any)
-    const internalLength = Number(answers.internal_beams_length) || 0;
-    const internalWidthM = (Number(answers.internal_beam_width) || 300) / 1000;
-    const internalDepthM = (Number(answers.internal_beam_depth) || 400) / 1000;
-    const internalExtraDepth = Math.max(0, internalDepthM - thicknessM);
-    const internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
+    // Internal beams volume - if we have beam configs, calculate from those
+    const beams = answers.beams || [];
+    let internalBeamVolume = 0;
+    
+    if (beams.length > 0) {
+      internalBeamVolume = beams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 300) / 1000;
+        const depthM = (Number(beam.depth) || 400) / 1000;
+        const extraDepth = Math.max(0, depthM - thicknessM);
+        return sum + lengthM * widthM * extraDepth;
+      }, 0);
+    } else {
+      // Fallback to legacy single-value fields
+      const internalLength = Number(answers.internal_beams_length) || 0;
+      const internalWidthM = (Number(answers.internal_beam_width) || 300) / 1000;
+      const internalDepthM = (Number(answers.internal_beam_depth) || 400) / 1000;
+      const internalExtraDepth = Math.max(0, internalDepthM - thicknessM);
+      internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
+    }
 
     return slabVolume + edgeBeamVolume + internalBeamVolume;
   },
