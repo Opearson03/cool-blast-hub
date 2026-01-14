@@ -839,6 +839,14 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           .update(estimateData)
           .eq("id", editEstimate.id);
         if (error) throw error;
+      } else if (draftEstimateId) {
+        // Update the draft estimate instead of creating a new one
+        // This preserves the takeoff data that was already linked to the draft
+        const { error } = await supabase
+          .from("estimates")
+          .update(estimateData)
+          .eq("id", draftEstimateId);
+        if (error) throw error;
       } else {
         const { error } = await supabase
           .from("estimates")
