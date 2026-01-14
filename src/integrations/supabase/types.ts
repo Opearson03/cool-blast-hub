@@ -465,8 +465,8 @@ export type Database = {
           estimate_id: string
           id: string
           page_count: number | null
-          plan_type: string
-          plan_url: string
+          plan_type: string | null
+          plan_url: string | null
           scale_calibration_method: string | null
           scale_pixels_per_meter: number | null
           updated_at: string
@@ -477,8 +477,8 @@ export type Database = {
           estimate_id: string
           id?: string
           page_count?: number | null
-          plan_type: string
-          plan_url: string
+          plan_type?: string | null
+          plan_url?: string | null
           scale_calibration_method?: string | null
           scale_pixels_per_meter?: number | null
           updated_at?: string
@@ -489,8 +489,8 @@ export type Database = {
           estimate_id?: string
           id?: string
           page_count?: number | null
-          plan_type?: string
-          plan_url?: string
+          plan_type?: string | null
+          plan_url?: string | null
           scale_calibration_method?: string | null
           scale_pixels_per_meter?: number | null
           updated_at?: string
