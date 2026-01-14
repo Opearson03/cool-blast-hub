@@ -728,17 +728,26 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         follow_up_date: formData.follow_up_date || null,
       };
 
-      if (editEstimate) {
+      // Use existing estimate ID if available (editEstimate or draftEstimateId)
+      const workingEstimateId = editEstimate?.id ?? draftEstimateId;
+      
+      if (workingEstimateId) {
+        // Update existing estimate (includes drafts created for takeoff)
         const { error } = await supabase
           .from("estimates")
           .update(estimateData)
-          .eq("id", editEstimate.id);
+          .eq("id", workingEstimateId);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        // Create new estimate and capture the ID
+        const { data, error } = await supabase
           .from("estimates")
-          .insert([{ ...estimateData, created_by: (await supabase.auth.getUser()).data.user?.id }]);
+          .insert([{ ...estimateData, created_by: user.id }])
+          .select("id")
+          .single();
         if (error) throw error;
+        // Store the new ID so subsequent saves update instead of insert
+        setDraftEstimateId(data.id);
       }
     },
     onSuccess: () => {
@@ -941,17 +950,26 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         follow_up_date: formData.follow_up_date || null,
       };
 
-      if (editEstimate) {
+      // Use existing estimate ID if available (editEstimate or draftEstimateId)
+      const workingEstimateId = editEstimate?.id ?? draftEstimateId;
+      
+      if (workingEstimateId) {
+        // Update existing estimate (includes drafts created for takeoff)
         const { error } = await supabase
           .from("estimates")
           .update(estimateData)
-          .eq("id", editEstimate.id);
+          .eq("id", workingEstimateId);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        // Create new estimate and capture the ID
+        const { data, error } = await supabase
           .from("estimates")
-          .insert(estimateData);
+          .insert([{ ...estimateData, created_by: user.id }])
+          .select("id")
+          .single();
         if (error) throw error;
+        // Store the new ID so subsequent saves update instead of insert
+        setDraftEstimateId(data.id);
       }
     },
     onSuccess: () => {
