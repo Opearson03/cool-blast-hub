@@ -3,9 +3,29 @@ export interface TakeoffPoint {
   y: number;
 }
 
+export interface TakeoffFile {
+  id: string;
+  takeoff_id: string;
+  file_url: string;
+  file_type: 'pdf' | 'image';
+  file_name: string;
+  page_count: number;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface PageScale {
+  id: string;
+  file_id: string;
+  page_number: number;
+  scale_pixels_per_meter: number;
+  created_at: string;
+}
+
 export interface TakeoffMarkup {
   id: string;
   takeoff_id: string;
+  file_id: string | null;
   scope_id: string;
   name: string | null;
   shape_type: 'polygon' | 'rectangle';
@@ -20,29 +40,21 @@ export interface TakeoffMarkup {
 export interface EstimateTakeoff {
   id: string;
   estimate_id: string;
-  plan_url: string;
-  plan_type: 'pdf' | 'image';
+  plan_url: string | null; // Deprecated - kept for backwards compatibility
+  plan_type: 'pdf' | 'image' | null; // Deprecated
   page_count: number;
   current_page: number;
-  scale_pixels_per_meter: number | null;
-  scale_calibration_method: 'ai' | 'manual' | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface TakeoffState {
   takeoff: EstimateTakeoff | null;
+  files: TakeoffFile[];
+  pageScales: PageScale[];
   markups: TakeoffMarkup[];
+  currentFileId: string | null;
   isLoading: boolean;
-  isCalibrated: boolean;
-}
-
-export interface CalibrationResult {
-  detected: boolean;
-  pixels_per_meter: number | null;
-  confidence: number;
-  method: 'scale_bar' | 'dimension' | 'manual' | null;
-  message?: string;
 }
 
 export interface DrawingTool {

@@ -2,7 +2,8 @@ import { useState, useMemo, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ChevronRight, ChevronLeft, Trash2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus } from 'lucide-react';
 import { useTakeoffData } from '@/hooks/useTakeoffData';
 import { PlanUploader } from './PlanUploader';
 import { PlanViewer } from './PlanViewer';
@@ -35,12 +36,17 @@ export function PlanTakeoffStep({
 }: PlanTakeoffStepProps) {
   const {
     takeoff,
+    files,
     markups,
+    currentFileId,
     isLoading,
     isUploading,
-    uploadPlan,
+    addFile,
+    removeFile,
+    setCurrentFile,
+    setPageScale,
+    getPageScale,
     deletePlan,
-    setScale,
     addMarkup,
     deleteMarkup,
     setCurrentPage
@@ -59,15 +65,27 @@ export function PlanTakeoffStep({
   const [calibrationPoints, setCalibrationPoints] = useState<TakeoffPoint[]>([]);
   const [isCalibrationMode, setIsCalibrationMode] = useState(false);
 
-  const isCalibrated = !!takeoff?.scale_pixels_per_meter;
-  const hasPlan = !!takeoff?.plan_url;
+  const currentFile = files.find(f => f.id === currentFileId);
+  const currentPage = takeoff?.current_page || 1;
+  const currentScale = currentFileId ? getPageScale(currentFileId, currentPage) : null;
+  const isCalibrated = !!currentScale;
+  const hasFiles = files.length > 0;
 
   const scopes = useMemo(() => 
     selectedScopes.map(id => ({ id, label: scopeLabels[id] || id })),
     [selectedScopes, scopeLabels]
   );
 
+  const handleUploadFile = useCallback(async (file: File) => {
+    await addFile(file);
+  }, [addFile]);
+
   const handleMarkArea = useCallback((scopeId: string) => {
+    if (!isCalibrated) {
+      setShowCalibration(true);
+      return;
+    }
+    
     setActiveScope(scopeId);
     // Generate default name based on existing markups for this scope
     const existingForScope = markups.filter(m => m.scope_id === scopeId);
@@ -77,7 +95,7 @@ export function PlanTakeoffStep({
     setPendingMarkupName(defaultName);
     setActiveTool('polygon');
     setDrawingPoints([]);
-  }, [markups]);
+  }, [markups, isCalibrated]);
 
   const handleSkipScope = (scopeId: string) => {
     setSkippedScopes(prev => new Set([...prev, scopeId]));
@@ -88,8 +106,9 @@ export function PlanTakeoffStep({
     setSelectedMarkupId(null);
   };
 
-  const handleCalibrate = async (pixelsPerMeter: number, method: 'ai' | 'manual') => {
-    await setScale(pixelsPerMeter, method);
+  const handleCalibrate = async (pixelsPerMeter: number) => {
+    if (!currentFileId) return;
+    await setPageScale(currentFileId, currentPage, pixelsPerMeter);
     setIsCalibrationMode(false);
     setCalibrationPoints([]);
   };
@@ -104,18 +123,18 @@ export function PlanTakeoffStep({
   }, []);
 
   const handleMarkupComplete = useCallback(async (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => {
-    if (!activeScope) return;
+    if (!activeScope || !currentFileId) return;
     
     const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
     const name = pendingMarkupName.trim() || `Area ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
-    await addMarkup(activeScope, shapeType, points, color, name);
+    await addMarkup(currentFileId, activeScope, shapeType, points, color, currentPage, name);
     
     // Clear drawing state
     setDrawingPoints([]);
     setActiveTool('select');
     setActiveScope(null);
     setPendingMarkupName('');
-  }, [activeScope, selectedScopes, addMarkup, pendingMarkupName, markups]);
+  }, [activeScope, currentFileId, selectedScopes, addMarkup, pendingMarkupName, markups, currentPage]);
 
   const handleUndo = useCallback(() => {
     if (drawingPoints.length > 0) {
@@ -138,22 +157,23 @@ export function PlanTakeoffStep({
     setTotalPages(count);
   }, []);
 
-  const currentPage = takeoff?.current_page || 1;
-  
   // Only show markups after plan dimensions are loaded (prevents misaligned rendering)
   const dimensionsReady = planDimensions.width > 0 && planDimensions.height > 0;
   
-  // Filter markups to only show those on the current page
+  // Filter markups to only show those on the current page and file
   const currentPageMarkups = useMemo(() => {
-    if (!dimensionsReady) return [];
-    return markups.filter(m => m.page_number === currentPage || m.page_number === null);
-  }, [markups, currentPage, dimensionsReady]);
+    if (!dimensionsReady || !currentFileId) return [];
+    return markups.filter(m => 
+      m.file_id === currentFileId && 
+      (m.page_number === currentPage || m.page_number === null)
+    );
+  }, [markups, currentPage, currentFileId, dimensionsReady]);
 
   const completedCount = markups.length + skippedScopes.size;
-  const canContinue = completedCount === selectedScopes.length || !hasPlan;
+  const canContinue = completedCount === selectedScopes.length || !hasFiles;
 
-  // Show upload state if no plan
-  if (!hasPlan && !isLoading) {
+  // Show upload state if no files
+  if (!hasFiles && !isLoading) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -166,7 +186,7 @@ export function PlanTakeoffStep({
           <Badge variant="outline">Optional</Badge>
         </div>
 
-        <PlanUploader onUpload={uploadPlan} isUploading={isUploading} />
+        <PlanUploader onUpload={handleUploadFile} isUploading={isUploading} />
 
         <div className="flex items-center justify-between pt-4 border-t">
           <Button variant="outline" onClick={onBack} className="gap-1">
@@ -189,13 +209,63 @@ export function PlanTakeoffStep({
           <p className="text-sm text-muted-foreground">
             {isCalibrated 
               ? `Mark areas for each scope (${completedCount}/${selectedScopes.length} done)`
-              : 'Calibrate the scale first, then mark areas'}
+              : 'Set the scale first, then mark areas'}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={deletePlan} className="text-destructive gap-1">
-          <Trash2 className="h-4 w-4" /> Remove Plan
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => document.getElementById('add-more-files')?.click()}
+            className="gap-1"
+          >
+            <Plus className="h-4 w-4" /> Add File
+          </Button>
+          <input
+            id="add-more-files"
+            type="file"
+            accept=".pdf,.png,.jpg,.jpeg"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadFile(file);
+              e.target.value = '';
+            }}
+          />
+          <Button variant="ghost" size="sm" onClick={deletePlan} className="text-destructive gap-1">
+            <Trash2 className="h-4 w-4" /> Remove All
+          </Button>
+        </div>
       </div>
+
+      {/* Calibration required banner */}
+      {!isCalibrated && hasFiles && (
+        <Alert className="border-amber-500/50 bg-amber-500/10">
+          <AlertTriangle className="h-5 w-5 text-amber-600" />
+          <AlertTitle className="text-amber-700 dark:text-amber-400">
+            Scale Not Set for Page {currentPage}
+          </AlertTitle>
+          <AlertDescription className="text-amber-700/80 dark:text-amber-400/80">
+            <p className="mb-3">
+              Before you can mark areas, you need to set the scale so measurements are accurate.
+            </p>
+            <div className="space-y-2 text-sm mb-4">
+              <p><strong>How to set the scale:</strong></p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Find a dimension line or known distance on this drawing</li>
+                <li>Click "Set Scale" then click the two ends of that line</li>
+                <li>Enter the real-world distance (e.g., 10 meters)</li>
+              </ol>
+            </div>
+            <Button 
+              onClick={() => setShowCalibration(true)}
+              className="bg-amber-600 hover:bg-amber-700 text-white"
+            >
+              Set Scale for This Page
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Toolbar */}
       <TakeoffToolbar
@@ -210,18 +280,23 @@ export function PlanTakeoffStep({
         canUndo={drawingPoints.length > 0}
         canDelete={!!selectedMarkupId}
         isCalibrated={isCalibrated}
+        currentScale={currentScale}
         zoom={zoom}
+        files={files}
+        currentFileId={currentFileId}
+        onFileChange={setCurrentFile}
+        currentPage={currentPage}
       />
 
       {/* Main content */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Plan viewer with drawing canvas */}
         <div className="lg:col-span-2">
-          {takeoff?.plan_url ? (
+          {currentFile?.file_url ? (
             <PlanViewer
-              planUrl={takeoff.plan_url}
-              planType={takeoff.plan_type as 'pdf' | 'image'}
-              pageNumber={takeoff.current_page || 1}
+              planUrl={currentFile.file_url}
+              planType={currentFile.file_type}
+              pageNumber={currentPage}
               totalPages={totalPages}
               zoom={zoom}
               onPageChange={setCurrentPage}
@@ -237,7 +312,7 @@ export function PlanTakeoffStep({
                 markups={currentPageMarkups}
                 selectedMarkupId={selectedMarkupId}
                 isCalibrated={isCalibrated}
-                pixelsPerMeter={takeoff.scale_pixels_per_meter}
+                pixelsPerMeter={currentScale}
                 isCalibrationMode={isCalibrationMode}
                 calibrationPoints={calibrationPoints}
                 onMarkupComplete={handleMarkupComplete}
@@ -344,8 +419,8 @@ export function PlanTakeoffStep({
           setActiveTool('select');
         }}
         calibrationPoints={calibrationPoints}
-        currentScale={takeoff?.scale_pixels_per_meter || null}
-        currentMethod={takeoff?.scale_calibration_method || null}
+        currentScale={currentScale}
+        pageNumber={currentPage}
       />
     </div>
   );

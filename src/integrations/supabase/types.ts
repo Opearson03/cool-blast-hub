@@ -1543,11 +1543,53 @@ export type Database = {
         }
         Relationships: []
       }
+      takeoff_files: {
+        Row: {
+          created_at: string
+          file_name: string
+          file_type: string
+          file_url: string
+          id: string
+          page_count: number | null
+          sort_order: number | null
+          takeoff_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          file_type: string
+          file_url: string
+          id?: string
+          page_count?: number | null
+          sort_order?: number | null
+          takeoff_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          file_type?: string
+          file_url?: string
+          id?: string
+          page_count?: number | null
+          sort_order?: number | null
+          takeoff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "takeoff_files_takeoff_id_fkey"
+            columns: ["takeoff_id"]
+            isOneToOne: false
+            referencedRelation: "estimate_takeoffs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       takeoff_markups: {
         Row: {
           area_sqm: number | null
           color: string | null
           created_at: string
+          file_id: string | null
           id: string
           name: string | null
           page_number: number | null
@@ -1561,6 +1603,7 @@ export type Database = {
           area_sqm?: number | null
           color?: string | null
           created_at?: string
+          file_id?: string | null
           id?: string
           name?: string | null
           page_number?: number | null
@@ -1574,6 +1617,7 @@ export type Database = {
           area_sqm?: number | null
           color?: string | null
           created_at?: string
+          file_id?: string | null
           id?: string
           name?: string | null
           page_number?: number | null
@@ -1585,10 +1629,49 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "takeoff_markups_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "takeoff_files"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "takeoff_markups_takeoff_id_fkey"
             columns: ["takeoff_id"]
             isOneToOne: false
             referencedRelation: "estimate_takeoffs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      takeoff_page_scales: {
+        Row: {
+          created_at: string
+          file_id: string
+          id: string
+          page_number: number
+          scale_pixels_per_meter: number
+        }
+        Insert: {
+          created_at?: string
+          file_id: string
+          id?: string
+          page_number?: number
+          scale_pixels_per_meter: number
+        }
+        Update: {
+          created_at?: string
+          file_id?: string
+          id?: string
+          page_number?: number
+          scale_pixels_per_meter?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "takeoff_page_scales_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "takeoff_files"
             referencedColumns: ["id"]
           },
         ]

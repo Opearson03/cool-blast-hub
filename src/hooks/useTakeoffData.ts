@@ -5,7 +5,8 @@ import type {
   EstimateTakeoff, 
   TakeoffMarkup, 
   TakeoffPoint,
-  CalibrationResult
+  TakeoffFile,
+  PageScale
 } from '@/types/takeoff';
 import type { Json } from '@/integrations/supabase/types';
 
@@ -16,27 +17,35 @@ interface UseTakeoffDataProps {
 
 interface UseTakeoffDataReturn {
   takeoff: EstimateTakeoff | null;
+  files: TakeoffFile[];
+  pageScales: PageScale[];
   markups: TakeoffMarkup[];
+  currentFileId: string | null;
   isLoading: boolean;
   isUploading: boolean;
-  isCalibrating: boolean;
-  uploadPlan: (file: File) => Promise<void>;
+  addFile: (file: File, fileName?: string) => Promise<TakeoffFile | null>;
+  removeFile: (fileId: string) => Promise<void>;
+  renameFile: (fileId: string, newName: string) => Promise<void>;
+  reorderFiles: (fileIds: string[]) => Promise<void>;
+  setCurrentFile: (fileId: string) => void;
+  setPageScale: (fileId: string, pageNumber: number, pixelsPerMeter: number) => Promise<void>;
+  getPageScale: (fileId: string, pageNumber: number) => number | null;
   deletePlan: () => Promise<void>;
-  setScale: (pixelsPerMeter: number, method: 'ai' | 'manual') => Promise<void>;
-  addMarkup: (scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, name?: string) => Promise<TakeoffMarkup | null>;
+  addMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
   deleteMarkup: (markupId: string) => Promise<void>;
   setCurrentPage: (page: number) => Promise<void>;
-  detectScale: () => Promise<CalibrationResult>;
   refetch: () => Promise<void>;
 }
 
 export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps): UseTakeoffDataReturn {
   const [takeoff, setTakeoff] = useState<EstimateTakeoff | null>(null);
+  const [files, setFiles] = useState<TakeoffFile[]>([]);
+  const [pageScales, setPageScales] = useState<PageScale[]>([]);
   const [markups, setMarkups] = useState<TakeoffMarkup[]>([]);
+  const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isCalibrating, setIsCalibrating] = useState(false);
   const { toast } = useToast();
 
   const fetchTakeoffData = useCallback(async () => {
@@ -56,6 +65,38 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       if (takeoffData) {
         setTakeoff(takeoffData as unknown as EstimateTakeoff);
         
+        // Fetch files
+        const { data: filesData, error: filesError } = await supabase
+          .from('takeoff_files')
+          .select('*')
+          .eq('takeoff_id', takeoffData.id)
+          .order('sort_order', { ascending: true });
+        
+        if (filesError) throw filesError;
+        
+        const typedFiles = (filesData || []).map(f => ({
+          ...f,
+          file_type: f.file_type as 'pdf' | 'image'
+        }));
+        setFiles(typedFiles);
+        
+        // Set current file to first if not set
+        if (typedFiles.length > 0 && !currentFileId) {
+          setCurrentFileId(typedFiles[0].id);
+        }
+        
+        // Fetch page scales for all files
+        if (typedFiles.length > 0) {
+          const fileIds = typedFiles.map(f => f.id);
+          const { data: scalesData, error: scalesError } = await supabase
+            .from('takeoff_page_scales')
+            .select('*')
+            .in('file_id', fileIds);
+          
+          if (scalesError) throw scalesError;
+          setPageScales((scalesData || []) as PageScale[]);
+        }
+        
         // Fetch markups
         const { data: markupsData, error: markupsError } = await supabase
           .from('takeoff_markups')
@@ -68,28 +109,32 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         setMarkups((markupsData || []).map(m => ({
           ...m,
           name: m.name || null,
+          file_id: m.file_id || null,
           shape_type: m.shape_type as 'polygon' | 'rectangle',
           points: m.points as unknown as TakeoffPoint[]
         })));
       } else {
         setTakeoff(null);
+        setFiles([]);
+        setPageScales([]);
         setMarkups([]);
+        setCurrentFileId(null);
       }
     } catch (error) {
       console.error('Error fetching takeoff data:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [estimateId]);
+  }, [estimateId, currentFileId]);
 
   useEffect(() => {
     fetchTakeoffData();
   }, [fetchTakeoffData]);
 
-  const uploadPlan = async (file: File) => {
+  const addFile = async (file: File, fileName?: string): Promise<TakeoffFile | null> => {
     if (!estimateId || !businessId) {
       toast({ title: 'Error', description: 'Missing estimate or business ID', variant: 'destructive' });
-      return;
+      return null;
     }
 
     setIsUploading(true);
@@ -97,7 +142,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       const fileExt = file.name.split('.').pop()?.toLowerCase();
       const isPdf = file.type === 'application/pdf' || fileExt === 'pdf';
       const planType = isPdf ? 'pdf' : 'image';
-      const filePath = `${businessId}/${estimateId}/plan.${fileExt}`;
+      const uniqueId = crypto.randomUUID();
+      const filePath = `${businessId}/${estimateId}/${uniqueId}.${fileExt}`;
 
       // Upload to storage
       const { error: uploadError } = await supabase.storage
@@ -106,144 +152,201 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
-        .from('estimate-plans')
-        .getPublicUrl(filePath);
-
-      // For private bucket, we need to use signed URL
+      // Get signed URL
       const { data: signedUrlData, error: signedUrlError } = await supabase.storage
         .from('estimate-plans')
-        .createSignedUrl(filePath, 3600 * 24 * 7); // 7 days
+        .createSignedUrl(filePath, 3600 * 24 * 7);
 
       if (signedUrlError) throw signedUrlError;
 
-      const planUrl = signedUrlData.signedUrl;
-
-      // Create or update takeoff record
-      if (takeoff) {
-        const { error } = await supabase
-          .from('estimate_takeoffs')
-          .update({
-            plan_url: planUrl,
-            plan_type: planType,
-            page_count: 1, // Will be updated when PDF is loaded
-            current_page: 1,
-            scale_pixels_per_meter: null,
-            scale_calibration_method: null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', takeoff.id);
-        
-        if (error) throw error;
-      } else {
-        const { error } = await supabase
+      // Create or get takeoff record
+      let takeoffId = takeoff?.id;
+      if (!takeoffId) {
+        const { data: newTakeoff, error: takeoffError } = await supabase
           .from('estimate_takeoffs')
           .insert({
             estimate_id: estimateId,
-            plan_url: planUrl,
-            plan_type: planType,
+            plan_url: null,
+            plan_type: null,
             page_count: 1,
             current_page: 1
-          });
+          })
+          .select()
+          .single();
         
-        if (error) throw error;
+        if (takeoffError) throw takeoffError;
+        takeoffId = newTakeoff.id;
+        setTakeoff(newTakeoff as unknown as EstimateTakeoff);
       }
 
-      await fetchTakeoffData();
-      toast({ title: 'Plan uploaded', description: 'Your plan has been uploaded successfully.' });
+      // Create file record
+      const displayName = fileName || file.name.replace(/\.[^/.]+$/, '') || 'Building Plan';
+      const sortOrder = files.length;
       
-      // Auto-detect scale in background (silently)
-      setTimeout(async () => {
-        try {
-          const { data, error } = await supabase.functions.invoke('detect-plan-scale', {
-            body: { planUrl: planUrl, pageNumber: 1 }
-          });
-          
-          if (!error && data?.detected && data?.pixels_per_meter) {
-            // Silently apply the detected scale
-            await supabase
-              .from('estimate_takeoffs')
-              .update({
-                scale_pixels_per_meter: data.pixels_per_meter,
-                scale_calibration_method: 'ai',
-                updated_at: new Date().toISOString()
-              })
-              .eq('estimate_id', estimateId);
-            
-            // Refetch to update state
-            await fetchTakeoffData();
-            toast({ title: 'Scale detected', description: 'Scale was automatically detected from your plan.' });
-          }
-        } catch (e) {
-          // Silently fail - user can still calibrate manually
-          console.log('Auto scale detection skipped:', e);
-        }
-      }, 500);
+      const { data: fileData, error: fileError } = await supabase
+        .from('takeoff_files')
+        .insert({
+          takeoff_id: takeoffId,
+          file_url: signedUrlData.signedUrl,
+          file_type: planType,
+          file_name: displayName,
+          page_count: 1,
+          sort_order: sortOrder
+        })
+        .select()
+        .single();
+
+      if (fileError) throw fileError;
+
+      const newFile: TakeoffFile = {
+        ...fileData,
+        file_type: fileData.file_type as 'pdf' | 'image'
+      };
+
+      setFiles(prev => [...prev, newFile]);
+      
+      // Set as current file if first file
+      if (files.length === 0) {
+        setCurrentFileId(newFile.id);
+      }
+
+      toast({ title: 'File added', description: `"${displayName}" has been uploaded.` });
+      return newFile;
     } catch (error: any) {
-      console.error('Error uploading plan:', error);
+      console.error('Error uploading file:', error);
       toast({ title: 'Upload failed', description: error.message, variant: 'destructive' });
+      return null;
     } finally {
       setIsUploading(false);
     }
   };
 
-  const deletePlan = async () => {
-    if (!takeoff) return;
-
+  const removeFile = async (fileId: string) => {
     try {
-      // Delete markups first
+      const file = files.find(f => f.id === fileId);
+      if (!file) return;
+
+      // Delete markups for this file
       await supabase
         .from('takeoff_markups')
         .delete()
-        .eq('takeoff_id', takeoff.id);
+        .eq('file_id', fileId);
 
-      // Delete takeoff record
+      // Delete page scales for this file
       await supabase
-        .from('estimate_takeoffs')
+        .from('takeoff_page_scales')
         .delete()
-        .eq('id', takeoff.id);
+        .eq('file_id', fileId);
 
-      // Delete file from storage
-      if (businessId && estimateId) {
-        const filePath = takeoff.plan_url.split('/').slice(-2).join('/');
-        await supabase.storage
-          .from('estimate-plans')
-          .remove([`${businessId}/${estimateId}/${filePath}`]);
-      }
-
-      setTakeoff(null);
-      setMarkups([]);
-      toast({ title: 'Plan deleted' });
-    } catch (error: any) {
-      console.error('Error deleting plan:', error);
-      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
-    }
-  };
-
-  const setScale = async (pixelsPerMeter: number, method: 'ai' | 'manual') => {
-    if (!takeoff) return;
-
-    try {
+      // Delete file record
       const { error } = await supabase
-        .from('estimate_takeoffs')
-        .update({
-          scale_pixels_per_meter: pixelsPerMeter,
-          scale_calibration_method: method,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', takeoff.id);
+        .from('takeoff_files')
+        .delete()
+        .eq('id', fileId);
 
       if (error) throw error;
 
-      setTakeoff(prev => prev ? {
-        ...prev,
-        scale_pixels_per_meter: pixelsPerMeter,
-        scale_calibration_method: method
-      } : null);
+      // Delete from storage
+      // Extract path from signed URL
+      const urlParts = file.file_url.split('/');
+      const objectPath = urlParts.slice(-3).join('/').split('?')[0];
+      if (businessId && estimateId) {
+        await supabase.storage
+          .from('estimate-plans')
+          .remove([objectPath]);
+      }
 
-      // Recalculate all markup areas with new scale
-      for (const markup of markups) {
+      setFiles(prev => prev.filter(f => f.id !== fileId));
+      setPageScales(prev => prev.filter(s => s.file_id !== fileId));
+      setMarkups(prev => prev.filter(m => m.file_id !== fileId));
+      
+      // Update current file if needed
+      if (currentFileId === fileId) {
+        const remaining = files.filter(f => f.id !== fileId);
+        setCurrentFileId(remaining.length > 0 ? remaining[0].id : null);
+      }
+
+      toast({ title: 'File removed' });
+    } catch (error: any) {
+      console.error('Error removing file:', error);
+      toast({ title: 'Remove failed', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const renameFile = async (fileId: string, newName: string) => {
+    try {
+      const { error } = await supabase
+        .from('takeoff_files')
+        .update({ file_name: newName })
+        .eq('id', fileId);
+
+      if (error) throw error;
+
+      setFiles(prev => prev.map(f => 
+        f.id === fileId ? { ...f, file_name: newName } : f
+      ));
+    } catch (error: any) {
+      console.error('Error renaming file:', error);
+      toast({ title: 'Rename failed', description: error.message, variant: 'destructive' });
+    }
+  };
+
+  const reorderFiles = async (fileIds: string[]) => {
+    try {
+      const updates = fileIds.map((id, index) => 
+        supabase
+          .from('takeoff_files')
+          .update({ sort_order: index })
+          .eq('id', id)
+      );
+      
+      await Promise.all(updates);
+      
+      setFiles(prev => {
+        const sorted = [...prev].sort((a, b) => 
+          fileIds.indexOf(a.id) - fileIds.indexOf(b.id)
+        );
+        return sorted;
+      });
+    } catch (error: any) {
+      console.error('Error reordering files:', error);
+    }
+  };
+
+  const setCurrentFile = (fileId: string) => {
+    setCurrentFileId(fileId);
+  };
+
+  const setPageScale = async (fileId: string, pageNumber: number, pixelsPerMeter: number) => {
+    try {
+      // Upsert page scale
+      const { data, error } = await supabase
+        .from('takeoff_page_scales')
+        .upsert({
+          file_id: fileId,
+          page_number: pageNumber,
+          scale_pixels_per_meter: pixelsPerMeter
+        }, {
+          onConflict: 'file_id,page_number'
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      setPageScales(prev => {
+        const existing = prev.findIndex(s => s.file_id === fileId && s.page_number === pageNumber);
+        if (existing >= 0) {
+          const updated = [...prev];
+          updated[existing] = data as PageScale;
+          return updated;
+        }
+        return [...prev, data as PageScale];
+      });
+
+      // Recalculate markup areas for this file and page
+      const affectedMarkups = markups.filter(m => m.file_id === fileId && m.page_number === pageNumber);
+      for (const markup of affectedMarkups) {
         const { calculatePolygonArea, calculatePolygonPerimeter, calculateRectangleArea, calculateRectanglePerimeter } = await import('@/types/takeoff');
         
         let area: number;
@@ -264,18 +367,78 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       }
 
       await fetchTakeoffData();
-      toast({ title: 'Scale calibrated', description: `${pixelsPerMeter.toFixed(1)} pixels per meter` });
+      toast({ title: 'Scale set', description: `${pixelsPerMeter.toFixed(1)} pixels per meter` });
     } catch (error: any) {
       console.error('Error setting scale:', error);
       toast({ title: 'Calibration failed', description: error.message, variant: 'destructive' });
     }
   };
 
+  const getPageScale = (fileId: string, pageNumber: number): number | null => {
+    const scale = pageScales.find(s => s.file_id === fileId && s.page_number === pageNumber);
+    return scale ? scale.scale_pixels_per_meter : null;
+  };
+
+  const deletePlan = async () => {
+    if (!takeoff) return;
+
+    try {
+      // Delete all markups
+      await supabase
+        .from('takeoff_markups')
+        .delete()
+        .eq('takeoff_id', takeoff.id);
+
+      // Delete all page scales via files
+      for (const file of files) {
+        await supabase
+          .from('takeoff_page_scales')
+          .delete()
+          .eq('file_id', file.id);
+      }
+
+      // Delete all files
+      await supabase
+        .from('takeoff_files')
+        .delete()
+        .eq('takeoff_id', takeoff.id);
+
+      // Delete takeoff record
+      await supabase
+        .from('estimate_takeoffs')
+        .delete()
+        .eq('id', takeoff.id);
+
+      // Delete files from storage
+      if (businessId && estimateId) {
+        for (const file of files) {
+          const urlParts = file.file_url.split('/');
+          const objectPath = urlParts.slice(-3).join('/').split('?')[0];
+          await supabase.storage
+            .from('estimate-plans')
+            .remove([objectPath]);
+        }
+      }
+
+      setTakeoff(null);
+      setFiles([]);
+      setPageScales([]);
+      setMarkups([]);
+      setCurrentFileId(null);
+      toast({ title: 'All plans removed' });
+    } catch (error: any) {
+      console.error('Error deleting plan:', error);
+      toast({ title: 'Delete failed', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const addMarkup = async (
+    fileId: string,
     scopeId: string, 
     shapeType: 'polygon' | 'rectangle', 
     points: TakeoffPoint[],
     color: string,
+    pageNumber: number,
     name?: string
   ): Promise<TakeoffMarkup | null> => {
     if (!takeoff) return null;
@@ -283,16 +446,17 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     try {
       const { calculatePolygonArea, calculatePolygonPerimeter, calculateRectangleArea, calculateRectanglePerimeter } = await import('@/types/takeoff');
       
+      const scale = getPageScale(fileId, pageNumber);
       let area: number | null = null;
       let perimeter: number | null = null;
       
-      if (takeoff.scale_pixels_per_meter) {
+      if (scale) {
         if (shapeType === 'polygon') {
-          area = calculatePolygonArea(points, takeoff.scale_pixels_per_meter);
-          perimeter = calculatePolygonPerimeter(points, takeoff.scale_pixels_per_meter);
+          area = calculatePolygonArea(points, scale);
+          perimeter = calculatePolygonPerimeter(points, scale);
         } else {
-          area = calculateRectangleArea(points, takeoff.scale_pixels_per_meter);
-          perimeter = calculateRectanglePerimeter(points, takeoff.scale_pixels_per_meter);
+          area = calculateRectangleArea(points, scale);
+          perimeter = calculateRectanglePerimeter(points, scale);
         }
       }
 
@@ -300,6 +464,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         .from('takeoff_markups')
         .insert({
           takeoff_id: takeoff.id,
+          file_id: fileId,
           scope_id: scopeId,
           shape_type: shapeType,
           points: points as unknown as Json,
@@ -307,7 +472,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           perimeter_m: perimeter,
           color: color,
           name: name || null,
-          page_number: takeoff.current_page
+          page_number: pageNumber
         })
         .select()
         .single();
@@ -317,6 +482,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       const newMarkup: TakeoffMarkup = {
         ...data,
         name: data.name || null,
+        file_id: data.file_id || null,
         shape_type: data.shape_type as 'polygon' | 'rectangle',
         points: data.points as unknown as TakeoffPoint[]
       };
@@ -331,24 +497,26 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
   };
 
   const updateMarkup = async (markupId: string, points: TakeoffPoint[]) => {
-    if (!takeoff) return;
-
     try {
-      const { calculatePolygonArea, calculatePolygonPerimeter, calculateRectangleArea, calculateRectanglePerimeter } = await import('@/types/takeoff');
-      
       const markup = markups.find(m => m.id === markupId);
       if (!markup) return;
+
+      const scale = markup.file_id 
+        ? getPageScale(markup.file_id, markup.page_number)
+        : null;
 
       let area: number | null = null;
       let perimeter: number | null = null;
       
-      if (takeoff.scale_pixels_per_meter) {
+      if (scale) {
+        const { calculatePolygonArea, calculatePolygonPerimeter, calculateRectangleArea, calculateRectanglePerimeter } = await import('@/types/takeoff');
+        
         if (markup.shape_type === 'polygon') {
-          area = calculatePolygonArea(points, takeoff.scale_pixels_per_meter);
-          perimeter = calculatePolygonPerimeter(points, takeoff.scale_pixels_per_meter);
+          area = calculatePolygonArea(points, scale);
+          perimeter = calculatePolygonPerimeter(points, scale);
         } else {
-          area = calculateRectangleArea(points, takeoff.scale_pixels_per_meter);
-          perimeter = calculateRectanglePerimeter(points, takeoff.scale_pixels_per_meter);
+          area = calculateRectangleArea(points, scale);
+          perimeter = calculateRectanglePerimeter(points, scale);
         }
       }
 
@@ -401,48 +569,26 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     }
   };
 
-  const detectScale = async (): Promise<CalibrationResult> => {
-    if (!takeoff?.plan_url) {
-      return { detected: false, pixels_per_meter: null, confidence: 0, method: null, message: 'No plan uploaded' };
-    }
-
-    setIsCalibrating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('detect-plan-scale', {
-        body: { planUrl: takeoff.plan_url, pageNumber: takeoff.current_page }
-      });
-
-      if (error) throw error;
-
-      const result = data as CalibrationResult;
-      
-      if (result.detected && result.pixels_per_meter) {
-        await setScale(result.pixels_per_meter, 'ai');
-      }
-
-      return result;
-    } catch (error: any) {
-      console.error('Error detecting scale:', error);
-      return { detected: false, pixels_per_meter: null, confidence: 0, method: null, message: error.message };
-    } finally {
-      setIsCalibrating(false);
-    }
-  };
-
   return {
     takeoff,
+    files,
+    pageScales,
     markups,
+    currentFileId,
     isLoading,
     isUploading,
-    isCalibrating,
-    uploadPlan,
+    addFile,
+    removeFile,
+    renameFile,
+    reorderFiles,
+    setCurrentFile,
+    setPageScale,
+    getPageScale,
     deletePlan,
-    setScale,
     addMarkup,
     updateMarkup,
     deleteMarkup,
     setCurrentPage,
-    detectScale,
     refetch: fetchTakeoffData
   };
 }
