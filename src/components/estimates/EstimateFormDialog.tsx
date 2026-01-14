@@ -321,8 +321,16 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const dialogScrollRef = useRef<HTMLDivElement>(null);
   
   // Draft estimate ID for takeoff step (created when entering takeoff for new estimates)
-  const [draftEstimateId, setDraftEstimateId] = useState<string | null>(null);
+  // We use both state (for React re-renders) and a ref (for synchronous access in closures)
+  const [draftEstimateId, setDraftEstimateIdState] = useState<string | null>(null);
+  const draftEstimateIdRef = useRef<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  
+  // Helper to update both state and ref synchronously
+  const setDraftEstimateId = useCallback((id: string | null) => {
+    draftEstimateIdRef.current = id;
+    setDraftEstimateIdState(id);
+  }, []);
   
   // Get takeoff markups for this estimate to pre-fill scope answers
   const estimateIdForTakeoff = draftEstimateId || editEstimate?.id || null;
@@ -532,7 +540,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
   // Create a draft estimate for takeoff step (needed for file uploads)
   const createDraftForTakeoff = useCallback(async (): Promise<string | null> => {
-    if (draftEstimateId) return draftEstimateId;
+    // Check ref for immediate value (avoids stale closure)
+    if (draftEstimateIdRef.current) return draftEstimateIdRef.current;
     if (!businessId) {
       // Fetch business ID if not yet available
       const { data: { user } } = await supabase.auth.getUser();
@@ -602,7 +611,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     
     setDraftEstimateId(data.id);
     return data.id;
-  }, [draftEstimateId, businessId, formData.client_name, formData.site_address, estimateType, selectedScopesArray, toast]);
+  }, [businessId, formData.client_name, formData.site_address, estimateType, selectedScopesArray, toast, setDraftEstimateId]);
 
   const goNext = async () => {
     const nextIndex = currentStepIndex + 1;
@@ -610,7 +619,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       const nextStep = STEP_ORDER[nextIndex];
       
       // If entering takeoff step without a draft, create one
-      if (nextStep === "takeoff" && !draftEstimateId && !editEstimate) {
+      // Use ref for immediate check (avoids stale closure)
+      if (nextStep === "takeoff" && !draftEstimateIdRef.current && !editEstimate) {
         const newDraftId = await createDraftForTakeoff();
         if (!newDraftId) {
           return; // Failed to create draft, don't proceed
@@ -729,7 +739,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       };
 
       // Use existing estimate ID if available (editEstimate or draftEstimateId)
-      const workingEstimateId = editEstimate?.id ?? draftEstimateId;
+      // Read from ref to avoid stale closure issues
+      const workingEstimateId = editEstimate?.id ?? draftEstimateIdRef.current;
       
       if (workingEstimateId) {
         // Update existing estimate (includes drafts created for takeoff)
@@ -842,25 +853,27 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         status: "pending" as const,
       };
 
-      if (editEstimate) {
+      // Use existing estimate ID if available (editEstimate or draftEstimateId)
+      // Read from ref to avoid stale closure issues
+      const workingEstimateId = editEstimate?.id ?? draftEstimateIdRef.current;
+      
+      if (workingEstimateId) {
+        // Update existing estimate (includes drafts created for takeoff)
         const { error } = await supabase
           .from("estimates")
           .update(estimateData)
-          .eq("id", editEstimate.id);
-        if (error) throw error;
-      } else if (draftEstimateId) {
-        // Update the draft estimate instead of creating a new one
-        // This preserves the takeoff data that was already linked to the draft
-        const { error } = await supabase
-          .from("estimates")
-          .update(estimateData)
-          .eq("id", draftEstimateId);
+          .eq("id", workingEstimateId);
         if (error) throw error;
       } else {
-        const { error } = await supabase
+        // Create new estimate and capture the ID
+        const { data, error } = await supabase
           .from("estimates")
-          .insert(estimateData);
+          .insert([{ ...estimateData, created_by: user.id }])
+          .select("id")
+          .single();
         if (error) throw error;
+        // Store the new ID so subsequent saves update instead of insert
+        setDraftEstimateId(data.id);
       }
     },
     onSuccess: () => {
@@ -951,7 +964,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       };
 
       // Use existing estimate ID if available (editEstimate or draftEstimateId)
-      const workingEstimateId = editEstimate?.id ?? draftEstimateId;
+      // Read from ref to avoid stale closure issues
+      const workingEstimateId = editEstimate?.id ?? draftEstimateIdRef.current;
       
       if (workingEstimateId) {
         // Update existing estimate (includes drafts created for takeoff)
