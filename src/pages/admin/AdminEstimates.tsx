@@ -101,18 +101,29 @@ export default function AdminEstimates() {
         .eq("source_estimate_id", id);
       if (jobUpdateError) throw jobUpdateError;
 
-      // Delete related takeoff markups first (via takeoff)
+      // Get takeoffs with their plan URLs for storage cleanup
       const { data: takeoffs } = await supabase
         .from("estimate_takeoffs")
-        .select("id")
+        .select("id, plan_url")
         .eq("estimate_id", id);
       
       if (takeoffs && takeoffs.length > 0) {
         const takeoffIds = takeoffs.map(t => t.id);
+        
+        // Delete related takeoff markups first
         await supabase
           .from("takeoff_markups")
           .delete()
           .in("takeoff_id", takeoffIds);
+        
+        // Clean up storage files to prevent orphaned files
+        for (const takeoff of takeoffs) {
+          if (takeoff.plan_url) {
+            await supabase.storage
+              .from("estimate-plans")
+              .remove([takeoff.plan_url]);
+          }
+        }
       }
 
       // Delete estimate takeoffs
