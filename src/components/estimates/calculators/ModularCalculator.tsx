@@ -145,30 +145,19 @@ export function ModularCalculator({
     }
   }, [priceListLoading, priceListItems, modules, priceMap, moduleAnswers]);
 
-  // Calculate volume from scope answers
-  const scopeVolume = useMemo(() => {
-    if (scope.calculateVolume) {
-      return scope.calculateVolume(scopeAnswers);
-    }
-    return 0;
-  }, [scope, scopeAnswers]);
-
-  // Build scope data for calculations
-  const scopeData = useMemo(() => {
-    // Calculate total area from multi-area inputs or length × width
+  // Build derived scope answers used for calculations (area/perimeter can come from takeoff)
+  const derivedScopeAnswers = useMemo(() => {
     let totalArea = scopeAnswers.area || 0;
     let totalPerimeter = scopeAnswers.perimeter || 0;
-    
+
     if (scopeAnswers.areas && Array.isArray(scopeAnswers.areas)) {
       totalArea = scopeAnswers.areas.reduce((sum: number, a: any) => {
-        // Use _actualArea from takeoff if available, otherwise calculate from L×W
-        const areaValue = a._actualArea && a._actualArea > 0 
-          ? a._actualArea 
+        const areaValue = a._actualArea && a._actualArea > 0
+          ? a._actualArea
           : (Number(a.length) || 0) * (Number(a.width) || 0);
         return sum + areaValue;
       }, 0);
-      
-      // Calculate total perimeter from areas - use _actualPerimeter if available
+
       totalPerimeter = scopeAnswers.areas.reduce((sum: number, a: any) => {
         if (a._actualPerimeter && a._actualPerimeter > 0) {
           return sum + a._actualPerimeter;
@@ -184,14 +173,29 @@ export function ModularCalculator({
       totalArea = Number(scopeAnswers.length) * Number(scopeAnswers.width);
       totalPerimeter = 2 * (Number(scopeAnswers.length) + Number(scopeAnswers.width));
     }
-    
+
     return {
       ...scopeAnswers,
       area: totalArea,
       perimeter: totalPerimeter,
+    };
+  }, [scopeAnswers]);
+
+  // Calculate volume from derived scope answers (so takeoff area/perimeter flows through)
+  const scopeVolume = useMemo(() => {
+    if (scope.calculateVolume) {
+      return scope.calculateVolume(derivedScopeAnswers);
+    }
+    return 0;
+  }, [scope, derivedScopeAnswers]);
+
+  // Build scope data for module calculations
+  const scopeData = useMemo(() => {
+    return {
+      ...derivedScopeAnswers,
       volume: scopeVolume,
     };
-  }, [scopeAnswers, scopeVolume]);
+  }, [derivedScopeAnswers, scopeVolume]);
 
   // Apply derived values and auto-fill from price list when fields become visible
   useEffect(() => {
@@ -338,12 +342,18 @@ export function ModularCalculator({
   const handleAreasChange = (areas: MeasurementArea[]) => {
     // Calculate combined area and perimeter from areas
     const totalArea = areas.reduce((sum, area) => {
+      if (area._actualArea && area._actualArea > 0) {
+        return sum + area._actualArea;
+      }
       const l = Number(area.length) || 0;
       const w = Number(area.width) || 0;
       return sum + l * w;
     }, 0);
-    
+
     const totalPerimeter = areas.reduce((sum, area) => {
+      if (area._actualPerimeter && area._actualPerimeter > 0) {
+        return sum + area._actualPerimeter;
+      }
       const l = Number(area.length) || 0;
       const w = Number(area.width) || 0;
       if (l > 0 && w > 0) {
