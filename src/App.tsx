@@ -27,8 +27,11 @@ import EmployeeSchedule from "./pages/employee/EmployeeSchedule";
 import EmployeeContacts from "./pages/employee/EmployeeContacts";
 import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import EmployeeLeave from "./pages/employee/EmployeeLeave";
+import StaffAuth from "./pages/staff/StaffAuth";
+import StaffDashboard from "./pages/staff/StaffDashboard";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
 import { supabase } from "./integrations/supabase/client";
 
@@ -80,6 +83,10 @@ const AppContent = () => {
       {/* <Route path="/employee/leave" element={<ProtectedRoute allowedRole="staff"><EmployeeLeave /></ProtectedRoute>} /> */}
       {/* <Route path="/employee/contacts" element={<ProtectedRoute allowedRole="staff"><EmployeeContacts /></ProtectedRoute>} /> */}
       {/* <Route path="/employee/profile" element={<ProtectedRoute allowedRole="staff"><EmployeeProfile /></ProtectedRoute>} /> */}
+      
+      {/* Staff Routes - accessible via staff.pourhub.com.au or /staff path */}
+      <Route path="/staff" element={<StaffAuth />} />
+      <Route path="/staff/dashboard" element={<StaffProtectedRoute><StaffDashboard /></StaffProtectedRoute>} />
       
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />

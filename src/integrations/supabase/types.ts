@@ -1895,6 +1895,15 @@ export type Database = {
     Functions: {
       check_employee_limit: { Args: { _business_id: string }; Returns: Json }
       check_invite_email: { Args: { _email: string }; Returns: boolean }
+      get_signup_trends: {
+        Args: { days_back?: number }
+        Returns: {
+          business_count: number
+          signup_date: string
+          user_count: number
+        }[]
+      }
+      get_subscription_stats: { Args: never; Returns: Json }
       get_team_profiles: {
         Args: never
         Returns: {
@@ -1936,6 +1945,16 @@ export type Database = {
       get_user_swms_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_team_ids: { Args: { _user_id: string }; Returns: string[] }
       get_waiting_list_count: { Args: never; Returns: number }
+      get_waiting_list_entries: {
+        Args: never
+        Returns: {
+          business_name: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+        }[]
+      }
       has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
@@ -1944,9 +1963,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_pourhub_staff: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "staff"
+      app_role: "admin" | "staff" | "pourhub_staff"
       booking_status: "pending" | "contacted" | "converted" | "cancelled"
       customer_type: "retail" | "industrial"
       document_category:
@@ -2107,7 +2127,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff"],
+      app_role: ["admin", "staff", "pourhub_staff"],
       booking_status: ["pending", "contacted", "converted", "cancelled"],
       customer_type: ["retail", "industrial"],
       document_category: [
