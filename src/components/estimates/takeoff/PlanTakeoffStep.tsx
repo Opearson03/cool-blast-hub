@@ -197,23 +197,49 @@ export function PlanTakeoffStep({
     setActiveScope(null);
   }, [activeScope, currentFileId, pierPoints, selectedScopes, addPierMarkups, currentPage]);
 
-  // Handler for "Done" button when marking piers
+  // Handler for "Done" button when marking piers/bollards/pads
   const handleDoneMarkingPiers = useCallback(() => {
     if (pierPoints.length > 0) {
-      setShowPierDimensions(true);
+      if (isBollardScope) {
+        setShowBollardDimensions(true);
+      } else if (isPadScope) {
+        setShowPadDimensions(true);
+      } else {
+        setShowPierDimensions(true);
+      }
     }
-  }, [pierPoints.length]);
+  }, [pierPoints.length, isBollardScope, isPadScope]);
+
+  // Handler for completing polyline drawing - called when user clicks "Done" on polyline toolbar
+  const handleDoneMarkingPolyline = useCallback(() => {
+    if (polylinePoints.length >= 2 && currentScale) {
+      const lengthMeters = calculatePolylineLength(polylinePoints, currentScale);
+      setPendingPolylineLength(lengthMeters);
+      setShowLinearDimensions(true);
+    }
+  }, [polylinePoints, currentScale]);
+
+  // Handler called by DrawingCanvas when polyline is completed (double-click alternative)
+  const handlePolylineComplete = useCallback((points: TakeoffPoint[], lengthMeters: number) => {
+    setPendingPolylineLength(lengthMeters);
+    setShowLinearDimensions(true);
+  }, []);
 
   const handleUndo = useCallback(() => {
-    if (drawingPoints.length > 0) {
+    if (activeTool === 'polyline' && polylinePoints.length > 0) {
+      setPolylinePoints(prev => prev.slice(0, -1));
+    } else if (drawingPoints.length > 0) {
       setDrawingPoints(prev => prev.slice(0, -1));
     }
-  }, [drawingPoints.length]);
+  }, [activeTool, polylinePoints.length, drawingPoints.length]);
 
   const handleToolChange = useCallback((tool: DrawingTool['type']) => {
     setActiveTool(tool);
     if (tool !== 'polygon' && tool !== 'rectangle') {
       setDrawingPoints([]);
+    }
+    if (tool !== 'polyline') {
+      setPolylinePoints([]);
     }
   }, []);
 
@@ -345,7 +371,7 @@ export function PlanTakeoffStep({
         onZoomIn={() => setZoom(z => Math.min(z * 1.25, 3))}
         onZoomOut={() => setZoom(z => Math.max(z / 1.25, 0.25))}
         onFitToScreen={() => setZoom(1)}
-        canUndo={drawingPoints.length > 0}
+        canUndo={activeTool === 'polyline' ? polylinePoints.length > 0 : drawingPoints.length > 0}
         canDelete={!!selectedMarkupId}
         isCalibrated={isCalibrated}
         currentScale={currentScale}
@@ -354,10 +380,14 @@ export function PlanTakeoffStep({
         currentFileId={currentFileId}
         onFileChange={setCurrentFile}
         currentPage={currentPage}
-        isPointMode={activeTool === 'point' && isPierScope}
+        isPointMode={activeTool === 'point' && isPointScope}
         pointCount={pierPoints.length}
         pointLabel={activeScope === 'bollards' ? 'bollard' : activeScope === 'pad_footings' ? 'pad footing' : activeScope === 'pit_bases' ? 'pit base' : 'pier'}
         onDoneMarkingPoints={handleDoneMarkingPiers}
+        isPolylineMode={activeTool === 'polyline' && isLinearScope}
+        polylineLength={currentScale ? calculatePolylineLength(polylinePoints, currentScale) : 0}
+        polylineLabel={activeScope === 'kerbs_channels' ? 'kerb' : activeScope === 'retaining_walls' ? 'wall' : 'footing'}
+        onDoneMarkingPolyline={handleDoneMarkingPolyline}
       />
 
       {/* Main content */}
@@ -388,12 +418,15 @@ export function PlanTakeoffStep({
                 isCalibrationMode={isCalibrationMode}
                 calibrationPoints={calibrationPoints}
                 pierPoints={pierPoints}
+                polylinePoints={polylinePoints}
                 onMarkupComplete={handleMarkupComplete}
+                onPolylineComplete={handlePolylineComplete}
                 onMarkupSelect={setSelectedMarkupId}
                 onMarkupUpdate={() => {}}
                 onPointsChange={setDrawingPoints}
                 onCalibrationPointsChange={handleCalibrationPointsChange}
                 onPierPointsChange={setPierPoints}
+                onPolylinePointsChange={setPolylinePoints}
               />
             </PlanViewer>
           ) : (
