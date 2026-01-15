@@ -1,9 +1,16 @@
 import { useState } from "react";
-import { Plus, Trash2, Copy } from "lucide-react";
+import { Plus, Trash2, Copy, Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { PierConfig } from "@/lib/estimate-components/types";
 
 interface MultiPierInputProps {
@@ -18,6 +25,9 @@ export function MultiPierInput({
   onChange,
 }: MultiPierInputProps) {
   const [newPierName, setNewPierName] = useState("");
+
+  // Check if any pier is from takeoff
+  const hasAnyTakeoffPiers = piers.some((p) => p._fromTakeoff);
 
   // Calculate totals
   const totalPiers = piers.reduce((sum, pier) => sum + (Number(pier.quantity) || 0), 0);
@@ -59,22 +69,42 @@ export function MultiPierInput({
         ...pier,
         id: `pier-${Date.now()}`,
         name: `${pier.name} (copy)`,
+        _fromTakeoff: false, // Duplicate is not from takeoff
       },
     ]);
   };
 
   const updatePier = (id: string, field: keyof PierConfig, value: any) => {
     onChange(
-      piers.map((pier) =>
-        pier.id === id ? { ...pier, [field]: value } : pier
-      )
+      piers.map((pier) => {
+        if (pier.id !== id) return pier;
+        
+        // If editing any field, clear takeoff flag since user is overriding
+        if (pier._fromTakeoff) {
+          return {
+            ...pier,
+            [field]: value,
+            _fromTakeoff: false,
+          };
+        }
+        
+        return { ...pier, [field]: value };
+      })
     );
   };
 
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">{label}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{label}</CardTitle>
+          {hasAnyTakeoffPiers && (
+            <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 gap-1">
+              <Ruler className="h-3 w-3" />
+              From plan takeoff
+            </Badge>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Pier list */}
@@ -89,15 +119,35 @@ export function MultiPierInput({
             return (
               <div
                 key={pier.id}
-                className="border rounded-lg p-3 bg-muted/30 space-y-3"
+                className={`border rounded-lg p-3 space-y-3 ${
+                  pier._fromTakeoff
+                    ? "bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800"
+                    : "bg-muted/30"
+                }`}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <Input
-                    value={pier.name}
-                    onChange={(e) => updatePier(pier.id, "name", e.target.value)}
-                    placeholder={`Pier Type ${index + 1}`}
-                    className="font-medium flex-1"
-                  />
+                  <div className="flex items-center gap-2 flex-1">
+                    {pier._fromTakeoff && (
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <div className="shrink-0 w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+                              <Ruler className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                            </div>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Counted from plan takeoff</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    )}
+                    <Input
+                      value={pier.name}
+                      onChange={(e) => updatePier(pier.id, "name", e.target.value)}
+                      placeholder={`Pier Type ${index + 1}`}
+                      className="font-medium flex-1"
+                    />
+                  </div>
                   <div className="flex gap-1">
                     <Button
                       type="button"

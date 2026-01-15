@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import type { TakeoffMarkup, TakeoffPoint } from '@/types/takeoff';
 
 interface ScopeAreaData {
   scope_id: string;
@@ -15,6 +14,12 @@ interface ScopeAreaData {
   shape_type?: string;
 }
 
+interface PierTakeoffData {
+  count: number;
+  diameter: number;
+  depth: number;
+}
+
 interface UseTakeoffMarkupsReturn {
   markups: ScopeAreaData[];
   isLoading: boolean;
@@ -22,6 +27,7 @@ interface UseTakeoffMarkupsReturn {
   getPerimeterForScope: (scopeId: string) => number | null;
   hasMarkupForScope: (scopeId: string) => boolean;
   getMarkupsForScope: (scopeId: string) => ScopeAreaData[];
+  getPierDataForScope: (scopeId: string) => PierTakeoffData | null;
   refetch: () => Promise<void>;
 }
 
@@ -101,6 +107,24 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     return markups.filter(m => m.scope_id === scopeId);
   }, [markups]);
 
+  const getPierDataForScope = useCallback((scopeId: string): PierTakeoffData | null => {
+    const pierMarkups = markups.filter(
+      m => m.scope_id === scopeId && m.shape_type === 'point'
+    );
+    
+    if (pierMarkups.length === 0) return null;
+    
+    // Count total piers (sum of pier_quantity for each markup)
+    const count = pierMarkups.reduce((sum, m) => sum + (m.pier_quantity || 1), 0);
+    
+    // Get diameter and depth from the first markup (they should all be the same)
+    const firstMarkup = pierMarkups[0];
+    const diameter = firstMarkup.diameter_mm || 450;
+    const depth = firstMarkup.depth_mm || 600;
+    
+    return { count, diameter, depth };
+  }, [markups]);
+
   return {
     markups,
     isLoading,
@@ -108,6 +132,7 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     getPerimeterForScope,
     hasMarkupForScope,
     getMarkupsForScope,
+    getPierDataForScope,
     refetch: fetchMarkups,
   };
 }

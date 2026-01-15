@@ -346,6 +346,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     getPerimeterForScope, 
     hasMarkupForScope,
     getMarkupsForScope,
+    getPierDataForScope,
     refetch: refetchMarkups 
   } = useTakeoffMarkups(estimateIdForTakeoff);
   
@@ -1117,6 +1118,32 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             _fromTakeoff: true,
             areas: areasFromTakeoff,
           };
+        }
+      } else if (scopeDefinition.supportsMultiplePiers) {
+        // For pier scopes, get pier data from takeoff
+        const pierData = getPierDataForScope(scope);
+        
+        if (pierData && pierData.count > 0) {
+          // Check if user hasn't already overridden with their own values
+          const hasUserData = initialScopeAnswers.piers?.some((p: any) => p.quantity > 0 && p._fromTakeoff !== true);
+          
+          if (!hasUserData) {
+            // Create a single pier config from takeoff data
+            const piersFromTakeoff = [{
+              id: `takeoff-piers-${Date.now()}`,
+              name: `Piers from takeoff`,
+              quantity: pierData.count,
+              diameter: pierData.diameter,
+              depth: pierData.depth,
+              _fromTakeoff: true,
+            }];
+            
+            initialScopeAnswers = {
+              ...initialScopeAnswers,
+              _fromTakeoff: true,
+              piers: piersFromTakeoff,
+            };
+          }
         }
       } else {
         // For standard scopes, pre-fill area and perimeter directly
