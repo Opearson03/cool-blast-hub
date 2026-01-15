@@ -32,9 +32,22 @@ export function ScopeMarkupChecklist({
     return markups.filter(m => m.scope_id === scopeId);
   };
 
-  const getScopeStatus = (scopeId: string): ScopeMarkupStatus => {
+  const getScopeStatus = (scopeId: string): ScopeMarkupStatus & { pierCount?: number } => {
     const scopeMarkups = getScopeMarkups(scopeId);
     if (scopeMarkups.length > 0) {
+      // Check if this is a pier scope (has point-type markups)
+      const pierMarkup = scopeMarkups.find(m => m.shape_type === 'point');
+      if (pierMarkup) {
+        const totalPiers = scopeMarkups.reduce((sum, m) => sum + (m.pier_quantity || 0), 0);
+        return {
+          scope_id: scopeId,
+          label: scopes.find(s => s.id === scopeId)?.label || scopeId,
+          status: 'marked',
+          area_sqm: null,
+          pierCount: totalPiers,
+          markup_id: scopeMarkups[0].id
+        };
+      }
       // Sum all areas for this scope
       const totalArea = scopeMarkups.reduce((sum, m) => sum + (m.area_sqm || 0), 0);
       return {
@@ -42,7 +55,7 @@ export function ScopeMarkupChecklist({
         label: scopes.find(s => s.id === scopeId)?.label || scopeId,
         status: 'marked',
         area_sqm: totalArea,
-        markup_id: scopeMarkups[0].id // Primary markup ID for compatibility
+        markup_id: scopeMarkups[0].id
       };
     }
     if (skippedScopes.has(scopeId)) {
@@ -64,6 +77,11 @@ export function ScopeMarkupChecklist({
   const formatArea = (area: number | null): string => {
     if (area === null) return '--';
     return `${area.toFixed(1)} m²`;
+  };
+
+  const formatPierCount = (count: number | undefined): string => {
+    if (!count) return '--';
+    return `${count} pier${count !== 1 ? 's' : ''}`;
   };
 
   // Count based on whether scope has at least one markup or is skipped
@@ -120,7 +138,10 @@ export function ScopeMarkupChecklist({
                   <p className="text-sm font-medium truncate">{status.label}</p>
                   {status.status === 'marked' && (
                     <p className="text-xs text-green-600 dark:text-green-400 font-mono">
-                      {scopeMarkups.length} area{scopeMarkups.length !== 1 ? 's' : ''} • {formatArea(status.area_sqm)}
+                      {status.pierCount 
+                        ? formatPierCount(status.pierCount)
+                        : `${scopeMarkups.length} area${scopeMarkups.length !== 1 ? 's' : ''} • ${formatArea(status.area_sqm)}`
+                      }
                     </p>
                   )}
                   {status.status === 'skipped' && (

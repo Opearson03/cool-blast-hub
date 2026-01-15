@@ -28,13 +28,17 @@ export interface TakeoffMarkup {
   file_id: string | null;
   scope_id: string;
   name: string | null;
-  shape_type: 'polygon' | 'rectangle';
+  shape_type: 'polygon' | 'rectangle' | 'point';
   points: TakeoffPoint[];
   area_sqm: number | null;
   perimeter_m: number | null;
   color: string;
   page_number: number;
   created_at: string;
+  // Pier-specific fields
+  diameter_mm?: number | null;
+  depth_mm?: number | null;
+  pier_quantity?: number | null;
 }
 
 export interface EstimateTakeoff {
@@ -58,7 +62,7 @@ export interface TakeoffState {
 }
 
 export interface DrawingTool {
-  type: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate';
+  type: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate' | 'point';
 }
 
 export interface ScopeMarkupStatus {

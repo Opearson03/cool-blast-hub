@@ -32,6 +32,7 @@ interface UseTakeoffDataReturn {
   getPageScale: (fileId: string, pageNumber: number) => number | null;
   deletePlan: () => Promise<void>;
   addMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
+  addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
   deleteMarkup: (markupId: string) => Promise<void>;
   setCurrentPage: (page: number) => Promise<void>;
@@ -110,8 +111,11 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           ...m,
           name: m.name || null,
           file_id: m.file_id || null,
-          shape_type: m.shape_type as 'polygon' | 'rectangle',
-          points: m.points as unknown as TakeoffPoint[]
+          shape_type: m.shape_type as 'polygon' | 'rectangle' | 'point',
+          points: m.points as unknown as TakeoffPoint[],
+          diameter_mm: m.diameter_mm || null,
+          depth_mm: m.depth_mm || null,
+          pier_quantity: m.pier_quantity || null,
         })));
       } else {
         setTakeoff(null);
@@ -483,8 +487,11 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         ...data,
         name: data.name || null,
         file_id: data.file_id || null,
-        shape_type: data.shape_type as 'polygon' | 'rectangle',
-        points: data.points as unknown as TakeoffPoint[]
+        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point',
+        points: data.points as unknown as TakeoffPoint[],
+        diameter_mm: null,
+        depth_mm: null,
+        pier_quantity: null,
       };
 
       setMarkups(prev => [...prev, newMarkup]);
@@ -492,6 +499,62 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     } catch (error: any) {
       console.error('Error adding markup:', error);
       toast({ title: 'Error adding markup', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
+  // Add pier markups (point-based with diameter/depth)
+  const addPierMarkups = async (
+    fileId: string,
+    scopeId: string,
+    points: TakeoffPoint[],
+    diameterMm: number,
+    depthMm: number,
+    color: string,
+    pageNumber: number
+  ): Promise<TakeoffMarkup | null> => {
+    if (!takeoff || points.length === 0) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('takeoff_markups')
+        .insert({
+          takeoff_id: takeoff.id,
+          file_id: fileId,
+          scope_id: scopeId,
+          shape_type: 'point',
+          points: points as unknown as Json,
+          area_sqm: null,
+          perimeter_m: null,
+          color: color,
+          name: `${points.length} piers`,
+          page_number: pageNumber,
+          diameter_mm: diameterMm,
+          depth_mm: depthMm,
+          pier_quantity: points.length
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newMarkup: TakeoffMarkup = {
+        ...data,
+        name: data.name || null,
+        file_id: data.file_id || null,
+        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point',
+        points: data.points as unknown as TakeoffPoint[],
+        diameter_mm: data.diameter_mm,
+        depth_mm: data.depth_mm,
+        pier_quantity: data.pier_quantity,
+      };
+
+      setMarkups(prev => [...prev, newMarkup]);
+      toast({ title: 'Piers saved', description: `${points.length} pier locations saved` });
+      return newMarkup;
+    } catch (error: any) {
+      console.error('Error adding pier markups:', error);
+      toast({ title: 'Error adding piers', description: error.message, variant: 'destructive' });
       return null;
     }
   };
@@ -586,6 +649,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     getPageScale,
     deletePlan,
     addMarkup,
+    addPierMarkups,
     updateMarkup,
     deleteMarkup,
     setCurrentPage,

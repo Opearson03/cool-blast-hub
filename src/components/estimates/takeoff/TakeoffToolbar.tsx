@@ -11,7 +11,8 @@ import {
   Maximize2,
   FileText,
   ChevronDown,
-  AlertCircle
+  AlertCircle,
+  CircleDot
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DrawingTool, TakeoffFile } from '@/types/takeoff';
@@ -40,6 +41,10 @@ interface TakeoffToolbarProps {
   currentFileId?: string | null;
   onFileChange?: (fileId: string) => void;
   currentPage?: number;
+  // Pier mode props
+  isPierMode?: boolean;
+  pierCount?: number;
+  onDoneMarkingPiers?: () => void;
 }
 
 export function TakeoffToolbar({
@@ -59,13 +64,49 @@ export function TakeoffToolbar({
   files = [],
   currentFileId,
   onFileChange,
-  currentPage = 1
+  currentPage = 1,
+  isPierMode = false,
+  pierCount = 0,
+  onDoneMarkingPiers,
 }: TakeoffToolbarProps) {
   const tools: { type: DrawingTool['type']; icon: React.ReactNode; label: string }[] = [
     { type: 'select', icon: <MousePointer2 className="h-4 w-4" />, label: 'Select' },
   ];
 
   const currentFile = files.find(f => f.id === currentFileId);
+
+  // If in pier mode, show pier-specific UI
+  if (isPierMode) {
+    return (
+      <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/30 rounded-lg flex-wrap">
+        <div className="flex items-center gap-2 flex-1">
+          <CircleDot className="h-5 w-5 text-primary" />
+          <span className="text-sm font-medium">Click on each pier location</span>
+          {pierCount > 0 && (
+            <Badge variant="default" className="ml-2">
+              {pierCount} pier{pierCount !== 1 ? 's' : ''} marked
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onToolChange('select')}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={onDoneMarkingPiers}
+            disabled={pierCount === 0}
+          >
+            Done Marking Piers
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg flex-wrap">
