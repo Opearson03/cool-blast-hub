@@ -2,6 +2,18 @@
 import { ScopeDefinition, ExclusionItem } from './types';
 
 /**
+ * Helper to ensure volume calculations return valid, finite numbers.
+ * Guards against NaN, Infinity, and negative values.
+ */
+function safeVolume(value: number): number {
+  if (!Number.isFinite(value) || value < 0) {
+    console.warn('Invalid volume calculation:', value);
+    return 0;
+  }
+  return value;
+}
+
+/**
  * Piers Scope Definition
  * Uses the full set of modules for pier foundation work
  */
@@ -56,20 +68,21 @@ export const PIERS_SCOPE: ScopeDefinition = {
     // If we have pier configs, calculate from those
     const piers = answers.piers || [];
     if (piers.length > 0) {
-      return piers.reduce((sum: number, pier: any) => {
+      const volume = piers.reduce((sum: number, pier: any) => {
         const qty = Number(pier.quantity) || 0;
         const diamM = (Number(pier.diameter) || 0) / 1000;
         const depthM = (Number(pier.depth) || 0) / 1000;
         const radius = diamM / 2;
         return sum + qty * Math.PI * radius * radius * depthM;
       }, 0);
+      return safeVolume(volume);
     }
     // Fallback to individual questions
     const numPiers = Number(answers.num_piers) || 0;
     const diameterM = (Number(answers.diameter) || 0) / 1000;
     const depthM = (Number(answers.depth) || 0) / 1000;
     const radius = diameterM / 2;
-    return numPiers * Math.PI * radius * radius * depthM;
+    return safeVolume(numPiers * Math.PI * radius * radius * depthM);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'piers' },
@@ -135,7 +148,7 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 0) / 1000;
-    return area * thicknessM;
+    return safeVolume(area * thicknessM);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'standard_slab' },
@@ -286,7 +299,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
       internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
     }
 
-    return slabVolume + edgeBeamVolume + internalBeamVolume;
+    return safeVolume(slabVolume + edgeBeamVolume + internalBeamVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'raft_slab' },
@@ -440,7 +453,7 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     const edgeExtraDepth = Math.max(0, edgeBeamDepthM - topSlabThicknessM);
     const edgeBeamVolume = perimeter * edgeBeamWidthM * edgeExtraDepth;
 
-    return ribVolume + topSlabVolume + edgeBeamVolume;
+    return safeVolume(ribVolume + topSlabVolume + edgeBeamVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'waffle_pod' },
@@ -552,7 +565,7 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
       volume += thickeningVolume;
     }
     
-    return volume;
+    return safeVolume(volume);
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'driveway' },
@@ -614,7 +627,7 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 0) / 1000;
-    return area * thicknessM;
+    return safeVolume(area * thicknessM);
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and crossover applications', moduleId: 'crossovers' },
@@ -678,7 +691,7 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 0) / 1000;
-    return area * thicknessM;
+    return safeVolume(area * thicknessM);
   },
   defaultExclusions: [
     { id: 'excavation', text: 'Excavation and soil removal', moduleId: 'paths_surrounds' },
@@ -739,18 +752,19 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
     // If we have footing configs, calculate from those
     const footings = answers.footings || [];
     if (footings.length > 0) {
-      return footings.reduce((sum: number, footing: any) => {
+      const volume = footings.reduce((sum: number, footing: any) => {
         const length = Number(footing.length) || 0;
         const widthM = (Number(footing.width) || 0) / 1000;
         const depthM = (Number(footing.depth) || 0) / 1000;
         return sum + length * widthM * depthM;
       }, 0);
+      return safeVolume(volume);
     }
     // Fallback to individual questions
     const length = Number(answers.total_length) || 0;
     const widthM = (Number(answers.width) || 0) / 1000;
     const depthM = (Number(answers.depth) || 0) / 1000;
-    return length * widthM * depthM;
+    return safeVolume(length * widthM * depthM);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'strip_footings' },
@@ -812,18 +826,19 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     // If we have footing configs, calculate from those
     const footings = answers.footings || [];
     if (footings.length > 0) {
-      return footings.reduce((sum: number, footing: any) => {
+      const volume = footings.reduce((sum: number, footing: any) => {
         const length = Number(footing.length) || 0;
         const widthM = (Number(footing.width) || 0) / 1000;
         const depthM = (Number(footing.depth) || 0) / 1000;
         return sum + length * widthM * depthM;
       }, 0);
+      return safeVolume(volume);
     }
     // Fallback to individual questions
     const length = Number(answers.total_length) || 0;
     const widthM = (Number(answers.footing_width) || 0) / 1000;
     const depthM = (Number(answers.footing_depth) || 0) / 1000;
-    return length * widthM * depthM;
+    return safeVolume(length * widthM * depthM);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'retaining_wall_footings' },
@@ -894,7 +909,7 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 0) / 1000;
-    return area * thicknessM;
+    return safeVolume(area * thicknessM);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'suspended_slab' },
@@ -963,7 +978,7 @@ export const ARCHITECTURAL_CONCRETE_SCOPE: ScopeDefinition = {
     'margin',
   ],
   calculateVolume: (answers) => {
-    return Number(answers.total_volume) || 0.1;
+    return safeVolume(Number(answers.total_volume) || 0.1);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Structural engineering certification', moduleId: 'architectural_concrete' },
@@ -1034,19 +1049,20 @@ export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
   calculateVolume: (answers) => {
     const footings = answers.footings || [];
     if (footings.length > 0) {
-      return footings.reduce((sum: number, footing: any) => {
+      const volume = footings.reduce((sum: number, footing: any) => {
         const qty = Number(footing.quantity) || 1;
         const lengthM = (Number(footing.length) || 0) / 1000;
         const widthM = (Number(footing.width) || 0) / 1000;
         const depthM = (Number(footing.depth) || 0) / 1000;
         return sum + qty * lengthM * widthM * depthM;
       }, 0);
+      return safeVolume(volume);
     }
     const numPads = Number(answers.total_num_pads) || 0;
     const lengthM = (Number(answers.total_length) || 0) / 1000;
     const widthM = (Number(answers.total_width) || 0) / 1000;
     const depthM = (Number(answers.total_depth) || 0) / 1000;
-    return numPads * lengthM * widthM * depthM;
+    return safeVolume(numPads * lengthM * widthM * depthM);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Structural engineering design and certification', moduleId: 'pad_footings' },
@@ -1167,7 +1183,7 @@ export const OSD_TANK_SCOPE: ScopeDefinition = {
       lidVolume = extLength * extWidth * lidThickM;
     }
     
-    return baseVolume + wallsVolume + lidVolume;
+    return safeVolume(baseVolume + wallsVolume + lidVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Structural and hydraulic engineering design', moduleId: 'osd_tank' },
@@ -1248,7 +1264,7 @@ export const KERBS_CHANNELS_SCOPE: ScopeDefinition = {
     const kerbType = answers.kerb_type || 'barrier';
     const crossSectionArea = kerbAreas[kerbType] || 0.045;
     
-    return totalLength * crossSectionArea;
+    return safeVolume(totalLength * crossSectionArea);
   },
   defaultExclusions: [
     { id: 'setout', text: 'Survey setout and line marking', moduleId: 'kerbs_channels' },
@@ -1391,7 +1407,7 @@ export const CONCRETE_STAIRS_SCOPE: ScopeDefinition = {
       landingVolume = landingAreaM2 * landingThickM;
     }
     
-    return flightVolume + landingVolume;
+    return safeVolume(flightVolume + landingVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Structural engineering design', moduleId: 'concrete_stairs' },
@@ -1502,7 +1518,7 @@ export const RETAINING_WALLS_SCOPE: ScopeDefinition = {
       footingVolume = totalLength * footingWidthM * footingDepthM;
     }
     
-    return wallVolume + footingVolume;
+    return safeVolume(wallVolume + footingVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Structural engineering and geotechnical design', moduleId: 'retaining_walls' },
@@ -1628,7 +1644,7 @@ export const PIT_BASES_SCOPE: ScopeDefinition = {
       wallVolume = totalPits * perimeter * wallHeightM * wallThickM;
     }
     
-    return baseVolume + wallVolume;
+    return safeVolume(baseVolume + wallVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Structural engineering design', moduleId: 'pit_bases' },
@@ -1725,7 +1741,7 @@ export const BOLLARDS_SCOPE: ScopeDefinition = {
     // Subtract the bollard portion already counted
     const additionalFootingVolume = footingVolume - (Math.PI * bollardRadius * bollardRadius * embedDepthM);
     
-    return numBollards * (bollardVolume + Math.max(0, additionalFootingVolume));
+    return safeVolume(numBollards * (bollardVolume + Math.max(0, additionalFootingVolume)));
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design for impact loading', moduleId: 'bollards' },

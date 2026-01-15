@@ -82,6 +82,14 @@ interface FormData {
   follow_up_date: string;
 }
 
+interface FormErrors {
+  client_name?: string;
+  client_email?: string;
+  client_phone?: string;
+  site_address?: string;
+  valid_until?: string;
+}
+
 const initialFormData: FormData = {
   client_name: "",
   company_name: "",
@@ -94,6 +102,57 @@ const initialFormData: FormData = {
   site_visit_date: "",
   follow_up_date: "",
 };
+
+// Email validation regex
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Australian phone number regex (accepts various formats)
+const PHONE_REGEX = /^(\+?61|0)[2-478](\s?\d){8}$/;
+
+/**
+ * Validate client form fields
+ */
+function validateClientForm(data: FormData): FormErrors {
+  const errors: FormErrors = {};
+  
+  // Client name is required
+  if (!data.client_name.trim()) {
+    errors.client_name = "Client name is required";
+  } else if (data.client_name.trim().length < 2) {
+    errors.client_name = "Client name must be at least 2 characters";
+  }
+  
+  // Site address is required  
+  if (!data.site_address.trim()) {
+    errors.site_address = "Site address is required";
+  } else if (data.site_address.trim().length < 5) {
+    errors.site_address = "Please enter a complete address";
+  }
+  
+  // Email format validation (if provided)
+  if (data.client_email.trim() && !EMAIL_REGEX.test(data.client_email.trim())) {
+    errors.client_email = "Please enter a valid email address";
+  }
+  
+  // Phone format validation (if provided)
+  if (data.client_phone.trim()) {
+    const cleanPhone = data.client_phone.replace(/\s/g, '');
+    if (cleanPhone.length < 10 || cleanPhone.length > 12) {
+      errors.client_phone = "Please enter a valid phone number";
+    }
+  }
+  
+  // Valid until date should be in the future (if provided)
+  if (data.valid_until) {
+    const validUntilDate = new Date(data.valid_until);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (validUntilDate < today) {
+      errors.valid_until = "Valid until date must be in the future";
+    }
+  }
+  
+  return errors;
+}
 
 const DEFAULT_INCLUSIONS = [
   { id: "concrete_supply", label: "Supply of concrete to site" },
@@ -332,6 +391,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   // Transition lock - prevents double navigation while async operations are in flight
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitioningRef = useRef(false);
+  
+  // Form validation errors
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
   
   // Helper to update both state and ref synchronously
   const setDraftEstimateId = useCallback((id: string | null) => {
@@ -630,6 +692,17 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const goNext = async () => {
     // Prevent concurrent navigation
     if (transitioningRef.current) return;
+    
+    // Validate client form before leaving client step
+    if (currentStep === "client") {
+      const errors = validateClientForm(formData);
+      setFormErrors(errors);
+      if (Object.keys(errors).length > 0) {
+        toast({ title: "Please fix the errors", description: "Some required fields need attention", variant: "destructive" });
+        return;
+      }
+    }
+    
     transitioningRef.current = true;
     setIsTransitioning(true);
     
@@ -1378,7 +1451,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                       value={formData.client_name}
                       onChange={handleChange}
                       placeholder="e.g., John Smith"
+                      className={formErrors.client_name ? "border-destructive" : ""}
+                      maxLength={100}
                     />
+                    {formErrors.client_name && (
+                      <p className="text-xs text-destructive">{formErrors.client_name}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="company_name">Company Name</Label>
@@ -1426,7 +1504,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     value={formData.site_address}
                     onChange={handleChange}
                     placeholder="123 Main Street, Sydney NSW"
+                    className={formErrors.site_address ? "border-destructive" : ""}
+                    maxLength={200}
                   />
+                  {formErrors.site_address && (
+                    <p className="text-xs text-destructive">{formErrors.site_address}</p>
+                  )}
                 </div>
 
                 <div className="grid sm:grid-cols-2 gap-4">
