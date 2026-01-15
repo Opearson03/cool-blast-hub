@@ -1627,7 +1627,9 @@ export type Database = {
           depth_mm: number | null
           diameter_mm: number | null
           file_id: string | null
+          height_mm: number | null
           id: string
+          length_m: number | null
           name: string | null
           page_number: number | null
           perimeter_m: number | null
@@ -1636,6 +1638,7 @@ export type Database = {
           scope_id: string
           shape_type: string
           takeoff_id: string
+          width_mm: number | null
         }
         Insert: {
           area_sqm?: number | null
@@ -1644,7 +1647,9 @@ export type Database = {
           depth_mm?: number | null
           diameter_mm?: number | null
           file_id?: string | null
+          height_mm?: number | null
           id?: string
+          length_m?: number | null
           name?: string | null
           page_number?: number | null
           perimeter_m?: number | null
@@ -1653,6 +1658,7 @@ export type Database = {
           scope_id: string
           shape_type: string
           takeoff_id: string
+          width_mm?: number | null
         }
         Update: {
           area_sqm?: number | null
@@ -1661,7 +1667,9 @@ export type Database = {
           depth_mm?: number | null
           diameter_mm?: number | null
           file_id?: string | null
+          height_mm?: number | null
           id?: string
+          length_m?: number | null
           name?: string | null
           page_number?: number | null
           perimeter_m?: number | null
@@ -1670,6 +1678,7 @@ export type Database = {
           scope_id?: string
           shape_type?: string
           takeoff_id?: string
+          width_mm?: number | null
         }
         Relationships: [
           {

@@ -12,7 +12,8 @@ import {
   FileText,
   ChevronDown,
   AlertCircle,
-  CircleDot
+  CircleDot,
+  Minus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DrawingTool, TakeoffFile } from '@/types/takeoff';
@@ -23,9 +24,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+type ToolbarToolType = 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate' | 'point' | 'polyline';
+
 interface TakeoffToolbarProps {
-  activeTool: DrawingTool['type'];
-  onToolChange: (tool: DrawingTool['type']) => void;
+  activeTool: ToolbarToolType;
+  onToolChange: (tool: ToolbarToolType) => void;
   onCalibrate: () => void;
   onUndo: () => void;
   onDelete: () => void;
@@ -41,10 +44,16 @@ interface TakeoffToolbarProps {
   currentFileId?: string | null;
   onFileChange?: (fileId: string) => void;
   currentPage?: number;
-  // Pier mode props
-  isPierMode?: boolean;
-  pierCount?: number;
-  onDoneMarkingPiers?: () => void;
+  // Point mode props (piers, bollards, pads)
+  isPointMode?: boolean;
+  pointCount?: number;
+  pointLabel?: string; // e.g. "pier", "bollard", "pad footing"
+  onDoneMarkingPoints?: () => void;
+  // Polyline mode props (linear elements)
+  isPolylineMode?: boolean;
+  polylineLength?: number;
+  polylineLabel?: string; // e.g. "footing", "kerb"
+  onDoneMarkingPolyline?: () => void;
 }
 
 export function TakeoffToolbar({
@@ -65,26 +74,31 @@ export function TakeoffToolbar({
   currentFileId,
   onFileChange,
   currentPage = 1,
-  isPierMode = false,
-  pierCount = 0,
-  onDoneMarkingPiers,
+  isPointMode = false,
+  pointCount = 0,
+  pointLabel = 'pier',
+  onDoneMarkingPoints,
+  isPolylineMode = false,
+  polylineLength = 0,
+  polylineLabel = 'element',
+  onDoneMarkingPolyline,
 }: TakeoffToolbarProps) {
-  const tools: { type: DrawingTool['type']; icon: React.ReactNode; label: string }[] = [
+  const tools: { type: ToolbarToolType; icon: React.ReactNode; label: string }[] = [
     { type: 'select', icon: <MousePointer2 className="h-4 w-4" />, label: 'Select' },
   ];
 
   const currentFile = files.find(f => f.id === currentFileId);
 
-  // If in pier mode, show pier-specific UI
-  if (isPierMode) {
+  // If in point mode (piers, bollards, pads), show point-specific UI
+  if (isPointMode) {
     return (
       <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/30 rounded-lg flex-wrap">
         <div className="flex items-center gap-2 flex-1">
           <CircleDot className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium">Click on each pier location</span>
-          {pierCount > 0 && (
+          <span className="text-sm font-medium">Click on each {pointLabel} location</span>
+          {pointCount > 0 && (
             <Badge variant="default" className="ml-2">
-              {pierCount} pier{pierCount !== 1 ? 's' : ''} marked
+              {pointCount} {pointLabel}{pointCount !== 1 ? 's' : ''} marked
             </Badge>
           )}
         </div>
@@ -98,10 +112,51 @@ export function TakeoffToolbar({
           </Button>
           <Button
             size="sm"
-            onClick={onDoneMarkingPiers}
-            disabled={pierCount === 0}
+            onClick={onDoneMarkingPoints}
+            disabled={pointCount === 0}
           >
-            Done Marking Piers
+            Done Marking {pointLabel.charAt(0).toUpperCase() + pointLabel.slice(1)}s
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If in polyline mode (linear elements), show polyline-specific UI
+  if (isPolylineMode) {
+    return (
+      <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/30 rounded-lg flex-wrap">
+        <div className="flex items-center gap-2 flex-1">
+          <Minus className="h-5 w-5 text-primary" />
+          <span className="text-sm font-medium">Click points along the {polylineLabel} path</span>
+          {polylineLength > 0 && (
+            <Badge variant="default" className="ml-2">
+              {polylineLength.toFixed(1)}m drawn
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onUndo}
+            disabled={!canUndo}
+          >
+            <Undo2 className="h-4 w-4 mr-1" /> Undo
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => onToolChange('select')}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={onDoneMarkingPolyline}
+            disabled={polylineLength === 0}
+          >
+            Done — Enter Dimensions
           </Button>
         </div>
       </div>

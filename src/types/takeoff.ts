@@ -28,17 +28,21 @@ export interface TakeoffMarkup {
   file_id: string | null;
   scope_id: string;
   name: string | null;
-  shape_type: 'polygon' | 'rectangle' | 'point';
+  shape_type: 'polygon' | 'rectangle' | 'point' | 'polyline';
   points: TakeoffPoint[];
   area_sqm: number | null;
   perimeter_m: number | null;
   color: string;
   page_number: number;
   created_at: string;
-  // Pier-specific fields
+  // Pier/bollard-specific fields
   diameter_mm?: number | null;
   depth_mm?: number | null;
   pier_quantity?: number | null;
+  // Linear element fields
+  width_mm?: number | null;
+  height_mm?: number | null;
+  length_m?: number | null;
 }
 
 export interface EstimateTakeoff {
@@ -62,7 +66,42 @@ export interface TakeoffState {
 }
 
 export interface DrawingTool {
-  type: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate' | 'point';
+  type: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate' | 'point' | 'polyline';
+}
+
+// Scope type classifications for takeoff tool selection
+export const POINT_SCOPES = ['piers', 'bollards', 'pad_footings', 'pit_bases'] as const;
+export const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls'] as const;
+export const AREA_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'suspended_slab'] as const;
+
+export type PointScope = typeof POINT_SCOPES[number];
+export type LinearScope = typeof LINEAR_SCOPES[number];
+export type AreaScope = typeof AREA_SCOPES[number];
+
+export function isPointScope(scopeId: string): scopeId is PointScope {
+  return POINT_SCOPES.includes(scopeId as PointScope);
+}
+
+export function isLinearScope(scopeId: string): scopeId is LinearScope {
+  return LINEAR_SCOPES.includes(scopeId as LinearScope);
+}
+
+export function isAreaScope(scopeId: string): scopeId is AreaScope {
+  return AREA_SCOPES.includes(scopeId as AreaScope);
+}
+
+// Calculate polyline length from points
+export function calculatePolylineLength(points: TakeoffPoint[], pixelsPerMeter: number): number {
+  if (points.length < 2) return 0;
+  
+  let length = 0;
+  for (let i = 0; i < points.length - 1; i++) {
+    const dx = points[i + 1].x - points[i].x;
+    const dy = points[i + 1].y - points[i].y;
+    length += Math.sqrt(dx * dx + dy * dy);
+  }
+  const metersPerPixel = 1 / pixelsPerMeter;
+  return length * metersPerPixel;
 }
 
 export interface ScopeMarkupStatus {

@@ -33,6 +33,9 @@ interface UseTakeoffDataReturn {
   deletePlan: () => Promise<void>;
   addMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
+  addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
+  addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases') => Promise<TakeoffMarkup | null>;
+  addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
   deleteMarkup: (markupId: string) => Promise<void>;
   setCurrentPage: (page: number) => Promise<void>;
@@ -111,11 +114,14 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           ...m,
           name: m.name || null,
           file_id: m.file_id || null,
-          shape_type: m.shape_type as 'polygon' | 'rectangle' | 'point',
+          shape_type: m.shape_type as 'polygon' | 'rectangle' | 'point' | 'polyline',
           points: m.points as unknown as TakeoffPoint[],
           diameter_mm: m.diameter_mm || null,
           depth_mm: m.depth_mm || null,
           pier_quantity: m.pier_quantity || null,
+          width_mm: m.width_mm || null,
+          height_mm: m.height_mm || null,
+          length_m: m.length_m ? Number(m.length_m) : null,
         })));
       } else {
         setTakeoff(null);
@@ -559,6 +565,191 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     }
   };
 
+  // Add bollard markups (point-based with diameter/height/embedment)
+  const addBollardMarkups = async (
+    fileId: string,
+    scopeId: string,
+    points: TakeoffPoint[],
+    diameterMm: number,
+    heightMm: number,
+    embedmentMm: number,
+    color: string,
+    pageNumber: number
+  ): Promise<TakeoffMarkup | null> => {
+    if (!takeoff || points.length === 0) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('takeoff_markups')
+        .insert({
+          takeoff_id: takeoff.id,
+          file_id: fileId,
+          scope_id: scopeId,
+          shape_type: 'point',
+          points: points as unknown as Json,
+          area_sqm: null,
+          perimeter_m: null,
+          color: color,
+          name: `${points.length} bollards`,
+          page_number: pageNumber,
+          diameter_mm: diameterMm,
+          depth_mm: embedmentMm,
+          height_mm: heightMm,
+          pier_quantity: points.length
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newMarkup: TakeoffMarkup = {
+        ...data,
+        name: data.name || null,
+        file_id: data.file_id || null,
+        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point' | 'polyline',
+        points: data.points as unknown as TakeoffPoint[],
+        diameter_mm: data.diameter_mm,
+        depth_mm: data.depth_mm,
+        height_mm: data.height_mm,
+        pier_quantity: data.pier_quantity,
+        width_mm: null,
+        length_m: null,
+      };
+
+      setMarkups(prev => [...prev, newMarkup]);
+      toast({ title: 'Bollards saved', description: `${points.length} bollard locations saved` });
+      return newMarkup;
+    } catch (error: any) {
+      console.error('Error adding bollard markups:', error);
+      toast({ title: 'Error adding bollards', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
+  // Add pad footing or pit base markups (point-based with L x W x D)
+  const addPadMarkups = async (
+    fileId: string,
+    scopeId: string,
+    points: TakeoffPoint[],
+    lengthMm: number,
+    widthMm: number,
+    depthMm: number,
+    color: string,
+    pageNumber: number,
+    scopeType: 'pad_footings' | 'pit_bases'
+  ): Promise<TakeoffMarkup | null> => {
+    if (!takeoff || points.length === 0) return null;
+
+    try {
+      const label = scopeType === 'pit_bases' ? 'pit bases' : 'pad footings';
+      const { data, error } = await supabase
+        .from('takeoff_markups')
+        .insert({
+          takeoff_id: takeoff.id,
+          file_id: fileId,
+          scope_id: scopeId,
+          shape_type: 'point',
+          points: points as unknown as Json,
+          area_sqm: null,
+          perimeter_m: null,
+          color: color,
+          name: `${points.length} ${label}`,
+          page_number: pageNumber,
+          width_mm: widthMm,
+          height_mm: lengthMm, // Store length in height_mm (reuse field)
+          depth_mm: depthMm,
+          pier_quantity: points.length
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newMarkup: TakeoffMarkup = {
+        ...data,
+        name: data.name || null,
+        file_id: data.file_id || null,
+        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point' | 'polyline',
+        points: data.points as unknown as TakeoffPoint[],
+        width_mm: data.width_mm,
+        height_mm: data.height_mm,
+        depth_mm: data.depth_mm,
+        pier_quantity: data.pier_quantity,
+        diameter_mm: null,
+        length_m: null,
+      };
+
+      setMarkups(prev => [...prev, newMarkup]);
+      toast({ title: `${scopeType === 'pit_bases' ? 'Pit bases' : 'Pad footings'} saved`, description: `${points.length} locations saved` });
+      return newMarkup;
+    } catch (error: any) {
+      console.error('Error adding pad markups:', error);
+      toast({ title: 'Error adding markups', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
+  // Add polyline markup for linear elements (footings, kerbs, retaining walls)
+  const addPolylineMarkup = async (
+    fileId: string,
+    scopeId: string,
+    points: TakeoffPoint[],
+    lengthM: number,
+    widthMm: number,
+    heightMm: number,
+    color: string,
+    pageNumber: number,
+    name?: string
+  ): Promise<TakeoffMarkup | null> => {
+    if (!takeoff || points.length < 2) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('takeoff_markups')
+        .insert({
+          takeoff_id: takeoff.id,
+          file_id: fileId,
+          scope_id: scopeId,
+          shape_type: 'polyline',
+          points: points as unknown as Json,
+          area_sqm: null,
+          perimeter_m: null,
+          color: color,
+          name: name || `${lengthM.toFixed(1)}m`,
+          page_number: pageNumber,
+          length_m: lengthM,
+          width_mm: widthMm,
+          height_mm: heightMm
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newMarkup: TakeoffMarkup = {
+        ...data,
+        name: data.name || null,
+        file_id: data.file_id || null,
+        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point' | 'polyline',
+        points: data.points as unknown as TakeoffPoint[],
+        length_m: data.length_m ? Number(data.length_m) : null,
+        width_mm: data.width_mm,
+        height_mm: data.height_mm,
+        diameter_mm: null,
+        depth_mm: null,
+        pier_quantity: null,
+      };
+
+      setMarkups(prev => [...prev, newMarkup]);
+      toast({ title: 'Linear element saved', description: `${lengthM.toFixed(1)}m marked` });
+      return newMarkup;
+    } catch (error: any) {
+      console.error('Error adding polyline markup:', error);
+      toast({ title: 'Error adding linear element', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
   const updateMarkup = async (markupId: string, points: TakeoffPoint[]) => {
     try {
       const markup = markups.find(m => m.id === markupId);
@@ -650,6 +841,9 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     deletePlan,
     addMarkup,
     addPierMarkups,
+    addBollardMarkups,
+    addPadMarkups,
+    addPolylineMarkup,
     updateMarkup,
     deleteMarkup,
     setCurrentPage,
