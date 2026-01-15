@@ -133,7 +133,7 @@ export const basePreparationModule: EstimateModule = {
       id: 'membrane_overlap',
       type: 'number',
       label: 'Overlap Allowance',
-      defaultValue: 15,
+      defaultValue: 10,
       min: 0,
       max: 30,
       unit: '%',
