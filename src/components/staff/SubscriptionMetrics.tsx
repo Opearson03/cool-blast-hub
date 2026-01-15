@@ -7,9 +7,9 @@ interface SubscriptionStats {
   total_users: number;
   active_subscriptions: number;
   trial_subscriptions: number;
-  starter_count: number;
-  professional_count: number;
-  enterprise_count: number;
+  demo_accounts: number;
+  paid_100_plan: number;
+  trial_100_plan: number;
   waiting_list_count: number;
   recent_signups_7d: number;
   recent_signups_30d: number;
@@ -24,11 +24,12 @@ interface SubscriptionMetricsProps {
 export function SubscriptionMetrics({ stats, isLoading, fullWidth }: SubscriptionMetricsProps) {
   // Single tier at $100/month
   const paidPrice = 100;
-  const paidCount = stats?.active_subscriptions ?? 0;
-  const freeCount = (stats?.total_businesses ?? 0) - paidCount - (stats?.trial_subscriptions ?? 0);
+  const paidCount = stats?.paid_100_plan ?? 0;
+  const trialCount = stats?.trial_100_plan ?? 0;
+  const demoCount = stats?.demo_accounts ?? 0;
   const totalBusinesses = stats?.total_businesses ?? 0;
   
-  // Calculate MRR (Monthly Recurring Revenue)
+  // Calculate MRR (Monthly Recurring Revenue) - only from paid, not trials
   const mrr = paidCount * paidPrice;
 
   if (isLoading) {
@@ -66,7 +67,7 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">$100 per month plan</span>
+              <span className="font-medium">$100 per month plan (paid)</span>
               <span className="font-medium">{paidCount}</span>
             </div>
             <Progress 
@@ -77,21 +78,32 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
 
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">On free plan</span>
-              <span className="font-medium">{freeCount > 0 ? freeCount : 0}</span>
+              <span className="font-medium text-blue-600">$100 per month plan (trial)</span>
+              <span className="font-medium">{trialCount}</span>
             </div>
             <Progress 
-              value={totalBusinesses > 0 ? (Math.max(0, freeCount) / totalBusinesses) * 100 : 0} 
-              className="h-2 [&>div]:bg-muted-foreground/30"
+              value={totalBusinesses > 0 ? (trialCount / totalBusinesses) * 100 : 0} 
+              className="h-2 [&>div]:bg-blue-500"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Demo accounts (exempt)</span>
+              <span className="font-medium">{demoCount}</span>
+            </div>
+            <Progress 
+              value={totalBusinesses > 0 ? (demoCount / totalBusinesses) * 100 : 0} 
+              className="h-2 [&>div]:bg-amber-500"
             />
           </div>
         </div>
 
-        {/* Trial info */}
-        <div className="pt-4 border-t">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground">Active Trials</span>
-            <span className="font-medium">{stats?.trial_subscriptions ?? 0}</span>
+        {/* Summary */}
+        <div className="pt-4 border-t text-sm text-muted-foreground">
+          <div className="flex items-center justify-between">
+            <span>Total businesses</span>
+            <span className="font-medium">{totalBusinesses}</span>
           </div>
         </div>
       </CardContent>
