@@ -505,6 +505,41 @@ export type Database = {
           },
         ]
       }
+      estimate_usage: {
+        Row: {
+          business_id: string
+          created_at: string | null
+          estimate_count: number | null
+          id: string
+          month_year: string
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string | null
+          estimate_count?: number | null
+          id?: string
+          month_year: string
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string | null
+          estimate_count?: number | null
+          id?: string
+          month_year?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimate_usage_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       estimates: {
         Row: {
           business_id: string

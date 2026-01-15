@@ -195,8 +195,11 @@ export function useSubscription() {
     [state.tier, state.isExempt]
   );
 
-  // Check if user has ANY access (subscribed or exempt)
-  const hasAccess = state.isSubscribed || state.isExempt;
+  // Check if user has access - now includes free tier (all authenticated users have access)
+  // Free tier users have tier = "free", subscribed = false
+  // Standard tier users have tier = "standard", subscribed = true
+  // Exempt users have isExempt = true
+  const hasAccess = state.isSubscribed || state.isExempt || state.tier === "free";
 
   const openCustomerPortal = useCallback(async () => {
     try {

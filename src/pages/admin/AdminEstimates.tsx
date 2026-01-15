@@ -19,6 +19,8 @@ import { useToast } from "@/hooks/use-toast";
 import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
 import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracker";
+import { EstimateQuotaDialog } from "@/components/estimates/EstimateQuotaDialog";
+import { useEstimateQuota } from "@/hooks/useEstimateQuota";
 
 type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
 type EstimateType = "driveway" | "house_slab" | "commercial_slab";
@@ -63,9 +65,11 @@ export default function AdminEstimates() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [viewingEstimate, setViewingEstimate] = useState<Estimate | null>(null);
+  const [quotaDialogOpen, setQuotaDialogOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const { canCreate, used, limit, resetsAt, tier, refresh: refreshQuota } = useEstimateQuota();
 
   const { data: estimates = [], isLoading } = useQuery({
     queryKey: ["estimates"],
@@ -204,6 +208,17 @@ export default function AdminEstimates() {
   const handleFormClose = () => {
     setFormOpen(false);
     setEditingEstimate(null);
+    // Refresh quota after form closes in case a new estimate was created
+    refreshQuota();
+  };
+
+  const handleNewEstimate = () => {
+    // Check quota before allowing new estimate creation
+    if (!canCreate && limit !== null) {
+      setQuotaDialogOpen(true);
+      return;
+    }
+    setFormOpen(true);
   };
 
   const handleRowClick = (estimate: Estimate) => {
@@ -432,10 +447,17 @@ export default function AdminEstimates() {
             <h1 className="text-2xl font-bold">Quotes</h1>
             <p className="text-muted-foreground">Estimates become quotes once sent</p>
           </div>
-          <Button className="gap-2" onClick={() => setFormOpen(true)}>
-            <Plus className="w-4 h-4" />
-            New Estimate
-          </Button>
+          <div className="flex items-center gap-3">
+            {tier === "free" && limit !== null && (
+              <Badge variant="outline" className="text-sm">
+                {used}/{limit} quotes this month
+              </Badge>
+            )}
+            <Button className="gap-2" onClick={handleNewEstimate}>
+              <Plus className="w-4 h-4" />
+              New Estimate
+            </Button>
+          </div>
         </div>
 
         {/* Search */}
@@ -700,6 +722,14 @@ export default function AdminEstimates() {
         open={!!viewingEstimate}
         onOpenChange={(open) => !open && setViewingEstimate(null)}
         onConvertToJob={handleConvertToJob}
+      />
+
+      <EstimateQuotaDialog
+        open={quotaDialogOpen}
+        onOpenChange={setQuotaDialogOpen}
+        used={used}
+        limit={limit || 1}
+        resetsAt={resetsAt}
       />
     </AdminLayout>
   );
