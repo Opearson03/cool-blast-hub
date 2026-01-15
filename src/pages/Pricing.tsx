@@ -5,9 +5,20 @@ import { Badge } from "@/components/ui/badge";
 import { Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
+
 const Pricing = () => {
-  return <>
-      <SEOHead title="PourHub Pricing - $100/month | Concreting Software Australia" description="Simple, all-inclusive pricing for PourHub concreting business management software. $100/month with one month free trial. All features included." canonicalPath="/pricing" keywords="concreting software pricing, construction management software cost, ITP SWMS software price" />
+  const freeTier = SUBSCRIPTION_TIERS.free;
+  const proTier = SUBSCRIPTION_TIERS.standard;
+
+  return (
+    <>
+      <SEOHead
+        title="PourHub Pricing - Free & Pro Plans | Concreting Software Australia"
+        description="Simple pricing for PourHub concreting business management software. Start free with 1 quote/month or go Pro for $100/month with unlimited quotes."
+        canonicalPath="/pricing"
+        keywords="concreting software pricing, construction management software cost, ITP SWMS software price"
+      />
       <div className="min-h-screen bg-charcoal-dark">
         {/* Header */}
         <header className="px-4 py-6 border-b border-border/30">
@@ -30,25 +41,56 @@ const Pricing = () => {
         <div className="px-4 py-16 sm:py-20">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl font-bold text-primary-foreground mb-4">
-              Simple, All-Inclusive Pricing
+              Start Free, Upgrade When Ready
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              One plan. All features. No hidden fees, cancel anytime.
+              Get started with 1 free quote per month. Full job management included.
             </p>
           </div>
         </div>
 
-        {/* Pricing Card */}
+        {/* Pricing Cards */}
         <div className="px-4 pb-20">
-          <div className="max-w-lg mx-auto">
+          <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Free Tier */}
+            <Card className="border-border">
+              <CardHeader className="text-center pb-2">
+                <h2 className="text-2xl font-bold">{freeTier.name}</h2>
+                <div className="mt-4">
+                  <span className="text-5xl font-bold text-primary">$0</span>
+                  <span className="text-muted-foreground"> / month</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-3">
+                  {freeTier.description}
+                </p>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                <ul className="space-y-3 flex-1">
+                  {freeTier.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/signup" className="mt-6">
+                  <Button variant="outline" className="w-full touch-target" size="lg">
+                    Get Started Free
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Pro Tier */}
             <Card className="relative border-primary shadow-lg shadow-primary/20">
               <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
-                All Features Included
+                Most Popular
               </Badge>
               <CardHeader className="text-center pb-2">
-                <h2 className="text-2xl font-bold">PourHub</h2>
+                <h2 className="text-2xl font-bold">{proTier.name}</h2>
                 <div className="mt-4">
-                  <span className="text-5xl font-bold text-primary">$100</span>
+                  <span className="text-5xl font-bold text-primary">${proTier.price}</span>
                   <span className="text-muted-foreground"> / month</span>
                 </div>
                 <div className="mt-2">
@@ -57,15 +99,22 @@ const Pricing = () => {
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-3">
-                  Complete job management for concreting businesses
+                  {proTier.description}
                 </p>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col">
                 <ul className="space-y-3 flex-1">
-                  {["Unlimited employees", "Unlimited jobs", "Unlimited crews", "Job scheduling with conflict warnings", "Project Startup checklist", "ITPs & SWMS", "Concrete test result tracking & alerts", "Photo & document uploads", "Job Pack PDF export", "Equipment register with service reminders", "Custom ITP & SWMS templates", "Business branding on PDFs", "Priority support"].map((feature, idx) => <li key={idx} className="flex items-start gap-3">
+                  {proTier.features.slice(0, 10).map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                       <span className="text-sm">{feature}</span>
-                    </li>)}
+                    </li>
+                  ))}
+                  {proTier.features.length > 10 && (
+                    <li className="text-sm text-muted-foreground pl-8">
+                      + {proTier.features.length - 10} more features
+                    </li>
+                  )}
                 </ul>
                 <Link to="/signup" className="mt-6">
                   <Button className="w-full touch-target" size="lg">
@@ -104,9 +153,13 @@ const Pricing = () => {
         {/* Value Explanation */}
         <div className="bg-background py-16 px-4">
           <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-8">Why $100/month?</h2>
+            <h2 className="text-2xl font-bold text-center mb-8">Start Free, Upgrade Anytime</h2>
             <div className="bg-card border border-border rounded-lg p-6">
-              <p className="text-muted-foreground text-center">One blown estimate can wipe out the profit on a job. PourHub helps you quote accurately, track costs, and present professional estimates every time. At $100/month, it’s less than one hour of admin—but saves you countless hours of rework, underquoting, and back-and-forth. Everything included. No limits.</p>
+              <p className="text-muted-foreground text-center">
+                Try PourHub with 1 free quote per month and full access to job management. 
+                When you're ready to scale, upgrade to Pro for unlimited quotes and priority support.
+                No commitment required—upgrade only when it makes sense for your business.
+              </p>
             </div>
           </div>
         </div>
@@ -159,6 +212,8 @@ const Pricing = () => {
           </div>
         </footer>
       </div>
-    </>;
+    </>
+  );
 };
+
 export default Pricing;

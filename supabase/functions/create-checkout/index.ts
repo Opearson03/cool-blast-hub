@@ -27,14 +27,69 @@ serve(async (req) => {
     if (!stripeKey) throw new Error("STRIPE_SECRET_KEY is not set");
     logStep("Stripe key verified");
 
-    const { email, fullName, businessName } = await req.json();
-    logStep("Request data received", { email, businessName });
+    const body = await req.json();
+    const { email, fullName, businessName, upgrade } = body;
+    logStep("Request data received", { email, businessName, upgrade });
 
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+
+    // Handle upgrade flow for existing authenticated users
+    if (upgrade) {
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) throw new Error("No authorization header for upgrade");
+
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
+      
+      if (userError || !userData.user?.email) {
+        throw new Error("Not authenticated for upgrade");
+      }
+
+      const userEmail = userData.user.email;
+      logStep("Upgrade flow - user authenticated", { email: userEmail });
+
+      // Find or create customer
+      const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
+      let customerId;
+      if (customers.data.length > 0) {
+        customerId = customers.data[0].id;
+        logStep("Existing customer found for upgrade", { customerId });
+      }
+
+      // Create checkout session for upgrade (no trial for upgrades)
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        customer_email: customerId ? undefined : userEmail,
+        line_items: [
+          {
+            price: PRICE_ID,
+            quantity: 1,
+          },
+        ],
+        mode: "subscription",
+        success_url: `${req.headers.get("origin")}/admin?upgraded=true`,
+        cancel_url: `${req.headers.get("origin")}/admin/estimates`,
+        payment_method_collection: "always",
+      });
+
+      logStep("Upgrade checkout session created", { sessionId: session.id });
+
+      return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 200,
+      });
+    }
+
+    // Original signup flow
     if (!email || !fullName || !businessName) {
       throw new Error("Missing required fields: email, fullName, businessName");
     }
-
-    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
     // Check if customer already exists
     const customers = await stripe.customers.list({ email, limit: 1 });

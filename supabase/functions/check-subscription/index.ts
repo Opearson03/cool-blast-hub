@@ -218,9 +218,12 @@ serve(async (req) => {
       logStep("No active subscription found");
     }
 
+    // If no active subscription, return as free tier (still has access, just limited quotes)
+    const effectiveTier = hasActiveSub ? tier : "free";
+    
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
-      tier,
+      tier: effectiveTier,
       subscription_end: subscriptionEnd,
       employee_limit: EMPLOYEE_LIMIT,
       is_exempt: false,
