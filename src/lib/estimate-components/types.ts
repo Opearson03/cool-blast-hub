@@ -140,6 +140,8 @@ export interface PierConfig {
   quantity: number;
   diameter: number;  // mm
   depth: number;     // mm
+  /** If true, this pier config was imported from plan takeoff */
+  _fromTakeoff?: boolean;
 }
 
 /**
