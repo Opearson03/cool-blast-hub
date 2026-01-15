@@ -6,7 +6,7 @@ import type { TakeoffMarkup, TakeoffPoint } from '@/types/takeoff';
 interface DrawingCanvasProps {
   width: number;
   height: number;
-  tool: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate' | 'point';
+  tool: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate' | 'point' | 'polyline';
   activeScope: string | null;
   activeScopeColor: string;
   markups: TakeoffMarkup[];
@@ -16,12 +16,15 @@ interface DrawingCanvasProps {
   isCalibrationMode?: boolean;
   calibrationPoints?: TakeoffPoint[];
   pierPoints?: TakeoffPoint[];
+  polylinePoints?: TakeoffPoint[];
   onMarkupComplete: (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => void;
+  onPolylineComplete?: (points: TakeoffPoint[], lengthMeters: number) => void;
   onMarkupSelect: (id: string | null) => void;
   onMarkupUpdate: (id: string, points: TakeoffPoint[]) => void;
   onPointsChange?: (points: TakeoffPoint[]) => void;
   onCalibrationPointsChange?: (points: TakeoffPoint[]) => void;
   onPierPointsChange?: (points: TakeoffPoint[]) => void;
+  onPolylinePointsChange?: (points: TakeoffPoint[]) => void;
 }
 
 export function DrawingCanvas({
@@ -37,12 +40,15 @@ export function DrawingCanvas({
   isCalibrationMode,
   calibrationPoints = [],
   pierPoints = [],
+  polylinePoints = [],
   onMarkupComplete,
+  onPolylineComplete,
   onMarkupSelect,
   onMarkupUpdate,
   onPointsChange,
   onCalibrationPointsChange,
   onPierPointsChange,
+  onPolylinePointsChange,
 }: DrawingCanvasProps) {
   const [drawingPoints, setDrawingPoints] = useState<TakeoffPoint[]>([]);
   const [rectStart, setRectStart] = useState<TakeoffPoint | null>(null);
@@ -67,7 +73,7 @@ export function DrawingCanvas({
     setCurrentMousePos(null);
   }, [width, height]);
 
-  const isDrawing = tool === 'polygon' || tool === 'rectangle' || tool === 'point';
+  const isDrawing = tool === 'polygon' || tool === 'rectangle' || tool === 'point' || tool === 'polyline';
 
   // Calculate centroid of a polygon for label positioning
   const getCentroid = (points: TakeoffPoint[]): TakeoffPoint => {
@@ -108,10 +114,17 @@ export function DrawingCanvas({
       return;
     }
 
-    // Handle pier point tool
+    // Handle pier/bollard point tool
     if (tool === 'point' && activeScope) {
       const newPierPoints = [...pierPoints, point];
       onPierPointsChange?.(newPierPoints);
+      return;
+    }
+
+    // Handle polyline tool for linear elements
+    if (tool === 'polyline' && activeScope) {
+      const newPolylinePoints = [...polylinePoints, point];
+      onPolylinePointsChange?.(newPolylinePoints);
       return;
     }
 
@@ -307,6 +320,41 @@ export function DrawingCanvas({
     );
   };
 
+  // Render polyline for linear elements
+  const renderPolylinePreview = () => {
+    if (tool !== 'polyline' || polylinePoints.length === 0) return null;
+
+    const points = currentMousePos 
+      ? [...polylinePoints, currentMousePos]
+      : polylinePoints;
+
+    return (
+      <Group>
+        {/* Polyline path */}
+        <Line
+          points={flattenPoints(points)}
+          stroke={activeScopeColor}
+          strokeWidth={3}
+          dash={[10, 5]}
+          lineCap="round"
+          lineJoin="round"
+        />
+        {/* Vertex points */}
+        {polylinePoints.map((point, index) => (
+          <Circle
+            key={index}
+            x={point.x}
+            y={point.y}
+            radius={6}
+            fill={index === 0 ? activeScopeColor : 'white'}
+            stroke={activeScopeColor}
+            strokeWidth={2}
+          />
+        ))}
+      </Group>
+    );
+  };
+
   // Flatten points for Konva Line
   const flattenPoints = (points: TakeoffPoint[]): number[] => {
     return points.flatMap(p => [p.x, p.y]);
@@ -465,7 +513,7 @@ export function DrawingCanvas({
         );
       }
 
-      // Handle point markups (piers)
+      // Handle point markups (piers/bollards/pads)
       if (markup.shape_type === 'point' && markup.points.length > 0) {
         return (
           <Group key={markup.id}>
@@ -498,6 +546,51 @@ export function DrawingCanvas({
         );
       }
 
+      // Handle polyline markups (linear elements like footings, kerbs)
+      if (markup.shape_type === 'polyline' && markup.points.length > 1) {
+        // Get midpoint for label
+        const midIndex = Math.floor(markup.points.length / 2);
+        const midPoint = markup.points[midIndex] || markup.points[0];
+        
+        return (
+          <Group key={markup.id}>
+            <Line
+              points={flattenPoints(markup.points)}
+              stroke={markup.color}
+              strokeWidth={isSelected ? 5 : 4}
+              lineCap="round"
+              lineJoin="round"
+              onClick={() => tool === 'select' && onMarkupSelect(markup.id)}
+              onTap={() => tool === 'select' && onMarkupSelect(markup.id)}
+            />
+            {markup.length_m && (
+              <Text
+                x={midPoint.x}
+                y={midPoint.y - 15}
+                text={`${markup.length_m.toFixed(1)}m`}
+                fontSize={14}
+                fontStyle="bold"
+                fill="#fff"
+                stroke="#000"
+                strokeWidth={0.5}
+                offsetX={20}
+              />
+            )}
+            {isSelected && markup.points.map((point, index) => (
+              <Circle
+                key={index}
+                x={point.x}
+                y={point.y}
+                radius={6}
+                fill="white"
+                stroke={markup.color}
+                strokeWidth={2}
+              />
+            ))}
+          </Group>
+        );
+      }
+
       return null;
     });
   };
@@ -521,6 +614,7 @@ export function DrawingCanvas({
         {renderMarkups()}
         {renderDrawingPreview()}
         {renderPierPoints()}
+        {renderPolylinePreview()}
         {renderCalibrationOverlay()}
       </Layer>
     </Stage>

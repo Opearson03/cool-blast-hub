@@ -77,8 +77,9 @@ export function PlanTakeoffStep({
   const isCalibrated = !!currentScale;
   const hasFiles = files.length > 0;
 
-  // Determine if current scope is a "pier" type that needs point marking
-  const isPierScope = activeScope === 'piers' || activeScope === 'bollards';
+  // Determine if current scope is a "point" type that needs point marking
+  const POINT_SCOPES = ['piers', 'bollards', 'pad_footings', 'pit_bases'];
+  const isPierScope = activeScope !== null && POINT_SCOPES.includes(activeScope);
 
   const scopes = useMemo(() => 
     selectedScopes.map(id => ({ id, label: scopeLabels[id] || id })),
@@ -97,10 +98,10 @@ export function PlanTakeoffStep({
     
     setActiveScope(scopeId);
     
-    // Check if this is a pier/point scope
-    const isPierType = scopeId === 'piers' || scopeId === 'bollards';
+    // Check if this is a point scope (piers, bollards, pads, pit bases)
+    const isPointType = POINT_SCOPES.includes(scopeId);
     
-    if (isPierType) {
+    if (isPointType) {
       // Use point tool for piers
       setPierPoints([]);
       setActiveTool('point');
@@ -325,9 +326,10 @@ export function PlanTakeoffStep({
         currentFileId={currentFileId}
         onFileChange={setCurrentFile}
         currentPage={currentPage}
-        isPierMode={activeTool === 'point' && isPierScope}
-        pierCount={pierPoints.length}
-        onDoneMarkingPiers={handleDoneMarkingPiers}
+        isPointMode={activeTool === 'point' && isPierScope}
+        pointCount={pierPoints.length}
+        pointLabel={activeScope === 'bollards' ? 'bollard' : activeScope === 'pad_footings' ? 'pad footing' : activeScope === 'pit_bases' ? 'pit base' : 'pier'}
+        onDoneMarkingPoints={handleDoneMarkingPiers}
       />
 
       {/* Main content */}
