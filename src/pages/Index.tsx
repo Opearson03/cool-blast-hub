@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, ArrowRight, Loader2, FileText, Calculator, MessageSquare } from "lucide-react";
+import { Calendar, CheckCircle, ArrowRight, Loader2, FileText, Calculator, MessageSquare, Users } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import heroPourBackground from "@/assets/hero-pour-background.png";
 import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
@@ -11,11 +11,14 @@ import scheduleScreenshot from "@/assets/schedule-screenshot.png";
 import { Logo } from "@/components/ui/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { WaitlistForm } from "@/components/waitlist/WaitlistForm";
+import { useWaitlistCount } from "@/hooks/useWaitlistCount";
 
 const Index = () => {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
   const isNative = Capacitor.isNativePlatform();
+  const { data: waitlistCount = 0 } = useWaitlistCount();
 
   useEffect(() => {
     const checkPlatformAndAuth = async () => {
@@ -57,6 +60,7 @@ const Index = () => {
     );
   }
 
+
   return (
     <>
       <SEOHead
@@ -75,35 +79,47 @@ const Index = () => {
         <div className="absolute inset-0 bg-gradient-to-r from-charcoal-dark/95 via-charcoal-dark/80 to-charcoal-dark/60" />
         
         <div className="relative px-4 py-16 sm:py-24 lg:py-32 w-full">
-          <div className="max-w-4xl mx-auto">
-            {/* Logo */}
-            <div className="flex items-center gap-3 mb-8">
-              <Logo size="xl" className="w-16 h-16 rounded-xl" />
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary-foreground">
-                Pour<span className="text-primary">Hub</span>
-              </h1>
+          <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left side - Copy */}
+            <div>
+              {/* Logo */}
+              <div className="flex items-center gap-3 mb-8">
+                <Logo size="xl" className="w-16 h-16 rounded-xl" />
+                <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-primary-foreground">
+                  Pour<span className="text-primary">Hub</span>
+                </h1>
+              </div>
+              
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6 leading-tight">
+                Run Your Concreting<br />Business Like a Pro
+              </h2>
+              
+              <p className="text-xl text-primary-foreground/80 mb-8 max-w-xl">
+                Jobs, estimates, schedules, and test results — all in one place. Built for NSW concreters who want to work smarter.
+              </p>
+              
+              {/* Waitlist Counter */}
+              <div className="flex items-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mb-4">
+                <Users className="w-5 h-5 text-primary" />
+                <span className="text-primary-foreground font-medium">
+                  <span className="text-primary font-bold">{waitlistCount}</span> concreters on the waiting list
+                </span>
+              </div>
+              
+              <Link to="/auth">
+                <Button size="sm" variant="ghost" className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10">
+                  Already have access? Sign In
+                </Button>
+              </Link>
             </div>
             
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-primary-foreground mb-6 leading-tight">
-              Run Your Concreting<br />Business Like a Pro
-            </h2>
-            
-            <p className="text-xl text-primary-foreground/80 mb-8 max-w-xl">
-              Jobs, estimates, schedules, and test results — all in one place. Built for NSW concreters who want to work smarter.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-4">
-              <Link to="/pricing">
-                <Button size="lg" className="text-lg px-8 py-6 touch-target w-full sm:w-auto">
-                  View Pricing
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
-              <Link to="/auth">
-                <Button size="lg" variant="outline" className="text-lg px-8 py-6 touch-target w-full sm:w-auto bg-primary-foreground/10 border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/20">
-                  Sign In
-                </Button>
-              </Link>
+            {/* Right side - Waitlist Form */}
+            <div className="bg-charcoal/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 lg:p-8">
+              <h3 className="text-2xl font-bold text-primary-foreground mb-2">Join the Waiting List</h3>
+              <p className="text-muted-foreground mb-6">
+                We're launching soon. Get early access when we go live.
+              </p>
+              <WaitlistForm />
             </div>
           </div>
         </div>
@@ -299,14 +315,14 @@ const Index = () => {
             Ready to Get Organized?
           </h3>
           <p className="text-primary-foreground/90 mb-8 max-w-xl mx-auto">
-            Join concreting businesses across NSW who trust PourHub to manage their operations.
+            Join {waitlistCount} other concreters on the waiting list. Be first in line when we launch.
           </p>
-          <Link to="/pricing">
+          <a href="#top">
             <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">
-              See Pricing Plans
+              Join the Waiting List
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
-          </Link>
+          </a>
         </div>
       </div>
 

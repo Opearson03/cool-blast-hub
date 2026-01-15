@@ -1864,6 +1864,30 @@ export type Database = {
         }
         Relationships: []
       }
+      waiting_list: {
+        Row: {
+          business_name: string | null
+          created_at: string | null
+          email: string
+          full_name: string | null
+          id: string
+        }
+        Insert: {
+          business_name?: string | null
+          created_at?: string | null
+          email: string
+          full_name?: string | null
+          id?: string
+        }
+        Update: {
+          business_name?: string | null
+          created_at?: string | null
+          email?: string
+          full_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -1911,6 +1935,7 @@ export type Database = {
       get_user_pour_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_swms_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_team_ids: { Args: { _user_id: string }; Returns: string[] }
+      get_waiting_list_count: { Args: never; Returns: number }
       has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
