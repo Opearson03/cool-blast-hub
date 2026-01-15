@@ -22,17 +22,14 @@ interface SubscriptionMetricsProps {
 }
 
 export function SubscriptionMetrics({ stats, isLoading, fullWidth }: SubscriptionMetricsProps) {
-  const totalPaid = (stats?.starter_count ?? 0) + (stats?.professional_count ?? 0) + (stats?.enterprise_count ?? 0);
-
-  // Calculate MRR (Monthly Recurring Revenue)
-  const starterPrice = 49;
-  const professionalPrice = 99;
-  const enterprisePrice = 199;
+  // Single tier at $100/month
+  const paidPrice = 100;
+  const paidCount = stats?.active_subscriptions ?? 0;
+  const freeCount = (stats?.total_businesses ?? 0) - paidCount - (stats?.trial_subscriptions ?? 0);
+  const totalBusinesses = stats?.total_businesses ?? 0;
   
-  const mrr = 
-    (stats?.starter_count ?? 0) * starterPrice +
-    (stats?.professional_count ?? 0) * professionalPrice +
-    (stats?.enterprise_count ?? 0) * enterprisePrice;
+  // Calculate MRR (Monthly Recurring Revenue)
+  const mrr = paidCount * paidPrice;
 
   if (isLoading) {
     return (
@@ -53,7 +50,7 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
     <Card className={fullWidth ? "col-span-full" : ""}>
       <CardHeader>
         <CardTitle>Subscription Breakdown</CardTitle>
-        <CardDescription>Active subscriptions by plan tier</CardDescription>
+        <CardDescription>Active subscriptions by plan</CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* MRR Card */}
@@ -61,7 +58,7 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
           <div className="text-sm font-medium text-muted-foreground">Monthly Recurring Revenue</div>
           <div className="text-3xl font-bold text-primary">${mrr.toLocaleString()}</div>
           <div className="text-xs text-muted-foreground mt-1">
-            Based on {totalPaid} paid subscriptions
+            Based on {paidCount} paid subscription{paidCount !== 1 ? 's' : ''}
           </div>
         </div>
 
@@ -69,34 +66,23 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
         <div className="space-y-4">
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span>Starter (${starterPrice}/mo)</span>
-              <span className="font-medium">{stats?.starter_count ?? 0}</span>
+              <span className="font-medium">$100 per month plan</span>
+              <span className="font-medium">{paidCount}</span>
             </div>
             <Progress 
-              value={totalPaid > 0 ? ((stats?.starter_count ?? 0) / totalPaid) * 100 : 0} 
+              value={totalBusinesses > 0 ? (paidCount / totalBusinesses) * 100 : 0} 
               className="h-2"
             />
           </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span>Professional (${professionalPrice}/mo)</span>
-              <span className="font-medium">{stats?.professional_count ?? 0}</span>
+              <span className="text-muted-foreground">On free plan</span>
+              <span className="font-medium">{freeCount > 0 ? freeCount : 0}</span>
             </div>
             <Progress 
-              value={totalPaid > 0 ? ((stats?.professional_count ?? 0) / totalPaid) * 100 : 0} 
-              className="h-2"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span>Enterprise (${enterprisePrice}/mo)</span>
-              <span className="font-medium">{stats?.enterprise_count ?? 0}</span>
-            </div>
-            <Progress 
-              value={totalPaid > 0 ? ((stats?.enterprise_count ?? 0) / totalPaid) * 100 : 0} 
-              className="h-2"
+              value={totalBusinesses > 0 ? (Math.max(0, freeCount) / totalBusinesses) * 100 : 0} 
+              className="h-2 [&>div]:bg-muted-foreground/30"
             />
           </div>
         </div>
