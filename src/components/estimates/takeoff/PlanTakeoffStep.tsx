@@ -23,6 +23,7 @@ interface PlanTakeoffStepProps {
   onContinue: () => void;
   onBack: () => void;
   onSkip: () => void;
+  isNavigating?: boolean;
 }
 
 export function PlanTakeoffStep({
@@ -32,7 +33,8 @@ export function PlanTakeoffStep({
   scopeLabels,
   onContinue,
   onBack,
-  onSkip
+  onSkip,
+  isNavigating = false
 }: PlanTakeoffStepProps) {
   const {
     takeoff,
@@ -189,10 +191,10 @@ export function PlanTakeoffStep({
         <PlanUploader onUpload={handleUploadFile} isUploading={isUploading} />
 
         <div className="flex items-center justify-between pt-4 border-t">
-          <Button variant="outline" onClick={onBack} className="gap-1">
+          <Button variant="outline" onClick={onBack} disabled={isNavigating} className="gap-1">
             <ChevronLeft className="h-4 w-4" /> Back
           </Button>
-          <Button onClick={onSkip} variant="ghost" className="text-muted-foreground">
+          <Button onClick={onSkip} disabled={isNavigating} variant="ghost" className="text-muted-foreground">
             Skip — Enter Measurements Manually
           </Button>
         </div>
@@ -395,14 +397,14 @@ export function PlanTakeoffStep({
 
       {/* Footer */}
       <div className="flex items-center justify-between pt-4 border-t">
-        <Button variant="outline" onClick={onBack} className="gap-1">
+        <Button variant="outline" onClick={onBack} disabled={isNavigating} className="gap-1">
           <ChevronLeft className="h-4 w-4" /> Back
         </Button>
         <div className="flex gap-2">
-          <Button variant="ghost" onClick={onSkip} className="text-muted-foreground">
+          <Button variant="ghost" onClick={onSkip} disabled={isNavigating} className="text-muted-foreground">
             Skip Remaining
           </Button>
-          <Button onClick={onContinue} className="gap-1">
+          <Button onClick={onContinue} disabled={isNavigating} className="gap-1">
             Continue <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
