@@ -53,7 +53,7 @@ export const reinforcementSlabModule: EstimateModule = {
       id: 'mesh_lap_allowance',
       type: 'number',
       label: 'Lap Allowance',
-      defaultValue: 15,
+      defaultValue: 10,
       min: 0,
       max: 30,
       unit: '%',

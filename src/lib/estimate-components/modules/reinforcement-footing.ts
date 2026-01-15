@@ -52,7 +52,7 @@ export const reinforcementFootingModule: EstimateModule = {
       id: 'trench_mesh_lap',
       type: 'number',
       label: 'Lap Allowance',
-      defaultValue: 15,
+      defaultValue: 10,
       min: 0,
       max: 30,
       unit: '%',
