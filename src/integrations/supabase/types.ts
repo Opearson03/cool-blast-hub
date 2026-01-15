@@ -1864,6 +1864,33 @@ export type Database = {
         }
         Relationships: []
       }
+      visitor_analytics: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          page_views: number
+          unique_visitors: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          page_views?: number
+          unique_visitors?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          page_views?: number
+          unique_visitors?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       waiting_list: {
         Row: {
           business_name: string | null
