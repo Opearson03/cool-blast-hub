@@ -347,6 +347,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     hasMarkupForScope,
     getMarkupsForScope,
     getPierDataForScope,
+    getBollardDataForScope,
+    getPadFootingDataForScope,
+    getLinearDataForScope,
     refetch: refetchMarkups 
   } = useTakeoffMarkups(estimateIdForTakeoff);
   
@@ -1119,7 +1122,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             areas: areasFromTakeoff,
           };
         }
-      } else if (scopeDefinition.supportsMultiplePiers) {
+      } else if (scopeDefinition.supportsMultiplePiers && scope === 'piers') {
         // For pier scopes, get pier data from takeoff
         const pierData = getPierDataForScope(scope);
         
@@ -1142,6 +1145,69 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               ...initialScopeAnswers,
               _fromTakeoff: true,
               piers: piersFromTakeoff,
+            };
+          }
+        }
+      } else if (scope === 'bollards') {
+        // For bollards, get bollard data from takeoff
+        const bollardData = getBollardDataForScope(scope);
+        
+        if (bollardData && bollardData.count > 0) {
+          const hasUserData = initialScopeAnswers.num_bollards > 0;
+          
+          if (!hasUserData) {
+            initialScopeAnswers = {
+              ...initialScopeAnswers,
+              _fromTakeoff: true,
+              num_bollards: bollardData.count,
+              diameter: bollardData.diameter,
+              height_above: bollardData.heightAbove,
+              embedment_depth: bollardData.embedmentDepth,
+            };
+          }
+        }
+      } else if (scope === 'pad_footings' || scope === 'pit_bases') {
+        // For pad footings and pit bases, get data from takeoff
+        const padData = getPadFootingDataForScope(scope);
+        
+        if (padData && padData.count > 0) {
+          const hasUserData = initialScopeAnswers.num_pads > 0 || initialScopeAnswers.num_pits > 0;
+          
+          if (!hasUserData) {
+            const countField = scope === 'pad_footings' ? 'num_pads' : 'num_pits';
+            initialScopeAnswers = {
+              ...initialScopeAnswers,
+              _fromTakeoff: true,
+              [countField]: padData.count,
+              pad_length: padData.length,
+              pad_width: padData.width,
+              pad_depth: padData.depth,
+            };
+          }
+        }
+      } else if (scopeDefinition.supportsMultipleFootings) {
+        // For linear scopes with multiple footings (strip_footings, kerbs, retaining walls)
+        const linearData = getLinearDataForScope(scope);
+        
+        if (linearData && linearData.totalLength > 0) {
+          const hasUserData = initialScopeAnswers.footings?.some((f: any) => f.length > 0 && f._fromTakeoff !== true);
+          
+          if (!hasUserData) {
+            // Convert each segment from takeoff to a FootingConfig
+            const footingsFromTakeoff = linearData.segments.map((seg, index) => ({
+              id: `takeoff-footing-${index}-${Date.now()}`,
+              name: seg.name,
+              length: seg.length,
+              width: linearData.width,
+              depth: linearData.height,
+              _fromTakeoff: true,
+              _actualLength: seg.length,
+            }));
+            
+            initialScopeAnswers = {
+              ...initialScopeAnswers,
+              _fromTakeoff: true,
+              footings: footingsFromTakeoff,
             };
           }
         }

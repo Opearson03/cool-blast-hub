@@ -32,23 +32,38 @@ export function ScopeMarkupChecklist({
     return markups.filter(m => m.scope_id === scopeId);
   };
 
-  const getScopeStatus = (scopeId: string): ScopeMarkupStatus & { pierCount?: number } => {
+  const getScopeStatus = (scopeId: string): ScopeMarkupStatus & { pierCount?: number; totalLength?: number } => {
     const scopeMarkups = getScopeMarkups(scopeId);
     if (scopeMarkups.length > 0) {
-      // Check if this is a pier scope (has point-type markups)
-      const pierMarkup = scopeMarkups.find(m => m.shape_type === 'point');
-      if (pierMarkup) {
-        const totalPiers = scopeMarkups.reduce((sum, m) => sum + (m.pier_quantity || 0), 0);
+      // Check if this is a pier/point scope (has point-type markups)
+      const pointMarkup = scopeMarkups.find(m => m.shape_type === 'point');
+      if (pointMarkup) {
+        const totalCount = scopeMarkups.reduce((sum, m) => sum + (m.pier_quantity || 0), 0);
         return {
           scope_id: scopeId,
           label: scopes.find(s => s.id === scopeId)?.label || scopeId,
           status: 'marked',
           area_sqm: null,
-          pierCount: totalPiers,
+          pierCount: totalCount,
           markup_id: scopeMarkups[0].id
         };
       }
-      // Sum all areas for this scope
+      
+      // Check if this is a linear scope (has polyline-type markups)
+      const polylineMarkup = scopeMarkups.find(m => m.shape_type === 'polyline');
+      if (polylineMarkup) {
+        const totalLength = scopeMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
+        return {
+          scope_id: scopeId,
+          label: scopes.find(s => s.id === scopeId)?.label || scopeId,
+          status: 'marked',
+          area_sqm: null,
+          totalLength,
+          markup_id: scopeMarkups[0].id
+        };
+      }
+      
+      // Sum all areas for this scope (polygon/rectangle markups)
       const totalArea = scopeMarkups.reduce((sum, m) => sum + (m.area_sqm || 0), 0);
       return {
         scope_id: scopeId,
@@ -77,6 +92,11 @@ export function ScopeMarkupChecklist({
   const formatArea = (area: number | null): string => {
     if (area === null) return '--';
     return `${area.toFixed(1)} m²`;
+  };
+
+  const formatLength = (length: number | null): string => {
+    if (length === null) return '--';
+    return `${length.toFixed(1)} m`;
   };
 
   const formatPierCount = (count: number | undefined): string => {
@@ -140,7 +160,9 @@ export function ScopeMarkupChecklist({
                     <p className="text-xs text-green-600 dark:text-green-400 font-mono">
                       {status.pierCount 
                         ? formatPierCount(status.pierCount)
-                        : `${scopeMarkups.length} area${scopeMarkups.length !== 1 ? 's' : ''} • ${formatArea(status.area_sqm)}`
+                        : status.totalLength 
+                          ? `${scopeMarkups.length} section${scopeMarkups.length !== 1 ? 's' : ''} • ${formatLength(status.totalLength)}`
+                          : `${scopeMarkups.length} area${scopeMarkups.length !== 1 ? 's' : ''} • ${formatArea(status.area_sqm)}`
                       }
                     </p>
                   )}
@@ -198,40 +220,51 @@ export function ScopeMarkupChecklist({
                 </div>
               </div>
               
-              {/* Individual markup items */}
               {scopeMarkups.length > 0 && (
                 <div className="border-t px-2 pb-2 pt-1 space-y-1">
-                  {scopeMarkups.map((markup, idx) => (
-                    <div 
-                      key={markup.id}
-                      className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-muted/50"
-                    >
-                      <span className="flex-1 truncate font-medium">
-                        {markup.name || `Area ${idx + 1}`}
-                      </span>
-                      <span className="text-muted-foreground font-mono">
-                        {formatArea(markup.area_sqm)}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0"
-                        onClick={() => onEditMarkup(markup.id)}
-                        title="Select"
+                  {scopeMarkups.map((markup, idx) => {
+                    // Determine display format based on shape type
+                    const isPolyline = markup.shape_type === 'polyline';
+                    const isPoint = markup.shape_type === 'point';
+                    const displayLabel = isPoint 
+                      ? `${markup.pier_quantity || 1} item${(markup.pier_quantity || 1) !== 1 ? 's' : ''}`
+                      : isPolyline
+                        ? formatLength(markup.length_m || null)
+                        : formatArea(markup.area_sqm);
+                    const defaultName = isPolyline ? `Section ${idx + 1}` : `Area ${idx + 1}`;
+                    
+                    return (
+                      <div 
+                        key={markup.id}
+                        className="flex items-center gap-2 text-xs py-1 px-2 rounded bg-muted/50"
                       >
-                        <Pencil className="h-3 w-3" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-6 w-6 p-0 text-destructive hover:text-destructive"
-                        onClick={() => onDeleteMarkup(markup.id)}
-                        title="Delete"
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
+                        <span className="flex-1 truncate font-medium">
+                          {markup.name || defaultName}
+                        </span>
+                        <span className="text-muted-foreground font-mono">
+                          {displayLabel}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => onEditMarkup(markup.id)}
+                          title="Select"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0 text-destructive hover:text-destructive"
+                          onClick={() => onDeleteMarkup(markup.id)}
+                          title="Delete"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

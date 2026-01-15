@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { Plus, Trash2, Copy } from "lucide-react";
+import { Plus, Trash2, Copy, Ruler } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { FootingConfig } from "@/lib/estimate-components/types";
+import { cn } from "@/lib/utils";
 
 interface MultiFootingInputProps {
   label: string;
@@ -22,6 +25,9 @@ export function MultiFootingInput({
   depthLabel = "Depth",
 }: MultiFootingInputProps) {
   const [newFootingName, setNewFootingName] = useState("");
+
+  // Check if any footing is from takeoff
+  const hasAnyFromTakeoff = footings.some(f => f._fromTakeoff);
 
   // Calculate totals
   const totalLength = footings.reduce((sum, footing) => sum + (Number(footing.length) || 0), 0);
@@ -62,6 +68,7 @@ export function MultiFootingInput({
         ...footing,
         id: `footing-${Date.now()}`,
         name: `${footing.name} (copy)`,
+        _fromTakeoff: false, // Duplicated footings are not from takeoff
       },
     ]);
   };
@@ -69,7 +76,14 @@ export function MultiFootingInput({
   const updateFooting = (id: string, field: keyof FootingConfig, value: any) => {
     onChange(
       footings.map((footing) =>
-        footing.id === id ? { ...footing, [field]: value } : footing
+        footing.id === id 
+          ? { 
+              ...footing, 
+              [field]: value,
+              // Clear takeoff flag when user edits dimensions
+              ...(field !== 'name' && footing._fromTakeoff ? { _fromTakeoff: false } : {})
+            } 
+          : footing
       )
     );
   };
@@ -77,7 +91,24 @@ export function MultiFootingInput({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-base">{label}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base">{label}</CardTitle>
+          {hasAnyFromTakeoff && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge variant="outline" className="gap-1 bg-blue-500/10 text-blue-600 border-blue-500/30">
+                    <Ruler className="h-3 w-3" />
+                    From plan takeoff
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Measurements imported from plan takeoff</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Footing list */}
@@ -87,19 +118,30 @@ export function MultiFootingInput({
             const widthM = (Number(footing.width) || 0) / 1000;
             const depthM = (Number(footing.depth) || 0) / 1000;
             const footingVolume = length * widthM * depthM;
+            const isFromTakeoff = footing._fromTakeoff;
 
             return (
               <div
                 key={footing.id}
-                className="border rounded-lg p-3 bg-muted/30 space-y-3"
+                className={cn(
+                  "border rounded-lg p-3 space-y-3",
+                  isFromTakeoff 
+                    ? "bg-blue-500/5 border-blue-500/20" 
+                    : "bg-muted/30"
+                )}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <Input
-                    value={footing.name}
-                    onChange={(e) => updateFooting(footing.id, "name", e.target.value)}
-                    placeholder={`Footing ${index + 1}`}
-                    className="font-medium flex-1"
-                  />
+                  <div className="flex items-center gap-2 flex-1">
+                    <Input
+                      value={footing.name}
+                      onChange={(e) => updateFooting(footing.id, "name", e.target.value)}
+                      placeholder={`Footing ${index + 1}`}
+                      className="font-medium flex-1"
+                    />
+                    {isFromTakeoff && (
+                      <Ruler className="h-4 w-4 text-blue-500 shrink-0" />
+                    )}
+                  </div>
                   <div className="flex gap-1">
                     <Button
                       type="button"
