@@ -326,6 +326,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const draftEstimateIdRef = useRef<string | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   
+  // Concurrency lock for draft creation - prevents duplicate inserts from rapid clicks
+  const createDraftPromiseRef = useRef<Promise<string | null> | null>(null);
+  
+  // Transition lock - prevents double navigation while async operations are in flight
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const transitioningRef = useRef(false);
+  
   // Helper to update both state and ref synchronously
   const setDraftEstimateId = useCallback((id: string | null) => {
     draftEstimateIdRef.current = id;
@@ -539,107 +546,130 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   }, [currentStep, estimateType, formData.client_name, formData.site_address, selectedScopes.size]);
 
   // Create a draft estimate for takeoff step (needed for file uploads)
+  // Uses a promise lock to prevent duplicate inserts from concurrent calls
   const createDraftForTakeoff = useCallback(async (): Promise<string | null> => {
-    // Check ref for immediate value (avoids stale closure)
+    // 1. Already have a draft? Return it immediately
     if (draftEstimateIdRef.current) return draftEstimateIdRef.current;
-    if (!businessId) {
-      // Fetch business ID if not yet available
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        toast({ title: 'Error', description: 'Not authenticated', variant: 'destructive' });
-        return null;
-      }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .single();
-      if (!profile?.business_id) {
-        toast({ title: 'Error', description: 'No business found', variant: 'destructive' });
-        return null;
-      }
-      setBusinessId(profile.business_id);
-      
-      // Create minimal draft estimate
-      const { data, error } = await supabase
-        .from("estimates")
-        .insert({
-          business_id: profile.business_id,
-          client_name: formData.client_name || "Draft Estimate",
-          site_address: formData.site_address || "Draft",
-          estimate_type: estimateType || "driveway",
-          status: "draft",
-          selected_scopes: selectedScopesArray as unknown as Json,
-          created_by: user.id,
-        })
-        .select("id")
-        .single();
-      
-      if (error) {
-        console.error('Error creating draft:', error);
-        toast({ title: 'Error', description: 'Failed to create draft estimate', variant: 'destructive' });
-        return null;
-      }
-      
-      setDraftEstimateId(data.id);
-      return data.id;
+    
+    // 2. Another call is already creating the draft? Wait for that one
+    if (createDraftPromiseRef.current) {
+      return createDraftPromiseRef.current;
     }
     
-    // businessId available, create draft
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    // 3. Start the draft creation and store the promise
+    const createPromise = (async (): Promise<string | null> => {
+      try {
+        // Double-check after acquiring "lock" in case another call finished first
+        if (draftEstimateIdRef.current) return draftEstimateIdRef.current;
+        
+        let workingBusinessId = businessId;
+        
+        if (!workingBusinessId) {
+          // Fetch business ID if not yet available
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) {
+            toast({ title: 'Error', description: 'Not authenticated', variant: 'destructive' });
+            return null;
+          }
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("business_id")
+            .eq("id", user.id)
+            .single();
+          if (!profile?.business_id) {
+            toast({ title: 'Error', description: 'No business found', variant: 'destructive' });
+            return null;
+          }
+          workingBusinessId = profile.business_id;
+          setBusinessId(workingBusinessId);
+        }
+        
+        // Final check before insert - another concurrent call may have finished
+        if (draftEstimateIdRef.current) return draftEstimateIdRef.current;
+        
+        // Create minimal draft estimate
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+        
+        const { data, error } = await supabase
+          .from("estimates")
+          .insert({
+            business_id: workingBusinessId,
+            client_name: formData.client_name || "Draft Estimate",
+            site_address: formData.site_address || "Draft",
+            estimate_type: estimateType || "driveway",
+            status: "draft",
+            selected_scopes: selectedScopesArray as unknown as Json,
+            created_by: user.id,
+          })
+          .select("id")
+          .single();
+        
+        if (error) {
+          console.error('Error creating draft:', error);
+          toast({ title: 'Error', description: 'Failed to create draft estimate', variant: 'destructive' });
+          return null;
+        }
+        
+        setDraftEstimateId(data.id);
+        return data.id;
+      } finally {
+        // Clear the promise lock when done (success or failure)
+        createDraftPromiseRef.current = null;
+      }
+    })();
     
-    const { data, error } = await supabase
-      .from("estimates")
-      .insert({
-        business_id: businessId,
-        client_name: formData.client_name || "Draft Estimate",
-        site_address: formData.site_address || "Draft",
-        estimate_type: estimateType || "driveway",
-        status: "draft",
-        selected_scopes: selectedScopesArray as unknown as Json,
-        created_by: user.id,
-      })
-      .select("id")
-      .single();
-    
-    if (error) {
-      console.error('Error creating draft:', error);
-      toast({ title: 'Error', description: 'Failed to create draft estimate', variant: 'destructive' });
-      return null;
-    }
-    
-    setDraftEstimateId(data.id);
-    return data.id;
+    createDraftPromiseRef.current = createPromise;
+    return createPromise;
   }, [businessId, formData.client_name, formData.site_address, estimateType, selectedScopesArray, toast, setDraftEstimateId]);
 
   const goNext = async () => {
-    const nextIndex = currentStepIndex + 1;
-    if (nextIndex < STEP_ORDER.length) {
-      const nextStep = STEP_ORDER[nextIndex];
-      
-      // If entering takeoff step without a draft, create one
-      // Use ref for immediate check (avoids stale closure)
-      if (nextStep === "takeoff" && !draftEstimateIdRef.current && !editEstimate) {
-        const newDraftId = await createDraftForTakeoff();
-        if (!newDraftId) {
-          return; // Failed to create draft, don't proceed
+    // Prevent concurrent navigation
+    if (transitioningRef.current) return;
+    transitioningRef.current = true;
+    setIsTransitioning(true);
+    
+    try {
+      const nextIndex = currentStepIndex + 1;
+      if (nextIndex < STEP_ORDER.length) {
+        const nextStep = STEP_ORDER[nextIndex];
+        
+        // If entering takeoff step without a draft, create one
+        // Use ref for immediate check (avoids stale closure)
+        if (nextStep === "takeoff" && !draftEstimateIdRef.current && !editEstimate) {
+          const newDraftId = await createDraftForTakeoff();
+          if (!newDraftId) {
+            return; // Failed to create draft, don't proceed
+          }
         }
+        
+        // If leaving takeoff step, refetch markups so calculators get fresh data
+        if (currentStep === "takeoff" && nextStep === "configure") {
+          await refetchMarkups();
+        }
+        
+        setCurrentStep(nextStep);
       }
-      
-      // If leaving takeoff step, refetch markups so calculators get fresh data
-      if (currentStep === "takeoff" && nextStep === "configure") {
-        await refetchMarkups();
-      }
-      
-      setCurrentStep(nextStep);
+    } finally {
+      transitioningRef.current = false;
+      setIsTransitioning(false);
     }
   };
 
-  const goBack = () => {
-    const prevIndex = currentStepIndex - 1;
-    if (prevIndex >= 0) {
-      setCurrentStep(STEP_ORDER[prevIndex]);
+  const goBack = async () => {
+    // Prevent concurrent navigation
+    if (transitioningRef.current) return;
+    transitioningRef.current = true;
+    setIsTransitioning(true);
+    
+    try {
+      const prevIndex = currentStepIndex - 1;
+      if (prevIndex >= 0) {
+        setCurrentStep(STEP_ORDER[prevIndex]);
+      }
+    } finally {
+      transitioningRef.current = false;
+      setIsTransitioning(false);
     }
   };
 
@@ -1121,6 +1151,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     );
   };
 
+  // Check if any mutation or navigation is in progress
+  const isAnyOperationPending = isTransitioning || saveDraftMutation.isPending || mutation.isPending || finalizeMutation.isPending;
+
   // Render wizard footer inline to avoid re-creating component on every render
   const renderWizardFooter = (options: { nextLabel?: string; onNext?: () => void; showBack?: boolean; showSaveDraft?: boolean } = {}) => {
     const { nextLabel, onNext, showBack = true, showSaveDraft = true } = options;
@@ -1128,7 +1161,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       <div className="flex items-center justify-between pt-4 border-t mt-4">
         <div className="flex gap-2">
           {showBack && currentStepIndex > 0 && (
-            <Button type="button" variant="outline" onClick={goBack} className="gap-1">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={goBack} 
+              disabled={isAnyOperationPending}
+              className="gap-1"
+            >
               <ChevronLeft className="w-4 h-4" /> Back
             </Button>
           )}
@@ -1137,7 +1176,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               type="button" 
               variant="ghost" 
               onClick={() => saveDraftMutation.mutate()}
-              disabled={saveDraftMutation.isPending}
+              disabled={isAnyOperationPending}
               className="text-muted-foreground"
             >
               {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
@@ -1148,9 +1187,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         <Button 
           type="button" 
           onClick={onNext || goNext} 
-          disabled={!canProceed}
+          disabled={!canProceed || isAnyOperationPending}
           className="gap-1"
         >
+          {isTransitioning && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
           {nextLabel || "Continue"} <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
@@ -1355,6 +1395,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               onContinue={goNext}
               onBack={goBack}
               onSkip={goNext}
+              isNavigating={isTransitioning}
             />
           )}
 
