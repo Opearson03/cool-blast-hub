@@ -18,9 +18,9 @@ interface SubscriptionStats {
   total_users: number;
   active_subscriptions: number;
   trial_subscriptions: number;
-  starter_count: number;
-  professional_count: number;
-  enterprise_count: number;
+  demo_accounts: number;
+  paid_100_plan: number;
+  trial_100_plan: number;
   waiting_list_count: number;
   recent_signups_7d: number;
   recent_signups_30d: number;
