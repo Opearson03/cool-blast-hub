@@ -3,30 +3,46 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { format, subDays } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+
+interface AnalyticsDataPoint {
+  date: string;
+  pageViews: number;
+  uniqueVisitors: number;
+}
 
 export function VisitorAnalytics() {
   const startDate = format(subDays(new Date(), 30), "yyyy-MM-dd");
   const endDate = format(new Date(), "yyyy-MM-dd");
 
-  // Note: This would typically come from an edge function that calls the Lovable analytics API
-  // For now, we'll show a placeholder with the ability to integrate later
-  const { data: analytics, isLoading } = useQuery({
+  const { data: analytics, isLoading, error } = useQuery({
     queryKey: ["staff-visitor-analytics", startDate, endDate],
-    queryFn: async () => {
-      // Placeholder data - in production this would call an edge function
-      // that fetches from Lovable's analytics API
-      const mockData = [];
-      for (let i = 30; i >= 0; i--) {
-        const date = subDays(new Date(), i);
-        mockData.push({
-          date: format(date, "MMM d"),
-          pageViews: Math.floor(Math.random() * 100) + 50,
-          uniqueVisitors: Math.floor(Math.random() * 50) + 20,
-        });
+    queryFn: async (): Promise<AnalyticsDataPoint[]> => {
+      const { data, error } = await supabase.functions.invoke("get-visitor-analytics", {
+        body: { startDate, endDate, granularity: "daily" },
+      });
+
+      if (error) {
+        console.error("Error fetching analytics:", error);
+        throw error;
       }
-      return mockData;
+
+      // If we got data from the API, transform it
+      if (data?.data && Array.isArray(data.data) && data.data.length > 0) {
+        return data.data.map((item: any) => ({
+          date: format(new Date(item.date), "MMM d"),
+          pageViews: item.pageViews ?? item.page_views ?? 0,
+          uniqueVisitors: item.uniqueVisitors ?? item.unique_visitors ?? 0,
+        }));
+      }
+
+      // Return empty array if no data available
+      return [];
     },
     refetchInterval: 300000, // Refetch every 5 minutes
+    retry: 1,
   });
 
   const totalPageViews = analytics?.reduce((sum, day) => sum + day.pageViews, 0) ?? 0;
@@ -46,6 +62,8 @@ export function VisitorAnalytics() {
       </Card>
     );
   }
+
+  const hasData = analytics && analytics.length > 0;
 
   return (
     <div className="space-y-4">
@@ -85,53 +103,70 @@ export function VisitorAnalytics() {
         </Card>
       </div>
 
-      {/* Chart */}
+      {/* Chart or Empty State */}
       <Card>
         <CardHeader>
           <CardTitle>Visitor Trends</CardTitle>
           <CardDescription>Page views and unique visitors over the last 30 days</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={analytics}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                />
-                <YAxis 
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
-                />
-                <Tooltip 
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "8px",
-                  }}
-                  labelStyle={{ color: "hsl(var(--foreground))" }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="pageViews"
-                  name="Page Views"
-                  stroke="hsl(var(--primary))"
-                  fill="hsl(var(--primary) / 0.2)"
-                  strokeWidth={2}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="uniqueVisitors"
-                  name="Unique Visitors"
-                  stroke="hsl(var(--chart-2))"
-                  fill="hsl(var(--chart-2) / 0.2)"
-                  strokeWidth={2}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
+          {error ? (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>
+                Failed to load analytics data. Please try again later.
+              </AlertDescription>
+            </Alert>
+          ) : !hasData ? (
+            <div className="h-[300px] flex items-center justify-center">
+              <div className="text-center text-muted-foreground">
+                <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p className="text-lg font-medium">No analytics data available</p>
+                <p className="text-sm">Analytics will appear here once your app has visitor traffic.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={analytics}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <YAxis 
+                    tick={{ fontSize: 12 }}
+                    className="text-muted-foreground"
+                  />
+                  <Tooltip 
+                    contentStyle={{
+                      backgroundColor: "hsl(var(--card))",
+                      border: "1px solid hsl(var(--border))",
+                      borderRadius: "8px",
+                    }}
+                    labelStyle={{ color: "hsl(var(--foreground))" }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="pageViews"
+                    name="Page Views"
+                    stroke="hsl(var(--primary))"
+                    fill="hsl(var(--primary) / 0.2)"
+                    strokeWidth={2}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="uniqueVisitors"
+                    name="Unique Visitors"
+                    stroke="hsl(var(--chart-2))"
+                    fill="hsl(var(--chart-2) / 0.2)"
+                    strokeWidth={2}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

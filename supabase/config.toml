@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.send-estimate-email]
 verify_jwt = false
+
+[functions.get-visitor-analytics]
+verify_jwt = true
