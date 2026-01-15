@@ -12,12 +12,37 @@ interface ScopeAreaData {
   depth_mm?: number | null;
   pier_quantity?: number | null;
   shape_type?: string;
+  // Linear element fields
+  width_mm?: number | null;
+  height_mm?: number | null;
+  length_m?: number | null;
 }
 
-interface PierTakeoffData {
+export interface PierTakeoffData {
   count: number;
   diameter: number;
   depth: number;
+}
+
+export interface BollardTakeoffData {
+  count: number;
+  diameter: number;
+  heightAbove: number;
+  embedmentDepth: number;
+}
+
+export interface PadTakeoffData {
+  count: number;
+  length: number;    // mm
+  width: number;     // mm
+  depth: number;     // mm
+}
+
+export interface LinearTakeoffData {
+  totalLength: number;   // m
+  width: number;         // mm
+  height: number;        // mm
+  segments: Array<{ name: string; length: number }>;
 }
 
 interface UseTakeoffMarkupsReturn {
@@ -28,6 +53,9 @@ interface UseTakeoffMarkupsReturn {
   hasMarkupForScope: (scopeId: string) => boolean;
   getMarkupsForScope: (scopeId: string) => ScopeAreaData[];
   getPierDataForScope: (scopeId: string) => PierTakeoffData | null;
+  getBollardDataForScope: (scopeId: string) => BollardTakeoffData | null;
+  getPadFootingDataForScope: (scopeId: string) => PadTakeoffData | null;
+  getLinearDataForScope: (scopeId: string) => LinearTakeoffData | null;
   refetch: () => Promise<void>;
 }
 
@@ -57,10 +85,10 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         return;
       }
 
-      // Then get the markups for this takeoff
+      // Then get the markups for this takeoff - include all fields for linear/pad elements
       const { data: markupsData, error: markupsError } = await supabase
         .from('takeoff_markups')
-        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity')
+        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m')
         .eq('takeoff_id', takeoffData.id)
         .order('created_at', { ascending: true });
 
@@ -76,6 +104,9 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         diameter_mm: m.diameter_mm,
         depth_mm: m.depth_mm,
         pier_quantity: m.pier_quantity,
+        width_mm: m.width_mm,
+        height_mm: m.height_mm,
+        length_m: m.length_m ? Number(m.length_m) : null,
       })));
     } catch (error) {
       console.error('Error fetching takeoff markups:', error);
@@ -125,6 +156,80 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     return { count, diameter, depth };
   }, [markups]);
 
+  /**
+   * Get bollard data from takeoff - uses height_mm for height above ground
+   * and depth_mm for embedment depth
+   */
+  const getBollardDataForScope = useCallback((scopeId: string): BollardTakeoffData | null => {
+    const bollardMarkups = markups.filter(
+      m => m.scope_id === scopeId && m.shape_type === 'point'
+    );
+    
+    if (bollardMarkups.length === 0) return null;
+    
+    const count = bollardMarkups.reduce((sum, m) => sum + (m.pier_quantity || 1), 0);
+    const firstMarkup = bollardMarkups[0];
+    
+    return {
+      count,
+      diameter: firstMarkup.diameter_mm || 150,
+      heightAbove: firstMarkup.height_mm || 900,  // height_mm stores height above ground for bollards
+      embedmentDepth: firstMarkup.depth_mm || 400,
+    };
+  }, [markups]);
+
+  /**
+   * Get pad footing/pit base data from takeoff
+   */
+  const getPadFootingDataForScope = useCallback((scopeId: string): PadTakeoffData | null => {
+    const padMarkups = markups.filter(
+      m => m.scope_id === scopeId && m.shape_type === 'point'
+    );
+    
+    if (padMarkups.length === 0) return null;
+    
+    const count = padMarkups.reduce((sum, m) => sum + (m.pier_quantity || 1), 0);
+    const firstMarkup = padMarkups[0];
+    
+    // For pad footings: width_mm = length, height_mm = width, depth_mm = depth
+    return {
+      count,
+      length: firstMarkup.width_mm || 600,   // Stored in width_mm
+      width: firstMarkup.height_mm || 600,   // Stored in height_mm  
+      depth: firstMarkup.depth_mm || 300,
+    };
+  }, [markups]);
+
+  /**
+   * Get linear element data from takeoff (strip footings, kerbs, retaining walls, etc.)
+   */
+  const getLinearDataForScope = useCallback((scopeId: string): LinearTakeoffData | null => {
+    const linearMarkups = markups.filter(
+      m => m.scope_id === scopeId && m.shape_type === 'polyline'
+    );
+    
+    if (linearMarkups.length === 0) return null;
+    
+    // Sum up all segment lengths
+    const totalLength = linearMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
+    
+    // Get dimensions from first markup (typically consistent across all segments)
+    const firstMarkup = linearMarkups[0];
+    
+    // Build segments array with names
+    const segments = linearMarkups.map((m, index) => ({
+      name: m.name || `Section ${index + 1}`,
+      length: m.length_m || 0,
+    }));
+    
+    return {
+      totalLength,
+      width: firstMarkup.width_mm || 450,
+      height: firstMarkup.height_mm || 300,
+      segments,
+    };
+  }, [markups]);
+
   return {
     markups,
     isLoading,
@@ -133,6 +238,9 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     hasMarkupForScope,
     getMarkupsForScope,
     getPierDataForScope,
+    getBollardDataForScope,
+    getPadFootingDataForScope,
+    getLinearDataForScope,
     refetch: fetchMarkups,
   };
 }

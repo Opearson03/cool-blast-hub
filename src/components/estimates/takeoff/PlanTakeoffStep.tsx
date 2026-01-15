@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus, CircleDot } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus } from 'lucide-react';
 import { useTakeoffData } from '@/hooks/useTakeoffData';
 import { PlanUploader } from './PlanUploader';
 import { PlanViewer } from './PlanViewer';
@@ -12,7 +12,10 @@ import { TakeoffToolbar } from './TakeoffToolbar';
 import { ScopeMarkupChecklist } from './ScopeMarkupChecklist';
 import { CalibrationDialog } from './CalibrationDialog';
 import { PierDimensionsDialog } from './PierDimensionsDialog';
-import { getScopeColor } from '@/types/takeoff';
+import { BollardDimensionsDialog } from './BollardDimensionsDialog';
+import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
+import { LinearDimensionsDialog } from './LinearDimensionsDialog';
+import { getScopeColor, calculatePolylineLength } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
 import type { DrawingTool, TakeoffPoint } from '@/types/takeoff';
 
@@ -52,6 +55,9 @@ export function PlanTakeoffStep({
     deletePlan,
     addMarkup,
     addPierMarkups,
+    addBollardMarkups,
+    addPadMarkups,
+    addPolylineMarkup,
     deleteMarkup,
     setCurrentPage
   } = useTakeoffData({ estimateId, businessId });
@@ -62,10 +68,15 @@ export function PlanTakeoffStep({
   const [skippedScopes, setSkippedScopes] = useState<Set<string>>(new Set());
   const [showCalibration, setShowCalibration] = useState(false);
   const [showPierDimensions, setShowPierDimensions] = useState(false);
+  const [showBollardDimensions, setShowBollardDimensions] = useState(false);
+  const [showPadDimensions, setShowPadDimensions] = useState(false);
+  const [showLinearDimensions, setShowLinearDimensions] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [selectedMarkupId, setSelectedMarkupId] = useState<string | null>(null);
   const [drawingPoints, setDrawingPoints] = useState<TakeoffPoint[]>([]);
   const [pierPoints, setPierPoints] = useState<TakeoffPoint[]>([]);
+  const [polylinePoints, setPolylinePoints] = useState<TakeoffPoint[]>([]);
+  const [pendingPolylineLength, setPendingPolylineLength] = useState<number>(0);
   const [planDimensions, setPlanDimensions] = useState({ width: 0, height: 0 });
   const [totalPages, setTotalPages] = useState(1);
   const [calibrationPoints, setCalibrationPoints] = useState<TakeoffPoint[]>([]);
@@ -77,9 +88,15 @@ export function PlanTakeoffStep({
   const isCalibrated = !!currentScale;
   const hasFiles = files.length > 0;
 
-  // Determine if current scope is a "point" type that needs point marking
+  // Define scope types for different drawing tools
   const POINT_SCOPES = ['piers', 'bollards', 'pad_footings', 'pit_bases'];
-  const isPierScope = activeScope !== null && POINT_SCOPES.includes(activeScope);
+  const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls'];
+  
+  const isPointScope = activeScope !== null && POINT_SCOPES.includes(activeScope);
+  const isLinearScope = activeScope !== null && LINEAR_SCOPES.includes(activeScope);
+  const isPierScope = activeScope === 'piers';
+  const isBollardScope = activeScope === 'bollards';
+  const isPadScope = activeScope === 'pad_footings' || activeScope === 'pit_bases';
 
   const scopes = useMemo(() => 
     selectedScopes.map(id => ({ id, label: scopeLabels[id] || id })),
@@ -98,13 +115,24 @@ export function PlanTakeoffStep({
     
     setActiveScope(scopeId);
     
-    // Check if this is a point scope (piers, bollards, pads, pit bases)
+    // Check scope type and set appropriate tool
     const isPointType = POINT_SCOPES.includes(scopeId);
+    const isLinearType = LINEAR_SCOPES.includes(scopeId);
     
     if (isPointType) {
-      // Use point tool for piers
+      // Use point tool for piers, bollards, pads
       setPierPoints([]);
       setActiveTool('point');
+    } else if (isLinearType) {
+      // Use polyline tool for linear elements
+      setPolylinePoints([]);
+      setPendingPolylineLength(0);
+      const existingForScope = markups.filter(m => m.scope_id === scopeId);
+      const defaultName = existingForScope.length === 0 
+        ? 'Section 1' 
+        : `Section ${existingForScope.length + 1}`;
+      setPendingMarkupName(defaultName);
+      setActiveTool('polyline');
     } else {
       // Generate default name based on existing markups for this scope
       const existingForScope = markups.filter(m => m.scope_id === scopeId);
@@ -475,6 +503,56 @@ export function PlanTakeoffStep({
         onOpenChange={setShowPierDimensions}
         pierCount={pierPoints.length}
         onConfirm={handlePierDimensionsConfirm}
+      />
+
+      {/* Bollard dimensions dialog */}
+      <BollardDimensionsDialog
+        open={showBollardDimensions}
+        onOpenChange={setShowBollardDimensions}
+        bollardCount={pierPoints.length}
+        onConfirm={async (diameter, height, embedment) => {
+          if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+          await addBollardMarkups(currentFileId, activeScope, pierPoints, diameter, height, embedment, color, currentPage);
+          setPierPoints([]);
+          setActiveTool('select');
+          setActiveScope(null);
+        }}
+      />
+
+      {/* Pad footing dimensions dialog */}
+      <PadFootingDimensionsDialog
+        open={showPadDimensions}
+        onOpenChange={setShowPadDimensions}
+        padCount={pierPoints.length}
+        scopeType={activeScope === 'pit_bases' ? 'pit_bases' : 'pad_footings'}
+        onConfirm={async (length, width, depth) => {
+          if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+          await addPadMarkups(currentFileId, activeScope, pierPoints, length, width, depth, color, currentPage, activeScope as 'pad_footings' | 'pit_bases');
+          setPierPoints([]);
+          setActiveTool('select');
+          setActiveScope(null);
+        }}
+      />
+
+      {/* Linear dimensions dialog */}
+      <LinearDimensionsDialog
+        open={showLinearDimensions}
+        onOpenChange={setShowLinearDimensions}
+        lengthMeters={pendingPolylineLength}
+        scopeType={activeScope || 'strip_footings'}
+        onConfirm={async (width, height) => {
+          if (!activeScope || !currentFileId || polylinePoints.length < 2) return;
+          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+          const name = pendingMarkupName.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
+          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, name);
+          setPolylinePoints([]);
+          setPendingPolylineLength(0);
+          setActiveTool('select');
+          setActiveScope(null);
+          setPendingMarkupName('');
+        }}
       />
     </div>
   );

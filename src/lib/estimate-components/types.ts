@@ -153,6 +153,10 @@ export interface FootingConfig {
   length: number;    // m
   width: number;     // mm
   depth: number;     // mm
+  /** If true, this footing config was imported from plan takeoff */
+  _fromTakeoff?: boolean;
+  /** Actual measured length from takeoff (more accurate) */
+  _actualLength?: number;
 }
 
 /**
