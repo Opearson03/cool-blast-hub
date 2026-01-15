@@ -6,7 +6,7 @@ import type { TakeoffMarkup, TakeoffPoint } from '@/types/takeoff';
 interface DrawingCanvasProps {
   width: number;
   height: number;
-  tool: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate';
+  tool: 'polygon' | 'rectangle' | 'select' | 'pan' | 'calibrate' | 'point';
   activeScope: string | null;
   activeScopeColor: string;
   markups: TakeoffMarkup[];
@@ -15,11 +15,13 @@ interface DrawingCanvasProps {
   pixelsPerMeter: number | null;
   isCalibrationMode?: boolean;
   calibrationPoints?: TakeoffPoint[];
+  pierPoints?: TakeoffPoint[];
   onMarkupComplete: (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => void;
   onMarkupSelect: (id: string | null) => void;
   onMarkupUpdate: (id: string, points: TakeoffPoint[]) => void;
   onPointsChange?: (points: TakeoffPoint[]) => void;
   onCalibrationPointsChange?: (points: TakeoffPoint[]) => void;
+  onPierPointsChange?: (points: TakeoffPoint[]) => void;
 }
 
 export function DrawingCanvas({
@@ -34,11 +36,13 @@ export function DrawingCanvas({
   pixelsPerMeter,
   isCalibrationMode,
   calibrationPoints = [],
+  pierPoints = [],
   onMarkupComplete,
   onMarkupSelect,
   onMarkupUpdate,
   onPointsChange,
   onCalibrationPointsChange,
+  onPierPointsChange,
 }: DrawingCanvasProps) {
   const [drawingPoints, setDrawingPoints] = useState<TakeoffPoint[]>([]);
   const [rectStart, setRectStart] = useState<TakeoffPoint | null>(null);
@@ -63,7 +67,7 @@ export function DrawingCanvas({
     setCurrentMousePos(null);
   }, [width, height]);
 
-  const isDrawing = tool === 'polygon' || tool === 'rectangle';
+  const isDrawing = tool === 'polygon' || tool === 'rectangle' || tool === 'point';
 
   // Calculate centroid of a polygon for label positioning
   const getCentroid = (points: TakeoffPoint[]): TakeoffPoint => {
@@ -104,6 +108,13 @@ export function DrawingCanvas({
       return;
     }
 
+    // Handle pier point tool
+    if (tool === 'point' && activeScope) {
+      const newPierPoints = [...pierPoints, point];
+      onPierPointsChange?.(newPierPoints);
+      return;
+    }
+
     if (tool === 'select') {
       // Clicking on stage background deselects
       if (e.target === stage) {
@@ -134,7 +145,7 @@ export function DrawingCanvas({
       setDrawingPoints(newPoints);
       onPointsChange?.(newPoints);
     }
-  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, calibrationPoints, onCalibrationPointsChange]);
+  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange]);
 
   // Handle double click to close polygon
   const handleDoubleClick = useCallback(() => {
@@ -256,6 +267,39 @@ export function DrawingCanvas({
               fill="#f97316"
               stroke="#fff"
               strokeWidth={0.5}
+            />
+          </Group>
+        ))}
+      </Group>
+    );
+  };
+
+  // Render pier point markers
+  const renderPierPoints = () => {
+    if (tool !== 'point' || pierPoints.length === 0) return null;
+
+    return (
+      <Group>
+        {pierPoints.map((point, index) => (
+          <Group key={index}>
+            <Circle
+              x={point.x}
+              y={point.y}
+              radius={12}
+              fill={activeScopeColor}
+              stroke="#fff"
+              strokeWidth={2}
+              opacity={0.9}
+            />
+            <Text
+              x={point.x}
+              y={point.y}
+              text={String(index + 1)}
+              fontSize={10}
+              fontStyle="bold"
+              fill="#fff"
+              offsetX={index < 9 ? 3 : 6}
+              offsetY={5}
             />
           </Group>
         ))}
@@ -421,6 +465,39 @@ export function DrawingCanvas({
         );
       }
 
+      // Handle point markups (piers)
+      if (markup.shape_type === 'point' && markup.points.length > 0) {
+        return (
+          <Group key={markup.id}>
+            {markup.points.map((point, index) => (
+              <Group key={index}>
+                <Circle
+                  x={point.x}
+                  y={point.y}
+                  radius={isSelected ? 14 : 12}
+                  fill={markup.color}
+                  stroke={isSelected ? '#fff' : '#000'}
+                  strokeWidth={isSelected ? 3 : 1}
+                  opacity={0.85}
+                  onClick={() => tool === 'select' && onMarkupSelect(markup.id)}
+                  onTap={() => tool === 'select' && onMarkupSelect(markup.id)}
+                />
+                <Text
+                  x={point.x}
+                  y={point.y}
+                  text={String(index + 1)}
+                  fontSize={10}
+                  fontStyle="bold"
+                  fill="#fff"
+                  offsetX={index < 9 ? 3 : 6}
+                  offsetY={5}
+                />
+              </Group>
+            ))}
+          </Group>
+        );
+      }
+
       return null;
     });
   };
@@ -443,6 +520,7 @@ export function DrawingCanvas({
       <Layer>
         {renderMarkups()}
         {renderDrawingPreview()}
+        {renderPierPoints()}
         {renderCalibrationOverlay()}
       </Layer>
     </Stage>

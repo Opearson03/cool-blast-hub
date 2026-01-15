@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus, CircleDot } from 'lucide-react';
 import { useTakeoffData } from '@/hooks/useTakeoffData';
 import { PlanUploader } from './PlanUploader';
 import { PlanViewer } from './PlanViewer';
@@ -11,6 +11,7 @@ import { DrawingCanvas } from './DrawingCanvas';
 import { TakeoffToolbar } from './TakeoffToolbar';
 import { ScopeMarkupChecklist } from './ScopeMarkupChecklist';
 import { CalibrationDialog } from './CalibrationDialog';
+import { PierDimensionsDialog } from './PierDimensionsDialog';
 import { getScopeColor } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
 import type { DrawingTool, TakeoffPoint } from '@/types/takeoff';
@@ -50,6 +51,7 @@ export function PlanTakeoffStep({
     getPageScale,
     deletePlan,
     addMarkup,
+    addPierMarkups,
     deleteMarkup,
     setCurrentPage
   } = useTakeoffData({ estimateId, businessId });
@@ -59,9 +61,11 @@ export function PlanTakeoffStep({
   const [pendingMarkupName, setPendingMarkupName] = useState<string>('');
   const [skippedScopes, setSkippedScopes] = useState<Set<string>>(new Set());
   const [showCalibration, setShowCalibration] = useState(false);
+  const [showPierDimensions, setShowPierDimensions] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [selectedMarkupId, setSelectedMarkupId] = useState<string | null>(null);
   const [drawingPoints, setDrawingPoints] = useState<TakeoffPoint[]>([]);
+  const [pierPoints, setPierPoints] = useState<TakeoffPoint[]>([]);
   const [planDimensions, setPlanDimensions] = useState({ width: 0, height: 0 });
   const [totalPages, setTotalPages] = useState(1);
   const [calibrationPoints, setCalibrationPoints] = useState<TakeoffPoint[]>([]);
@@ -72,6 +76,9 @@ export function PlanTakeoffStep({
   const currentScale = currentFileId ? getPageScale(currentFileId, currentPage) : null;
   const isCalibrated = !!currentScale;
   const hasFiles = files.length > 0;
+
+  // Determine if current scope is a "pier" type that needs point marking
+  const isPierScope = activeScope === 'piers' || activeScope === 'bollards';
 
   const scopes = useMemo(() => 
     selectedScopes.map(id => ({ id, label: scopeLabels[id] || id })),
@@ -89,14 +96,24 @@ export function PlanTakeoffStep({
     }
     
     setActiveScope(scopeId);
-    // Generate default name based on existing markups for this scope
-    const existingForScope = markups.filter(m => m.scope_id === scopeId);
-    const defaultName = existingForScope.length === 0 
-      ? 'Area 1' 
-      : `Area ${existingForScope.length + 1}`;
-    setPendingMarkupName(defaultName);
-    setActiveTool('polygon');
-    setDrawingPoints([]);
+    
+    // Check if this is a pier/point scope
+    const isPierType = scopeId === 'piers' || scopeId === 'bollards';
+    
+    if (isPierType) {
+      // Use point tool for piers
+      setPierPoints([]);
+      setActiveTool('point');
+    } else {
+      // Generate default name based on existing markups for this scope
+      const existingForScope = markups.filter(m => m.scope_id === scopeId);
+      const defaultName = existingForScope.length === 0 
+        ? 'Area 1' 
+        : `Area ${existingForScope.length + 1}`;
+      setPendingMarkupName(defaultName);
+      setActiveTool('polygon');
+      setDrawingPoints([]);
+    }
   }, [markups, isCalibrated]);
 
   const handleSkipScope = (scopeId: string) => {
@@ -137,6 +154,26 @@ export function PlanTakeoffStep({
     setActiveScope(null);
     setPendingMarkupName('');
   }, [activeScope, currentFileId, selectedScopes, addMarkup, pendingMarkupName, markups, currentPage]);
+
+  // Handler for completing pier marking
+  const handlePierDimensionsConfirm = useCallback(async (diameter: number, depth: number) => {
+    if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    await addPierMarkups(currentFileId, activeScope, pierPoints, diameter, depth, color, currentPage);
+
+    // Clear state
+    setPierPoints([]);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [activeScope, currentFileId, pierPoints, selectedScopes, addPierMarkups, currentPage]);
+
+  // Handler for "Done" button when marking piers
+  const handleDoneMarkingPiers = useCallback(() => {
+    if (pierPoints.length > 0) {
+      setShowPierDimensions(true);
+    }
+  }, [pierPoints.length]);
 
   const handleUndo = useCallback(() => {
     if (drawingPoints.length > 0) {
@@ -288,6 +325,9 @@ export function PlanTakeoffStep({
         currentFileId={currentFileId}
         onFileChange={setCurrentFile}
         currentPage={currentPage}
+        isPierMode={activeTool === 'point' && isPierScope}
+        pierCount={pierPoints.length}
+        onDoneMarkingPiers={handleDoneMarkingPiers}
       />
 
       {/* Main content */}
@@ -317,11 +357,13 @@ export function PlanTakeoffStep({
                 pixelsPerMeter={currentScale}
                 isCalibrationMode={isCalibrationMode}
                 calibrationPoints={calibrationPoints}
+                pierPoints={pierPoints}
                 onMarkupComplete={handleMarkupComplete}
                 onMarkupSelect={setSelectedMarkupId}
                 onMarkupUpdate={() => {}}
                 onPointsChange={setDrawingPoints}
                 onCalibrationPointsChange={handleCalibrationPointsChange}
+                onPierPointsChange={setPierPoints}
               />
             </PlanViewer>
           ) : (
@@ -353,8 +395,8 @@ export function PlanTakeoffStep({
             </div>
           )}
 
-          {/* Active scope indicator with name input */}
-          {activeScope && !isCalibrationMode && (
+          {/* Active scope indicator with name input (only for non-pier scopes) */}
+          {activeScope && !isCalibrationMode && !isPierScope && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge 
                 style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}
@@ -423,6 +465,14 @@ export function PlanTakeoffStep({
         calibrationPoints={calibrationPoints}
         currentScale={currentScale}
         pageNumber={currentPage}
+      />
+
+      {/* Pier dimensions dialog */}
+      <PierDimensionsDialog
+        open={showPierDimensions}
+        onOpenChange={setShowPierDimensions}
+        pierCount={pierPoints.length}
+        onConfirm={handlePierDimensionsConfirm}
       />
     </div>
   );

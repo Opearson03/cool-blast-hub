@@ -1624,11 +1624,14 @@ export type Database = {
           area_sqm: number | null
           color: string | null
           created_at: string
+          depth_mm: number | null
+          diameter_mm: number | null
           file_id: string | null
           id: string
           name: string | null
           page_number: number | null
           perimeter_m: number | null
+          pier_quantity: number | null
           points: Json
           scope_id: string
           shape_type: string
@@ -1638,11 +1641,14 @@ export type Database = {
           area_sqm?: number | null
           color?: string | null
           created_at?: string
+          depth_mm?: number | null
+          diameter_mm?: number | null
           file_id?: string | null
           id?: string
           name?: string | null
           page_number?: number | null
           perimeter_m?: number | null
+          pier_quantity?: number | null
           points?: Json
           scope_id: string
           shape_type: string
@@ -1652,11 +1658,14 @@ export type Database = {
           area_sqm?: number | null
           color?: string | null
           created_at?: string
+          depth_mm?: number | null
+          diameter_mm?: number | null
           file_id?: string | null
           id?: string
           name?: string | null
           page_number?: number | null
           perimeter_m?: number | null
+          pier_quantity?: number | null
           points?: Json
           scope_id?: string
           shape_type?: string

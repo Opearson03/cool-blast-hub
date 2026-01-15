@@ -8,6 +8,11 @@ interface ScopeAreaData {
   area_sqm: number | null;
   perimeter_m: number | null;
   markup_id: string;
+  // Pier-specific fields
+  diameter_mm?: number | null;
+  depth_mm?: number | null;
+  pier_quantity?: number | null;
+  shape_type?: string;
 }
 
 interface UseTakeoffMarkupsReturn {
@@ -49,7 +54,7 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
       // Then get the markups for this takeoff
       const { data: markupsData, error: markupsError } = await supabase
         .from('takeoff_markups')
-        .select('id, scope_id, name, area_sqm, perimeter_m')
+        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity')
         .eq('takeoff_id', takeoffData.id)
         .order('created_at', { ascending: true });
 
@@ -61,6 +66,10 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         area_sqm: m.area_sqm,
         perimeter_m: m.perimeter_m,
         markup_id: m.id,
+        shape_type: m.shape_type,
+        diameter_mm: m.diameter_mm,
+        depth_mm: m.depth_mm,
+        pier_quantity: m.pier_quantity,
       })));
     } catch (error) {
       console.error('Error fetching takeoff markups:', error);
