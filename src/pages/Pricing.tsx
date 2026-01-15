@@ -2,14 +2,17 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowRight, ArrowLeft } from "lucide-react";
+import { Check, ArrowRight, ArrowLeft, Users } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
+import { WaitlistForm } from "@/components/waitlist/WaitlistForm";
+import { useWaitlistCount } from "@/hooks/useWaitlistCount";
 
 const Pricing = () => {
   const freeTier = SUBSCRIPTION_TIERS.free;
   const proTier = SUBSCRIPTION_TIERS.standard;
+  const { data: waitlistCount = 0 } = useWaitlistCount();
 
   return (
     <>
@@ -41,11 +44,18 @@ const Pricing = () => {
         <div className="px-4 py-16 sm:py-20">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl sm:text-5xl font-bold text-primary-foreground mb-4">
-              Start Free, Upgrade When Ready
+              Simple, Transparent Pricing
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Get started with 1 free quote per month. Full job management included.
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
+              Start free with 1 quote per month. Full job management included.
             </p>
+            {/* Waitlist Counter */}
+            <div className="flex items-center justify-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mx-auto">
+              <Users className="w-5 h-5 text-primary" />
+              <span className="text-primary-foreground font-medium">
+                <span className="text-primary font-bold">{waitlistCount}</span> concreters on the waiting list
+              </span>
+            </div>
           </div>
         </div>
 
@@ -73,9 +83,9 @@ const Pricing = () => {
                     </li>
                   ))}
                 </ul>
-                <Link to="/signup" className="mt-6">
+                <Link to="/" className="mt-6">
                   <Button variant="outline" className="w-full touch-target" size="lg">
-                    Get Started Free
+                    Join Waiting List
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </Link>
@@ -116,9 +126,9 @@ const Pricing = () => {
                     </li>
                   )}
                 </ul>
-                <Link to="/signup" className="mt-6">
+                <Link to="/" className="mt-6">
                   <Button className="w-full touch-target" size="lg">
-                    Start Free Trial
+                    Join Waiting List
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </Link>
@@ -164,22 +174,19 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* CTA */}
+        {/* CTA with Waitlist Form */}
         <div className="bg-primary py-16 px-4">
-          <div className="max-w-4xl mx-auto text-center">
-            <h3 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4">
-              Ready to Get Started?
+          <div className="max-w-xl mx-auto">
+            <h3 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4 text-center">
+              Join the Waiting List
             </h3>
-            <p className="text-primary-foreground/90 mb-8">
-              Sign up today and get your business organized in minutes.
+            <p className="text-primary-foreground/90 mb-8 text-center">
+              Be first in line when PourHub launches. We'll notify you as soon as you can get started.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link to="/signup">
-                <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">
-                  Get Started Now
-                  <ArrowRight className="ml-2 w-5 h-5" />
-                </Button>
-              </Link>
+            <div className="bg-charcoal/50 backdrop-blur-sm border border-border/30 rounded-xl p-6">
+              <WaitlistForm />
+            </div>
+            <div className="mt-6 text-center">
               <Link to="/">
                 <Button size="lg" variant="outline" className="text-lg px-8 py-6 touch-target bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
                   <ArrowLeft className="mr-2 w-5 h-5" />
