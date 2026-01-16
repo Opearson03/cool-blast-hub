@@ -29,7 +29,6 @@ import {
   Building2,
   User,
   MapPin,
-  ListChecks,
   Wrench,
   CheckCircle
 } from "lucide-react";
@@ -754,37 +753,32 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return SCOPE_OPTIONS.find(s => s.id === scope)?.label || scope;
   };
 
-  const availableScopes = useMemo(() => {
-    return SCOPE_OPTIONS.filter(scope => 
-      estimateType ? scope.availableFor.includes(estimateType) : true
-    );
-  }, [estimateType]);
-
-  const handleScopeToggle = (scopeId: ScopeType, checked: boolean) => {
-    const newScopes = new Set(selectedScopes);
-    if (checked) {
-      newScopes.add(scopeId);
-      // Clear any stale state for this scope so it starts fresh
+  /**
+   * Handle scope changes with proper state cleanup
+   * Clears modularScopeStates for scopes that are added/removed
+   * to ensure calculators start fresh
+   */
+  const handleScopesChange = useCallback((newScopes: Set<ScopeType>) => {
+    // Find scopes that were removed and clear their state
+    const removedScopes = Array.from(selectedScopes).filter(s => !newScopes.has(s));
+    
+    if (removedScopes.length > 0) {
       setModularScopeStates(prev => {
         const updated = { ...prev };
-        delete updated[scopeId];
-        return updated;
-      });
-    } else {
-      newScopes.delete(scopeId);
-      // Also clear the state when removing a scope
-      setModularScopeStates(prev => {
-        const updated = { ...prev };
-        delete updated[scopeId];
+        removedScopes.forEach(scopeId => {
+          delete updated[scopeId];
+        });
         return updated;
       });
     }
+    
     setSelectedScopes(newScopes);
+    
     // Reset active scope index if needed
     if (activeScopeIndex >= newScopes.size) {
       setActiveScopeIndex(Math.max(0, newScopes.size - 1));
     }
-  };
+  }, [selectedScopes, activeScopeIndex]);
 
   // Build scope_data for saving (new modular format)
   const buildScopeDataForSave = (): Record<string, any> => {
@@ -805,69 +799,124 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return data;
   };
 
+  /**
+   * Shared helper to build estimate data and save it
+   * Consolidates logic from saveDraftMutation, finalizeMutation, and mutation
+   */
+  const saveEstimate = async (status: 'draft' | 'pending'): Promise<void> => {
+    // Validation for non-draft saves
+    if (status !== 'draft') {
+      if (!formData.client_name || !formData.site_address) {
+        throw new Error("Please fill in client name and site address");
+      }
+      if (selectedScopes.size === 0) {
+        throw new Error("Please select at least one scope of work");
+      }
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("business_id")
+      .eq("id", user.id)
+      .single();
+
+    if (!profile?.business_id) throw new Error("No business found");
+
+    // Build description from scope data
+    const descriptionParts = selectedScopesArray.map(scope => {
+      const label = getScopeLabel(scope);
+      const { description } = scopeTotals[scope];
+      return `${label}: ${description || 'Not configured'}`;
+    });
+
+    // Build notes with scope breakdown and inclusions/exclusions
+    let fullNotes = "";
+    
+    // Scope breakdown
+    if (selectedScopesArray.length > 0) {
+      let scopeBreakdown = "SCOPE BREAKDOWN:\n";
+      selectedScopesArray.forEach(scope => {
+        const label = getScopeLabel(scope);
+        const { total } = scopeTotals[scope];
+        scopeBreakdown += `• ${label}: ${formatCurrency(total)}\n`;
+      });
+      fullNotes = scopeBreakdown;
+    }
+    
+    // User notes (already cleaned of generated content when loaded)
+    const userNotes = formData.notes?.trim();
+    if (userNotes) {
+      fullNotes += (fullNotes ? "\n" : "") + userNotes;
+    }
+    
+    // Inclusions and exclusions only for non-draft
+    if (status !== 'draft') {
+      const inclusionsList = DEFAULT_INCLUSIONS
+        .filter(i => selectedInclusions.has(i.id))
+        .map(i => i.label);
+      const exclusionsList = DEFAULT_EXCLUSIONS
+        .filter(e => selectedExclusions.has(e.id))
+        .map(e => e.label);
+      
+      if (inclusionsList.length > 0) {
+        fullNotes += "\n\nINCLUSIONS:\n• " + inclusionsList.join("\n• ");
+      }
+      if (exclusionsList.length > 0) {
+        fullNotes += "\n\nEXCLUSIONS:\n• " + exclusionsList.join("\n• ");
+      }
+    }
+
+    const estimateData = {
+      business_id: profile.business_id,
+      client_name: formData.client_name || "Draft Estimate",
+      company_name: formData.company_name || null,
+      client_email: formData.client_email || null,
+      client_phone: formData.client_phone || null,
+      site_address: formData.site_address || "No address",
+      description: descriptionParts.length > 0 
+        ? descriptionParts.join(" | ") 
+        : formData.description || null,
+      total_amount: combinedTotal,
+      valid_until: formData.valid_until || null,
+      notes: fullNotes || null,
+      estimate_type: estimateType || "driveway",
+      status,
+      scope_data: buildScopeDataForSave() as unknown as Json,
+      selected_scopes: selectedScopesArray as unknown as Json,
+      site_visit_date: formData.site_visit_date || null,
+      follow_up_date: formData.follow_up_date || null,
+    };
+
+    // Use existing estimate ID if available (editEstimate or draftEstimateId)
+    // Read from ref to avoid stale closure issues
+    const workingEstimateId = editEstimate?.id ?? draftEstimateIdRef.current;
+    
+    if (workingEstimateId) {
+      // Update existing estimate (includes drafts created for takeoff)
+      const { error } = await supabase
+        .from("estimates")
+        .update(estimateData)
+        .eq("id", workingEstimateId);
+      if (error) throw error;
+    } else {
+      // Create new estimate and capture the ID
+      const { data, error } = await supabase
+        .from("estimates")
+        .insert([{ ...estimateData, created_by: user.id }])
+        .select("id")
+        .single();
+      if (error) throw error;
+      // Store the new ID so subsequent saves update instead of insert
+      setDraftEstimateId(data.id);
+    }
+  };
+
   // Save Draft mutation
   const saveDraftMutation = useMutation({
-    mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.business_id) throw new Error("No business found");
-
-      const scopeDescriptions = selectedScopesArray.map((scope) => {
-        const label = SCOPE_OPTIONS.find(s => s.id === scope)?.label || scope;
-        return `${label}: ${scopeTotals[scope].description || 'Not configured'}`;
-      });
-
-      const estimateData = {
-        business_id: profile.business_id,
-        client_name: formData.client_name || "Draft Estimate",
-        company_name: formData.company_name || null,
-        client_email: formData.client_email || null,
-        client_phone: formData.client_phone || null,
-        site_address: formData.site_address || "No address",
-        description: scopeDescriptions.length > 0 
-          ? scopeDescriptions.join("\n") + (formData.description ? `\n\n${formData.description}` : "")
-          : formData.description || null,
-        valid_until: formData.valid_until || null,
-        notes: formData.notes || null,
-        total_amount: combinedTotal,
-        estimate_type: estimateType || "driveway",
-        status: "draft" as const,
-        scope_data: buildScopeDataForSave() as unknown as Json,
-        selected_scopes: selectedScopesArray as unknown as Json,
-        site_visit_date: formData.site_visit_date || null,
-        follow_up_date: formData.follow_up_date || null,
-      };
-
-      // Use existing estimate ID if available (editEstimate or draftEstimateId)
-      // Read from ref to avoid stale closure issues
-      const workingEstimateId = editEstimate?.id ?? draftEstimateIdRef.current;
-      
-      if (workingEstimateId) {
-        // Update existing estimate (includes drafts created for takeoff)
-        const { error } = await supabase
-          .from("estimates")
-          .update(estimateData)
-          .eq("id", workingEstimateId);
-        if (error) throw error;
-      } else {
-        // Create new estimate and capture the ID
-        const { data, error } = await supabase
-          .from("estimates")
-          .insert([{ ...estimateData, created_by: user.id }])
-          .select("id")
-          .single();
-        if (error) throw error;
-        // Store the new ID so subsequent saves update instead of insert
-        setDraftEstimateId(data.id);
-      }
-    },
+    mutationFn: () => saveEstimate('draft'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
       toast({ title: "Draft saved", description: "You can continue editing this estimate later." });
@@ -880,109 +929,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
   // Finalize Quote mutation - marks estimate as pending (ready to send)
   const finalizeMutation = useMutation({
-    mutationFn: async () => {
-      if (!formData.client_name || !formData.site_address) {
-        throw new Error("Please fill in client name and site address");
-      }
-      if (selectedScopes.size === 0) {
-        throw new Error("Please select at least one scope of work");
-      }
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.business_id) throw new Error("No business found");
-
-      // Build description fresh from scope data (don't use formData.description to avoid duplication)
-      const descriptionParts = selectedScopesArray.map(scope => {
-        const label = getScopeLabel(scope);
-        const { description } = scopeTotals[scope];
-        return `${label}: ${description}`;
-      });
-
-      const inclusionsList = DEFAULT_INCLUSIONS
-        .filter(i => selectedInclusions.has(i.id))
-        .map(i => i.label);
-      const exclusionsList = DEFAULT_EXCLUSIONS
-        .filter(e => selectedExclusions.has(e.id))
-        .map(e => e.label);
-
-      // Build notes fresh: start with user notes only, then append generated content
-      let fullNotes = "";
-      
-      // Scope breakdown first
-      let scopeBreakdown = "SCOPE BREAKDOWN:\n";
-      selectedScopesArray.forEach(scope => {
-        const label = getScopeLabel(scope);
-        const { total } = scopeTotals[scope];
-        scopeBreakdown += `• ${label}: ${formatCurrency(total)}\n`;
-      });
-      fullNotes = scopeBreakdown;
-      
-      // User notes (already cleaned of generated content when loaded)
-      const userNotes = formData.notes?.trim();
-      if (userNotes) {
-        fullNotes += "\n" + userNotes;
-      }
-      
-      // Inclusions
-      if (inclusionsList.length > 0) {
-        fullNotes += "\n\nINCLUSIONS:\n• " + inclusionsList.join("\n• ");
-      }
-      // Exclusions
-      if (exclusionsList.length > 0) {
-        fullNotes += "\n\nEXCLUSIONS:\n• " + exclusionsList.join("\n• ");
-      }
-
-      const estimateData = {
-        business_id: profile.business_id,
-        client_name: formData.client_name,
-        company_name: formData.company_name || null,
-        client_email: formData.client_email || null,
-        client_phone: formData.client_phone || null,
-        site_address: formData.site_address,
-        description: descriptionParts.join(" | ") || null,
-        total_amount: combinedTotal,
-        valid_until: formData.valid_until || null,
-        notes: fullNotes || null,
-        created_by: user.id,
-        estimate_type: estimateType || "driveway",
-        scope_data: buildScopeDataForSave() as unknown as Json,
-        selected_scopes: selectedScopesArray as unknown as Json,
-        site_visit_date: formData.site_visit_date || null,
-        follow_up_date: formData.follow_up_date || null,
-        status: "pending" as const,
-      };
-
-      // Use existing estimate ID if available (editEstimate or draftEstimateId)
-      // Read from ref to avoid stale closure issues
-      const workingEstimateId = editEstimate?.id ?? draftEstimateIdRef.current;
-      
-      if (workingEstimateId) {
-        // Update existing estimate (includes drafts created for takeoff)
-        const { error } = await supabase
-          .from("estimates")
-          .update(estimateData)
-          .eq("id", workingEstimateId);
-        if (error) throw error;
-      } else {
-        // Create new estimate and capture the ID
-        const { data, error } = await supabase
-          .from("estimates")
-          .insert([{ ...estimateData, created_by: user.id }])
-          .select("id")
-          .single();
-        if (error) throw error;
-        // Store the new ID so subsequent saves update instead of insert
-        setDraftEstimateId(data.id);
-      }
-    },
+    mutationFn: () => saveEstimate('pending'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
       toast({ 
@@ -996,111 +943,17 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     },
   });
 
-  // Create/Update mutation
+  // Create/Update mutation (used by handleSubmit)
   const mutation = useMutation({
-    mutationFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.business_id) throw new Error("No business found");
-
-      // Build description fresh from scope data (don't use formData.description to avoid duplication)
-      const descriptionParts = selectedScopesArray.map(scope => {
-        const label = getScopeLabel(scope);
-        const { description } = scopeTotals[scope];
-        return `${label}: ${description}`;
-      });
-
-      const inclusionsList = DEFAULT_INCLUSIONS
-        .filter(i => selectedInclusions.has(i.id))
-        .map(i => i.label);
-      const exclusionsList = DEFAULT_EXCLUSIONS
-        .filter(e => selectedExclusions.has(e.id))
-        .map(e => e.label);
-
-      // Build notes fresh: start with user notes only, then append generated content
-      let fullNotes = "";
-      
-      // Scope breakdown first
-      let scopeBreakdown = "SCOPE BREAKDOWN:\n";
-      selectedScopesArray.forEach(scope => {
-        const label = getScopeLabel(scope);
-        const { total } = scopeTotals[scope];
-        scopeBreakdown += `• ${label}: ${formatCurrency(total)}\n`;
-      });
-      fullNotes = scopeBreakdown;
-      
-      // User notes (already cleaned of generated content when loaded)
-      const userNotes = formData.notes?.trim();
-      if (userNotes) {
-        fullNotes += "\n" + userNotes;
-      }
-      
-      // Inclusions
-      if (inclusionsList.length > 0) {
-        fullNotes += "\n\nINCLUSIONS:\n• " + inclusionsList.join("\n• ");
-      }
-      // Exclusions
-      if (exclusionsList.length > 0) {
-        fullNotes += "\n\nEXCLUSIONS:\n• " + exclusionsList.join("\n• ");
-      }
-
-      const estimateData = {
-        business_id: profile.business_id,
-        client_name: formData.client_name,
-        company_name: formData.company_name || null,
-        client_email: formData.client_email || null,
-        client_phone: formData.client_phone || null,
-        site_address: formData.site_address,
-        description: descriptionParts.join(" | ") || null,
-        total_amount: combinedTotal,
-        valid_until: formData.valid_until || null,
-        notes: fullNotes || null,
-        created_by: user.id,
-        estimate_type: estimateType || "driveway",
-        scope_data: buildScopeDataForSave() as unknown as Json,
-        selected_scopes: selectedScopesArray as unknown as Json,
-        site_visit_date: formData.site_visit_date || null,
-        follow_up_date: formData.follow_up_date || null,
-      };
-
-      // Use existing estimate ID if available (editEstimate or draftEstimateId)
-      // Read from ref to avoid stale closure issues
-      const workingEstimateId = editEstimate?.id ?? draftEstimateIdRef.current;
-      
-      if (workingEstimateId) {
-        // Update existing estimate (includes drafts created for takeoff)
-        const { error } = await supabase
-          .from("estimates")
-          .update(estimateData)
-          .eq("id", workingEstimateId);
-        if (error) throw error;
-      } else {
-        // Create new estimate and capture the ID
-        const { data, error } = await supabase
-          .from("estimates")
-          .insert([{ ...estimateData, created_by: user.id }])
-          .select("id")
-          .single();
-        if (error) throw error;
-        // Store the new ID so subsequent saves update instead of insert
-        setDraftEstimateId(data.id);
-      }
-    },
+    mutationFn: () => saveEstimate('pending'),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
       toast({ title: editEstimate ? "Estimate updated" : "Estimate created" });
       onOpenChange(false);
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       console.error("Error saving estimate:", error);
-      toast({ title: "Failed to save estimate", variant: "destructive" });
+      toast({ title: "Failed to save estimate", description: error.message, variant: "destructive" });
     },
   });
 
@@ -1480,7 +1333,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                       value={formData.client_email}
                       onChange={handleChange}
                       placeholder="client@example.com"
+                      className={formErrors.client_email ? "border-destructive" : ""}
+                      maxLength={255}
                     />
+                    {formErrors.client_email && (
+                      <p className="text-xs text-destructive">{formErrors.client_email}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="client_phone">Phone</Label>
@@ -1490,7 +1348,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                       value={formData.client_phone}
                       onChange={handleChange}
                       placeholder="0412 345 678"
+                      className={formErrors.client_phone ? "border-destructive" : ""}
+                      maxLength={20}
                     />
+                    {formErrors.client_phone && (
+                      <p className="text-xs text-destructive">{formErrors.client_phone}</p>
+                    )}
                   </div>
                 </div>
 
@@ -1531,7 +1394,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                       type="date"
                       value={formData.valid_until}
                       onChange={handleChange}
+                      className={formErrors.valid_until ? "border-destructive" : ""}
+                      min={new Date().toISOString().split('T')[0]}
                     />
+                    {formErrors.valid_until && (
+                      <p className="text-xs text-destructive">{formErrors.valid_until}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1545,7 +1413,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             <div className="space-y-4">
               <ScopeSelector
                 selectedScopes={selectedScopes}
-                onScopesChange={setSelectedScopes}
+                onScopesChange={handleScopesChange}
                 estimateType={estimateType}
               />
 

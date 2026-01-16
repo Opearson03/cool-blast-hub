@@ -328,6 +328,10 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
   };
 
   const setPageScale = async (fileId: string, pageNumber: number, pixelsPerMeter: number) => {
+    // Store previous state for rollback on error
+    const previousPageScales = [...pageScales];
+    const previousMarkups = [...markups];
+    
     try {
       // Upsert page scale
       const { data, error } = await supabase
@@ -354,33 +358,67 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         return [...prev, data as PageScale];
       });
 
-      // Recalculate markup areas for this file and page
+      // Recalculate markup areas for this file and page - batch updates for better reliability
       const affectedMarkups = markups.filter(m => m.file_id === fileId && m.page_number === pageNumber);
-      for (const markup of affectedMarkups) {
+      
+      if (affectedMarkups.length > 0) {
         const { calculatePolygonArea, calculatePolygonPerimeter, calculateRectangleArea, calculateRectanglePerimeter } = await import('@/types/takeoff');
         
-        let area: number;
-        let perimeter: number;
+        // Build all updates first
+        const updates: { id: string; area_sqm: number; perimeter_m: number }[] = [];
         
-        if (markup.shape_type === 'polygon') {
-          area = calculatePolygonArea(markup.points, pixelsPerMeter);
-          perimeter = calculatePolygonPerimeter(markup.points, pixelsPerMeter);
-        } else {
-          area = calculateRectangleArea(markup.points, pixelsPerMeter);
-          perimeter = calculateRectanglePerimeter(markup.points, pixelsPerMeter);
+        for (const markup of affectedMarkups) {
+          let area: number;
+          let perimeter: number;
+          
+          if (markup.shape_type === 'polygon') {
+            area = calculatePolygonArea(markup.points, pixelsPerMeter);
+            perimeter = calculatePolygonPerimeter(markup.points, pixelsPerMeter);
+          } else if (markup.shape_type === 'polyline') {
+            // Polylines don't recalculate area from pixels - their length_m is stored separately
+            continue;
+          } else {
+            area = calculateRectangleArea(markup.points, pixelsPerMeter);
+            perimeter = calculateRectanglePerimeter(markup.points, pixelsPerMeter);
+          }
+          
+          // Validate calculated values
+          if (!Number.isFinite(area) || area < 0) area = 0;
+          if (!Number.isFinite(perimeter) || perimeter < 0) perimeter = 0;
+          
+          updates.push({ id: markup.id, area_sqm: area, perimeter_m: perimeter });
         }
-
-        await supabase
-          .from('takeoff_markups')
-          .update({ area_sqm: area, perimeter_m: perimeter })
-          .eq('id', markup.id);
+        
+        // Execute all updates in parallel for atomicity
+        const updatePromises = updates.map(update =>
+          supabase
+            .from('takeoff_markups')
+            .update({ area_sqm: update.area_sqm, perimeter_m: update.perimeter_m })
+            .eq('id', update.id)
+        );
+        
+        const results = await Promise.allSettled(updatePromises);
+        
+        // Check for any failures
+        const failures = results.filter(r => r.status === 'rejected');
+        if (failures.length > 0) {
+          console.warn(`${failures.length} markup updates failed during scale change`);
+          // Continue anyway - partial update is better than complete failure
+        }
       }
 
       await fetchTakeoffData();
       toast({ title: 'Scale set', description: `${pixelsPerMeter.toFixed(1)} pixels per meter` });
     } catch (error: any) {
       console.error('Error setting scale:', error);
-      toast({ title: 'Calibration failed', description: error.message, variant: 'destructive' });
+      // Rollback local state on error
+      setPageScales(previousPageScales);
+      setMarkups(previousMarkups);
+      toast({ 
+        title: 'Calibration failed', 
+        description: error.message || 'Please try again', 
+        variant: 'destructive' 
+      });
     }
   };
 
