@@ -105,6 +105,7 @@ export const concretePumpingModule: EstimateModule = {
       step: 0.5,
       unit: 'hrs',
       showIf: (answers) => answers.pump_required === true && answers.standard_travel_sufficient === false,
+      deriveFrom: () => 2, // Standard 2 hours travel
     },
     {
       id: 'pump_hours_on_site',
@@ -116,6 +117,7 @@ export const concretePumpingModule: EstimateModule = {
       unit: 'hrs',
       helpText: 'Minimum 4 hours for boom pumps',
       showIf: (answers) => answers.pump_required === true,
+      deriveFrom: () => 4, // Standard 4 hours on site
     },
     {
       id: 'primer_count',
@@ -125,6 +127,7 @@ export const concretePumpingModule: EstimateModule = {
       min: 0,
       max: 5,
       showIf: (answers) => answers.pump_required === true,
+      deriveFrom: () => 1, // Standard 1 primer
     },
     {
       id: 'primer_cost',
