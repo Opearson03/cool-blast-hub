@@ -151,29 +151,8 @@ export const excavationModule: EstimateModule = {
       min: 0.5,
       step: 0.5,
       unit: 'hrs',
-      helpText: 'Override the suggested hours if needed',
+      helpText: 'Enter expected excavation hours (see suggestion above)',
       showIf: (answers) => answers.excavation_required === true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        const machineType = moduleAnswers.machine_type || 'EXC 3.2T';
-        const capacity = EXCAVATOR_CAPACITY[machineType] || 12;
-        
-        // Use pre-calculated excavation volume if available
-        let volume = 0;
-        if (scopeData.excavation_volume && scopeData.excavation_volume > 0) {
-          volume = scopeData.excavation_volume;
-        } else {
-          // Fallback to area × cut depth for slabs
-          const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
-          const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
-          if (cutDepthM <= 0 || area <= 0) return undefined;
-          volume = area * cutDepthM;
-        }
-        
-        if (volume <= 0) return undefined;
-        
-        const estimatedHours = Math.ceil(volume / capacity * 2) / 2; // Round to nearest 0.5
-        return Math.max(1, estimatedHours); // Minimum 1 hour
-      },
     },
     // Auger options
     {
