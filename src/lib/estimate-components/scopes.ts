@@ -62,7 +62,6 @@ export const PIERS_SCOPE: ScopeDefinition = {
     'concrete-pumping',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     // If we have pier configs, calculate from those
@@ -143,7 +142,6 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
     'joints-control',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -262,7 +260,6 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -422,7 +419,6 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -544,7 +540,6 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     'joints-control',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -622,7 +617,6 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -686,7 +680,6 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -746,7 +739,6 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
     'concrete-pumping',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     // If we have footing configs, calculate from those
@@ -820,7 +812,6 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     'concrete-pumping',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     // If we have footing configs, calculate from those
@@ -904,7 +895,6 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -975,7 +965,6 @@ export const ARCHITECTURAL_CONCRETE_SCOPE: ScopeDefinition = {
     'architectural-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     return safeVolume(Number(answers.total_volume) || 0.1);
@@ -1044,7 +1033,6 @@ export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
     'concrete-pumping',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const footings = answers.footings || [];
@@ -1155,7 +1143,6 @@ export const OSD_TANK_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const intLengthM = (Number(answers.internal_length) || 3000) / 1000;
@@ -1240,7 +1227,6 @@ export const KERBS_CHANNELS_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const footings = answers.footings || [];
@@ -1372,7 +1358,6 @@ export const CONCRETE_STAIRS_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const numFlights = Number(answers.num_flights) || 1;
@@ -1492,7 +1477,6 @@ export const RETAINING_WALLS_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const footings = answers.footings || [];
@@ -1611,7 +1595,6 @@ export const PIT_BASES_SCOPE: ScopeDefinition = {
     'concrete-pumping',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const footings = answers.footings || [];
@@ -1720,7 +1703,6 @@ export const BOLLARDS_SCOPE: ScopeDefinition = {
     'concrete-supply',
     'cleanup',
     'sundries',
-    'margin',
   ],
   calculateVolume: (answers) => {
     const numBollards = Number(answers.num_bollards) || 4;
