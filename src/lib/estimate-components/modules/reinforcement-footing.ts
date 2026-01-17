@@ -58,6 +58,7 @@ export const reinforcementFootingModule: EstimateModule = {
       unit: '%',
       helpText: 'Extra for overlaps at corners and joins',
       showIf: (answers) => answers.reo_type === 'trench_mesh' || answers.reo_type === 'both',
+      deriveFrom: () => 10, // Standard 10% lap allowance
     },
     {
       id: 'trench_mesh_price_per_m',
