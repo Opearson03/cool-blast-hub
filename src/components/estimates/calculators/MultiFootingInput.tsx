@@ -147,7 +147,7 @@ export function MultiFootingInput({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-10 w-10 sm:h-8 sm:w-8"
                       onClick={() => duplicateFooting(footing)}
                       title="Duplicate footing"
                     >
@@ -157,7 +157,7 @@ export function MultiFootingInput({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-10 w-10 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                       onClick={() => removeFooting(footing.id)}
                       disabled={footings.length <= 1}
                       title="Remove footing"
@@ -167,7 +167,7 @@ export function MultiFootingInput({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">
                       Length
@@ -175,6 +175,7 @@ export function MultiFootingInput({
                     <div className="relative">
                       <Input
                         type="number"
+                        inputMode="decimal"
                         value={footing.length || ""}
                         onChange={(e) =>
                           updateFooting(
@@ -185,7 +186,7 @@ export function MultiFootingInput({
                         }
                         min={0}
                         step={0.1}
-                        className="pr-8"
+                        className="pr-8 h-11 sm:h-9"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                         m
@@ -200,6 +201,7 @@ export function MultiFootingInput({
                     <div className="relative">
                       <Input
                         type="number"
+                        inputMode="numeric"
                         value={footing.width || ""}
                         onChange={(e) =>
                           updateFooting(
@@ -210,7 +212,7 @@ export function MultiFootingInput({
                         }
                         min={100}
                         step={50}
-                        className="pr-12"
+                        className="pr-12 h-11 sm:h-9"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                         mm
@@ -225,6 +227,7 @@ export function MultiFootingInput({
                     <div className="relative">
                       <Input
                         type="number"
+                        inputMode="numeric"
                         value={footing.depth || ""}
                         onChange={(e) =>
                           updateFooting(
@@ -235,7 +238,7 @@ export function MultiFootingInput({
                         }
                         min={100}
                         step={50}
-                        className="pr-12"
+                        className="pr-12 h-11 sm:h-9"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                         mm
@@ -247,7 +250,7 @@ export function MultiFootingInput({
                     <Label className="text-xs text-muted-foreground">
                       Volume
                     </Label>
-                    <div className="h-9 flex items-center px-3 bg-muted rounded-md text-sm">
+                    <div className="h-11 sm:h-9 flex items-center px-3 bg-muted rounded-md text-sm">
                       {footingVolume > 0 ? `${footingVolume.toFixed(3)} m³` : "—"}
                     </div>
                   </div>
@@ -258,12 +261,12 @@ export function MultiFootingInput({
         </div>
 
         {/* Add footing button */}
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="New footing name (optional)"
             value={newFootingName}
             onChange={(e) => setNewFootingName(e.target.value)}
-            className="flex-1"
+            className="flex-1 h-11 sm:h-9"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -275,7 +278,7 @@ export function MultiFootingInput({
             type="button"
             variant="outline"
             onClick={addFooting}
-            className="shrink-0"
+            className="shrink-0 h-11 sm:h-9"
           >
             <Plus className="h-4 w-4 mr-1" />
             Add Footing

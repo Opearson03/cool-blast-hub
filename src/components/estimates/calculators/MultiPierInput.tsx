@@ -153,7 +153,7 @@ export function MultiPierInput({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-10 w-10 sm:h-8 sm:w-8"
                       onClick={() => duplicatePier(pier)}
                       title="Duplicate pier type"
                     >
@@ -163,7 +163,7 @@ export function MultiPierInput({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-10 w-10 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                       onClick={() => removePier(pier.id)}
                       disabled={piers.length <= 1}
                       title="Remove pier type"
@@ -173,13 +173,14 @@ export function MultiPierInput({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">
                       Quantity
                     </Label>
                     <Input
                       type="number"
+                      inputMode="numeric"
                       value={pier.quantity || ""}
                       onChange={(e) =>
                         updatePier(
@@ -190,6 +191,7 @@ export function MultiPierInput({
                       }
                       min={1}
                       step={1}
+                      className="h-11 sm:h-9"
                     />
                   </div>
 
@@ -200,6 +202,7 @@ export function MultiPierInput({
                     <div className="relative">
                       <Input
                         type="number"
+                        inputMode="numeric"
                         value={pier.diameter || ""}
                         onChange={(e) =>
                           updatePier(
@@ -210,7 +213,7 @@ export function MultiPierInput({
                         }
                         min={100}
                         step={50}
-                        className="pr-12"
+                        className="pr-12 h-11 sm:h-9"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                         mm
@@ -225,6 +228,7 @@ export function MultiPierInput({
                     <div className="relative">
                       <Input
                         type="number"
+                        inputMode="numeric"
                         value={pier.depth || ""}
                         onChange={(e) =>
                           updatePier(
@@ -235,7 +239,7 @@ export function MultiPierInput({
                         }
                         min={100}
                         step={50}
-                        className="pr-12"
+                        className="pr-12 h-11 sm:h-9"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                         mm
@@ -247,7 +251,7 @@ export function MultiPierInput({
                     <Label className="text-xs text-muted-foreground">
                       Volume
                     </Label>
-                    <div className="h-9 flex items-center px-3 bg-muted rounded-md text-sm">
+                    <div className="h-11 sm:h-9 flex items-center px-3 bg-muted rounded-md text-sm">
                       {pierVolume > 0 ? `${pierVolume.toFixed(3)} m³` : "—"}
                     </div>
                   </div>
@@ -258,12 +262,12 @@ export function MultiPierInput({
         </div>
 
         {/* Add pier button */}
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="New pier type name (optional)"
             value={newPierName}
             onChange={(e) => setNewPierName(e.target.value)}
-            className="flex-1"
+            className="flex-1 h-11 sm:h-9"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -275,7 +279,7 @@ export function MultiPierInput({
             type="button"
             variant="outline"
             onClick={addPier}
-            className="shrink-0"
+            className="shrink-0 h-11 sm:h-9"
           >
             <Plus className="h-4 w-4 mr-1" />
             Add Pier Type

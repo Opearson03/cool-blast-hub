@@ -92,13 +92,13 @@ export function TakeoffToolbar({
   // If in point mode (piers, bollards, pads), show point-specific UI
   if (isPointMode) {
     return (
-      <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/30 rounded-lg flex-wrap">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-primary/10 border border-primary/30 rounded-lg">
         <div className="flex items-center gap-2 flex-1">
-          <CircleDot className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium">Click on each {pointLabel} location</span>
+          <CircleDot className="h-5 w-5 text-primary shrink-0" />
+          <span className="text-sm font-medium">Tap each {pointLabel} location</span>
           {pointCount > 0 && (
-            <Badge variant="default" className="ml-2">
-              {pointCount} {pointLabel}{pointCount !== 1 ? 's' : ''} marked
+            <Badge variant="default" className="ml-auto sm:ml-2">
+              {pointCount} marked
             </Badge>
           )}
         </div>
@@ -107,6 +107,7 @@ export function TakeoffToolbar({
             variant="outline"
             size="sm"
             onClick={() => onToolChange('select')}
+            className="flex-1 sm:flex-none h-11 sm:h-8"
           >
             Cancel
           </Button>
@@ -114,8 +115,9 @@ export function TakeoffToolbar({
             size="sm"
             onClick={onDoneMarkingPoints}
             disabled={pointCount === 0}
+            className="flex-1 sm:flex-none h-11 sm:h-8"
           >
-            Done Marking {pointLabel.charAt(0).toUpperCase() + pointLabel.slice(1)}s
+            Done
           </Button>
         </div>
       </div>
@@ -125,13 +127,13 @@ export function TakeoffToolbar({
   // If in polyline mode (linear elements), show polyline-specific UI
   if (isPolylineMode) {
     return (
-      <div className="flex items-center gap-2 p-2 bg-primary/10 border border-primary/30 rounded-lg flex-wrap">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-primary/10 border border-primary/30 rounded-lg">
         <div className="flex items-center gap-2 flex-1">
-          <Minus className="h-5 w-5 text-primary" />
-          <span className="text-sm font-medium">Click points along the {polylineLabel} path</span>
+          <Minus className="h-5 w-5 text-primary shrink-0" />
+          <span className="text-sm font-medium">Tap along the {polylineLabel} path</span>
           {polylineLength > 0 && (
-            <Badge variant="default" className="ml-2">
-              {polylineLength.toFixed(1)}m drawn
+            <Badge variant="default" className="ml-auto sm:ml-2">
+              {polylineLength.toFixed(1)}m
             </Badge>
           )}
         </div>
@@ -141,13 +143,16 @@ export function TakeoffToolbar({
             size="sm"
             onClick={onUndo}
             disabled={!canUndo}
+            className="h-11 sm:h-8 px-3"
           >
-            <Undo2 className="h-4 w-4 mr-1" /> Undo
+            <Undo2 className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Undo</span>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => onToolChange('select')}
+            className="h-11 sm:h-8"
           >
             Cancel
           </Button>
@@ -155,8 +160,9 @@ export function TakeoffToolbar({
             size="sm"
             onClick={onDoneMarkingPolyline}
             disabled={polylineLength === 0}
+            className="h-11 sm:h-8"
           >
-            Done — Enter Dimensions
+            Done
           </Button>
         </div>
       </div>
@@ -164,13 +170,13 @@ export function TakeoffToolbar({
   }
 
   return (
-    <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg flex-wrap">
+    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-2 bg-muted/50 rounded-lg">
       {/* File selector - show when multiple files */}
       {files.length > 1 && onFileChange && (
-        <>
+        <div className="flex items-center gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-1.5 h-8 max-w-[200px]">
+              <Button variant="outline" size="sm" className="gap-1.5 h-10 sm:h-8 flex-1 sm:flex-none sm:max-w-[200px]">
                 <FileText className="h-4 w-4 shrink-0" />
                 <span className="truncate">{currentFile?.file_name || 'Select file'}</span>
                 <ChevronDown className="h-3 w-3 shrink-0" />
@@ -192,119 +198,122 @@ export function TakeoffToolbar({
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <Separator orientation="vertical" className="h-6" />
-        </>
+          <Separator orientation="vertical" className="h-6 hidden sm:block" />
+        </div>
       )}
 
-      {/* Drawing tools */}
-      <div className="flex items-center gap-1">
-        {tools.map((tool) => (
+      {/* Main toolbar row */}
+      <div className="flex items-center gap-2 flex-wrap">
+        {/* Drawing tools */}
+        <div className="flex items-center gap-1">
+          {tools.map((tool) => (
+            <Button
+              key={tool.type}
+              variant={activeTool === tool.type ? 'default' : 'ghost'}
+              size="sm"
+              onClick={() => onToolChange(tool.type)}
+              title={tool.label}
+              className={cn(
+                'h-10 w-10 sm:h-8 sm:w-8 p-0',
+                activeTool === tool.type && 'bg-primary text-primary-foreground'
+              )}
+            >
+              {tool.icon}
+            </Button>
+          ))}
+        </div>
+
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
+
+        {/* Calibration with scale status */}
+        <div className="flex items-center gap-2">
           <Button
-            key={tool.type}
-            variant={activeTool === tool.type ? 'default' : 'ghost'}
+            variant={isCalibrated ? 'outline' : 'secondary'}
             size="sm"
-            onClick={() => onToolChange(tool.type)}
-            title={tool.label}
+            onClick={onCalibrate}
             className={cn(
-              'h-8 w-8 p-0',
-              activeTool === tool.type && 'bg-primary text-primary-foreground'
+              'gap-1.5 h-10 sm:h-8',
+              !isCalibrated && 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/30'
             )}
           >
-            {tool.icon}
+            <Ruler className="h-4 w-4" />
+            <span className="hidden xs:inline">{isCalibrated ? 'Recalibrate' : 'Set Scale'}</span>
           </Button>
-        ))}
-      </div>
-
-      <Separator orientation="vertical" className="h-6" />
-
-      {/* Calibration with scale status */}
-      <div className="flex items-center gap-2">
-        <Button
-          variant={isCalibrated ? 'outline' : 'secondary'}
-          size="sm"
-          onClick={onCalibrate}
-          className={cn(
-            'gap-1.5 h-8',
-            !isCalibrated && 'bg-amber-500/20 text-amber-700 dark:text-amber-400 border-amber-500/30 hover:bg-amber-500/30'
+          
+          {/* Scale status badge */}
+          {isCalibrated && currentScale ? (
+            <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30 gap-1 hidden sm:flex">
+              Page {currentPage}: {currentScale.toFixed(0)} px/m
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1 text-xs">
+              <AlertCircle className="h-3 w-3" />
+              <span className="hidden sm:inline">Page {currentPage}:</span> Not set
+            </Badge>
           )}
-        >
-          <Ruler className="h-4 w-4" />
-          {isCalibrated ? 'Recalibrate' : 'Set Scale'}
-        </Button>
-        
-        {/* Scale status badge */}
-        {isCalibrated && currentScale ? (
-          <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/30 gap-1">
-            Page {currentPage}: {currentScale.toFixed(0)} px/m
-          </Badge>
-        ) : (
-          <Badge variant="outline" className="bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30 gap-1">
-            <AlertCircle className="h-3 w-3" />
-            Page {currentPage}: Not calibrated
-          </Badge>
-        )}
-      </div>
+        </div>
 
-      <Separator orientation="vertical" className="h-6" />
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
-      {/* Actions */}
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onUndo}
-          disabled={!canUndo}
-          title="Undo"
-          className="h-8 w-8 p-0"
-        >
-          <Undo2 className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onDelete}
-          disabled={!canDelete}
-          title="Delete selected"
-          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      </div>
+        {/* Actions */}
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onUndo}
+            disabled={!canUndo}
+            title="Undo"
+            className="h-10 w-10 sm:h-8 sm:w-8 p-0"
+          >
+            <Undo2 className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onDelete}
+            disabled={!canDelete}
+            title="Delete selected"
+            className="h-10 w-10 sm:h-8 sm:w-8 p-0 text-destructive hover:text-destructive"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
 
-      <Separator orientation="vertical" className="h-6" />
+        <Separator orientation="vertical" className="h-6 hidden sm:block" />
 
-      {/* Zoom controls */}
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onZoomOut}
-          title="Zoom out"
-          className="h-8 w-8 p-0"
-        >
-          <ZoomOut className="h-4 w-4" />
-        </Button>
-        <span className="text-xs text-muted-foreground min-w-[40px] text-center">
-          {Math.round(zoom * 100)}%
-        </span>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onZoomIn}
-          title="Zoom in"
-          className="h-8 w-8 p-0"
-        >
-          <ZoomIn className="h-4 w-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onFitToScreen}
-          title="Fit to screen"
-          className="h-8 w-8 p-0"
-        >
-          <Maximize2 className="h-4 w-4" />
-        </Button>
+        {/* Zoom controls */}
+        <div className="flex items-center gap-1 ml-auto">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onZoomOut}
+            title="Zoom out"
+            className="h-10 w-10 sm:h-8 sm:w-8 p-0"
+          >
+            <ZoomOut className="h-4 w-4" />
+          </Button>
+          <span className="text-xs text-muted-foreground min-w-[40px] text-center hidden sm:block">
+            {Math.round(zoom * 100)}%
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onZoomIn}
+            title="Zoom in"
+            className="h-10 w-10 sm:h-8 sm:w-8 p-0"
+          >
+            <ZoomIn className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onFitToScreen}
+            title="Fit to screen"
+            className="h-10 w-10 sm:h-8 sm:w-8 p-0"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
