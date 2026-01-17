@@ -56,7 +56,7 @@ export const excavationModule: EstimateModule = {
         }
         return scopeData.area || undefined;
       },
-      showIf: (answers) => answers.excavation_required === true && Number(answers.cut_depth) > 0,
+      showIf: (answers) => answers.excavation_required === true,
     },
     {
       id: 'estimated_cut_volume',
