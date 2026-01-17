@@ -46,6 +46,7 @@ interface ModularCalculatorProps {
     gst: number;
     total: number;
   }) => void;
+  onModuleDone?: () => void;
 }
 
 export function ModularCalculator({
@@ -54,6 +55,7 @@ export function ModularCalculator({
   initialModuleAnswers = {},
   initialCustomExclusions = [],
   onStateChange,
+  onModuleDone,
 }: ModularCalculatorProps) {
   const { priceListItems, isLoading: priceListLoading } = usePriceList();
 
@@ -775,6 +777,8 @@ export function ModularCalculator({
                   // Mark as done and close accordion
                   setDoneModules((prev) => new Set([...prev, module.id]));
                   setOpenModuleId(null);
+                  // Notify parent to trigger auto-save
+                  onModuleDone?.();
                 }}
               />
             );
