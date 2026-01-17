@@ -43,7 +43,7 @@ export const basePreparationModule: EstimateModule = {
       type: 'currency',
       label: 'Crusher Dust Price',
       defaultValue: 60,
-      priceListKey: 'materials.DUST',
+      priceListKey: 'consumables.DUST',
       unit: '/m³',
       showIf: (answers) => answers.crusher_dust_required === true,
     },
@@ -96,8 +96,9 @@ export const basePreparationModule: EstimateModule = {
       unit: '/m³',
       showIf: (answers) => answers.road_base_required === true,
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const roadBaseType = moduleAnswers.road_base_type || 'ROADBASE 20MM';
-        return priceMap?.['materials']?.[roadBaseType];
+        const roadBaseType = String(moduleAnswers.road_base_type || 'ROADBASE 20MM');
+        const price = priceMap?.['materials']?.[roadBaseType];
+        return price ?? 55; // Fallback to default if price list not loaded
       },
     },
     // Plastic Membrane
