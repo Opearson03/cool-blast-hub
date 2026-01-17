@@ -27,6 +27,7 @@ export function calculateDraftProgress(estimate: DraftProgressTrackerProps["esti
   totalSteps: number;
   percentage: number;
   currentStep: string;
+  currentStepShort: string;
 } {
   const steps: Step[] = [
     {
@@ -114,26 +115,28 @@ export function calculateDraftProgress(estimate: DraftProgressTrackerProps["esti
   const percentage = Math.round((completedCount / totalSteps) * 100);
   
   // Find the first incomplete step
-  const currentStep = steps.find((s) => !s.isComplete)?.label || "Complete";
+  const incompleteStep = steps.find((s) => !s.isComplete);
+  const currentStep = incompleteStep?.label || "Complete";
+  const currentStepShort = incompleteStep?.shortLabel || "Done";
 
-  return { steps, completedCount, totalSteps, percentage, currentStep };
+  return { steps, completedCount, totalSteps, percentage, currentStep, currentStepShort };
 }
 
 export function DraftProgressTracker({ estimate, variant = "compact" }: DraftProgressTrackerProps) {
-  const { steps, completedCount, totalSteps, percentage, currentStep } = calculateDraftProgress(estimate);
+  const { steps, completedCount, totalSteps, percentage, currentStepShort } = calculateDraftProgress(estimate);
 
   if (variant === "compact") {
     return (
-      <div className="space-y-1.5">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-muted-foreground">
-            {completedCount}/{totalSteps} steps
+      <div className="space-y-1">
+        <div className="flex items-center justify-between text-xs gap-2">
+          <span className="text-muted-foreground whitespace-nowrap">
+            {completedCount}/{totalSteps}
           </span>
           <span className="font-medium text-primary">{percentage}%</span>
         </div>
         <Progress value={percentage} className="h-1.5" />
-        <p className="text-xs text-muted-foreground">
-          Next: <span className="text-foreground">{currentStep}</span>
+        <p className="text-xs text-muted-foreground truncate">
+          Next: <span className="text-foreground">{currentStepShort}</span>
         </p>
       </div>
     );
