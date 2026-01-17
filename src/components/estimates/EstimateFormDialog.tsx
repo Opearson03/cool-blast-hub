@@ -412,6 +412,11 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     getBollardDataForScope,
     getPadFootingDataForScope,
     getLinearDataForScope,
+    // New grouped config functions
+    getPierConfigsForScope,
+    getBollardConfigsForScope,
+    getPadConfigsForScope,
+    getFootingConfigsForScope,
     refetch: refetchMarkups 
   } = useTakeoffMarkups(estimateIdForTakeoff);
   
@@ -1050,91 +1055,87 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           };
         }
       } else if (scopeDefinition.supportsMultiplePiers && scope === 'piers') {
-        // For pier scopes, get pier data from takeoff
-        const pierData = getPierDataForScope(scope);
+        // For pier scopes, get pier configs grouped by unique dimensions
+        const pierConfigs = getPierConfigsForScope(scope);
         
-        if (pierData && pierData.count > 0) {
+        if (pierConfigs.length > 0) {
           // Check if user hasn't already overridden with their own values
           const hasUserData = initialScopeAnswers.piers?.some((p: any) => p.quantity > 0 && p._fromTakeoff !== true);
           
           if (!hasUserData) {
-            // Create a single pier config from takeoff data
-            const piersFromTakeoff = [{
-              id: `takeoff-piers-${Date.now()}`,
-              name: `Piers from takeoff`,
-              quantity: pierData.count,
-              diameter: pierData.diameter,
-              depth: pierData.depth,
-              _fromTakeoff: true,
-            }];
-            
+            // Use grouped configs directly - each unique dimension combo becomes a row
             initialScopeAnswers = {
               ...initialScopeAnswers,
               _fromTakeoff: true,
-              piers: piersFromTakeoff,
+              piers: pierConfigs,
             };
           }
         }
       } else if (scope === 'bollards') {
-        // For bollards, get bollard data from takeoff
-        const bollardData = getBollardDataForScope(scope);
+        // For bollards, get bollard configs grouped by unique dimensions
+        const bollardConfigs = getBollardConfigsForScope(scope);
         
-        if (bollardData && bollardData.count > 0) {
+        if (bollardConfigs.length > 0) {
           const hasUserData = initialScopeAnswers.num_bollards > 0;
           
           if (!hasUserData) {
+            // Sum up total count from all config types
+            const totalCount = bollardConfigs.reduce((sum, c) => sum + c.quantity, 0);
+            // Use first config for dimensions (or could create multi-bollard support in future)
+            const firstConfig = bollardConfigs[0];
+            
             initialScopeAnswers = {
               ...initialScopeAnswers,
               _fromTakeoff: true,
-              num_bollards: bollardData.count,
-              diameter: bollardData.diameter,
-              height_above: bollardData.heightAbove,
-              embedment_depth: bollardData.embedmentDepth,
+              num_bollards: totalCount,
+              diameter: firstConfig.diameter,
+              height_above: firstConfig.heightAbove,
+              embedment_depth: firstConfig.embedmentDepth,
+              // Store all configs for potential future multi-bollard support
+              _bollardConfigs: bollardConfigs,
             };
           }
         }
       } else if (scope === 'pad_footings' || scope === 'pit_bases') {
-        // For pad footings and pit bases, get data from takeoff
-        const padData = getPadFootingDataForScope(scope);
+        // For pad footings and pit bases, get configs grouped by unique dimensions
+        const padConfigs = getPadConfigsForScope(scope);
         
-        if (padData && padData.count > 0) {
+        if (padConfigs.length > 0) {
           const hasUserData = initialScopeAnswers.num_pads > 0 || initialScopeAnswers.num_pits > 0;
           
           if (!hasUserData) {
+            // Sum up total count from all config types
+            const totalCount = padConfigs.reduce((sum, c) => sum + c.quantity, 0);
+            // Use first config for dimensions (or could create multi-pad support in future)
+            const firstConfig = padConfigs[0];
             const countField = scope === 'pad_footings' ? 'num_pads' : 'num_pits';
+            
             initialScopeAnswers = {
               ...initialScopeAnswers,
               _fromTakeoff: true,
-              [countField]: padData.count,
-              pad_length: padData.length,
-              pad_width: padData.width,
-              pad_depth: padData.depth,
+              [countField]: totalCount,
+              pad_length: firstConfig.length,
+              pad_width: firstConfig.width,
+              pad_depth: firstConfig.depth,
+              // Store all configs for potential future multi-pad support
+              _padConfigs: padConfigs,
             };
           }
         }
       } else if (scopeDefinition.supportsMultipleFootings) {
         // For linear scopes with multiple footings (strip_footings, kerbs, retaining walls)
-        const linearData = getLinearDataForScope(scope);
+        // Use the new grouped footing configs function
+        const footingConfigs = getFootingConfigsForScope(scope);
         
-        if (linearData && linearData.totalLength > 0) {
+        if (footingConfigs.length > 0) {
           const hasUserData = initialScopeAnswers.footings?.some((f: any) => f.length > 0 && f._fromTakeoff !== true);
           
           if (!hasUserData) {
-            // Convert each segment from takeoff to a FootingConfig
-            const footingsFromTakeoff = linearData.segments.map((seg, index) => ({
-              id: `takeoff-footing-${index}-${Date.now()}`,
-              name: seg.name,
-              length: seg.length,
-              width: linearData.width,
-              depth: linearData.height,
-              _fromTakeoff: true,
-              _actualLength: seg.length,
-            }));
-            
+            // Use grouped footing configs directly - each markup becomes a row
             initialScopeAnswers = {
               ...initialScopeAnswers,
               _fromTakeoff: true,
-              footings: footingsFromTakeoff,
+              footings: footingConfigs,
             };
           }
         }
