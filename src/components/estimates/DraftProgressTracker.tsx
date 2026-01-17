@@ -83,9 +83,9 @@ export function calculateDraftProgress(estimate: DraftProgressTrackerProps["esti
       })(),
     },
     {
-      key: "inclusions",
-      label: "Inclusions Reviewed",
-      shortLabel: "Inclusions",
+      key: "conditions",
+      label: "Conditions Reviewed",
+      shortLabel: "Conditions",
       isComplete: (() => {
         // Inclusions are reviewed if scope_data includes visited inclusions step
         // For now, consider complete if configure is complete and there's a total > 0

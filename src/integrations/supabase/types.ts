@@ -549,12 +549,15 @@ export type Database = {
           company_name: string | null
           created_at: string
           created_by: string | null
+          deposit_percentage: number | null
           description: string | null
           estimate_number: string | null
           estimate_type: string
           follow_up_date: string | null
           id: string
           notes: string | null
+          payment_terms_type: string | null
+          quote_validity_days: number | null
           scope_data: Json | null
           selected_scopes: Json | null
           site_address: string
@@ -572,12 +575,15 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           created_by?: string | null
+          deposit_percentage?: number | null
           description?: string | null
           estimate_number?: string | null
           estimate_type?: string
           follow_up_date?: string | null
           id?: string
           notes?: string | null
+          payment_terms_type?: string | null
+          quote_validity_days?: number | null
           scope_data?: Json | null
           selected_scopes?: Json | null
           site_address: string
@@ -595,12 +601,15 @@ export type Database = {
           company_name?: string | null
           created_at?: string
           created_by?: string | null
+          deposit_percentage?: number | null
           description?: string | null
           estimate_number?: string | null
           estimate_type?: string
           follow_up_date?: string | null
           id?: string
           notes?: string | null
+          payment_terms_type?: string | null
+          quote_validity_days?: number | null
           scope_data?: Json | null
           selected_scopes?: Json | null
           site_address?: string

@@ -30,6 +30,9 @@ interface PrintableEstimateProps {
     valid_until: string | null;
     notes: string | null;
     created_at: string;
+    payment_terms_type?: string | null;
+    deposit_percentage?: number | null;
+    quote_validity_days?: number | null;
   };
   business: {
     name: string;
@@ -295,6 +298,57 @@ const ExclusionsSection = ({
   );
 };
 
+// Helper function to generate dynamic payment terms text
+const getPaymentTermsText = (estimate: PrintableEstimateProps['estimate']): string[] | null => {
+  // If custom notes are provided, use those
+  if (estimate.notes) return null;
+  
+  const validity = estimate.quote_validity_days || 14;
+  const deposit = estimate.deposit_percentage || 50;
+  const termsType = estimate.payment_terms_type || 'deposit_balance';
+  
+  switch (termsType) {
+    case 'deposit_balance':
+      return [
+        `This quote is valid for ${validity} days from the date of issue.`,
+        `A ${deposit}% deposit is required before commencement of works.`,
+        `Final payment is due upon completion of works.`,
+        `Prices include GST unless otherwise stated.`,
+        `Any variations to the scope of works may result in additional charges.`,
+      ];
+    case 'progress':
+      return [
+        `This quote is valid for ${validity} days from the date of issue.`,
+        `Payment is due in progress claims as milestones are completed.`,
+        `Prices include GST unless otherwise stated.`,
+        `Any variations to the scope of works may result in additional charges.`,
+      ];
+    case 'on_completion':
+      return [
+        `This quote is valid for ${validity} days from the date of issue.`,
+        `Full payment is due upon completion of works.`,
+        `Prices include GST unless otherwise stated.`,
+        `Any variations to the scope of works may result in additional charges.`,
+      ];
+    case 'net_14':
+      return [
+        `This quote is valid for ${validity} days from the date of issue.`,
+        `Payment is due within 14 days of invoice date.`,
+        `Prices include GST unless otherwise stated.`,
+        `Any variations to the scope of works may result in additional charges.`,
+      ];
+    case 'net_30':
+      return [
+        `This quote is valid for ${validity} days from the date of issue.`,
+        `Payment is due within 30 days of invoice date.`,
+        `Prices include GST unless otherwise stated.`,
+        `Any variations to the scope of works may result in additional charges.`,
+      ];
+    default:
+      return null; // Use notes field for custom terms
+  }
+};
+
 export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimateProps>(
   ({ estimate, business, lineItems = [], scopeData = null, selectedScopes = null }, ref) => {
     const formatCurrency = (amount: number) => {
@@ -319,6 +373,9 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     
     // If no line items, try to show description-based summary
     const descriptionParts = estimate.description?.split(" | ") || [];
+    
+    // Get dynamic payment terms
+    const paymentTerms = getPaymentTermsText(estimate);
 
     // Render template based on selection
     if (template === "modern") {
@@ -496,6 +553,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             <div className="text-xs text-gray-600 space-y-1">
               {estimate.notes ? (
                 <p className="whitespace-pre-wrap">{estimate.notes}</p>
+              ) : paymentTerms ? (
+                paymentTerms.map((term, index) => (
+                  <p key={index}>• {term}</p>
+                ))
               ) : (
                 <>
                   <p>• This quote is valid for 14 days from the date of issue unless otherwise specified.</p>
@@ -702,6 +763,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             <div className="text-xs text-gray-500 space-y-1">
               {estimate.notes ? (
                 <p className="whitespace-pre-wrap">{estimate.notes}</p>
+              ) : paymentTerms ? (
+                <p>{paymentTerms.slice(0, 3).join(' • ')}</p>
               ) : (
                 <>
                   <p>Quote valid 14 days • 50% deposit required • Balance on completion</p>
@@ -917,6 +980,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           <div className="text-xs text-gray-600 space-y-1">
             {estimate.notes ? (
               <p className="whitespace-pre-wrap">{estimate.notes}</p>
+            ) : paymentTerms ? (
+              paymentTerms.map((term, index) => (
+                <p key={index}>• {term}</p>
+              ))
             ) : (
               <>
                 <p>• This quote is valid for 14 days from the date of issue unless otherwise specified.</p>
