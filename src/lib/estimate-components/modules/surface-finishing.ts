@@ -12,7 +12,7 @@ export const surfaceFinishingModule: EstimateModule = {
     {
       id: 'finish_required',
       type: 'boolean',
-      label: 'Is a surface finish required?',
+      label: 'Is a premium finish required?',
       defaultValue: true,
       required: true,
     },
