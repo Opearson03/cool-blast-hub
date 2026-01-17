@@ -1256,6 +1256,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         initialModuleAnswers={currentState?.moduleAnswers}
         initialCustomExclusions={currentState?.customExclusions}
         onStateChange={(state) => handleModularStateChange(scope, state)}
+        onModuleDone={() => {
+          // Auto-save when a module is marked as done
+          saveDraftMutation.mutate();
+        }}
       />
     );
   };
