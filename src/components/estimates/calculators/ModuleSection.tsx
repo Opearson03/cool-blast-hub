@@ -103,13 +103,14 @@ function QuestionInput({
           <Input
             id={inputId}
             type="number"
+            inputMode="decimal"
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
             min={question.min}
             max={question.max}
             step={question.step ?? 1}
             placeholder={question.placeholder}
-            className={`pr-12 ${question.derivedReadOnly ? 'bg-muted' : ''}`}
+            className={`pr-12 h-11 sm:h-9 ${question.derivedReadOnly ? 'bg-muted' : ''}`}
             readOnly={question.derivedReadOnly}
           />
           {question.unit && (
@@ -133,13 +134,14 @@ function QuestionInput({
           <Input
             id={inputId}
             type="number"
+            inputMode="decimal"
             value={value ?? ''}
             onChange={(e) => onChange(e.target.value === '' ? undefined : Number(e.target.value))}
             min={question.min}
             max={question.max}
             step={question.step ?? 0.01}
             placeholder={question.placeholder}
-            className={`pl-7 ${question.derivedReadOnly ? 'bg-muted' : ''}`}
+            className={`pl-7 h-11 sm:h-9 ${question.derivedReadOnly ? 'bg-muted' : ''}`}
             readOnly={question.derivedReadOnly}
           />
           {question.deriveFrom && !question.derivedReadOnly && value !== undefined && (
@@ -157,6 +159,7 @@ function QuestionInput({
           value={value ?? ''}
           onChange={(e) => onChange(e.target.value)}
           placeholder={question.placeholder}
+          className="h-11 sm:h-9"
         />
       )}
 
@@ -232,8 +235,8 @@ export function ModuleSection({
         </AccordionTrigger>
         <AccordionContent className="pb-6">
           <div className="space-y-6">
-            {/* Questions */}
-            <div className="grid gap-4">
+            {/* Questions - single column on mobile for easier touch */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-x-6">
               {visibleQuestions.map((question) => (
                 <QuestionInput
                   key={question.id}
@@ -276,7 +279,7 @@ export function ModuleSection({
               <div className="border-t pt-4 mt-4">
                 <Button
                   onClick={onMarkDone}
-                  className="w-full"
+                  className="w-full h-12 sm:h-10 text-base sm:text-sm"
                   variant="default"
                 >
                   <Check className="h-4 w-4 mr-2" />

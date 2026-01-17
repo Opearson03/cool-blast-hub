@@ -191,7 +191,7 @@ export function MultiAreaInput({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-10 w-10 sm:h-8 sm:w-8"
                       onClick={() => duplicateArea(area)}
                       title="Duplicate area"
                     >
@@ -201,7 +201,7 @@ export function MultiAreaInput({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-destructive hover:text-destructive"
+                      className="h-10 w-10 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
                       onClick={() => removeArea(area.id)}
                       disabled={areas.length <= 1}
                       title="Remove area"
@@ -211,7 +211,7 @@ export function MultiAreaInput({
                   </div>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">
                       Length
@@ -219,6 +219,7 @@ export function MultiAreaInput({
                     <div className="relative">
                       <Input
                         type="number"
+                        inputMode="decimal"
                         value={area.length || ""}
                         onChange={(e) =>
                           updateArea(
@@ -229,7 +230,7 @@ export function MultiAreaInput({
                         }
                         min={0}
                         step={0.1}
-                        className="pr-8"
+                        className="pr-8 h-11 sm:h-9"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                         m
@@ -244,6 +245,7 @@ export function MultiAreaInput({
                     <div className="relative">
                       <Input
                         type="number"
+                        inputMode="decimal"
                         value={area.width || ""}
                         onChange={(e) =>
                           updateArea(
@@ -254,7 +256,7 @@ export function MultiAreaInput({
                         }
                         min={0}
                         step={0.1}
-                        className="pr-8"
+                        className="pr-8 h-11 sm:h-9"
                       />
                       <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                         m
@@ -262,14 +264,14 @@ export function MultiAreaInput({
                     </div>
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1 col-span-2 sm:col-span-1">
                     <Label className="text-xs text-muted-foreground">
                       Area
                       {area._fromTakeoff && area._actualArea && (
                         <span className="ml-1 text-blue-600 dark:text-blue-400">(measured)</span>
                       )}
                     </Label>
-                    <div className={`h-9 flex items-center px-3 rounded-md text-sm ${
+                    <div className={`h-11 sm:h-9 flex items-center px-3 rounded-md text-sm ${
                       area._fromTakeoff && area._actualArea
                         ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
                         : "bg-muted"
@@ -291,12 +293,12 @@ export function MultiAreaInput({
         </div>
 
         {/* Add area button */}
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="New area name (optional)"
             value={newAreaName}
             onChange={(e) => setNewAreaName(e.target.value)}
-            className="flex-1"
+            className="flex-1 h-11 sm:h-9"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -308,7 +310,7 @@ export function MultiAreaInput({
             type="button"
             variant="outline"
             onClick={addArea}
-            className="shrink-0"
+            className="shrink-0 h-11 sm:h-9"
           >
             <Plus className="h-4 w-4 mr-1" />
             Add Area
@@ -335,9 +337,10 @@ export function MultiAreaInput({
               — shared across all areas
             </span>
           </Label>
-          <div className="relative mt-1.5 max-w-[200px]">
+          <div className="relative mt-1.5 max-w-full sm:max-w-[200px]">
             <Input
               type="number"
+              inputMode="numeric"
               value={thickness || ""}
               onChange={(e) =>
                 onThicknessChange(
@@ -346,7 +349,7 @@ export function MultiAreaInput({
               }
               min={thicknessMin}
               step={5}
-              className="pr-12"
+              className="pr-12 h-11 sm:h-9"
             />
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
               mm
