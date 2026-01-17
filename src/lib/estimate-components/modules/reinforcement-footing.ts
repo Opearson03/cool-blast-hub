@@ -91,6 +91,7 @@ export const reinforcementFootingModule: EstimateModule = {
       min: 1,
       max: 5,
       showIf: (answers) => (answers.reo_type === 'trench_mesh' || answers.reo_type === 'both') && answers.trench_mesh_chairs === true,
+      deriveFrom: () => 2, // Standard 2 chairs per metre
     },
     {
       id: 'tm_chair_price',
@@ -197,6 +198,7 @@ export const reinforcementFootingModule: EstimateModule = {
       defaultValue: 2,
       min: 1,
       showIf: (answers) => answers.reo_type !== 'none' && answers.tie_wire === true,
+      deriveFrom: () => 2, // Standard 2 coils
     },
     {
       id: 'tie_wire_price',

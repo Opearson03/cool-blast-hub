@@ -181,6 +181,7 @@ export const reinforcementSlabModule: EstimateModule = {
       min: 1,
       max: 10,
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.bar_chairs === true,
+      deriveFrom: () => 4, // Standard 4 chairs per m²
     },
     {
       id: 'chair_price_each',
@@ -222,6 +223,7 @@ export const reinforcementSlabModule: EstimateModule = {
       defaultValue: 2,
       min: 1,
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.tie_wire === true,
+      deriveFrom: () => 2, // Standard 2 coils
     },
     {
       id: 'tie_wire_price',
