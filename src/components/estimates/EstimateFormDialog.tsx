@@ -61,6 +61,9 @@ interface Estimate {
   selected_scopes?: ScopeType[] | null;
   site_visit_date?: string | null;
   follow_up_date?: string | null;
+  payment_terms_type?: string | null;
+  deposit_percentage?: number | null;
+  quote_validity_days?: number | null;
 }
 
 interface EstimateFormDialogProps {
@@ -193,10 +196,10 @@ type WizardStep =
   | "takeoff"
   | "configure" 
   | "margin"
-  | "inclusions" 
+  | "conditions" 
   | "summary";
 
-const STEP_ORDER: WizardStep[] = ["type", "client", "scopes", "takeoff", "configure", "margin", "inclusions", "summary"];
+const STEP_ORDER: WizardStep[] = ["type", "client", "scopes", "takeoff", "configure", "margin", "conditions", "summary"];
 const STEP_LABELS: Record<WizardStep, string> = {
   type: "Project Type",
   client: "Client Details",
@@ -204,9 +207,21 @@ const STEP_LABELS: Record<WizardStep, string> = {
   takeoff: "Plan Takeoff",
   configure: "Configure",
   margin: "Margin",
-  inclusions: "Inclusions",
+  conditions: "Conditions",
   summary: "Summary",
 };
+
+// Payment terms options
+type PaymentTermsType = 'deposit_balance' | 'progress' | 'on_completion' | 'net_14' | 'net_30' | 'custom';
+
+const PAYMENT_TERMS_OPTIONS: { value: PaymentTermsType; label: string; description: string }[] = [
+  { value: 'deposit_balance', label: 'Deposit + Balance', description: 'Deposit required, balance on completion' },
+  { value: 'progress', label: 'Progress Payments', description: 'Payments at milestones' },
+  { value: 'on_completion', label: 'On Completion', description: 'Full payment on completion' },
+  { value: 'net_14', label: 'Net 14 Days', description: 'Payment within 14 days of invoice' },
+  { value: 'net_30', label: 'Net 30 Days', description: 'Payment within 30 days of invoice' },
+  { value: 'custom', label: 'Custom Terms', description: 'Specify in notes' },
+];
 
 const ESTIMATE_TYPES = [
   { id: "driveway" as EstimateType, title: "Driveway", description: "Residential driveways, paths, and small pads", icon: Car },
@@ -377,6 +392,11 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   
   // Global margin percentage (applied to all scopes)
   const [globalMarginPercent, setGlobalMarginPercent] = useState<number>(15);
+  
+  // Payment terms state
+  const [paymentTermsType, setPaymentTermsType] = useState<PaymentTermsType>('deposit_balance');
+  const [depositPercentage, setDepositPercentage] = useState<number>(50);
+  const [quoteValidityDays, setQuoteValidityDays] = useState<number>(14);
   
   const [selectedScopes, setSelectedScopes] = useState<Set<ScopeType>>(new Set());
   const [modularScopeStates, setModularScopeStates] = useState<Record<ScopeType, ModularScopeState>>({} as Record<ScopeType, ModularScopeState>);
@@ -578,6 +598,11 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         }
         setGlobalMarginPercent(legacyMargin);
       }
+      
+      // Load payment terms from estimate
+      setPaymentTermsType((editEstimate.payment_terms_type as PaymentTermsType) || 'deposit_balance');
+      setDepositPercentage(editEstimate.deposit_percentage ?? 50);
+      setQuoteValidityDays(editEstimate.quote_validity_days ?? 14);
 
       // Determine starting step based on draft progress
       if (editEstimate.status === "draft") {
@@ -618,6 +643,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       setActiveScopeIndex(0);
       setDraftEstimateId(null);
       setGlobalMarginPercent(15); // Reset to default margin
+      setPaymentTermsType('deposit_balance');
+      setDepositPercentage(50);
+      setQuoteValidityDays(14);
     }
     
     // Fetch business ID
@@ -648,7 +676,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       case "takeoff": return true; // Takeoff is optional, can always proceed
       case "configure": return true;
       case "margin": return globalMarginPercent >= 0; // Margin must be set (can be 0)
-      case "inclusions": return true;
+      case "conditions": return true;
       case "summary": return true;
       default: return false;
     }
@@ -935,6 +963,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       selected_scopes: selectedScopesArray as unknown as Json,
       site_visit_date: formData.site_visit_date || null,
       follow_up_date: formData.follow_up_date || null,
+      payment_terms_type: paymentTermsType,
+      deposit_percentage: depositPercentage,
+      quote_validity_days: quoteValidityDays,
     };
 
     // Use existing estimate ID if available (editEstimate or draftEstimateId)
@@ -1695,8 +1726,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             </div>
           )}
 
-          {/* Step 6: Inclusions */}
-          {currentStep === "inclusions" && (
+          {/* Step 6: Conditions */}
+          {currentStep === "conditions" && (
             <div className="space-y-6">
               <Card>
                 <CardHeader className="pb-3">
@@ -1749,6 +1780,96 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                       </label>
                     ))}
                   </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2">
+                    <Calculator className="w-4 h-4 text-primary" />
+                    Payment Terms
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="quote_validity">Quote Valid For</Label>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          id="quote_validity"
+                          type="number"
+                          value={quoteValidityDays}
+                          onChange={(e) => setQuoteValidityDays(Number(e.target.value) || 14)}
+                          min={1}
+                          max={90}
+                          className="w-20"
+                        />
+                        <span className="text-sm text-muted-foreground">days</span>
+                      </div>
+                    </div>
+                    
+                    {(paymentTermsType === 'deposit_balance') && (
+                      <div className="space-y-2">
+                        <Label htmlFor="deposit_percent">Deposit Percentage</Label>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            id="deposit_percent"
+                            type="number"
+                            value={depositPercentage}
+                            onChange={(e) => setDepositPercentage(Number(e.target.value) || 50)}
+                            min={0}
+                            max={100}
+                            className="w-20"
+                          />
+                          <span className="text-sm text-muted-foreground">%</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Payment Terms</Label>
+                    <div className="grid gap-2">
+                      {PAYMENT_TERMS_OPTIONS.map((option) => (
+                        <label 
+                          key={option.value} 
+                          className={cn(
+                            "flex items-start gap-3 cursor-pointer p-3 rounded-lg border transition-colors",
+                            paymentTermsType === option.value 
+                              ? "border-primary bg-primary/5" 
+                              : "border-border hover:bg-muted/50"
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="payment_terms"
+                            value={option.value}
+                            checked={paymentTermsType === option.value}
+                            onChange={(e) => setPaymentTermsType(e.target.value as PaymentTermsType)}
+                            className="mt-1 accent-primary"
+                          />
+                          <div>
+                            <span className="font-medium text-sm">{option.label}</span>
+                            <p className="text-xs text-muted-foreground">{option.description}</p>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {paymentTermsType === 'custom' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="custom_terms">Custom Terms</Label>
+                      <Textarea
+                        id="custom_terms"
+                        value={formData.notes}
+                        onChange={handleChange}
+                        name="notes"
+                        placeholder="Enter your custom payment terms..."
+                        rows={3}
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
