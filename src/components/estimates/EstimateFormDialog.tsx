@@ -30,7 +30,8 @@ import {
   User,
   MapPin,
   Wrench,
-  CheckCircle
+  CheckCircle,
+  Percent
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -191,16 +192,18 @@ type WizardStep =
   | "scopes" 
   | "takeoff"
   | "configure" 
+  | "margin"
   | "inclusions" 
   | "summary";
 
-const STEP_ORDER: WizardStep[] = ["type", "client", "scopes", "takeoff", "configure", "inclusions", "summary"];
+const STEP_ORDER: WizardStep[] = ["type", "client", "scopes", "takeoff", "configure", "margin", "inclusions", "summary"];
 const STEP_LABELS: Record<WizardStep, string> = {
   type: "Project Type",
   client: "Client Details",
   scopes: "Scope Selection",
   takeoff: "Plan Takeoff",
   configure: "Configure",
+  margin: "Margin",
   inclusions: "Inclusions",
   summary: "Summary",
 };
@@ -372,6 +375,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [selectedInclusions, setSelectedInclusions] = useState<Set<string>>(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
   const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
   
+  // Global margin percentage (applied to all scopes)
+  const [globalMarginPercent, setGlobalMarginPercent] = useState<number>(15);
+  
   const [selectedScopes, setSelectedScopes] = useState<Set<ScopeType>>(new Set());
   const [modularScopeStates, setModularScopeStates] = useState<Record<ScopeType, ModularScopeState>>({} as Record<ScopeType, ModularScopeState>);
   const [activeScopeIndex, setActiveScopeIndex] = useState(0);
@@ -491,9 +497,19 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return totals;
   }, [selectedScopes, modularScopeStates]);
 
-  const combinedTotal = useMemo(() => {
+  // Calculate scope subtotals (before margin) and combined subtotal
+  const combinedSubtotal = useMemo(() => {
     return selectedScopesArray.reduce((sum, scope) => sum + scopeTotals[scope].total, 0);
   }, [selectedScopesArray, scopeTotals]);
+
+  // Calculate margin amount and final total
+  const marginAmount = useMemo(() => {
+    return combinedSubtotal * (globalMarginPercent / 100);
+  }, [combinedSubtotal, globalMarginPercent]);
+
+  const combinedTotal = useMemo(() => {
+    return combinedSubtotal + marginAmount;
+  }, [combinedSubtotal, marginAmount]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-AU", {
@@ -542,6 +558,26 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         );
         setModularScopeStates(migratedStates);
       }
+      
+      // Load global margin from scope_data
+      if (editEstimate.scope_data?._globalMargin !== undefined) {
+        setGlobalMarginPercent(Number(editEstimate.scope_data._globalMargin) || 15);
+      } else {
+        // For legacy estimates, check if any scope has margin module data
+        let legacyMargin = 15;
+        if (editEstimate.scope_data) {
+          for (const scopeData of Object.values(editEstimate.scope_data)) {
+            if (scopeData && typeof scopeData === 'object') {
+              const moduleAnswers = (scopeData as Record<string, any>).moduleAnswers;
+              if (moduleAnswers?.margin?.margin_percent !== undefined) {
+                legacyMargin = Number(moduleAnswers.margin.margin_percent) || 15;
+                break;
+              }
+            }
+          }
+        }
+        setGlobalMarginPercent(legacyMargin);
+      }
 
       // Determine starting step based on draft progress
       if (editEstimate.status === "draft") {
@@ -581,6 +617,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       setModularScopeStates({} as Record<ScopeType, ModularScopeState>);
       setActiveScopeIndex(0);
       setDraftEstimateId(null);
+      setGlobalMarginPercent(15); // Reset to default margin
     }
     
     // Fetch business ID
@@ -610,11 +647,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       case "scopes": return selectedScopes.size > 0;
       case "takeoff": return true; // Takeoff is optional, can always proceed
       case "configure": return true;
+      case "margin": return globalMarginPercent >= 0; // Margin must be set (can be 0)
       case "inclusions": return true;
       case "summary": return true;
       default: return false;
     }
-  }, [currentStep, estimateType, formData.client_name, formData.site_address, selectedScopes.size]);
+  }, [currentStep, estimateType, formData.client_name, formData.site_address, selectedScopes.size, globalMarginPercent]);
 
   // Create a draft estimate for takeoff step (needed for file uploads)
   // Uses a promise lock to prevent duplicate inserts from concurrent calls
@@ -789,6 +827,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   // Build scope_data for saving (new modular format)
   const buildScopeDataForSave = (): Record<string, any> => {
     const data: Record<string, any> = {};
+    
+    // Store global margin at root level
+    data._globalMargin = globalMarginPercent;
     
     for (const scopeType of selectedScopesArray) {
       const state = modularScopeStates[scopeType];
@@ -1550,7 +1591,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                       </Button>
                     ) : (
                       <Button type="button" onClick={goNext} className="gap-1">
-                        Continue to Inclusions <ChevronRight className="w-4 h-4" />
+                        Continue to Margin <ChevronRight className="w-4 h-4" />
                       </Button>
                     )}
                   </div>
@@ -1559,7 +1600,102 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             </div>
           )}
 
-          {/* Step 5: Inclusions */}
+          {/* Step 5: Margin */}
+          {currentStep === "margin" && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Percent className="w-5 h-5" />
+                    Project Margin
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  {/* Scope subtotals breakdown */}
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Scope Subtotals</Label>
+                    {selectedScopesArray.map((scope) => (
+                      <div key={scope} className="flex justify-between text-sm">
+                        <span>{getScopeLabel(scope)}</span>
+                        <span className="font-mono">{formatCurrency(scopeTotals[scope].total)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between font-medium pt-2 border-t">
+                      <span>Subtotal (before margin)</span>
+                      <span className="font-mono">{formatCurrency(combinedSubtotal)}</span>
+                    </div>
+                  </div>
+
+                  {/* Margin input */}
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="margin">Margin Percentage</Label>
+                      <span className="text-sm text-muted-foreground">
+                        +{formatCurrency(marginAmount)}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="range"
+                        value={globalMarginPercent}
+                        onChange={(e) => setGlobalMarginPercent(Number(e.target.value))}
+                        min={0}
+                        max={50}
+                        step={1}
+                        className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                      />
+                      <div className="flex items-center gap-1">
+                        <Input
+                          id="margin"
+                          type="number"
+                          value={globalMarginPercent}
+                          onChange={(e) => setGlobalMarginPercent(Number(e.target.value) || 0)}
+                          className="w-20 text-center"
+                          min={0}
+                          max={100}
+                        />
+                        <span className="text-muted-foreground">%</span>
+                      </div>
+                    </div>
+                    {/* Quick presets */}
+                    <div className="flex gap-2">
+                      {[10, 15, 20, 25].map((preset) => (
+                        <Button
+                          key={preset}
+                          type="button"
+                          variant={globalMarginPercent === preset ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setGlobalMarginPercent(preset)}
+                        >
+                          {preset}%
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Final totals */}
+                  <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+                    <div className="flex justify-between text-lg font-bold">
+                      <span>Total (ex GST)</span>
+                      <span className="text-primary font-mono">{formatCurrency(combinedTotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>GST (10%)</span>
+                      <span className="font-mono">{formatCurrency(combinedTotal * 0.1)}</span>
+                    </div>
+                    <div className="flex justify-between text-lg font-bold pt-2 border-t">
+                      <span>Total (inc GST)</span>
+                      <span className="text-primary font-mono">{formatCurrency(combinedTotal * 1.1)}</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {renderWizardFooter()}
+            </div>
+          )}
+
+          {/* Step 6: Inclusions */}
           {currentStep === "inclusions" && (
             <div className="space-y-6">
               <Card>

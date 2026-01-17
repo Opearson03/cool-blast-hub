@@ -401,11 +401,9 @@ export function ModularCalculator({
     return exclusions;
   }, [scope, modules, moduleAnswers]);
 
-  // Get margin from margin module
-  const marginPercent = useMemo(() => {
-    const marginAnswers = moduleAnswers['margin'] || {};
-    return Number(marginAnswers.margin_percent) || 0;
-  }, [moduleAnswers]);
+  // Margin is now handled globally at the estimate level
+  // Module calculators report subtotals only (no margin applied)
+  const marginPercent = 0;
 
   // Calculate totals
   const totals = useMemo(() => {

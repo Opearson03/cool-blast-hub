@@ -72,6 +72,17 @@ export function calculateDraftProgress(estimate: DraftProgressTrackerProps["esti
       })(),
     },
     {
+      key: "margin",
+      label: "Margin Set",
+      shortLabel: "Margin",
+      isComplete: (() => {
+        if (!estimate.scope_data) return false;
+        // Margin is complete if _globalMargin is set
+        const scopeData = estimate.scope_data as Record<string, unknown>;
+        return scopeData._globalMargin !== undefined && scopeData._globalMargin !== null;
+      })(),
+    },
+    {
       key: "inclusions",
       label: "Inclusions Reviewed",
       shortLabel: "Inclusions",
