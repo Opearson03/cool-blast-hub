@@ -226,12 +226,23 @@ export function PlanTakeoffStep({
   }, []);
 
   const handleUndo = useCallback(() => {
+    // Undo polyline point
     if (activeTool === 'polyline' && polylinePoints.length > 0) {
       setPolylinePoints(prev => prev.slice(0, -1));
-    } else if (drawingPoints.length > 0) {
+      return;
+    }
+    
+    // Undo pier/bollard/pad point
+    if (activeTool === 'point' && pierPoints.length > 0) {
+      setPierPoints(prev => prev.slice(0, -1));
+      return;
+    }
+    
+    // Undo polygon vertex
+    if (drawingPoints.length > 0) {
       setDrawingPoints(prev => prev.slice(0, -1));
     }
-  }, [activeTool, polylinePoints.length, drawingPoints.length]);
+  }, [activeTool, polylinePoints.length, pierPoints.length, drawingPoints.length]);
 
   const handleToolChange = useCallback((tool: DrawingTool['type']) => {
     setActiveTool(tool);
@@ -255,13 +266,22 @@ export function PlanTakeoffStep({
   const dimensionsReady = planDimensions.width > 0 && planDimensions.height > 0;
   
   // Filter markups to only show those on the current page and file
+  // When actively marking a scope, only show markups for that scope to reduce clutter
   const currentPageMarkups = useMemo(() => {
     if (!dimensionsReady || !currentFileId) return [];
-    return markups.filter(m => 
+    
+    let filtered = markups.filter(m => 
       m.file_id === currentFileId && 
       (m.page_number === currentPage || m.page_number === null)
     );
-  }, [markups, currentPage, currentFileId, dimensionsReady]);
+    
+    // If actively marking a scope, only show markups for that scope
+    if (activeScope && activeTool !== 'select') {
+      filtered = filtered.filter(m => m.scope_id === activeScope);
+    }
+    
+    return filtered;
+  }, [markups, currentPage, currentFileId, dimensionsReady, activeScope, activeTool]);
 
   const completedCount = markups.length + skippedScopes.size;
   const canContinue = completedCount === selectedScopes.length || !hasFiles;
@@ -371,7 +391,7 @@ export function PlanTakeoffStep({
         onZoomIn={() => setZoom(z => Math.min(z * 1.25, 3))}
         onZoomOut={() => setZoom(z => Math.max(z / 1.25, 0.25))}
         onFitToScreen={() => setZoom(1)}
-        canUndo={activeTool === 'polyline' ? polylinePoints.length > 0 : drawingPoints.length > 0}
+        canUndo={activeTool === 'polyline' ? polylinePoints.length > 0 : activeTool === 'point' ? pierPoints.length > 0 : drawingPoints.length > 0}
         canDelete={!!selectedMarkupId}
         isCalibrated={isCalibrated}
         currentScale={currentScale}
