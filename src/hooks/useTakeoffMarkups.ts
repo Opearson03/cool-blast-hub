@@ -45,6 +45,46 @@ export interface LinearTakeoffData {
   segments: Array<{ name: string; length: number }>;
 }
 
+// New grouped config interfaces for multiple types
+export interface PierConfigFromTakeoff {
+  id: string;
+  name: string;
+  quantity: number;
+  diameter: number;
+  depth: number;
+  _fromTakeoff: true;
+}
+
+export interface BollardConfigFromTakeoff {
+  id: string;
+  name: string;
+  quantity: number;
+  diameter: number;
+  heightAbove: number;
+  embedmentDepth: number;
+  _fromTakeoff: true;
+}
+
+export interface PadConfigFromTakeoff {
+  id: string;
+  name: string;
+  quantity: number;
+  length: number;
+  width: number;
+  depth: number;
+  _fromTakeoff: true;
+}
+
+export interface FootingConfigFromTakeoff {
+  id: string;
+  name: string;
+  length: number;
+  width: number;
+  depth: number;
+  _fromTakeoff: true;
+  _actualLength: number;
+}
+
 interface UseTakeoffMarkupsReturn {
   markups: ScopeAreaData[];
   isLoading: boolean;
@@ -56,6 +96,11 @@ interface UseTakeoffMarkupsReturn {
   getBollardDataForScope: (scopeId: string) => BollardTakeoffData | null;
   getPadFootingDataForScope: (scopeId: string) => PadTakeoffData | null;
   getLinearDataForScope: (scopeId: string) => LinearTakeoffData | null;
+  // New grouped config functions
+  getPierConfigsForScope: (scopeId: string) => PierConfigFromTakeoff[];
+  getBollardConfigsForScope: (scopeId: string) => BollardConfigFromTakeoff[];
+  getPadConfigsForScope: (scopeId: string) => PadConfigFromTakeoff[];
+  getFootingConfigsForScope: (scopeId: string) => FootingConfigFromTakeoff[];
   refetch: () => Promise<void>;
 }
 
@@ -231,6 +276,167 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     };
   }, [markups]);
 
+  /**
+   * Get pier configs grouped by unique dimensions (diameter + depth)
+   * Returns one PierConfigFromTakeoff per unique dimension combination
+   */
+  const getPierConfigsForScope = useCallback((scopeId: string): PierConfigFromTakeoff[] => {
+    const pierMarkups = markups.filter(
+      m => m.scope_id === scopeId && m.shape_type === 'point'
+    );
+    
+    if (pierMarkups.length === 0) return [];
+    
+    // Group by unique diameter + depth combination
+    const grouped = new Map<string, { count: number; diameter: number; depth: number; name: string }>();
+    
+    pierMarkups.forEach(m => {
+      const diameter = m.diameter_mm || 450;
+      const depth = m.depth_mm || 600;
+      const key = `${diameter}-${depth}`;
+      const qty = m.pier_quantity || 1;
+      
+      if (grouped.has(key)) {
+        const existing = grouped.get(key)!;
+        existing.count += qty;
+        // Keep the first name or update with combined count
+        existing.name = `${existing.count} piers @ ${diameter}mm x ${depth}mm`;
+      } else {
+        grouped.set(key, {
+          count: qty,
+          diameter,
+          depth,
+          name: m.name || `${qty} piers @ ${diameter}mm x ${depth}mm`,
+        });
+      }
+    });
+    
+    // Convert to array of PierConfigFromTakeoff
+    return Array.from(grouped.entries()).map(([key, data], index) => ({
+      id: `takeoff-pier-${key}-${Date.now()}-${index}`,
+      name: data.name,
+      quantity: data.count,
+      diameter: data.diameter,
+      depth: data.depth,
+      _fromTakeoff: true as const,
+    }));
+  }, [markups]);
+
+  /**
+   * Get bollard configs grouped by unique dimensions (diameter + height + depth)
+   */
+  const getBollardConfigsForScope = useCallback((scopeId: string): BollardConfigFromTakeoff[] => {
+    const bollardMarkups = markups.filter(
+      m => m.scope_id === scopeId && m.shape_type === 'point'
+    );
+    
+    if (bollardMarkups.length === 0) return [];
+    
+    // Group by unique diameter + height + depth combination
+    const grouped = new Map<string, { count: number; diameter: number; heightAbove: number; embedmentDepth: number; name: string }>();
+    
+    bollardMarkups.forEach(m => {
+      const diameter = m.diameter_mm || 150;
+      const heightAbove = m.height_mm || 900;
+      const embedmentDepth = m.depth_mm || 400;
+      const key = `${diameter}-${heightAbove}-${embedmentDepth}`;
+      const qty = m.pier_quantity || 1;
+      
+      if (grouped.has(key)) {
+        const existing = grouped.get(key)!;
+        existing.count += qty;
+        existing.name = `${existing.count} bollards @ ${diameter}mm`;
+      } else {
+        grouped.set(key, {
+          count: qty,
+          diameter,
+          heightAbove,
+          embedmentDepth,
+          name: m.name || `${qty} bollards @ ${diameter}mm`,
+        });
+      }
+    });
+    
+    return Array.from(grouped.entries()).map(([key, data], index) => ({
+      id: `takeoff-bollard-${key}-${Date.now()}-${index}`,
+      name: data.name,
+      quantity: data.count,
+      diameter: data.diameter,
+      heightAbove: data.heightAbove,
+      embedmentDepth: data.embedmentDepth,
+      _fromTakeoff: true as const,
+    }));
+  }, [markups]);
+
+  /**
+   * Get pad footing/pit base configs grouped by unique dimensions (length + width + depth)
+   */
+  const getPadConfigsForScope = useCallback((scopeId: string): PadConfigFromTakeoff[] => {
+    const padMarkups = markups.filter(
+      m => m.scope_id === scopeId && m.shape_type === 'point'
+    );
+    
+    if (padMarkups.length === 0) return [];
+    
+    // Group by unique length + width + depth combination
+    const grouped = new Map<string, { count: number; length: number; width: number; depth: number; name: string }>();
+    
+    padMarkups.forEach(m => {
+      // For pad footings: width_mm = length, height_mm = width, depth_mm = depth
+      const length = m.width_mm || 600;
+      const width = m.height_mm || 600;
+      const depth = m.depth_mm || 300;
+      const key = `${length}-${width}-${depth}`;
+      const qty = m.pier_quantity || 1;
+      
+      if (grouped.has(key)) {
+        const existing = grouped.get(key)!;
+        existing.count += qty;
+        existing.name = `${existing.count} pads @ ${length}x${width}x${depth}mm`;
+      } else {
+        grouped.set(key, {
+          count: qty,
+          length,
+          width,
+          depth,
+          name: m.name || `${qty} pads @ ${length}x${width}x${depth}mm`,
+        });
+      }
+    });
+    
+    return Array.from(grouped.entries()).map(([key, data], index) => ({
+      id: `takeoff-pad-${key}-${Date.now()}-${index}`,
+      name: data.name,
+      quantity: data.count,
+      length: data.length,
+      width: data.width,
+      depth: data.depth,
+      _fromTakeoff: true as const,
+    }));
+  }, [markups]);
+
+  /**
+   * Get footing configs for linear scopes (strip footings, kerbs, retaining walls)
+   * Each markup becomes its own footing config (no grouping since lengths are typically unique)
+   */
+  const getFootingConfigsForScope = useCallback((scopeId: string): FootingConfigFromTakeoff[] => {
+    const linearMarkups = markups.filter(
+      m => m.scope_id === scopeId && m.shape_type === 'polyline'
+    );
+    
+    if (linearMarkups.length === 0) return [];
+    
+    return linearMarkups.map((m, index) => ({
+      id: `takeoff-footing-${m.markup_id}`,
+      name: m.name || `Section ${index + 1}`,
+      length: m.length_m || 0,
+      width: m.width_mm || 450,
+      depth: m.height_mm || 300,
+      _fromTakeoff: true as const,
+      _actualLength: m.length_m || 0,
+    }));
+  }, [markups]);
+
   return {
     markups,
     isLoading,
@@ -242,6 +448,11 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     getBollardDataForScope,
     getPadFootingDataForScope,
     getLinearDataForScope,
+    // New grouped config functions
+    getPierConfigsForScope,
+    getBollardConfigsForScope,
+    getPadConfigsForScope,
+    getFootingConfigsForScope,
     refetch: fetchMarkups,
   };
 }
