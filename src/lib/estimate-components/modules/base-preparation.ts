@@ -140,6 +140,7 @@ export const basePreparationModule: EstimateModule = {
       unit: '%',
       helpText: 'Extra for overlaps and edges',
       showIf: (answers) => answers.membrane_required === true,
+      deriveFrom: () => 10, // Standard 10% overlap allowance
     },
     {
       id: 'membrane_price',
