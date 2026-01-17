@@ -39,6 +39,7 @@ export const demolitionModule: EstimateModule = {
       min: 50,
       defaultValue: 100,
       showIf: (answers) => answers.demolition_required === true,
+      deriveFrom: () => 100, // Standard 100mm thickness
     },
     {
       id: 'demolition_volume_display',

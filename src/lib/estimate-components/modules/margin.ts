@@ -17,6 +17,7 @@ export const marginModule: EstimateModule = {
       unit: '%',
       required: true,
       helpText: 'Cannot complete estimate without margin',
+      deriveFrom: () => 15, // Standard 15% margin
     },
   ],
 

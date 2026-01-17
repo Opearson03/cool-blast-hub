@@ -54,6 +54,7 @@ export const concreteSupplyModule: EstimateModule = {
       min: 0,
       max: 50,
       unit: '%',
+      deriveFrom: () => 10, // Standard 10% wastage
     },
     {
       id: 'allow_waiting_time',
@@ -70,6 +71,7 @@ export const concreteSupplyModule: EstimateModule = {
       max: 240,
       unit: 'mins',
       showIf: (answers) => answers.allow_waiting_time === true,
+      deriveFrom: () => 30, // Standard 30 minutes
     },
     {
       id: 'waiting_rate',

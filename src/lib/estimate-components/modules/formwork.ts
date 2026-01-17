@@ -100,6 +100,7 @@ export const formworkModule: EstimateModule = {
       defaultValue: 50,
       helpText: 'Auto-calculated from perimeter if not overridden',
       showIf: (answers) => answers.formwork_required === true,
+      deriveFrom: (scopeData) => Math.ceil((Number(scopeData.perimeter) || 0) * 1.5) || 50,
     },
   ],
 

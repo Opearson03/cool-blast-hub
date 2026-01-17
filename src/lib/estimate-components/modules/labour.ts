@@ -82,6 +82,7 @@ export const labourModule: EstimateModule = {
       step: 0.1,
       helpText: '1.5 = time-and-a-half, 2 = double-time',
       showIf: (answers) => answers.overtime_required === true,
+      deriveFrom: () => 1.5, // Standard time-and-a-half
     },
   ],
 
