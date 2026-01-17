@@ -59,6 +59,7 @@ export const reinforcementSlabModule: EstimateModule = {
       unit: '%',
       helpText: 'Extra mesh for overlaps',
       showIf: (answers) => answers.reo_type === 'mesh',
+      deriveFrom: () => 10, // Standard 10% lap allowance
     },
     {
       id: 'mesh_price_per_sheet',
