@@ -61,7 +61,8 @@ interface UseTakeoffMarkupsReturn {
 
 export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsReturn {
   const [markups, setMarkups] = useState<ScopeAreaData[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  // Initialize loading to true if we have an estimateId to prevent race conditions
+  const [isLoading, setIsLoading] = useState(!!estimateId);
 
   const fetchMarkups = useCallback(async () => {
     if (!estimateId) {

@@ -403,6 +403,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   // Get takeoff markups for this estimate to pre-fill scope answers
   const estimateIdForTakeoff = draftEstimateId || editEstimate?.id || null;
   const { 
+    isLoading: takeoffLoading,
     getAreaForScope, 
     getPerimeterForScope, 
     hasMarkupForScope,
@@ -1158,9 +1159,25 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       }
     }
     
+    // Show loading state while takeoff data is being fetched to prevent race condition
+    if (takeoffLoading) {
+      return (
+        <Card className="p-8">
+          <div className="flex items-center justify-center gap-2">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary" />
+            <span className="text-muted-foreground">Loading takeoff data...</span>
+          </div>
+        </Card>
+      );
+    }
+    
+    // Use a key that includes takeoff status to force re-mount when data arrives
+    // (reuse hasMarkup already calculated at line 1013)
+    const calculatorKey = `${scope}-${hasMarkup ? 'with-takeoff' : 'no-takeoff'}`;
+    
     return (
       <ModularCalculator
-        key={scope}
+        key={calculatorKey}
         scope={scopeDefinition}
         initialScopeAnswers={initialScopeAnswers}
         initialModuleAnswers={currentState?.moduleAnswers}
