@@ -32,8 +32,15 @@ export const excavationModule: EstimateModule = {
       min: 0,
       max: 2000,
       unit: 'mm',
-      helpText: 'Average depth of excavation cut (0 if no bulk cut needed)',
+      helpText: 'Average depth of excavation cut (auto-fills from scope dimensions)',
       showIf: (answers) => answers.excavation_required === true,
+      deriveFrom: (scopeData) => {
+        // Auto-fill from scope's average excavation depth (piers, footings, bollards, etc.)
+        if (scopeData.averageExcavationDepth && scopeData.averageExcavationDepth > 0) {
+          return Math.round(scopeData.averageExcavationDepth);
+        }
+        return undefined;
+      },
     },
     {
       id: 'excavation_area',
@@ -41,8 +48,14 @@ export const excavationModule: EstimateModule = {
       label: 'Area to excavate (m²)',
       unit: 'm²',
       min: 0,
-      helpText: 'Auto-fills from scope area',
-      deriveFrom: (scopeData) => scopeData.area || undefined,
+      helpText: 'Auto-fills from scope dimensions',
+      deriveFrom: (scopeData) => {
+        // Prefer excavation-specific area (for piers/footings), fallback to total area
+        if (scopeData.excavation_area && scopeData.excavation_area > 0) {
+          return Number(scopeData.excavation_area.toFixed(2));
+        }
+        return scopeData.area || undefined;
+      },
       showIf: (answers) => answers.excavation_required === true && Number(answers.cut_depth) > 0,
     },
     {
@@ -51,6 +64,11 @@ export const excavationModule: EstimateModule = {
       label: 'Estimated cut volume',
       derivedReadOnly: true,
       deriveFrom: (scopeData, moduleAnswers) => {
+        // Prefer pre-calculated excavation volume for piers/footings/bollards
+        if (scopeData.excavation_volume && scopeData.excavation_volume > 0) {
+          return `~${scopeData.excavation_volume.toFixed(2)}m³`;
+        }
+        // Fallback to area × cut depth for slabs
         const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
         const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
         if (cutDepthM <= 0 || area <= 0) return undefined;
@@ -103,17 +121,25 @@ export const excavationModule: EstimateModule = {
       derivedReadOnly: true,
       helpText: 'Based on cut volume and machine capacity',
       deriveFrom: (scopeData, moduleAnswers) => {
-        const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
-        const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
         const machineType = moduleAnswers.machine_type || 'EXC 3.2T';
-        
-        if (cutDepthM <= 0 || area <= 0) return undefined;
-        
-        const volume = area * cutDepthM;
         const capacity = EXCAVATOR_CAPACITY[machineType] || 12;
-        const estimatedHours = Math.ceil(volume / capacity * 10) / 10;
         
-        return `~${estimatedHours} hrs (${volume.toFixed(1)}m³ @ ${capacity}m³/hr)`;
+        // Use pre-calculated excavation volume if available (piers, footings, etc.)
+        let volume = 0;
+        if (scopeData.excavation_volume && scopeData.excavation_volume > 0) {
+          volume = scopeData.excavation_volume;
+        } else {
+          // Fallback to area × cut depth for slabs
+          const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
+          const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
+          if (cutDepthM <= 0 || area <= 0) return undefined;
+          volume = area * cutDepthM;
+        }
+        
+        if (volume <= 0) return undefined;
+        
+        const estimatedHours = Math.ceil(volume / capacity * 10) / 10;
+        return `~${estimatedHours} hrs (${volume.toFixed(2)}m³ @ ${capacity}m³/hr)`;
       },
       showIf: (answers) => answers.excavation_required === true && Number(answers.cut_depth) > 0,
     },
@@ -128,18 +154,24 @@ export const excavationModule: EstimateModule = {
       helpText: 'Override the suggested hours if needed',
       showIf: (answers) => answers.excavation_required === true,
       deriveFrom: (scopeData, moduleAnswers) => {
-        const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
-        const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
         const machineType = moduleAnswers.machine_type || 'EXC 3.2T';
-        
-        // Only derive if we have cut depth set
-        if (cutDepthM <= 0) return undefined;
-        if (area <= 0) return undefined;
-        
-        const volume = area * cutDepthM;
         const capacity = EXCAVATOR_CAPACITY[machineType] || 12;
-        const estimatedHours = Math.ceil(volume / capacity * 2) / 2; // Round to nearest 0.5
         
+        // Use pre-calculated excavation volume if available
+        let volume = 0;
+        if (scopeData.excavation_volume && scopeData.excavation_volume > 0) {
+          volume = scopeData.excavation_volume;
+        } else {
+          // Fallback to area × cut depth for slabs
+          const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
+          const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
+          if (cutDepthM <= 0 || area <= 0) return undefined;
+          volume = area * cutDepthM;
+        }
+        
+        if (volume <= 0) return undefined;
+        
+        const estimatedHours = Math.ceil(volume / capacity * 2) / 2; // Round to nearest 0.5
         return Math.max(1, estimatedHours); // Minimum 1 hour
       },
     },

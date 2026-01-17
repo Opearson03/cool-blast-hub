@@ -174,10 +174,127 @@ export function ModularCalculator({
       totalPerimeter = 2 * (Number(scopeAnswers.length) + Number(scopeAnswers.width));
     }
 
+    // Calculate excavation-specific values based on scope type
+    let excavationVolume = 0;
+    let averageExcavationDepth = 0;
+    let excavationArea = totalArea; // Default to total area for slab scopes
+
+    // Piers: cylindrical excavation
+    if (scopeAnswers.piers && Array.isArray(scopeAnswers.piers) && scopeAnswers.piers.length > 0) {
+      const totalPiers = scopeAnswers.piers.reduce((s: number, p: any) => s + (Number(p.quantity) || 0), 0);
+      
+      excavationVolume = scopeAnswers.piers.reduce((sum: number, pier: any) => {
+        const qty = Number(pier.quantity) || 0;
+        const radiusM = (Number(pier.diameter) || 0) / 2000; // mm to m
+        const depthM = (Number(pier.depth) || 0) / 1000; // mm to m
+        return sum + qty * Math.PI * radiusM * radiusM * depthM;
+      }, 0);
+
+      // Calculate excavation "area" as sum of pier cross-sections (for hours estimation)
+      excavationArea = scopeAnswers.piers.reduce((sum: number, pier: any) => {
+        const qty = Number(pier.quantity) || 0;
+        const radiusM = (Number(pier.diameter) || 0) / 2000;
+        return sum + qty * Math.PI * radiusM * radiusM;
+      }, 0);
+
+      // Weighted average depth
+      if (totalPiers > 0) {
+        averageExcavationDepth = scopeAnswers.piers.reduce((s: number, p: any) =>
+          s + (Number(p.depth) || 0) * (Number(p.quantity) || 0), 0) / totalPiers;
+      }
+    }
+    // Strip/Linear Footings: rectangular excavation
+    else if (scopeAnswers.footings && Array.isArray(scopeAnswers.footings) && scopeAnswers.footings.length > 0) {
+      const totalLength = scopeAnswers.footings.reduce((s: number, f: any) => {
+        const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
+        return s + length;
+      }, 0);
+
+      excavationVolume = scopeAnswers.footings.reduce((sum: number, f: any) => {
+        const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
+        const widthM = (Number(f.width) || 0) / 1000; // mm to m
+        const depthM = (Number(f.depth) || 0) / 1000; // mm to m
+        return sum + length * widthM * depthM;
+      }, 0);
+
+      // Excavation area as total trench area
+      excavationArea = scopeAnswers.footings.reduce((sum: number, f: any) => {
+        const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
+        const widthM = (Number(f.width) || 0) / 1000;
+        return sum + length * widthM;
+      }, 0);
+
+      // Weighted average depth by length
+      if (totalLength > 0) {
+        averageExcavationDepth = scopeAnswers.footings.reduce((s: number, f: any) => {
+          const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
+          return s + (Number(f.depth) || 0) * length;
+        }, 0) / totalLength;
+      }
+    }
+    // Pad Footings: rectangular excavation (pads array)
+    else if (scopeAnswers.pads && Array.isArray(scopeAnswers.pads) && scopeAnswers.pads.length > 0) {
+      const totalPads = scopeAnswers.pads.reduce((s: number, p: any) => s + (Number(p.quantity) || 1), 0);
+
+      excavationVolume = scopeAnswers.pads.reduce((sum: number, pad: any) => {
+        const qty = Number(pad.quantity) || 1;
+        const lengthM = (Number(pad.length) || 0) / 1000; // mm to m
+        const widthM = (Number(pad.width) || 0) / 1000; // mm to m
+        const depthM = (Number(pad.depth) || 0) / 1000; // mm to m
+        return sum + qty * lengthM * widthM * depthM;
+      }, 0);
+
+      excavationArea = scopeAnswers.pads.reduce((sum: number, pad: any) => {
+        const qty = Number(pad.quantity) || 1;
+        const lengthM = (Number(pad.length) || 0) / 1000;
+        const widthM = (Number(pad.width) || 0) / 1000;
+        return sum + qty * lengthM * widthM;
+      }, 0);
+
+      if (totalPads > 0) {
+        averageExcavationDepth = scopeAnswers.pads.reduce((s: number, p: any) =>
+          s + (Number(p.depth) || 0) * (Number(p.quantity) || 1), 0) / totalPads;
+      }
+    }
+    // Bollards: cylindrical footing excavation
+    else if (scopeAnswers.num_bollards && scopeAnswers.embedment_depth) {
+      const qty = Number(scopeAnswers.num_bollards) || 0;
+      const footingRadiusM = (Number(scopeAnswers.footing_diameter) || 400) / 2000; // mm to m
+      const depthM = (Number(scopeAnswers.embedment_depth) || 0) / 1000; // mm to m
+      excavationVolume = qty * Math.PI * footingRadiusM * footingRadiusM * depthM;
+      excavationArea = qty * Math.PI * footingRadiusM * footingRadiusM;
+      averageExcavationDepth = Number(scopeAnswers.embedment_depth) || 0;
+    }
+    // Pit Bases: rectangular + walls excavation
+    else if (scopeAnswers.pit_length && scopeAnswers.pit_width && scopeAnswers.base_thickness) {
+      const lengthM = (Number(scopeAnswers.pit_length) || 0) / 1000;
+      const widthM = (Number(scopeAnswers.pit_width) || 0) / 1000;
+      const baseDepthM = (Number(scopeAnswers.base_thickness) || 0) / 1000;
+      const wallHeightM = (Number(scopeAnswers.wall_height) || 0) / 1000;
+      const totalDepthM = baseDepthM + wallHeightM;
+      
+      excavationVolume = lengthM * widthM * totalDepthM;
+      excavationArea = lengthM * widthM;
+      averageExcavationDepth = (Number(scopeAnswers.base_thickness) || 0) + (Number(scopeAnswers.wall_height) || 0);
+    }
+    // Retaining Walls: footing excavation
+    else if (scopeAnswers.wall_length && scopeAnswers.footing_width && scopeAnswers.footing_depth) {
+      const lengthM = Number(scopeAnswers.wall_length) || 0;
+      const widthM = (Number(scopeAnswers.footing_width) || 0) / 1000;
+      const depthM = (Number(scopeAnswers.footing_depth) || 0) / 1000;
+      
+      excavationVolume = lengthM * widthM * depthM;
+      excavationArea = lengthM * widthM;
+      averageExcavationDepth = Number(scopeAnswers.footing_depth) || 0;
+    }
+
     return {
       ...scopeAnswers,
       area: totalArea,
       perimeter: totalPerimeter,
+      excavation_volume: excavationVolume,
+      excavation_area: excavationArea,
+      averageExcavationDepth: averageExcavationDepth,
     };
   }, [scopeAnswers]);
 
