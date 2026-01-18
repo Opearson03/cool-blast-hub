@@ -24,9 +24,6 @@ import {
   ChevronRight, 
   ChevronLeft,
   Eye,
-  Square,
-  Home,
-  Building2,
   User,
   MapPin,
   Wrench,
@@ -35,13 +32,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-import { EstimateType } from "./EstimateTypeSelector";
 import { ScopeType, SCOPE_OPTIONS, ScopeSelector } from "./ScopeSelector";
 import { ModularCalculator } from "./calculators/ModularCalculator";
 import { PlanTakeoffStep } from "./takeoff/PlanTakeoffStep";
 import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
 import { useTakeoffMarkups } from "@/hooks/useTakeoffMarkups";
+
+// EstimateType kept for backwards compatibility with existing database values
+type EstimateType = "driveway" | "house_slab" | "commercial_slab";
 
 interface Estimate {
   id: string;
@@ -190,20 +189,18 @@ export interface ModularScopeState {
 
 // Step definitions for clarity
 type WizardStep = 
-  | "type" 
-  | "client" 
   | "scopes" 
+  | "client" 
   | "takeoff"
   | "configure" 
   | "margin"
   | "conditions" 
   | "summary";
 
-const STEP_ORDER: WizardStep[] = ["type", "client", "scopes", "takeoff", "configure", "margin", "conditions", "summary"];
+const STEP_ORDER: WizardStep[] = ["scopes", "client", "takeoff", "configure", "margin", "conditions", "summary"];
 const STEP_LABELS: Record<WizardStep, string> = {
-  type: "Project Type",
-  client: "Client Details",
   scopes: "Scope Selection",
+  client: "Client Details",
   takeoff: "Plan Takeoff",
   configure: "Configure",
   margin: "Margin",
@@ -223,11 +220,8 @@ const PAYMENT_TERMS_OPTIONS: { value: PaymentTermsType; label: string; descripti
   { value: 'custom', label: 'Custom Terms', description: 'Specify in notes' },
 ];
 
-const ESTIMATE_TYPES = [
-  { id: "driveway" as EstimateType, title: "Small Slabs", description: "Driveways, shed slabs, paths, and small pads", icon: Square },
-  { id: "house_slab" as EstimateType, title: "House Slab", description: "Residential foundations with multiple sections", icon: Home },
-  { id: "commercial_slab" as EstimateType, title: "Commercial Slab", description: "Industrial and commercial foundations", icon: Building2 },
-];
+// Default estimate type for new estimates (commercial includes all scopes)
+const DEFAULT_ESTIMATE_TYPE: EstimateType = "commercial_slab";
 
 /**
  * Extract only user-entered notes, stripping out generated content
@@ -384,8 +378,8 @@ function migrateLegacyScopeData(
 export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
   const hasInitializedOnOpenRef = useRef(false);
   
-  const [currentStep, setCurrentStep] = useState<WizardStep>("type");
-  const [estimateType, setEstimateType] = useState<EstimateType | null>(null);
+  const [currentStep, setCurrentStep] = useState<WizardStep>("scopes");
+  const [estimateType, setEstimateType] = useState<EstimateType>(DEFAULT_ESTIMATE_TYPE);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [selectedInclusions, setSelectedInclusions] = useState<Set<string>>(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
   const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
@@ -617,15 +611,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         const hasClientInfo = editEstimate.client_name && editEstimate.site_address;
         const hasScopeData = editEstimate.scope_data && Object.keys(editEstimate.scope_data).length > 0;
         
-        if (!editEstimate.estimate_type) {
-          // No type selected yet
-          setCurrentStep("type");
-        } else if (!hasClientInfo) {
-          // Has type but no client info
-          setCurrentStep("client");
-        } else if (!hasScopes) {
-          // Has client info but no scopes selected
+        if (!hasScopes) {
+          // No scopes selected yet - start at scope selection
           setCurrentStep("scopes");
+        } else if (!hasClientInfo) {
+          // Has scopes but no client info
+          setCurrentStep("client");
         } else if (hasScopeData) {
           // Has scope data - go to configure to continue or review
           setCurrentStep("configure");
@@ -640,8 +631,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         setCurrentStep("summary");
       }
     } else {
-      setCurrentStep("type");
-      setEstimateType(null);
+      setCurrentStep("scopes");
+      setEstimateType(DEFAULT_ESTIMATE_TYPE);
       setFormData(initialFormData);
       setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
       setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
@@ -677,9 +668,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
   const canProceed = useMemo(() => {
     switch (currentStep) {
-      case "type": return !!estimateType;
-      case "client": return !!formData.client_name && !!formData.site_address;
       case "scopes": return selectedScopes.size > 0;
+      case "client": return !!formData.client_name && !!formData.site_address;
       case "takeoff": return true; // Takeoff is optional, can always proceed
       case "configure": return true;
       case "margin": return globalMarginPercent >= 0; // Margin must be set (can be 0)
@@ -687,7 +677,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       case "summary": return true;
       default: return false;
     }
-  }, [currentStep, estimateType, formData.client_name, formData.site_address, selectedScopes.size, globalMarginPercent]);
+  }, [currentStep, formData.client_name, formData.site_address, selectedScopes.size, globalMarginPercent]);
 
   // Create a draft estimate for takeoff step (needed for file uploads)
   // Uses a promise lock to prevent duplicate inserts from concurrent calls
@@ -1406,49 +1396,21 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         </DialogHeader>
 
         <div ref={dialogScrollRef} className="flex-1 overflow-y-auto py-2">
-          {/* Step 1: Project Type */}
-          {currentStep === "type" && (
+          {/* Step 1: Scope Selection */}
+          {currentStep === "scopes" && (
             <div className="space-y-4">
-              <div className="text-center py-4">
-                <h3 className="text-lg font-semibold">What type of project?</h3>
-                <p className="text-sm text-muted-foreground">This determines which scopes are available</p>
-              </div>
+              <ScopeSelector
+                selectedScopes={selectedScopes}
+                onScopesChange={handleScopesChange}
+              />
 
-              <div className="grid gap-3">
-                {ESTIMATE_TYPES.map((type) => {
-                  const Icon = type.icon;
-                  const isSelected = estimateType === type.id;
+              {selectedScopes.size > 0 && (
+                <p className="text-sm text-muted-foreground text-center py-2">
+                  {selectedScopes.size} scope{selectedScopes.size !== 1 ? "s" : ""} selected — enter client details next
+                </p>
+              )}
 
-                  return (
-                    <Card
-                      key={type.id}
-                      role="button"
-                      tabIndex={0}
-                      className={cn(
-                        "cursor-pointer transition-all hover:shadow-md",
-                        isSelected && "ring-2 ring-primary bg-primary/5"
-                      )}
-                      onClick={() => setEstimateType(type.id)}
-                    >
-                      <CardContent className="p-4 flex items-center gap-4">
-                        <div className={cn(
-                          "w-12 h-12 rounded-lg flex items-center justify-center shrink-0",
-                          isSelected ? "bg-primary text-primary-foreground" : "bg-muted"
-                        )}>
-                          <Icon className="w-6 h-6" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="font-semibold">{type.title}</h4>
-                          <p className="text-sm text-muted-foreground">{type.description}</p>
-                        </div>
-                        {isSelected && <Check className="w-5 h-5 text-primary shrink-0" />}
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
-
-              {renderWizardFooter({ showBack: false, showSaveDraft: false })}
+              {renderWizardFooter({ showBack: false, nextLabel: "Continue" })}
             </div>
           )}
 
@@ -1574,26 +1536,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             </div>
           )}
 
-          {/* Step 3: Scope Selection */}
-          {currentStep === "scopes" && (
-            <div className="space-y-4">
-              <ScopeSelector
-                selectedScopes={selectedScopes}
-                onScopesChange={handleScopesChange}
-                estimateType={estimateType}
-              />
-
-              {selectedScopes.size > 0 && (
-                <p className="text-sm text-muted-foreground text-center py-2">
-                  {selectedScopes.size} scope{selectedScopes.size !== 1 ? "s" : ""} selected — upload plans or configure manually next
-                </p>
-              )}
-
-              {renderWizardFooter({ nextLabel: "Continue" })}
-            </div>
-          )}
-
-          {/* Step 4: Plan Takeoff (Optional) */}
+          {/* Step 3: Plan Takeoff (Optional) */}
           {currentStep === "takeoff" && (
             <PlanTakeoffStep
               estimateId={editEstimate?.id || draftEstimateId}
