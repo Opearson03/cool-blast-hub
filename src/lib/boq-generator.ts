@@ -324,7 +324,7 @@ function getScopeLabel(scopeKey: string): string {
     piers: "Piers",
     suspended_slab: "Suspended Slab",
     crossovers: "Crossover",
-    driveway: "Driveway",
+    driveway: "Small Slab",
     paths_surrounds: "Paths & Surrounds",
     retaining_wall: "Retaining Wall",
   };

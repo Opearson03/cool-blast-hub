@@ -1,6 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Car, Home, Building2, ArrowLeft } from "lucide-react";
+import { Square, Home, Building2, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export type EstimateType = "driveway" | "house_slab" | "commercial_slab";
@@ -15,15 +15,15 @@ interface EstimateTypeSelectorProps {
 const ESTIMATE_TYPES = [
   {
     id: "driveway" as EstimateType,
-    title: "Driveway",
-    description: "Residential driveways, paths, and small pads",
+    title: "Small Slabs",
+    description: "Driveways, shed slabs, paths, and small pads",
     features: [
       "Single rectangular or circular area",
       "Standard mesh reinforcement",
       "Common finishes (exposed, broom, burnished)",
       "Basic treatments (sealing, curing)",
     ],
-    icon: Car,
+    icon: Square,
   },
   {
     id: "house_slab" as EstimateType,

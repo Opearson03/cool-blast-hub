@@ -24,7 +24,7 @@ import {
   ChevronRight, 
   ChevronLeft,
   Eye,
-  Car,
+  Square,
   Home,
   Building2,
   User,
@@ -224,7 +224,7 @@ const PAYMENT_TERMS_OPTIONS: { value: PaymentTermsType; label: string; descripti
 ];
 
 const ESTIMATE_TYPES = [
-  { id: "driveway" as EstimateType, title: "Driveway", description: "Residential driveways, paths, and small pads", icon: Car },
+  { id: "driveway" as EstimateType, title: "Small Slabs", description: "Driveways, shed slabs, paths, and small pads", icon: Square },
   { id: "house_slab" as EstimateType, title: "House Slab", description: "Residential foundations with multiple sections", icon: Home },
   { id: "commercial_slab" as EstimateType, title: "Commercial Slab", description: "Industrial and commercial foundations", icon: Building2 },
 ];

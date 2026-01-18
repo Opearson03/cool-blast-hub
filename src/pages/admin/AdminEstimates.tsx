@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Car, Home, Building2 } from "lucide-react";
+import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Square, Home, Building2 } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,8 +46,8 @@ interface Estimate {
   follow_up_date: string | null;
 }
 
-const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Car }> = {
-  driveway: { label: "Driveway", icon: Car },
+const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Square }> = {
+  driveway: { label: "Small Slabs", icon: Square },
   house_slab: { label: "House Slab", icon: Home },
   commercial_slab: { label: "Commercial", icon: Building2 },
 };
@@ -526,7 +526,7 @@ export default function AdminEstimates() {
             ) : (
               filteredEstimates.map((estimate) => {
                 const StatusIcon = statusConfig[estimate.status].icon;
-                const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Car;
+                const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Square;
                 return (
                   <Card 
                     key={estimate.id} 
@@ -631,8 +631,8 @@ export default function AdminEstimates() {
                   ) : (
                     filteredEstimates.map((estimate) => {
                       const StatusIcon = statusConfig[estimate.status].icon;
-                      const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Car;
-                      const typeLabel = estimateTypeConfig[estimate.estimate_type]?.label || "Driveway";
+                      const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Square;
+                      const typeLabel = estimateTypeConfig[estimate.estimate_type]?.label || "Small Slabs";
                       return (
                         <tr 
                           key={estimate.id} 
