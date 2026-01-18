@@ -50,7 +50,7 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     id: "piers", 
     label: "Piers", 
     description: "Concrete piers / footings",
-    availableFor: ["driveway", "house_slab", "commercial_slab"],
+    availableFor: ["house_slab", "commercial_slab"],
     category: "foundations"
   },
   { 
