@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
@@ -16,9 +16,13 @@ import { useWaitlistCount } from "@/hooks/useWaitlistCount";
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [checking, setChecking] = useState(true);
   const isNative = Capacitor.isNativePlatform();
   const { data: waitlistCount = 0 } = useWaitlistCount();
+  
+  // Get referral code from URL
+  const referralCode = searchParams.get('ref') || undefined;
 
   useEffect(() => {
     const checkPlatformAndAuth = async () => {
@@ -119,13 +123,25 @@ const Index = () => {
               <p className="text-muted-foreground mb-4">
                 We're launching soon. Get early access when we go live.
               </p>
-              <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 mb-6">
-                <p className="text-primary font-semibold text-sm">🎉 Early Bird Offer</p>
-                <p className="text-primary-foreground/80 text-sm">
-                  Get <span className="text-primary font-bold">20% off for life</span>. Refer a mate and get your first month free!
-                </p>
-              </div>
-              <WaitlistForm />
+              
+              {/* Show different banner based on referral */}
+              {referralCode ? (
+                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-6">
+                  <p className="text-green-400 font-semibold text-sm">🎉 You've been referred!</p>
+                  <p className="text-primary-foreground/80 text-sm">
+                    You'll get your <span className="text-green-400 font-bold">first month FREE</span> when you join.
+                  </p>
+                </div>
+              ) : (
+                <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 mb-6">
+                  <p className="text-primary font-semibold text-sm">🎉 Early Bird Offer</p>
+                  <p className="text-primary-foreground/80 text-sm">
+                    Get <span className="text-primary font-bold">20% off for life</span>. Refer a mate and you BOTH get your first month free!
+                  </p>
+                </div>
+              )}
+              
+              <WaitlistForm referralCode={referralCode} />
             </div>
           </div>
         </div>
