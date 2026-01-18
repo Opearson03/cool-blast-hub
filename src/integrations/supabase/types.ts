@@ -1907,6 +1907,9 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          referral_code: string | null
+          referral_count: number | null
+          referred_by: string | null
         }
         Insert: {
           business_name?: string | null
@@ -1914,6 +1917,9 @@ export type Database = {
           email: string
           full_name?: string | null
           id?: string
+          referral_code?: string | null
+          referral_count?: number | null
+          referred_by?: string | null
         }
         Update: {
           business_name?: string | null
@@ -1921,8 +1927,19 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          referral_code?: string | null
+          referral_count?: number | null
+          referred_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "waiting_list_referred_by_fkey"
+            columns: ["referred_by"]
+            isOneToOne: false
+            referencedRelation: "waiting_list"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -1931,6 +1948,7 @@ export type Database = {
     Functions: {
       check_employee_limit: { Args: { _business_id: string }; Returns: Json }
       check_invite_email: { Args: { _email: string }; Returns: boolean }
+      get_referrer_by_code: { Args: { code: string }; Returns: string }
       get_signup_trends: {
         Args: { days_back?: number }
         Returns: {

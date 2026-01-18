@@ -38,3 +38,9 @@ verify_jwt = false
 
 [functions.get-visitor-analytics]
 verify_jwt = true
+
+[functions.send-waitlist-welcome]
+verify_jwt = false
+
+[functions.send-referral-invite]
+verify_jwt = false
