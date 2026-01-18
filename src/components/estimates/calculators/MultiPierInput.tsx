@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Copy, Ruler } from "lucide-react";
+import { Plus, Trash2, Copy, Ruler, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,19 +12,31 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { PierConfig } from "@/lib/estimate-components/types";
+import { MarkupPromptDialog } from "./MarkupPromptDialog";
 
 interface MultiPierInputProps {
   label: string;
   piers: PierConfig[];
   onChange: (piers: PierConfig[]) => void;
+  // Markup prompt support
+  onRequestMarkup?: () => void;
+  hasPlans?: boolean;
+  skipMarkupPrompt?: boolean;
+  onSkipMarkupPromptChange?: (skip: boolean) => void;
 }
 
 export function MultiPierInput({
   label,
   piers,
   onChange,
+  onRequestMarkup,
+  hasPlans = false,
+  skipMarkupPrompt = false,
+  onSkipMarkupPromptChange,
 }: MultiPierInputProps) {
   const [newPierName, setNewPierName] = useState("");
+  const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
+  const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
 
   // Check if any pier is from takeoff
   const hasAnyTakeoffPiers = piers.some((p) => p._fromTakeoff);
@@ -54,6 +66,30 @@ export function MultiPierInput({
       },
     ]);
     setNewPierName("");
+  };
+
+  const handleAddClick = () => {
+    if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
+      setShowMarkupPrompt(true);
+    } else {
+      addPier();
+    }
+  };
+
+  const handleMarkOnPlans = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    onRequestMarkup?.();
+  };
+
+  const handleEnterManually = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    addPier();
   };
 
   const removePier = (id: string) => {
@@ -271,14 +307,14 @@ export function MultiPierInput({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                addPier();
+                handleAddClick();
               }
             }}
           />
           <Button
             type="button"
             variant="outline"
-            onClick={addPier}
+            onClick={handleAddClick}
             className="shrink-0 h-11 sm:h-9"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -298,6 +334,16 @@ export function MultiPierInput({
           </div>
         </div>
       </CardContent>
+
+      <MarkupPromptDialog
+        open={showMarkupPrompt}
+        onOpenChange={setShowMarkupPrompt}
+        itemType="pier"
+        onMarkOnPlans={handleMarkOnPlans}
+        onEnterManually={handleEnterManually}
+        dontAskAgain={dontAskAgain}
+        onDontAskAgainChange={setDontAskAgain}
+      />
     </Card>
   );
 }

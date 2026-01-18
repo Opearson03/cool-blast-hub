@@ -47,6 +47,11 @@ interface ModularCalculatorProps {
     total: number;
   }) => void;
   onModuleDone?: () => void;
+  // Markup prompt support
+  onRequestMarkup?: () => void;
+  hasPlans?: boolean;
+  skipMarkupPrompt?: boolean;
+  onSkipMarkupPromptChange?: (skip: boolean) => void;
 }
 
 export function ModularCalculator({
@@ -56,6 +61,10 @@ export function ModularCalculator({
   initialCustomExclusions = [],
   onStateChange,
   onModuleDone,
+  onRequestMarkup,
+  hasPlans = false,
+  skipMarkupPrompt = false,
+  onSkipMarkupPromptChange,
 }: ModularCalculatorProps) {
   const { priceListItems, isLoading: priceListLoading } = usePriceList();
 
@@ -642,6 +651,11 @@ export function ModularCalculator({
           onThickeningDepthChange={(val) => handleScopeAnswerChange('thickeningDepth', val)}
           thickeningWidth={scopeAnswers.thickeningWidth || 300}
           onThickeningWidthChange={(val) => handleScopeAnswerChange('thickeningWidth', val)}
+          // Markup prompt support
+          onRequestMarkup={onRequestMarkup}
+          hasPlans={hasPlans}
+          skipMarkupPrompt={skipMarkupPrompt}
+          onSkipMarkupPromptChange={onSkipMarkupPromptChange}
         />
       )}
 
@@ -651,6 +665,11 @@ export function ModularCalculator({
           label={scope.piersLabel || 'Pier Configurations'}
           piers={scopeAnswers.piers || [{ id: 'pier-1', name: 'Pier Type 1', quantity: 1, diameter: 450, depth: 600 }]}
           onChange={handlePiersChange}
+          // Markup prompt support
+          onRequestMarkup={onRequestMarkup}
+          hasPlans={hasPlans}
+          skipMarkupPrompt={skipMarkupPrompt}
+          onSkipMarkupPromptChange={onSkipMarkupPromptChange}
         />
       )}
 
@@ -662,6 +681,11 @@ export function ModularCalculator({
           onChange={handleFootingsChange}
           widthLabel={scope.id === 'retaining_wall_footings' ? 'Footing Width' : 'Width'}
           depthLabel={scope.id === 'retaining_wall_footings' ? 'Footing Depth' : 'Depth'}
+          // Markup prompt support
+          onRequestMarkup={onRequestMarkup}
+          hasPlans={hasPlans}
+          skipMarkupPrompt={skipMarkupPrompt}
+          onSkipMarkupPromptChange={onSkipMarkupPromptChange}
         />
       )}
 
