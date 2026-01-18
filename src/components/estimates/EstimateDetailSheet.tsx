@@ -95,6 +95,8 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [editedEmail, setEditedEmail] = useState("");
   const [isEditingClientDetails, setIsEditingClientDetails] = useState(false);
+  const [isPlanViewerOpen, setIsPlanViewerOpen] = useState(false);
+  const [activePlanIndex, setActivePlanIndex] = useState(0);
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -809,8 +811,8 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
             </div>
           )}
 
-          {/* Building Plans - only show if takeoff has a plan */}
-          {takeoff?.plan_url && (
+          {/* Building Plans - only show if takeoff has files */}
+          {takeoff?.files && takeoff.files.length > 0 && (
             <div className="space-y-3">
               <h3 className="font-semibold text-sm text-muted-foreground uppercase">Building Plans</h3>
               <Card className="p-3">
@@ -818,7 +820,9 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                   <div className="flex items-center gap-3">
                     <FileImage className="w-8 h-8 text-primary" />
                     <div>
-                      <p className="font-medium">Plan Document</p>
+                      <p className="font-medium">
+                        {takeoff.files.length === 1 ? 'Plan Document' : `${takeoff.files.length} Plan Documents`}
+                      </p>
                       <p className="text-xs text-muted-foreground">
                         {takeoff.plan_type === 'pdf' ? 'PDF Document' : 'Image File'}
                         {takeoff.page_count && takeoff.page_count > 1 ? ` • ${takeoff.page_count} pages` : ''}
@@ -828,15 +832,93 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    onClick={() => window.open(takeoff.plan_url, '_blank')}
+                    onClick={() => {
+                      setActivePlanIndex(0);
+                      setIsPlanViewerOpen(true);
+                    }}
                   >
-                    <Download className="w-4 h-4 mr-2" />
+                    <Eye className="w-4 h-4 mr-2" />
                     View
                   </Button>
                 </div>
               </Card>
             </div>
           )}
+
+          {/* Plan Viewer Dialog */}
+          <Dialog open={isPlanViewerOpen} onOpenChange={setIsPlanViewerOpen}>
+            <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-0">
+              <DialogHeader className="p-4 pb-2 border-b">
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="flex items-center gap-2">
+                    <FileImage className="w-5 h-5" />
+                    Building Plans
+                  </DialogTitle>
+                  {takeoff?.files && takeoff.files.length > 1 && (
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={activePlanIndex === 0}
+                        onClick={() => setActivePlanIndex(i => i - 1)}
+                      >
+                        Previous
+                      </Button>
+                      <span className="text-sm text-muted-foreground">
+                        {activePlanIndex + 1} / {takeoff.files.length}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={activePlanIndex === (takeoff?.files?.length || 1) - 1}
+                        onClick={() => setActivePlanIndex(i => i + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto p-4 bg-muted/30">
+                {takeoff?.files?.[activePlanIndex] && (
+                  <>
+                    {takeoff.files[activePlanIndex].file_type === 'pdf' ? (
+                      <iframe
+                        src={takeoff.files[activePlanIndex].signed_url}
+                        className="w-full h-[70vh] rounded-lg border"
+                        title="Plan Document"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center">
+                        <img
+                          src={takeoff.files[activePlanIndex].signed_url}
+                          alt="Building Plan"
+                          className="max-w-full max-h-[70vh] object-contain rounded-lg"
+                        />
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+              <div className="p-4 pt-2 border-t flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">
+                  {takeoff?.files?.[activePlanIndex]?.file_name || 'Plan Document'}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (takeoff?.files?.[activePlanIndex]?.signed_url) {
+                      window.open(takeoff.files[activePlanIndex].signed_url, '_blank');
+                    }
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
 
           {/* Total */}
           <div className="bg-primary/10 rounded-lg p-4">
