@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Ruler } from 'lucide-react';
+import { Ruler, Plus } from 'lucide-react';
 
 interface LinearDimensionsDialogProps {
   open: boolean;
@@ -11,6 +11,7 @@ interface LinearDimensionsDialogProps {
   lengthMeters: number;
   scopeType: string;
   onConfirm: (width: number, height: number) => void;
+  onConfirmAndAddAnother?: (width: number, height: number) => void;
 }
 
 const SCOPE_LABELS: Record<string, { widthLabel: string; heightLabel: string; widthDefault: number; heightDefault: number }> = {
@@ -26,6 +27,7 @@ export function LinearDimensionsDialog({
   lengthMeters,
   scopeType,
   onConfirm,
+  onConfirmAndAddAnother,
 }: LinearDimensionsDialogProps) {
   const labels = SCOPE_LABELS[scopeType] || { 
     widthLabel: 'Width', 
@@ -39,6 +41,11 @@ export function LinearDimensionsDialog({
 
   const handleConfirm = () => {
     onConfirm(width, height);
+    onOpenChange(false);
+  };
+
+  const handleConfirmAndAddAnother = () => {
+    onConfirmAndAddAnother?.(width, height);
     onOpenChange(false);
   };
 
@@ -139,13 +146,24 @@ export function LinearDimensionsDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={lengthMeters === 0}>
             Save {getScopeTitle()}
           </Button>
+          {onConfirmAndAddAnother && (
+            <Button 
+              variant="secondary" 
+              onClick={handleConfirmAndAddAnother} 
+              disabled={lengthMeters === 0}
+              className="gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Save & Add More
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -197,6 +197,18 @@ export function PlanTakeoffStep({
     setActiveScope(null);
   }, [activeScope, currentFileId, pierPoints, selectedScopes, addPierMarkups, currentPage]);
 
+  // Handler for completing pier marking AND continuing to add more
+  const handlePierDimensionsConfirmAndAddAnother = useCallback(async (diameter: number, depth: number) => {
+    if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    await addPierMarkups(currentFileId, activeScope, pierPoints, diameter, depth, color, currentPage);
+
+    // Clear points but keep tool and scope active for more marking
+    setPierPoints([]);
+    // Keep activeTool as 'point' and activeScope as current scope
+  }, [activeScope, currentFileId, pierPoints, selectedScopes, addPierMarkups, currentPage]);
+
   // Handler for "Done" button when marking piers/bollards/pads
   const handleDoneMarkingPiers = useCallback(() => {
     if (pierPoints.length > 0) {
@@ -556,6 +568,7 @@ export function PlanTakeoffStep({
         onOpenChange={setShowPierDimensions}
         pierCount={pierPoints.length}
         onConfirm={handlePierDimensionsConfirm}
+        onConfirmAndAddAnother={handlePierDimensionsConfirmAndAddAnother}
       />
 
       {/* Bollard dimensions dialog */}
@@ -570,6 +583,12 @@ export function PlanTakeoffStep({
           setPierPoints([]);
           setActiveTool('select');
           setActiveScope(null);
+        }}
+        onConfirmAndAddAnother={async (diameter, height, embedment) => {
+          if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+          await addBollardMarkups(currentFileId, activeScope, pierPoints, diameter, height, embedment, color, currentPage);
+          setPierPoints([]); // Clear points but keep tool and scope active
         }}
       />
 
@@ -586,6 +605,12 @@ export function PlanTakeoffStep({
           setPierPoints([]);
           setActiveTool('select');
           setActiveScope(null);
+        }}
+        onConfirmAndAddAnother={async (length, width, depth) => {
+          if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+          await addPadMarkups(currentFileId, activeScope, pierPoints, length, width, depth, color, currentPage, activeScope as 'pad_footings' | 'pit_bases');
+          setPierPoints([]); // Clear points but keep tool and scope active
         }}
       />
 
@@ -605,6 +630,17 @@ export function PlanTakeoffStep({
           setActiveTool('select');
           setActiveScope(null);
           setPendingMarkupName('');
+        }}
+        onConfirmAndAddAnother={async (width, height) => {
+          if (!activeScope || !currentFileId || polylinePoints.length < 2) return;
+          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+          const name = pendingMarkupName.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
+          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, name);
+          setPolylinePoints([]); // Clear points but keep tool and scope active
+          setPendingPolylineLength(0);
+          // Update default name for next section
+          const existingForScope = markups.filter(m => m.scope_id === activeScope);
+          setPendingMarkupName(`Section ${existingForScope.length + 2}`);
         }}
       />
     </div>

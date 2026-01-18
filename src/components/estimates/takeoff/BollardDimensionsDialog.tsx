@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { CircleDot } from 'lucide-react';
+import { CircleDot, Plus } from 'lucide-react';
 
 interface BollardDimensionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   bollardCount: number;
   onConfirm: (diameter: number, height: number, embedment: number) => void;
+  onConfirmAndAddAnother?: (diameter: number, height: number, embedment: number) => void;
 }
 
 export function BollardDimensionsDialog({
@@ -18,6 +19,7 @@ export function BollardDimensionsDialog({
   onOpenChange,
   bollardCount,
   onConfirm,
+  onConfirmAndAddAnother,
 }: BollardDimensionsDialogProps) {
   const [diameter, setDiameter] = useState(150);
   const [height, setHeight] = useState(1000);
@@ -25,6 +27,11 @@ export function BollardDimensionsDialog({
 
   const handleConfirm = () => {
     onConfirm(diameter, height, embedment);
+    onOpenChange(false);
+  };
+
+  const handleConfirmAndAddAnother = () => {
+    onConfirmAndAddAnother?.(diameter, height, embedment);
     onOpenChange(false);
   };
 
@@ -144,13 +151,24 @@ export function BollardDimensionsDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={bollardCount === 0}>
             Save Bollards
           </Button>
+          {onConfirmAndAddAnother && (
+            <Button 
+              variant="secondary" 
+              onClick={handleConfirmAndAddAnother} 
+              disabled={bollardCount === 0}
+              className="gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Save & Add More
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
