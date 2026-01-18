@@ -33,11 +33,13 @@ import {
   Pencil,
   Check,
   X,
+  UserPen,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { PrintableEstimate } from "./PrintableEstimate";
 import { InternalBreakdownSection } from "./InternalBreakdownSection";
+import { EditClientDetailsDialog } from "./EditClientDetailsDialog";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 
@@ -92,6 +94,7 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
   const [isSendingFollowUpEmail, setIsSendingFollowUpEmail] = useState(false);
   const [isEditingEmail, setIsEditingEmail] = useState(false);
   const [editedEmail, setEditedEmail] = useState("");
+  const [isEditingClientDetails, setIsEditingClientDetails] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -271,6 +274,54 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
     onError: (error: any) => {
       toast({
         title: "Failed to update email",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateClientDetailsMutation = useMutation({
+    mutationFn: async (details: {
+      client_name: string;
+      company_name: string | null;
+      client_phone: string | null;
+      site_address: string;
+    }) => {
+      if (!estimate) throw new Error("No estimate");
+      const { data, error } = await supabase
+        .from("estimates")
+        .update(details)
+        .eq("id", estimate.id)
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.setQueryData(["estimates"], (oldData: any[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.map((e) =>
+          e.id === estimate?.id
+            ? {
+                ...e,
+                client_name: data.client_name,
+                company_name: data.company_name,
+                client_phone: data.client_phone,
+                site_address: data.site_address,
+              }
+            : e
+        );
+      });
+      queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      setIsEditingClientDetails(false);
+      toast({
+        title: "Client details updated",
+        description: "The client information has been saved.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update client details",
         description: error.message,
         variant: "destructive",
       });
@@ -568,7 +619,18 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
 
           {/* Client Info */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase">Client Details</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="font-semibold text-sm text-muted-foreground uppercase">Client Details</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 h-7 text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => setIsEditingClientDetails(true)}
+              >
+                <UserPen className="w-3.5 h-3.5" />
+                Edit
+              </Button>
+            </div>
             <div className="space-y-2">
               <p className="font-medium text-lg">{estimate.client_name}</p>
               {estimate.company_name && (
@@ -655,6 +717,22 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
               </p>
             </div>
           </div>
+
+          {/* Edit Client Details Dialog */}
+          <EditClientDetailsDialog
+            open={isEditingClientDetails}
+            onOpenChange={setIsEditingClientDetails}
+            clientDetails={{
+              client_name: estimate.client_name,
+              company_name: estimate.company_name,
+              client_phone: estimate.client_phone,
+              site_address: estimate.site_address,
+            }}
+            onSave={async (details) => {
+              await updateClientDetailsMutation.mutateAsync(details);
+            }}
+            isSaving={updateClientDetailsMutation.isPending}
+          />
 
           {/* Quote Details */}
           <div className="space-y-3">
