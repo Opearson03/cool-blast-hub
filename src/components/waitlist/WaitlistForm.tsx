@@ -34,6 +34,21 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
     setIsSubmitting(true);
 
     try {
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Check if email already exists
+      const { data: existingEntry } = await supabase
+        .from("waiting_list")
+        .select('referral_code')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (existingEntry) {
+        toast.error("You're already on the waiting list!");
+        setIsSubmitting(false);
+        return;
+      }
+
       // Look up referrer if referral code provided
       let referredById: string | null = null;
       if (referralCode) {
