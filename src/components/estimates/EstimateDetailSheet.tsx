@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,9 @@ import {
   PhoneCall,
   FileImage,
   Download,
+  Pencil,
+  Check,
+  X,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -83,9 +87,19 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
   const [pendingFollowUpDate, setPendingFollowUpDate] = useState<Date | null>(null);
   const [isSendingSiteVisitEmail, setIsSendingSiteVisitEmail] = useState(false);
   const [isSendingFollowUpEmail, setIsSendingFollowUpEmail] = useState(false);
+  const [isEditingEmail, setIsEditingEmail] = useState(false);
+  const [editedEmail, setEditedEmail] = useState("");
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Reset email editing state when estimate changes
+  useEffect(() => {
+    if (estimate) {
+      setEditedEmail(estimate.client_email || "");
+      setIsEditingEmail(false);
+    }
+  }, [estimate?.id]);
 
   // Fetch business details for the estimate
   const { data: business } = useQuery({
@@ -221,6 +235,32 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
       setIsSending(false);
     }
   };
+
+  const updateEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      if (!estimate) throw new Error("No estimate");
+      const { error } = await supabase
+        .from("estimates")
+        .update({ client_email: email || null })
+        .eq("id", estimate.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      setIsEditingEmail(false);
+      toast({
+        title: "Email updated",
+        description: "Client email has been saved.",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Failed to update email",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
 
   const updateDateMutation = useMutation({
     mutationFn: async ({ field, date }: { field: 'site_visit_date' | 'follow_up_date'; date: Date | null }) => {
@@ -519,12 +559,75 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
               {estimate.company_name && (
                 <p className="text-sm text-muted-foreground">{estimate.company_name}</p>
               )}
-              {estimate.client_email && (
-                <p className="text-sm text-muted-foreground flex items-center gap-2">
+              
+              {/* Editable Email Field */}
+              {isEditingEmail ? (
+                <div className="flex items-center gap-2">
+                  <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <Input
+                    type="email"
+                    value={editedEmail}
+                    onChange={(e) => setEditedEmail(e.target.value)}
+                    placeholder="Enter client email"
+                    className="h-8 text-sm flex-1"
+                    autoFocus
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                    onClick={() => updateEmailMutation.mutate(editedEmail)}
+                    disabled={updateEmailMutation.isPending}
+                  >
+                    {updateEmailMutation.isPending ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => {
+                      setEditedEmail(estimate.client_email || "");
+                      setIsEditingEmail(false);
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : estimate.client_email ? (
+                <p className="text-sm text-muted-foreground flex items-center gap-2 group">
                   <Mail className="w-4 h-4" />
                   {estimate.client_email}
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => {
+                      setEditedEmail(estimate.client_email || "");
+                      setIsEditingEmail(true);
+                    }}
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </Button>
                 </p>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 text-muted-foreground"
+                  onClick={() => {
+                    setEditedEmail("");
+                    setIsEditingEmail(true);
+                  }}
+                >
+                  <Mail className="w-4 h-4" />
+                  Add email address
+                </Button>
               )}
+              
               {estimate.client_phone && (
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <Phone className="w-4 h-4" />
