@@ -1260,6 +1260,14 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           // Auto-save when a module is marked as done
           saveDraftMutation.mutate();
         }}
+        // Markup prompt support - navigate to takeoff when user wants to mark on plans
+        onRequestMarkup={() => {
+          // Save current state before navigating
+          saveDraftMutation.mutate();
+          // Navigate to takeoff step
+          setCurrentStep("takeoff");
+        }}
+        hasPlans={hasMarkup}
       />
     );
   };

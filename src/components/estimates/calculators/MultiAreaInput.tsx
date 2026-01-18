@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Copy, Ruler } from "lucide-react";
+import { Plus, Trash2, Copy, Ruler, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { MeasurementArea } from "@/lib/estimate-components/types";
+import { MarkupPromptDialog } from "./MarkupPromptDialog";
 
 interface MultiAreaInputProps {
   label: string;
@@ -30,6 +31,11 @@ interface MultiAreaInputProps {
   onThickeningDepthChange?: (depth: number) => void;
   thickeningWidth?: number;
   onThickeningWidthChange?: (width: number) => void;
+  // Markup prompt support
+  onRequestMarkup?: () => void;
+  hasPlans?: boolean;
+  skipMarkupPrompt?: boolean;
+  onSkipMarkupPromptChange?: (skip: boolean) => void;
 }
 
 export function MultiAreaInput({
@@ -47,8 +53,14 @@ export function MultiAreaInput({
   onThickeningDepthChange,
   thickeningWidth = 300,
   onThickeningWidthChange,
+  onRequestMarkup,
+  hasPlans = false,
+  skipMarkupPrompt = false,
+  onSkipMarkupPromptChange,
 }: MultiAreaInputProps) {
   const [newAreaName, setNewAreaName] = useState("");
+  const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
+  const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
 
   // Check if any areas are from takeoff
   const hasAnyTakeoffAreas = areas.some((area) => area._fromTakeoff);
@@ -89,6 +101,31 @@ export function MultiAreaInput({
       },
     ]);
     setNewAreaName("");
+  };
+
+  const handleAddClick = () => {
+    // Show prompt if: plans exist, callback provided, and user hasn't chosen to skip
+    if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
+      setShowMarkupPrompt(true);
+    } else {
+      addArea();
+    }
+  };
+
+  const handleMarkOnPlans = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    onRequestMarkup?.();
+  };
+
+  const handleEnterManually = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    addArea();
   };
 
   const removeArea = (id: string) => {
@@ -302,14 +339,14 @@ export function MultiAreaInput({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                addArea();
+                handleAddClick();
               }
             }}
           />
           <Button
             type="button"
             variant="outline"
-            onClick={addArea}
+            onClick={handleAddClick}
             className="shrink-0 h-11 sm:h-9"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -424,6 +461,16 @@ export function MultiAreaInput({
           </div>
         )}
       </CardContent>
+
+      <MarkupPromptDialog
+        open={showMarkupPrompt}
+        onOpenChange={setShowMarkupPrompt}
+        itemType="area"
+        onMarkOnPlans={handleMarkOnPlans}
+        onEnterManually={handleEnterManually}
+        dontAskAgain={dontAskAgain}
+        onDontAskAgainChange={setDontAskAgain}
+      />
     </Card>
   );
 }

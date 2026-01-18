@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Plus, Trash2, Copy, Ruler } from "lucide-react";
+import { Plus, Trash2, Copy, Ruler, MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { FootingConfig } from "@/lib/estimate-components/types";
 import { cn } from "@/lib/utils";
+import { MarkupPromptDialog } from "./MarkupPromptDialog";
 
 interface MultiFootingInputProps {
   label: string;
@@ -15,6 +16,11 @@ interface MultiFootingInputProps {
   onChange: (footings: FootingConfig[]) => void;
   widthLabel?: string;
   depthLabel?: string;
+  // Markup prompt support
+  onRequestMarkup?: () => void;
+  hasPlans?: boolean;
+  skipMarkupPrompt?: boolean;
+  onSkipMarkupPromptChange?: (skip: boolean) => void;
 }
 
 export function MultiFootingInput({
@@ -23,8 +29,14 @@ export function MultiFootingInput({
   onChange,
   widthLabel = "Width",
   depthLabel = "Depth",
+  onRequestMarkup,
+  hasPlans = false,
+  skipMarkupPrompt = false,
+  onSkipMarkupPromptChange,
 }: MultiFootingInputProps) {
   const [newFootingName, setNewFootingName] = useState("");
+  const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
+  const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
 
   // Check if any footing is from takeoff
   const hasAnyFromTakeoff = footings.some(f => f._fromTakeoff);
@@ -53,6 +65,30 @@ export function MultiFootingInput({
       },
     ]);
     setNewFootingName("");
+  };
+
+  const handleAddClick = () => {
+    if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
+      setShowMarkupPrompt(true);
+    } else {
+      addFooting();
+    }
+  };
+
+  const handleMarkOnPlans = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    onRequestMarkup?.();
+  };
+
+  const handleEnterManually = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    addFooting();
   };
 
   const removeFooting = (id: string) => {
@@ -270,14 +306,14 @@ export function MultiFootingInput({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                addFooting();
+                handleAddClick();
               }
             }}
           />
           <Button
             type="button"
             variant="outline"
-            onClick={addFooting}
+            onClick={handleAddClick}
             className="shrink-0 h-11 sm:h-9"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -297,6 +333,16 @@ export function MultiFootingInput({
           </div>
         </div>
       </CardContent>
+
+      <MarkupPromptDialog
+        open={showMarkupPrompt}
+        onOpenChange={setShowMarkupPrompt}
+        itemType="footing"
+        onMarkOnPlans={handleMarkOnPlans}
+        onEnterManually={handleEnterManually}
+        dontAskAgain={dontAskAgain}
+        onDontAskAgainChange={setDontAskAgain}
+      />
     </Card>
   );
 }
