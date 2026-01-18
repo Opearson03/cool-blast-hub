@@ -794,6 +794,8 @@ export function ModularCalculator({
             
             // Special handling for demolition module - render custom input
             if (module.id === 'demolition') {
+              // Check if this is the standalone demolition scope (only module in the scope)
+              const isStandaloneScope = scope.id === 'demolition';
               return (
                 <DemolitionModuleSection
                   key={module.id}
@@ -813,6 +815,7 @@ export function ModularCalculator({
                     onModuleDone?.();
                   }}
                   priceMap={priceMap}
+                  isStandaloneScope={isStandaloneScope}
                 />
               );
             }
@@ -875,6 +878,7 @@ function DemolitionModuleSection({
   isMarkedDone,
   onMarkDone,
   priceMap,
+  isStandaloneScope = false,
 }: {
   module: EstimateModule;
   answers: Record<string, any>;
@@ -886,6 +890,7 @@ function DemolitionModuleSection({
   isMarkedDone: boolean;
   onMarkDone: () => void;
   priceMap: PriceMap;
+  isStandaloneScope?: boolean;
 }) {
   // Import CostLineItem for display
   const formatCurrency = (value: number) =>
@@ -896,7 +901,16 @@ function DemolitionModuleSection({
       maximumFractionDigits: 0,
     }).format(value);
 
-  const demolitionRequired = answers.demolition_required === true;
+  // For standalone scope, always treat as required (auto-enable on first render)
+  const demolitionRequired = isStandaloneScope ? true : answers.demolition_required === true;
+  
+  // Auto-set demolition_required to true for standalone scope if not already set
+  useEffect(() => {
+    if (isStandaloneScope && answers.demolition_required !== true) {
+      onAnswerChange('demolition_required', true);
+    }
+  }, [isStandaloneScope, answers.demolition_required, onAnswerChange]);
+
   const demolitionAreas: DemolitionArea[] = answers.demolition_areas || [
     { id: 'demo-1', name: 'Demo Area 1', length: 0, width: 0, thickness: 100 }
   ];
@@ -937,16 +951,18 @@ function DemolitionModuleSection({
       {/* Content - collapsible */}
       {isOpen && (
         <div className="px-4 pb-6 space-y-6 border-t">
-          {/* Main toggle */}
-          <div className="flex items-center justify-between pt-4">
-            <Label className="text-sm font-medium">
-              Do you need to demolish existing concrete?
-            </Label>
-            <Switch
-              checked={demolitionRequired}
-              onCheckedChange={(val) => onAnswerChange('demolition_required', val)}
-            />
-          </div>
+          {/* Main toggle - only show if not standalone scope */}
+          {!isStandaloneScope && (
+            <div className="flex items-center justify-between pt-4">
+              <Label className="text-sm font-medium">
+                Do you need to demolish existing concrete?
+              </Label>
+              <Switch
+                checked={demolitionRequired}
+                onCheckedChange={(val) => onAnswerChange('demolition_required', val)}
+              />
+            </div>
+          )}
 
           {/* Custom multi-demolition input */}
           {demolitionRequired && (

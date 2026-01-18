@@ -7,6 +7,7 @@ import { EstimateType } from "./EstimateTypeSelector";
 import { Building, Layers, Car, Wrench, Landmark } from "lucide-react";
 
 export type ScopeType = 
+  | "demolition"
   | "piers"
   | "retaining_wall_footings"
   | "strip_footings"
@@ -26,7 +27,7 @@ export type ScopeType =
   | "pit_bases"
   | "bollards";
 
-export type ScopeCategory = 'foundations' | 'slabs' | 'external' | 'infrastructure' | 'structures';
+export type ScopeCategory = 'site_works' | 'foundations' | 'slabs' | 'external' | 'infrastructure' | 'structures';
 
 export interface ScopeOption {
   id: ScopeType;
@@ -37,6 +38,7 @@ export interface ScopeOption {
 }
 
 const CATEGORY_CONFIG: Record<ScopeCategory, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
+  site_works: { label: "Site Works", icon: Wrench },
   foundations: { label: "Foundations", icon: Building },
   slabs: { label: "Floor Slabs", icon: Layers },
   external: { label: "External Works", icon: Car },
@@ -45,6 +47,14 @@ const CATEGORY_CONFIG: Record<ScopeCategory, { label: string; icon: React.Compon
 };
 
 export const SCOPE_OPTIONS: ScopeOption[] = [
+  // Site Works
+  { 
+    id: "demolition", 
+    label: "Demolition", 
+    description: "Demolition and removal of existing concrete",
+    availableFor: ["driveway", "house_slab", "commercial_slab"],
+    category: "site_works"
+  },
   // Foundations
   { 
     id: "piers", 
