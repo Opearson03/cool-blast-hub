@@ -417,6 +417,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitioningRef = useRef(false);
   
+  // Pending scope for takeoff - when user clicks "Mark on plans", we store the scope
+  // so takeoff can auto-activate it and start drawing mode
+  const [pendingTakeoffScope, setPendingTakeoffScope] = useState<ScopeType | null>(null);
+  
   // Form validation errors
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   
@@ -1292,6 +1296,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         onRequestMarkup={() => {
           void (async () => {
             try {
+              // Store which scope the user wants to mark so takeoff can auto-activate it
+              setPendingTakeoffScope(scope);
               // Ensure estimate state is persisted before jumping to takeoff
               await saveDraftMutation.mutateAsync({ closeAfter: false, showToast: true });
               setCurrentStep("takeoff");
@@ -1571,6 +1577,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               scopeLabels={Object.fromEntries(
                 selectedScopesArray.map(s => [s, getScopeLabel(s)])
               )}
+              initialScope={pendingTakeoffScope}
+              onInitialScopeHandled={() => setPendingTakeoffScope(null)}
               onContinue={goNext}
               onBack={goBack}
               onSkip={goNext}
