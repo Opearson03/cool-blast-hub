@@ -1,5 +1,5 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
-import { getPrice, PUMP_RECOMMENDATIONS } from '../types';
+import { getPrice, PUMP_RECOMMENDATIONS, roundUpToM3 } from '../types';
 
 // Helper function to get pump recommendation based on volume
 function getPumpRecommendation(volume: number): { type: string; label: string } {
@@ -293,13 +293,14 @@ export const concretePumpingModule: EstimateModule = {
     }
 
     if (volume > 0) {
+      const roundedVolume = roundUpToM3(volume);
       const m3Rate = Number(answers.m3_rate) || getPrice(priceMap, 'pumping', 'PUMP M3', 8);
-      const m3Cost = volume * m3Rate;
+      const m3Cost = roundedVolume * m3Rate;
 
       lineItems.push({
         id: 'pump_per_m3',
-        description: `Pumping Charge (${volume.toFixed(2)} m³)`,
-        quantity: Math.round(volume * 100) / 100,
+        description: `Pumping Charge (${roundedVolume} m³)`,
+        quantity: roundedVolume,
         unit: 'm³',
         unitPrice: m3Rate,
         total: Math.round(m3Cost * 100) / 100,
