@@ -239,56 +239,68 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
             }
           }
 
-          // Copy building plan from estimate to job documents
+          // Copy building plans from estimate to job documents (now uses takeoff_files table)
           if (initialData.source_estimate_id) {
             try {
-              // Fetch takeoff for the source estimate
+              // First get the takeoff for this estimate
               const { data: takeoff } = await supabase
                 .from("estimate_takeoffs")
-                .select("plan_url, plan_type")
+                .select("id")
                 .eq("estimate_id", initialData.source_estimate_id)
                 .maybeSingle();
               
-              if (takeoff?.plan_url) {
-                // Get a fresh signed URL for the private bucket
-                const urlParts = takeoff.plan_url.split('/estimate-plans/');
-                if (urlParts[1]) {
+              if (takeoff?.id) {
+                // Get all files from takeoff_files table
+                const { data: files } = await supabase
+                  .from("takeoff_files")
+                  .select("file_url, file_type, file_name")
+                  .eq("takeoff_id", takeoff.id)
+                  .order("sort_order", { ascending: true });
+                
+                // Copy each file to job documents
+                for (const file of files || []) {
+                  if (!file.file_url) continue;
+                  
+                  // Get a fresh signed URL for the private bucket
+                  const urlParts = file.file_url.split('/estimate-plans/');
+                  if (!urlParts[1]) continue;
+                  
                   const filePath = decodeURIComponent(urlParts[1].split('?')[0]);
                   const { data: signedData } = await supabase.storage
                     .from("estimate-plans")
                     .createSignedUrl(filePath, 60); // 1 minute for download
                   
-                  if (signedData?.signedUrl) {
-                    // Download the file
-                    const response = await fetch(signedData.signedUrl);
-                    const blob = await response.blob();
-                    
-                    // Determine extension
-                    const ext = takeoff.plan_type === 'pdf' ? 'pdf' : 
-                                filePath.includes('.png') ? 'png' : 'jpg';
-                    const fileName = `${newJob.id}/${Date.now()}-building-plan.${ext}`;
-                    
-                    // Upload to documents bucket
-                    const { error: uploadError } = await supabase.storage
+                  if (!signedData?.signedUrl) continue;
+                  
+                  // Download the file
+                  const response = await fetch(signedData.signedUrl);
+                  const blob = await response.blob();
+                  
+                  // Determine extension
+                  const ext = file.file_type === 'pdf' ? 'pdf' : 
+                              filePath.includes('.png') ? 'png' : 'jpg';
+                  const fileName = `${newJob.id}/${Date.now()}-${file.file_name || 'building-plan'}.${ext}`;
+                  
+                  // Upload to documents bucket
+                  const { error: uploadError } = await supabase.storage
+                    .from("documents")
+                    .upload(fileName, blob);
+                  
+                  if (!uploadError) {
+                    // Get public URL
+                    const { data: urlData } = supabase.storage
                       .from("documents")
-                      .upload(fileName, blob);
+                      .getPublicUrl(fileName);
                     
-                    if (!uploadError) {
-                      // Get public URL
-                      const { data: urlData } = supabase.storage
-                        .from("documents")
-                        .getPublicUrl(fileName);
-                      
-                      // Create document record
-                      await supabase.from("documents").insert({
-                        business_id: businessId,
-                        file_name: `Building Plan.${ext}`,
-                        file_type: takeoff.plan_type === 'pdf' ? 'application/pdf' : `image/${ext}`,
-                        file_url: urlData.publicUrl,
-                        category: "job",
-                        reference_id: newJob.id,
-                      });
-                    }
+                    // Create document record
+                    await supabase.from("documents").insert({
+                      business_id: businessId,
+                      file_name: file.file_name || `Building Plan.${ext}`,
+                      file_type: file.file_type === 'pdf' ? 'application/pdf' : `image/${ext}`,
+                      file_url: urlData.publicUrl,
+                      category: "job",
+                      reference_id: newJob.id,
+                    });
                   }
                 }
               }

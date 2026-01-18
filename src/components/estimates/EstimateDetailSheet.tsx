@@ -133,33 +133,58 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
     enabled: open,
   });
 
-  // Fetch takeoff data (building plans) for this estimate
+  // Fetch takeoff data (building plans) for this estimate - now uses takeoff_files table
   const { data: takeoff } = useQuery({
     queryKey: ["estimate-takeoff", estimate?.id],
     queryFn: async () => {
       if (!estimate?.id) return null;
-      const { data, error } = await supabase
+      
+      // First get the takeoff record
+      const { data: takeoffData, error: takeoffError } = await supabase
         .from("estimate_takeoffs")
-        .select("*")
+        .select("id, plan_type, page_count")
         .eq("estimate_id", estimate.id)
         .maybeSingle();
-      if (error) throw error;
+      if (takeoffError) throw takeoffError;
+      if (!takeoffData) return null;
       
-      // If takeoff has a plan, generate fresh signed URL (bucket is private)
-      if (data?.plan_url) {
-        // Extract file path from URL
-        const urlParts = data.plan_url.split('/estimate-plans/');
-        if (urlParts[1]) {
-          const filePath = decodeURIComponent(urlParts[1].split('?')[0]);
-          const { data: signedData } = await supabase.storage
-            .from("estimate-plans")
-            .createSignedUrl(filePath, 3600); // 1 hour validity
-          if (signedData?.signedUrl) {
-            return { ...data, plan_url: signedData.signedUrl };
+      // Then get the files from takeoff_files table
+      const { data: files, error: filesError } = await supabase
+        .from("takeoff_files")
+        .select("id, file_url, file_type, file_name, page_count")
+        .eq("takeoff_id", takeoffData.id)
+        .order("sort_order", { ascending: true });
+      if (filesError) throw filesError;
+      
+      if (!files || files.length === 0) return null;
+      
+      // Generate signed URLs for all files (bucket is private)
+      const filesWithSignedUrls = await Promise.all(
+        files.map(async (file) => {
+          // Extract file path from URL
+          const urlParts = file.file_url.split('/estimate-plans/');
+          if (urlParts[1]) {
+            const filePath = decodeURIComponent(urlParts[1].split('?')[0]);
+            const { data: signedData } = await supabase.storage
+              .from("estimate-plans")
+              .createSignedUrl(filePath, 3600); // 1 hour validity
+            if (signedData?.signedUrl) {
+              return { ...file, signed_url: signedData.signedUrl };
+            }
           }
-        }
-      }
-      return data;
+          return { ...file, signed_url: file.file_url };
+        })
+      );
+      
+      // Return in a format compatible with existing UI (first file as primary)
+      const primaryFile = filesWithSignedUrls[0];
+      return {
+        id: takeoffData.id,
+        plan_url: primaryFile?.signed_url || null,
+        plan_type: primaryFile?.file_type || takeoffData.plan_type,
+        page_count: primaryFile?.page_count || takeoffData.page_count,
+        files: filesWithSignedUrls,
+      };
     },
     enabled: open && !!estimate?.id,
   });
