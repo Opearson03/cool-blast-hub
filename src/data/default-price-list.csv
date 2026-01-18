@@ -1,5 +1,8 @@
 category,item_code,item_name,unit,default_price
 demolition,DEMOLITION,Concrete Demolition (incl. labour & disposal),/m3,2400.00
+demolition,DEMO_BREAK,Concrete Breaking Labour,/m3,150.00
+demolition,TIP_RATE,Concrete Tip/Disposal,/t,400.00
+demolition,ROCK_BREAKER,Rock Breaker Attachment,/day,200.00
 labour,LABOUR HR,Labour Hour Charge,/h,75.00
 labour,LABOUR LEAD,Labour Lead Hour,/h,95.00
 labour,LABOUR PREP HR,Labour Prep Hour,/h,75.00

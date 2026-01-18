@@ -10,6 +10,8 @@ import {
   PierConfig,
   FootingConfig,
   BeamConfig,
+  DemolitionArea,
+  CostLineItem,
   createPriceMap,
 } from "@/lib/estimate-components/types";
 import { MODULE_REGISTRY } from "@/lib/estimate-components/modules";
@@ -21,6 +23,8 @@ import { MultiAreaInput } from "./MultiAreaInput";
 import { MultiPierInput } from "./MultiPierInput";
 import { MultiFootingInput } from "./MultiFootingInput";
 import { MultiBeamInput } from "./MultiBeamInput";
+import { MultiDemolitionInput } from "./MultiDemolitionInput";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -786,11 +790,38 @@ export function ModularCalculator({
         <div className="lg:col-span-2 space-y-4">
           {modules.map((module) => {
             const cost = moduleCosts.find((c) => c.moduleId === module.id);
+            const answers = moduleAnswers[module.id] || {};
+            
+            // Special handling for demolition module - render custom input
+            if (module.id === 'demolition') {
+              return (
+                <DemolitionModuleSection
+                  key={module.id}
+                  module={module}
+                  answers={answers}
+                  onAnswerChange={(qId, val) => handleModuleAnswerChange(module.id, qId, val)}
+                  isOpen={openModuleId === module.id}
+                  onToggle={() => {
+                    setOpenModuleId((prev) => (prev === module.id ? null : module.id));
+                  }}
+                  subtotal={cost?.subtotal || 0}
+                  lineItems={cost?.lineItems || []}
+                  isMarkedDone={doneModules.has(module.id)}
+                  onMarkDone={() => {
+                    setDoneModules((prev) => new Set([...prev, module.id]));
+                    setOpenModuleId(null);
+                    onModuleDone?.();
+                  }}
+                  priceMap={priceMap}
+                />
+              );
+            }
+            
             return (
               <ModuleSection
                 key={module.id}
                 module={module}
-                answers={moduleAnswers[module.id] || {}}
+                answers={answers}
                 onAnswerChange={(qId, val) => handleModuleAnswerChange(module.id, qId, val)}
                 isOpen={openModuleId === module.id}
                 onToggle={() => {
@@ -828,6 +859,147 @@ export function ModularCalculator({
           />
         </div>
       </div>
+    </div>
+  );
+}
+
+// Helper component for demolition module with custom multi-area input
+function DemolitionModuleSection({
+  module,
+  answers,
+  onAnswerChange,
+  isOpen,
+  onToggle,
+  subtotal,
+  lineItems,
+  isMarkedDone,
+  onMarkDone,
+  priceMap,
+}: {
+  module: EstimateModule;
+  answers: Record<string, any>;
+  onAnswerChange: (questionId: string, value: any) => void;
+  isOpen: boolean;
+  onToggle: () => void;
+  subtotal: number;
+  lineItems: CostLineItem[];
+  isMarkedDone: boolean;
+  onMarkDone: () => void;
+  priceMap: PriceMap;
+}) {
+  // Import CostLineItem for display
+  const formatCurrency = (value: number) =>
+    new Intl.NumberFormat('en-AU', {
+      style: 'currency',
+      currency: 'AUD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(value);
+
+  const demolitionRequired = answers.demolition_required === true;
+  const demolitionAreas: DemolitionArea[] = answers.demolition_areas || [
+    { id: 'demo-1', name: 'Demo Area 1', length: 0, width: 0, thickness: 100 }
+  ];
+  
+  const getPrice = (category: string, code: string, fallback: number) =>
+    priceMap[category]?.[code] ?? fallback;
+
+  return (
+    <div className="border rounded-lg">
+      {/* Header - always visible */}
+      <div
+        className="flex items-center justify-between px-4 py-4 cursor-pointer hover:bg-muted/50 transition-colors"
+        onClick={onToggle}
+      >
+        <div className="flex items-center gap-3 flex-1">
+          <span className="font-medium">{module.name}</span>
+          {isMarkedDone && (
+            <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">
+              Done
+            </span>
+          )}
+          {subtotal > 0 && (
+            <span className="ml-auto mr-4 text-sm font-medium text-primary">
+              {formatCurrency(subtotal)}
+            </span>
+          )}
+        </div>
+        <svg
+          className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
+      </div>
+
+      {/* Content - collapsible */}
+      {isOpen && (
+        <div className="px-4 pb-6 space-y-6 border-t">
+          {/* Main toggle */}
+          <div className="flex items-center justify-between pt-4">
+            <Label className="text-sm font-medium">
+              Do you need to demolish existing concrete?
+            </Label>
+            <Switch
+              checked={demolitionRequired}
+              onCheckedChange={(val) => onAnswerChange('demolition_required', val)}
+            />
+          </div>
+
+          {/* Custom multi-demolition input */}
+          {demolitionRequired && (
+            <MultiDemolitionInput
+              label="Demolition Areas"
+              areas={demolitionAreas}
+              onChange={(areas) => onAnswerChange('demolition_areas', areas)}
+              breakingRate={answers.breaking_rate || getPrice('demolition', 'DEMO_BREAK', 150)}
+              onBreakingRateChange={(rate) => onAnswerChange('breaking_rate', rate)}
+              tipRate={answers.tip_rate || getPrice('demolition', 'TIP_RATE', 400)}
+              onTipRateChange={(rate) => onAnswerChange('tip_rate', rate)}
+              rockBreakerRequired={answers.rock_breaker_required || false}
+              onRockBreakerRequiredChange={(val) => onAnswerChange('rock_breaker_required', val)}
+              rockBreakerCost={answers.rock_breaker_cost || getPrice('demolition', 'ROCK_BREAKER', 200)}
+              onRockBreakerCostChange={(cost) => onAnswerChange('rock_breaker_cost', cost)}
+            />
+          )}
+
+          {/* Line items breakdown */}
+          {lineItems.length > 0 && (
+            <div className="border-t pt-4 mt-4">
+              <h4 className="text-sm font-medium mb-3 text-muted-foreground">Cost Breakdown</h4>
+              <div className="space-y-2">
+                {lineItems.map((item) => (
+                  <div key={item.id} className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">
+                      {item.description}
+                    </span>
+                    <span className="font-medium">{formatCurrency(item.total)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between font-medium border-t pt-2">
+                  <span>Module Subtotal</span>
+                  <span className="text-primary">{formatCurrency(subtotal)}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Mark as Done button */}
+          {!isMarkedDone && (
+            <div className="border-t pt-4 mt-4">
+              <Button
+                onClick={onMarkDone}
+                className="w-full h-12 sm:h-10 text-base sm:text-sm"
+                variant="default"
+              >
+                Mark as Done
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

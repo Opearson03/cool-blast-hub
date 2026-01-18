@@ -35,6 +35,9 @@ export type PriceListCategory = typeof PRICE_LIST_CATEGORIES[number]['id'];
 export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   // Demolition
   { category: 'demolition', item_code: 'DEMOLITION', item_name: 'Concrete Demolition (incl. labour & disposal)', unit: '/m³', default_price: 2400 },
+  { category: 'demolition', item_code: 'DEMO_BREAK', item_name: 'Concrete Breaking Labour', unit: '/m³', default_price: 150 },
+  { category: 'demolition', item_code: 'TIP_RATE', item_name: 'Concrete Tip/Disposal', unit: '/t', default_price: 400 },
+  { category: 'demolition', item_code: 'ROCK_BREAKER', item_name: 'Rock Breaker Attachment', unit: '/day', default_price: 200 },
   // Labour
   { category: 'labour', item_code: 'LABOUR HR', item_name: 'Labour Hour Charge', unit: '/h', default_price: 75 },
   { category: 'labour', item_code: 'LABOUR LEAD', item_name: 'Labour Lead Hour', unit: '/h', default_price: 95 },

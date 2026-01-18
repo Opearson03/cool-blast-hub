@@ -171,6 +171,17 @@ export interface BeamConfig {
 }
 
 /**
+ * Individual demolition area configuration
+ */
+export interface DemolitionArea {
+  id: string;
+  name: string;
+  length: number;    // metres
+  width: number;     // metres
+  thickness: number; // mm (each area can have different thickness)
+}
+
+/**
  * Definition of a scope (e.g., Piers, Slab, Driveway)
  */
 export interface ScopeDefinition {

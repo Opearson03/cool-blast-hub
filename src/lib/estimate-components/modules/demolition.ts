@@ -1,6 +1,17 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
 import { getPrice } from '../types';
 
+// Constants
+const CONCRETE_DENSITY = 2.4; // tonnes per m³
+
+export interface DemolitionArea {
+  id: string;
+  name: string;
+  length: number;    // metres
+  width: number;     // metres
+  thickness: number; // mm
+}
+
 export const demolitionModule: EstimateModule = {
   id: 'demolition',
   name: 'Demolition',
@@ -15,53 +26,86 @@ export const demolitionModule: EstimateModule = {
       defaultValue: false,
       required: true,
     },
+    // Note: demolition_areas is handled by custom MultiDemolitionInput component
+    // These hidden fields store the aggregated data
     {
-      id: 'demolition_length',
-      type: 'number',
-      label: 'Length of area to demolish',
-      unit: 'm',
-      min: 0.1,
-      showIf: (answers) => answers.demolition_required === true,
-    },
-    {
-      id: 'demolition_width',
-      type: 'number',
-      label: 'Width of area to demolish',
-      unit: 'm',
-      min: 0.1,
-      showIf: (answers) => answers.demolition_required === true,
-    },
-    {
-      id: 'demolition_thickness',
-      type: 'number',
-      label: 'Thickness of existing concrete',
-      unit: 'mm',
-      min: 50,
-      defaultValue: 100,
-      showIf: (answers) => answers.demolition_required === true,
-      deriveFrom: () => 100, // Standard 100mm thickness
-    },
-    {
-      id: 'demolition_volume_display',
+      id: 'demolition_areas',
       type: 'text',
-      label: 'Calculated Volume',
-      deriveFrom: (scopeData, answers) => {
-        const length = Number(answers?.demolition_length) || 0;
-        const width = Number(answers?.demolition_width) || 0;
-        const thicknessM = (Number(answers?.demolition_thickness) || 100) / 1000;
-        const volume = length * width * thicknessM;
-        return volume > 0 ? `~${volume.toFixed(2)} m³` : '';
-      },
-      showIf: (answers) => answers.demolition_required === true && (answers.demolition_length > 0 || answers.demolition_width > 0),
+      label: 'Demolition Areas',
+      showIf: () => false, // Hidden - managed by custom component
     },
     {
-      id: 'demolition_price',
+      id: 'breaking_rate',
       type: 'currency',
-      label: 'Demolition Rate',
-      defaultValue: 2400,
-      priceListKey: 'demolition.DEMOLITION',
+      label: 'Concrete Breaking Rate',
+      defaultValue: 150,
+      priceListKey: 'demolition.DEMO_BREAK',
       unit: '/m³',
-      helpText: 'Includes labour and disposal',
+      helpText: 'Labour cost to break up concrete',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'tip_rate',
+      type: 'currency',
+      label: 'Tip / Disposal Rate',
+      defaultValue: 400,
+      priceListKey: 'demolition.TIP_RATE',
+      unit: '/t',
+      helpText: 'Cost per tonne at the tip',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'rock_breaker_required',
+      type: 'boolean',
+      label: 'Is a rock breaker required?',
+      defaultValue: false,
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'rock_breaker_cost',
+      type: 'currency',
+      label: 'Rock Breaker Hire',
+      defaultValue: 200,
+      priceListKey: 'demolition.ROCK_BREAKER',
+      unit: '/day',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    // Calculated display fields
+    {
+      id: 'total_volume_display',
+      type: 'text',
+      label: 'Total Volume',
+      deriveFrom: (_scopeData, answers) => {
+        const areas = answers?.demolition_areas as DemolitionArea[] | undefined;
+        if (!areas || !Array.isArray(areas)) return '';
+        const volume = areas.reduce((sum, area) => {
+          const l = Number(area.length) || 0;
+          const w = Number(area.width) || 0;
+          const thicknessM = (Number(area.thickness) || 100) / 1000;
+          return sum + l * w * thicknessM;
+        }, 0);
+        return volume > 0 ? `${volume.toFixed(2)} m³` : '';
+      },
+      derivedReadOnly: true,
+      showIf: (answers) => answers.demolition_required === true,
+    },
+    {
+      id: 'total_weight_display',
+      type: 'text',
+      label: 'Total Weight',
+      deriveFrom: (_scopeData, answers) => {
+        const areas = answers?.demolition_areas as DemolitionArea[] | undefined;
+        if (!areas || !Array.isArray(areas)) return '';
+        const volume = areas.reduce((sum, area) => {
+          const l = Number(area.length) || 0;
+          const w = Number(area.width) || 0;
+          const thicknessM = (Number(area.thickness) || 100) / 1000;
+          return sum + l * w * thicknessM;
+        }, 0);
+        const weight = volume * CONCRETE_DENSITY;
+        return weight > 0 ? `${weight.toFixed(1)} t` : '';
+      },
+      derivedReadOnly: true,
       showIf: (answers) => answers.demolition_required === true,
     },
   ],
@@ -77,32 +121,76 @@ export const demolitionModule: EstimateModule = {
       };
     }
 
-    const length = Number(answers.demolition_length) || 0;
-    const width = Number(answers.demolition_width) || 0;
-    const thicknessM = (Number(answers.demolition_thickness) || 100) / 1000;
-    const volume = length * width * thicknessM;
-    const rate = Number(answers.demolition_price) || getPrice(priceMap, 'demolition', 'DEMOLITION', 2400);
-    const total = volume * rate;
+    const areas = answers.demolition_areas as DemolitionArea[] | undefined;
+    
+    // Calculate totals from all demolition areas
+    let totalVolume = 0;
+    if (areas && Array.isArray(areas)) {
+      totalVolume = areas.reduce((sum, area) => {
+        const l = Number(area.length) || 0;
+        const w = Number(area.width) || 0;
+        const thicknessM = (Number(area.thickness) || 100) / 1000;
+        return sum + l * w * thicknessM;
+      }, 0);
+    }
+
+    const totalWeight = totalVolume * CONCRETE_DENSITY;
+
+    const breakingRate = Number(answers.breaking_rate) || getPrice(priceMap, 'demolition', 'DEMO_BREAK', 150);
+    const tipRate = Number(answers.tip_rate) || getPrice(priceMap, 'demolition', 'TIP_RATE', 400);
+    const rockBreakerRequired = answers.rock_breaker_required === true;
+    const rockBreakerCost = Number(answers.rock_breaker_cost) || getPrice(priceMap, 'demolition', 'ROCK_BREAKER', 200);
 
     const lineItems: CostLineItem[] = [];
 
-    if (volume > 0) {
+    // Line 1: Concrete Breaking Labour
+    if (totalVolume > 0) {
+      const breakingTotal = totalVolume * breakingRate;
       lineItems.push({
-        id: 'demolition',
-        description: `Concrete Demolition & Disposal (${length}m × ${width}m × ${Math.round(thicknessM * 1000)}mm = ${volume.toFixed(2)}m³)`,
-        quantity: Math.round(volume * 100) / 100,
+        id: 'demo_breaking',
+        description: `Concrete Breaking Labour (${totalVolume.toFixed(2)}m³)`,
+        quantity: Math.round(totalVolume * 100) / 100,
         unit: 'm³',
-        unitPrice: rate,
-        total: Math.round(total * 100) / 100,
+        unitPrice: breakingRate,
+        total: Math.round(breakingTotal * 100) / 100,
         category: 'subcontractor',
       });
     }
+
+    // Line 2: Waste Disposal
+    if (totalWeight > 0) {
+      const tipTotal = totalWeight * tipRate;
+      lineItems.push({
+        id: 'demo_disposal',
+        description: `Waste Disposal (${totalWeight.toFixed(1)}t @ $${tipRate}/t)`,
+        quantity: Math.round(totalWeight * 10) / 10,
+        unit: 't',
+        unitPrice: tipRate,
+        total: Math.round(tipTotal * 100) / 100,
+        category: 'subcontractor',
+      });
+    }
+
+    // Line 3: Rock Breaker (if required)
+    if (rockBreakerRequired) {
+      lineItems.push({
+        id: 'rock_breaker',
+        description: 'Rock Breaker Attachment Hire',
+        quantity: 1,
+        unit: 'day',
+        unitPrice: rockBreakerCost,
+        total: rockBreakerCost,
+        category: 'plant',
+      });
+    }
+
+    const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
 
     return {
       moduleId: 'demolition',
       moduleName: 'Demolition',
       lineItems,
-      subtotal: Math.round(total * 100) / 100,
+      subtotal: Math.round(subtotal * 100) / 100,
       exclusions: [],
     };
   },
@@ -122,11 +210,21 @@ export const demolitionModule: EstimateModule = {
     const errors: string[] = [];
     
     if (answers.demolition_required) {
-      if (!answers.demolition_length || Number(answers.demolition_length) <= 0) {
-        errors.push('Please specify the length of area to demolish');
-      }
-      if (!answers.demolition_width || Number(answers.demolition_width) <= 0) {
-        errors.push('Please specify the width of area to demolish');
+      const areas = answers.demolition_areas as DemolitionArea[] | undefined;
+      
+      if (!areas || !Array.isArray(areas) || areas.length === 0) {
+        errors.push('Please add at least one demolition area');
+      } else {
+        // Check if at least one area has valid dimensions
+        const hasValidArea = areas.some(area => {
+          const l = Number(area.length) || 0;
+          const w = Number(area.width) || 0;
+          return l > 0 && w > 0;
+        });
+        
+        if (!hasValidArea) {
+          errors.push('Please specify dimensions for at least one demolition area');
+        }
       }
     }
 
