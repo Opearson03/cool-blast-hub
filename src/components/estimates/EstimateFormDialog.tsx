@@ -992,16 +992,44 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     }
   };
 
+  type SaveDraftOptions = {
+    /**
+     * When true, closes the EstimateFormDialog after saving.
+     * (Used for the explicit "Save Draft" button)
+     */
+    closeAfter?: boolean;
+    /**
+     * When false, no toast is shown (useful for autosave).
+     */
+    showToast?: boolean;
+  };
+
   // Save Draft mutation
   const saveDraftMutation = useMutation({
-    mutationFn: () => saveEstimate('draft'),
-    onSuccess: () => {
+    mutationFn: async (_opts: SaveDraftOptions = {}) => {
+      await saveEstimate("draft");
+    },
+    onSuccess: (_data, opts) => {
+      const closeAfter = opts?.closeAfter ?? true;
+      const showToast = opts?.showToast ?? true;
+
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
-      toast({ title: "Draft saved", description: "You can continue editing this estimate later." });
-      onOpenChange(false);
+      if (showToast) {
+        toast({
+          title: "Draft saved",
+          description: "You can continue editing this estimate later.",
+        });
+      }
+      if (closeAfter) {
+        onOpenChange(false);
+      }
     },
     onError: (error: Error) => {
-      toast({ title: "Error saving draft", description: error.message, variant: "destructive" });
+      toast({
+        title: "Error saving draft",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
@@ -1257,15 +1285,20 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         initialCustomExclusions={currentState?.customExclusions}
         onStateChange={(state) => handleModularStateChange(scope, state)}
         onModuleDone={() => {
-          // Auto-save when a module is marked as done
-          saveDraftMutation.mutate();
+          // Auto-save when a module is marked as done (do not close dialog)
+          saveDraftMutation.mutate({ closeAfter: false, showToast: false });
         }}
         // Markup prompt support - navigate to takeoff when user wants to mark on plans
         onRequestMarkup={() => {
-          // Save current state before navigating
-          saveDraftMutation.mutate();
-          // Navigate to takeoff step
-          setCurrentStep("takeoff");
+          void (async () => {
+            try {
+              // Ensure estimate state is persisted before jumping to takeoff
+              await saveDraftMutation.mutateAsync({ closeAfter: false, showToast: true });
+              setCurrentStep("takeoff");
+            } catch {
+              // Error toast handled by mutation
+            }
+          })();
         }}
         hasPlans={hasMarkup}
       />
@@ -1296,7 +1329,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             <Button 
               type="button" 
               variant="ghost" 
-              onClick={() => saveDraftMutation.mutate()}
+              onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
               disabled={isAnyOperationPending}
               className="text-muted-foreground"
             >
@@ -1616,7 +1649,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                       <Button 
                         type="button" 
                         variant="ghost" 
-                        onClick={() => saveDraftMutation.mutate()}
+                        onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
                         disabled={saveDraftMutation.isPending}
                         className="text-muted-foreground"
                       >
@@ -1970,7 +2003,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     <Button 
                       type="button" 
                       variant="ghost" 
-                      onClick={() => saveDraftMutation.mutate()}
+                      onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
                       disabled={saveDraftMutation.isPending}
                       className="text-muted-foreground"
                     >
