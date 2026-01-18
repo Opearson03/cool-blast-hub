@@ -64,10 +64,10 @@ const Index = () => {
   return (
     <>
       <SEOHead
-        title="PourHub - Concreting Business Management Software | NSW Australia"
-        description="PourHub is the all-in-one management platform for concreting businesses in NSW, Australia. Manage jobs, estimates, schedules, and concrete test results."
+        title="PourHub - Concreting Business Management Software | Australia"
+        description="PourHub is the all-in-one management platform for Australian concreting businesses. Manage jobs, estimates, schedules, and concrete test results."
         canonicalPath="/"
-        keywords="concreting software, concrete business management, job scheduling, estimates, NSW concreting"
+        keywords="concreting software, concrete business management, job scheduling, estimates, Australian concreting"
       />
       <div className="min-h-screen bg-charcoal-dark">
       {/* Hero Section with Background Image */}
@@ -95,7 +95,7 @@ const Index = () => {
               </h2>
               
               <p className="text-xl text-primary-foreground/80 mb-8 max-w-xl">
-                Jobs, estimates, schedules, and test results — all in one place. Built for NSW concreters who want to work smarter.
+                Jobs, estimates, schedules, and test results — all in one place. Built for Aussie concreters who want to work smarter.
               </p>
               
               {/* Waitlist Counter */}
@@ -116,9 +116,15 @@ const Index = () => {
             {/* Right side - Waitlist Form */}
             <div className="bg-charcoal/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 lg:p-8">
               <h3 className="text-2xl font-bold text-primary-foreground mb-2">Join the Waiting List</h3>
-              <p className="text-muted-foreground mb-6">
+              <p className="text-muted-foreground mb-4">
                 We're launching soon. Get early access when we go live.
               </p>
+              <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 mb-6">
+                <p className="text-primary font-semibold text-sm">🎉 Early Bird Offer</p>
+                <p className="text-primary-foreground/80 text-sm">
+                  Get <span className="text-primary font-bold">20% off for life</span>. Refer a mate and get your first month free!
+                </p>
+              </div>
               <WaitlistForm />
             </div>
           </div>
@@ -330,7 +336,7 @@ const Index = () => {
       <footer className="bg-charcoal-dark py-8 px-4 text-center">
         <div className="max-w-4xl mx-auto">
           <p className="text-muted-foreground text-sm mb-4">
-            © {new Date().getFullYear()} PourHub. Operations management for NSW concreting businesses.
+            © {new Date().getFullYear()} PourHub. Operations management for Australian concreting businesses.
           </p>
           <div className="flex flex-wrap justify-center items-center gap-4 text-sm">
             <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
