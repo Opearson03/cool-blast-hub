@@ -15,7 +15,8 @@ export interface ComponentQuestion {
   min?: number;
   max?: number;
   step?: number;
-  showIf?: (answers: Record<string, any>) => boolean;  // Conditional display
+  /** Conditional display - can access both answers and scopeData */
+  showIf?: (answers: Record<string, any>, scopeData?: Record<string, any>) => boolean;
   required?: boolean;
   placeholder?: string;
   
@@ -97,9 +98,9 @@ export interface EstimateModule {
   ) => ComponentCost;
   
   /**
-   * Get list of exclusions based on disabled features
+   * Get list of exclusions based on disabled features and scope data
    */
-  getExclusions: (answers: Record<string, any>) => ExclusionItem[];
+  getExclusions: (answers: Record<string, any>, scopeData?: Record<string, any>) => ExclusionItem[];
   
   /**
    * Validate that all required questions are answered

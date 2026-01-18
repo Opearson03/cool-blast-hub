@@ -344,7 +344,7 @@ export function ModularCalculator({
         const isOverridden = userOverrides[module.id]?.has(question.id);
         
         // Check if field is visible (using showIf)
-        const isVisible = !question.showIf || question.showIf(currentModuleAnswers);
+        const isVisible = !question.showIf || question.showIf(currentModuleAnswers, scopeData);
         
         if (!isOverridden && isVisible) {
           // Handle deriveFrom values
@@ -410,7 +410,7 @@ export function ModularCalculator({
     // Add module-generated exclusions
     modules.forEach((module) => {
       const answers = moduleAnswers[module.id] || {};
-      exclusions.push(...module.getExclusions(answers));
+      exclusions.push(...module.getExclusions(answers, scopeData));
     });
 
     return exclusions;
@@ -840,6 +840,7 @@ export function ModularCalculator({
                   // Notify parent to trigger auto-save
                   onModuleDone?.();
                 }}
+                scopeData={scopeData}
               />
             );
           })}
