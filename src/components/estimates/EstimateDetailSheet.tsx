@@ -83,7 +83,7 @@ const statusConfig: Record<EstimateStatus, { label: string; variant: "default" |
   declined: { label: "Declined", variant: "destructive" },
 };
 
-export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJob }: EstimateDetailSheetProps) {
+export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange, onConvertToJob }: EstimateDetailSheetProps) {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [siteVisitOpen, setSiteVisitOpen] = useState(false);
@@ -100,6 +100,10 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Get the latest estimate data from cache to ensure we always display fresh data after updates
+  const cachedEstimates = queryClient.getQueryData<Estimate[]>(["estimates"]);
+  const estimate = cachedEstimates?.find(e => e.id === estimateProp?.id) || estimateProp;
 
   // Reset email editing state when estimate changes
   useEffect(() => {
