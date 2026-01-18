@@ -705,6 +705,8 @@ export function ModularCalculator({
           if (scope.hideStandardQuestions?.includes(q.id)) return false;
           // Hide area/perimeter for multi-area scopes
           if (scope.supportsMultipleAreas && ['area', 'perimeter'].includes(q.id)) return false;
+          // Hide thickness/thickening fields for multi-area scopes (already in MultiAreaInput)
+          if (scope.supportsMultipleAreas && ['thickness', 'hasThickening', 'thickeningDepth', 'thickeningWidth'].includes(q.id)) return false;
           // Hide pier fields for multi-pier scopes
           if (scope.supportsMultiplePiers && ['num_piers', 'diameter', 'depth'].includes(q.id)) return false;
           // Hide footing fields for multi-footing scopes
