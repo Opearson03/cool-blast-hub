@@ -4,13 +4,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { CircleDot } from 'lucide-react';
+import { CircleDot, Plus } from 'lucide-react';
 
 interface PierDimensionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pierCount: number;
   onConfirm: (diameter: number, depth: number) => void;
+  onConfirmAndAddAnother?: (diameter: number, depth: number) => void;
 }
 
 export function PierDimensionsDialog({
@@ -18,12 +19,18 @@ export function PierDimensionsDialog({
   onOpenChange,
   pierCount,
   onConfirm,
+  onConfirmAndAddAnother,
 }: PierDimensionsDialogProps) {
   const [diameter, setDiameter] = useState(450);
   const [depth, setDepth] = useState(600);
 
   const handleConfirm = () => {
     onConfirm(diameter, depth);
+    onOpenChange(false);
+  };
+
+  const handleConfirmAndAddAnother = () => {
+    onConfirmAndAddAnother?.(diameter, depth);
     onOpenChange(false);
   };
 
@@ -116,13 +123,24 @@ export function PierDimensionsDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={pierCount === 0}>
             Save Piers
           </Button>
+          {onConfirmAndAddAnother && (
+            <Button 
+              variant="secondary" 
+              onClick={handleConfirmAndAddAnother} 
+              disabled={pierCount === 0}
+              className="gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Save & Add More
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

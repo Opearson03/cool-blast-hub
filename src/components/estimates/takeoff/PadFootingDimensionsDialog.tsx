@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Square } from 'lucide-react';
+import { Square, Plus } from 'lucide-react';
 
 interface PadFootingDimensionsDialogProps {
   open: boolean;
@@ -12,6 +12,7 @@ interface PadFootingDimensionsDialogProps {
   padCount: number;
   scopeType: 'pad_footings' | 'pit_bases';
   onConfirm: (length: number, width: number, depth: number) => void;
+  onConfirmAndAddAnother?: (length: number, width: number, depth: number) => void;
 }
 
 export function PadFootingDimensionsDialog({
@@ -20,6 +21,7 @@ export function PadFootingDimensionsDialog({
   padCount,
   scopeType,
   onConfirm,
+  onConfirmAndAddAnother,
 }: PadFootingDimensionsDialogProps) {
   const isPitBase = scopeType === 'pit_bases';
   
@@ -29,6 +31,11 @@ export function PadFootingDimensionsDialog({
 
   const handleConfirm = () => {
     onConfirm(length, width, depth);
+    onOpenChange(false);
+  };
+
+  const handleConfirmAndAddAnother = () => {
+    onConfirmAndAddAnother?.(length, width, depth);
     onOpenChange(false);
   };
 
@@ -149,13 +156,24 @@ export function PadFootingDimensionsDialog({
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={padCount === 0}>
             Save {title}s
           </Button>
+          {onConfirmAndAddAnother && (
+            <Button 
+              variant="secondary" 
+              onClick={handleConfirmAndAddAnother} 
+              disabled={padCount === 0}
+              className="gap-1"
+            >
+              <Plus className="h-4 w-4" />
+              Save & Add More
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
