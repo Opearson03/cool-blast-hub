@@ -51,7 +51,7 @@ function formatScopeName(scopeId: string): string {
     raft_slab: 'Raft Slab',
     suspended_slab: 'Suspended Slab',
     conventional_slab: 'Conventional Slab',
-    driveway: 'Driveway',
+    driveway: 'Small Slab',
     paths: 'Paths',
     piers: 'Piers',
     footings: 'Footings',
