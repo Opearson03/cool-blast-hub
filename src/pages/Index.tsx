@@ -136,7 +136,7 @@ const Index = () => {
                 <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 mb-6">
                   <p className="text-primary font-semibold text-sm">🎉 Early Bird Offer</p>
                   <p className="text-primary-foreground/80 text-sm">
-                    Get <span className="text-primary font-bold">20% off for life</span>. Refer a mate and you BOTH get your first month free!
+                    Refer a mate and you <span className="text-primary font-bold">BOTH get your first month FREE!</span>
                   </p>
                 </div>
               )}
