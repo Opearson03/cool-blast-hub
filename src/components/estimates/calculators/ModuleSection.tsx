@@ -35,6 +35,7 @@ interface ModuleSectionProps {
   lineItems: CostLineItem[];
   isMarkedDone: boolean;
   onMarkDone: () => void;
+  scopeData?: Record<string, any>;
 }
 
 function formatCurrency(value: number): string {
@@ -51,14 +52,16 @@ function QuestionInput({
   value,
   onChange,
   allAnswers,
+  scopeData,
 }: {
   question: ComponentQuestion;
   value: any;
   onChange: (value: any) => void;
   allAnswers: Record<string, any>;
+  scopeData?: Record<string, any>;
 }) {
   // Check conditional display
-  if (question.showIf && !question.showIf(allAnswers)) {
+  if (question.showIf && !question.showIf(allAnswers, scopeData)) {
     return null;
   }
 
@@ -194,10 +197,11 @@ export function ModuleSection({
   lineItems,
   isMarkedDone,
   onMarkDone,
+  scopeData,
 }: ModuleSectionProps) {
   // Get visible questions
   const visibleQuestions = module.questions.filter(
-    (q) => !q.showIf || q.showIf(answers)
+    (q) => !q.showIf || q.showIf(answers, scopeData)
   );
 
   // Handle accordion toggle without scroll jumping
@@ -244,6 +248,7 @@ export function ModuleSection({
                   value={answers[question.id]}
                   onChange={(val) => onAnswerChange(question.id, val)}
                   allAnswers={answers}
+                  scopeData={scopeData}
                 />
               ))}
             </div>

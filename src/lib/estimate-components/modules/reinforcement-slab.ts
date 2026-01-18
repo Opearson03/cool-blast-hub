@@ -1,6 +1,22 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
 
+// Auto-select chair size based on slab thickness
+const getChairTypeFromThickness = (thickness: number): string => {
+  if (thickness < 100) return '2540C'; // 25-40mm chairs
+  if (thickness < 125) return '5065C'; // 50-65mm chairs
+  if (thickness < 175) return '7590C'; // 75-90mm chairs
+  if (thickness < 250) return '100120C'; // 100-120mm chairs
+  return '125150C'; // 125-150mm chairs
+};
+
+// Trench mesh weight per metre (kg/m)
+const TRENCH_MESH_WEIGHTS: Record<string, number> = {
+  'L8TM3': 1.18,
+  'L11TM4': 2.23,
+  'L12TM5': 2.82,
+};
+
 export const reinforcementSlabModule: EstimateModule = {
   id: 'reinforcement-slab',
   name: 'Reinforcement',
@@ -151,7 +167,7 @@ export const reinforcementSlabModule: EstimateModule = {
         return priceMap?.['rebar']?.[`${barSize} ${supplyType}`];
       },
     },
-    // Bar chairs - enhanced with size selection
+    // Bar chairs - enhanced with auto-selection based on thickness
     {
       id: 'bar_chairs',
       type: 'boolean',
@@ -172,6 +188,10 @@ export const reinforcementSlabModule: EstimateModule = {
       ],
       defaultValue: '5065C',
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.bar_chairs === true,
+      deriveFrom: (scopeData) => {
+        const thickness = Number(scopeData?.thickness) || 100;
+        return getChairTypeFromThickness(thickness);
+      },
     },
     {
       id: 'chairs_per_m2',
@@ -184,7 +204,7 @@ export const reinforcementSlabModule: EstimateModule = {
       deriveFrom: () => 4, // Standard 4 chairs per m²
     },
     {
-      id: 'chair_price_each',
+      id: 'chair_price_per_100',
       type: 'currency',
       label: 'Chair Price per 100',
       defaultValue: 35,
@@ -193,7 +213,6 @@ export const reinforcementSlabModule: EstimateModule = {
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.bar_chairs === true,
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
         const chairType = moduleAnswers.chair_type || '5065C';
-        // Return the bag price directly (bag of 100)
         return priceMap?.['consumables']?.[chairType];
       },
     },
@@ -266,6 +285,112 @@ export const reinforcementSlabModule: EstimateModule = {
         const bagPrice = priceMap?.['consumables']?.['REBAR CAP'];
         // Bags contain 100 caps
         return bagPrice ? bagPrice / 100 : undefined;
+      },
+    },
+    // Edge Beam / Thickening Reinforcement (Trench Mesh)
+    {
+      id: 'edge_beam_reo',
+      type: 'boolean',
+      label: 'Include Edge Beam Reinforcement',
+      defaultValue: false,
+      helpText: 'Trench mesh for thickenings and edge beams',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && scopeData?.hasThickening === true,
+    },
+    {
+      id: 'edge_trench_mesh_type',
+      type: 'select',
+      label: 'Edge Beam Trench Mesh Type',
+      options: [
+        { value: 'L8TM3', label: 'L8TM3 (8mm @ 200mm)' },
+        { value: 'L11TM4', label: 'L11TM4 (11mm @ 200mm)' },
+        { value: 'L12TM5', label: 'L12TM5 (12mm @ 200mm)' },
+      ],
+      defaultValue: 'L11TM4',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_trench_mesh_length',
+      type: 'number',
+      label: 'Edge Beam Length',
+      unit: 'm',
+      min: 1,
+      helpText: 'Total length of edge beams/thickenings',
+      deriveFrom: (scopeData) => scopeData.perimeter || undefined,
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_trench_mesh_lap',
+      type: 'number',
+      label: 'Trench Mesh Lap Allowance',
+      defaultValue: 10,
+      min: 0,
+      max: 30,
+      unit: '%',
+      deriveFrom: () => 10,
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_trench_mesh_price',
+      type: 'currency',
+      label: 'Trench Mesh Price per Metre',
+      defaultValue: 6.50,
+      unit: '/m',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const tmType = moduleAnswers.edge_trench_mesh_type || 'L11TM4';
+        return priceMap?.['trench_mesh']?.[tmType];
+      },
+    },
+    {
+      id: 'edge_tm_chairs',
+      type: 'boolean',
+      label: 'Include Trench Mesh Chairs',
+      defaultValue: true,
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_tm_chairs_per_m',
+      type: 'number',
+      label: 'TM Chairs per Linear Metre',
+      defaultValue: 2,
+      min: 1,
+      max: 5,
+      deriveFrom: () => 2,
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true &&
+        answers.edge_tm_chairs === true,
+    },
+    {
+      id: 'edge_tm_chair_price',
+      type: 'currency',
+      label: 'TM Chair Price per Bag (25)',
+      defaultValue: 12.50,
+      unit: '/bag',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true &&
+        answers.edge_tm_chairs === true,
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
+        return priceMap?.['consumables']?.['TM CHAIRS'];
       },
     },
     // Delivery
@@ -359,13 +484,13 @@ export const reinforcementSlabModule: EstimateModule = {
       subtotal += barCost;
     }
 
-    // Bar chairs
+    // Bar chairs - rounded to full bags of 100
     if (answers.bar_chairs) {
       const area = Number(answers.mesh_area) || Number(answers.bar_area) || Number(scopeData.area) || 100;
       const chairsPerM2 = Number(answers.chairs_per_m2) || 4;
       const totalChairs = Math.ceil(area * chairsPerM2);
-      const chairType = answers.chair_type || '5065C';
-      const bagPricePer100 = Number(answers.chair_price_each) || getPrice(priceMap, 'consumables', chairType, 35);
+      const chairType = answers.chair_type || getChairTypeFromThickness(Number(scopeData?.thickness) || 100);
+      const bagPricePer100 = Number(answers.chair_price_per_100) || getPrice(priceMap, 'consumables', chairType, 35);
       const bagsNeeded = Math.ceil(totalChairs / 100);
       const chairCost = bagsNeeded * bagPricePer100;
 
@@ -426,6 +551,47 @@ export const reinforcementSlabModule: EstimateModule = {
       subtotal += capCost;
     }
 
+    // Edge Beam Trench Mesh
+    if (answers.edge_beam_reo && scopeData?.hasThickening) {
+      const tmType = answers.edge_trench_mesh_type || 'L11TM4';
+      const tmLength = Number(answers.edge_trench_mesh_length) || Number(scopeData.perimeter) || 20;
+      const lapAllowance = 1 + (Number(answers.edge_trench_mesh_lap) || 10) / 100;
+      const totalTmLength = tmLength * lapAllowance;
+      const tmPricePerM = Number(answers.edge_trench_mesh_price) || getPrice(priceMap, 'trench_mesh', tmType, 6.50);
+      const tmCost = totalTmLength * tmPricePerM;
+
+      lineItems.push({
+        id: 'edge_trench_mesh',
+        description: `Edge Beam Trench Mesh ${tmType} (${Math.ceil(totalTmLength)}m incl. laps)`,
+        quantity: Math.ceil(totalTmLength),
+        unit: 'm',
+        unitPrice: tmPricePerM,
+        total: Math.round(tmCost * 100) / 100,
+        category: 'materials',
+      });
+      subtotal += tmCost;
+
+      // TM Chairs for edge beams - rounded to bags of 25
+      if (answers.edge_tm_chairs) {
+        const chairsPerM = Number(answers.edge_tm_chairs_per_m) || 2;
+        const totalTmChairs = Math.ceil(tmLength * chairsPerM);
+        const bagsNeeded = Math.ceil(totalTmChairs / 25);
+        const tmChairPrice = Number(answers.edge_tm_chair_price) || getPrice(priceMap, 'consumables', 'TM CHAIRS', 12.50);
+        const tmChairCost = bagsNeeded * tmChairPrice;
+
+        lineItems.push({
+          id: 'edge_tm_chairs',
+          description: `Edge Beam TM Chairs (${bagsNeeded} bags of 25)`,
+          quantity: bagsNeeded,
+          unit: 'bags',
+          unitPrice: tmChairPrice,
+          total: Math.round(tmChairCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += tmChairCost;
+      }
+    }
+
     // Delivery
     if (reoType === 'mesh' || reoType === 'bar') {
       const delivery = Number(answers.reo_delivery) || 150;
@@ -452,7 +618,7 @@ export const reinforcementSlabModule: EstimateModule = {
     };
   },
 
-  getExclusions: (answers): ExclusionItem[] => {
+  getExclusions: (answers, scopeData): ExclusionItem[] => {
     const exclusions: ExclusionItem[] = [];
     
     if (answers.reo_type === 'none') {
@@ -467,6 +633,15 @@ export const reinforcementSlabModule: EstimateModule = {
       exclusions.push({
         id: 'fiber_only',
         text: 'Steel reinforcement is not included - fiber reinforcement is added to the concrete mix.',
+        moduleId: 'reinforcement-slab',
+      });
+    }
+
+    // Add exclusion if thickening exists but edge beam reo is not included
+    if (scopeData?.hasThickening && !answers.edge_beam_reo && answers.reo_type !== 'none' && answers.reo_type !== 'fiber') {
+      exclusions.push({
+        id: 'no_edge_beam_reo',
+        text: 'Edge beam/thickening reinforcement is not included.',
         moduleId: 'reinforcement-slab',
       });
     }
@@ -486,6 +661,12 @@ export const reinforcementSlabModule: EstimateModule = {
     if (answers.reo_type === 'bar') {
       if (!answers.bar_area || answers.bar_area < 1) {
         errors.push('Please specify the slab area');
+      }
+    }
+
+    if (answers.edge_beam_reo) {
+      if (!answers.edge_trench_mesh_length || answers.edge_trench_mesh_length < 1) {
+        errors.push('Please specify the edge beam length');
       }
     }
 
