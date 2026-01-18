@@ -1,5 +1,5 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
-import { getPrice } from '../types';
+import { getPrice, roundUpToM3 } from '../types';
 
 export const concreteSupplyModule: EstimateModule = {
   id: 'concrete-supply',
@@ -114,20 +114,21 @@ export const concreteSupplyModule: EstimateModule = {
       volume = numPiers * Math.PI * radius * radius * depth;
     }
 
-    // Apply wastage
+    // Apply wastage and round up to nearest 0.1 m³
     const wastagePercent = Number(answers.wastage_percent) || 10;
     const volumeWithWastage = volume * (1 + wastagePercent / 100);
+    const roundedVolume = roundUpToM3(volumeWithWastage);
 
     // Concrete cost
     const concreteType = answers.concrete_type || '32MPA';
     const concretePrice = Number(answers.concrete_price) || getPrice(priceMap, 'concrete', concreteType, 245);
-    const concreteCost = volumeWithWastage * concretePrice;
+    const concreteCost = roundedVolume * concretePrice;
 
     if (concreteCost > 0) {
       lineItems.push({
         id: 'concrete_supply',
-        description: `${concreteType} Readymix Concrete (${volume.toFixed(2)}m³ + ${wastagePercent}% wastage)`,
-        quantity: Math.round(volumeWithWastage * 100) / 100,
+        description: `${concreteType} Readymix Concrete (${roundUpToM3(volume)}m³ + ${wastagePercent}% wastage)`,
+        quantity: roundedVolume,
         unit: 'm³',
         unitPrice: concretePrice,
         total: Math.round(concreteCost * 100) / 100,

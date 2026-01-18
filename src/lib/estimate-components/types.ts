@@ -275,6 +275,15 @@ export function getPrice(priceMap: PriceMap, category: string, itemCode: string,
 }
 
 /**
+ * Round up a volume to the nearest 0.1 m³
+ * Used for concrete ordering - always round up to avoid being short
+ */
+export function roundUpToM3(volume: number): number {
+  if (volume <= 0) return 0;
+  return Math.ceil(volume * 10) / 10;
+}
+
+/**
  * Rebar weight constants (kg per metre)
  */
 export const REBAR_WEIGHTS: Record<string, number> = {
