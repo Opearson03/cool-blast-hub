@@ -61,6 +61,9 @@ interface Estimate {
   follow_up_date?: string | null;
   scope_data?: Record<string, any> | null;
   selected_scopes?: string[] | null;
+  payment_terms_type?: string | null;
+  deposit_percentage?: number | null;
+  quote_validity_days?: number | null;
 }
 
 interface EstimateDetailSheetProps {
@@ -212,6 +215,9 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
           notes: estimate.notes,
           createdAt: format(new Date(estimate.created_at), "d MMMM yyyy"),
           validUntil: estimate.valid_until ? format(new Date(estimate.valid_until), "d MMMM yyyy") : null,
+          paymentTermsType: estimate.payment_terms_type || 'deposit_balance',
+          depositPercentage: estimate.deposit_percentage || 50,
+          quoteValidityDays: estimate.quote_validity_days || 14,
         },
       });
 

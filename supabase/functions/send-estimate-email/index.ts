@@ -32,6 +32,9 @@ interface SendEstimateRequest {
   notes: string | null;
   createdAt: string;
   validUntil: string | null;
+  paymentTermsType: string;
+  depositPercentage: number;
+  quoteValidityDays: number;
 }
 
 // Helper to wrap text for PDF
@@ -128,7 +131,10 @@ const handler = async (req: Request): Promise<Response> => {
       description,
       notes,
       createdAt,
-      validUntil
+      validUntil,
+      paymentTermsType = 'deposit_balance',
+      depositPercentage = 50,
+      quoteValidityDays = 14
     }: SendEstimateRequest = await req.json();
 
     console.log(`Generating PDF with template "${quoteTemplate}" and sending estimate ${estimateNumber} to ${clientEmail}`);
@@ -550,6 +556,58 @@ const handler = async (req: Request): Promise<Response> => {
     doc.setFont(pdfFont, "normal");
     doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
 
+    // Generate dynamic payment terms based on settings
+    const getPaymentTerms = (): string[] => {
+      const validity = quoteValidityDays;
+      const deposit = depositPercentage;
+      
+      switch (paymentTermsType) {
+        case 'deposit_balance':
+          return [
+            `• This quote is valid for ${validity} days from the date of issue.`,
+            `• A ${deposit}% deposit is required before commencement of works.`,
+            `• Final payment is due upon completion of works.`,
+            `• Prices include GST unless otherwise stated.`,
+            `• Any variations to the scope of works may result in additional charges.`,
+          ];
+        case 'progress':
+          return [
+            `• This quote is valid for ${validity} days from the date of issue.`,
+            `• Payment is due in progress claims as milestones are completed.`,
+            `• Prices include GST unless otherwise stated.`,
+            `• Any variations to the scope of works may result in additional charges.`,
+          ];
+        case 'on_completion':
+          return [
+            `• This quote is valid for ${validity} days from the date of issue.`,
+            `• Full payment is due upon completion of works.`,
+            `• Prices include GST unless otherwise stated.`,
+            `• Any variations to the scope of works may result in additional charges.`,
+          ];
+        case 'net_14':
+          return [
+            `• This quote is valid for ${validity} days from the date of issue.`,
+            `• Payment is due within 14 days of invoice date.`,
+            `• Prices include GST unless otherwise stated.`,
+            `• Any variations to the scope of works may result in additional charges.`,
+          ];
+        case 'net_30':
+          return [
+            `• This quote is valid for ${validity} days from the date of issue.`,
+            `• Payment is due within 30 days of invoice date.`,
+            `• Prices include GST unless otherwise stated.`,
+            `• Any variations to the scope of works may result in additional charges.`,
+          ];
+        default:
+          return [
+            `• This quote is valid for ${validity} days from the date of issue.`,
+            `• A ${deposit}% deposit is required before commencement of works.`,
+            `• Final payment is due upon completion of works.`,
+            `• Prices include GST unless otherwise stated.`,
+          ];
+      }
+    };
+
     if (notes) {
       const noteLines = notes.split('\n');
       noteLines.forEach((line) => {
@@ -564,13 +622,8 @@ const handler = async (req: Request): Promise<Response> => {
         });
       });
     } else {
-      const defaultTerms = [
-        "• This quote is valid for 14 days from the date of issue unless otherwise specified.",
-        "• A 50% deposit is required before commencement of works.",
-        "• Final payment is due upon completion of works.",
-        "• Prices include GST unless otherwise stated."
-      ];
-      defaultTerms.forEach((term) => {
+      const paymentTerms = getPaymentTerms();
+      paymentTerms.forEach((term) => {
         doc.text(term, margin, yPos);
         yPos += 5;
       });
