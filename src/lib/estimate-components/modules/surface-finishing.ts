@@ -23,14 +23,13 @@ export const surfaceFinishingModule: EstimateModule = {
       type: 'select',
       label: 'Select surface finish type',
       options: [
-        { value: 'steel_trowel', label: 'Steel trowel (hard finish)' },
-        { value: 'machine_trowel', label: 'Machine trowel (power float)' },
-        { value: 'broom_finish', label: 'Broom finish' },
         { value: 'exposed_aggregate', label: 'Exposed aggregate' },
-        { value: 'honed_polished', label: 'Honed / polished' },
-        { value: 'custom_other', label: 'Custom / other' },
+        { value: 'stencilled', label: 'Stencilled' },
+        { value: 'stamped', label: 'Stamped' },
+        { value: 'honed_polished', label: 'Honed & polished' },
+        { value: 'sealed', label: 'Sealed' },
+        { value: 'other', label: 'Other' },
       ],
-      defaultValue: 'steel_trowel',
       showIf: (answers) => answers.finish_required === true,
       required: true,
     },
@@ -47,123 +46,178 @@ export const surfaceFinishingModule: EstimateModule = {
       deriveFrom: (scopeData) => scopeData.area || 0,
     },
 
-    // ========== Steel / Machine Trowel Specific ==========
+    // ========== Stencilled Finish Specific ==========
     {
-      id: 'trowel_type',
+      id: 'stencil_pattern',
       type: 'select',
-      label: 'Trowel type',
+      label: 'Stencil pattern type',
       options: [
-        { value: 'hand', label: 'Hand trowel' },
-        { value: 'machine', label: 'Machine trowel (power float)' },
+        { value: 'tile', label: 'Tile pattern' },
+        { value: 'brick', label: 'Brick pattern' },
+        { value: 'slate', label: 'Slate pattern' },
+        { value: 'cobblestone', label: 'Cobblestone pattern' },
+        { value: 'custom', label: 'Custom pattern' },
       ],
-      defaultValue: 'hand',
-      showIf: (answers) => answers.finish_required === true && 
-        (answers.finish_type === 'steel_trowel' || answers.finish_type === 'machine_trowel'),
+      defaultValue: 'tile',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
     },
     {
-      id: 'machine_hire_required',
+      id: 'stencil_material_rate',
+      type: 'currency',
+      label: 'Stencil material cost per m²',
+      defaultValue: 25,
+      unit: '/m²',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
+    },
+    {
+      id: 'stencil_colour_required',
       type: 'boolean',
-      label: 'Machine hire required?',
+      label: 'Colour/dye required?',
       defaultValue: true,
-      showIf: (answers) => answers.finish_required === true && 
-        (answers.finish_type === 'machine_trowel' || answers.trowel_type === 'machine'),
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
     },
     {
-      id: 'machine_hire_hours',
+      id: 'stencil_colour_rate',
+      type: 'currency',
+      label: 'Colour hardener cost per m²',
+      defaultValue: 15,
+      unit: '/m²',
+      showIf: (answers) => answers.finish_required === true && 
+        answers.finish_type === 'stencilled' && 
+        answers.stencil_colour_required === true,
+    },
+    {
+      id: 'stencil_labour_hours',
       type: 'number',
-      label: 'Machine hire hours',
+      label: 'Application labour hours',
       defaultValue: 4,
       min: 1,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && 
-        (answers.finish_type === 'machine_trowel' || answers.trowel_type === 'machine') &&
-        answers.machine_hire_required === true,
-    },
-    {
-      id: 'machine_hire_rate',
-      type: 'currency',
-      label: 'Machine hire rate per hour',
-      defaultValue: 45,
-      unit: '/hr',
-      priceListKey: 'plant.POWER_FLOAT',
-      showIf: (answers) => answers.finish_required === true && 
-        (answers.finish_type === 'machine_trowel' || answers.trowel_type === 'machine') &&
-        answers.machine_hire_required === true,
-    },
-    {
-      id: 'fuel_wear_allowance',
-      type: 'currency',
-      label: 'Fuel & wear allowance',
-      defaultValue: 25,
-      showIf: (answers) => answers.finish_required === true && 
-        (answers.finish_type === 'machine_trowel' || answers.trowel_type === 'machine') &&
-        answers.machine_hire_required === true,
-    },
-    {
-      id: 'additional_operator_required',
-      type: 'boolean',
-      label: 'Additional operator required?',
-      defaultValue: false,
-      showIf: (answers) => answers.finish_required === true && 
-        (answers.finish_type === 'machine_trowel' || answers.trowel_type === 'machine'),
-    },
-    {
-      id: 'edge_detail_required',
-      type: 'boolean',
-      label: 'Edge detail required?',
-      helpText: 'Hand finishing around edges',
-      defaultValue: true,
-      showIf: (answers) => answers.finish_required === true && 
-        (answers.finish_type === 'steel_trowel' || answers.finish_type === 'machine_trowel'),
-    },
-    {
-      id: 'edge_finish_hours',
-      type: 'number',
-      label: 'Hand finish edges labour (hours)',
-      defaultValue: 2,
-      min: 0.5,
       step: 0.5,
       unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && 
-        (answers.finish_type === 'steel_trowel' || answers.finish_type === 'machine_trowel') &&
-        answers.edge_detail_required === true,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
+    },
+    {
+      id: 'stencil_crew_size',
+      type: 'number',
+      label: 'Crew size for stencilling',
+      defaultValue: 2,
+      min: 1,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
     },
 
-    // ========== Broom Finish Specific ==========
+    // ========== Stamped Finish Specific ==========
     {
-      id: 'broom_direction',
+      id: 'stamp_pattern',
       type: 'select',
-      label: 'Broom direction',
+      label: 'Stamp pattern type',
       options: [
-        { value: 'cross', label: 'Cross' },
-        { value: 'longitudinal', label: 'Longitudinal' },
-        { value: 'decorative', label: 'Decorative' },
+        { value: 'slate', label: 'Slate' },
+        { value: 'brick', label: 'Brick' },
+        { value: 'cobblestone', label: 'Cobblestone' },
+        { value: 'wood_plank', label: 'Wood plank' },
+        { value: 'tile', label: 'Tile' },
+        { value: 'custom', label: 'Custom pattern' },
       ],
-      defaultValue: 'cross',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'broom_finish',
+      defaultValue: 'slate',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
     },
     {
-      id: 'slip_resistance',
-      type: 'select',
-      label: 'Slip resistance required?',
-      options: [
-        { value: 'standard', label: 'Standard' },
-        { value: 'high_grip', label: 'High-grip (adds labour)' },
-      ],
-      defaultValue: 'standard',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'broom_finish',
+      id: 'stamp_mat_hire',
+      type: 'currency',
+      label: 'Stamp mat hire/cost',
+      defaultValue: 200,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
     },
     {
-      id: 'high_grip_extra_hours',
+      id: 'release_agent_required',
+      type: 'boolean',
+      label: 'Release agent required?',
+      defaultValue: true,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
+    },
+    {
+      id: 'release_agent_rate',
+      type: 'currency',
+      label: 'Release agent cost per m²',
+      defaultValue: 8,
+      unit: '/m²',
+      showIf: (answers) => answers.finish_required === true && 
+        answers.finish_type === 'stamped' && 
+        answers.release_agent_required === true,
+    },
+    {
+      id: 'stamp_colour_hardener_required',
+      type: 'boolean',
+      label: 'Colour hardener required?',
+      defaultValue: true,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
+    },
+    {
+      id: 'stamp_colour_rate',
+      type: 'currency',
+      label: 'Colour hardener cost per m²',
+      defaultValue: 18,
+      unit: '/m²',
+      showIf: (answers) => answers.finish_required === true && 
+        answers.finish_type === 'stamped' && 
+        answers.stamp_colour_hardener_required === true,
+    },
+    {
+      id: 'stamp_labour_hours',
       type: 'number',
-      label: 'Extra hours for high-grip finish',
-      defaultValue: 1,
-      min: 0.5,
+      label: 'Stamping labour hours',
+      defaultValue: 6,
+      min: 1,
       step: 0.5,
       unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'broom_finish' && 
-        answers.slip_resistance === 'high_grip',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
+    },
+    {
+      id: 'stamp_crew_size',
+      type: 'number',
+      label: 'Crew size for stamping',
+      defaultValue: 2,
+      min: 1,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
+    },
+
+    // ========== Honed & Polished Specific ==========
+    {
+      id: 'polish_grade',
+      type: 'select',
+      label: 'Polish grade',
+      options: [
+        { value: 'grind_seal', label: 'Grind & seal' },
+        { value: 'honed', label: 'Honed (matte)' },
+        { value: 'semi_polished', label: 'Semi-polished' },
+        { value: 'high_polish', label: 'High polish (mirror)' },
+      ],
+      defaultValue: 'honed',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'honed_polished',
+    },
+    {
+      id: 'polish_rate',
+      type: 'currency',
+      label: 'Polishing rate per m²',
+      defaultValue: 65,
+      unit: '/m²',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'honed_polished',
+    },
+
+    // ========== Other Finish Specific ==========
+    {
+      id: 'other_finish_allowance',
+      type: 'currency',
+      label: 'Finish allowance (lump sum)',
+      defaultValue: 500,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'other',
+    },
+    {
+      id: 'other_finish_description',
+      type: 'text',
+      label: 'Finish description',
+      helpText: 'Describe the finish type for the quote',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'other',
     },
 
     // ========== Exposed Aggregate Specific ==========
@@ -522,87 +576,6 @@ export const surfaceFinishingModule: EstimateModule = {
     const labourRate = getPrice(priceMap, 'labour', 'LABOUR HR', 85);
     const effectiveRate = labourRate;
 
-    // ========== Machine Trowel Hire ==========
-    if ((answers.finish_type === 'machine_trowel' || answers.trowel_type === 'machine') && 
-        answers.machine_hire_required === true) {
-      const machineHours = Number(answers.machine_hire_hours) || 4;
-      const machineRate = Number(answers.machine_hire_rate) || getPrice(priceMap, 'plant', 'POWER_FLOAT', 45);
-      const machineCost = machineHours * machineRate;
-      const fuelWear = Number(answers.fuel_wear_allowance) || 25;
-
-      lineItems.push({
-        id: 'machine_hire',
-        description: `Power Float Hire (${machineHours} hrs)`,
-        quantity: machineHours,
-        unit: 'hrs',
-        unitPrice: machineRate,
-        total: machineCost,
-        category: 'plant',
-      });
-      subtotal += machineCost;
-
-      if (fuelWear > 0) {
-        lineItems.push({
-          id: 'fuel_wear',
-          description: 'Fuel & Wear Allowance',
-          quantity: 1,
-          unit: 'allow',
-          unitPrice: fuelWear,
-          total: fuelWear,
-          category: 'plant',
-        });
-        subtotal += fuelWear;
-      }
-
-      // Additional operator
-      if (answers.additional_operator_required === true) {
-        const operatorCost = machineHours * effectiveRate;
-        lineItems.push({
-          id: 'additional_operator',
-          description: `Additional Operator (${machineHours} hrs)`,
-          quantity: machineHours,
-          unit: 'hrs',
-          unitPrice: effectiveRate,
-          total: operatorCost,
-          category: 'labour',
-        });
-        subtotal += operatorCost;
-      }
-    }
-
-    // ========== Edge Detail ==========
-    if ((answers.finish_type === 'steel_trowel' || answers.finish_type === 'machine_trowel') &&
-        answers.edge_detail_required === true) {
-      const edgeHours = Number(answers.edge_finish_hours) || 2;
-      const edgeCost = edgeHours * effectiveRate;
-      lineItems.push({
-        id: 'edge_finishing',
-        description: `Hand Finish Edges (${edgeHours} hrs)`,
-        quantity: edgeHours,
-        unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: edgeCost,
-        category: 'labour',
-      });
-      subtotal += edgeCost;
-    }
-
-    // ========== Broom Finish - High Grip Extra ==========
-    if (answers.finish_type === 'broom_finish' && answers.slip_resistance === 'high_grip') {
-      const extraHours = Number(answers.high_grip_extra_hours) || 1;
-      const extraCost = extraHours * effectiveRate;
-      lineItems.push({
-        id: 'high_grip_labour',
-        description: `High-Grip Finish Extra Labour (${extraHours} hrs)`,
-        quantity: extraHours,
-        unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: extraCost,
-        category: 'labour',
-      });
-      subtotal += extraCost;
-    }
-
     // ========== Exposed Aggregate - Retarder ==========
     if (answers.finish_type === 'exposed_aggregate' &&
         (answers.exposure_method === 'retarder' || answers.exposure_method === 'both')) {
@@ -694,6 +667,157 @@ export const surfaceFinishingModule: EstimateModule = {
       subtotal += callout;
     }
 
+    // ========== Stencilled Finish ==========
+    if (answers.finish_type === 'stencilled') {
+      const stencilRate = Number(answers.stencil_material_rate) || 25;
+      const stencilMaterialCost = area * stencilRate;
+
+      lineItems.push({
+        id: 'stencil_material',
+        description: `Stencil Materials (${area}m² @ $${stencilRate}/m²)`,
+        quantity: area,
+        unit: 'm²',
+        unitPrice: stencilRate,
+        total: stencilMaterialCost,
+        category: 'materials',
+      });
+      subtotal += stencilMaterialCost;
+
+      if (answers.stencil_colour_required === true) {
+        const colourRate = Number(answers.stencil_colour_rate) || 15;
+        const colourCost = area * colourRate;
+
+        lineItems.push({
+          id: 'stencil_colour',
+          description: `Colour Hardener (${area}m² @ $${colourRate}/m²)`,
+          quantity: area,
+          unit: 'm²',
+          unitPrice: colourRate,
+          total: colourCost,
+          category: 'materials',
+        });
+        subtotal += colourCost;
+      }
+
+      const labourHours = Number(answers.stencil_labour_hours) || 4;
+      const crewSize = Number(answers.stencil_crew_size) || 2;
+      const totalLabourHours = labourHours * crewSize;
+      const labourCost = totalLabourHours * effectiveRate;
+
+      lineItems.push({
+        id: 'stencil_labour',
+        description: `Stencilling Labour (${crewSize} men × ${labourHours} hrs)`,
+        quantity: totalLabourHours,
+        unit: 'hrs',
+        unitPrice: effectiveRate,
+        total: labourCost,
+        category: 'labour',
+      });
+      subtotal += labourCost;
+    }
+
+    // ========== Stamped Finish ==========
+    if (answers.finish_type === 'stamped') {
+      const matCost = Number(answers.stamp_mat_hire) || 200;
+
+      lineItems.push({
+        id: 'stamp_mat',
+        description: 'Stamp Mat Hire/Cost',
+        quantity: 1,
+        unit: 'allow',
+        unitPrice: matCost,
+        total: matCost,
+        category: 'plant',
+      });
+      subtotal += matCost;
+
+      if (answers.release_agent_required === true) {
+        const releaseRate = Number(answers.release_agent_rate) || 8;
+        const releaseCost = area * releaseRate;
+
+        lineItems.push({
+          id: 'release_agent',
+          description: `Release Agent (${area}m² @ $${releaseRate}/m²)`,
+          quantity: area,
+          unit: 'm²',
+          unitPrice: releaseRate,
+          total: releaseCost,
+          category: 'materials',
+        });
+        subtotal += releaseCost;
+      }
+
+      if (answers.stamp_colour_hardener_required === true) {
+        const colourRate = Number(answers.stamp_colour_rate) || 18;
+        const colourCost = area * colourRate;
+
+        lineItems.push({
+          id: 'stamp_colour',
+          description: `Colour Hardener (${area}m² @ $${colourRate}/m²)`,
+          quantity: area,
+          unit: 'm²',
+          unitPrice: colourRate,
+          total: colourCost,
+          category: 'materials',
+        });
+        subtotal += colourCost;
+      }
+
+      const labourHours = Number(answers.stamp_labour_hours) || 6;
+      const crewSize = Number(answers.stamp_crew_size) || 2;
+      const totalLabourHours = labourHours * crewSize;
+      const labourCost = totalLabourHours * effectiveRate;
+
+      lineItems.push({
+        id: 'stamp_labour',
+        description: `Stamping Labour (${crewSize} men × ${labourHours} hrs)`,
+        quantity: totalLabourHours,
+        unit: 'hrs',
+        unitPrice: effectiveRate,
+        total: labourCost,
+        category: 'labour',
+      });
+      subtotal += labourCost;
+    }
+
+    // ========== Honed & Polished ==========
+    if (answers.finish_type === 'honed_polished') {
+      const polishRate = Number(answers.polish_rate) || 65;
+      const polishCost = area * polishRate;
+
+      lineItems.push({
+        id: 'polish',
+        description: `${getPolishGradeName(answers.polish_grade)} Finish (${area}m² @ $${polishRate}/m²)`,
+        quantity: area,
+        unit: 'm²',
+        unitPrice: polishRate,
+        total: polishCost,
+        category: 'subcontractor',
+      });
+      subtotal += polishCost;
+    }
+
+    // ========== Sealed (Standalone) ==========
+    if (answers.finish_type === 'sealed') {
+      // Sealing is handled in the sealing section below
+    }
+
+    // ========== Other Finish ==========
+    if (answers.finish_type === 'other') {
+      const allowance = Number(answers.other_finish_allowance) || 500;
+
+      lineItems.push({
+        id: 'other_finish',
+        description: answers.other_finish_description || 'Custom Finish Allowance',
+        quantity: 1,
+        unit: 'allow',
+        unitPrice: allowance,
+        total: allowance,
+        category: 'other',
+      });
+      subtotal += allowance;
+    }
+
     // ========== Curing ==========
     if (answers.curing_required === true) {
       const curingMen = Number(answers.curing_men) || 1;
@@ -732,7 +856,7 @@ export const surfaceFinishingModule: EstimateModule = {
     }
 
     // ========== Sealing ==========
-    if (answers.sealing_required === true) {
+    if (answers.sealing_required === true || answers.finish_type === 'sealed') {
       const sealingMen = Number(answers.sealing_men) || 1;
       const sealingHours = Number(answers.sealing_hours_per_man) || 2;
       const sealingLabour = sealingMen * sealingHours * effectiveRate;
@@ -877,6 +1001,22 @@ export const surfaceFinishingModule: EstimateModule = {
       });
     }
 
+    if (answers.finish_type !== 'stencilled') {
+      exclusions.push({
+        id: 'no_stencilled',
+        text: 'Stencilled concrete finish is excluded.',
+        moduleId: 'surface-finishing',
+      });
+    }
+
+    if (answers.finish_type !== 'stamped') {
+      exclusions.push({
+        id: 'no_stamped',
+        text: 'Stamped concrete finish is excluded.',
+        moduleId: 'surface-finishing',
+      });
+    }
+
     if (answers.finish_type !== 'honed_polished') {
       exclusions.push({
         id: 'no_polishing',
@@ -895,7 +1035,7 @@ export const surfaceFinishingModule: EstimateModule = {
     }
 
     // Sealing exclusion
-    if (answers.sealing_required === false) {
+    if (answers.sealing_required === false && answers.finish_type !== 'sealed') {
       exclusions.push({
         id: 'no_sealing',
         text: 'Concrete sealing is excluded.',
@@ -912,8 +1052,8 @@ export const surfaceFinishingModule: EstimateModule = {
       });
     }
 
-    // Decorative finishes
-    if (answers.finish_type === 'custom_other') {
+    // Other finish - details TBD
+    if (answers.finish_type === 'other') {
       exclusions.push({
         id: 'decorative_tbd',
         text: 'Decorative finish details to be confirmed.',
@@ -943,12 +1083,12 @@ export const surfaceFinishingModule: EstimateModule = {
 // Helper functions
 function getFinishTypeName(finishType: string): string {
   const names: Record<string, string> = {
-    'steel_trowel': 'Steel Trowel',
-    'machine_trowel': 'Machine Trowel',
-    'broom_finish': 'Broom',
     'exposed_aggregate': 'Exposed Aggregate',
-    'honed_polished': 'Honed/Polished',
-    'custom_other': 'Custom',
+    'stencilled': 'Stencilled',
+    'stamped': 'Stamped',
+    'honed_polished': 'Honed & Polished',
+    'sealed': 'Sealed',
+    'other': 'Other',
   };
   return names[finishType] || 'Surface';
 }
@@ -962,4 +1102,14 @@ function getSealerTypeName(sealerType: string): string {
     'exposed_agg': 'Exposed Aggregate',
   };
   return names[sealerType] || 'Concrete';
+}
+
+function getPolishGradeName(grade: string): string {
+  const names: Record<string, string> = {
+    'grind_seal': 'Grind & Seal',
+    'honed': 'Honed',
+    'semi_polished': 'Semi-Polished',
+    'high_polish': 'High Polish',
+  };
+  return names[grade] || 'Polished';
 }
