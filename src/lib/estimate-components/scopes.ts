@@ -128,7 +128,6 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -248,7 +247,6 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -408,7 +406,6 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -525,7 +522,6 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -606,7 +602,6 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -668,7 +663,6 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -885,7 +879,6 @@ export const SUSPENDED_SLAB_SCOPE: ScopeDefinition = {
     },
   ],
   moduleIds: [
-    'demolition',
     'labour-prep',
     'labour-place',
     'formwork',
@@ -1734,7 +1727,25 @@ export const BOLLARDS_SCOPE: ScopeDefinition = {
 };
 
 // Registry of all scopes - keys must match ScopeType in ScopeSelector.tsx
+/**
+ * Demolition Scope Definition
+ * Standalone scope for demolition and removal of existing concrete
+ */
+export const DEMOLITION_SCOPE: ScopeDefinition = {
+  id: 'demolition',
+  name: 'Demolition',
+  description: 'Demolition and removal of existing concrete',
+  icon: 'hammer',
+  questions: [],
+  moduleIds: [
+    'demolition',
+  ],
+  calculateVolume: () => 0, // Volume is calculated per-area in the demolition module
+  defaultExclusions: [],
+};
+
 export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
+  demolition: DEMOLITION_SCOPE,
   piers: PIERS_SCOPE,
   standard_slab: STANDARD_SLAB_SCOPE,
   raft_slab: RAFT_SLAB_SCOPE,

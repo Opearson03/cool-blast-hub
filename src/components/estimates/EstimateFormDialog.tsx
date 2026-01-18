@@ -475,6 +475,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   // Calculate totals for each scope from modular calculator
   const scopeTotals = useMemo(() => {
     const totals: Record<ScopeType, { total: number; description: string }> = {
+      demolition: { total: 0, description: "" },
       piers: { total: 0, description: "" },
       retaining_wall_footings: { total: 0, description: "" },
       strip_footings: { total: 0, description: "" },
