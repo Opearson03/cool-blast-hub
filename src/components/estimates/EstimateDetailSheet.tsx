@@ -239,14 +239,23 @@ export function EstimateDetailSheet({ estimate, open, onOpenChange, onConvertToJ
   const updateEmailMutation = useMutation({
     mutationFn: async (email: string) => {
       if (!estimate) throw new Error("No estimate");
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("estimates")
         .update({ client_email: email || null })
-        .eq("id", estimate.id);
+        .eq("id", estimate.id)
+        .select()
+        .single();
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Update the estimate in the query cache directly so the UI updates immediately
+      queryClient.setQueryData(["estimates"], (oldData: any[] | undefined) => {
+        if (!oldData) return oldData;
+        return oldData.map((e) => (e.id === estimate?.id ? { ...e, client_email: data.client_email } : e));
+      });
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      setEditedEmail(data.client_email || "");
       setIsEditingEmail(false);
       toast({
         title: "Email updated",
