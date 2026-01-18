@@ -420,6 +420,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   // Pending scope for takeoff - when user clicks "Mark on plans", we store the scope
   // so takeoff can auto-activate it and start drawing mode
   const [pendingTakeoffScope, setPendingTakeoffScope] = useState<ScopeType | null>(null);
+  // Ref to track the marked scope for use in navigation (state may be cleared before goNext runs)
+  const markedTakeoffScopeRef = useRef<ScopeType | null>(null);
   
   // Form validation errors
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -798,6 +800,26 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         // If leaving takeoff step, refetch markups so calculators get fresh data
         if (currentStep === "takeoff" && nextStep === "configure") {
           await refetchMarkups();
+          
+          // If we came from a "Mark on plans" action, clear that scope's state
+          // so the calculator re-initializes with the new takeoff measurements
+          const markedScope = markedTakeoffScopeRef.current;
+          if (markedScope) {
+            setModularScopeStates(prev => {
+              const updated = { ...prev };
+              delete updated[markedScope];
+              return updated;
+            });
+            // Also set active scope to the one we just marked
+            const scopeIndex = selectedScopesArray.indexOf(markedScope);
+            if (scopeIndex >= 0) {
+              setActiveScopeIndex(scopeIndex);
+            }
+            // Clear the ref now that we've used it
+            markedTakeoffScopeRef.current = null;
+          }
+          // Ensure state is also cleared
+          setPendingTakeoffScope(null);
         }
         
         setCurrentStep(nextStep);
@@ -1298,6 +1320,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             try {
               // Store which scope the user wants to mark so takeoff can auto-activate it
               setPendingTakeoffScope(scope);
+              // Also store in ref for navigation logic (state may be cleared before goNext runs)
+              markedTakeoffScopeRef.current = scope;
               // Ensure estimate state is persisted before jumping to takeoff
               await saveDraftMutation.mutateAsync({ closeAfter: false, showToast: true });
               setCurrentStep("takeoff");
