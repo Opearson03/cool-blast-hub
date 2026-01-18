@@ -3,10 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { EstimateType } from "./EstimateTypeSelector";
 import { Building, Layers, Car, Wrench, Landmark } from "lucide-react";
 
-export type ScopeType = 
+// EstimateType kept for backwards compatibility
+export type EstimateType = "driveway" | "house_slab" | "commercial_slab";
+
+export type ScopeType =
   | "demolition"
   | "piers"
   | "retaining_wall_footings"
@@ -191,13 +193,11 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
 interface ScopeSelectorProps {
   selectedScopes: Set<ScopeType>;
   onScopesChange: (scopes: Set<ScopeType>) => void;
-  estimateType: EstimateType | null;
 }
 
-export function ScopeSelector({ selectedScopes, onScopesChange, estimateType }: ScopeSelectorProps) {
-  const availableScopes = SCOPE_OPTIONS.filter(scope => 
-    estimateType ? scope.availableFor.includes(estimateType) : true
-  );
+export function ScopeSelector({ selectedScopes, onScopesChange }: ScopeSelectorProps) {
+  // Show all scopes (no filtering by estimate type)
+  const availableScopes = SCOPE_OPTIONS;
 
   // Group scopes by category
   const groupedScopes = availableScopes.reduce((acc, scope) => {
