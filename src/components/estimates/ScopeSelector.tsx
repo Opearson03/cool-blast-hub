@@ -106,7 +106,7 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
   // External Works
   { 
     id: "driveway", 
-    label: "Small Slab", 
+    label: "Driveway", 
     description: "Driveways, sheds, patios",
     availableFor: ["driveway", "house_slab", "commercial_slab"],
     category: "external"
