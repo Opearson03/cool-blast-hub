@@ -56,11 +56,25 @@ export function MarkupPromptDialog({
         </div>
 
         <AlertDialogFooter className="gap-2 sm:gap-0">
-          <AlertDialogCancel onClick={onEnterManually} className="gap-2">
+          <AlertDialogCancel 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEnterManually();
+            }} 
+            className="gap-2"
+          >
             <PenTool className="w-4 h-4" />
             Enter manually
           </AlertDialogCancel>
-          <AlertDialogAction onClick={onMarkOnPlans} className="gap-2">
+          <AlertDialogAction 
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onMarkOnPlans();
+            }} 
+            className="gap-2"
+          >
             <MapPin className="w-4 h-4" />
             Mark on plans
           </AlertDialogAction>
