@@ -61,12 +61,12 @@ export const concretePumpingModule: EstimateModule = {
         { value: '48M BOOM', label: '48M Boom Pump', priceKey: 'pumping.48M BOOM' },
         { value: '56M BOOM', label: '56M Boom Pump', priceKey: 'pumping.56M BOOM' },
       ],
-      defaultValue: 'LINE PUMP',
+      required: true,
       helpText: 'Select based on site access and volume',
       showIf: (answers) => answers.pump_required === true,
       deriveFrom: (scopeData, moduleAnswers) => {
         // Only suggest if user hasn't already selected
-        if (moduleAnswers.pump_type) return undefined;
+        if (moduleAnswers?.pump_type) return undefined;
         const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
         if (volume <= 0) return undefined;
         const rec = getPumpRecommendation(volume);
