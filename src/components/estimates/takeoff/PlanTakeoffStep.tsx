@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -24,6 +24,10 @@ interface PlanTakeoffStepProps {
   businessId: string | null;
   selectedScopes: ScopeType[];
   scopeLabels: Record<string, string>;
+  /** Optional scope to auto-activate when component mounts (from "Mark on plans" button) */
+  initialScope?: ScopeType | null;
+  /** Callback to clear initialScope after it's been handled */
+  onInitialScopeHandled?: () => void;
   onContinue: () => void;
   onBack: () => void;
   onSkip: () => void;
@@ -35,6 +39,8 @@ export function PlanTakeoffStep({
   businessId,
   selectedScopes,
   scopeLabels,
+  initialScope,
+  onInitialScopeHandled,
   onContinue,
   onBack,
   onSkip,
@@ -103,6 +109,9 @@ export function PlanTakeoffStep({
     [selectedScopes, scopeLabels]
   );
 
+  // Track whether we've handled the initial scope to prevent re-triggering
+  const initialScopeHandledRef = useRef(false);
+
   const handleUploadFile = useCallback(async (file: File) => {
     await addFile(file);
   }, [addFile]);
@@ -144,6 +153,24 @@ export function PlanTakeoffStep({
       setDrawingPoints([]);
     }
   }, [markups, isCalibrated]);
+
+  // Auto-activate the initial scope when component mounts and files are loaded
+  useEffect(() => {
+    // Only trigger once, when we have files, calibration, and a pending scope
+    if (
+      initialScope &&
+      !initialScopeHandledRef.current &&
+      hasFiles &&
+      isCalibrated &&
+      !isLoading
+    ) {
+      initialScopeHandledRef.current = true;
+      // Use handleMarkArea to activate the scope with proper tool selection
+      handleMarkArea(initialScope);
+      // Notify parent that we've handled it
+      onInitialScopeHandled?.();
+    }
+  }, [initialScope, hasFiles, isCalibrated, isLoading, handleMarkArea, onInitialScopeHandled]);
 
   const handleSkipScope = (scopeId: string) => {
     setSkippedScopes(prev => new Set([...prev, scopeId]));
