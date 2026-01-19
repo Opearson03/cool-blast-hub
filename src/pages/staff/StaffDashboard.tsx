@@ -64,7 +64,8 @@ export default function StaffDashboard() {
       return data as unknown as SubscriptionStats;
     },
     enabled: !isCheckingAuth,
-    refetchInterval: 30000,
+    refetchInterval: 120000, // 2 minutes (reduced from 30 seconds)
+    staleTime: 60000, // Consider data fresh for 1 minute
   });
 
   const handleLogout = async () => {

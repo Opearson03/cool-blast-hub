@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { SUBSCRIPTION_TIERS, SubscriptionTier } from "@/lib/subscription-tiers";
 
 const SUBSCRIPTION_CACHE_KEY = "pourhub_subscription_cache";
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes (increased from 5 minutes)
+const POLLING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes (reduced from 60 seconds)
 
 interface CachedSubscription {
   subscribed: boolean;
@@ -70,7 +71,113 @@ export function useSubscription() {
     isExempt: cachedData?.isExempt ?? false,
   });
 
-  const checkSubscription = useCallback(async (showLoading = false) => {
+  // Fast database query for subscription status (no edge function needed)
+  const checkSubscriptionFromDB = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        const emptyState = {
+          isLoading: false,
+          isSubscribed: false,
+          tier: null,
+          subscriptionEnd: null,
+          employeeLimit: 5,
+          error: null,
+          isExempt: false,
+        };
+        setState(emptyState);
+        localStorage.removeItem(SUBSCRIPTION_CACHE_KEY);
+        return;
+      }
+
+      // Get profile with business info
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", session.user.id)
+        .single();
+
+      if (!profile?.business_id) {
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      // Get business with subscription (single fast query)
+      const { data: business } = await supabase
+        .from("businesses")
+        .select(`
+          subscription_exempt,
+          business_subscriptions (
+            status,
+            plan_tier,
+            current_period_end,
+            employee_limit
+          )
+        `)
+        .eq("id", profile.business_id)
+        .single();
+
+      if (!business) {
+        setState(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
+      const isExempt = business.subscription_exempt ?? false;
+      const subscription = business.business_subscriptions;
+      
+      // Determine subscription status
+      let isSubscribed = false;
+      let tier: SubscriptionTier | null = null;
+      let subscriptionEnd: string | null = null;
+      let employeeLimit = 5;
+
+      if (isExempt) {
+        isSubscribed = true;
+        tier = "standard";
+        employeeLimit = 999;
+      } else if (subscription) {
+        isSubscribed = subscription.status === "active" || subscription.status === "trialing";
+        tier = (subscription.plan_tier as SubscriptionTier) || "standard";
+        subscriptionEnd = subscription.current_period_end;
+        employeeLimit = subscription.employee_limit ?? 999;
+      } else {
+        // No subscription = free tier
+        tier = "free";
+        employeeLimit = 5;
+      }
+
+      const newState = {
+        isLoading: false,
+        isSubscribed,
+        tier,
+        subscriptionEnd,
+        employeeLimit,
+        error: null,
+        isExempt,
+      };
+      
+      setState(newState);
+      
+      // Cache the result
+      setCachedSubscription({
+        subscribed: isSubscribed,
+        tier,
+        subscriptionEnd,
+        employeeLimit,
+        isExempt,
+      });
+    } catch (error) {
+      console.error("Error checking subscription from DB:", error);
+      setState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : "Failed to check subscription",
+      }));
+    }
+  }, []);
+
+  // Full sync with Stripe via edge function (only on login or manual refresh)
+  const syncWithStripe = useCallback(async (showLoading = false) => {
     try {
       if (showLoading) {
         setState(prev => ({ ...prev, isLoading: true, error: null }));
@@ -128,7 +235,7 @@ export function useSubscription() {
         isExempt: data.is_exempt || false,
       });
     } catch (error) {
-      console.error("Error checking subscription:", error);
+      console.error("Error syncing subscription with Stripe:", error);
       // Don't clear access on error if we have cached data
       setState(prev => ({
         ...prev,
@@ -138,14 +245,49 @@ export function useSubscription() {
     }
   }, []);
 
-  useEffect(() => {
-    // Check subscription in background (don't block UI if we have cache)
-    checkSubscription(false);
+  // Backwards-compatible checkSubscription
+  const checkSubscription = useCallback(async (showLoading = false) => {
+    // Use fast DB query for regular checks
+    await checkSubscriptionFromDB();
+  }, [checkSubscriptionFromDB]);
 
-    // Refresh subscription status every 60 seconds
-    const interval = setInterval(() => checkSubscription(false), 60000);
-    return () => clearInterval(interval);
-  }, [checkSubscription]);
+  useEffect(() => {
+    // Initial check from database (fast)
+    checkSubscriptionFromDB();
+    
+    // Sync with Stripe once on mount (handles edge cases)
+    const timeoutId = setTimeout(() => {
+      syncWithStripe(false);
+    }, 2000); // Delay Stripe sync to not block initial load
+
+    // Set up polling with visibility detection
+    let intervalId: NodeJS.Timeout;
+    
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // User came back to tab, do a quick DB check
+        checkSubscriptionFromDB();
+      }
+    };
+
+    const startPolling = () => {
+      // Only poll when tab is visible, and use long interval
+      intervalId = setInterval(() => {
+        if (document.visibilityState === 'visible') {
+          checkSubscriptionFromDB();
+        }
+      }, POLLING_INTERVAL_MS);
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    startPolling();
+
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [checkSubscriptionFromDB, syncWithStripe]);
 
   const checkEmployeeLimit = useCallback(async (): Promise<{
     canAdd: boolean;
@@ -226,6 +368,7 @@ export function useSubscription() {
     ...state,
     hasAccess,
     checkSubscription,
+    syncWithStripe, // Expose for manual refresh after checkout
     checkEmployeeLimit,
     canAddEmployee,
     isFeatureEnabled,
