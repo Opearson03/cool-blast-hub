@@ -449,9 +449,9 @@ export function PlanTakeoffStep({
         onDoneMarkingPolyline={handleDoneMarkingPolyline}
       />
 
-      {/* Main content - stacked layout with plan on top, scopes below */}
-      <div className="flex flex-col gap-4 flex-1 min-h-0">
-        {/* Plan viewer with drawing canvas */}
+      {/* Main content - vertical stack with plan taking most space, scopes at bottom */}
+      <div className="flex flex-col gap-3 flex-1 min-h-0">
+        {/* Plan viewer with drawing canvas - takes available height minus scope area */}
         <div className="flex-1 min-h-0">
           {currentFile?.file_url ? (
             <PlanViewer
@@ -543,7 +543,7 @@ export function PlanTakeoffStep({
           )}
         </div>
 
-        {/* Scope checklist - horizontal layout at bottom */}
+        {/* Scope checklist - prominent bottom section */}
         <div className="shrink-0">
           <ScopeMarkupChecklist
             scopes={scopes}
