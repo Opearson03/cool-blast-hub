@@ -19,7 +19,8 @@ export function SignupTrends() {
       if (error) throw error;
       return data as SignupTrend[];
     },
-    refetchInterval: 60000,
+    refetchInterval: 300000, // 5 minutes (reduced from 60 seconds)
+    staleTime: 120000, // Consider data fresh for 2 minutes
   });
 
   const chartData = trends?.map((trend) => ({
