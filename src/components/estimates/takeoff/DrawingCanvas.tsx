@@ -324,18 +324,13 @@ export function DrawingCanvas({
   const renderPolylinePreview = () => {
     if (tool !== 'polyline' || polylinePoints.length === 0) return null;
 
-    const points = currentMousePos 
-      ? [...polylinePoints, currentMousePos]
-      : polylinePoints;
-
     return (
       <Group>
-        {/* Polyline path */}
+        {/* Polyline path - solid line between placed points only */}
         <Line
-          points={flattenPoints(points)}
+          points={flattenPoints(polylinePoints)}
           stroke={activeScopeColor}
           strokeWidth={3}
-          dash={[10, 5]}
           lineCap="round"
           lineJoin="round"
         />
