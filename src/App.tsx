@@ -34,6 +34,7 @@ import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
+import { AuthProvider } from "./contexts/AuthContext";
 import { supabase } from "./integrations/supabase/client";
 
 const queryClient = new QueryClient();
@@ -103,7 +104,9 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <AppContent />
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
