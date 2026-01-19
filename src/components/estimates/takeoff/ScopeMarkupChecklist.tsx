@@ -114,8 +114,8 @@ export function ScopeMarkupChecklist({
   const totalMarkupCount = markups.length;
 
   return (
-    <Card className="h-full">
-      <CardHeader className="pb-3">
+    <Card className="h-full flex flex-col">
+      <CardHeader className="pb-2 shrink-0">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium">Scope Areas</CardTitle>
           <Badge variant="outline" className="text-xs">
@@ -123,7 +123,7 @@ export function ScopeMarkupChecklist({
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2 overflow-y-auto max-h-[400px]">
+      <CardContent className="space-y-1.5 overflow-y-auto flex-1 min-h-0">
         {scopes.map((scope) => {
           const status = getScopeStatus(scope.id);
           const scopeMarkups = getScopeMarkups(scope.id);
