@@ -63,6 +63,11 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'concrete', item_code: '25MPA', item_name: '25 Mpa Readymix Concrete', unit: '/m3', default_price: 235 },
   { category: 'concrete', item_code: '32MPA', item_name: '32 Mpa Readymix Concrete', unit: '/m3', default_price: 245 },
   { category: 'concrete', item_code: '40MPA', item_name: '40 Mpa Readymix Concrete', unit: '/m3', default_price: 265 },
+  { category: 'concrete', item_code: '25MPA EXP', item_name: '25 Mpa Exposed Aggregate Mix', unit: '/m3', default_price: 290 },
+  { category: 'concrete', item_code: '32MPA EXP', item_name: '32 Mpa Exposed Aggregate Mix', unit: '/m3', default_price: 310 },
+  { category: 'concrete', item_code: '25MPA COL', item_name: '25 Mpa Colour Mix', unit: '/m3', default_price: 280 },
+  { category: 'concrete', item_code: '32MPA COL', item_name: '32 Mpa Colour Mix', unit: '/m3', default_price: 300 },
+  { category: 'concrete', item_code: '40MPA COL', item_name: '40 Mpa Colour Mix', unit: '/m3', default_price: 320 },
   { category: 'concrete', item_code: 'WAITING', item_name: 'Concrete Supply Waiting Time Charge', unit: '/min', default_price: 4 },
   { category: 'concrete', item_code: 'TESTING', item_name: 'Concrete Testing Per 50m3', unit: '/item', default_price: 850 },
 

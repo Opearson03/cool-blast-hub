@@ -1058,6 +1058,22 @@ function DemolitionModuleSection({
               onRockBreakerRequiredChange={(val) => onAnswerChange('rock_breaker_required', val)}
               rockBreakerCost={answers.rock_breaker_cost || getPrice('demolition', 'ROCK_BREAKER', 200)}
               onRockBreakerCostChange={(cost) => onAnswerChange('rock_breaker_cost', cost)}
+              // Saw cutting props
+              sawCuttingRequired={answers.saw_cutting_required || false}
+              onSawCuttingRequiredChange={(val) => onAnswerChange('saw_cutting_required', val)}
+              sawCuttingLength={answers.saw_cutting_length || 0}
+              onSawCuttingLengthChange={(length) => onAnswerChange('saw_cutting_length', length)}
+              sawCuttingRate={answers.saw_cutting_rate || getPrice('joint_saw_cutting', 'JOINTCUT', 6.50)}
+              onSawCuttingRateChange={(rate) => onAnswerChange('saw_cutting_rate', rate)}
+              // Labour hours props
+              demoLabourRequired={answers.demo_labour_required || false}
+              onDemoLabourRequiredChange={(val) => onAnswerChange('demo_labour_required', val)}
+              demoCrewSize={answers.demo_crew_size || 2}
+              onDemoCrewSizeChange={(size) => onAnswerChange('demo_crew_size', size)}
+              demoHours={answers.demo_hours || 4}
+              onDemoHoursChange={(hours) => onAnswerChange('demo_hours', hours)}
+              demoLabourRate={answers.demo_labour_rate || getPrice('labour', 'LABOUR HR', 75)}
+              onDemoLabourRateChange={(rate) => onAnswerChange('demo_labour_rate', rate)}
             />
           )}
 
