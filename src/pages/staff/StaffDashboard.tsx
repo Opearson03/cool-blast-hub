@@ -1,7 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -28,6 +28,7 @@ interface SubscriptionStats {
 
 export default function StaffDashboard() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
 
   useEffect(() => {
@@ -56,7 +57,7 @@ export default function StaffDashboard() {
     checkAuth();
   }, [navigate]);
 
-  const { data: stats, isLoading: statsLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery({
     queryKey: ["staff-subscription-stats"],
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_subscription_stats");
@@ -64,8 +65,45 @@ export default function StaffDashboard() {
       return data as unknown as SubscriptionStats;
     },
     enabled: !isCheckingAuth,
-    refetchInterval: 30000,
+    staleTime: 60000, // Consider data fresh for 1 minute
+    // No refetchInterval - using realtime instead
   });
+
+  // Refetch function for realtime updates
+  const handleRealtimeUpdate = useCallback(() => {
+    refetchStats();
+    queryClient.invalidateQueries({ queryKey: ["staff-subscribers"] });
+    queryClient.invalidateQueries({ queryKey: ["staff-waitlist-entries"] });
+    queryClient.invalidateQueries({ queryKey: ["staff-signup-trends"] });
+  }, [refetchStats, queryClient]);
+
+  // Subscribe to realtime changes on relevant tables
+  useEffect(() => {
+    if (isCheckingAuth) return;
+
+    const channel = supabase
+      .channel('staff-dashboard-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'businesses' },
+        () => handleRealtimeUpdate()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'business_subscriptions' },
+        () => handleRealtimeUpdate()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'waiting_list' },
+        () => handleRealtimeUpdate()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isCheckingAuth, handleRealtimeUpdate]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();

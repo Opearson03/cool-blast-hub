@@ -19,7 +19,8 @@ export function SignupTrends() {
       if (error) throw error;
       return data as SignupTrend[];
     },
-    refetchInterval: 60000,
+    staleTime: 60000, // Consider data fresh for 1 minute
+    // No refetchInterval - using realtime from parent component
   });
 
   const chartData = trends?.map((trend) => ({

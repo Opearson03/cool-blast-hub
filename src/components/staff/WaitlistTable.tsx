@@ -23,7 +23,8 @@ export function WaitlistTable() {
       if (error) throw error;
       return data as WaitlistEntry[];
     },
-    refetchInterval: 30000,
+    staleTime: 60000, // Consider data fresh for 1 minute
+    // No refetchInterval - using realtime from parent component
   });
 
   const exportToCsv = () => {

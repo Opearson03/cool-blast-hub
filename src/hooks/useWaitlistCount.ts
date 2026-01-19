@@ -14,7 +14,7 @@ export function useWaitlistCount() {
       
       return data as number;
     },
-    staleTime: 30000, // Cache for 30 seconds
-    refetchInterval: 60000, // Refetch every minute
+    staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 300000, // Refetch every 5 minutes (reduced from 60 seconds)
   });
 }
