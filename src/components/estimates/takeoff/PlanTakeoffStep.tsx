@@ -449,10 +449,10 @@ export function PlanTakeoffStep({
         onDoneMarkingPolyline={handleDoneMarkingPolyline}
       />
 
-      {/* Main content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-4 flex-1 min-h-0">
+      {/* Main content - stacked layout with plan on top, scopes below */}
+      <div className="flex flex-col gap-4 flex-1 min-h-0">
         {/* Plan viewer with drawing canvas */}
-        <div className="lg:col-span-2 xl:col-span-3 min-h-0">
+        <div className="flex-1 min-h-0">
           {currentFile?.file_url ? (
             <PlanViewer
               planUrl={currentFile.file_url}
@@ -543,8 +543,8 @@ export function PlanTakeoffStep({
           )}
         </div>
 
-        {/* Scope checklist */}
-        <div>
+        {/* Scope checklist - horizontal layout at bottom */}
+        <div className="shrink-0">
           <ScopeMarkupChecklist
             scopes={scopes}
             markups={markups}
