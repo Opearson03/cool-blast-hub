@@ -43,6 +43,10 @@ export const concretePumpingModule: EstimateModule = {
         const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
         if (volume <= 0) return undefined;
         const rec = getPumpRecommendation(volume);
+        // If user chose to pump, don't show "direct from chute" - recommend line pump as minimum
+        if (rec.type === 'DIRECT') {
+          return PUMP_RECOMMENDATIONS.linePump.label;
+        }
         return rec.label || undefined;
       },
       showIf: (answers) => answers.pump_required === true,
