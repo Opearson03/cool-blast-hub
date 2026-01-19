@@ -62,8 +62,7 @@ export function SubscribersTable() {
         current_period_end: b.business_subscriptions?.current_period_end ?? null,
       })) as Subscriber[];
     },
-    refetchInterval: 120000, // 2 minutes (reduced from 30 seconds)
-    staleTime: 60000, // Consider data fresh for 1 minute
+    refetchInterval: 30000,
   });
 
   const getSubscriptionStatus = (subscriber: Subscriber) => {
