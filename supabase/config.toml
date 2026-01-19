@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.send-referral-invite]
 verify_jwt = false
+
+[functions.notify-referral-success]
+verify_jwt = false

@@ -69,15 +69,22 @@ const handler = async (req: Request): Promise<Response> => {
                         You're officially on the PourHub waitlist! We're stoked to have you.
                       </p>
                       
-                      <p style="margin: 0 0 20px 0; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
-                        As an early bird, you'll get <strong style="color: #F97316;">20% off for life</strong> when we launch.
-                      </p>
-                      
                       <!-- Referral Section -->
                       <div style="background-color: #1a1a1a; border-radius: 8px; padding: 24px; margin: 30px 0; border: 1px solid #404040;">
-                        <h3 style="margin: 0 0 12px 0; color: #ffffff; font-size: 18px;">🎁 Want your first month FREE?</h3>
-                        <p style="margin: 0 0 20px 0; color: #a3a3a3; font-size: 14px; line-height: 1.5;">
-                          Share your referral code with your mates. When they join, you <strong style="color: #F97316;">BOTH</strong> get your first month free!
+                        <h3 style="margin: 0 0 12px 0; color: #ffffff; font-size: 18px;">🚀 Move up the list!</h3>
+                        <p style="margin: 0 0 16px 0; color: #a3a3a3; font-size: 14px; line-height: 1.5;">
+                          Invite your mates and jump ahead in the queue:
+                        </p>
+                        
+                        <div style="background-color: #262626; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
+                          <p style="margin: 0; color: #ffffff; font-size: 14px;">⚡ <strong>Refer 1 mate</strong> → Jump 50 spots + 1 month FREE each</p>
+                        </div>
+                        <div style="background-color: #262626; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                          <p style="margin: 0; color: #fbbf24; font-size: 14px;">👑 <strong>Refer 3 mates</strong> → Guaranteed early access + 5 bonus quotes</p>
+                        </div>
+                        
+                        <p style="margin: 0 0 12px 0; color: #a3a3a3; font-size: 14px;">
+                          Share your code and you <strong style="color: #F97316;">BOTH</strong> get rewarded!
                         </p>
                         
                         <div style="background-color: #262626; border: 2px dashed #F97316; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 16px;">
