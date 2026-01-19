@@ -1,0 +1,251 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import Stripe from "https://esm.sh/stripe@18.5.0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, stripe-signature",
+};
+
+const logStep = (step: string, details?: Record<string, unknown>) => {
+  const detailsStr = details ? ` - ${JSON.stringify(details)}` : "";
+  console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
+};
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    logStep("Webhook received");
+
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
+    
+    if (!stripeKey) {
+      throw new Error("STRIPE_SECRET_KEY is not set");
+    }
+    
+    if (!webhookSecret) {
+      throw new Error("STRIPE_WEBHOOK_SECRET is not set");
+    }
+
+    const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
+    
+    // Get the signature from the headers
+    const signature = req.headers.get("stripe-signature");
+    if (!signature) {
+      throw new Error("No stripe-signature header found");
+    }
+
+    // Get the raw body
+    const body = await req.text();
+    
+    // Verify the webhook signature
+    let event: Stripe.Event;
+    try {
+      event = await stripe.webhooks.constructEventAsync(body, signature, webhookSecret);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logStep("Webhook signature verification failed", { error: errorMessage });
+      return new Response(JSON.stringify({ error: "Webhook signature verification failed" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
+    logStep("Event verified", { type: event.type, id: event.id });
+
+    // Initialize Supabase client with service role key
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+      { auth: { persistSession: false } }
+    );
+
+    // Handle different event types
+    switch (event.type) {
+      case "customer.subscription.created":
+      case "customer.subscription.updated": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        logStep("Processing subscription event", { 
+          subscriptionId: subscription.id, 
+          customerId, 
+          status: subscription.status 
+        });
+
+        // Get the customer to find their email
+        const customer = await stripe.customers.retrieve(customerId);
+        if (customer.deleted) {
+          logStep("Customer was deleted, skipping");
+          break;
+        }
+
+        const customerEmail = customer.email;
+        if (!customerEmail) {
+          logStep("No email found for customer", { customerId });
+          break;
+        }
+
+        // Find the business by owner email
+        const { data: businesses, error: businessError } = await supabaseClient
+          .from("businesses")
+          .select("id, owner_id")
+          .eq("email", customerEmail);
+
+        if (businessError) {
+          logStep("Error finding business", { error: businessError.message });
+          break;
+        }
+
+        // If not found by business email, try profile email via auth
+        let businessId: string | null = null;
+        
+        if (businesses && businesses.length > 0) {
+          businessId = businesses[0].id;
+        } else {
+          // Look up user by email from auth, then get their business
+          const { data: authData } = await supabaseClient.auth.admin.listUsers();
+          const user = authData?.users?.find(u => u.email?.toLowerCase() === customerEmail.toLowerCase());
+          
+          if (user) {
+            const { data: profile } = await supabaseClient
+              .from("profiles")
+              .select("business_id")
+              .eq("id", user.id)
+              .single();
+            
+            if (profile?.business_id) {
+              businessId = profile.business_id;
+            }
+          }
+        }
+
+        if (!businessId) {
+          logStep("No business found for customer email", { email: customerEmail });
+          break;
+        }
+
+        // Get subscription tier from price
+        const priceId = subscription.items.data[0]?.price?.id;
+        const productId = subscription.items.data[0]?.price?.product as string;
+        
+        // Determine tier based on product (all new signups get "standard")
+        const planTier = "standard";
+        
+        // Calculate subscription end
+        const subscriptionEnd = subscription.current_period_end 
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : null;
+
+        // Upsert business subscription
+        const { error: upsertError } = await supabaseClient
+          .from("business_subscriptions")
+          .upsert({
+            business_id: businessId,
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscription.id,
+            status: subscription.status === "active" || subscription.status === "trialing" ? "active" : subscription.status,
+            plan_tier: planTier,
+            employee_limit: 999, // Unlimited for standard tier
+            current_period_end: subscriptionEnd,
+            updated_at: new Date().toISOString(),
+          }, { onConflict: "business_id" });
+
+        if (upsertError) {
+          logStep("Error upserting subscription", { error: upsertError.message });
+        } else {
+          logStep("Subscription updated successfully", { businessId, status: subscription.status });
+        }
+        break;
+      }
+
+      case "customer.subscription.deleted": {
+        const subscription = event.data.object as Stripe.Subscription;
+        const customerId = subscription.customer as string;
+        
+        logStep("Processing subscription deletion", { subscriptionId: subscription.id, customerId });
+
+        // Update subscription status to canceled
+        const { error: updateError } = await supabaseClient
+          .from("business_subscriptions")
+          .update({ 
+            status: "canceled",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_subscription_id", subscription.id);
+
+        if (updateError) {
+          logStep("Error updating canceled subscription", { error: updateError.message });
+        } else {
+          logStep("Subscription marked as canceled");
+        }
+        break;
+      }
+
+      case "invoice.payment_succeeded": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoice.subscription as string;
+        
+        if (!subscriptionId) break;
+        
+        logStep("Payment succeeded", { invoiceId: invoice.id, subscriptionId });
+
+        // Update subscription status to active
+        const { error: updateError } = await supabaseClient
+          .from("business_subscriptions")
+          .update({ 
+            status: "active",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_subscription_id", subscriptionId);
+
+        if (updateError) {
+          logStep("Error updating subscription after payment", { error: updateError.message });
+        }
+        break;
+      }
+
+      case "invoice.payment_failed": {
+        const invoice = event.data.object as Stripe.Invoice;
+        const subscriptionId = invoice.subscription as string;
+        
+        if (!subscriptionId) break;
+        
+        logStep("Payment failed", { invoiceId: invoice.id, subscriptionId });
+
+        // Update subscription status to past_due
+        const { error: updateError } = await supabaseClient
+          .from("business_subscriptions")
+          .update({ 
+            status: "past_due",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("stripe_subscription_id", subscriptionId);
+
+        if (updateError) {
+          logStep("Error updating subscription after failed payment", { error: updateError.message });
+        }
+        break;
+      }
+
+      default:
+        logStep("Unhandled event type", { type: event.type });
+    }
+
+    return new Response(JSON.stringify({ received: true }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    logStep("ERROR in stripe-webhook", { message: errorMessage });
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 500,
+    });
+  }
+});
