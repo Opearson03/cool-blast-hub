@@ -1902,6 +1902,7 @@ export type Database = {
       }
       waiting_list: {
         Row: {
+          bonus_estimates: number | null
           business_name: string | null
           created_at: string | null
           email: string
@@ -1910,8 +1911,10 @@ export type Database = {
           referral_code: string | null
           referral_count: number | null
           referred_by: string | null
+          vip_status: boolean | null
         }
         Insert: {
+          bonus_estimates?: number | null
           business_name?: string | null
           created_at?: string | null
           email: string
@@ -1920,8 +1923,10 @@ export type Database = {
           referral_code?: string | null
           referral_count?: number | null
           referred_by?: string | null
+          vip_status?: boolean | null
         }
         Update: {
+          bonus_estimates?: number | null
           business_name?: string | null
           created_at?: string | null
           email?: string
@@ -1930,6 +1935,7 @@ export type Database = {
           referral_code?: string | null
           referral_count?: number | null
           referred_by?: string | null
+          vip_status?: boolean | null
         }
         Relationships: [
           {
@@ -1946,6 +1952,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calculate_queue_position: { Args: { _user_id: string }; Returns: number }
       check_employee_limit: { Args: { _business_id: string }; Returns: Json }
       check_invite_email: { Args: { _email: string }; Returns: boolean }
       get_referrer_by_code: { Args: { code: string }; Returns: string }
@@ -2009,6 +2016,7 @@ export type Database = {
           id: string
         }[]
       }
+      get_waitlist_status: { Args: { _user_id: string }; Returns: Json }
       has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
         Args: {
