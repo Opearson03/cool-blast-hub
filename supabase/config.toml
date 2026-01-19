@@ -1,49 +1,108 @@
 project_id = "fhwqsocjvpbghptvzekk"
 
-[functions.create-checkout]
-verify_jwt = false
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
 
-[functions.check-subscription]
-verify_jwt = false
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
 
-[functions.customer-portal]
-verify_jwt = false
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
 
-[functions.verify-checkout]
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["https://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = false
+
+[functions.accept-invite]
 verify_jwt = false
 
 [functions.auto-clock-out]
 verify_jwt = false
 
-[functions.verify-invite]
+[functions.check-employee-limit]
 verify_jwt = false
 
-[functions.send-invite-email]
+[functions.check-estimate-quota]
+verify_jwt = false
+
+[functions.check-subscription]
+verify_jwt = false
+
+[functions.create-checkout]
+verify_jwt = false
+
+[functions.create-demo-account]
+verify_jwt = false
+
+[functions.customer-portal]
 verify_jwt = false
 
 [functions.delete-employee]
 verify_jwt = false
 
-[functions.accept-invite]
+[functions.detect-plan-scale]
 verify_jwt = false
 
-[functions.send-push-notification]
-verify_jwt = true
+[functions.scan-test-document]
+verify_jwt = false
 
-[functions.send-password-reset]
+[functions.seed-staff-users]
+verify_jwt = false
+
+[functions.seed-test-users]
 verify_jwt = false
 
 [functions.send-estimate-email]
 verify_jwt = false
 
-[functions.get-visitor-analytics]
-verify_jwt = true
+[functions.send-feedback]
+verify_jwt = false
 
-[functions.send-waitlist-welcome]
+[functions.send-invite-email]
+verify_jwt = false
+
+[functions.send-password-reset]
+verify_jwt = false
+
+[functions.send-push-notification]
 verify_jwt = false
 
 [functions.send-referral-invite]
 verify_jwt = false
 
+[functions.send-site-visit-email]
+verify_jwt = false
+
+[functions.send-waitlist-welcome]
+verify_jwt = false
+
 [functions.notify-referral-success]
+verify_jwt = false
+
+[functions.send-position-update]
+verify_jwt = false
+
+[functions.update-demo-passwords]
+verify_jwt = false
+
+[functions.verify-checkout]
+verify_jwt = false
+
+[functions.verify-invite]
 verify_jwt = false

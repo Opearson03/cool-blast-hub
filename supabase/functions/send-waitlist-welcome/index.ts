@@ -96,8 +96,11 @@ const handler = async (req: Request): Promise<Response> => {
                         <div style="background-color: #333333; border-radius: 6px; padding: 12px; text-align: center;">
                           <a href="${referralLink}" style="color: #F97316; font-size: 14px; text-decoration: none; word-break: break-all;">${referralLink}</a>
                         </div>
+                        
+                        <div style="margin-top: 20px; text-align: center;">
+                          <a href="https://cool-blast-hub.lovable.app/waitlist-status" style="display: inline-block; background-color: #F97316; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 14px;">Check Your Status →</a>
+                        </div>
                       </div>
-                      
                       <p style="margin: 30px 0 0 0; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
                         We'll let you know as soon as PourHub is ready for you.
                       </p>
