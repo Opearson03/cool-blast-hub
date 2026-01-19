@@ -1374,7 +1374,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[95vh] overflow-hidden flex flex-col">
+      <DialogContent className={cn(
+        "max-h-[95vh] overflow-hidden flex flex-col",
+        currentStep === "takeoff" ? "max-w-[95vw] w-full" : "max-w-4xl"
+      )}>
         <DialogHeader className="pb-2">
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="w-5 h-5" />
