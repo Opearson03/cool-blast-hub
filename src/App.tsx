@@ -13,6 +13,7 @@ import SignupSuccess from "./pages/SignupSuccess";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import TermsConditions from "./pages/TermsConditions";
 import ResetPassword from "./pages/ResetPassword";
+import WaitlistStatus from "./pages/WaitlistStatus";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminJobs from "./pages/admin/AdminJobs";
 import AdminJobDetail from "./pages/admin/AdminJobDetail";
@@ -64,6 +65,7 @@ const AppContent = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/privacy" element={<PrivacyPolicy />} />
       <Route path="/terms" element={<TermsConditions />} />
+      <Route path="/waitlist-status" element={<WaitlistStatus />} />
       
       {/* Admin Routes */}
       <Route path="/admin" element={<ProtectedRoute allowedRole="admin"><AdminDashboard /></ProtectedRoute>} />

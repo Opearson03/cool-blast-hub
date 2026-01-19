@@ -1906,8 +1906,12 @@ export type Database = {
           business_name: string | null
           created_at: string | null
           email: string
+          founder_reward: string | null
+          founder_status: boolean | null
           full_name: string | null
           id: string
+          last_position_email_at: string | null
+          last_position_notified: number | null
           referral_code: string | null
           referral_count: number | null
           referred_by: string | null
@@ -1918,8 +1922,12 @@ export type Database = {
           business_name?: string | null
           created_at?: string | null
           email: string
+          founder_reward?: string | null
+          founder_status?: boolean | null
           full_name?: string | null
           id?: string
+          last_position_email_at?: string | null
+          last_position_notified?: number | null
           referral_code?: string | null
           referral_count?: number | null
           referred_by?: string | null
@@ -1930,8 +1938,12 @@ export type Database = {
           business_name?: string | null
           created_at?: string | null
           email?: string
+          founder_reward?: string | null
+          founder_status?: boolean | null
           full_name?: string | null
           id?: string
+          last_position_email_at?: string | null
+          last_position_notified?: number | null
           referral_code?: string | null
           referral_count?: number | null
           referred_by?: string | null
@@ -2016,6 +2028,7 @@ export type Database = {
           id: string
         }[]
       }
+      get_waitlist_by_email: { Args: { _email: string }; Returns: Json }
       get_waitlist_status: { Args: { _user_id: string }; Returns: Json }
       has_active_subscription: { Args: { _user_id: string }; Returns: boolean }
       has_role: {
