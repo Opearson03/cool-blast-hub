@@ -11,6 +11,7 @@ import {
   FootingConfig,
   BeamConfig,
   DemolitionArea,
+  LinearSection,
   CostLineItem,
   createPriceMap,
 } from "@/lib/estimate-components/types";
@@ -22,6 +23,7 @@ import { ExclusionsSummary } from "./ExclusionsSummary";
 import { MultiAreaInput } from "./MultiAreaInput";
 import { MultiPierInput } from "./MultiPierInput";
 import { MultiFootingInput } from "./MultiFootingInput";
+import { MultiLinearInput } from "./MultiLinearInput";
 import { MultiBeamInput } from "./MultiBeamInput";
 import { MultiDemolitionInput } from "./MultiDemolitionInput";
 import { Button } from "@/components/ui/button";
@@ -93,6 +95,10 @@ export function ModularCalculator({
     
     if (scope.supportsMultipleFootings && !initialScopeAnswers.footings) {
       defaults.footings = [{ id: 'footing-1', name: 'Footing 1', length: 0, width: 450, depth: 300 }];
+    }
+    
+    if (scope.supportsLinearSections && !initialScopeAnswers.linearSections) {
+      defaults.linearSections = [{ id: 'section-1', name: 'Section 1', length: 0, dimension1: 450, dimension2: 300 }];
     }
     
     if (scope.supportsMultipleBeams && !initialScopeAnswers.beams) {
@@ -583,6 +589,62 @@ export function ModularCalculator({
     }));
   };
 
+  // Handler for linear section changes
+  const handleLinearSectionsChange = (sections: LinearSection[]) => {
+    // Calculate totals from section configs
+    const totalLength = sections.reduce((sum, section) => {
+      const length = section._actualLength && section._actualLength > 0 
+        ? section._actualLength 
+        : (Number(section.length) || 0);
+      return sum + length;
+    }, 0);
+    
+    // Calculate weighted averages for dimensions
+    let weightedDim1 = 0;
+    let weightedDim2 = 0;
+    if (totalLength > 0) {
+      sections.forEach(section => {
+        const length = section._actualLength && section._actualLength > 0 
+          ? section._actualLength 
+          : (Number(section.length) || 0);
+        weightedDim1 += length * (Number(section.dimension1) || 0);
+        weightedDim2 += length * (Number(section.dimension2) || 0);
+      });
+      weightedDim1 = weightedDim1 / totalLength;
+      weightedDim2 = weightedDim2 / totalLength;
+    }
+    
+    // Calculate surface area (length × dimension2 for walls/kerbs)
+    const totalSurfaceArea = sections.reduce((sum, section) => {
+      const length = section._actualLength && section._actualLength > 0 
+        ? section._actualLength 
+        : (Number(section.length) || 0);
+      const dim2M = (Number(section.dimension2) || 0) / 1000;
+      return sum + length * dim2M;
+    }, 0);
+    
+    setScopeAnswers((prev) => ({
+      ...prev,
+      linearSections: sections,
+      // Map to legacy footing fields for backwards compatibility with scope calculations
+      footings: sections.map(s => ({
+        id: s.id,
+        name: s.name,
+        length: s._actualLength && s._actualLength > 0 ? s._actualLength : s.length,
+        width: s.dimension1,
+        depth: s.dimension2,
+        _fromTakeoff: s._fromTakeoff,
+        _actualLength: s._actualLength,
+      })),
+      total_length: totalLength,
+      width: weightedDim1,
+      depth: weightedDim2,
+      wall_thickness: weightedDim1,
+      wall_height: weightedDim2,
+      total_surface_area: totalSurfaceArea,
+    }));
+  };
+
   const handleModuleAnswerChange = (moduleId: string, questionId: string, value: any, isUserInput = true) => {
     // When user manually changes a derived field, mark it as overridden
     const module = modules.find((m) => m.id === moduleId);
@@ -693,6 +755,21 @@ export function ModularCalculator({
         />
       )}
 
+      {/* Multi-linear input for linear scopes (walls, kerbs, strip footings) */}
+      {scope.supportsLinearSections && (
+        <MultiLinearInput
+          scopeId={scope.id}
+          label={scope.linearSectionsLabel}
+          sections={scopeAnswers.linearSections || [{ id: 'section-1', name: 'Section 1', length: 0, dimension1: 450, dimension2: 300 }]}
+          onChange={handleLinearSectionsChange}
+          // Markup prompt support
+          onRequestMarkup={onRequestMarkup}
+          hasPlans={hasPlans}
+          skipMarkupPrompt={skipMarkupPrompt}
+          onSkipMarkupPromptChange={onSkipMarkupPromptChange}
+        />
+      )}
+
       {/* From Plan indicator for takeoff-derived measurements */}
       {scopeAnswers._fromTakeoff && (
         <Badge variant="secondary" className="gap-1.5 bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-800">
@@ -715,6 +792,8 @@ export function ModularCalculator({
           if (scope.supportsMultiplePiers && ['num_piers', 'diameter', 'depth'].includes(q.id)) return false;
           // Hide footing fields for multi-footing scopes
           if (scope.supportsMultipleFootings && ['total_length', 'width', 'depth', 'footing_width', 'footing_depth'].includes(q.id)) return false;
+          // Hide linear section fields for linear scopes
+          if (scope.supportsLinearSections && ['total_length', 'width', 'depth', 'wall_thickness', 'wall_height'].includes(q.id)) return false;
           return true;
         });
 

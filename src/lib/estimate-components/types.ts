@@ -161,6 +161,21 @@ export interface FootingConfig {
 }
 
 /**
+ * Individual linear section configuration for linear scopes (walls, kerbs, strip footings)
+ */
+export interface LinearSection {
+  id: string;
+  name: string;
+  length: number;      // meters
+  dimension1: number;  // mm (width or thickness, depending on scope)
+  dimension2: number;  // mm (depth or height, depending on scope)
+  /** If true, this section was imported from plan takeoff */
+  _fromTakeoff?: boolean;
+  /** Actual measured length from takeoff (more accurate) */
+  _actualLength?: number;
+}
+
+/**
  * Individual beam configuration for multi-beam scopes (raft slabs)
  */
 export interface BeamConfig {
@@ -220,6 +235,12 @@ export interface ScopeDefinition {
   
   /** Label for the footings section (e.g., "Footing Sections") */
   footingsLabel?: string;
+  
+  /** If true, allows multiple linear section configurations (walls, kerbs, strip footings) */
+  supportsLinearSections?: boolean;
+  
+  /** Label for the linear sections (e.g., "Wall Sections") */
+  linearSectionsLabel?: string;
   
   /** If true, allows multiple internal beam configurations within this scope */
   supportsMultipleBeams?: boolean;

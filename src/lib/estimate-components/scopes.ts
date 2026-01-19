@@ -694,8 +694,8 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
   name: 'Strip Footings',
   description: 'Strip footing foundations',
   icon: 'minus',
-  supportsMultipleFootings: true,
-  footingsLabel: 'Footing Sections',
+  supportsLinearSections: true,
+  linearSectionsLabel: 'Footing Sections',
   questions: [
     // These questions are derived from the multi-footing input
     {
@@ -767,8 +767,8 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
   name: 'Retaining Wall Footings',
   description: 'Retaining wall footing foundations',
   icon: 'brick-wall',
-  supportsMultipleFootings: true,
-  footingsLabel: 'Footing Sections',
+  supportsLinearSections: true,
+  linearSectionsLabel: 'Footing Sections',
   questions: [
     // These questions are derived from the multi-footing input
     {
@@ -1184,8 +1184,8 @@ export const KERBS_CHANNELS_SCOPE: ScopeDefinition = {
   name: 'Kerbs & Channels',
   description: 'Concrete kerbing and drainage channels',
   icon: 'minus',
-  supportsMultipleFootings: true,
-  footingsLabel: 'Kerb Sections',
+  supportsLinearSections: true,
+  linearSectionsLabel: 'Kerb Sections',
   questions: [
     {
       id: 'total_length',
@@ -1405,8 +1405,8 @@ export const RETAINING_WALLS_SCOPE: ScopeDefinition = {
   name: 'Retaining Walls',
   description: 'Full retaining wall construction',
   icon: 'layers',
-  supportsMultipleFootings: true,
-  footingsLabel: 'Wall Sections',
+  supportsLinearSections: true,
+  linearSectionsLabel: 'Wall Sections',
   questions: [
     {
       id: 'total_length',
