@@ -11,6 +11,7 @@ import Logo from "@/components/ui/Logo";
 import { WaitlistTable } from "@/components/staff/WaitlistTable";
 import { SubscriptionMetrics } from "@/components/staff/SubscriptionMetrics";
 import { SignupTrends } from "@/components/staff/SignupTrends";
+import { SubscribersTable } from "@/components/staff/SubscribersTable";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -197,8 +198,9 @@ export default function StaffDashboard() {
             <WaitlistTable />
           </TabsContent>
 
-          <TabsContent value="subscriptions">
+          <TabsContent value="subscriptions" className="space-y-4">
             <SubscriptionMetrics stats={stats} isLoading={statsLoading} fullWidth />
+            <SubscribersTable />
           </TabsContent>
         </Tabs>
       </main>
