@@ -1506,32 +1506,15 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                   )}
                 </div>
 
-                <div className="grid sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="site_visit_date">Site Visit Date</Label>
-                    <Input
-                      id="site_visit_date"
-                      name="site_visit_date"
-                      type="date"
-                      value={formData.site_visit_date}
-                      onChange={handleChange}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="valid_until">Quote Valid Until</Label>
-                    <Input
-                      id="valid_until"
-                      name="valid_until"
-                      type="date"
-                      value={formData.valid_until}
-                      onChange={handleChange}
-                      className={formErrors.valid_until ? "border-destructive" : ""}
-                      min={new Date().toISOString().split('T')[0]}
-                    />
-                    {formErrors.valid_until && (
-                      <p className="text-xs text-destructive">{formErrors.valid_until}</p>
-                    )}
-                  </div>
+                <div className="space-y-2">
+                  <Label htmlFor="site_visit_date">Site Visit Date</Label>
+                  <Input
+                    id="site_visit_date"
+                    name="site_visit_date"
+                    type="date"
+                    value={formData.site_visit_date}
+                    onChange={handleChange}
+                  />
                 </div>
               </div>
 
