@@ -57,10 +57,17 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     
     setIsLoading(true);
     try {
-      // Fetch takeoff
+      // Optimized: Single query with joins to fetch all related data
       const { data: takeoffData, error: takeoffError } = await supabase
         .from('estimate_takeoffs')
-        .select('*')
+        .select(`
+          *,
+          takeoff_files (
+            *,
+            takeoff_page_scales (*)
+          ),
+          takeoff_markups (*)
+        `)
         .eq('estimate_id', estimateId)
         .maybeSingle();
       
@@ -69,19 +76,20 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       if (takeoffData) {
         setTakeoff(takeoffData as unknown as EstimateTakeoff);
         
-        // Fetch files
-        const { data: filesData, error: filesError } = await supabase
-          .from('takeoff_files')
-          .select('*')
-          .eq('takeoff_id', takeoffData.id)
-          .order('sort_order', { ascending: true });
+        // Extract files from joined data
+        const typedFiles = ((takeoffData as any).takeoff_files || [])
+          .map((f: any) => ({
+            id: f.id,
+            takeoff_id: f.takeoff_id,
+            file_url: f.file_url,
+            file_type: f.file_type as 'pdf' | 'image',
+            file_name: f.file_name,
+            page_count: f.page_count,
+            sort_order: f.sort_order,
+            created_at: f.created_at,
+          }))
+          .sort((a: TakeoffFile, b: TakeoffFile) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
         
-        if (filesError) throw filesError;
-        
-        const typedFiles = (filesData || []).map(f => ({
-          ...f,
-          file_type: f.file_type as 'pdf' | 'image'
-        }));
         setFiles(typedFiles);
         
         // Set current file to first if not set
@@ -89,28 +97,17 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           setCurrentFileId(typedFiles[0].id);
         }
         
-        // Fetch page scales for all files
-        if (typedFiles.length > 0) {
-          const fileIds = typedFiles.map(f => f.id);
-          const { data: scalesData, error: scalesError } = await supabase
-            .from('takeoff_page_scales')
-            .select('*')
-            .in('file_id', fileIds);
-          
-          if (scalesError) throw scalesError;
-          setPageScales((scalesData || []) as PageScale[]);
+        // Extract page scales from joined data
+        const allScales: PageScale[] = [];
+        for (const file of (takeoffData as any).takeoff_files || []) {
+          for (const scale of file.takeoff_page_scales || []) {
+            allScales.push(scale as PageScale);
+          }
         }
+        setPageScales(allScales);
         
-        // Fetch markups
-        const { data: markupsData, error: markupsError } = await supabase
-          .from('takeoff_markups')
-          .select('*')
-          .eq('takeoff_id', takeoffData.id)
-          .order('created_at', { ascending: true });
-        
-        if (markupsError) throw markupsError;
-        
-        setMarkups((markupsData || []).map(m => ({
+        // Extract markups from joined data
+        setMarkups(((takeoffData as any).takeoff_markups || []).map((m: any) => ({
           ...m,
           name: m.name || null,
           file_id: m.file_id || null,
@@ -516,11 +513,11 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           scope_id: scopeId,
           shape_type: shapeType,
           points: points as unknown as Json,
+          color,
           area_sqm: area,
           perimeter_m: perimeter,
-          color: color,
-          name: name || null,
-          page_number: pageNumber
+          page_number: pageNumber,
+          name: name || null
         })
         .select()
         .single();
@@ -531,23 +528,25 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         ...data,
         name: data.name || null,
         file_id: data.file_id || null,
-        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point',
+        shape_type: data.shape_type as 'polygon' | 'rectangle',
         points: data.points as unknown as TakeoffPoint[],
         diameter_mm: null,
         depth_mm: null,
         pier_quantity: null,
+        width_mm: null,
+        height_mm: null,
+        length_m: null,
       };
 
       setMarkups(prev => [...prev, newMarkup]);
       return newMarkup;
     } catch (error: any) {
       console.error('Error adding markup:', error);
-      toast({ title: 'Error adding markup', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to add markup', description: error.message, variant: 'destructive' });
       return null;
     }
   };
 
-  // Add pier markups (point-based with diameter/depth)
   const addPierMarkups = async (
     fileId: string,
     scopeId: string,
@@ -557,7 +556,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     color: string,
     pageNumber: number
   ): Promise<TakeoffMarkup | null> => {
-    if (!takeoff || points.length === 0) return null;
+    if (!takeoff) return null;
 
     try {
       const { data, error } = await supabase
@@ -568,10 +567,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           scope_id: scopeId,
           shape_type: 'point',
           points: points as unknown as Json,
-          area_sqm: null,
-          perimeter_m: null,
-          color: color,
-          name: `${points.length} piers`,
+          color,
           page_number: pageNumber,
           diameter_mm: diameterMm,
           depth_mm: depthMm,
@@ -584,26 +580,27 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       const newMarkup: TakeoffMarkup = {
         ...data,
-        name: data.name || null,
+        name: null,
         file_id: data.file_id || null,
-        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point',
+        shape_type: 'point',
         points: data.points as unknown as TakeoffPoint[],
         diameter_mm: data.diameter_mm,
         depth_mm: data.depth_mm,
         pier_quantity: data.pier_quantity,
+        width_mm: null,
+        height_mm: null,
+        length_m: null,
       };
 
       setMarkups(prev => [...prev, newMarkup]);
-      toast({ title: 'Piers saved', description: `${points.length} pier locations saved` });
       return newMarkup;
     } catch (error: any) {
       console.error('Error adding pier markups:', error);
-      toast({ title: 'Error adding piers', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to add pier markups', description: error.message, variant: 'destructive' });
       return null;
     }
   };
 
-  // Add bollard markups (point-based with diameter/height/embedment)
   const addBollardMarkups = async (
     fileId: string,
     scopeId: string,
@@ -614,7 +611,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     color: string,
     pageNumber: number
   ): Promise<TakeoffMarkup | null> => {
-    if (!takeoff || points.length === 0) return null;
+    if (!takeoff) return null;
 
     try {
       const { data, error } = await supabase
@@ -625,14 +622,11 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           scope_id: scopeId,
           shape_type: 'point',
           points: points as unknown as Json,
-          area_sqm: null,
-          perimeter_m: null,
-          color: color,
-          name: `${points.length} bollards`,
+          color,
           page_number: pageNumber,
           diameter_mm: diameterMm,
-          depth_mm: embedmentMm,
           height_mm: heightMm,
+          depth_mm: embedmentMm,
           pier_quantity: points.length
         })
         .select()
@@ -642,29 +636,27 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       const newMarkup: TakeoffMarkup = {
         ...data,
-        name: data.name || null,
+        name: null,
         file_id: data.file_id || null,
-        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point' | 'polyline',
+        shape_type: 'point',
         points: data.points as unknown as TakeoffPoint[],
         diameter_mm: data.diameter_mm,
         depth_mm: data.depth_mm,
-        height_mm: data.height_mm,
         pier_quantity: data.pier_quantity,
         width_mm: null,
+        height_mm: data.height_mm,
         length_m: null,
       };
 
       setMarkups(prev => [...prev, newMarkup]);
-      toast({ title: 'Bollards saved', description: `${points.length} bollard locations saved` });
       return newMarkup;
     } catch (error: any) {
       console.error('Error adding bollard markups:', error);
-      toast({ title: 'Error adding bollards', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to add bollard markups', description: error.message, variant: 'destructive' });
       return null;
     }
   };
 
-  // Add pad footing or pit base markups (point-based with L x W x D)
   const addPadMarkups = async (
     fileId: string,
     scopeId: string,
@@ -676,10 +668,13 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     pageNumber: number,
     scopeType: 'pad_footings' | 'pit_bases'
   ): Promise<TakeoffMarkup | null> => {
-    if (!takeoff || points.length === 0) return null;
+    if (!takeoff) return null;
 
     try {
-      const label = scopeType === 'pit_bases' ? 'pit bases' : 'pad footings';
+      // Calculate area from dimensions for pad footings
+      const areaPerPad = (lengthMm / 1000) * (widthMm / 1000);
+      const totalArea = areaPerPad * points.length;
+
       const { data, error } = await supabase
         .from('takeoff_markups')
         .insert({
@@ -688,15 +683,13 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           scope_id: scopeId,
           shape_type: 'point',
           points: points as unknown as Json,
-          area_sqm: null,
-          perimeter_m: null,
-          color: color,
-          name: `${points.length} ${label}`,
+          color,
           page_number: pageNumber,
           width_mm: widthMm,
-          height_mm: lengthMm, // Store length in height_mm (reuse field)
           depth_mm: depthMm,
-          pier_quantity: points.length
+          height_mm: lengthMm, // Using height_mm to store length for pads
+          pier_quantity: points.length,
+          area_sqm: totalArea
         })
         .select()
         .single();
@@ -705,29 +698,27 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       const newMarkup: TakeoffMarkup = {
         ...data,
-        name: data.name || null,
+        name: null,
         file_id: data.file_id || null,
-        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point' | 'polyline',
+        shape_type: 'point',
         points: data.points as unknown as TakeoffPoint[],
-        width_mm: data.width_mm,
-        height_mm: data.height_mm,
+        diameter_mm: null,
         depth_mm: data.depth_mm,
         pier_quantity: data.pier_quantity,
-        diameter_mm: null,
+        width_mm: data.width_mm,
+        height_mm: data.height_mm,
         length_m: null,
       };
 
       setMarkups(prev => [...prev, newMarkup]);
-      toast({ title: `${scopeType === 'pit_bases' ? 'Pit bases' : 'Pad footings'} saved`, description: `${points.length} locations saved` });
       return newMarkup;
     } catch (error: any) {
       console.error('Error adding pad markups:', error);
-      toast({ title: 'Error adding markups', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to add pad markups', description: error.message, variant: 'destructive' });
       return null;
     }
   };
 
-  // Add polyline markup for linear elements (footings, kerbs, retaining walls)
   const addPolylineMarkup = async (
     fileId: string,
     scopeId: string,
@@ -739,7 +730,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     pageNumber: number,
     name?: string
   ): Promise<TakeoffMarkup | null> => {
-    if (!takeoff || points.length < 2) return null;
+    if (!takeoff) return null;
 
     try {
       const { data, error } = await supabase
@@ -750,14 +741,12 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           scope_id: scopeId,
           shape_type: 'polyline',
           points: points as unknown as Json,
-          area_sqm: null,
-          perimeter_m: null,
-          color: color,
-          name: name || `${lengthM.toFixed(1)}m`,
+          color,
           page_number: pageNumber,
           length_m: lengthM,
           width_mm: widthMm,
-          height_mm: heightMm
+          height_mm: heightMm,
+          name: name || null
         })
         .select()
         .single();
@@ -768,22 +757,21 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         ...data,
         name: data.name || null,
         file_id: data.file_id || null,
-        shape_type: data.shape_type as 'polygon' | 'rectangle' | 'point' | 'polyline',
+        shape_type: 'polyline',
         points: data.points as unknown as TakeoffPoint[],
-        length_m: data.length_m ? Number(data.length_m) : null,
-        width_mm: data.width_mm,
-        height_mm: data.height_mm,
         diameter_mm: null,
         depth_mm: null,
         pier_quantity: null,
+        width_mm: data.width_mm,
+        height_mm: data.height_mm,
+        length_m: data.length_m ? Number(data.length_m) : null,
       };
 
       setMarkups(prev => [...prev, newMarkup]);
-      toast({ title: 'Linear element saved', description: `${lengthM.toFixed(1)}m marked` });
       return newMarkup;
     } catch (error: any) {
       console.error('Error adding polyline markup:', error);
-      toast({ title: 'Error adding linear element', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to add polyline', description: error.message, variant: 'destructive' });
       return null;
     }
   };
@@ -793,14 +781,11 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       const markup = markups.find(m => m.id === markupId);
       if (!markup) return;
 
-      const scale = markup.file_id 
-        ? getPageScale(markup.file_id, markup.page_number)
-        : null;
+      const scale = markup.file_id ? getPageScale(markup.file_id, markup.page_number || 1) : null;
+      let area: number | null = markup.area_sqm;
+      let perimeter: number | null = markup.perimeter_m;
 
-      let area: number | null = null;
-      let perimeter: number | null = null;
-      
-      if (scale) {
+      if (scale && markup.shape_type !== 'point' && markup.shape_type !== 'polyline') {
         const { calculatePolygonArea, calculatePolygonPerimeter, calculateRectangleArea, calculateRectanglePerimeter } = await import('@/types/takeoff');
         
         if (markup.shape_type === 'polygon') {
@@ -814,17 +799,23 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       const { error } = await supabase
         .from('takeoff_markups')
-        .update({ points: points as unknown as Json, area_sqm: area, perimeter_m: perimeter })
+        .update({
+          points: points as unknown as Json,
+          area_sqm: area,
+          perimeter_m: perimeter
+        })
         .eq('id', markupId);
 
       if (error) throw error;
 
       setMarkups(prev => prev.map(m => 
-        m.id === markupId ? { ...m, points, area_sqm: area, perimeter_m: perimeter } : m
+        m.id === markupId 
+          ? { ...m, points, area_sqm: area, perimeter_m: perimeter }
+          : m
       ));
     } catch (error: any) {
       console.error('Error updating markup:', error);
-      toast({ title: 'Error updating markup', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to update markup', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -840,7 +831,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       setMarkups(prev => prev.filter(m => m.id !== markupId));
     } catch (error: any) {
       console.error('Error deleting markup:', error);
-      toast({ title: 'Error deleting markup', description: error.message, variant: 'destructive' });
+      toast({ title: 'Failed to delete markup', description: error.message, variant: 'destructive' });
     }
   };
 
@@ -848,16 +839,14 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     if (!takeoff) return;
 
     try {
-      const { error } = await supabase
+      await supabase
         .from('estimate_takeoffs')
-        .update({ current_page: page, updated_at: new Date().toISOString() })
+        .update({ current_page: page })
         .eq('id', takeoff.id);
-
-      if (error) throw error;
 
       setTakeoff(prev => prev ? { ...prev, current_page: page } : null);
     } catch (error: any) {
-      console.error('Error setting page:', error);
+      console.error('Error setting current page:', error);
     }
   };
 
@@ -885,6 +874,6 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     updateMarkup,
     deleteMarkup,
     setCurrentPage,
-    refetch: fetchTakeoffData
+    refetch: fetchTakeoffData,
   };
 }

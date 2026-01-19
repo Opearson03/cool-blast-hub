@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BusinessData {
   businessId: string | null;
@@ -12,6 +13,7 @@ interface BusinessData {
 }
 
 export function useBusinessData() {
+  const { businessId } = useAuth();
   const [data, setData] = useState<BusinessData>({
     businessId: null,
     todayPoursCount: 0,
@@ -24,76 +26,44 @@ export function useBusinessData() {
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!businessId) {
+        setData(prev => ({ ...prev, isLoading: false }));
+        return;
+      }
+
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        // Use single RPC call for all dashboard stats
+        const { data: stats, error } = await supabase.rpc("get_dashboard_stats", {
+          p_business_id: businessId,
+        });
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("business_id")
-          .eq("id", user.id)
-          .maybeSingle();
+        if (error) throw error;
 
-        if (!profile?.business_id) return;
-
-        const businessId = profile.business_id;
-        const today = new Date().toISOString().split("T")[0];
-        const weekEnd = new Date();
-        weekEnd.setDate(weekEnd.getDate() + 7);
-        const weekEndStr = weekEnd.toISOString().split("T")[0];
-
-        // Fetch today's pours
-        const { count: todayCount } = await supabase
-          .from("job_pours")
-          .select("id, jobs!inner(business_id)", { count: "exact", head: true })
-          .eq("jobs.business_id", businessId)
-          .eq("pour_date", today);
-
-        // Fetch this week's pours
-        const { count: weekCount } = await supabase
-          .from("job_pours")
-          .select("id, jobs!inner(business_id)", { count: "exact", head: true })
-          .eq("jobs.business_id", businessId)
-          .gte("pour_date", today)
-          .lte("pour_date", weekEndStr);
-
-        // Fetch active crews
-        const { count: crewsCount } = await supabase
-          .from("crews")
-          .select("id", { count: "exact", head: true })
-          .eq("business_id", businessId);
-
-        // Fetch pending leave requests
-        const { count: leaveCount } = await supabase
-          .from("leave_requests")
-          .select("id", { count: "exact", head: true })
-          .eq("business_id", businessId)
-          .eq("status", "pending");
-
-        // Count alerts (pending ITPs, unsigned SWMS, etc.)
-        const { count: pendingItpCount } = await supabase
-          .from("job_itps")
-          .select("id, jobs!inner(business_id)", { count: "exact", head: true })
-          .eq("jobs.business_id", businessId)
-          .eq("status", "pending");
+        const parsedStats = stats as {
+          today_pours: number;
+          week_pours: number;
+          active_crews: number;
+          pending_leave: number;
+          pending_itps: number;
+        };
 
         setData({
           businessId,
-          todayPoursCount: todayCount || 0,
-          weekPoursCount: weekCount || 0,
-          activeCrewsCount: crewsCount || 0,
-          pendingLeaveCount: leaveCount || 0,
-          alertsCount: (pendingItpCount || 0) + (leaveCount || 0),
+          todayPoursCount: parsedStats.today_pours || 0,
+          weekPoursCount: parsedStats.week_pours || 0,
+          activeCrewsCount: parsedStats.active_crews || 0,
+          pendingLeaveCount: parsedStats.pending_leave || 0,
+          alertsCount: (parsedStats.pending_itps || 0) + (parsedStats.pending_leave || 0),
           isLoading: false,
         });
       } catch (error) {
         console.error("Error fetching business data:", error);
-        setData(prev => ({ ...prev, isLoading: false }));
+        setData(prev => ({ ...prev, businessId, isLoading: false }));
       }
     };
 
     fetchData();
-  }, []);
+  }, [businessId]);
 
   return data;
 }
