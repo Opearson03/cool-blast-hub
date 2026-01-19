@@ -24,6 +24,11 @@ concrete,20MPA,20 Mpa Readymix Concrete,/m3,220.00
 concrete,25MPA,25 Mpa Readymix Concrete,/m3,235.00
 concrete,32MPA,32 Mpa Readymix Concrete,/m3,245.00
 concrete,40MPA,40 Mpa Readymix Concrete,/m3,265.00
+concrete,25MPA EXP,25 Mpa Exposed Aggregate Mix,/m3,290.00
+concrete,32MPA EXP,32 Mpa Exposed Aggregate Mix,/m3,310.00
+concrete,25MPA COL,25 Mpa Colour Mix,/m3,280.00
+concrete,32MPA COL,32 Mpa Colour Mix,/m3,300.00
+concrete,40MPA COL,40 Mpa Colour Mix,/m3,320.00
 concrete,WAITING,Concrete Supply Waiting Time Charge,/min,4.00
 concrete,TESTING,Concrete Testing Per 50m3,/item,850.00
 pumping,LINE PUMP,Line Pump,/h,180.00

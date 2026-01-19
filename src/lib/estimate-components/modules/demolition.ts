@@ -70,6 +70,67 @@ export const demolitionModule: EstimateModule = {
       unit: '/day',
       showIf: () => false, // Hidden - managed by custom component
     },
+    // ============ SAW CUTTING SECTION ============
+    {
+      id: 'saw_cutting_required',
+      type: 'boolean',
+      label: 'Is saw cutting required?',
+      defaultValue: false,
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'saw_cutting_length',
+      type: 'number',
+      label: 'Saw Cutting Length',
+      unit: 'm',
+      min: 0,
+      defaultValue: 0,
+      helpText: 'Linear metres of saw cutting required',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'saw_cutting_rate',
+      type: 'currency',
+      label: 'Saw Cutting Rate',
+      defaultValue: 6.50,
+      priceListKey: 'joint_saw_cutting.JOINTCUT',
+      unit: '/m',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    // ============ LABOUR HOURS SECTION ============
+    {
+      id: 'demo_labour_required',
+      type: 'boolean',
+      label: 'Include demolition labour hours?',
+      defaultValue: false,
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'demo_crew_size',
+      type: 'number',
+      label: 'Number of Labourers',
+      min: 1,
+      defaultValue: 2,
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'demo_hours',
+      type: 'number',
+      label: 'Demolition Hours',
+      min: 0.5,
+      step: 0.5,
+      defaultValue: 4,
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'demo_labour_rate',
+      type: 'currency',
+      label: 'Labour Rate',
+      defaultValue: 75,
+      priceListKey: 'labour.LABOUR HR',
+      unit: '/hr',
+      showIf: () => false, // Hidden - managed by custom component
+    },
     // Calculated display fields
     {
       id: 'total_volume_display',
@@ -184,6 +245,45 @@ export const demolitionModule: EstimateModule = {
       });
     }
 
+    // Line 4: Saw Cutting (if required)
+    if (answers.saw_cutting_required) {
+      const sawCuttingLength = Number(answers.saw_cutting_length) || 0;
+      const sawCuttingRate = Number(answers.saw_cutting_rate) || getPrice(priceMap, 'joint_saw_cutting', 'JOINTCUT', 6.50);
+      
+      if (sawCuttingLength > 0) {
+        const sawCuttingTotal = sawCuttingLength * sawCuttingRate;
+        lineItems.push({
+          id: 'saw_cutting',
+          description: `Saw Cutting (${sawCuttingLength}m @ $${sawCuttingRate}/m)`,
+          quantity: sawCuttingLength,
+          unit: 'm',
+          unitPrice: sawCuttingRate,
+          total: Math.round(sawCuttingTotal * 100) / 100,
+          category: 'subcontractor',
+        });
+      }
+    }
+
+    // Line 5: Demolition Labour Hours (if required)
+    if (answers.demo_labour_required) {
+      const crewSize = Number(answers.demo_crew_size) || 2;
+      const hours = Number(answers.demo_hours) || 4;
+      const labourRate = Number(answers.demo_labour_rate) || getPrice(priceMap, 'labour', 'LABOUR HR', 75);
+      const labourTotal = crewSize * hours * labourRate;
+
+      if (labourTotal > 0) {
+        lineItems.push({
+          id: 'demo_labour',
+          description: `Demolition Labour (${crewSize} men × ${hours} hrs @ $${labourRate}/hr)`,
+          quantity: crewSize * hours,
+          unit: 'hrs',
+          unitPrice: labourRate,
+          total: Math.round(labourTotal * 100) / 100,
+          category: 'labour',
+        });
+      }
+    }
+
     const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
 
     return {
@@ -196,14 +296,25 @@ export const demolitionModule: EstimateModule = {
   },
 
   getExclusions: (answers): ExclusionItem[] => {
+    const exclusions: ExclusionItem[] = [];
+    
     if (!answers.demolition_required) {
-      return [{
+      exclusions.push({
         id: 'no_demolition',
         text: 'Demolition and removal of existing concrete is not included. Site to be cleared by others.',
         moduleId: 'demolition',
-      }];
+      });
     }
-    return [];
+    
+    if (answers.demolition_required && !answers.saw_cutting_required) {
+      exclusions.push({
+        id: 'no_saw_cutting',
+        text: 'Saw cutting of existing concrete is not included.',
+        moduleId: 'demolition',
+      });
+    }
+    
+    return exclusions;
   },
 
   validate: (answers) => {

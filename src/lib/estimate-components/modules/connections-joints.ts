@@ -163,21 +163,21 @@ export const connectionsJointsModule: EstimateModule = {
       showIf: (answers) => answers.foam_required === true,
     },
     {
-      id: 'foam_length',
+      id: 'foam_rolls',
       type: 'number',
-      label: 'Total Length Required',
-      unit: 'm',
+      label: 'Number of Rolls',
       min: 1,
-      helpText: 'Linear metres of expansion foam needed',
+      defaultValue: 1,
+      helpText: 'Each roll = 25 linear metres',
       showIf: (answers) => answers.foam_required === true,
     },
     {
-      id: 'foam_price_per_m',
+      id: 'foam_roll_price',
       type: 'currency',
-      label: 'Price per Metre',
-      defaultValue: 1.20,
-      unit: '/m',
-      helpText: 'Price per metre (roll price ÷ 25m)',
+      label: 'Price per Roll',
+      defaultValue: 30.50,
+      unit: '/roll',
+      helpText: 'Price per 25m roll',
       showIf: (answers) => answers.foam_required === true,
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
         const foamHeight = moduleAnswers.foam_height || '100';
@@ -188,10 +188,20 @@ export const connectionsJointsModule: EstimateModule = {
         } else {
           priceListKey = `EJ10${foamHeight}`;
         }
-        const rollPrice = priceMap?.['joint_foam']?.[priceListKey];
-        // Rolls are 25m long
-        return rollPrice ? rollPrice / 25 : undefined;
+        return priceMap?.['joint_foam']?.[priceListKey];
       },
+    },
+    {
+      id: 'foam_coverage_display',
+      type: 'text',
+      label: 'Total Coverage',
+      derivedReadOnly: true,
+      deriveFrom: (_scopeData, moduleAnswers) => {
+        const rolls = Number(moduleAnswers.foam_rolls) || 1;
+        const totalMetres = rolls * 25;
+        return `${totalMetres}m`;
+      },
+      showIf: (answers) => answers.foam_required === true,
     },
 
     // ============ EXPANSION JOINTS SECTION ============
@@ -362,9 +372,10 @@ export const connectionsJointsModule: EstimateModule = {
 
     // ============ EXPANSION FOAM CALCULATION ============
     if (answers.foam_required) {
-      const foamLength = Number(answers.foam_length) || 10;
+      const foamRolls = Number(answers.foam_rolls) || 1;
       const foamHeight = answers.foam_height || '100';
       const foamType = answers.foam_type || 'sticky_back';
+      const totalCoverage = foamRolls * 25; // 25m per roll
 
       let priceListKey = '';
       if (foamType === 'sticky_back') {
@@ -373,17 +384,18 @@ export const connectionsJointsModule: EstimateModule = {
         priceListKey = `EJ10${foamHeight}`;
       }
 
-      const pricePerM = Number(answers.foam_price_per_m) || getPrice(priceMap, 'joint_foam', priceListKey, 8);
-      const foamCost = foamLength * pricePerM;
+      const pricePerRoll = Number(answers.foam_roll_price) || getPrice(priceMap, 'joint_foam', priceListKey, 30.50);
+      const foamCost = foamRolls * pricePerRoll;
 
       const typeLabel = foamType === 'sticky_back' ? 'Sticky Back' : 'Standard';
+      const rollLabel = foamRolls === 1 ? '1 roll' : `${foamRolls} rolls`;
 
       lineItems.push({
         id: 'expansion_foam',
-        description: `Expansion Foam ${foamHeight}mm × 10mm ${typeLabel} (${foamLength}m)`,
-        quantity: foamLength,
-        unit: 'm',
-        unitPrice: pricePerM,
+        description: `Expansion Foam ${foamHeight}mm × 10mm ${typeLabel} (${rollLabel} × 25m = ${totalCoverage}m)`,
+        quantity: foamRolls,
+        unit: 'rolls',
+        unitPrice: pricePerRoll,
         total: Math.round(foamCost * 100) / 100,
         category: 'materials',
       });
