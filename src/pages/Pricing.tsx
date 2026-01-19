@@ -20,7 +20,7 @@ const Pricing = () => {
         title="PourHub Pricing - Free & Pro Plans | Concreting Software Australia"
         description="Simple pricing for PourHub concreting business management software. Start free with 1 quote/month or go Pro for $100/month with unlimited quotes."
         canonicalPath="/pricing"
-        keywords="concreting software pricing, construction management software cost, ITP SWMS software price"
+        keywords="concreting software pricing, construction management software cost, concrete quoting software"
       />
       <div className="min-h-screen bg-charcoal-dark">
         {/* Header */}
