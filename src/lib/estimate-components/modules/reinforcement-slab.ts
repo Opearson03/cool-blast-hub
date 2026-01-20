@@ -481,6 +481,359 @@ export const reinforcementSlabModule: EstimateModule = {
         return priceMap?.['consumables']?.['TM CHAIRS'];
       },
     },
+    // ============ EDGE BEAM ADDITIONAL REINFORCEMENT ============
+    
+    // Horizontal Reo 1 (Additional Trench Mesh Layer for edge beams)
+    {
+      id: 'edge_add_horizontal_reo_1',
+      type: 'boolean',
+      label: 'Add Horizontal Reo 1 (Trench Mesh)',
+      defaultValue: false,
+      helpText: 'Add an additional layer of trench mesh',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_horizontal_tm_type',
+      type: 'select',
+      label: 'Horizontal TM Type',
+      options: [
+        { value: 'L8TM3', label: 'L8TM3 (8mm × 300mm wide)' },
+        { value: 'L8TM4', label: 'L8TM4 (8mm × 400mm wide)' },
+        { value: 'L11TM3', label: 'L11TM3 (11mm × 300mm wide)' },
+        { value: 'L11TM4', label: 'L11TM4 (11mm × 400mm wide)' },
+        { value: 'L12TM3', label: 'L12TM3 (12mm × 300mm wide)' },
+        { value: 'L12TM4', label: 'L12TM4 (12mm × 400mm wide)' },
+        { value: 'L12TM5', label: 'L12TM5 (12mm × 500mm wide)' },
+        { value: 'L16TM3', label: 'L16TM3 (16mm × 300mm wide)' },
+      ],
+      defaultValue: 'L11TM4',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_1 === true,
+    },
+    {
+      id: 'edge_horizontal_tm_length',
+      type: 'number',
+      label: 'Horizontal TM Length',
+      unit: 'm',
+      min: 1,
+      deriveFrom: (scopeData) => scopeData.perimeter || undefined,
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_1 === true,
+    },
+    {
+      id: 'edge_horizontal_tm_lap',
+      type: 'number',
+      label: 'Lap Allowance',
+      defaultValue: 12.5,
+      min: 0,
+      max: 30,
+      unit: '%',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_1 === true,
+    },
+    {
+      id: 'calculated_edge_horizontal_tm_sheets',
+      type: 'text',
+      label: 'Calculated Sheets',
+      derivedReadOnly: true,
+      deriveFrom: (_scopeData, moduleAnswers) => {
+        const length = Number(moduleAnswers.edge_horizontal_tm_length) || 0;
+        if (length <= 0) return undefined;
+        const lapPercent = Number(moduleAnswers.edge_horizontal_tm_lap) || 12.5;
+        const totalWithLap = length * (1 + lapPercent / 100);
+        const sheets = Math.ceil(totalWithLap / 6);
+        return `${sheets} sheets`;
+      },
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_1 === true,
+    },
+    {
+      id: 'edge_horizontal_tm_price',
+      type: 'currency',
+      label: 'Price per Sheet (6m)',
+      defaultValue: 108,
+      unit: '/sheet',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_1 === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const meshType = moduleAnswers.edge_horizontal_tm_type || 'L11TM4';
+        return priceMap?.['trench_mesh']?.[meshType];
+      },
+    },
+    
+    // Horizontal Reo 2 (Bar Reinforcement for edge beams)
+    {
+      id: 'edge_add_horizontal_reo_2',
+      type: 'boolean',
+      label: 'Add Horizontal Reo 2 (Bars)',
+      defaultValue: false,
+      helpText: 'Add horizontal bar reinforcement (e.g., 2 × N16)',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_horizontal_bar_count',
+      type: 'number',
+      label: 'Number of Bars',
+      defaultValue: 2,
+      min: 1,
+      max: 10,
+      helpText: 'E.g., 2 for "2 × N16"',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_2 === true,
+    },
+    {
+      id: 'edge_horizontal_bar_size',
+      type: 'select',
+      label: 'Bar Size',
+      options: [
+        { value: 'N12', label: 'N12 (12mm)' },
+        { value: 'N16', label: 'N16 (16mm)' },
+        { value: 'N20', label: 'N20 (20mm)' },
+        { value: 'N24', label: 'N24 (24mm)' },
+      ],
+      defaultValue: 'N16',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_2 === true,
+    },
+    {
+      id: 'edge_horizontal_bar_length',
+      type: 'number',
+      label: 'Total Length',
+      unit: 'm',
+      min: 1,
+      deriveFrom: (scopeData) => scopeData.perimeter || undefined,
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_2 === true,
+    },
+    {
+      id: 'edge_horizontal_bar_lap',
+      type: 'number',
+      label: 'Lap Allowance',
+      defaultValue: 12.5,
+      min: 0,
+      max: 30,
+      unit: '%',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_2 === true,
+    },
+    {
+      id: 'edge_horizontal_bar_price',
+      type: 'currency',
+      label: 'Rebar Price per Tonne',
+      defaultValue: 2100,
+      unit: '/tonne',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_horizontal_reo_2 === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const barSize = moduleAnswers.edge_horizontal_bar_size || 'N16';
+        return priceMap?.['rebar']?.[`${barSize} STOCK`];
+      },
+    },
+    
+    // Ligatures for edge beams
+    {
+      id: 'edge_add_ligs',
+      type: 'boolean',
+      label: 'Add Ligatures',
+      defaultValue: false,
+      helpText: 'Add ligature ties around the bars',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_lig_size',
+      type: 'select',
+      label: 'Ligature Size',
+      options: [
+        { value: 'R10', label: 'R10 (10mm)' },
+        { value: 'R12', label: 'R12 (12mm)' },
+      ],
+      defaultValue: 'R10',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_ligs === true,
+    },
+    {
+      id: 'edge_lig_centres',
+      type: 'number',
+      label: 'Ligature Centres',
+      defaultValue: 200,
+      min: 100,
+      max: 600,
+      unit: 'mm',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_ligs === true,
+    },
+    {
+      id: 'calculated_edge_ligs',
+      type: 'text',
+      label: 'Calculated Ligatures',
+      derivedReadOnly: true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const length = Number(moduleAnswers.edge_trench_mesh_length) || Number(scopeData?.perimeter) || 0;
+        if (length <= 0) return undefined;
+        const centres = Number(moduleAnswers.edge_lig_centres) || 200;
+        const centresM = centres / 1000;
+        const ligCount = Math.ceil(length / centresM);
+        const ligSize = moduleAnswers.edge_lig_size || 'R10';
+        return `${ligCount} × ${ligSize}`;
+      },
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_ligs === true,
+    },
+    {
+      id: 'edge_lig_price',
+      type: 'currency',
+      label: 'Ligature Price per Tonne',
+      defaultValue: 2100,
+      unit: '/tonne',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_ligs === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const ligSize = moduleAnswers.edge_lig_size || 'R10';
+        return priceMap?.['rebar']?.[`${ligSize} STOCK`];
+      },
+    },
+    
+    // Vertical Starter Bars for edge beams
+    {
+      id: 'edge_add_vertical_bars',
+      type: 'boolean',
+      label: 'Add Vertical Starter Bars',
+      defaultValue: false,
+      helpText: 'For blockwork starter bars in the thickening',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_vertical_bar_size',
+      type: 'select',
+      label: 'Bar Size',
+      options: [
+        { value: 'N12', label: 'N12 (12mm)' },
+        { value: 'N16', label: 'N16 (16mm)' },
+        { value: 'N20', label: 'N20 (20mm)' },
+        { value: 'N24', label: 'N24 (24mm)' },
+      ],
+      defaultValue: 'N16',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_vertical_bars === true,
+    },
+    {
+      id: 'edge_vertical_bar_centres',
+      type: 'number',
+      label: 'Bar Centres',
+      defaultValue: 400,
+      min: 100,
+      max: 1200,
+      unit: 'mm',
+      helpText: 'E.g., 400mm for blockwork',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_vertical_bars === true,
+    },
+    {
+      id: 'edge_vertical_bar_length',
+      type: 'number',
+      label: 'Bar Length',
+      defaultValue: 1000,
+      min: 100,
+      unit: 'mm',
+      helpText: 'Total length including embedment',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_vertical_bars === true,
+    },
+    {
+      id: 'calculated_edge_vertical_bars',
+      type: 'text',
+      label: 'Calculated Vertical Bars',
+      derivedReadOnly: true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const length = Number(moduleAnswers.edge_trench_mesh_length) || Number(scopeData?.perimeter) || 0;
+        if (length <= 0) return undefined;
+        const centres = Number(moduleAnswers.edge_vertical_bar_centres) || 400;
+        const centresM = centres / 1000;
+        const barCount = Math.ceil(length / centresM);
+        const barSize = moduleAnswers.edge_vertical_bar_size || 'N16';
+        const barLength = Number(moduleAnswers.edge_vertical_bar_length) || 1000;
+        return `${barCount} × ${barSize} @ ${barLength}mm`;
+      },
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_vertical_bars === true,
+    },
+    {
+      id: 'edge_vertical_bar_lap',
+      type: 'number',
+      label: 'Lap/Bending Margin',
+      defaultValue: 12.5,
+      min: 0,
+      max: 30,
+      unit: '%',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_vertical_bars === true,
+    },
+    {
+      id: 'edge_vertical_bar_price',
+      type: 'currency',
+      label: 'Rebar Price per Tonne',
+      defaultValue: 2100,
+      unit: '/tonne',
+      showIf: (answers, scopeData) => 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true && 
+        answers.edge_add_vertical_bars === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const barSize = moduleAnswers.edge_vertical_bar_size || 'N16';
+        return priceMap?.['rebar']?.[`${barSize} STOCK`];
+      },
+    },
+    
     // Delivery
     {
       id: 'reo_delivery',
@@ -708,6 +1061,116 @@ export const reinforcementSlabModule: EstimateModule = {
           category: 'materials',
         });
         subtotal += tmChairCost;
+      }
+
+      // Edge Beam Additional Horizontal TM (Layer 2)
+      if (answers.edge_add_horizontal_reo_1) {
+        const horizTmType = answers.edge_horizontal_tm_type || 'L11TM4';
+        const horizTmLength = Number(answers.edge_horizontal_tm_length) || tmLength;
+        const horizLapAllowance = 1 + (Number(answers.edge_horizontal_tm_lap) || 12.5) / 100;
+        const horizTotalLength = horizTmLength * horizLapAllowance;
+        const horizSheets = Math.ceil(horizTotalLength / 6);
+        const horizPrice = Number(answers.edge_horizontal_tm_price) || getPrice(priceMap, 'trench_mesh', horizTmType, 108);
+        const horizTmCost = horizSheets * horizPrice;
+
+        lineItems.push({
+          id: 'edge_horizontal_tm',
+          description: `Edge Beam Horizontal TM ${horizTmType} (${horizSheets} × 6m sheets)`,
+          quantity: horizSheets,
+          unit: 'sheets',
+          unitPrice: horizPrice,
+          total: Math.round(horizTmCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += horizTmCost;
+      }
+
+      // Edge Beam Horizontal Bar Reinforcement
+      if (answers.edge_add_horizontal_reo_2) {
+        const hBarCount = Number(answers.edge_horizontal_bar_count) || 2;
+        const hBarSize = answers.edge_horizontal_bar_size || 'N16';
+        const hBarLength = Number(answers.edge_horizontal_bar_length) || tmLength;
+        const hBarLap = 1 + (Number(answers.edge_horizontal_bar_lap) || 12.5) / 100;
+        const hTotalLength = hBarLength * hBarCount * hBarLap;
+        
+        const hWeightPerM = REBAR_WEIGHTS[hBarSize] || 1.58;
+        const hTotalWeight = hTotalLength * hWeightPerM;
+        const hTotalTonnes = hTotalWeight / 1000;
+        
+        const hBarPrice = Number(answers.edge_horizontal_bar_price) || getPrice(priceMap, 'rebar', `${hBarSize} STOCK`, 2100);
+        const hBarCost = hTotalTonnes * hBarPrice;
+
+        lineItems.push({
+          id: 'edge_horizontal_bars',
+          description: `Edge Beam ${hBarCount} × ${hBarSize} Bars (${Math.round(hTotalLength)}m)`,
+          quantity: Math.round(hTotalWeight),
+          unit: 'kg',
+          unitPrice: hBarPrice / 1000,
+          total: Math.round(hBarCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += hBarCost;
+      }
+
+      // Edge Beam Ligatures
+      if (answers.edge_add_ligs) {
+        const ligSize = answers.edge_lig_size || 'R10';
+        const ligCentres = Number(answers.edge_lig_centres) || 200;
+        const ligCentresM = ligCentres / 1000;
+        const ligCount = Math.ceil(tmLength / ligCentresM);
+        
+        // Estimate ligature length based on beam size (approx perimeter of lig)
+        const ligLengthEach = 0.8; // ~800mm average lig perimeter
+        const ligTotalLength = ligCount * ligLengthEach;
+        
+        const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
+        const ligTotalWeight = ligTotalLength * ligWeightPerM;
+        const ligTotalTonnes = ligTotalWeight / 1000;
+        
+        const ligPrice = Number(answers.edge_lig_price) || getPrice(priceMap, 'rebar', `${ligSize} STOCK`, 2100);
+        const ligCost = ligTotalTonnes * ligPrice;
+
+        lineItems.push({
+          id: 'edge_ligatures',
+          description: `Edge Beam Ligatures ${ligSize} @ ${ligCentres}mm (${ligCount} pcs)`,
+          quantity: Math.round(ligTotalWeight),
+          unit: 'kg',
+          unitPrice: ligPrice / 1000,
+          total: Math.round(ligCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += ligCost;
+      }
+
+      // Edge Beam Vertical Starter Bars
+      if (answers.edge_add_vertical_bars) {
+        const vBarSize = answers.edge_vertical_bar_size || 'N16';
+        const vBarCentres = Number(answers.edge_vertical_bar_centres) || 400;
+        const vBarCentresM = vBarCentres / 1000;
+        const vBarLengthMM = Number(answers.edge_vertical_bar_length) || 1000;
+        const vBarLengthM = vBarLengthMM / 1000;
+        const vBarLap = 1 + (Number(answers.edge_vertical_bar_lap) || 12.5) / 100;
+        
+        const vBarCount = Math.ceil(tmLength / vBarCentresM);
+        const vTotalLength = vBarCount * vBarLengthM * vBarLap;
+        
+        const vWeightPerM = REBAR_WEIGHTS[vBarSize] || 1.58;
+        const vTotalWeight = vTotalLength * vWeightPerM;
+        const vTotalTonnes = vTotalWeight / 1000;
+        
+        const vBarPrice = Number(answers.edge_vertical_bar_price) || getPrice(priceMap, 'rebar', `${vBarSize} STOCK`, 2100);
+        const vBarCost = vTotalTonnes * vBarPrice;
+
+        lineItems.push({
+          id: 'edge_vertical_bars',
+          description: `Edge Beam Starter Bars ${vBarCount} × ${vBarSize} @ ${vBarLengthMM}mm`,
+          quantity: Math.round(vTotalWeight),
+          unit: 'kg',
+          unitPrice: vBarPrice / 1000,
+          total: Math.round(vBarCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += vBarCost;
       }
     }
 
