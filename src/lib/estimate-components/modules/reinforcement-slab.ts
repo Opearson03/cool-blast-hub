@@ -420,7 +420,7 @@ export const reinforcementSlabModule: EstimateModule = {
         const lapPercent = Number(moduleAnswers.edge_trench_mesh_lap) || 12.5;
         const totalWithLap = length * (1 + lapPercent / 100);
         const sheets = Math.ceil(totalWithLap / 6);
-        return `${length}m + ${lapPercent}% = ${totalWithLap.toFixed(2)}m ÷ 6m = ${sheets} sheets`;
+        return `${sheets} sheets`;
       },
       showIf: (answers, scopeData) => 
         (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 

@@ -64,14 +64,14 @@ export const reinforcementFootingModule: EstimateModule = {
       type: 'text',
       label: 'Calculated Trench Mesh Sheets (6m)',
       derivedReadOnly: true,
-      deriveFrom: (_scopeData, moduleAnswers) => {
-        const length = Number(moduleAnswers.trench_mesh_length) || 0;
-        if (length <= 0) return undefined;
-        const lapPercent = Number(moduleAnswers.trench_mesh_lap) || 12.5;
-        const totalWithLap = length * (1 + lapPercent / 100);
-        const sheets = Math.ceil(totalWithLap / 6);
-        return `${length}m + ${lapPercent}% = ${totalWithLap.toFixed(2)}m ÷ 6m = ${sheets} sheets`;
-      },
+  deriveFrom: (_scopeData, moduleAnswers) => {
+    const length = Number(moduleAnswers.trench_mesh_length) || 0;
+    if (length <= 0) return undefined;
+    const lapPercent = Number(moduleAnswers.trench_mesh_lap) || 12.5;
+    const totalWithLap = length * (1 + lapPercent / 100);
+    const sheets = Math.ceil(totalWithLap / 6);
+    return `${sheets} sheets`;
+  },
       showIf: (answers) => answers.reo_type === 'trench_mesh' || answers.reo_type === 'both',
     },
     {
