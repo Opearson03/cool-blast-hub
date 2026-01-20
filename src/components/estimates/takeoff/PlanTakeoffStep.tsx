@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus, MessageSquareWarning } from 'lucide-react';
 import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
@@ -16,7 +15,8 @@ import { PierDimensionsDialog } from './PierDimensionsDialog';
 import { BollardDimensionsDialog } from './BollardDimensionsDialog';
 import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
 import { LinearDimensionsDialog } from './LinearDimensionsDialog';
-import { getScopeColor, calculatePolylineLength } from '@/types/takeoff';
+import { MarkupNameDialog } from './MarkupNameDialog';
+import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
 import type { DrawingTool, TakeoffPoint } from '@/types/takeoff';
 
@@ -78,6 +78,7 @@ export function PlanTakeoffStep({
   const [showBollardDimensions, setShowBollardDimensions] = useState(false);
   const [showPadDimensions, setShowPadDimensions] = useState(false);
   const [showLinearDimensions, setShowLinearDimensions] = useState(false);
+  const [showMarkupNameDialog, setShowMarkupNameDialog] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [selectedMarkupId, setSelectedMarkupId] = useState<string | null>(null);
   const [drawingPoints, setDrawingPoints] = useState<TakeoffPoint[]>([]);
@@ -89,6 +90,15 @@ export function PlanTakeoffStep({
   const [calibrationPoints, setCalibrationPoints] = useState<TakeoffPoint[]>([]);
   const [isCalibrationMode, setIsCalibrationMode] = useState(false);
   const [scopePanelManuallyExpanded, setScopePanelManuallyExpanded] = useState(false);
+  
+  // Pending markup state (for polygon/rectangle before name dialog)
+  const [pendingMarkupData, setPendingMarkupData] = useState<{
+    points: TakeoffPoint[];
+    shapeType: 'polygon' | 'rectangle';
+    scopeId: string;
+    fileId: string;
+    pageNumber: number;
+  } | null>(null);
 
   // Auto-collapse scope panel when actively marking (unless manually expanded)
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
@@ -206,16 +216,56 @@ export function PlanTakeoffStep({
   const handleMarkupComplete = useCallback(async (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => {
     if (!activeScope || !currentFileId) return;
     
-    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-    const name = pendingMarkupName.trim() || `Area ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
-    await addMarkup(currentFileId, activeScope, shapeType, points, color, currentPage, name);
+    // Store pending markup data and show name dialog
+    const existingForScope = markups.filter(m => m.scope_id === activeScope);
+    const defaultName = existingForScope.length === 0 
+      ? 'Area 1' 
+      : `Area ${existingForScope.length + 1}`;
     
-    // Clear drawing state
+    setPendingMarkupData({
+      points,
+      shapeType,
+      scopeId: activeScope,
+      fileId: currentFileId,
+      pageNumber: currentPage,
+    });
+    setPendingMarkupName(defaultName);
+    setShowMarkupNameDialog(true);
+  }, [activeScope, currentFileId, markups, currentPage]);
+
+  // Handler for confirming markup name and saving
+  const handleMarkupNameConfirm = useCallback(async (name: string) => {
+    if (!pendingMarkupData) return;
+    
+    const { points, shapeType, scopeId, fileId, pageNumber } = pendingMarkupData;
+    const color = getScopeColor(selectedScopes.indexOf(scopeId as ScopeType));
+    
+    await addMarkup(fileId, scopeId, shapeType, points, color, pageNumber, name);
+    
+    // Clear all state
+    setPendingMarkupData(null);
     setDrawingPoints([]);
     setActiveTool('select');
     setActiveScope(null);
     setPendingMarkupName('');
-  }, [activeScope, currentFileId, selectedScopes, addMarkup, pendingMarkupName, markups, currentPage]);
+  }, [pendingMarkupData, selectedScopes, addMarkup]);
+
+  // Handler for confirming markup name and adding another
+  const handleMarkupNameConfirmAndAddAnother = useCallback(async (name: string) => {
+    if (!pendingMarkupData) return;
+    
+    const { points, shapeType, scopeId, fileId, pageNumber } = pendingMarkupData;
+    const color = getScopeColor(selectedScopes.indexOf(scopeId as ScopeType));
+    
+    await addMarkup(fileId, scopeId, shapeType, points, color, pageNumber, name);
+    
+    // Clear markup data but keep scope and tool active for more marking
+    setPendingMarkupData(null);
+    setDrawingPoints([]);
+    // Keep activeScope and activeTool so user can continue marking
+    const existingForScope = markups.filter(m => m.scope_id === scopeId);
+    setPendingMarkupName(`Area ${existingForScope.length + 2}`);
+  }, [pendingMarkupData, selectedScopes, addMarkup, markups]);
 
   // Handler for completing pier marking
   const handlePierDimensionsConfirm = useCallback(async (diameter: number, depth: number) => {
@@ -523,23 +573,14 @@ export function PlanTakeoffStep({
             </div>
           )}
 
-          {/* Active scope indicator with name input (only for non-pier scopes) */}
-          {activeScope && !isCalibrationMode && !isPierScope && (
+          {/* Active scope indicator (only for non-pier scopes) */}
+          {activeScope && !isCalibrationMode && !isPierScope && !isLinearScope && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border z-20">
               <Badge 
                 style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}
               >
                 Drawing: {scopeLabels[activeScope]}
               </Badge>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">Name:</span>
-                <Input
-                  value={pendingMarkupName}
-                  onChange={(e) => setPendingMarkupName(e.target.value)}
-                  placeholder="Area 1"
-                  className="h-7 w-32 text-xs"
-                />
-              </div>
               <span className="text-xs text-muted-foreground">
                 {activeTool === 'polygon' 
                   ? 'Click to add points, double-click to close'
@@ -699,6 +740,29 @@ export function PlanTakeoffStep({
           const existingForScope = markups.filter(m => m.scope_id === activeScope);
           setPendingMarkupName(`Section ${existingForScope.length + 2}`);
         }}
+      />
+
+      {/* Markup name dialog for polygon/rectangle */}
+      <MarkupNameDialog
+        open={showMarkupNameDialog}
+        onOpenChange={(open) => {
+          setShowMarkupNameDialog(open);
+          if (!open && pendingMarkupData) {
+            // If dialog is closed without saving, clear pending data and reset state
+            setPendingMarkupData(null);
+            setDrawingPoints([]);
+          }
+        }}
+        defaultName={pendingMarkupName}
+        scopeLabel={pendingMarkupData ? (scopeLabels[pendingMarkupData.scopeId] || pendingMarkupData.scopeId) : ''}
+        shapeType={pendingMarkupData?.shapeType || 'polygon'}
+        stats={pendingMarkupData && currentScale ? {
+          area: pendingMarkupData.shapeType === 'polygon' 
+            ? calculatePolygonArea(pendingMarkupData.points, currentScale)
+            : calculateRectangleArea(pendingMarkupData.points, currentScale)
+        } : undefined}
+        onConfirm={handleMarkupNameConfirm}
+        onConfirmAndAddAnother={handleMarkupNameConfirmAndAddAnother}
       />
     </div>
   );
