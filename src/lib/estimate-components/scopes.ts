@@ -1028,7 +1028,7 @@ export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
   moduleIds: [
     'excavation',
     'formwork',
-    'reinforcement-footing',
+    'reinforcement-pad',
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
