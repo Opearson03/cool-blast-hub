@@ -125,13 +125,17 @@ export const excavationModule: EstimateModule = {
       helpText: 'Enter expected excavation hours',
       showIf: (answers) => answers.excavation_required === true,
     },
-    // Auger options
+    // Auger options - only for point excavation scopes (piers, bollards, pad footings)
     {
       id: 'auger_required',
       type: 'boolean',
       label: 'Is an auger required?',
       defaultValue: false,
-      showIf: (answers) => answers.excavation_required === true,
+      showIf: (answers, scopeData) => 
+        answers.excavation_required === true && 
+        (scopeData?.scopeId === 'piers' || 
+         scopeData?.scopeId === 'bollards' || 
+         scopeData?.scopeId === 'pad_footings'),
     },
     {
       id: 'auger_hire_cost',
