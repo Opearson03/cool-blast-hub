@@ -360,13 +360,33 @@ export const reinforcementFootingModule: EstimateModule = {
       showIf: (answers) => answers.add_vertical_bars === true,
     },
     {
+      id: 'vertical_bar_cog',
+      type: 'number',
+      label: 'Cog Length (mm)',
+      defaultValue: 100,
+      unit: 'mm',
+      min: 0,
+      max: 300,
+      helpText: 'Length of cog/hook at bottom of bar into footing',
+      showIf: (answers) => answers.add_vertical_bars === true,
+    },
+    {
       id: 'vertical_bar_length',
       type: 'number',
       label: 'Bar Length',
-      defaultValue: 1000,
       unit: 'mm',
-      helpText: 'Total length including embedment',
+      helpText: 'Total length including embedment and cog',
       showIf: (answers) => answers.add_vertical_bars === true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        // Auto-calculate from wall height if available
+        const wallHeight = Number(scopeData.wall_height) || 0;
+        if (wallHeight > 0) {
+          const cog = Number(moduleAnswers.vertical_bar_cog) || 100;
+          const embedment = 200; // Standard embedment into footing
+          return wallHeight + cog + embedment;
+        }
+        return 1000; // Default fallback
+      },
     },
     {
       id: 'calculated_vertical_bars',
@@ -381,7 +401,8 @@ export const reinforcementFootingModule: EstimateModule = {
         const barCount = Math.ceil(length / centresM);
         const barSize = moduleAnswers.vertical_bar_size || 'N16';
         const barLength = Number(moduleAnswers.vertical_bar_length) || 1000;
-        return `${barCount} × ${barSize} @ ${barLength}mm length`;
+        const cog = Number(moduleAnswers.vertical_bar_cog) || 100;
+        return `${barCount} × ${barSize} @ ${barLength}mm (inc. ${cog}mm cog)`;
       },
       showIf: (answers) => answers.add_vertical_bars === true,
     },
