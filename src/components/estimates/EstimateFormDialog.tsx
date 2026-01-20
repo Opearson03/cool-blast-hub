@@ -1613,46 +1613,63 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                   </div>
 
                   {/* Scope navigation footer */}
-                  <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="flex gap-2">
-                      {activeScopeIndex > 0 ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setActiveScopeIndex(activeScopeIndex - 1)}
-                          className="gap-1"
-                        >
-                          <ChevronLeft className="w-4 h-4" /> Previous Scope
-                        </Button>
-                      ) : (
-                        <Button type="button" variant="outline" onClick={goBack} className="gap-1">
-                          <ChevronLeft className="w-4 h-4" /> Back
-                        </Button>
-                      )}
-                      <Button 
-                        type="button" 
-                        variant="ghost" 
-                        onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
-                        disabled={saveDraftMutation.isPending}
-                        className="text-muted-foreground"
-                      >
-                        Save Draft
-                      </Button>
+                  <div className="space-y-3 pt-4 border-t">
+                    {/* Testing feedback banner */}
+                    <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <MessageSquareWarning className="w-4 h-4 text-orange-500 shrink-0" />
+                        <span>Stuck on an issue? We're still testing and want to help.</span>
+                      </div>
+                      <FeedbackDialog 
+                        trigger={
+                          <Button variant="outline" size="sm" className="shrink-0 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-600">
+                            Report Issue
+                          </Button>
+                        }
+                      />
                     </div>
                     
-                    {activeScopeIndex < selectedScopesArray.length - 1 ? (
-                      <Button
-                        type="button"
-                        onClick={() => setActiveScopeIndex(activeScopeIndex + 1)}
-                        className="gap-1"
-                      >
-                        Next Scope <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    ) : (
-                      <Button type="button" onClick={goNext} className="gap-1">
-                        Continue to Margin <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    )}
+                    <div className="flex items-center justify-between">
+                      <div className="flex gap-2">
+                        {activeScopeIndex > 0 ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setActiveScopeIndex(activeScopeIndex - 1)}
+                            className="gap-1"
+                          >
+                            <ChevronLeft className="w-4 h-4" /> Previous Scope
+                          </Button>
+                        ) : (
+                          <Button type="button" variant="outline" onClick={goBack} className="gap-1">
+                            <ChevronLeft className="w-4 h-4" /> Back
+                          </Button>
+                        )}
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
+                          disabled={saveDraftMutation.isPending}
+                          className="text-muted-foreground"
+                        >
+                          Save Draft
+                        </Button>
+                      </div>
+                      
+                      {activeScopeIndex < selectedScopesArray.length - 1 ? (
+                        <Button
+                          type="button"
+                          onClick={() => setActiveScopeIndex(activeScopeIndex + 1)}
+                          className="gap-1"
+                        >
+                          Next Scope <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      ) : (
+                        <Button type="button" onClick={goNext} className="gap-1">
+                          Continue to Markup <ChevronRight className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </>
               )}
