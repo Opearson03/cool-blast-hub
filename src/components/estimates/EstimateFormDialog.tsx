@@ -206,7 +206,7 @@ const STEP_LABELS: Record<WizardStep, string> = {
   client: "Client Details",
   takeoff: "Plan Takeoff",
   configure: "Configure",
-  margin: "Margin",
+  margin: "Markup",
   conditions: "Conditions",
   summary: "Summary",
 };
@@ -1659,14 +1659,14 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             </div>
           )}
 
-          {/* Step 5: Margin */}
+          {/* Step 5: Markup */}
           {currentStep === "margin" && (
             <div className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                     <Percent className="w-5 h-5" />
-                    Project Margin
+                    Project Markup
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
@@ -1680,15 +1680,15 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                       </div>
                     ))}
                     <div className="flex justify-between font-medium pt-2 border-t">
-                      <span>Subtotal (before margin)</span>
+                      <span>Subtotal (before markup)</span>
                       <span className="font-mono">{formatCurrency(combinedSubtotal)}</span>
                     </div>
                   </div>
 
-                  {/* Margin input */}
+                  {/* Markup input */}
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <Label htmlFor="margin">Margin Percentage</Label>
+                      <Label htmlFor="margin">Markup Percentage</Label>
                       <span className="text-sm text-muted-foreground">
                         +{formatCurrency(marginAmount)}
                       </span>
