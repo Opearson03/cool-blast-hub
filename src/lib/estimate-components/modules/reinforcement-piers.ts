@@ -117,7 +117,13 @@ export const reinforcementPiersModule: EstimateModule = {
       label: 'Calculated ligatures per pier',
       derivedReadOnly: true,
       deriveFrom: (scopeData, moduleAnswers) => {
-        const pierDepth = Number(scopeData.depth) || Number(scopeData.averageExcavationDepth) || 600;
+        // For piers, prefer averageExcavationDepth (weighted from multi-pier configs),
+        // then fall back to depth, then first pier's depth if available
+        const firstPierDepth = scopeData.piers?.[0]?.depth;
+        const pierDepth = Number(scopeData.averageExcavationDepth) || 
+                          Number(scopeData.depth) || 
+                          Number(firstPierDepth) || 
+                          600;
         const ligCentres = Number(moduleAnswers.lig_centres) || 200;
         const ligCount = Math.ceil(pierDepth / ligCentres);
         const ligSize = moduleAnswers.lig_size || 'R10';
