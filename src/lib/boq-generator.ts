@@ -317,7 +317,7 @@ export function generateBOQFromDescription(description: string | null): BOQItem[
  */
 function getScopeLabel(scopeKey: string): string {
   const labels: Record<string, string> = {
-    standard_slab: "Standard Slab",
+    standard_slab: "Slab on Ground",
     raft_slab: "Raft Slab",
     waffle_pod: "Waffle Pod",
     strip_footings: "Strip Footings",

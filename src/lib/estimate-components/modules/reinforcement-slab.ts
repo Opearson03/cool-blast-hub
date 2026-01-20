@@ -287,6 +287,77 @@ export const reinforcementSlabModule: EstimateModule = {
         return bagPrice ? bagPrice / 100 : undefined;
       },
     },
+    // Additional Rebar Section (for specifying extra bar beyond mesh)
+    {
+      id: 'additional_rebar',
+      type: 'boolean',
+      label: 'Include Additional Rebar',
+      defaultValue: false,
+      helpText: 'Add bar reinforcement in addition to mesh (e.g., starters, chairs, penetrations)',
+      showIf: (answers) => answers.reo_type === 'mesh',
+    },
+    {
+      id: 'additional_rebar_size',
+      type: 'select',
+      label: 'Additional Bar Size',
+      options: [
+        { value: 'N10', label: 'N10 (10mm)' },
+        { value: 'N12', label: 'N12 (12mm)' },
+        { value: 'N16', label: 'N16 (16mm)' },
+        { value: 'N20', label: 'N20 (20mm)' },
+        { value: 'N24', label: 'N24 (24mm)' },
+      ],
+      defaultValue: 'N12',
+      showIf: (answers) => answers.reo_type === 'mesh' && answers.additional_rebar === true,
+    },
+    {
+      id: 'additional_rebar_length',
+      type: 'number',
+      label: 'Total Bar Length',
+      unit: 'm',
+      min: 1,
+      helpText: 'Total linear metres of additional bar (e.g., 25m section with 3m bars @ 400mm = ~25m)',
+      showIf: (answers) => answers.reo_type === 'mesh' && answers.additional_rebar === true,
+    },
+    {
+      id: 'additional_rebar_spacing',
+      type: 'select',
+      label: 'Bar Spacing',
+      options: [
+        { value: '150', label: '150mm centres' },
+        { value: '200', label: '200mm centres' },
+        { value: '250', label: '250mm centres' },
+        { value: '300', label: '300mm centres' },
+        { value: '400', label: '400mm centres' },
+        { value: 'custom', label: 'Custom (enter below)' },
+      ],
+      defaultValue: '400',
+      helpText: 'Spacing between bars',
+      showIf: (answers) => answers.reo_type === 'mesh' && answers.additional_rebar === true,
+    },
+    {
+      id: 'additional_rebar_bar_length',
+      type: 'number',
+      label: 'Individual Bar Length',
+      unit: 'm',
+      min: 0.5,
+      max: 12,
+      defaultValue: 3,
+      helpText: 'Length of each bar (e.g., 3m)',
+      showIf: (answers) => answers.reo_type === 'mesh' && answers.additional_rebar === true,
+    },
+    {
+      id: 'additional_rebar_price',
+      type: 'currency',
+      label: 'Additional Bar Price per Tonne',
+      defaultValue: 2100,
+      unit: '/tonne',
+      showIf: (answers) => answers.reo_type === 'mesh' && answers.additional_rebar === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const barSize = moduleAnswers.additional_rebar_size || 'N12';
+        return priceMap?.['rebar']?.[`${barSize} C&B`];
+      },
+    },
     // Edge Beam / Thickening Reinforcement (Trench Mesh)
     {
       id: 'edge_beam_reo',
@@ -442,6 +513,36 @@ export const reinforcementSlabModule: EstimateModule = {
         category: 'materials',
       });
       subtotal += meshCost;
+
+      // Additional rebar (when mesh is selected but extra bar is needed)
+      if (answers.additional_rebar) {
+        const addBarSize = answers.additional_rebar_size || 'N12';
+        const sectionLength = Number(answers.additional_rebar_length) || 25;
+        const spacing = Number(answers.additional_rebar_spacing) || 400;
+        const barLength = Number(answers.additional_rebar_bar_length) || 3;
+        
+        // Calculate number of bars based on section length and spacing
+        const numBars = Math.ceil((sectionLength * 1000) / spacing);
+        const totalBarLengthM = numBars * barLength;
+        
+        const weightPerMetre = REBAR_WEIGHTS[addBarSize] || 0.888;
+        const totalWeight = totalBarLengthM * weightPerMetre * 1.1; // 10% lap allowance
+        const totalTonnes = totalWeight / 1000;
+        
+        const pricePerTonne = Number(answers.additional_rebar_price) || getPrice(priceMap, 'rebar', `${addBarSize} C&B`, 2100);
+        const addBarCost = totalTonnes * pricePerTonne;
+
+        lineItems.push({
+          id: 'additional_rebar',
+          description: `Additional ${addBarSize} Bar @ ${spacing}mm c/c (${numBars} × ${barLength}m = ${Math.round(totalBarLengthM)}m)`,
+          quantity: Math.round(totalWeight),
+          unit: 'kg',
+          unitPrice: pricePerTonne / 1000,
+          total: Math.round(addBarCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += addBarCost;
+      }
     }
 
     // Bar reinforcement calculation
