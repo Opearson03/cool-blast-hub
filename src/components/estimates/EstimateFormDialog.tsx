@@ -40,6 +40,7 @@ import { PlanTakeoffStep } from "./takeoff/PlanTakeoffStep";
 import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
 import { useTakeoffMarkups } from "@/hooks/useTakeoffMarkups";
+import { ScopeBreakdownItem } from "./InternalBreakdownSection";
 
 // EstimateType kept for backwards compatibility with existing database values
 type EstimateType = "driveway" | "house_slab" | "commercial_slab";
@@ -1933,16 +1934,33 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     </div>
                   </div>
 
-                  {/* Scope breakdown */}
+                  {/* Collapsible Scope breakdown */}
                   <div className="space-y-2">
-                    {selectedScopesArray.map((scope) => (
-                      <div key={scope} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {getScopeLabel(scope)} ({scopeTotals[scope].description})
-                        </span>
-                        <span className="font-medium font-mono">{formatCurrency(scopeTotals[scope].total)}</span>
-                      </div>
-                    ))}
+                    {selectedScopesArray.map((scope) => {
+                      const scopeState = modularScopeStates[scope];
+                      if (!scopeState) {
+                        // Fallback for scopes without full state
+                        return (
+                          <div key={scope} className="flex justify-between text-sm bg-muted/50 px-3 py-2 rounded-lg">
+                            <span className="text-muted-foreground">
+                              {getScopeLabel(scope)} ({scopeTotals[scope].description})
+                            </span>
+                            <span className="font-medium font-mono">{formatCurrency(scopeTotals[scope].total)}</span>
+                          </div>
+                        );
+                      }
+                      return (
+                        <ScopeBreakdownItem
+                          key={scope}
+                          scopeId={scope}
+                          scopeEntry={{
+                            scopeAnswers: scopeState.scopeAnswers,
+                            moduleAnswers: scopeState.moduleAnswers,
+                            calculatedTotal: scopeState.calculatedTotal,
+                          }}
+                        />
+                      );
+                    })}
                   </div>
 
                   <div className="border-t pt-3 space-y-1">
