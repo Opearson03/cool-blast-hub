@@ -86,8 +86,8 @@ const categoryConfig: Record<string, { label: string; icon: typeof Users; classN
   other: { label: "Other", icon: HelpCircle, className: "bg-gray-500/20 text-gray-700 dark:text-gray-400" },
 };
 
-// Individual scope breakdown item component
-function ScopeBreakdownItem({ 
+// Individual scope breakdown item component - exported for use in wizard summary
+export function ScopeBreakdownItem({
   scopeId, 
   scopeEntry 
 }: { 
