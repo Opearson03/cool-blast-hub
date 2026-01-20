@@ -69,13 +69,12 @@ export const reinforcementSlabModule: EstimateModule = {
       id: 'mesh_lap_allowance',
       type: 'number',
       label: 'Lap Allowance',
-      defaultValue: 10,
+      defaultValue: 12.5,
       min: 0,
       max: 30,
       unit: '%',
-      helpText: 'Extra mesh for overlaps',
+      helpText: 'Extra mesh for overlaps (12.5% standard)',
       showIf: (answers) => answers.reo_type === 'mesh',
-      deriveFrom: () => 10, // Standard 10% lap allowance
     },
     {
       id: 'mesh_price_per_sheet',
@@ -400,11 +399,29 @@ export const reinforcementSlabModule: EstimateModule = {
       id: 'edge_trench_mesh_lap',
       type: 'number',
       label: 'Trench Mesh Lap Allowance',
-      defaultValue: 10,
+      defaultValue: 12.5,
       min: 0,
       max: 30,
       unit: '%',
-      deriveFrom: () => 10,
+      helpText: '12.5% standard for corners and joins',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true,
+    },
+    {
+      id: 'calculated_edge_tm_sheets',
+      type: 'text',
+      label: 'Calculated Sheets (6m)',
+      derivedReadOnly: true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const length = Number(moduleAnswers.edge_trench_mesh_length) || Number(scopeData?.perimeter) || 0;
+        if (length <= 0) return undefined;
+        const lapPercent = Number(moduleAnswers.edge_trench_mesh_lap) || 12.5;
+        const totalWithLap = length * (1 + lapPercent / 100);
+        const sheets = Math.ceil(totalWithLap / 6);
+        return `${length}m + ${lapPercent}% = ${totalWithLap.toFixed(2)}m ÷ 6m = ${sheets} sheets`;
+      },
       showIf: (answers, scopeData) => 
         (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
         scopeData?.hasThickening === true && 
@@ -413,9 +430,9 @@ export const reinforcementSlabModule: EstimateModule = {
     {
       id: 'edge_trench_mesh_price',
       type: 'currency',
-      label: 'Trench Mesh Price per Metre',
-      defaultValue: 6.50,
-      unit: '/m',
+      label: 'Trench Mesh Price per Sheet (6m)',
+      defaultValue: 108,
+      unit: '/sheet',
       showIf: (answers, scopeData) => 
         (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
         scopeData?.hasThickening === true && 
@@ -652,21 +669,22 @@ export const reinforcementSlabModule: EstimateModule = {
       subtotal += capCost;
     }
 
-    // Edge Beam Trench Mesh
+    // Edge Beam Trench Mesh - using 6m sheet quantities
     if (answers.edge_beam_reo && scopeData?.hasThickening) {
       const tmType = answers.edge_trench_mesh_type || 'L11TM4';
       const tmLength = Number(answers.edge_trench_mesh_length) || Number(scopeData.perimeter) || 20;
-      const lapAllowance = 1 + (Number(answers.edge_trench_mesh_lap) || 10) / 100;
+      const lapAllowance = 1 + (Number(answers.edge_trench_mesh_lap) || 12.5) / 100;
       const totalTmLength = tmLength * lapAllowance;
-      const tmPricePerM = Number(answers.edge_trench_mesh_price) || getPrice(priceMap, 'trench_mesh', tmType, 6.50);
-      const tmCost = totalTmLength * tmPricePerM;
+      const sheetsRequired = Math.ceil(totalTmLength / 6);
+      const pricePerSheet = Number(answers.edge_trench_mesh_price) || getPrice(priceMap, 'trench_mesh', tmType, 108);
+      const tmCost = sheetsRequired * pricePerSheet;
 
       lineItems.push({
         id: 'edge_trench_mesh',
-        description: `Edge Beam Trench Mesh ${tmType} (${Math.ceil(totalTmLength)}m incl. laps)`,
-        quantity: Math.ceil(totalTmLength),
-        unit: 'm',
-        unitPrice: tmPricePerM,
+        description: `Edge Beam Trench Mesh ${tmType} (${sheetsRequired} × 6m sheets)`,
+        quantity: sheetsRequired,
+        unit: 'sheets',
+        unitPrice: pricePerSheet,
         total: Math.round(tmCost * 100) / 100,
         category: 'materials',
       });
