@@ -35,16 +35,6 @@ export const demolitionModule: EstimateModule = {
       showIf: () => false, // Hidden - managed by custom component
     },
     {
-      id: 'breaking_rate',
-      type: 'currency',
-      label: 'Concrete Breaking Rate',
-      defaultValue: 150,
-      priceListKey: 'demolition.DEMO_BREAK',
-      unit: '/m³',
-      helpText: 'Labour cost to break up concrete',
-      showIf: () => false, // Hidden - managed by custom component
-    },
-    {
       id: 'tip_rate',
       type: 'currency',
       label: 'Tip / Disposal Rate',
@@ -70,12 +60,72 @@ export const demolitionModule: EstimateModule = {
       unit: '/day',
       showIf: () => false, // Hidden - managed by custom component
     },
+    // ============ EXCAVATOR HIRE SECTION ============
+    {
+      id: 'excavator_required',
+      type: 'boolean',
+      label: 'Is an excavator required?',
+      defaultValue: false,
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'excavator_type',
+      type: 'select',
+      label: 'Excavator type',
+      options: [
+        { value: 'EXC 1.4T', label: '1.4T Excavator' },
+        { value: 'EXC 3.2T', label: '3.2T Excavator' },
+        { value: 'EXC 4T', label: '4T Excavator' },
+        { value: 'EXC 6T', label: '6T Excavator' },
+        { value: 'EXC 9T', label: '9T Excavator' },
+        { value: 'POSI TRACK', label: 'Posi Track' },
+      ],
+      defaultValue: 'EXC 3.2T',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'excavator_rate',
+      type: 'currency',
+      label: 'Excavator hourly rate',
+      defaultValue: 150,
+      unit: '/hr',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'excavator_hours',
+      type: 'number',
+      label: 'Excavator hours',
+      defaultValue: 4,
+      min: 0.5,
+      step: 0.5,
+      unit: 'hrs',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'excavator_float',
+      type: 'currency',
+      label: 'Float charge to site',
+      defaultValue: 150,
+      priceListKey: 'excavation.FLOAT',
+      showIf: () => false, // Hidden - managed by custom component
+    },
     // ============ SAW CUTTING SECTION ============
     {
       id: 'saw_cutting_required',
       type: 'boolean',
       label: 'Is saw cutting required?',
       defaultValue: false,
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'saw_cutting_method',
+      type: 'select',
+      label: 'Saw cutting pricing method',
+      options: [
+        { value: 'linear', label: 'Linear metre rate' },
+        { value: 'hourly', label: 'Hourly rate' },
+      ],
+      defaultValue: 'linear',
       showIf: () => false, // Hidden - managed by custom component
     },
     {
@@ -92,9 +142,28 @@ export const demolitionModule: EstimateModule = {
       id: 'saw_cutting_rate',
       type: 'currency',
       label: 'Saw Cutting Rate',
-      defaultValue: 6.50,
-      priceListKey: 'joint_saw_cutting.JOINTCUT',
+      defaultValue: 25,
+      priceListKey: 'joint_saw_cutting.SAWCUT_LM',
       unit: '/m',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'saw_cutting_hours',
+      type: 'number',
+      label: 'Saw Cutting Hours',
+      min: 0.5,
+      step: 0.5,
+      defaultValue: 2,
+      unit: 'hrs',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'saw_cutting_hourly_rate',
+      type: 'currency',
+      label: 'Saw Cutting Hourly Rate',
+      defaultValue: 180,
+      priceListKey: 'joint_saw_cutting.SAWCUT_HR',
+      unit: '/hr',
       showIf: () => false, // Hidden - managed by custom component
     },
     // ============ LABOUR HOURS SECTION ============
@@ -196,29 +265,13 @@ export const demolitionModule: EstimateModule = {
     }
 
     const totalWeight = totalVolume * CONCRETE_DENSITY;
-
-    const breakingRate = Number(answers.breaking_rate) || getPrice(priceMap, 'demolition', 'DEMO_BREAK', 150);
     const tipRate = Number(answers.tip_rate) || getPrice(priceMap, 'demolition', 'TIP_RATE', 400);
     const rockBreakerRequired = answers.rock_breaker_required === true;
     const rockBreakerCost = Number(answers.rock_breaker_cost) || getPrice(priceMap, 'demolition', 'ROCK_BREAKER', 200);
 
     const lineItems: CostLineItem[] = [];
 
-    // Line 1: Concrete Breaking Labour
-    if (totalVolume > 0) {
-      const breakingTotal = totalVolume * breakingRate;
-      lineItems.push({
-        id: 'demo_breaking',
-        description: `Concrete Breaking Labour (${totalVolume.toFixed(2)}m³)`,
-        quantity: Math.round(totalVolume * 100) / 100,
-        unit: 'm³',
-        unitPrice: breakingRate,
-        total: Math.round(breakingTotal * 100) / 100,
-        category: 'subcontractor',
-      });
-    }
-
-    // Line 2: Waste Disposal
+    // Line 1: Waste Disposal
     if (totalWeight > 0) {
       const tipTotal = totalWeight * tipRate;
       lineItems.push({
@@ -232,7 +285,7 @@ export const demolitionModule: EstimateModule = {
       });
     }
 
-    // Line 3: Rock Breaker (if required)
+    // Line 2: Rock Breaker (if required)
     if (rockBreakerRequired) {
       lineItems.push({
         id: 'rock_breaker',
@@ -245,22 +298,74 @@ export const demolitionModule: EstimateModule = {
       });
     }
 
+    // Line 3: Excavator Hire (if required)
+    if (answers.excavator_required) {
+      const excavatorType = answers.excavator_type || 'EXC 3.2T';
+      const excavatorRate = Number(answers.excavator_rate) || getPrice(priceMap, 'excavation', excavatorType, 150);
+      const excavatorHours = Number(answers.excavator_hours) || 4;
+      const excavatorTotal = excavatorHours * excavatorRate;
+
+      lineItems.push({
+        id: 'excavator_hire',
+        description: `${excavatorType} Excavator (${excavatorHours} hrs @ $${excavatorRate}/hr)`,
+        quantity: excavatorHours,
+        unit: 'hrs',
+        unitPrice: excavatorRate,
+        total: Math.round(excavatorTotal * 100) / 100,
+        category: 'plant',
+      });
+
+      const floatCharge = Number(answers.excavator_float) || getPrice(priceMap, 'excavation', 'FLOAT', 150);
+      if (floatCharge > 0) {
+        lineItems.push({
+          id: 'excavator_float',
+          description: 'Float Charge to Site',
+          quantity: 1,
+          unit: 'item',
+          unitPrice: floatCharge,
+          total: floatCharge,
+          category: 'plant',
+        });
+      }
+    }
+
     // Line 4: Saw Cutting (if required)
     if (answers.saw_cutting_required) {
-      const sawCuttingLength = Number(answers.saw_cutting_length) || 0;
-      const sawCuttingRate = Number(answers.saw_cutting_rate) || getPrice(priceMap, 'joint_saw_cutting', 'JOINTCUT', 6.50);
+      const sawCuttingMethod = answers.saw_cutting_method || 'linear';
       
-      if (sawCuttingLength > 0) {
-        const sawCuttingTotal = sawCuttingLength * sawCuttingRate;
-        lineItems.push({
-          id: 'saw_cutting',
-          description: `Saw Cutting (${sawCuttingLength}m @ $${sawCuttingRate}/m)`,
-          quantity: sawCuttingLength,
-          unit: 'm',
-          unitPrice: sawCuttingRate,
-          total: Math.round(sawCuttingTotal * 100) / 100,
-          category: 'subcontractor',
-        });
+      if (sawCuttingMethod === 'linear') {
+        const sawCuttingLength = Number(answers.saw_cutting_length) || 0;
+        const sawCuttingRate = Number(answers.saw_cutting_rate) || getPrice(priceMap, 'joint_saw_cutting', 'SAWCUT_LM', 25);
+        
+        if (sawCuttingLength > 0) {
+          const sawCuttingTotal = sawCuttingLength * sawCuttingRate;
+          lineItems.push({
+            id: 'saw_cutting',
+            description: `Saw Cutting (${sawCuttingLength}m @ $${sawCuttingRate}/m)`,
+            quantity: sawCuttingLength,
+            unit: 'm',
+            unitPrice: sawCuttingRate,
+            total: Math.round(sawCuttingTotal * 100) / 100,
+            category: 'subcontractor',
+          });
+        }
+      } else {
+        // Hourly rate method
+        const sawCuttingHours = Number(answers.saw_cutting_hours) || 2;
+        const sawCuttingHourlyRate = Number(answers.saw_cutting_hourly_rate) || getPrice(priceMap, 'joint_saw_cutting', 'SAWCUT_HR', 180);
+        
+        if (sawCuttingHours > 0) {
+          const sawCuttingTotal = sawCuttingHours * sawCuttingHourlyRate;
+          lineItems.push({
+            id: 'saw_cutting',
+            description: `Saw Cutting (${sawCuttingHours} hrs @ $${sawCuttingHourlyRate}/hr)`,
+            quantity: sawCuttingHours,
+            unit: 'hrs',
+            unitPrice: sawCuttingHourlyRate,
+            total: Math.round(sawCuttingTotal * 100) / 100,
+            category: 'subcontractor',
+          });
+        }
       }
     }
 
@@ -302,6 +407,13 @@ export const demolitionModule: EstimateModule = {
       exclusions.push({
         id: 'no_demolition',
         text: 'Demolition and removal of existing concrete is not included. Site to be cleared by others.',
+        moduleId: 'demolition',
+      });
+    } else {
+      // Add service scanning exclusion when demolition IS included
+      exclusions.push({
+        id: 'no_service_scanning',
+        text: 'No allowance for service scanning or locating. Location of underground services to be confirmed by others prior to commencement.',
         moduleId: 'demolition',
       });
     }
