@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Trash2, Copy, Hammer, Scissors, Users } from "lucide-react";
+import { Plus, Trash2, Copy, Hammer, Scissors, Users, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface DemolitionArea {
   id: string;
@@ -18,21 +19,36 @@ interface MultiDemolitionInputProps {
   label: string;
   areas: DemolitionArea[];
   onChange: (areas: DemolitionArea[]) => void;
-  breakingRate: number;
-  onBreakingRateChange: (rate: number) => void;
   tipRate: number;
   onTipRateChange: (rate: number) => void;
   rockBreakerRequired: boolean;
   onRockBreakerRequiredChange: (required: boolean) => void;
   rockBreakerCost: number;
   onRockBreakerCostChange: (cost: number) => void;
+  // Excavator hire props
+  excavatorRequired?: boolean;
+  onExcavatorRequiredChange?: (required: boolean) => void;
+  excavatorType?: string;
+  onExcavatorTypeChange?: (type: string) => void;
+  excavatorRate?: number;
+  onExcavatorRateChange?: (rate: number) => void;
+  excavatorHours?: number;
+  onExcavatorHoursChange?: (hours: number) => void;
+  excavatorFloat?: number;
+  onExcavatorFloatChange?: (float: number) => void;
   // Saw cutting props
   sawCuttingRequired?: boolean;
   onSawCuttingRequiredChange?: (required: boolean) => void;
+  sawCuttingMethod?: string;
+  onSawCuttingMethodChange?: (method: string) => void;
   sawCuttingLength?: number;
   onSawCuttingLengthChange?: (length: number) => void;
   sawCuttingRate?: number;
   onSawCuttingRateChange?: (rate: number) => void;
+  sawCuttingHours?: number;
+  onSawCuttingHoursChange?: (hours: number) => void;
+  sawCuttingHourlyRate?: number;
+  onSawCuttingHourlyRateChange?: (rate: number) => void;
   // Labour hours props
   demoLabourRequired?: boolean;
   onDemoLabourRequiredChange?: (required: boolean) => void;
@@ -46,25 +62,49 @@ interface MultiDemolitionInputProps {
 
 const CONCRETE_DENSITY = 2.4; // tonnes per m³
 
+const EXCAVATOR_OPTIONS = [
+  { value: 'EXC 1.4T', label: '1.4T Excavator' },
+  { value: 'EXC 3.2T', label: '3.2T Excavator' },
+  { value: 'EXC 4T', label: '4T Excavator' },
+  { value: 'EXC 6T', label: '6T Excavator' },
+  { value: 'EXC 9T', label: '9T Excavator' },
+  { value: 'POSI TRACK', label: 'Posi Track' },
+];
+
 export function MultiDemolitionInput({
   label,
   areas,
   onChange,
-  breakingRate,
-  onBreakingRateChange,
   tipRate,
   onTipRateChange,
   rockBreakerRequired,
   onRockBreakerRequiredChange,
   rockBreakerCost,
   onRockBreakerCostChange,
+  // Excavator hire
+  excavatorRequired = false,
+  onExcavatorRequiredChange,
+  excavatorType = 'EXC 3.2T',
+  onExcavatorTypeChange,
+  excavatorRate = 150,
+  onExcavatorRateChange,
+  excavatorHours = 4,
+  onExcavatorHoursChange,
+  excavatorFloat = 150,
+  onExcavatorFloatChange,
   // Saw cutting
   sawCuttingRequired = false,
   onSawCuttingRequiredChange,
+  sawCuttingMethod = 'linear',
+  onSawCuttingMethodChange,
   sawCuttingLength = 0,
   onSawCuttingLengthChange,
-  sawCuttingRate = 6.50,
+  sawCuttingRate = 25,
   onSawCuttingRateChange,
+  sawCuttingHours = 2,
+  onSawCuttingHoursChange,
+  sawCuttingHourlyRate = 180,
+  onSawCuttingHourlyRateChange,
   // Labour hours
   demoLabourRequired = false,
   onDemoLabourRequiredChange,
@@ -315,34 +355,9 @@ export function MultiDemolitionInput({
           </div>
         </div>
 
-        {/* Pricing section */}
+        {/* Tip Rate section */}
         <div className="pt-3 border-t space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label className="text-sm font-medium">Breaking Rate</Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  $
-                </span>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  value={breakingRate || ""}
-                  onChange={(e) =>
-                    onBreakingRateChange(
-                      e.target.value === "" ? 150 : Number(e.target.value)
-                    )
-                  }
-                  min={0}
-                  step={10}
-                  className="pl-7 pr-12 h-11 sm:h-9"
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                  /m³
-                </span>
-              </div>
-            </div>
-
+          <div className="max-w-[200px]">
             <div className="space-y-1.5">
               <Label className="text-sm font-medium">Tip Rate</Label>
               <div className="relative">
@@ -414,6 +429,128 @@ export function MultiDemolitionInput({
           )}
         </div>
 
+        {/* Excavator Hire option */}
+        {onExcavatorRequiredChange && (
+          <div className="pt-3 border-t space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium flex items-center gap-2">
+                <Truck className="h-4 w-4" />
+                Is an excavator required?
+              </Label>
+              <Switch
+                checked={excavatorRequired}
+                onCheckedChange={onExcavatorRequiredChange}
+              />
+            </div>
+
+            {excavatorRequired && (
+              <div className="p-3 bg-muted/50 rounded-lg space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Excavator Type
+                    </Label>
+                    <Select
+                      value={excavatorType}
+                      onValueChange={(value) => onExcavatorTypeChange?.(value)}
+                    >
+                      <SelectTrigger className="h-11 sm:h-9">
+                        <SelectValue placeholder="Select excavator" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {EXCAVATOR_OPTIONS.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Hourly Rate
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        value={excavatorRate || ""}
+                        onChange={(e) =>
+                          onExcavatorRateChange?.(
+                            e.target.value === "" ? 150 : Number(e.target.value)
+                          )
+                        }
+                        min={0}
+                        step={10}
+                        className="pl-7 pr-10 h-11 sm:h-9"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        /hr
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Hours
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        value={excavatorHours || ""}
+                        onChange={(e) =>
+                          onExcavatorHoursChange?.(
+                            e.target.value === "" ? 4 : Number(e.target.value)
+                          )
+                        }
+                        min={0.5}
+                        step={0.5}
+                        className="pr-10 h-11 sm:h-9"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                        hrs
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">
+                      Float Charge
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        value={excavatorFloat || ""}
+                        onChange={(e) =>
+                          onExcavatorFloatChange?.(
+                            e.target.value === "" ? 150 : Number(e.target.value)
+                          )
+                        }
+                        min={0}
+                        step={10}
+                        className="pl-7 h-11 sm:h-9"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {excavatorHours > 0 && excavatorRate > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    Total: ${((excavatorHours * excavatorRate) + (excavatorFloat || 0)).toFixed(2)} (${(excavatorHours * excavatorRate).toFixed(2)} hire + ${excavatorFloat || 0} float)
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Saw Cutting option */}
         {onSawCuttingRequiredChange && (
           <div className="pt-3 border-t space-y-3">
@@ -429,61 +566,141 @@ export function MultiDemolitionInput({
             </div>
 
             {sawCuttingRequired && (
-              <div className="p-3 bg-muted/50 rounded-lg">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Cutting Length
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={sawCuttingLength || ""}
-                        onChange={(e) =>
-                          onSawCuttingLengthChange?.(
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={0}
-                        step={0.5}
-                        className="pr-8 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        m
-                      </span>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Saw Cutting Rate
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        $
-                      </span>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={sawCuttingRate || ""}
-                        onChange={(e) =>
-                          onSawCuttingRateChange?.(
-                            e.target.value === "" ? 6.50 : Number(e.target.value)
-                          )
-                        }
-                        min={0}
-                        step={0.5}
-                        className="pl-7 pr-10 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        /m
-                      </span>
-                    </div>
-                  </div>
+              <div className="p-3 bg-muted/50 rounded-lg space-y-4">
+                {/* Method selector */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Pricing Method
+                  </Label>
+                  <Select
+                    value={sawCuttingMethod}
+                    onValueChange={(value) => onSawCuttingMethodChange?.(value)}
+                  >
+                    <SelectTrigger className="h-11 sm:h-9">
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="linear">Linear metre rate ($/m)</SelectItem>
+                      <SelectItem value="hourly">Hourly rate ($/hr)</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                {sawCuttingLength > 0 && sawCuttingRate > 0 && (
-                  <div className="mt-2 text-sm text-muted-foreground">
+
+                {sawCuttingMethod === 'linear' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">
+                        Cutting Length
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          value={sawCuttingLength || ""}
+                          onChange={(e) =>
+                            onSawCuttingLengthChange?.(
+                              e.target.value === "" ? 0 : Number(e.target.value)
+                            )
+                          }
+                          min={0}
+                          step={0.5}
+                          className="pr-8 h-11 sm:h-9"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          m
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">
+                        Saw Cutting Rate
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          value={sawCuttingRate || ""}
+                          onChange={(e) =>
+                            onSawCuttingRateChange?.(
+                              e.target.value === "" ? 25 : Number(e.target.value)
+                            )
+                          }
+                          min={0}
+                          step={0.5}
+                          className="pl-7 pr-10 h-11 sm:h-9"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          /m
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">
+                        Cutting Hours
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          value={sawCuttingHours || ""}
+                          onChange={(e) =>
+                            onSawCuttingHoursChange?.(
+                              e.target.value === "" ? 2 : Number(e.target.value)
+                            )
+                          }
+                          min={0.5}
+                          step={0.5}
+                          className="pr-10 h-11 sm:h-9"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          hrs
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">
+                        Hourly Rate
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          value={sawCuttingHourlyRate || ""}
+                          onChange={(e) =>
+                            onSawCuttingHourlyRateChange?.(
+                              e.target.value === "" ? 180 : Number(e.target.value)
+                            )
+                          }
+                          min={0}
+                          step={10}
+                          className="pl-7 pr-10 h-11 sm:h-9"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          /hr
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Total display */}
+                {sawCuttingMethod === 'linear' && sawCuttingLength > 0 && sawCuttingRate > 0 && (
+                  <div className="text-sm text-muted-foreground">
                     Total: ${(sawCuttingLength * sawCuttingRate).toFixed(2)}
+                  </div>
+                )}
+                {sawCuttingMethod === 'hourly' && sawCuttingHours > 0 && sawCuttingHourlyRate > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    Total: ${(sawCuttingHours * sawCuttingHourlyRate).toFixed(2)}
                   </div>
                 )}
               </div>

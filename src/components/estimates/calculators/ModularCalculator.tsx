@@ -1050,21 +1050,36 @@ function DemolitionModuleSection({
               label="Demolition Areas"
               areas={demolitionAreas}
               onChange={(areas) => onAnswerChange('demolition_areas', areas)}
-              breakingRate={answers.breaking_rate || getPrice('demolition', 'DEMO_BREAK', 150)}
-              onBreakingRateChange={(rate) => onAnswerChange('breaking_rate', rate)}
               tipRate={answers.tip_rate || getPrice('demolition', 'TIP_RATE', 400)}
               onTipRateChange={(rate) => onAnswerChange('tip_rate', rate)}
               rockBreakerRequired={answers.rock_breaker_required || false}
               onRockBreakerRequiredChange={(val) => onAnswerChange('rock_breaker_required', val)}
               rockBreakerCost={answers.rock_breaker_cost || getPrice('demolition', 'ROCK_BREAKER', 200)}
               onRockBreakerCostChange={(cost) => onAnswerChange('rock_breaker_cost', cost)}
+              // Excavator hire props
+              excavatorRequired={answers.excavator_required || false}
+              onExcavatorRequiredChange={(val) => onAnswerChange('excavator_required', val)}
+              excavatorType={answers.excavator_type || 'EXC 3.2T'}
+              onExcavatorTypeChange={(type) => onAnswerChange('excavator_type', type)}
+              excavatorRate={answers.excavator_rate || getPrice('excavation', answers.excavator_type || 'EXC 3.2T', 150)}
+              onExcavatorRateChange={(rate) => onAnswerChange('excavator_rate', rate)}
+              excavatorHours={answers.excavator_hours || 4}
+              onExcavatorHoursChange={(hours) => onAnswerChange('excavator_hours', hours)}
+              excavatorFloat={answers.excavator_float || getPrice('excavation', 'FLOAT', 150)}
+              onExcavatorFloatChange={(float) => onAnswerChange('excavator_float', float)}
               // Saw cutting props
               sawCuttingRequired={answers.saw_cutting_required || false}
               onSawCuttingRequiredChange={(val) => onAnswerChange('saw_cutting_required', val)}
+              sawCuttingMethod={answers.saw_cutting_method || 'linear'}
+              onSawCuttingMethodChange={(method) => onAnswerChange('saw_cutting_method', method)}
               sawCuttingLength={answers.saw_cutting_length || 0}
               onSawCuttingLengthChange={(length) => onAnswerChange('saw_cutting_length', length)}
-              sawCuttingRate={answers.saw_cutting_rate || getPrice('joint_saw_cutting', 'JOINTCUT', 6.50)}
+              sawCuttingRate={answers.saw_cutting_rate || getPrice('joint_saw_cutting', 'SAWCUT_LM', 25)}
               onSawCuttingRateChange={(rate) => onAnswerChange('saw_cutting_rate', rate)}
+              sawCuttingHours={answers.saw_cutting_hours || 2}
+              onSawCuttingHoursChange={(hours) => onAnswerChange('saw_cutting_hours', hours)}
+              sawCuttingHourlyRate={answers.saw_cutting_hourly_rate || getPrice('joint_saw_cutting', 'SAWCUT_HR', 180)}
+              onSawCuttingHourlyRateChange={(rate) => onAnswerChange('saw_cutting_hourly_rate', rate)}
               // Labour hours props
               demoLabourRequired={answers.demo_labour_required || false}
               onDemoLabourRequiredChange={(val) => onAnswerChange('demo_labour_required', val)}
