@@ -36,6 +36,7 @@ interface UseTakeoffDataReturn {
   addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases') => Promise<TakeoffMarkup | null>;
   addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string, toeMm?: number) => Promise<TakeoffMarkup | null>;
+  addSlabWithBeams: (fileId: string, scopeId: string, slabData: { points: TakeoffPoint[]; shapeType: 'polygon' | 'rectangle'; name: string }, edgeBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, internalBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
   deleteMarkup: (markupId: string) => Promise<void>;
   setCurrentPage: (page: number) => Promise<void>;
@@ -119,6 +120,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           width_mm: m.width_mm || null,
           height_mm: m.height_mm || null,
           length_m: m.length_m ? Number(m.length_m) : null,
+          parent_markup_id: m.parent_markup_id || null,
+          markup_type: (m.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening',
         })));
       } else {
         setTakeoff(null);
@@ -536,6 +539,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         width_mm: null,
         height_mm: null,
         length_m: null,
+        parent_markup_id: data.parent_markup_id || null,
+        markup_type: (data.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening',
       };
 
       setMarkups(prev => [...prev, newMarkup]);
@@ -590,6 +595,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         width_mm: null,
         height_mm: null,
         length_m: null,
+        parent_markup_id: data.parent_markup_id || null,
+        markup_type: (data.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening',
       };
 
       setMarkups(prev => [...prev, newMarkup]);
@@ -646,6 +653,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         width_mm: null,
         height_mm: data.height_mm,
         length_m: null,
+        parent_markup_id: data.parent_markup_id || null,
+        markup_type: (data.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening',
       };
 
       setMarkups(prev => [...prev, newMarkup]);
@@ -708,6 +717,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         width_mm: data.width_mm,
         height_mm: data.height_mm,
         length_m: null,
+        parent_markup_id: data.parent_markup_id || null,
+        markup_type: (data.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening',
       };
 
       setMarkups(prev => [...prev, newMarkup]);
@@ -768,6 +779,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         height_mm: data.height_mm,
         length_m: data.length_m ? Number(data.length_m) : null,
         toe_mm: data.toe_mm || null,
+        parent_markup_id: data.parent_markup_id || null,
+        markup_type: (data.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening',
       };
 
       setMarkups(prev => [...prev, newMarkup]);
@@ -853,6 +866,181 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     }
   };
 
+  // Add slab with optional beams (parent-child relationship)
+  const addSlabWithBeams = async (
+    fileId: string,
+    scopeId: string,
+    slabData: {
+      points: TakeoffPoint[];
+      shapeType: 'polygon' | 'rectangle';
+      name: string;
+    },
+    edgeBeams: {
+      segments: TakeoffPoint[][];
+      width_mm: number;
+      depth_mm: number;
+      totalLength: number;
+    } | null,
+    internalBeams: {
+      segments: TakeoffPoint[][];
+      width_mm: number;
+      depth_mm: number;
+      totalLength: number;
+    } | null,
+    color: string,
+    pageNumber: number
+  ): Promise<TakeoffMarkup | null> => {
+    if (!takeoff) return null;
+
+    try {
+      const { calculatePolygonArea, calculatePolygonPerimeter, calculateRectangleArea, calculateRectanglePerimeter } = await import('@/types/takeoff');
+      
+      const scale = getPageScale(fileId, pageNumber);
+      let area: number | null = null;
+      let perimeter: number | null = null;
+      
+      if (scale) {
+        if (slabData.shapeType === 'polygon') {
+          area = calculatePolygonArea(slabData.points, scale);
+          perimeter = calculatePolygonPerimeter(slabData.points, scale);
+        } else {
+          area = calculateRectangleArea(slabData.points, scale);
+          perimeter = calculateRectanglePerimeter(slabData.points, scale);
+        }
+      }
+
+      // Insert parent slab markup
+      const { data: slabMarkup, error: slabError } = await supabase
+        .from('takeoff_markups')
+        .insert({
+          takeoff_id: takeoff.id,
+          file_id: fileId,
+          scope_id: scopeId,
+          shape_type: slabData.shapeType,
+          points: slabData.points as unknown as Json,
+          color,
+          area_sqm: area,
+          perimeter_m: perimeter,
+          page_number: pageNumber,
+          name: slabData.name,
+          markup_type: 'primary'
+        })
+        .select()
+        .single();
+
+      if (slabError) throw slabError;
+
+      const newMarkups: TakeoffMarkup[] = [{
+        ...slabMarkup,
+        name: slabMarkup.name || null,
+        file_id: slabMarkup.file_id || null,
+        shape_type: slabMarkup.shape_type as 'polygon' | 'rectangle',
+        points: slabMarkup.points as unknown as TakeoffPoint[],
+        diameter_mm: null,
+        depth_mm: null,
+        pier_quantity: null,
+        width_mm: null,
+        height_mm: null,
+        length_m: null,
+        parent_markup_id: null,
+        markup_type: 'primary' as const,
+      }];
+
+      // Insert edge beam segments if provided
+      if (edgeBeams && edgeBeams.segments.length > 0) {
+        for (const segment of edgeBeams.segments) {
+          const { data: beamData, error: beamError } = await supabase
+            .from('takeoff_markups')
+            .insert({
+              takeoff_id: takeoff.id,
+              file_id: fileId,
+              scope_id: scopeId,
+              shape_type: 'polyline',
+              points: segment as unknown as Json,
+              color,
+              page_number: pageNumber,
+              name: `${slabData.name} - Edge Beam`,
+              parent_markup_id: slabMarkup.id,
+              markup_type: 'edge_beam',
+              width_mm: edgeBeams.width_mm,
+              height_mm: edgeBeams.depth_mm,
+              length_m: edgeBeams.totalLength / edgeBeams.segments.length // Distribute length
+            })
+            .select()
+            .single();
+
+          if (!beamError && beamData) {
+            newMarkups.push({
+              ...beamData,
+              name: beamData.name || null,
+              file_id: beamData.file_id || null,
+              shape_type: 'polyline',
+              points: beamData.points as unknown as TakeoffPoint[],
+              diameter_mm: null,
+              depth_mm: null,
+              pier_quantity: null,
+              width_mm: beamData.width_mm,
+              height_mm: beamData.height_mm,
+              length_m: beamData.length_m ? Number(beamData.length_m) : null,
+              parent_markup_id: beamData.parent_markup_id || null,
+              markup_type: 'edge_beam' as const,
+            });
+          }
+        }
+      }
+
+      // Insert internal beam segments if provided
+      if (internalBeams && internalBeams.segments.length > 0) {
+        for (const segment of internalBeams.segments) {
+          const { data: beamData, error: beamError } = await supabase
+            .from('takeoff_markups')
+            .insert({
+              takeoff_id: takeoff.id,
+              file_id: fileId,
+              scope_id: scopeId,
+              shape_type: 'polyline',
+              points: segment as unknown as Json,
+              color,
+              page_number: pageNumber,
+              name: `${slabData.name} - Internal Beam`,
+              parent_markup_id: slabMarkup.id,
+              markup_type: 'internal_beam',
+              width_mm: internalBeams.width_mm,
+              height_mm: internalBeams.depth_mm,
+              length_m: internalBeams.totalLength / internalBeams.segments.length
+            })
+            .select()
+            .single();
+
+          if (!beamError && beamData) {
+            newMarkups.push({
+              ...beamData,
+              name: beamData.name || null,
+              file_id: beamData.file_id || null,
+              shape_type: 'polyline',
+              points: beamData.points as unknown as TakeoffPoint[],
+              diameter_mm: null,
+              depth_mm: null,
+              pier_quantity: null,
+              width_mm: beamData.width_mm,
+              height_mm: beamData.height_mm,
+              length_m: beamData.length_m ? Number(beamData.length_m) : null,
+              parent_markup_id: beamData.parent_markup_id || null,
+              markup_type: 'internal_beam' as const,
+            });
+          }
+        }
+      }
+
+      setMarkups(prev => [...prev, ...newMarkups]);
+      return newMarkups[0]; // Return parent slab markup
+    } catch (error: any) {
+      console.error('Error adding slab with beams:', error);
+      toast({ title: 'Failed to add slab', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
   return {
     takeoff,
     files,
@@ -874,6 +1062,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     addBollardMarkups,
     addPadMarkups,
     addPolylineMarkup,
+    addSlabWithBeams,
     updateMarkup,
     deleteMarkup,
     setCurrentPage,
