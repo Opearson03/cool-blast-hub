@@ -44,6 +44,9 @@ export interface TakeoffMarkup {
   height_mm?: number | null;
   length_m?: number | null;
   toe_mm?: number | null;
+  // Parent-child relationship for slab beams
+  parent_markup_id?: string | null;
+  markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening';
 }
 
 export interface EstimateTakeoff {
@@ -74,6 +77,14 @@ export interface DrawingTool {
 export const POINT_SCOPES = ['piers', 'bollards', 'pad_footings', 'pit_bases'] as const;
 export const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls'] as const;
 export const AREA_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'suspended_slab'] as const;
+
+// Scopes that support sub-element marking (beams over slabs)
+export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod'] as const;
+export type SlabWithBeamsScope = typeof SLAB_WITH_BEAMS_SCOPES[number];
+
+export function isSlabWithBeamsScope(scopeId: string): scopeId is SlabWithBeamsScope {
+  return SLAB_WITH_BEAMS_SCOPES.includes(scopeId as SlabWithBeamsScope);
+}
 
 export type PointScope = typeof POINT_SCOPES[number];
 export type LinearScope = typeof LINEAR_SCOPES[number];

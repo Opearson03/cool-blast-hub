@@ -1639,8 +1639,10 @@ export type Database = {
           height_mm: number | null
           id: string
           length_m: number | null
+          markup_type: string | null
           name: string | null
           page_number: number | null
+          parent_markup_id: string | null
           perimeter_m: number | null
           pier_quantity: number | null
           points: Json
@@ -1660,8 +1662,10 @@ export type Database = {
           height_mm?: number | null
           id?: string
           length_m?: number | null
+          markup_type?: string | null
           name?: string | null
           page_number?: number | null
+          parent_markup_id?: string | null
           perimeter_m?: number | null
           pier_quantity?: number | null
           points?: Json
@@ -1681,8 +1685,10 @@ export type Database = {
           height_mm?: number | null
           id?: string
           length_m?: number | null
+          markup_type?: string | null
           name?: string | null
           page_number?: number | null
+          parent_markup_id?: string | null
           perimeter_m?: number | null
           pier_quantity?: number | null
           points?: Json
@@ -1698,6 +1704,13 @@ export type Database = {
             columns: ["file_id"]
             isOneToOne: false
             referencedRelation: "takeoff_files"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "takeoff_markups_parent_markup_id_fkey"
+            columns: ["parent_markup_id"]
+            isOneToOne: false
+            referencedRelation: "takeoff_markups"
             referencedColumns: ["id"]
           },
           {
