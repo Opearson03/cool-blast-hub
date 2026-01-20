@@ -309,6 +309,9 @@ export function ModularCalculator({
       averageExcavationDepth = Number(scopeAnswers.footing_depth) || 0;
     }
 
+    // For piers, also expose depth directly for modules that expect it
+    const depth = averageExcavationDepth || scopeAnswers.depth;
+
     return {
       ...scopeAnswers,
       area: totalArea,
@@ -316,6 +319,7 @@ export function ModularCalculator({
       excavation_volume: excavationVolume,
       excavation_area: excavationArea,
       averageExcavationDepth: averageExcavationDepth,
+      depth: depth, // Expose depth for pier-based modules
     };
   }, [scopeAnswers]);
 
@@ -386,6 +390,20 @@ export function ModularCalculator({
               };
               hasChanges = true;
             }
+          }
+
+          // Handle defaultValue for fields without deriveFrom or priceListKey
+          if (!question.deriveFrom && !question.priceListKey && 
+              question.defaultValue !== undefined && 
+              currentModuleAnswers[question.id] === undefined) {
+            if (!newModuleAnswers[module.id]) {
+              newModuleAnswers[module.id] = {};
+            }
+            newModuleAnswers[module.id] = {
+              ...newModuleAnswers[module.id],
+              [question.id]: question.defaultValue,
+            };
+            hasChanges = true;
           }
         }
       });

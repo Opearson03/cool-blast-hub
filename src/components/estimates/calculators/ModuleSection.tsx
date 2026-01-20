@@ -156,14 +156,22 @@ function QuestionInput({
       )}
 
       {question.type === 'text' && (
-        <Input
-          id={inputId}
-          type="text"
-          value={value ?? ''}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={question.placeholder}
-          className="h-11 sm:h-9"
-        />
+        <div className="relative">
+          <Input
+            id={inputId}
+            type="text"
+            value={value ?? ''}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={question.placeholder}
+            className={`h-11 sm:h-9 ${question.derivedReadOnly ? 'bg-muted cursor-not-allowed' : ''}`}
+            readOnly={question.derivedReadOnly}
+          />
+          {question.deriveFrom && !question.derivedReadOnly && value !== undefined && (
+            <span className="absolute -top-2 right-0 text-[10px] text-muted-foreground bg-background px-1">
+              Auto-filled
+            </span>
+          )}
+        </div>
       )}
 
       {question.type === 'select' && question.options && (
