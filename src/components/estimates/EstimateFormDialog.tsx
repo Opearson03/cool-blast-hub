@@ -28,8 +28,10 @@ import {
   MapPin,
   Wrench,
   CheckCircle,
-  Percent
+  Percent,
+  MessageSquareWarning
 } from "lucide-react";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { cn } from "@/lib/utils";
 
 import { ScopeType, SCOPE_OPTIONS, ScopeSelector } from "./ScopeSelector";
@@ -1333,41 +1335,59 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const renderWizardFooter = (options: { nextLabel?: string; onNext?: () => void; showBack?: boolean; showSaveDraft?: boolean } = {}) => {
     const { nextLabel, onNext, showBack = true, showSaveDraft = true } = options;
     return (
-      <div className="flex items-center justify-between pt-4 border-t mt-4">
-        <div className="flex gap-2">
-          {showBack && currentStepIndex > 0 && (
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={goBack} 
-              disabled={isAnyOperationPending}
-              className="gap-1"
-            >
-              <ChevronLeft className="w-4 h-4" /> Back
-            </Button>
-          )}
-          {showSaveDraft && (
-            <Button 
-              type="button" 
-              variant="ghost" 
-              onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
-              disabled={isAnyOperationPending}
-              className="text-muted-foreground"
-            >
-              {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Save Draft
-            </Button>
-          )}
+      <div className="space-y-3 pt-4 border-t mt-4">
+        {/* Testing feedback banner */}
+        <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MessageSquareWarning className="w-4 h-4 text-orange-500 shrink-0" />
+            <span>Stuck on an issue? We're still testing and want to help.</span>
+          </div>
+          <FeedbackDialog 
+            trigger={
+              <Button variant="outline" size="sm" className="shrink-0 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-600">
+                Report Issue
+              </Button>
+            }
+          />
         </div>
-        <Button 
-          type="button" 
-          onClick={onNext || goNext} 
-          disabled={!canProceed || isAnyOperationPending}
-          className="gap-1"
-        >
-          {isTransitioning && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
-          {nextLabel || "Continue"} <ChevronRight className="w-4 h-4" />
-        </Button>
+
+        {/* Navigation buttons */}
+        <div className="flex items-center justify-between">
+          <div className="flex gap-2">
+            {showBack && currentStepIndex > 0 && (
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={goBack} 
+                disabled={isAnyOperationPending}
+                className="gap-1"
+              >
+                <ChevronLeft className="w-4 h-4" /> Back
+              </Button>
+            )}
+            {showSaveDraft && (
+              <Button 
+                type="button" 
+                variant="ghost" 
+                onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
+                disabled={isAnyOperationPending}
+                className="text-muted-foreground"
+              >
+                {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Save Draft
+              </Button>
+            )}
+          </div>
+          <Button 
+            type="button" 
+            onClick={onNext || goNext} 
+            disabled={!canProceed || isAnyOperationPending}
+            className="gap-1"
+          >
+            {isTransitioning && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+            {nextLabel || "Continue"} <ChevronRight className="w-4 h-4" />
+          </Button>
+        </div>
       </div>
     );
   };
