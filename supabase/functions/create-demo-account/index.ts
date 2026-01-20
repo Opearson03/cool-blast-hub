@@ -17,19 +17,21 @@ Deno.serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    const email = "mitch@newgenconcrete.com.au";
-    const password = "Demo123";
-    const fullName = "Mitch Wilson";
-    const businessName = "Newgen Concrete";
-    const phone = "+61 404 206 157";
+    // Parse request body for dynamic parameters
+    const body = await req.json().catch(() => ({}));
+    const email = body.email || "mitch@newgenconcrete.com.au";
+    const password = body.password || "Demo123";
+    const fullName = body.ownerName || "Mitch Wilson";
+    const businessName = body.businessName || "Newgen Concrete";
+    const phone = body.phone || "";
 
-    // Check if user already exists
+    // Check if user already exists with this email
     const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers();
     const existingUser = existingUsers?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase());
     
     if (existingUser) {
       return new Response(
-        JSON.stringify({ error: "User already exists", userId: existingUser.id }),
+        JSON.stringify({ error: "User already exists with this email", userId: existingUser.id, email }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
