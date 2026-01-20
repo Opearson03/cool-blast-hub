@@ -3,7 +3,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus, MessageSquareWarning } from 'lucide-react';
+import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
 import { useTakeoffData } from '@/hooks/useTakeoffData';
 import { PlanUploader } from './PlanUploader';
 import { PlanViewer } from './PlanViewer';
@@ -560,17 +561,34 @@ export function PlanTakeoffStep({
       </div>
 
       {/* Footer */}
-      <div className="flex items-center justify-between pt-4 border-t">
-        <Button variant="outline" onClick={onBack} disabled={isNavigating} className="gap-1">
-          <ChevronLeft className="h-4 w-4" /> Back
-        </Button>
-        <div className="flex gap-2">
-          <Button variant="ghost" onClick={onSkip} disabled={isNavigating} className="text-muted-foreground">
-            Skip Remaining
+      <div className="space-y-3 pt-4 border-t">
+        {/* Testing feedback banner */}
+        <div className="bg-orange-500/10 border border-orange-500/20 rounded-lg p-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <MessageSquareWarning className="w-4 h-4 text-orange-500 shrink-0" />
+            <span>Stuck on an issue? We're still testing and want to help.</span>
+          </div>
+          <FeedbackDialog 
+            trigger={
+              <Button variant="outline" size="sm" className="shrink-0 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-600">
+                Report Issue
+              </Button>
+            }
+          />
+        </div>
+        
+        <div className="flex items-center justify-between">
+          <Button variant="outline" onClick={onBack} disabled={isNavigating} className="gap-1">
+            <ChevronLeft className="h-4 w-4" /> Back
           </Button>
-          <Button onClick={onContinue} disabled={isNavigating} className="gap-1">
-            Continue <ChevronRight className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="ghost" onClick={onSkip} disabled={isNavigating} className="text-muted-foreground">
+              Skip Remaining
+            </Button>
+            <Button onClick={onContinue} disabled={isNavigating} className="gap-1">
+              Continue <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </div>
 
