@@ -340,6 +340,20 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       helpText: 'Count from engineering drawings or estimate from area',
     },
     {
+      id: 'waffle_thickness',
+      type: 'select',
+      label: 'Waffle Thickness',
+      required: true,
+      options: [
+        { value: '300', label: '300mm (225mm pod + 85mm top)' },
+        { value: '350', label: '350mm (275mm pod + 85mm top)' },
+        { value: '400', label: '400mm (325mm pod + 85mm top)' },
+        { value: '450', label: '450mm (375mm pod + 85mm top)' },
+      ],
+      defaultValue: '300',
+      helpText: 'Industry standard: thickness = pod depth + 85mm top slab',
+    },
+    {
       id: 'pod_size',
       type: 'select',
       label: 'Pod Size',
@@ -364,28 +378,6 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       helpText: 'Width of concrete ribs between pods',
     },
     {
-      id: 'top_slab_thickness',
-      type: 'number',
-      label: 'Top Slab Thickness (mm)',
-      required: false,
-      min: 50,
-      max: 150,
-      defaultValue: 85,
-      unit: 'mm',
-      helpText: 'Thickness of concrete above pods',
-    },
-    {
-      id: 'rib_depth',
-      type: 'number',
-      label: 'Rib Depth (mm)',
-      required: false,
-      min: 150,
-      max: 450,
-      defaultValue: 300,
-      unit: 'mm',
-      helpText: 'Full depth of concrete ribs',
-    },
-    {
       id: 'edge_beam_depth',
       type: 'number',
       label: 'Edge Beam Depth (mm)',
@@ -405,11 +397,22 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       unit: 'mm',
       helpText: 'Width of perimeter edge beam',
     },
+    {
+      id: 'internal_beams_length',
+      type: 'number',
+      label: 'Internal Beam Length (m)',
+      required: false,
+      min: 0,
+      defaultValue: 0,
+      unit: 'm',
+      helpText: 'Total length of internal stiffening beams (for block starts, etc.)',
+    },
   ],
   moduleIds: [
     'base-preparation',
     'formwork',
     'reinforcement-slab',
+    'reinforcement-footing',  // For edge/internal beam reinforcement (trench mesh, bars, verticals)
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
@@ -424,11 +427,15 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     const podSizeMM = Number(answers.pod_size) || 1090;
     const podSizeM = podSizeMM / 1000;
     const ribWidthM = (Number(answers.rib_width) || 110) / 1000;
-    const topSlabThicknessM = (Number(answers.top_slab_thickness) || 85) / 1000;
-    const ribDepthM = (Number(answers.rib_depth) || 300) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
     const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 350) / 1000;
     const edgeBeamWidthM = (Number(answers.edge_beam_width) || 350) / 1000;
+    
+    // Industry standard: waffle_thickness = pod_depth + 85mm top
+    // 300mm waffle = 225mm pod + 85mm top (but we call it 300 for rib depth calculations)
+    const waffleThicknessMM = Number(answers.waffle_thickness) || 300;
+    const topSlabThicknessM = 85 / 1000; // Always 85mm top slab
+    const ribDepthM = waffleThicknessMM / 1000; // Full rib depth = waffle thickness
 
     // Pod void area (no concrete)
     const podArea = podCount * podSizeM * podSizeM;
@@ -443,11 +450,14 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     const topSlabVolume = area * topSlabThicknessM;
 
     // Edge beam extra volume (outside the main waffle grid)
-    // Simplified: perimeter × edge width × (edge depth - top slab)
     const edgeExtraDepth = Math.max(0, edgeBeamDepthM - topSlabThicknessM);
     const edgeBeamVolume = perimeter * edgeBeamWidthM * edgeExtraDepth;
+    
+    // Internal beams volume (for block starts etc.)
+    const internalBeamLength = Number(answers.internal_beams_length) || 0;
+    const internalBeamVolume = internalBeamLength * edgeBeamWidthM * edgeExtraDepth;
 
-    return safeVolume(ribVolume + topSlabVolume + edgeBeamVolume);
+    return safeVolume(ribVolume + topSlabVolume + edgeBeamVolume + internalBeamVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'waffle_pod' },
