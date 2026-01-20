@@ -16,6 +16,7 @@ interface ScopeAreaData {
   width_mm?: number | null;
   height_mm?: number | null;
   length_m?: number | null;
+  toe_mm?: number | null;
 }
 
 export interface PierTakeoffData {
@@ -81,6 +82,7 @@ export interface FootingConfigFromTakeoff {
   length: number;
   width: number;
   depth: number;
+  toe?: number;
   _fromTakeoff: true;
   _actualLength: number;
 }
@@ -134,7 +136,7 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
       // Then get the markups for this takeoff - include all fields for linear/pad elements
       const { data: markupsData, error: markupsError } = await supabase
         .from('takeoff_markups')
-        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m')
+        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m, toe_mm')
         .eq('takeoff_id', takeoffData.id)
         .order('created_at', { ascending: true });
 
@@ -153,6 +155,7 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         width_mm: m.width_mm,
         height_mm: m.height_mm,
         length_m: m.length_m ? Number(m.length_m) : null,
+        toe_mm: m.toe_mm,
       })));
     } catch (error) {
       console.error('Error fetching takeoff markups:', error);
@@ -432,6 +435,7 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
       length: m.length_m || 0,
       width: m.width_mm || 450,
       depth: m.height_mm || 300,
+      toe: m.toe_mm || undefined,
       _fromTakeoff: true as const,
       _actualLength: m.length_m || 0,
     }));

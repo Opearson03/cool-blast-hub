@@ -10,15 +10,22 @@ interface LinearDimensionsDialogProps {
   onOpenChange: (open: boolean) => void;
   lengthMeters: number;
   scopeType: string;
-  onConfirm: (width: number, height: number) => void;
-  onConfirmAndAddAnother?: (width: number, height: number) => void;
+  onConfirm: (width: number, height: number, toe?: number) => void;
+  onConfirmAndAddAnother?: (width: number, height: number, toe?: number) => void;
 }
 
-const SCOPE_LABELS: Record<string, { widthLabel: string; heightLabel: string; widthDefault: number; heightDefault: number }> = {
+const SCOPE_LABELS: Record<string, { 
+  widthLabel: string; 
+  heightLabel: string; 
+  widthDefault: number; 
+  heightDefault: number;
+  showToe?: boolean;
+  toeDefault?: number;
+}> = {
   strip_footings: { widthLabel: 'Footing Width', heightLabel: 'Footing Depth', widthDefault: 450, heightDefault: 300 },
-  retaining_wall_footings: { widthLabel: 'Footing Width', heightLabel: 'Footing Depth', widthDefault: 600, heightDefault: 400 },
+  retaining_wall_footings: { widthLabel: 'Footing Width', heightLabel: 'Footing Depth', widthDefault: 600, heightDefault: 400, showToe: true, toeDefault: 300 },
   kerbs_channels: { widthLabel: 'Kerb Width', heightLabel: 'Kerb Height', widthDefault: 300, heightDefault: 450 },
-  retaining_walls: { widthLabel: 'Wall Thickness', heightLabel: 'Wall Height', widthDefault: 200, heightDefault: 1200 },
+  retaining_walls: { widthLabel: 'Wall Thickness', heightLabel: 'Wall Height', widthDefault: 200, heightDefault: 1200, showToe: true, toeDefault: 300 },
 };
 
 export function LinearDimensionsDialog({
@@ -38,14 +45,15 @@ export function LinearDimensionsDialog({
 
   const [width, setWidth] = useState(labels.widthDefault);
   const [height, setHeight] = useState(labels.heightDefault);
+  const [toe, setToe] = useState(labels.toeDefault || 0);
 
   const handleConfirm = () => {
-    onConfirm(width, height);
+    onConfirm(width, height, labels.showToe ? toe : undefined);
     onOpenChange(false);
   };
 
   const handleConfirmAndAddAnother = () => {
-    onConfirmAndAddAnother?.(width, height);
+    onConfirmAndAddAnother?.(width, height, labels.showToe ? toe : undefined);
     onOpenChange(false);
   };
 
@@ -129,12 +137,43 @@ export function LinearDimensionsDialog({
             </div>
           </div>
 
+          {/* Toe input - only for retaining wall scopes */}
+          {labels.showToe && (
+            <div className="space-y-2">
+              <Label htmlFor="toe">Toe Length</Label>
+              <div className="relative">
+                <Input
+                  id="toe"
+                  type="number"
+                  value={toe}
+                  onChange={(e) => setToe(Number(e.target.value) || 0)}
+                  min={0}
+                  max={1000}
+                  step={50}
+                  className="pr-12"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  mm
+                </span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Distance footing extends beyond wall face (0 if no toe)
+              </p>
+            </div>
+          )}
+
           {/* Volume preview */}
           <div className="p-3 bg-muted rounded-lg space-y-1">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Cross-section:</span>
               <span className="font-medium">{width}mm × {height}mm</span>
             </div>
+            {labels.showToe && toe > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Toe:</span>
+                <span className="font-medium">{toe}mm</span>
+              </div>
+            )}
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Surface area:</span>
               <span className="font-medium">{calculations.surfaceArea.toFixed(2)} m²</span>

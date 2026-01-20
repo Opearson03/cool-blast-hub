@@ -647,22 +647,22 @@ export function PlanTakeoffStep({
         onOpenChange={setShowLinearDimensions}
         lengthMeters={pendingPolylineLength}
         scopeType={activeScope || 'strip_footings'}
-        onConfirm={async (width, height) => {
+        onConfirm={async (width, height, toe) => {
           if (!activeScope || !currentFileId || polylinePoints.length < 2) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
           const name = pendingMarkupName.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
-          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, name);
+          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, name, toe);
           setPolylinePoints([]);
           setPendingPolylineLength(0);
           setActiveTool('select');
           setActiveScope(null);
           setPendingMarkupName('');
         }}
-        onConfirmAndAddAnother={async (width, height) => {
+        onConfirmAndAddAnother={async (width, height, toe) => {
           if (!activeScope || !currentFileId || polylinePoints.length < 2) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
           const name = pendingMarkupName.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
-          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, name);
+          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, name, toe);
           setPolylinePoints([]); // Clear points but keep tool and scope active
           setPendingPolylineLength(0);
           // Update default name for next section
