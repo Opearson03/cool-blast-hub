@@ -35,7 +35,7 @@ interface UseTakeoffDataReturn {
   addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases') => Promise<TakeoffMarkup | null>;
-  addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
+  addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string, toeMm?: number) => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
   deleteMarkup: (markupId: string) => Promise<void>;
   setCurrentPage: (page: number) => Promise<void>;
@@ -728,7 +728,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     heightMm: number,
     color: string,
     pageNumber: number,
-    name?: string
+    name?: string,
+    toeMm?: number
   ): Promise<TakeoffMarkup | null> => {
     if (!takeoff) return null;
 
@@ -746,7 +747,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           length_m: lengthM,
           width_mm: widthMm,
           height_mm: heightMm,
-          name: name || null
+          name: name || null,
+          toe_mm: toeMm || null
         })
         .select()
         .single();
@@ -765,6 +767,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         width_mm: data.width_mm,
         height_mm: data.height_mm,
         length_m: data.length_m ? Number(data.length_m) : null,
+        toe_mm: data.toe_mm || null,
       };
 
       setMarkups(prev => [...prev, newMarkup]);

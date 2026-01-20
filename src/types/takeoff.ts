@@ -43,6 +43,7 @@ export interface TakeoffMarkup {
   width_mm?: number | null;
   height_mm?: number | null;
   length_m?: number | null;
+  toe_mm?: number | null;
 }
 
 export interface EstimateTakeoff {

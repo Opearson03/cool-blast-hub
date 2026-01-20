@@ -1647,6 +1647,7 @@ export type Database = {
           scope_id: string
           shape_type: string
           takeoff_id: string
+          toe_mm: number | null
           width_mm: number | null
         }
         Insert: {
@@ -1667,6 +1668,7 @@ export type Database = {
           scope_id: string
           shape_type: string
           takeoff_id: string
+          toe_mm?: number | null
           width_mm?: number | null
         }
         Update: {
@@ -1687,6 +1689,7 @@ export type Database = {
           scope_id?: string
           shape_type?: string
           takeoff_id?: string
+          toe_mm?: number | null
           width_mm?: number | null
         }
         Relationships: [
