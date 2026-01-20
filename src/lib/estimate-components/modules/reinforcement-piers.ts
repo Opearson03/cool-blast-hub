@@ -52,9 +52,10 @@ export const reinforcementPiersModule: EstimateModule = {
       id: 'starter_lap_margin',
       type: 'number',
       label: 'Lap/bending/rolling margin (%)',
-      defaultValue: 10,
+      defaultValue: 12.5,
       min: 0,
       max: 50,
+      step: 0.5,
       unit: '%',
       showIf: (answers) => answers.has_starters === true,
     },
@@ -88,23 +89,51 @@ export const reinforcementPiersModule: EstimateModule = {
       showIf: (answers) => answers.is_reinforced === true,
     },
     {
-      id: 'lig_count',
-      type: 'number',
-      label: 'Number of ligatures per pier',
-      defaultValue: 4,
-      min: 1,
-      max: 20,
-      showIf: (answers) => answers.is_reinforced === true,
-    },
-    {
       id: 'lig_size',
       type: 'select',
-      label: 'Ligature size',
+      label: 'Ligature bar size',
       options: [
         { value: 'R10', label: 'R10 (10mm)' },
         { value: 'R12', label: 'R12 (12mm)' },
       ],
       defaultValue: 'R10',
+      showIf: (answers) => answers.is_reinforced === true,
+    },
+    {
+      id: 'lig_centres',
+      type: 'number',
+      label: 'Ligature centres (mm)',
+      defaultValue: 200,
+      min: 50,
+      max: 500,
+      step: 25,
+      unit: 'mm',
+      helpText: 'Spacing between ligatures',
+      showIf: (answers) => answers.is_reinforced === true,
+    },
+    {
+      id: 'calculated_ligs',
+      type: 'text',
+      label: 'Calculated ligatures per pier',
+      derivedReadOnly: true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const pierDepth = Number(scopeData.depth) || Number(scopeData.averageExcavationDepth) || 600;
+        const ligCentres = Number(moduleAnswers.lig_centres) || 200;
+        const ligCount = Math.ceil(pierDepth / ligCentres);
+        const ligSize = moduleAnswers.lig_size || 'R10';
+        return `${ligSize} @ ${ligCentres}mm = ${ligCount} ligs`;
+      },
+      showIf: (answers) => answers.is_reinforced === true,
+    },
+    {
+      id: 'cage_lap_margin',
+      type: 'number',
+      label: 'Lap/bending margin (%)',
+      defaultValue: 12.5,
+      min: 0,
+      max: 50,
+      step: 0.5,
+      unit: '%',
       showIf: (answers) => answers.is_reinforced === true,
     },
     // Delivery and sundries
@@ -124,16 +153,16 @@ export const reinforcementPiersModule: EstimateModule = {
       helpText: 'Tie wire, bar chairs, spacers, etc.',
       showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
     },
-    // Rebar pricing
+    // Rebar pricing - default to cut and bend
     {
       id: 'rebar_type',
       type: 'select',
       label: 'Rebar supply type',
       options: [
-        { value: 'stock', label: 'Stock Lengths' },
         { value: 'cut_bend', label: 'Cut & Bend' },
+        { value: 'stock', label: 'Stock Lengths' },
       ],
-      defaultValue: 'stock',
+      defaultValue: 'cut_bend',
       showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
     },
     {
@@ -163,7 +192,7 @@ export const reinforcementPiersModule: EstimateModule = {
       const starterCount = Number(answers.starter_count) || 4;
       const starterSize = answers.starter_size || 'N16';
       const starterLength = (Number(answers.starter_length) || 1200) / 1000; // mm to m
-      const lapMargin = 1 + (Number(answers.starter_lap_margin) || 10) / 100;
+      const lapMargin = 1 + (Number(answers.starter_lap_margin) || 12.5) / 100;
 
       const weightPerMetre = REBAR_WEIGHTS[starterSize] || 1.58;
       const totalStarterWeight = numPiers * starterCount * starterLength * lapMargin * weightPerMetre;
@@ -192,18 +221,23 @@ export const reinforcementPiersModule: EstimateModule = {
     if (answers.is_reinforced) {
       const verticalBars = Number(answers.vertical_bars_count) || 6;
       const verticalSize = answers.vertical_bar_size || 'N16';
-      const ligCount = Number(answers.lig_count) || 4;
       const ligSize = answers.lig_size || 'R10';
+      const ligCentres = Number(answers.lig_centres) || 200;
+      const lapMargin = 1 + (Number(answers.cage_lap_margin) || 12.5) / 100;
+      
+      // Calculate lig count from depth and centres
+      const pierDepthMm = Number(scopeData.depth) || 600;
+      const ligCount = Math.ceil(pierDepthMm / ligCentres);
 
       // Vertical bars weight
       const verticalWeightPerM = REBAR_WEIGHTS[verticalSize] || 1.58;
-      const totalVerticalWeight = numPiers * verticalBars * pierDepth * verticalWeightPerM;
+      const totalVerticalWeight = numPiers * verticalBars * pierDepth * lapMargin * verticalWeightPerM;
 
       // Ligature weight (approximate circumference based on pier diameter)
       const pierDiameter = (Number(scopeData.diameter) || 450) / 1000;
       const ligCircumference = Math.PI * (pierDiameter - 0.05); // Allow for cover
       const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
-      const totalLigWeight = numPiers * ligCount * ligCircumference * ligWeightPerM;
+      const totalLigWeight = numPiers * ligCount * ligCircumference * lapMargin * ligWeightPerM;
 
       const totalCageWeight = totalVerticalWeight + totalLigWeight;
       const totalCageTonnes = totalCageWeight / 1000;
@@ -216,7 +250,7 @@ export const reinforcementPiersModule: EstimateModule = {
       if (cageCost > 0) {
         lineItems.push({
           id: 'cage_reinforcement',
-          description: `Pier Cages ${verticalSize}/${ligSize} (${numPiers} piers)`,
+          description: `Pier Cages ${verticalSize}/${ligSize} @ ${ligCentres}mm (${numPiers} piers × ${ligCount} ligs)`,
           quantity: Math.round(totalCageWeight),
           unit: 'kg',
           unitPrice: pricePerTonne / 1000,
@@ -298,6 +332,9 @@ export const reinforcementPiersModule: EstimateModule = {
     if (answers.is_reinforced) {
       if (!answers.vertical_bars_count || answers.vertical_bars_count < 1) {
         errors.push('Please specify the number of vertical bars');
+      }
+      if (!answers.lig_centres || answers.lig_centres < 50) {
+        errors.push('Please specify ligature centres');
       }
     }
 
