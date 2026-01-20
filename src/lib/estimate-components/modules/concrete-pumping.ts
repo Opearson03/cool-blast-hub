@@ -327,7 +327,7 @@ export const concretePumpingModule: EstimateModule = {
       return [
         {
           id: 'no_pumping',
-          text: 'Concrete pumping is not included. Direct chute or alternative placement method assumed.',
+          text: 'Concrete pumping is not included. Alternative placement method to be confirmed.',
           moduleId: 'concrete-pumping',
         },
       ];
