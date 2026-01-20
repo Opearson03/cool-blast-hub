@@ -16,7 +16,8 @@ import { BollardDimensionsDialog } from './BollardDimensionsDialog';
 import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
 import { LinearDimensionsDialog } from './LinearDimensionsDialog';
 import { MarkupNameDialog } from './MarkupNameDialog';
-import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea } from '@/types/takeoff';
+import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData } from './SlabBeamMarkupDialog';
+import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea, calculatePolygonPerimeter, calculateRectanglePerimeter, SLAB_WITH_BEAMS_SCOPES } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
 import type { DrawingTool, TakeoffPoint } from '@/types/takeoff';
 
@@ -65,6 +66,7 @@ export function PlanTakeoffStep({
     addBollardMarkups,
     addPadMarkups,
     addPolylineMarkup,
+    addSlabWithBeams,
     deleteMarkup,
     setCurrentPage
   } = useTakeoffData({ estimateId, businessId });
@@ -100,9 +102,17 @@ export function PlanTakeoffStep({
     pageNumber: number;
   } | null>(null);
 
+  // Slab with beams workflow state
+  const [slabWorkflowActive, setSlabWorkflowActive] = useState(false);
+  const [slabWorkflowStep, setSlabWorkflowStep] = useState<SlabWorkflowStep>('name');
+  const [showSlabBeamDialog, setShowSlabBeamDialog] = useState(false);
+  const [pendingSlabData, setPendingSlabData] = useState<PendingSlabData | null>(null);
+  const [currentBeamSegment, setCurrentBeamSegment] = useState<TakeoffPoint[]>([]);
+
   // Auto-collapse scope panel when actively marking (unless manually expanded)
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
-  const isScopePanelCollapsed = isActivelyMarking && !scopePanelManuallyExpanded;
+  const isSlabBeamMarking = slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beams' || slabWorkflowStep === 'mark_internal_beams');
+  const isScopePanelCollapsed = (isActivelyMarking || isSlabBeamMarking) && !scopePanelManuallyExpanded;
 
   const currentFile = files.find(f => f.id === currentFileId);
   const currentPage = takeoff?.current_page || 1;
@@ -216,22 +226,47 @@ export function PlanTakeoffStep({
   const handleMarkupComplete = useCallback(async (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => {
     if (!activeScope || !currentFileId) return;
     
-    // Store pending markup data and show name dialog
-    const existingForScope = markups.filter(m => m.scope_id === activeScope);
-    const defaultName = existingForScope.length === 0 
-      ? 'Area 1' 
-      : `Area ${existingForScope.length + 1}`;
+    // Check if this is a slab scope that supports beam marking
+    const isSlabWithBeamsScope = SLAB_WITH_BEAMS_SCOPES.includes(activeScope as any);
     
-    setPendingMarkupData({
-      points,
-      shapeType,
-      scopeId: activeScope,
-      fileId: currentFileId,
-      pageNumber: currentPage,
-    });
-    setPendingMarkupName(defaultName);
-    setShowMarkupNameDialog(true);
-  }, [activeScope, currentFileId, markups, currentPage]);
+    if (isSlabWithBeamsScope && currentScale) {
+      // Start multi-step slab workflow
+      const existingForScope = markups.filter(m => m.scope_id === activeScope);
+      const defaultName = existingForScope.length === 0 
+        ? 'Slab 1' 
+        : `Slab ${existingForScope.length + 1}`;
+      
+      setPendingSlabData({
+        slabPoints: points,
+        slabShapeType: shapeType,
+        slabName: defaultName,
+        edgeBeamSegments: [],
+        edgeBeamDimensions: null,
+        internalBeamSegments: [],
+        internalBeamDimensions: null,
+      });
+      setSlabWorkflowActive(true);
+      setSlabWorkflowStep('name');
+      setShowSlabBeamDialog(true);
+      setDrawingPoints([]);
+    } else {
+      // Standard naming flow for non-slab scopes
+      const existingForScope = markups.filter(m => m.scope_id === activeScope);
+      const defaultName = existingForScope.length === 0 
+        ? 'Area 1' 
+        : `Area ${existingForScope.length + 1}`;
+      
+      setPendingMarkupData({
+        points,
+        shapeType,
+        scopeId: activeScope,
+        fileId: currentFileId,
+        pageNumber: currentPage,
+      });
+      setPendingMarkupName(defaultName);
+      setShowMarkupNameDialog(true);
+    }
+  }, [activeScope, currentFileId, markups, currentPage, currentScale]);
 
   // Handler for confirming markup name and saving
   const handleMarkupNameConfirm = useCallback(async (name: string) => {
@@ -266,6 +301,240 @@ export function PlanTakeoffStep({
     const existingForScope = markups.filter(m => m.scope_id === scopeId);
     setPendingMarkupName(`Area ${existingForScope.length + 2}`);
   }, [pendingMarkupData, selectedScopes, addMarkup, markups]);
+
+  // ============= SLAB WORKFLOW HANDLERS =============
+  
+  // Calculate slab stats for the dialog
+  const slabStats = useMemo(() => {
+    if (!pendingSlabData || !currentScale) return { area: 0, perimeter: 0 };
+    
+    const { slabPoints, slabShapeType } = pendingSlabData;
+    const area = slabShapeType === 'polygon' 
+      ? calculatePolygonArea(slabPoints, currentScale)
+      : calculateRectangleArea(slabPoints, currentScale);
+    const perimeter = slabShapeType === 'polygon'
+      ? calculatePolygonPerimeter(slabPoints, currentScale)
+      : calculateRectanglePerimeter(slabPoints, currentScale);
+    
+    return { area, perimeter };
+  }, [pendingSlabData, currentScale]);
+
+  // Calculate total edge beam length
+  const totalEdgeBeamLength = useMemo(() => {
+    if (!pendingSlabData || !currentScale) return 0;
+    return pendingSlabData.edgeBeamSegments.reduce((sum, segment) => {
+      return sum + calculatePolylineLength(segment, currentScale);
+    }, 0);
+  }, [pendingSlabData, currentScale]);
+
+  // Calculate total internal beam length
+  const totalInternalBeamLength = useMemo(() => {
+    if (!pendingSlabData || !currentScale) return 0;
+    return pendingSlabData.internalBeamSegments.reduce((sum, segment) => {
+      return sum + calculatePolylineLength(segment, currentScale);
+    }, 0);
+  }, [pendingSlabData, currentScale]);
+
+  // Handler: User wants to add edge beams
+  const handleAddEdgeBeams = useCallback(() => {
+    setShowSlabBeamDialog(false);
+    setSlabWorkflowStep('mark_edge_beams');
+    setCurrentBeamSegment([]);
+    setActiveTool('polyline');
+  }, []);
+
+  // Handler: User skips edge beams (save slab only)
+  const handleSkipEdgeBeams = useCallback(async () => {
+    if (!pendingSlabData || !activeScope || !currentFileId) return;
+    
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    
+    // Save slab without beams
+    await addSlabWithBeams(
+      currentFileId,
+      activeScope,
+      {
+        points: pendingSlabData.slabPoints,
+        shapeType: pendingSlabData.slabShapeType,
+        name: pendingSlabData.slabName.trim() || 'Slab',
+      },
+      null,
+      null,
+      color,
+      currentPage
+    );
+    
+    // Reset all slab workflow state
+    setShowSlabBeamDialog(false);
+    setSlabWorkflowActive(false);
+    setSlabWorkflowStep('name');
+    setPendingSlabData(null);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, currentPage]);
+
+  // Handler: User done marking edge beams
+  const handleDoneMarkingEdgeBeams = useCallback(() => {
+    // Add current segment to edge beam segments if it has points
+    if (currentBeamSegment.length >= 2 && pendingSlabData) {
+      setPendingSlabData(prev => prev ? {
+        ...prev,
+        edgeBeamSegments: [...prev.edgeBeamSegments, currentBeamSegment],
+      } : null);
+    }
+    setCurrentBeamSegment([]);
+    setActiveTool('select');
+    setSlabWorkflowStep('edge_beam_dimensions');
+    setShowSlabBeamDialog(true);
+  }, [currentBeamSegment, pendingSlabData]);
+
+  // Handler: User wants to add internal beams
+  const handleAddInternalBeams = useCallback(() => {
+    setShowSlabBeamDialog(false);
+    setSlabWorkflowStep('mark_internal_beams');
+    setCurrentBeamSegment([]);
+    setActiveTool('polyline');
+  }, []);
+
+  // Handler: User skips internal beams (save slab + edge beams)
+  const handleSkipInternalBeams = useCallback(async () => {
+    if (!pendingSlabData || !activeScope || !currentFileId) return;
+    
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    
+    // Save slab with edge beams (if any)
+    await addSlabWithBeams(
+      currentFileId,
+      activeScope,
+      {
+        points: pendingSlabData.slabPoints,
+        shapeType: pendingSlabData.slabShapeType,
+        name: pendingSlabData.slabName.trim() || 'Slab',
+      },
+      pendingSlabData.edgeBeamSegments.length > 0 && pendingSlabData.edgeBeamDimensions ? {
+        segments: pendingSlabData.edgeBeamSegments,
+        width_mm: pendingSlabData.edgeBeamDimensions.width,
+        depth_mm: pendingSlabData.edgeBeamDimensions.depth,
+        totalLength: totalEdgeBeamLength,
+      } : null,
+      null,
+      color,
+      currentPage
+    );
+    
+    // Reset all slab workflow state
+    setShowSlabBeamDialog(false);
+    setSlabWorkflowActive(false);
+    setSlabWorkflowStep('name');
+    setPendingSlabData(null);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, currentPage, totalEdgeBeamLength]);
+
+  // Handler: User done marking internal beams
+  const handleDoneMarkingInternalBeams = useCallback(() => {
+    // Add current segment to internal beam segments if it has points
+    if (currentBeamSegment.length >= 2 && pendingSlabData) {
+      setPendingSlabData(prev => prev ? {
+        ...prev,
+        internalBeamSegments: [...prev.internalBeamSegments, currentBeamSegment],
+      } : null);
+    }
+    setCurrentBeamSegment([]);
+    setActiveTool('select');
+    setSlabWorkflowStep('internal_beam_dimensions');
+    setShowSlabBeamDialog(true);
+  }, [currentBeamSegment, pendingSlabData]);
+
+  // Handler: Save everything (slab + edge beams + internal beams)
+  const handleFinishSlabWorkflow = useCallback(async () => {
+    if (!pendingSlabData || !activeScope || !currentFileId) return;
+    
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    
+    await addSlabWithBeams(
+      currentFileId,
+      activeScope,
+      {
+        points: pendingSlabData.slabPoints,
+        shapeType: pendingSlabData.slabShapeType,
+        name: pendingSlabData.slabName.trim() || 'Slab',
+      },
+      pendingSlabData.edgeBeamSegments.length > 0 && pendingSlabData.edgeBeamDimensions ? {
+        segments: pendingSlabData.edgeBeamSegments,
+        width_mm: pendingSlabData.edgeBeamDimensions.width,
+        depth_mm: pendingSlabData.edgeBeamDimensions.depth,
+        totalLength: totalEdgeBeamLength,
+      } : null,
+      pendingSlabData.internalBeamSegments.length > 0 && pendingSlabData.internalBeamDimensions ? {
+        segments: pendingSlabData.internalBeamSegments,
+        width_mm: pendingSlabData.internalBeamDimensions.width,
+        depth_mm: pendingSlabData.internalBeamDimensions.depth,
+        totalLength: totalInternalBeamLength,
+      } : null,
+      color,
+      currentPage
+    );
+    
+    // Reset all slab workflow state
+    setShowSlabBeamDialog(false);
+    setSlabWorkflowActive(false);
+    setSlabWorkflowStep('name');
+    setPendingSlabData(null);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, currentPage, totalEdgeBeamLength, totalInternalBeamLength]);
+
+  // Handler: Cancel slab workflow
+  const handleCancelSlabWorkflow = useCallback(() => {
+    setShowSlabBeamDialog(false);
+    setSlabWorkflowActive(false);
+    setSlabWorkflowStep('name');
+    setPendingSlabData(null);
+    setCurrentBeamSegment([]);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, []);
+
+  // Handler: Beam polyline completion during slab workflow (double-click to finish segment)
+  const handleSlabBeamPolylineComplete = useCallback((points: TakeoffPoint[], _lengthMeters: number) => {
+    if (!pendingSlabData) return;
+    
+    if (slabWorkflowStep === 'mark_edge_beams') {
+      // Add completed segment to edge beams
+      setPendingSlabData(prev => prev ? {
+        ...prev,
+        edgeBeamSegments: [...prev.edgeBeamSegments, points],
+      } : null);
+      // Reset for next segment
+      setCurrentBeamSegment([]);
+      setPolylinePoints([]);
+    } else if (slabWorkflowStep === 'mark_internal_beams') {
+      // Add completed segment to internal beams
+      setPendingSlabData(prev => prev ? {
+        ...prev,
+        internalBeamSegments: [...prev.internalBeamSegments, points],
+      } : null);
+      // Reset for next segment
+      setCurrentBeamSegment([]);
+      setPolylinePoints([]);
+    }
+  }, [pendingSlabData, slabWorkflowStep]);
+
+  // Calculate current beam segment length for display
+  const currentBeamLength = useMemo(() => {
+    if (!currentScale || polylinePoints.length < 2) return 0;
+    return calculatePolylineLength(polylinePoints, currentScale);
+  }, [polylinePoints, currentScale]);
+
+  // Total length including current segment
+  const displayEdgeBeamLength = useMemo(() => {
+    return totalEdgeBeamLength + (slabWorkflowStep === 'mark_edge_beams' ? currentBeamLength : 0);
+  }, [totalEdgeBeamLength, slabWorkflowStep, currentBeamLength]);
+
+  const displayInternalBeamLength = useMemo(() => {
+    return totalInternalBeamLength + (slabWorkflowStep === 'mark_internal_beams' ? currentBeamLength : 0);
+  }, [totalInternalBeamLength, slabWorkflowStep, currentBeamLength]);
 
   // Handler for completing pier marking
   const handlePierDimensionsConfirm = useCallback(async (diameter: number, depth: number) => {
@@ -307,18 +576,34 @@ export function PlanTakeoffStep({
 
   // Handler for completing polyline drawing - called when user clicks "Done" on polyline toolbar
   const handleDoneMarkingPolyline = useCallback(() => {
+    // If in slab beam workflow, handle differently
+    if (slabWorkflowActive) {
+      if (slabWorkflowStep === 'mark_edge_beams') {
+        handleDoneMarkingEdgeBeams();
+      } else if (slabWorkflowStep === 'mark_internal_beams') {
+        handleDoneMarkingInternalBeams();
+      }
+      return;
+    }
+    
     if (polylinePoints.length >= 2 && currentScale) {
       const lengthMeters = calculatePolylineLength(polylinePoints, currentScale);
       setPendingPolylineLength(lengthMeters);
       setShowLinearDimensions(true);
     }
-  }, [polylinePoints, currentScale]);
+  }, [polylinePoints, currentScale, slabWorkflowActive, slabWorkflowStep, handleDoneMarkingEdgeBeams, handleDoneMarkingInternalBeams]);
 
   // Handler called by DrawingCanvas when polyline is completed (double-click alternative)
   const handlePolylineComplete = useCallback((points: TakeoffPoint[], lengthMeters: number) => {
+    // If in slab beam workflow, add segment and continue
+    if (slabWorkflowActive) {
+      handleSlabBeamPolylineComplete(points, lengthMeters);
+      return;
+    }
+    
     setPendingPolylineLength(lengthMeters);
     setShowLinearDimensions(true);
-  }, []);
+  }, [slabWorkflowActive, handleSlabBeamPolylineComplete]);
 
   const handleUndo = useCallback(() => {
     // Undo polyline point
@@ -573,8 +858,8 @@ export function PlanTakeoffStep({
             </div>
           )}
 
-          {/* Active scope indicator (only for non-pier scopes) */}
-          {activeScope && !isCalibrationMode && !isPierScope && !isLinearScope && (
+          {/* Active scope indicator (only for non-pier scopes and not in slab beam workflow) */}
+          {activeScope && !isCalibrationMode && !isPierScope && !isLinearScope && !slabWorkflowActive && (
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border z-20">
               <Badge 
                 style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}
@@ -586,6 +871,26 @@ export function PlanTakeoffStep({
                   ? 'Click to add points, double-click to close'
                   : 'Click and drag to draw rectangle'}
               </span>
+            </div>
+          )}
+
+          {/* Slab beam marking bar - shown during edge/internal beam marking */}
+          {slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beams' || slabWorkflowStep === 'mark_internal_beams') && pendingSlabData && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-xl w-full px-4 z-20">
+              <SlabBeamMarkingBar
+                slabName={pendingSlabData.slabName}
+                beamType={slabWorkflowStep === 'mark_edge_beams' ? 'edge' : 'internal'}
+                segmentCount={
+                  slabWorkflowStep === 'mark_edge_beams' 
+                    ? pendingSlabData.edgeBeamSegments.length + (polylinePoints.length >= 2 ? 1 : 0)
+                    : pendingSlabData.internalBeamSegments.length + (polylinePoints.length >= 2 ? 1 : 0)
+                }
+                currentLength={slabWorkflowStep === 'mark_edge_beams' ? displayEdgeBeamLength : displayInternalBeamLength}
+                onUndo={() => setPolylinePoints(prev => prev.slice(0, -1))}
+                canUndo={polylinePoints.length > 0}
+                onDone={slabWorkflowStep === 'mark_edge_beams' ? handleDoneMarkingEdgeBeams : handleDoneMarkingInternalBeams}
+                onCancel={handleCancelSlabWorkflow}
+              />
             </div>
           )}
         </div>
@@ -763,6 +1068,44 @@ export function PlanTakeoffStep({
         } : undefined}
         onConfirm={handleMarkupNameConfirm}
         onConfirmAndAddAnother={handleMarkupNameConfirmAndAddAnother}
+      />
+
+      {/* Slab beam workflow dialog */}
+      <SlabBeamMarkupDialog
+        open={showSlabBeamDialog}
+        onOpenChange={(open) => {
+          setShowSlabBeamDialog(open);
+          if (!open && !slabWorkflowActive) {
+            // Dialog closed without starting workflow, reset
+            setPendingSlabData(null);
+          }
+        }}
+        step={slabWorkflowStep}
+        slabName={pendingSlabData?.slabName || ''}
+        onSlabNameChange={(name) => setPendingSlabData(prev => prev ? { ...prev, slabName: name } : null)}
+        scopeLabel={activeScope ? (scopeLabels[activeScope] || activeScope) : ''}
+        slabArea={slabStats.area}
+        slabPerimeter={slabStats.perimeter}
+        edgeBeamLength={totalEdgeBeamLength}
+        internalBeamLength={totalInternalBeamLength}
+        edgeBeamWidth={pendingSlabData?.edgeBeamDimensions?.width || 450}
+        edgeBeamDepth={pendingSlabData?.edgeBeamDimensions?.depth || 450}
+        onEdgeBeamDimensionsChange={(width, depth) => 
+          setPendingSlabData(prev => prev ? { ...prev, edgeBeamDimensions: { width, depth } } : null)
+        }
+        internalBeamWidth={pendingSlabData?.internalBeamDimensions?.width || 300}
+        internalBeamDepth={pendingSlabData?.internalBeamDimensions?.depth || 400}
+        onInternalBeamDimensionsChange={(width, depth) => 
+          setPendingSlabData(prev => prev ? { ...prev, internalBeamDimensions: { width, depth } } : null)
+        }
+        onAddEdgeBeams={handleAddEdgeBeams}
+        onSkipEdgeBeams={handleSkipEdgeBeams}
+        onDoneMarkingEdgeBeams={handleDoneMarkingEdgeBeams}
+        onAddInternalBeams={handleAddInternalBeams}
+        onSkipInternalBeams={handleSkipInternalBeams}
+        onDoneMarkingInternalBeams={handleDoneMarkingInternalBeams}
+        onFinish={handleFinishSlabWorkflow}
+        onCancel={handleCancelSlabWorkflow}
       />
     </div>
   );
