@@ -86,6 +86,108 @@ const categoryConfig: Record<string, { label: string; icon: typeof Users; classN
   other: { label: "Other", icon: HelpCircle, className: "bg-gray-500/20 text-gray-700 dark:text-gray-400" },
 };
 
+// Individual scope breakdown item component
+function ScopeBreakdownItem({ 
+  scopeId, 
+  scopeEntry 
+}: { 
+  scopeId: string; 
+  scopeEntry: ScopeEntry;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const scopeAnswers = scopeEntry.scopeAnswers || {};
+  const moduleAnswers = scopeEntry.moduleAnswers || {};
+  const scopeTotal = scopeEntry.calculatedTotal || 0;
+
+  // Filter out empty/meta values from scope answers
+  const displayableScopeAnswers = Object.entries(scopeAnswers).filter(
+    ([key, value]) => !skipKeys.has(key) && value !== null && value !== undefined && value !== ""
+  );
+
+  // Get modules with answers
+  const modulesWithAnswers = Object.entries(moduleAnswers).filter(([_, answers]) => {
+    if (!answers || typeof answers !== "object") return false;
+    return Object.keys(answers).length > 0;
+  });
+
+  const hasDetails = displayableScopeAnswers.length > 0 || modulesWithAnswers.length > 0;
+
+  return (
+    <Collapsible open={isExpanded} onOpenChange={setIsExpanded}>
+      <CollapsibleTrigger asChild>
+        <button 
+          className="w-full bg-muted/50 hover:bg-muted/70 transition-colors px-3 py-2 flex justify-between items-center rounded-lg"
+          disabled={!hasDetails}
+        >
+          <div className="flex items-center gap-2">
+            {hasDetails && (
+              <ChevronDown 
+                className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${
+                  isExpanded ? "rotate-180" : ""
+                }`}
+              />
+            )}
+            <span className="text-sm font-medium">{formatScopeName(scopeId)}</span>
+          </div>
+          <span className={`text-sm font-semibold ${scopeTotal > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
+            {formatCurrency(scopeTotal)}
+          </span>
+        </button>
+      </CollapsibleTrigger>
+      
+      {hasDetails && (
+        <CollapsibleContent className="border border-t-0 rounded-b-lg overflow-hidden">
+          <div className="p-3 space-y-3 bg-background">
+            {/* Scope Measurements */}
+            {displayableScopeAnswers.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground uppercase">Measurements</p>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                  {displayableScopeAnswers.map(([key, value]) => (
+                    <div key={key} className="flex justify-between">
+                      <span className="text-muted-foreground">{formatAnswerKey(key)}</span>
+                      <span className="font-medium">{formatAnswerValue(key, value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Module Inputs */}
+            {modulesWithAnswers.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase">Module Inputs</p>
+                {modulesWithAnswers.map(([moduleId, answers]) => {
+                  const answerEntries = Object.entries(answers as Record<string, any>).filter(
+                    ([key, value]) => !skipKeys.has(key) && value !== null && value !== undefined && value !== ""
+                  );
+
+                  if (answerEntries.length === 0) return null;
+
+                  return (
+                    <div key={moduleId} className="bg-muted/30 rounded p-2 space-y-1">
+                      <p className="text-xs font-medium">{formatModuleName(moduleId)}</p>
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
+                        {answerEntries.map(([key, value]) => (
+                          <div key={key} className="flex justify-between text-muted-foreground">
+                            <span>{formatAnswerKey(key)}</span>
+                            <span className="font-medium text-foreground">{formatAnswerValue(key, value)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </CollapsibleContent>
+      )}
+    </Collapsible>
+  );
+}
+
 export function InternalBreakdownSection({ scopeData, selectedScopes }: InternalBreakdownSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -140,83 +242,20 @@ export function InternalBreakdownSection({ scopeData, selectedScopes }: Internal
         </button>
       </CollapsibleTrigger>
       
-      <CollapsibleContent className="space-y-4 pt-2">
-        {/* Per-Scope Breakdown */}
+      <CollapsibleContent className="space-y-2 pt-2">
+        {/* Per-Scope Breakdown - Each scope is now collapsible */}
         {scopes.map((scopeId) => {
           const scopeEntry = scopeData[scopeId] as ScopeEntry;
           if (!scopeEntry) return null;
 
-          const scopeAnswers = scopeEntry.scopeAnswers || {};
-          const moduleAnswers = scopeEntry.moduleAnswers || {};
-          const scopeTotal = scopeEntry.calculatedTotal || 0;
-
-          // Filter out empty/meta values from scope answers
-          const displayableScopeAnswers = Object.entries(scopeAnswers).filter(
-            ([key, value]) => !skipKeys.has(key) && value !== null && value !== undefined && value !== ""
-          );
-
-          // Get modules with answers
-          const modulesWithAnswers = Object.entries(moduleAnswers).filter(([_, answers]) => {
-            if (!answers || typeof answers !== "object") return false;
-            return Object.keys(answers).length > 0;
-          });
-
           return (
-            <div key={scopeId} className="border rounded-lg overflow-hidden">
-              {/* Scope Header */}
-              <div className="bg-primary/10 px-3 py-2 flex justify-between items-center">
-                <span className="text-sm font-semibold">{formatScopeName(scopeId)}</span>
-                <span className="text-sm font-semibold text-primary">{formatCurrency(scopeTotal)}</span>
-              </div>
-
-              <div className="p-3 space-y-3">
-                {/* Scope Measurements */}
-                {displayableScopeAnswers.length > 0 && (
-                  <div className="space-y-1">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Measurements</p>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                      {displayableScopeAnswers.map(([key, value]) => (
-                        <div key={key} className="flex justify-between">
-                          <span className="text-muted-foreground">{formatAnswerKey(key)}</span>
-                          <span className="font-medium">{formatAnswerValue(key, value)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Module Inputs */}
-                {modulesWithAnswers.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground uppercase">Module Inputs</p>
-                    {modulesWithAnswers.map(([moduleId, answers]) => {
-                      const answerEntries = Object.entries(answers as Record<string, any>).filter(
-                        ([key, value]) => !skipKeys.has(key) && value !== null && value !== undefined && value !== ""
-                      );
-
-                      if (answerEntries.length === 0) return null;
-
-                      return (
-                        <div key={moduleId} className="bg-muted/30 rounded p-2 space-y-1">
-                          <p className="text-xs font-medium">{formatModuleName(moduleId)}</p>
-                          <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-xs">
-                            {answerEntries.map(([key, value]) => (
-                              <div key={key} className="flex justify-between text-muted-foreground">
-                                <span>{formatAnswerKey(key)}</span>
-                                <span className="font-medium text-foreground">{formatAnswerValue(key, value)}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
+            <ScopeBreakdownItem 
+              key={scopeId} 
+              scopeId={scopeId} 
+              scopeEntry={scopeEntry} 
+            />
           );
         })}
-
         <Separator />
 
         {/* Financial Summary */}
