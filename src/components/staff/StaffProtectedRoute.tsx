@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2 } from "lucide-react";
@@ -10,6 +10,7 @@ interface StaffProtectedRouteProps {
 export function StaffProtectedRoute({ children }: StaffProtectedRouteProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthorized, setIsAuthorized] = useState(false);
+  const checkedRef = useRef(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -26,15 +27,34 @@ export function StaffProtectedRoute({ children }: StaffProtectedRouteProps) {
 
       setIsAuthorized(!!isStaff);
       setIsLoading(false);
+      checkedRef.current = true;
     };
 
-    checkAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+    // Only check once on mount
+    if (!checkedRef.current) {
       checkAuth();
+    }
+
+    // CRITICAL: Keep callback synchronous to avoid deadlock
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      // Only re-check on sign out to avoid loops
+      if (event === 'SIGNED_OUT') {
+        setIsAuthorized(false);
+        setIsLoading(false);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    // Safety timeout
+    const timeout = setTimeout(() => {
+      if (isLoading) {
+        setIsLoading(false);
+      }
+    }, 5000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
 
   if (isLoading) {
