@@ -22,7 +22,7 @@ interface ScopeConcreteSpec {
 }
 
 const SCOPE_LABELS: Record<string, string> = {
-  standard_slab: "Standard Slab",
+  standard_slab: "Slab on Ground",
   raft_slab: "Raft Slab",
   waffle_pod: "Waffle Pod",
   strip_footings: "Strip Footings",

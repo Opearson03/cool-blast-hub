@@ -91,11 +91,11 @@ export const PIERS_SCOPE: ScopeDefinition = {
 };
 
 /**
- * Standard Slab Scope Definition
+ * Slab on Ground Scope Definition
  */
 export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   id: 'standard_slab',
-  name: 'Standard Slab',
+  name: 'Slab on Ground',
   description: 'Ground-bearing concrete slab on ground',
   icon: 'square',
   supportsMultipleAreas: true,

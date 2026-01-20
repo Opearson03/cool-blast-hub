@@ -87,9 +87,9 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     category: "foundations"
   },
   // Slabs
-  { 
+{ 
     id: "standard_slab", 
-    label: "Standard Slab", 
+    label: "Slab on Ground", 
     description: "Basic slab on ground (no edge beams)",
     availableFor: ["house_slab", "commercial_slab"],
     category: "slabs"
