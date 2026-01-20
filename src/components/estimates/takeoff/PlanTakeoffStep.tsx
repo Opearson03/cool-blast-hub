@@ -88,6 +88,11 @@ export function PlanTakeoffStep({
   const [totalPages, setTotalPages] = useState(1);
   const [calibrationPoints, setCalibrationPoints] = useState<TakeoffPoint[]>([]);
   const [isCalibrationMode, setIsCalibrationMode] = useState(false);
+  const [scopePanelManuallyExpanded, setScopePanelManuallyExpanded] = useState(false);
+
+  // Auto-collapse scope panel when actively marking (unless manually expanded)
+  const isActivelyMarking = activeScope !== null && activeTool !== 'select';
+  const isScopePanelCollapsed = isActivelyMarking && !scopePanelManuallyExpanded;
 
   const currentFile = files.find(f => f.id === currentFileId);
   const currentPage = takeoff?.current_page || 1;
@@ -450,10 +455,10 @@ export function PlanTakeoffStep({
         onDoneMarkingPolyline={handleDoneMarkingPolyline}
       />
 
-      {/* Main content - vertical stack with plan taking most space, scopes at bottom */}
-      <div className="flex flex-col gap-3 flex-1 min-h-0">
-        {/* Plan viewer with drawing canvas - takes available height minus scope area */}
-        <div className="flex-1 min-h-0">
+      {/* Main content - plan takes full space, scopes float on left */}
+      <div className="relative flex-1 min-h-0">
+        {/* Plan viewer with drawing canvas - takes full width/height */}
+        <div className="h-full w-full">
           {currentFile?.file_url ? (
             <PlanViewer
               planUrl={currentFile.file_url}
@@ -490,14 +495,14 @@ export function PlanTakeoffStep({
               />
             </PlanViewer>
           ) : (
-            <div className="aspect-[4/3] flex items-center justify-center bg-muted/30 rounded-lg">
+            <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg">
               <p className="text-sm text-muted-foreground">Loading plan...</p>
             </div>
           )}
           
           {/* Calibration mode indicator */}
           {isCalibrationMode && (
-            <div className="mt-2 flex items-center gap-2">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border z-20">
               <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
                 Setting Scale: {calibrationPoints.length}/2 points placed
               </Badge>
@@ -520,7 +525,7 @@ export function PlanTakeoffStep({
 
           {/* Active scope indicator with name input (only for non-pier scopes) */}
           {activeScope && !isCalibrationMode && !isPierScope && (
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border z-20">
               <Badge 
                 style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}
               >
@@ -544,19 +549,26 @@ export function PlanTakeoffStep({
           )}
         </div>
 
-        {/* Scope checklist - prominent bottom section */}
-        <div className="shrink-0">
-          <ScopeMarkupChecklist
-            scopes={scopes}
-            markups={markups}
-            skippedScopes={skippedScopes}
-            activeScope={activeScope}
-            onMarkArea={handleMarkArea}
-            onSkipScope={handleSkipScope}
-            onEditMarkup={(id) => setSelectedMarkupId(id)}
-            onDeleteMarkup={handleDeleteMarkup}
-            isCalibrated={isCalibrated}
-          />
+        {/* Floating scope panel - positioned on left side */}
+        <div className="absolute top-2 left-2 z-20 pointer-events-none">
+          <div className="pointer-events-auto">
+            <ScopeMarkupChecklist
+              scopes={scopes}
+              markups={markups}
+              skippedScopes={skippedScopes}
+              activeScope={activeScope}
+              onMarkArea={(scopeId) => {
+                setScopePanelManuallyExpanded(false);
+                handleMarkArea(scopeId);
+              }}
+              onSkipScope={handleSkipScope}
+              onEditMarkup={(id) => setSelectedMarkupId(id)}
+              onDeleteMarkup={handleDeleteMarkup}
+              isCalibrated={isCalibrated}
+              isCollapsed={isScopePanelCollapsed}
+              onToggle={() => setScopePanelManuallyExpanded(!scopePanelManuallyExpanded)}
+            />
+          </div>
         </div>
       </div>
 
