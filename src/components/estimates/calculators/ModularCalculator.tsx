@@ -727,8 +727,8 @@ export function ModularCalculator({
           onThicknessChange={(val) => handleScopeAnswerChange('thickness', val)}
           thicknessDefault={scope.questions.find(q => q.id === 'thickness')?.defaultValue as number || 100}
           thicknessMin={scope.questions.find(q => q.id === 'thickness')?.min || 50}
-          // Thickening/edge beam support (for driveway scope)
-          showThickeningOption={scope.id === 'driveway'}
+          // Thickening/edge beam support (for driveway and paths scopes)
+          showThickeningOption={scope.id === 'driveway' || scope.id === 'paths_surrounds'}
           hasThickening={scopeAnswers.hasThickening || false}
           onThickeningChange={(val) => handleScopeAnswerChange('hasThickening', val)}
           thickeningDepth={scopeAnswers.thickeningDepth || 300}
