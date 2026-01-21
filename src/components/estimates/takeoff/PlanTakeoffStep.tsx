@@ -1129,10 +1129,10 @@ export function PlanTakeoffStep({
         onInternalBeamDimensionsChange={(width, depth) => 
           setPendingSlabData(prev => prev ? { ...prev, internalBeamDimensions: { width, depth } } : null)
         }
-        wafflePodSize={pendingSlabData?.wafflePodSize || '1090x1090'}
-        wafflePodThickness={pendingSlabData?.wafflePodThickness || '225'}
-        onWafflePodDimensionsChange={(size, thickness) =>
-          setPendingSlabData(prev => prev ? { ...prev, wafflePodSize: size, wafflePodThickness: thickness } : null)
+        wafflePodSize={pendingSlabData?.wafflePodSize || '225'}
+        wafflePodTopThickness={pendingSlabData?.wafflePodTopThickness || 85}
+        onWafflePodDimensionsChange={(size, topThickness) =>
+          setPendingSlabData(prev => prev ? { ...prev, wafflePodSize: size, wafflePodTopThickness: topThickness } : null)
         }
         onAddEdgeBeams={handleAddEdgeBeams}
         onSkipEdgeBeams={handleSkipEdgeBeams}
