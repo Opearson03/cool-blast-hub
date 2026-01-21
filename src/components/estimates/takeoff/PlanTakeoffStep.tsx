@@ -835,14 +835,17 @@ export function PlanTakeoffStep({
                     ...pendingSlabData.edgeBeamSegments.map(segment => ({
                       points: segment,
                       type: 'edge' as const,
-                      color: activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6',
                     })),
                     ...pendingSlabData.internalBeamSegments.map(segment => ({
                       points: segment,
                       type: 'internal' as const,
-                      color: activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6',
                     })),
                   ] : []
+                }
+                activeBeamType={
+                  slabWorkflowStep === 'mark_edge_beams' ? 'edge' 
+                  : slabWorkflowStep === 'mark_internal_beams' ? 'internal' 
+                  : null
                 }
                 onMarkupComplete={handleMarkupComplete}
                 onPolylineComplete={handlePolylineComplete}
@@ -1107,8 +1110,8 @@ export function PlanTakeoffStep({
         scopeLabel={activeScope ? (scopeLabels[activeScope] || activeScope) : ''}
         slabArea={slabStats.area}
         slabPerimeter={slabStats.perimeter}
-        edgeBeamLength={totalEdgeBeamLength}
-        internalBeamLength={totalInternalBeamLength}
+        edgeBeamLength={slabWorkflowStep === 'edge_beam_dimensions' ? totalEdgeBeamLength : displayEdgeBeamLength}
+        internalBeamLength={slabWorkflowStep === 'internal_beam_dimensions' ? totalInternalBeamLength : displayInternalBeamLength}
         edgeBeamWidth={pendingSlabData?.edgeBeamDimensions?.width || 450}
         edgeBeamDepth={pendingSlabData?.edgeBeamDimensions?.depth || 450}
         onEdgeBeamDimensionsChange={(width, depth) => 

@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Tag, ArrowRight, Check, SkipForward, Minus } from 'lucide-react';
+import { EDGE_BEAM_COLOR, INTERNAL_BEAM_COLOR } from './DrawingCanvas';
 
 export type SlabWorkflowStep = 
   | 'name'
@@ -376,13 +377,14 @@ export function SlabBeamMarkingBar({
   onCancel,
 }: SlabBeamMarkingBarProps) {
   const beamLabel = beamType === 'edge' ? 'Edge Beams' : 'Internal Beams';
+  const beamColor = beamType === 'edge' ? EDGE_BEAM_COLOR : INTERNAL_BEAM_COLOR;
   
   return (
-    <div className="bg-card border-2 border-primary shadow-xl rounded-xl overflow-hidden">
+    <div className="bg-card border-2 shadow-xl rounded-xl overflow-hidden" style={{ borderColor: beamColor }}>
       {/* Header with context */}
-      <div className="bg-primary/15 px-4 py-2 border-b border-primary/20">
+      <div className="px-4 py-2 border-b" style={{ backgroundColor: `${beamColor}20`, borderColor: `${beamColor}40` }}>
         <div className="flex items-center gap-2">
-          <Minus className="h-5 w-5 text-primary shrink-0" />
+          <Minus className="h-5 w-5 shrink-0" style={{ color: beamColor }} />
           <span className="font-semibold text-foreground">
             Marking {beamLabel}
           </span>
@@ -421,7 +423,8 @@ export function SlabBeamMarkingBar({
           <Button 
             size="lg" 
             onClick={onDone} 
-            className="h-11 px-6 font-semibold text-base shadow-lg gap-2"
+            className="h-11 px-6 font-semibold text-base shadow-lg gap-2 text-white"
+            style={{ backgroundColor: beamColor }}
           >
             <Check className="h-5 w-5" />
             Done with {beamLabel}

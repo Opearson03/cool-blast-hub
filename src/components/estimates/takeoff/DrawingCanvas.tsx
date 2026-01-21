@@ -11,11 +11,14 @@ interface PendingSlabReference {
   name?: string;
 }
 
+// Beam colors - distinct from slab colors for visibility
+export const EDGE_BEAM_COLOR = '#f97316'; // Orange
+export const INTERNAL_BEAM_COLOR = '#8b5cf6'; // Violet
+
 // Props for showing already-marked beam segments
 interface BeamSegmentReference {
   points: TakeoffPoint[];
   type: 'edge' | 'internal';
-  color: string;
 }
 
 interface DrawingCanvasProps {
@@ -34,6 +37,8 @@ interface DrawingCanvasProps {
   polylinePoints?: TakeoffPoint[];
   /** When true, polyline tool uses continuous mode (click to add points until "Done" is clicked externally) */
   isContinuousPolylineMode?: boolean;
+  /** Type of beam being marked (for coloring) */
+  activeBeamType?: 'edge' | 'internal' | null;
   /** Pending slab to show as visual reference during beam marking */
   pendingSlabReference?: PendingSlabReference;
   /** Already-marked beam segments to show during beam marking */
@@ -63,6 +68,7 @@ export function DrawingCanvas({
   pierPoints = [],
   polylinePoints = [],
   isContinuousPolylineMode = false,
+  activeBeamType = null,
   pendingSlabReference,
   existingBeamSegments = [],
   onMarkupComplete,
@@ -348,13 +354,20 @@ export function DrawingCanvas({
   const renderPolylinePreview = () => {
     if (tool !== 'polyline' || polylinePoints.length === 0) return null;
 
+    // Use beam-specific colors when marking beams
+    const polylineColor = activeBeamType === 'edge' 
+      ? EDGE_BEAM_COLOR 
+      : activeBeamType === 'internal' 
+        ? INTERNAL_BEAM_COLOR 
+        : activeScopeColor;
+
     return (
       <Group>
         {/* Polyline path - solid line between placed points only */}
         <Line
           points={flattenPoints(polylinePoints)}
-          stroke={activeScopeColor}
-          strokeWidth={3}
+          stroke={polylineColor}
+          strokeWidth={activeBeamType ? 5 : 3}
           lineCap="round"
           lineJoin="round"
         />
@@ -364,9 +377,9 @@ export function DrawingCanvas({
             key={index}
             x={point.x}
             y={point.y}
-            radius={6}
-            fill={index === 0 ? activeScopeColor : 'white'}
-            stroke={activeScopeColor}
+            radius={activeBeamType ? 7 : 6}
+            fill={index === 0 ? polylineColor : 'white'}
+            stroke={polylineColor}
             strokeWidth={2}
           />
         ))}
@@ -477,31 +490,34 @@ export function DrawingCanvas({
 
     return (
       <Group>
-        {existingBeamSegments.map((segment, index) => (
-          <Group key={index}>
-            <Line
-              points={flattenPoints(segment.points)}
-              stroke={segment.color}
-              strokeWidth={4}
-              lineCap="round"
-              lineJoin="round"
-              opacity={0.8}
-            />
-            {/* Vertex points */}
-            {segment.points.map((point, pIndex) => (
-              <Circle
-                key={pIndex}
-                x={point.x}
-                y={point.y}
-                radius={5}
-                fill={segment.color}
-                stroke="#fff"
-                strokeWidth={1}
-                opacity={0.8}
+        {existingBeamSegments.map((segment, index) => {
+          const beamColor = segment.type === 'edge' ? EDGE_BEAM_COLOR : INTERNAL_BEAM_COLOR;
+          return (
+            <Group key={index}>
+              <Line
+                points={flattenPoints(segment.points)}
+                stroke={beamColor}
+                strokeWidth={5}
+                lineCap="round"
+                lineJoin="round"
+                opacity={0.9}
               />
-            ))}
-          </Group>
-        ))}
+              {/* Vertex points */}
+              {segment.points.map((point, pIndex) => (
+                <Circle
+                  key={pIndex}
+                  x={point.x}
+                  y={point.y}
+                  radius={6}
+                  fill={beamColor}
+                  stroke="#fff"
+                  strokeWidth={2}
+                  opacity={0.9}
+                />
+              ))}
+            </Group>
+          );
+        })}
       </Group>
     );
   };
