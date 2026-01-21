@@ -448,6 +448,17 @@ export function PlanTakeoffStep({
     setShowSlabBeamDialog(true);
   }, [polylinePoints, pendingSlabData]);
 
+  // Handler: User wants to add more internal beams after setting dimensions
+  const handleAddMoreInternalBeams = useCallback((currentDimensions: { width: number; depth: number }) => {
+    // Save current dimensions to pendingSlabData
+    setPendingSlabData(prev => prev ? { ...prev, internalBeamDimensions: currentDimensions } : null);
+    // Go back to marking mode for more internal beams
+    setShowSlabBeamDialog(false);
+    setSlabWorkflowStep('mark_internal_beams');
+    setCurrentBeamSegment([]);
+    setActiveTool('polyline');
+  }, []);
+
   // Handler: Save everything (slab + edge beams + internal beams)
   // finalInternalDimensions is passed directly from the dialog to avoid React state timing issues
   const handleFinishSlabWorkflow = useCallback(async (finalInternalDimensions?: { width: number; depth: number }) => {
@@ -1132,6 +1143,7 @@ export function PlanTakeoffStep({
         onAddInternalBeams={handleAddInternalBeams}
         onSkipInternalBeams={handleSkipInternalBeams}
         onDoneMarkingInternalBeams={handleDoneMarkingInternalBeams}
+        onAddMoreInternalBeams={handleAddMoreInternalBeams}
         onFinish={handleFinishSlabWorkflow}
         onCancel={handleCancelSlabWorkflow}
       />
