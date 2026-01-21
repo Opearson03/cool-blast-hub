@@ -876,7 +876,7 @@ export function PlanTakeoffStep({
 
           {/* Slab beam marking bar - shown during edge/internal beam marking */}
           {slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beams' || slabWorkflowStep === 'mark_internal_beams') && pendingSlabData && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-xl w-full px-4 z-20">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-3xl w-full px-4 z-30">
               <SlabBeamMarkingBar
                 slabName={pendingSlabData.slabName}
                 beamType={slabWorkflowStep === 'mark_edge_beams' ? 'edge' : 'internal'}

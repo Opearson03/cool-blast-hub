@@ -375,38 +375,58 @@ export function SlabBeamMarkingBar({
   onDone,
   onCancel,
 }: SlabBeamMarkingBarProps) {
+  const beamLabel = beamType === 'edge' ? 'Edge Beams' : 'Internal Beams';
+  
   return (
-    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-primary/10 border border-primary/30 rounded-lg">
-      <div className="flex items-center gap-2 flex-1">
-        <Minus className="h-5 w-5 text-primary shrink-0" />
-        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-          <span className="text-sm font-medium">
-            {beamType === 'edge' ? 'Edge Beams' : 'Internal Beams'} for: {slabName}
+    <div className="bg-card border-2 border-primary shadow-xl rounded-xl overflow-hidden">
+      {/* Header with context */}
+      <div className="bg-primary/15 px-4 py-2 border-b border-primary/20">
+        <div className="flex items-center gap-2">
+          <Minus className="h-5 w-5 text-primary shrink-0" />
+          <span className="font-semibold text-foreground">
+            Marking {beamLabel}
           </span>
-          {segmentCount > 0 && (
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="text-xs">
-                {segmentCount} segment{segmentCount !== 1 ? 's' : ''}
-              </Badge>
-              <Badge variant="default">
-                {currentLength.toFixed(1)}m total
-              </Badge>
-            </div>
-          )}
+          <span className="text-muted-foreground">for</span>
+          <Badge variant="secondary">{slabName || 'Slab'}</Badge>
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        {canUndo && (
-          <Button variant="outline" size="sm" onClick={onUndo} className="h-8">
-            Undo
+      
+      {/* Stats and actions */}
+      <div className="p-3 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        {/* Stats */}
+        <div className="flex items-center gap-3 flex-1">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
+            <span className="text-xs text-muted-foreground">Segments:</span>
+            <span className="font-bold text-foreground">{segmentCount}</span>
+          </div>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
+            <span className="text-xs text-muted-foreground">Total:</span>
+            <span className="font-bold text-foreground">{currentLength.toFixed(1)}m</span>
+          </div>
+          <span className="text-xs text-muted-foreground hidden sm:inline">
+            Click to add points, double-click to finish a segment
+          </span>
+        </div>
+        
+        {/* Action buttons */}
+        <div className="flex items-center gap-2">
+          {canUndo && (
+            <Button variant="outline" size="sm" onClick={onUndo} className="h-9">
+              Undo Point
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={onCancel} className="h-9 text-muted-foreground">
+            Cancel
           </Button>
-        )}
-        <Button variant="outline" size="sm" onClick={onCancel} className="h-8">
-          Cancel
-        </Button>
-        <Button size="sm" onClick={onDone} disabled={segmentCount === 0} className="h-8">
-          Done with {beamType === 'edge' ? 'Edge' : 'Internal'} Beams
-        </Button>
+          <Button 
+            size="lg" 
+            onClick={onDone} 
+            className="h-11 px-6 font-semibold text-base shadow-lg gap-2"
+          >
+            <Check className="h-5 w-5" />
+            Done with {beamLabel}
+          </Button>
+        </div>
       </div>
     </div>
   );
