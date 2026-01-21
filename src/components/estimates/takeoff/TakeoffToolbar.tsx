@@ -54,6 +54,14 @@ interface TakeoffToolbarProps {
   polylineLength?: number;
   polylineLabel?: string; // e.g. "footing", "kerb"
   onDoneMarkingPolyline?: () => void;
+  // Beam marking mode props (edge/internal beams for slabs)
+  isBeamMarkingMode?: boolean;
+  beamType?: 'edge' | 'internal';
+  beamSlabName?: string;
+  beamPointCount?: number;
+  beamLength?: number;
+  onDoneMarkingBeams?: () => void;
+  onCancelBeamMarking?: () => void;
 }
 
 export function TakeoffToolbar({
@@ -82,6 +90,13 @@ export function TakeoffToolbar({
   polylineLength = 0,
   polylineLabel = 'element',
   onDoneMarkingPolyline,
+  isBeamMarkingMode = false,
+  beamType = 'edge',
+  beamSlabName = 'Slab',
+  beamPointCount = 0,
+  beamLength = 0,
+  onDoneMarkingBeams,
+  onCancelBeamMarking,
 }: TakeoffToolbarProps) {
   const tools: { type: ToolbarToolType; icon: React.ReactNode; label: string }[] = [
     { type: 'select', icon: <MousePointer2 className="h-4 w-4" />, label: 'Select' },
@@ -172,6 +187,56 @@ export function TakeoffToolbar({
             onClick={onDoneMarkingPolyline}
             disabled={polylineLength === 0}
             className="h-11 sm:h-8"
+          >
+            Done
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If in beam marking mode (edge/internal beams for slabs), show beam-specific UI
+  if (isBeamMarkingMode) {
+    const beamTypeLabel = beamType === 'edge' ? 'Edge' : 'Internal';
+    return (
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+        <div className="flex items-center gap-2 flex-1">
+          <Minus className="h-5 w-5 text-orange-500 shrink-0" />
+          <span className="text-sm font-medium">Marking {beamTypeLabel} Beams</span>
+          <Badge variant="secondary" className="text-xs">
+            {beamSlabName}
+          </Badge>
+          {beamPointCount > 0 && (
+            <Badge variant="default" className="ml-auto sm:ml-2 bg-orange-500 hover:bg-orange-500">
+              {beamPointCount} pts | {beamLength.toFixed(1)}m
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          {beamPointCount > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onUndo}
+              className="h-11 sm:h-8 px-3"
+            >
+              <Undo2 className="h-4 w-4 sm:mr-1" />
+              <span className="hidden sm:inline">Undo</span>
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancelBeamMarking}
+            className="h-11 sm:h-8"
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={onDoneMarkingBeams}
+            disabled={beamPointCount < 2}
+            className="h-11 sm:h-8 bg-orange-500 hover:bg-orange-600 text-white"
           >
             Done
           </Button>
