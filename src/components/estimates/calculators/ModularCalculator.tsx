@@ -308,6 +308,17 @@ export function ModularCalculator({
       excavationArea = lengthM * widthM;
       averageExcavationDepth = Number(scopeAnswers.footing_depth) || 0;
     }
+    // Waffle Pod: box cut excavation (total area × total depth)
+    else if (scopeAnswers.pod_thickness !== undefined && scopeAnswers.top_slab_thickness !== undefined) {
+      const podThickness = Number(scopeAnswers.pod_thickness) || 225;
+      const topSlabThickness = Number(scopeAnswers.top_slab_thickness) || 85;
+      const totalThicknessMM = podThickness + topSlabThickness;
+      const totalThicknessM = totalThicknessMM / 1000;
+      
+      excavationVolume = totalArea * totalThicknessM;
+      excavationArea = totalArea;
+      averageExcavationDepth = totalThicknessMM;
+    }
 
     // For piers, also expose depth directly for modules that expect it
     const depth = averageExcavationDepth || scopeAnswers.depth;

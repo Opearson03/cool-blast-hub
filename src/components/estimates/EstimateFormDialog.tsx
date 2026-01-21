@@ -1209,6 +1209,28 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 }],
               }),
             };
+            
+            // For waffle pod scope, also estimate pod count from area
+            if (scope === 'waffle_pod') {
+              const totalArea = areasFromTakeoff.reduce((sum, a) => sum + (a._actualArea || 0), 0);
+              // Standard pod size is 1090mm × 1090mm with ~110mm ribs
+              // Effective grid is ~1200mm × 1200mm per pod = 1.44m² per pod
+              // Estimate: pods = area / 1.44 (round up)
+              const podSizeM = 1.09; // Default pod size in meters
+              const ribWidth = 0.11; // Default rib width in meters
+              const effectiveGridM = podSizeM + ribWidth; // ~1.2m
+              const estimatedPodCount = Math.ceil(totalArea / (effectiveGridM * effectiveGridM));
+              
+              initialScopeAnswers = {
+                ...initialScopeAnswers,
+                // Provide estimated pod count (user should verify from drawings)
+                pod_count: estimatedPodCount,
+                // Set default waffle pod dimensions (can be overridden)
+                pod_size: '1090',
+                pod_thickness: 225, // Default 225mm pod
+                top_slab_thickness: 85, // Default 85mm top
+              };
+            }
           }
         }
       } else if (scopeDefinition.supportsMultipleAreas && scopeMarkups.length > 0) {

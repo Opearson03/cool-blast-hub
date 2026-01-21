@@ -215,6 +215,9 @@ export interface ScopeDefinition {
   /** Calculate total concrete volume from scope answers */
   calculateVolume?: (answers: Record<string, any>) => number;
   
+  /** Calculate excavation volume from scope answers (if different from concrete volume) */
+  calculateExcavationVolume?: (answers: Record<string, any>) => number;
+  
   /** Default exclusions that always apply to this scope */
   defaultExclusions?: ExclusionItem[];
   
