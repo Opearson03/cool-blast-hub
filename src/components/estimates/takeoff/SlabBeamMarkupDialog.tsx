@@ -57,7 +57,8 @@ interface SlabBeamMarkupDialogProps {
   onAddInternalBeams: () => void;
   onSkipInternalBeams: () => void;
   onDoneMarkingInternalBeams: () => void;
-  onFinish: () => void;
+  /** Called with final internal beam dimensions to ensure they're captured before save */
+  onFinish: (finalInternalBeamDimensions?: { width: number; depth: number }) => void;
   onCancel: () => void;
 }
 
@@ -338,8 +339,8 @@ export function SlabBeamMarkupDialog({
             <>
               <Button 
                 onClick={() => {
-                  handleInternalDimensionsSave();
-                  onFinish();
+                  // Pass dimensions directly to onFinish to avoid React state timing issues
+                  onFinish({ width: localInternalWidth, depth: localInternalDepth });
                 }} 
                 className="gap-1"
               >

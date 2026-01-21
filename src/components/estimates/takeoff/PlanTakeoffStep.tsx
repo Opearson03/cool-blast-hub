@@ -449,10 +449,14 @@ export function PlanTakeoffStep({
   }, [polylinePoints, pendingSlabData]);
 
   // Handler: Save everything (slab + edge beams + internal beams)
-  const handleFinishSlabWorkflow = useCallback(async () => {
+  // finalInternalDimensions is passed directly from the dialog to avoid React state timing issues
+  const handleFinishSlabWorkflow = useCallback(async (finalInternalDimensions?: { width: number; depth: number }) => {
     if (!pendingSlabData || !activeScope || !currentFileId) return;
     
     const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    
+    // Use finalInternalDimensions if provided, otherwise fall back to pendingSlabData.internalBeamDimensions
+    const internalDimensions = finalInternalDimensions || pendingSlabData.internalBeamDimensions;
     
     await addSlabWithBeams(
       currentFileId,
@@ -468,10 +472,10 @@ export function PlanTakeoffStep({
         depth_mm: pendingSlabData.edgeBeamDimensions.depth,
         totalLength: totalEdgeBeamLength,
       } : null,
-      pendingSlabData.internalBeamSegments.length > 0 && pendingSlabData.internalBeamDimensions ? {
+      pendingSlabData.internalBeamSegments.length > 0 && internalDimensions ? {
         segments: pendingSlabData.internalBeamSegments,
-        width_mm: pendingSlabData.internalBeamDimensions.width,
-        depth_mm: pendingSlabData.internalBeamDimensions.depth,
+        width_mm: internalDimensions.width,
+        depth_mm: internalDimensions.depth,
         totalLength: totalInternalBeamLength,
       } : null,
       color,
