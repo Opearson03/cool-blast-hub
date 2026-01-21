@@ -16,7 +16,7 @@ import { BollardDimensionsDialog } from './BollardDimensionsDialog';
 import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
 import { LinearDimensionsDialog } from './LinearDimensionsDialog';
 import { MarkupNameDialog } from './MarkupNameDialog';
-import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData } from './SlabBeamMarkupDialog';
+import { SlabBeamMarkupDialog, type SlabWorkflowStep, type PendingSlabData } from './SlabBeamMarkupDialog';
 import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea, calculatePolygonPerimeter, calculateRectanglePerimeter, SLAB_WITH_BEAMS_SCOPES } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
 import type { DrawingTool, TakeoffPoint } from '@/types/takeoff';
@@ -801,10 +801,17 @@ export function PlanTakeoffStep({
         pointCount={pierPoints.length}
         pointLabel={activeScope === 'bollards' ? 'bollard' : activeScope === 'pad_footings' ? 'pad footing' : activeScope === 'pit_bases' ? 'pit base' : 'pier'}
         onDoneMarkingPoints={handleDoneMarkingPiers}
-        isPolylineMode={activeTool === 'polyline' && isLinearScope}
+        isPolylineMode={activeTool === 'polyline' && isLinearScope && !isSlabBeamMarking}
         polylineLength={currentScale ? calculatePolylineLength(polylinePoints, currentScale) : 0}
         polylineLabel={activeScope === 'kerbs_channels' ? 'kerb' : activeScope === 'retaining_walls' ? 'wall' : 'footing'}
         onDoneMarkingPolyline={handleDoneMarkingPolyline}
+        isBeamMarkingMode={isSlabBeamMarking}
+        beamType={slabWorkflowStep === 'mark_edge_beams' ? 'edge' : 'internal'}
+        beamSlabName={pendingSlabData?.slabName || 'Slab'}
+        beamPointCount={polylinePoints.length}
+        beamLength={slabWorkflowStep === 'mark_edge_beams' ? displayEdgeBeamLength : displayInternalBeamLength}
+        onDoneMarkingBeams={slabWorkflowStep === 'mark_edge_beams' ? handleDoneMarkingEdgeBeams : handleDoneMarkingInternalBeams}
+        onCancelBeamMarking={handleCancelSlabWorkflow}
       />
 
       {/* Main content - plan takes full space, scopes float on left */}
@@ -914,22 +921,6 @@ export function PlanTakeoffStep({
                   ? 'Click to add points, double-click to close'
                   : 'Click and drag to draw rectangle'}
               </span>
-            </div>
-          )}
-
-          {/* Slab beam marking bar - shown during edge/internal beam marking */}
-          {slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beams' || slabWorkflowStep === 'mark_internal_beams') && pendingSlabData && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 max-w-3xl w-full px-4 z-30">
-              <SlabBeamMarkingBar
-                slabName={pendingSlabData.slabName}
-                beamType={slabWorkflowStep === 'mark_edge_beams' ? 'edge' : 'internal'}
-                segmentCount={polylinePoints.length}
-                currentLength={slabWorkflowStep === 'mark_edge_beams' ? displayEdgeBeamLength : displayInternalBeamLength}
-                onUndo={() => setPolylinePoints(prev => prev.slice(0, -1))}
-                canUndo={polylinePoints.length > 0}
-                onDone={slabWorkflowStep === 'mark_edge_beams' ? handleDoneMarkingEdgeBeams : handleDoneMarkingInternalBeams}
-                onCancel={handleCancelSlabWorkflow}
-              />
             </div>
           )}
         </div>
