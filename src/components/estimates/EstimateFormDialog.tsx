@@ -446,6 +446,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     getBollardConfigsForScope,
     getPadConfigsForScope,
     getFootingConfigsForScope,
+    // Raft slab specific
+    getRaftSlabAreasForScope,
     refetch: refetchMarkups 
   } = useTakeoffMarkups(estimateIdForTakeoff);
   
@@ -1144,7 +1146,72 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       
       // For multi-area scopes (driveway, paths_surrounds, crossovers), 
       // convert each markup into a named MeasurementArea
-      if (scopeDefinition.supportsMultipleAreas && scopeMarkups.length > 0) {
+      // Special handling for raft_slab and waffle_pod with beam data
+      if ((scope === 'raft_slab' || scope === 'waffle_pod') && scopeDefinition.supportsMultipleAreas) {
+        const raftSlabAreas = getRaftSlabAreasForScope(scope);
+        
+        if (raftSlabAreas.length > 0) {
+          // Check if user hasn't already overridden with their own values
+          const hasUserData = initialScopeAnswers.areas?.some((a: any) => 
+            (a.length > 0 || a.width > 0 || a._actualArea > 0) && a._fromTakeoff !== true
+          );
+          
+          if (!hasUserData) {
+            // Convert raft slab areas to MeasurementArea format
+            const areasFromTakeoff = raftSlabAreas.map((slab) => {
+              const side = Math.sqrt(slab.area);
+              return {
+                id: slab.id,
+                name: slab.name,
+                length: parseFloat(side.toFixed(2)),
+                width: parseFloat(side.toFixed(2)),
+                _fromTakeoff: true,
+                _actualArea: slab.area,
+                _actualPerimeter: slab.perimeter,
+              };
+            });
+            
+            // Aggregate edge beam data across all slab areas
+            const totalEdgeBeamLength = raftSlabAreas.reduce(
+              (sum, s) => sum + (s.edgeBeam?.totalLength || 0), 0
+            );
+            const firstEdgeBeam = raftSlabAreas.find(s => s.edgeBeam)?.edgeBeam;
+            
+            // Aggregate internal beam data
+            const totalInternalBeamLength = raftSlabAreas.reduce(
+              (sum, s) => sum + (s.internalBeams?.totalLength || 0), 0
+            );
+            const firstInternalBeam = raftSlabAreas.find(s => s.internalBeams)?.internalBeams;
+            const hasInternalBeams = totalInternalBeamLength > 0;
+            
+            initialScopeAnswers = {
+              ...initialScopeAnswers,
+              _fromTakeoff: true,
+              areas: areasFromTakeoff,
+              // Edge beam dimensions from takeoff
+              ...(totalEdgeBeamLength > 0 && { edge_beam_length: totalEdgeBeamLength }),
+              ...(firstEdgeBeam && { edge_beam_width: firstEdgeBeam.width }),
+              ...(firstEdgeBeam && { edge_beam_depth: firstEdgeBeam.depth }),
+              // Internal beams - auto-enable if marked
+              ...(hasInternalBeams && { hasInternalBeams: true }),
+              ...(hasInternalBeams && { internal_beams_length: totalInternalBeamLength }),
+              ...(firstInternalBeam && { internal_beam_width: firstInternalBeam.width }),
+              ...(firstInternalBeam && { internal_beam_depth: firstInternalBeam.depth }),
+              // Pre-populate beams array for MultiBeamInput
+              ...(hasInternalBeams && {
+                beams: [{
+                  id: 'beam-takeoff-1',
+                  name: 'Internal Beams (from takeoff)',
+                  length: totalInternalBeamLength,
+                  width: firstInternalBeam?.width || 300,
+                  depth: firstInternalBeam?.depth || 400,
+                  _fromTakeoff: true,
+                }],
+              }),
+            };
+          }
+        }
+      } else if (scopeDefinition.supportsMultipleAreas && scopeMarkups.length > 0) {
         // Check if user hasn't already overridden with their own values
         const hasUserData = initialScopeAnswers.areas?.some((a: any) => a.length > 0 || a.width > 0);
         

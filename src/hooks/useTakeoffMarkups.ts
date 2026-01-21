@@ -17,6 +17,9 @@ interface ScopeAreaData {
   height_mm?: number | null;
   length_m?: number | null;
   toe_mm?: number | null;
+  // Parent-child relationship for slab beams
+  parent_markup_id?: string | null;
+  markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | null;
 }
 
 export interface PierTakeoffData {
@@ -87,6 +90,27 @@ export interface FootingConfigFromTakeoff {
   _actualLength: number;
 }
 
+/**
+ * Raft slab area data with associated beam information from takeoff
+ */
+export interface RaftSlabAreaFromTakeoff {
+  id: string;
+  name: string;
+  area: number;
+  perimeter: number;
+  edgeBeam: {
+    totalLength: number;
+    width: number;  // mm
+    depth: number;  // mm
+  } | null;
+  internalBeams: {
+    totalLength: number;
+    width: number;  // mm
+    depth: number;  // mm
+  } | null;
+  _fromTakeoff: true;
+}
+
 interface UseTakeoffMarkupsReturn {
   markups: ScopeAreaData[];
   isLoading: boolean;
@@ -103,6 +127,8 @@ interface UseTakeoffMarkupsReturn {
   getBollardConfigsForScope: (scopeId: string) => BollardConfigFromTakeoff[];
   getPadConfigsForScope: (scopeId: string) => PadConfigFromTakeoff[];
   getFootingConfigsForScope: (scopeId: string) => FootingConfigFromTakeoff[];
+  // Raft slab specific
+  getRaftSlabAreasForScope: (scopeId: string) => RaftSlabAreaFromTakeoff[];
   refetch: () => Promise<void>;
 }
 
@@ -133,10 +159,10 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         return;
       }
 
-      // Then get the markups for this takeoff - include all fields for linear/pad elements
+      // Then get the markups for this takeoff - include all fields for linear/pad elements and beam relationships
       const { data: markupsData, error: markupsError } = await supabase
         .from('takeoff_markups')
-        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m, toe_mm')
+        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m, toe_mm, parent_markup_id, markup_type')
         .eq('takeoff_id', takeoffData.id)
         .order('created_at', { ascending: true });
 
@@ -156,6 +182,8 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         height_mm: m.height_mm,
         length_m: m.length_m ? Number(m.length_m) : null,
         toe_mm: m.toe_mm,
+        parent_markup_id: m.parent_markup_id,
+        markup_type: m.markup_type as ScopeAreaData['markup_type'],
       })));
     } catch (error) {
       console.error('Error fetching takeoff markups:', error);
@@ -441,6 +469,68 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     }));
   }, [markups]);
 
+  /**
+   * Get raft slab areas with their associated edge and internal beam data
+   * Groups primary slab markups with their child beam markups by parent_markup_id
+   */
+  const getRaftSlabAreasForScope = useCallback((scopeId: string): RaftSlabAreaFromTakeoff[] => {
+    // Get primary slab markups (polygon/rectangle shapes that are the main slab area)
+    const primaryMarkups = markups.filter(
+      m => m.scope_id === scopeId && 
+           (m.markup_type === 'primary' || m.markup_type === null || m.markup_type === undefined) &&
+           m.shape_type !== 'polyline' &&
+           !m.parent_markup_id // No parent means it's a primary markup
+    );
+    
+    if (primaryMarkups.length === 0) return [];
+    
+    return primaryMarkups.map((primary, index) => {
+      // Find child edge beam markups for this slab
+      const edgeBeamMarkups = markups.filter(
+        m => m.parent_markup_id === primary.markup_id && m.markup_type === 'edge_beam'
+      );
+      
+      // Find child internal beam markups for this slab
+      const internalBeamMarkups = markups.filter(
+        m => m.parent_markup_id === primary.markup_id && m.markup_type === 'internal_beam'
+      );
+      
+      // Aggregate edge beam data
+      let edgeBeam: RaftSlabAreaFromTakeoff['edgeBeam'] = null;
+      if (edgeBeamMarkups.length > 0) {
+        const totalLength = edgeBeamMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
+        const firstBeam = edgeBeamMarkups[0];
+        edgeBeam = {
+          totalLength,
+          width: firstBeam.width_mm || 450,
+          depth: firstBeam.height_mm || 450,
+        };
+      }
+      
+      // Aggregate internal beam data
+      let internalBeams: RaftSlabAreaFromTakeoff['internalBeams'] = null;
+      if (internalBeamMarkups.length > 0) {
+        const totalLength = internalBeamMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
+        const firstBeam = internalBeamMarkups[0];
+        internalBeams = {
+          totalLength,
+          width: firstBeam.width_mm || 300,
+          depth: firstBeam.height_mm || 400,
+        };
+      }
+      
+      return {
+        id: `takeoff-raft-${primary.markup_id}`,
+        name: primary.name || `Slab Area ${index + 1}`,
+        area: primary.area_sqm || 0,
+        perimeter: primary.perimeter_m || 0,
+        edgeBeam,
+        internalBeams,
+        _fromTakeoff: true as const,
+      };
+    });
+  }, [markups]);
+
   return {
     markups,
     isLoading,
@@ -457,6 +547,8 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     getBollardConfigsForScope,
     getPadConfigsForScope,
     getFootingConfigsForScope,
+    // Raft slab specific
+    getRaftSlabAreasForScope,
     refetch: fetchMarkups,
   };
 }
