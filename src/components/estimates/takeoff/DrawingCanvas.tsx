@@ -3,6 +3,21 @@ import { Stage, Layer, Line, Rect, Circle, Group, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { TakeoffMarkup, TakeoffPoint } from '@/types/takeoff';
 
+// Props for showing the pending slab as visual reference during beam marking
+interface PendingSlabReference {
+  points: TakeoffPoint[];
+  shapeType: 'polygon' | 'rectangle';
+  color: string;
+  name?: string;
+}
+
+// Props for showing already-marked beam segments
+interface BeamSegmentReference {
+  points: TakeoffPoint[];
+  type: 'edge' | 'internal';
+  color: string;
+}
+
 interface DrawingCanvasProps {
   width: number;
   height: number;
@@ -17,6 +32,12 @@ interface DrawingCanvasProps {
   calibrationPoints?: TakeoffPoint[];
   pierPoints?: TakeoffPoint[];
   polylinePoints?: TakeoffPoint[];
+  /** When true, polyline tool uses continuous mode (click to add points until "Done" is clicked externally) */
+  isContinuousPolylineMode?: boolean;
+  /** Pending slab to show as visual reference during beam marking */
+  pendingSlabReference?: PendingSlabReference;
+  /** Already-marked beam segments to show during beam marking */
+  existingBeamSegments?: BeamSegmentReference[];
   onMarkupComplete: (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => void;
   onPolylineComplete?: (points: TakeoffPoint[], lengthMeters: number) => void;
   onMarkupSelect: (id: string | null) => void;
@@ -41,6 +62,9 @@ export function DrawingCanvas({
   calibrationPoints = [],
   pierPoints = [],
   polylinePoints = [],
+  isContinuousPolylineMode = false,
+  pendingSlabReference,
+  existingBeamSegments = [],
   onMarkupComplete,
   onPolylineComplete,
   onMarkupSelect,
@@ -355,6 +379,133 @@ export function DrawingCanvas({
     return points.flatMap(p => [p.x, p.y]);
   };
 
+  // Render the pending slab as a visual reference during beam marking
+  const renderPendingSlabReference = () => {
+    if (!pendingSlabReference) return null;
+
+    const { points, shapeType, color, name } = pendingSlabReference;
+
+    if (shapeType === 'polygon') {
+      const centroid = getCentroid(points);
+      return (
+        <Group>
+          {/* Slab polygon with dashed outline */}
+          <Line
+            points={flattenPoints(points)}
+            stroke={color}
+            strokeWidth={3}
+            dash={[10, 5]}
+            fill={`${color}20`}
+            closed={true}
+          />
+          {/* Vertex markers */}
+          {points.map((point, index) => (
+            <Circle
+              key={index}
+              x={point.x}
+              y={point.y}
+              radius={4}
+              fill={color}
+              opacity={0.6}
+            />
+          ))}
+          {/* Label */}
+          {name && (
+            <Text
+              x={centroid.x}
+              y={centroid.y}
+              text={name}
+              fontSize={16}
+              fontStyle="bold"
+              fill={color}
+              stroke="#fff"
+              strokeWidth={1}
+              offsetX={name.length * 4}
+              offsetY={8}
+            />
+          )}
+        </Group>
+      );
+    }
+
+    if (shapeType === 'rectangle' && points.length === 2) {
+      const [p1, p2] = points;
+      const x = Math.min(p1.x, p2.x);
+      const y = Math.min(p1.y, p2.y);
+      const w = Math.abs(p2.x - p1.x);
+      const h = Math.abs(p2.y - p1.y);
+      const center = getRectCenter(points);
+
+      return (
+        <Group>
+          {/* Rectangle with dashed outline */}
+          <Rect
+            x={x}
+            y={y}
+            width={w}
+            height={h}
+            stroke={color}
+            strokeWidth={3}
+            dash={[10, 5]}
+            fill={`${color}20`}
+          />
+          {/* Label */}
+          {name && (
+            <Text
+              x={center.x}
+              y={center.y}
+              text={name}
+              fontSize={16}
+              fontStyle="bold"
+              fill={color}
+              stroke="#fff"
+              strokeWidth={1}
+              offsetX={name.length * 4}
+              offsetY={8}
+            />
+          )}
+        </Group>
+      );
+    }
+
+    return null;
+  };
+
+  // Render already-marked beam segments during beam marking
+  const renderExistingBeamSegments = () => {
+    if (existingBeamSegments.length === 0) return null;
+
+    return (
+      <Group>
+        {existingBeamSegments.map((segment, index) => (
+          <Group key={index}>
+            <Line
+              points={flattenPoints(segment.points)}
+              stroke={segment.color}
+              strokeWidth={4}
+              lineCap="round"
+              lineJoin="round"
+              opacity={0.8}
+            />
+            {/* Vertex points */}
+            {segment.points.map((point, pIndex) => (
+              <Circle
+                key={pIndex}
+                x={point.x}
+                y={point.y}
+                radius={5}
+                fill={segment.color}
+                stroke="#fff"
+                strokeWidth={1}
+                opacity={0.8}
+              />
+            ))}
+          </Group>
+        ))}
+      </Group>
+    );
+  };
+
   // Render preview of current drawing
   const renderDrawingPreview = () => {
     if (tool === 'polygon' && drawingPoints.length > 0) {
@@ -606,6 +757,10 @@ export function DrawingCanvas({
       onMouseLeave={handleMouseUp}
     >
       <Layer>
+        {/* Render pending slab reference first (as background) */}
+        {renderPendingSlabReference()}
+        {/* Render already-marked beam segments */}
+        {renderExistingBeamSegments()}
         {renderMarkups()}
         {renderDrawingPreview()}
         {renderPierPoints()}
