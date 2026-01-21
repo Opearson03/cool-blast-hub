@@ -188,7 +188,7 @@ export function DrawingCanvas({
       setDrawingPoints(newPoints);
       onPointsChange?.(newPoints);
     }
-  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange]);
+  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange, polylinePoints, onPolylinePointsChange]);
 
   // Handle double click to close polygon
   const handleDoubleClick = useCallback(() => {
