@@ -948,7 +948,12 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       // Insert edge beam segments if provided
       if (edgeBeams && edgeBeams.segments.length > 0) {
+        const { calculatePolylineLength } = await import('@/types/takeoff');
+        
         for (const segment of edgeBeams.segments) {
+          // Calculate actual length of this segment
+          const segmentLength = scale ? calculatePolylineLength(segment, scale) : 0;
+          
           const { data: beamData, error: beamError } = await supabase
             .from('takeoff_markups')
             .insert({
@@ -964,7 +969,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
               markup_type: 'edge_beam',
               width_mm: edgeBeams.width_mm,
               height_mm: edgeBeams.depth_mm,
-              length_m: edgeBeams.totalLength / edgeBeams.segments.length // Distribute length
+              length_m: segmentLength
             })
             .select()
             .single();
@@ -991,7 +996,13 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       // Insert internal beam segments if provided
       if (internalBeams && internalBeams.segments.length > 0) {
+        // Import calculatePolylineLength if not already imported above
+        const { calculatePolylineLength: calcPolyLength } = await import('@/types/takeoff');
+        
         for (const segment of internalBeams.segments) {
+          // Calculate actual length of this segment
+          const segmentLength = scale ? calcPolyLength(segment, scale) : 0;
+          
           const { data: beamData, error: beamError } = await supabase
             .from('takeoff_markups')
             .insert({
@@ -1007,7 +1018,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
               markup_type: 'internal_beam',
               width_mm: internalBeams.width_mm,
               height_mm: internalBeams.depth_mm,
-              length_m: internalBeams.totalLength / internalBeams.segments.length
+              length_m: segmentLength
             })
             .select()
             .single();

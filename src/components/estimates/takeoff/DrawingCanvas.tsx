@@ -11,9 +11,9 @@ interface PendingSlabReference {
   name?: string;
 }
 
-// Beam colors - distinct from slab colors for visibility
+// Beam colors - use theme orange for consistency
 export const EDGE_BEAM_COLOR = '#f97316'; // Orange
-export const INTERNAL_BEAM_COLOR = '#8b5cf6'; // Violet
+export const INTERNAL_BEAM_COLOR = '#f97316'; // Orange (theme consistent)
 
 // Props for showing already-marked beam segments
 interface BeamSegmentReference {
