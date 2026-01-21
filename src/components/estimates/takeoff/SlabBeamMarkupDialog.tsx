@@ -396,15 +396,15 @@ export function SlabBeamMarkingBar({
         {/* Stats */}
         <div className="flex items-center gap-3 flex-1">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
-            <span className="text-xs text-muted-foreground">Segments:</span>
+            <span className="text-xs text-muted-foreground">Points:</span>
             <span className="font-bold text-foreground">{segmentCount}</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
-            <span className="text-xs text-muted-foreground">Total:</span>
+            <span className="text-xs text-muted-foreground">Length:</span>
             <span className="font-bold text-foreground">{currentLength.toFixed(1)}m</span>
           </div>
           <span className="text-xs text-muted-foreground hidden sm:inline">
-            Click to add points, double-click to finish a segment
+            Click to add points along the beam, then click Done
           </span>
         </div>
         
