@@ -214,6 +214,15 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
       unit: 'mm',
       helpText: 'Width of thickened edge (typically 450mm)',
     },
+    {
+      id: 'edge_beam_length',
+      type: 'number',
+      label: 'Total Edge Beam Length (m)',
+      required: false,
+      min: 0,
+      unit: 'm',
+      helpText: 'Total continuous length of edge beams (defaults to perimeter if not specified)',
+    },
     // These fields are derived from multi-beam input
     {
       id: 'internal_beams_length',
@@ -271,8 +280,10 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     const slabVolume = area * thicknessM;
 
     // Edge beam extra volume (depth below slab thickness)
+    // Use edge_beam_length if explicitly provided, otherwise fall back to perimeter
+    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
     const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-    const edgeBeamVolume = perimeter * edgeBeamWidthM * extraEdgeDepth;
+    const edgeBeamVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
 
     // Internal beams volume - if we have beam configs, calculate from those
     const beams = answers.beams || [];
