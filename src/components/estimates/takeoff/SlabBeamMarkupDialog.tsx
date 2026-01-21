@@ -27,15 +27,23 @@ export interface PendingSlabData {
   internalBeamDimensions: { width: number; depth: number } | null;
   // Waffle pod specific
   wafflePodSize?: string;
+  wafflePodThickness?: number;
   wafflePodTopThickness?: number;
 }
 
-// Waffle pod size options (pod height in mm)
-const WAFFLE_POD_SIZES = [
-  { value: '225', label: '225mm Pod' },
-  { value: '275', label: '275mm Pod' },
-  { value: '325', label: '325mm Pod' },
-  { value: '375', label: '375mm Pod' },
+// Waffle pod module size options (dimensions in mm)
+const WAFFLE_POD_MODULE_SIZES = [
+  { value: '1090x1090', label: '1090 x 1090 mm' },
+  { value: '1110x1110', label: '1110 x 1110 mm' },
+  { value: '1050x1050', label: '1050 x 1050 mm' },
+];
+
+// Waffle pod thickness/height options (in mm)
+const WAFFLE_POD_THICKNESSES = [
+  { value: '225', label: '225mm' },
+  { value: '275', label: '275mm' },
+  { value: '325', label: '325mm' },
+  { value: '375', label: '375mm' },
 ];
 
 interface SlabBeamMarkupDialogProps {
@@ -64,8 +72,9 @@ interface SlabBeamMarkupDialogProps {
   onInternalBeamDimensionsChange?: (width: number, depth: number) => void;
   /** Waffle pod dimensions */
   wafflePodSize?: string;
+  wafflePodThickness?: number;
   wafflePodTopThickness?: number;
-  onWafflePodDimensionsChange?: (size: string, topThickness: number) => void;
+  onWafflePodDimensionsChange?: (size: string, podThickness: number, topThickness: number) => void;
   
   // Actions
   onAddEdgeBeams: () => void;
@@ -99,7 +108,8 @@ export function SlabBeamMarkupDialog({
   internalBeamWidth = 300,
   internalBeamDepth = 400,
   onInternalBeamDimensionsChange,
-  wafflePodSize = '225',
+  wafflePodSize = '1090x1090',
+  wafflePodThickness = 225,
   wafflePodTopThickness = 85,
   onWafflePodDimensionsChange,
   onAddEdgeBeams,
@@ -117,6 +127,7 @@ export function SlabBeamMarkupDialog({
   const [localInternalWidth, setLocalInternalWidth] = useState(internalBeamWidth);
   const [localInternalDepth, setLocalInternalDepth] = useState(internalBeamDepth);
   const [localPodSize, setLocalPodSize] = useState(wafflePodSize);
+  const [localPodThickness, setLocalPodThickness] = useState(wafflePodThickness);
   const [localTopThickness, setLocalTopThickness] = useState(wafflePodTopThickness);
 
   const isWafflePod = scopeId === 'waffle_pod';
@@ -134,8 +145,9 @@ export function SlabBeamMarkupDialog({
 
   useEffect(() => {
     setLocalPodSize(wafflePodSize);
+    setLocalPodThickness(wafflePodThickness);
     setLocalTopThickness(wafflePodTopThickness);
-  }, [wafflePodSize, wafflePodTopThickness]);
+  }, [wafflePodSize, wafflePodThickness, wafflePodTopThickness]);
 
   const handleEdgeDimensionsSave = () => {
     onEdgeBeamDimensionsChange?.(localEdgeWidth, localEdgeDepth);
@@ -146,12 +158,12 @@ export function SlabBeamMarkupDialog({
   };
 
   const handleWafflePodSave = () => {
-    onWafflePodDimensionsChange?.(localPodSize, localTopThickness);
+    onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness);
     onSkipEdgeBeams(); // Save immediately, no beam workflow
   };
 
   // Calculate total thickness for display
-  const totalThickness = Number(localPodSize) + localTopThickness;
+  const totalThickness = localPodThickness + localTopThickness;
 
   // Don't render dialog during marking steps - show floating bar instead
   if (step === 'mark_edge_beams' || step === 'mark_internal_beams' || step === 'complete') {
@@ -238,22 +250,35 @@ export function SlabBeamMarkupDialog({
                   <Separator />
                   <div className="space-y-4">
                     <div className="space-y-2">
-                      <Label className="text-sm font-medium">Pod Size</Label>
+                      <Label className="text-sm font-medium">Pod Module Size</Label>
                       <Select value={localPodSize} onValueChange={setLocalPodSize}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select pod size" />
                         </SelectTrigger>
                         <SelectContent>
-                          {WAFFLE_POD_SIZES.map(size => (
+                          {WAFFLE_POD_MODULE_SIZES.map(size => (
                             <SelectItem key={size.value} value={size.value}>
                               {size.label}
                             </SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
-                      <p className="text-xs text-muted-foreground">
-                        Standard waffle pod module dimensions
-                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Pod Thickness</Label>
+                      <Select value={String(localPodThickness)} onValueChange={(v) => setLocalPodThickness(Number(v))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select pod thickness" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WAFFLE_POD_THICKNESSES.map(thickness => (
+                            <SelectItem key={thickness.value} value={thickness.value}>
+                              {thickness.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div className="space-y-2">
@@ -268,7 +293,7 @@ export function SlabBeamMarkupDialog({
                         placeholder="85"
                       />
                       <p className="text-xs text-muted-foreground">
-                        Concrete topping over waffle pods (typically 85mm)
+                        Concrete topping over waffle pods
                       </p>
                     </div>
 
