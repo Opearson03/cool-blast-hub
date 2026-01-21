@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tag, ArrowRight, Check, SkipForward, Minus } from 'lucide-react';
 import { EDGE_BEAM_COLOR, INTERNAL_BEAM_COLOR } from './DrawingCanvas';
 
@@ -24,7 +25,25 @@ export interface PendingSlabData {
   edgeBeamDimensions: { width: number; depth: number } | null;
   internalBeamSegments: { x: number; y: number }[][];
   internalBeamDimensions: { width: number; depth: number } | null;
+  // Waffle pod specific
+  wafflePodSize?: string;
+  wafflePodThickness?: string;
 }
+
+// Waffle pod size options
+const WAFFLE_POD_SIZES = [
+  { value: '1090x1090', label: '1090 x 1090 mm' },
+  { value: '1110x1110', label: '1110 x 1110 mm' },
+  { value: '1050x1050', label: '1050 x 1050 mm' },
+];
+
+// Waffle pod thickness options (total depth = pod height + 85mm top slab)
+const WAFFLE_POD_THICKNESSES = [
+  { value: '225', label: '310mm (225mm pod + 85mm top)' },
+  { value: '275', label: '360mm (275mm pod + 85mm top)' },
+  { value: '325', label: '410mm (325mm pod + 85mm top)' },
+  { value: '375', label: '460mm (375mm pod + 85mm top)' },
+];
 
 interface SlabBeamMarkupDialogProps {
   open: boolean;
@@ -33,6 +52,7 @@ interface SlabBeamMarkupDialogProps {
   slabName: string;
   onSlabNameChange: (name: string) => void;
   scopeLabel: string;
+  scopeId?: string;
   /** Area in sqm from the slab polygon/rectangle */
   slabArea?: number;
   /** Perimeter in meters */
@@ -49,6 +69,10 @@ interface SlabBeamMarkupDialogProps {
   internalBeamWidth?: number;
   internalBeamDepth?: number;
   onInternalBeamDimensionsChange?: (width: number, depth: number) => void;
+  /** Waffle pod dimensions */
+  wafflePodSize?: string;
+  wafflePodThickness?: string;
+  onWafflePodDimensionsChange?: (size: string, thickness: string) => void;
   
   // Actions
   onAddEdgeBeams: () => void;
@@ -71,6 +95,7 @@ export function SlabBeamMarkupDialog({
   slabName,
   onSlabNameChange,
   scopeLabel,
+  scopeId,
   slabArea = 0,
   slabPerimeter = 0,
   edgeBeamLength = 0,
@@ -81,6 +106,9 @@ export function SlabBeamMarkupDialog({
   internalBeamWidth = 300,
   internalBeamDepth = 400,
   onInternalBeamDimensionsChange,
+  wafflePodSize = '1090x1090',
+  wafflePodThickness = '225',
+  onWafflePodDimensionsChange,
   onAddEdgeBeams,
   onSkipEdgeBeams,
   onDoneMarkingEdgeBeams,
@@ -95,6 +123,10 @@ export function SlabBeamMarkupDialog({
   const [localEdgeDepth, setLocalEdgeDepth] = useState(edgeBeamDepth);
   const [localInternalWidth, setLocalInternalWidth] = useState(internalBeamWidth);
   const [localInternalDepth, setLocalInternalDepth] = useState(internalBeamDepth);
+  const [localPodSize, setLocalPodSize] = useState(wafflePodSize);
+  const [localPodThickness, setLocalPodThickness] = useState(wafflePodThickness);
+
+  const isWafflePod = scopeId === 'waffle_pod';
 
   // Sync local state with props
   useEffect(() => {
@@ -107,6 +139,11 @@ export function SlabBeamMarkupDialog({
     setLocalInternalDepth(internalBeamDepth);
   }, [internalBeamWidth, internalBeamDepth]);
 
+  useEffect(() => {
+    setLocalPodSize(wafflePodSize);
+    setLocalPodThickness(wafflePodThickness);
+  }, [wafflePodSize, wafflePodThickness]);
+
   const handleEdgeDimensionsSave = () => {
     onEdgeBeamDimensionsChange?.(localEdgeWidth, localEdgeDepth);
   };
@@ -115,12 +152,20 @@ export function SlabBeamMarkupDialog({
     onInternalBeamDimensionsChange?.(localInternalWidth, localInternalDepth);
   };
 
+  const handleWafflePodSave = () => {
+    onWafflePodDimensionsChange?.(localPodSize, localPodThickness);
+    onSkipEdgeBeams(); // Save immediately, no beam workflow
+  };
+
   // Don't render dialog during marking steps - show floating bar instead
   if (step === 'mark_edge_beams' || step === 'mark_internal_beams' || step === 'complete') {
     return null;
   }
 
   const getStepTitle = () => {
+    if (isWafflePod && step === 'name') {
+      return 'Name This Waffle Pod';
+    }
     switch (step) {
       case 'name':
         return 'Name This Slab';
@@ -134,6 +179,9 @@ export function SlabBeamMarkupDialog({
   };
 
   const getStepDescription = () => {
+    if (isWafflePod && step === 'name') {
+      return 'Give this waffle pod slab a name and select the pod dimensions.';
+    }
     switch (step) {
       case 'name':
         return `Give this ${scopeLabel.toLowerCase()} a descriptive name, then add edge beams if needed.`;
@@ -166,12 +214,12 @@ export function SlabBeamMarkupDialog({
             <div className="space-y-4 py-4">
               {/* Name input */}
               <div className="space-y-2">
-                <Label htmlFor="slab-name">Slab Name</Label>
+                <Label htmlFor="slab-name">{isWafflePod ? 'Waffle Pod Name' : 'Slab Name'}</Label>
                 <Input
                   id="slab-name"
                   value={slabName}
                   onChange={(e) => onSlabNameChange(e.target.value)}
-                  placeholder="e.g., Main Slab, Garage, Patio"
+                  placeholder={isWafflePod ? 'e.g., Main House, Extension' : 'e.g., Main Slab, Garage, Patio'}
                   autoFocus
                 />
               </div>
@@ -188,15 +236,62 @@ export function SlabBeamMarkupDialog({
                 </div>
               </div>
 
-              <Separator />
+              {/* Waffle Pod specific options */}
+              {isWafflePod ? (
+                <>
+                  <Separator />
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Pod Size</Label>
+                      <Select value={localPodSize} onValueChange={setLocalPodSize}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select pod size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WAFFLE_POD_SIZES.map(size => (
+                            <SelectItem key={size.value} value={size.value}>
+                              {size.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Standard waffle pod module dimensions
+                      </p>
+                    </div>
 
-              {/* Edge beam options */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Edge Beams</Label>
-                <p className="text-xs text-muted-foreground">
-                  Raft slabs typically have thickened edge beams around the perimeter. Would you like to mark them?
-                </p>
-              </div>
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Total Slab Thickness</Label>
+                      <Select value={localPodThickness} onValueChange={setLocalPodThickness}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select thickness" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WAFFLE_POD_THICKNESSES.map(thickness => (
+                            <SelectItem key={thickness.value} value={thickness.value}>
+                              {thickness.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Includes 85mm concrete top slab over pods
+                      </p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Separator />
+                  {/* Edge beam options (raft slab only) */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Edge Beams</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Raft slabs typically have thickened edge beams around the perimeter. Would you like to mark them?
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -294,7 +389,18 @@ export function SlabBeamMarkupDialog({
         {/* Fixed footer with responsive buttons */}
         <DialogFooter className="flex-col gap-2 sm:flex-row shrink-0 pt-4 border-t">
           {/* Step: Name */}
-          {step === 'name' && (
+          {step === 'name' && isWafflePod && (
+            <>
+              <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
+                Cancel
+              </Button>
+              <Button onClick={handleWafflePodSave} className="w-full sm:w-auto gap-1">
+                <Check className="h-4 w-4" />
+                Save Waffle Pod
+              </Button>
+            </>
+          )}
+          {step === 'name' && !isWafflePod && (
             <>
               <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
                 Cancel

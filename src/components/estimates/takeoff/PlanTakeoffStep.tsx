@@ -1114,6 +1114,7 @@ export function PlanTakeoffStep({
         slabName={pendingSlabData?.slabName || ''}
         onSlabNameChange={(name) => setPendingSlabData(prev => prev ? { ...prev, slabName: name } : null)}
         scopeLabel={activeScope ? (scopeLabels[activeScope] || activeScope) : ''}
+        scopeId={activeScope || undefined}
         slabArea={slabStats.area}
         slabPerimeter={slabStats.perimeter}
         edgeBeamLength={slabWorkflowStep === 'edge_beam_dimensions' ? totalEdgeBeamLength : displayEdgeBeamLength}
@@ -1127,6 +1128,11 @@ export function PlanTakeoffStep({
         internalBeamDepth={pendingSlabData?.internalBeamDimensions?.depth || 400}
         onInternalBeamDimensionsChange={(width, depth) => 
           setPendingSlabData(prev => prev ? { ...prev, internalBeamDimensions: { width, depth } } : null)
+        }
+        wafflePodSize={pendingSlabData?.wafflePodSize || '1090x1090'}
+        wafflePodThickness={pendingSlabData?.wafflePodThickness || '225'}
+        onWafflePodDimensionsChange={(size, thickness) =>
+          setPendingSlabData(prev => prev ? { ...prev, wafflePodSize: size, wafflePodThickness: thickness } : null)
         }
         onAddEdgeBeams={handleAddEdgeBeams}
         onSkipEdgeBeams={handleSkipEdgeBeams}
