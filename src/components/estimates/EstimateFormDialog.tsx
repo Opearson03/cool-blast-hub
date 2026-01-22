@@ -1343,6 +1343,20 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             const firstConfig = padConfigs[0];
             
             if (scope === 'pad_footings') {
+              const roundTo10mm = (m: number) => Math.round(m * 100) / 100;
+              // MultiFootingInput expects: length in meters, width/depth in mm.
+              // Takeoff pad configs are stored in mm, so convert length -> meters for UI.
+              const footingsFromTakeoff = padConfigs.map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                length: roundTo10mm((Number(p.length) || 0) / 1000),
+                width: Number(p.width) || 0,
+                depth: Number(p.depth) || 0,
+                _fromTakeoff: true,
+                // Preserve actual measured area when available (area-based pads)
+                _actualArea: p._actualArea,
+              }));
+
               // Pad footings use total_num_pads, total_length, total_width, total_depth
               initialScopeAnswers = {
                 ...initialScopeAnswers,
@@ -1351,6 +1365,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                 total_length: firstConfig.length,
                 total_width: firstConfig.width,
                 total_depth: firstConfig.depth,
+                // Autofill the configuration list UI
+                footings: footingsFromTakeoff,
                 // Store all configs for potential future multi-pad support
                 _padConfigs: padConfigs,
               };
