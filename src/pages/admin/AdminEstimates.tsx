@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Square, Home, Building2, Copy } from "lucide-react";
+import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Square, Home, Building2, Copy, Briefcase } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -591,9 +591,16 @@ export default function AdminEstimates() {
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
                               Mark as Sent
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "accepted" }); }}>
-                              Mark as Accepted
-                            </DropdownMenuItem>
+                            {estimate.status !== "accepted" && (
+                              <DropdownMenuItem onClick={(e) => { 
+                                e.stopPropagation(); 
+                                updateStatusMutation.mutate({ id: estimate.id, status: "accepted" });
+                                handleConvertToJob(estimate);
+                              }}>
+                                <Briefcase className="w-4 h-4 mr-2" />
+                                Accept & Create Job
+                              </DropdownMenuItem>
+                            )}
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
                               Mark as Declined
                             </DropdownMenuItem>
@@ -698,9 +705,16 @@ export default function AdminEstimates() {
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
                                   Mark as Sent
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "accepted" }); }}>
-                                  Mark as Accepted
-                                </DropdownMenuItem>
+                                {estimate.status !== "accepted" && (
+                                  <DropdownMenuItem onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    updateStatusMutation.mutate({ id: estimate.id, status: "accepted" });
+                                    handleConvertToJob(estimate);
+                                  }}>
+                                    <Briefcase className="w-4 h-4 mr-2" />
+                                    Accept & Create Job
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
                                   Mark as Declined
                                 </DropdownMenuItem>

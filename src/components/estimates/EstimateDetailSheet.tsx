@@ -530,8 +530,8 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
         </DialogHeader>
 
         <div className="space-y-6 no-print">
-          {/* Convert to Job - always available */}
-          {onConvertToJob && (
+          {/* Accept & Create Job - only show for non-accepted quotes */}
+          {onConvertToJob && estimate.status !== "accepted" && (
             <Button 
               onClick={() => {
                 onConvertToJob(estimate);
@@ -540,7 +540,7 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
               className="w-full gap-2 h-12 bg-green-600 hover:bg-green-700"
             >
               <Briefcase className="w-4 h-4" />
-              Convert to Job
+              Accept & Create Job
             </Button>
           )}
 
