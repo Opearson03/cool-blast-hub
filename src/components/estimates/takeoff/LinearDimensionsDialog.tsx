@@ -185,11 +185,11 @@ export function LinearDimensionsDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={lengthMeters === 0}>
+          <Button onClick={handleConfirm} disabled={lengthMeters === 0} className="w-full sm:w-auto">
             Save {getScopeTitle()}
           </Button>
           {onConfirmAndAddAnother && (
@@ -197,7 +197,7 @@ export function LinearDimensionsDialog({
               variant="secondary" 
               onClick={handleConfirmAndAddAnother} 
               disabled={lengthMeters === 0}
-              className="gap-1"
+              className="gap-1 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" />
               Save & Add More
