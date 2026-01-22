@@ -27,7 +27,6 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Pencil, Trash2, Loader2 } from "lucide-react";
 import { JobFormDialog } from "@/components/jobs/JobFormDialog";
 import { JobOverviewTab } from "@/components/jobs/tabs/JobOverviewTab";
-import { JobProjectStartupTab } from "@/components/jobs/tabs/JobProjectStartupTab";
 import { JobPoursTab } from "@/components/jobs/tabs/JobPoursTab";
 import { JobITPsTab } from "@/components/jobs/tabs/JobITPsTab";
 import { JobSWMSTab } from "@/components/jobs/tabs/JobSWMSTab";
@@ -219,20 +218,9 @@ export default function AdminJobDetail() {
             </TabsTrigger>
             {(job as any).job_type !== "misc" && (
               <>
-                <TabsTrigger value="startup" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  Project Startup
-                </TabsTrigger>
                 <TabsTrigger value="pours" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   Pours
                 </TabsTrigger>
-                {/* Hidden for now - keeping code for future:
-                <TabsTrigger value="itps" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  ITPs
-                </TabsTrigger>
-                <TabsTrigger value="swms" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  SWMS
-                </TabsTrigger>
-                */}
                 <TabsTrigger value="tests" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   Test Results
                 </TabsTrigger>
@@ -244,11 +232,6 @@ export default function AdminJobDetail() {
             <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Documents
             </TabsTrigger>
-            {/* Hidden for now - keeping code for future:
-            <TabsTrigger value="equipment" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Equipment
-            </TabsTrigger>
-            */}
           </TabsList>
 
           <div className="mt-6">
@@ -257,20 +240,9 @@ export default function AdminJobDetail() {
             </TabsContent>
             {(job as any).job_type !== "misc" && (
               <>
-                <TabsContent value="startup" className="m-0">
-                  <JobProjectStartupTab jobId={job.id} job={job} />
-                </TabsContent>
                 <TabsContent value="pours" className="m-0">
                   <JobPoursTab jobId={job.id} />
                 </TabsContent>
-                {/* Hidden for now - keeping code for future:
-                <TabsContent value="itps" className="m-0">
-                  <JobITPsTab jobId={job.id} />
-                </TabsContent>
-                <TabsContent value="swms" className="m-0">
-                  <JobSWMSTab jobId={job.id} />
-                </TabsContent>
-                */}
                 <TabsContent value="tests" className="m-0">
                   <JobTestResultsTab jobId={job.id} />
                 </TabsContent>
