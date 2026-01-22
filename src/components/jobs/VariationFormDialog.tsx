@@ -49,6 +49,8 @@ interface VariationFormDialogProps {
   businessId: string;
   existingCount: number;
   editVariation?: EditVariation | null;
+  /** Called with the created variation data when a new variation is successfully created */
+  onCreated?: (variation: EditVariation) => void;
 }
 
 const UNITS = ["m²", "m³", "m", "ea", "hrs", "days", "kg", "t", "lump sum"];
@@ -68,6 +70,7 @@ export function VariationFormDialog({
   businessId,
   existingCount,
   editVariation,
+  onCreated,
 }: VariationFormDialogProps) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -128,26 +131,44 @@ export function VariationFormDialog({
   const createMutation = useMutation({
     mutationFn: async () => {
       const variationNumber = `VO-${String(existingCount + 1).padStart(3, "0")}`;
+      const filteredItems = items.filter((i) => i.description.trim());
       
-      const { error } = await supabase.from("job_variations").insert([{
+      const { data, error } = await supabase.from("job_variations").insert([{
         job_id: jobId,
         business_id: businessId,
         variation_number: variationNumber,
         description,
         reason: reason || null,
-        items: JSON.parse(JSON.stringify(items.filter((i) => i.description.trim()))),
+        items: JSON.parse(JSON.stringify(filteredItems)),
         amount: totalAmount,
         days_extension: daysExtension,
         notes: notes || null,
         created_by: user?.id,
         status: "draft",
-      }]);
+      }]).select().single();
+      
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["job-variations", jobId] });
       toast({ title: "Variation created" });
       onOpenChange(false);
+      
+      // Call the onCreated callback with the new variation data
+      if (onCreated && data) {
+        const createdVariation: EditVariation = {
+          id: data.id,
+          variation_number: data.variation_number,
+          description: data.description,
+          reason: data.reason,
+          items: (data.items as unknown as VariationItem[]) || [],
+          amount: Number(data.amount),
+          days_extension: data.days_extension || 0,
+          notes: data.notes,
+        };
+        onCreated(createdVariation);
+      }
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
