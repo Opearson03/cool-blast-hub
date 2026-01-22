@@ -278,8 +278,7 @@ export function ModuleSection({
                   const isSlabSurfaceSection = isRaftReoModule && currentSection === 'Slab Surface (Defaults)';
                   const isEdgeBeamsSection = isRaftReoModule && currentSection === 'Edge Beams';
                   const isInternalBeamsSection = isRaftReoModule && currentSection === 'Internal Beams';
-                  const isPierStartersSection = isPiersReoModule && currentSection === 'Starter Bars';
-                  const isPierCagesSection = isPiersReoModule && currentSection === 'Cage Reinforcement';
+                  // Note: Pier reinforcement is rendered as a standalone section after flushSection
                   const isFootingTmSection = isFootingReoModule && currentSection === 'Trench Mesh';
                   const isFootingLigsSection = isFootingReoModule && currentSection === 'Ligatures';
                   const isFootingStartersSection = isFootingReoModule && currentSection === 'Vertical Starters';
@@ -354,26 +353,7 @@ export function ModuleSection({
                         </div>
                       )}
                       
-                      {/* Inline per-pier inputs for Piers reinforcement */}
-                      {(isPierStartersSection || isPierCagesSection) && onScopeDataChange && pierGroups.length > 0 && (answers.has_starters || answers.is_reinforced) && (
-                        <div className="mt-4">
-                          <PierReinforcementInput
-                            pierGroups={pierGroups}
-                            onChange={(newPierGroups) => onScopeDataChange('pierGroups', newPierGroups)}
-                            defaultHasStarters={answers.has_starters || false}
-                            defaultStarterCount={4}
-                            defaultStarterSize="N16"
-                            defaultStarterLength={1200}
-                            defaultIsReinforced={answers.is_reinforced || false}
-                            defaultVerticalBarsCount={6}
-                            defaultVerticalBarSize="N16"
-                            defaultLigSize="R10"
-                            defaultLigCentres={200}
-                            label="Pier Groups"
-                          />
-                        </div>
-                      )}
-                      
+                      {/* Note: Pier reinforcement is now rendered as a standalone section after flushSection */}
                       {/* Inline per-footing inputs for Footing reinforcement */}
                       {(isFootingTmSection || isFootingLigsSection || isFootingStartersSection) && onScopeDataChange && footings.length > 0 && (answers.include_trench_mesh || answers.add_ligs || answers.add_vertical_bars) && (
                         <div className="mt-4">
@@ -412,6 +392,37 @@ export function ModuleSection({
                 sectionQuestions.push(question);
               });
               flushSection();
+
+              // Special case: Pier reinforcement module renders pier groups without global toggles
+              if (isPiersReoModule && pierGroups.length > 0 && onScopeDataChange) {
+                elements.push(
+                  <div key="pier-groups-section" className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2 first:pt-0">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Pier Groups
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Configure reinforcement for each pier group individually.
+                    </p>
+                    <PierReinforcementInput
+                      pierGroups={pierGroups}
+                      onChange={(newPierGroups) => onScopeDataChange('pierGroups', newPierGroups)}
+                      defaultHasStarters={false}
+                      defaultStarterCount={4}
+                      defaultStarterSize="N16"
+                      defaultStarterLength={1200}
+                      defaultIsReinforced={false}
+                      defaultVerticalBarsCount={6}
+                      defaultVerticalBarSize="N16"
+                      defaultLigSize="R10"
+                      defaultLigCentres={200}
+                      label="Pier Groups"
+                    />
+                  </div>
+                );
+              }
 
               return elements;
             })()}
