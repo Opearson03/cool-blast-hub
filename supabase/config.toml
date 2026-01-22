@@ -112,3 +112,9 @@ verify_jwt = false
 
 [functions.stripe-webhook]
 verify_jwt = false
+
+[functions.validate-signing-token]
+verify_jwt = false
+
+[functions.submit-signature]
+verify_jwt = false

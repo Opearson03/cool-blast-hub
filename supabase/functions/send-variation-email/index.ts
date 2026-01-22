@@ -482,7 +482,33 @@ const handler = async (req: Request): Promise<Response> => {
     const pdfOutput = doc.output('datauristring');
     const base64Pdf = pdfOutput.split(',')[1];
 
-    console.log("PDF generated successfully, sending email...");
+    console.log("PDF generated successfully, preparing signing token...");
+
+    // Set up Supabase client
+    const supabaseClient = createClient(
+      Deno.env.get("SUPABASE_URL") ?? "",
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+    );
+
+    // Generate signing token expiry (48 hours)
+    const signingTokenExpiry = new Date();
+    signingTokenExpiry.setHours(signingTokenExpiry.getHours() + 48);
+
+    // Get signing token and update expiry
+    const { data: variationData } = await supabaseClient
+      .from("job_variations")
+      .select("signing_token")
+      .eq("id", variationId)
+      .single();
+
+    const signingToken = variationData?.signing_token;
+    await supabaseClient
+      .from("job_variations")
+      .update({ signing_token_expires_at: signingTokenExpiry.toISOString() })
+      .eq("id", variationId);
+
+    const appDomain = "https://cool-blast-hub.lovable.app";
+    const signingUrl = signingToken ? `${appDomain}/sign/variation/${signingToken}` : null;
 
     // Format sender name
     const senderName = businessName ? `${businessName} via Pourhub` : "Pourhub";
@@ -501,77 +527,36 @@ const handler = async (req: Request): Promise<Response> => {
           </div>
           
           <div style="background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
-            <p style="font-size: 16px; color: #374151; margin: 0 0 20px 0;">
-              Dear ${clientName},
-            </p>
-            
-            <p style="font-size: 16px; color: #374151; margin: 0 0 20px 0;">
-              Please find attached a variation order for your project at <strong>${siteAddress}</strong>.
-            </p>
+            <p style="font-size: 16px; color: #374151;">Dear ${clientName},</p>
+            <p style="font-size: 16px; color: #374151;">Please find attached a variation order for <strong>${siteAddress}</strong>.</p>
             
             <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
               <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 8px 0; color: #6b7280;">Variation Number:</td>
-                  <td style="padding: 8px 0; text-align: right; font-weight: bold; color: #111827;">${variationNumber}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 8px 0; color: #6b7280;">Job:</td>
-                  <td style="padding: 8px 0; text-align: right; color: #111827;">${jobNumber ? `${jobNumber} - ` : ''}${jobName}</td>
-                </tr>
-                <tr style="border-top: 2px solid ${quotePrimaryColor};">
-                  <td style="padding: 12px 0; color: #111827; font-weight: bold; font-size: 18px;">Total Amount:</td>
-                  <td style="padding: 12px 0; text-align: right; font-weight: bold; font-size: 18px; color: ${quotePrimaryColor};">${formattedAmount}</td>
-                </tr>
+                <tr><td style="padding: 8px 0; color: #6b7280;">Variation:</td><td style="text-align: right; font-weight: bold;">${variationNumber}</td></tr>
+                <tr><td style="padding: 8px 0; color: #6b7280;">Job:</td><td style="text-align: right;">${jobNumber ? `${jobNumber} - ` : ''}${jobName}</td></tr>
+                <tr style="border-top: 2px solid ${quotePrimaryColor};"><td style="padding: 12px 0; font-weight: bold; font-size: 18px;">Total:</td><td style="text-align: right; font-weight: bold; font-size: 18px; color: ${quotePrimaryColor};">${formattedAmount}</td></tr>
               </table>
             </div>
             
-            <p style="font-size: 14px; color: #6b7280; margin: 20px 0;">
-              Please review the attached document and sign where indicated to approve this variation.
-            </p>
+            ${signingUrl ? `<div style="text-align: center; margin: 20px 0;"><a href="${signingUrl}" style="display: inline-block; background: ${quotePrimaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">✍️ Approve & Sign Online</a><p style="font-size: 12px; color: #9ca3af; margin-top: 10px;">— or print the PDF and sign manually —</p></div>` : '<p style="font-size: 14px; color: #6b7280;">Please sign the attached PDF to approve.</p>'}
             
-            <p style="font-size: 16px; color: #374151; margin: 20px 0 0 0;">
-              Kind regards,<br>
-              <strong>${businessName}</strong>
-            </p>
-            
-            ${businessPhone ? `<p style="font-size: 14px; color: #6b7280; margin: 5px 0;">📞 ${businessPhone}</p>` : ''}
-            ${businessEmail ? `<p style="font-size: 14px; color: #6b7280; margin: 5px 0;">✉️ ${businessEmail}</p>` : ''}
+            <p style="color: #374151;">Kind regards,<br><strong>${businessName}</strong></p>
+            ${businessPhone ? `<p style="font-size: 14px; color: #6b7280;">📞 ${businessPhone}</p>` : ''}
           </div>
-          
-          <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-            Sent via <a href="https://pourhub.au" style="color: ${quotePrimaryColor};">Pourhub</a>
-          </div>
+          <div style="text-align: center; padding: 15px; color: #9ca3af; font-size: 12px;">Sent via <a href="https://pourhub.au" style="color: ${quotePrimaryColor};">Pourhub</a></div>
         </div>
       `,
-      attachments: [
-        {
-          filename: `${variationNumber}.pdf`,
-          content: base64Pdf,
-        },
-      ],
+      attachments: [{ filename: `${variationNumber}.pdf`, content: base64Pdf }],
     });
 
     console.log("Email sent successfully:", emailResponse);
 
-    // Update variation status to submitted
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
-    );
-
     const { error: updateError } = await supabaseClient
       .from("job_variations")
-      .update({
-        status: "submitted",
-        submitted_at: new Date().toISOString(),
-        submitted_to_email: clientEmail,
-      })
+      .update({ status: "submitted", submitted_at: new Date().toISOString(), submitted_to_email: clientEmail })
       .eq("id", variationId);
 
-    if (updateError) {
-      console.error("Failed to update variation status:", updateError);
-    }
+    if (updateError) console.error("Failed to update variation status:", updateError);
 
     return new Response(
       JSON.stringify({ success: true, emailResponse }),

@@ -736,7 +736,43 @@ const handler = async (req: Request): Promise<Response> => {
     // Get PDF as base64
     const pdfBase64 = doc.output('datauristring').split(',')[1];
 
-    console.log("PDF generated successfully, sending email...");
+    console.log("PDF generated successfully, preparing signing token...");
+
+    // Set up Supabase client to generate signing token
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Generate signing token and set expiry (72 hours)
+    const signingTokenExpiry = new Date();
+    signingTokenExpiry.setHours(signingTokenExpiry.getHours() + 72);
+
+    // Get the current signing token from the estimate (or generate new one)
+    const { data: estimateData, error: fetchError } = await supabase
+      .from("estimates")
+      .select("signing_token")
+      .eq("id", estimateId)
+      .single();
+
+    if (fetchError) {
+      console.error("Failed to fetch estimate:", fetchError);
+    }
+
+    const signingToken = estimateData?.signing_token;
+    
+    // Update estimate with token expiry
+    await supabase
+      .from("estimates")
+      .update({ 
+        signing_token_expires_at: signingTokenExpiry.toISOString()
+      })
+      .eq("id", estimateId);
+
+    // Build signing URL - use the published URL or a configurable domain
+    const appDomain = "https://cool-blast-hub.lovable.app";
+    const signingUrl = signingToken ? `${appDomain}/sign/quote/${signingToken}` : null;
+
+    console.log("Signing URL generated:", signingUrl ? "Yes" : "No");
 
     // Format sender name as "Business Name via Pourhub"
     const senderName = businessName ? `${businessName} via Pourhub` : "Pourhub";
@@ -758,6 +794,10 @@ const handler = async (req: Request): Promise<Response> => {
             .highlight { background: #f0f9ff; border-left: 4px solid ${quotePrimaryColor}; padding: 15px; margin: 20px 0; }
             .total { font-size: 24px; font-weight: bold; color: ${quotePrimaryColor}; }
             .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+            .sign-button { display: inline-block; background: ${quotePrimaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold; margin: 10px 0; }
+            .sign-button:hover { opacity: 0.9; }
+            .options { margin: 25px 0; padding: 20px; background: #fff; border-radius: 8px; border: 1px solid #e5e7eb; }
+            .option-divider { text-align: center; color: #9ca3af; margin: 15px 0; font-size: 12px; }
           </style>
         </head>
         <body>
@@ -774,7 +814,17 @@ const handler = async (req: Request): Promise<Response> => {
                 <p style="margin: 10px 0 0;"><strong>Total Amount:</strong> <span class="total">${totalAmount}</span></p>
               </div>
               
-              <p>If you have any questions about this quote or would like to proceed, please don't hesitate to contact us.</p>
+              <div class="options">
+                <p style="margin: 0 0 15px 0; font-weight: bold;">Ready to proceed?</p>
+                ${signingUrl ? `
+                  <p style="margin: 0 0 10px 0;">Accept and sign this quote online:</p>
+                  <a href="${signingUrl}" class="sign-button" style="color: white;">✍️ Sign Quote Online</a>
+                  <p class="option-divider">— or —</p>
+                ` : ''}
+                <p style="margin: 0; font-size: 14px; color: #6b7280;">Print the attached PDF, sign it, and return it to us.</p>
+              </div>
+              
+              <p>If you have any questions about this quote, please don't hesitate to contact us.</p>
               
               <p>We look forward to working with you.</p>
               
@@ -782,6 +832,7 @@ const handler = async (req: Request): Promise<Response> => {
             </div>
             <div class="footer">
               <p>This quote was generated using PourHub</p>
+              ${signingUrl ? `<p style="font-size: 10px; color: #9ca3af;">The signing link will expire in 72 hours.</p>` : ''}
             </div>
           </div>
         </body>
@@ -798,10 +849,6 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Email sent successfully:", emailResponse);
 
     // Update estimate status to 'sent' in database
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
-
     await supabase
       .from("estimates")
       .update({ status: "sent" })

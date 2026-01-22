@@ -30,6 +30,8 @@ import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import EmployeeLeave from "./pages/employee/EmployeeLeave";
 import StaffAuth from "./pages/staff/StaffAuth";
 import StaffDashboard from "./pages/staff/StaffDashboard";
+import SignQuote from "./pages/public/SignQuote";
+import SignVariation from "./pages/public/SignVariation";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
@@ -90,6 +92,10 @@ const AppContent = () => {
       {/* Staff Routes - accessible via staff.pourhub.com.au or /staff path */}
       <Route path="/staff" element={<StaffAuth />} />
       <Route path="/staff/dashboard" element={<StaffProtectedRoute><StaffDashboard /></StaffProtectedRoute>} />
+      
+      {/* Public Signing Routes - no auth required */}
+      <Route path="/sign/quote/:token" element={<SignQuote />} />
+      <Route path="/sign/variation/:token" element={<SignVariation />} />
       
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
