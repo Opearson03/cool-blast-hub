@@ -1,13 +1,12 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, BeamConfig, MeasurementArea } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
 
 /**
  * Raft Slab Reinforcement Module (Unified)
  * 
- * Consolidates all reinforcement for raft slabs into a single, organized module:
- * 1. Slab Surface - mesh/bar for the main slab areas
- * 2. Edge Beams - trench mesh & ligatures per named beam
- * 3. Internal Beams - trench mesh & ligatures per named beam
+ * Supports per-item reinforcement configuration:
+ * - Each slab area can have different mesh/bar settings
+ * - Each beam (edge/internal) can have different TM and ligature settings
  */
 
 const getChairTypeFromThickness = (thickness: number): string => {
@@ -34,14 +33,15 @@ export const reinforcementRaftModule: EstimateModule = {
 
   questions: [
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 1: SLAB SURFACE
+    // SECTION 1: SLAB DEFAULTS
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'slab_reo_type',
       type: 'select',
-      label: 'Slab Reinforcement Type',
+      label: 'Default Slab Reo Type',
       required: true,
-      sectionLabel: 'Slab Surface',
+      sectionLabel: 'Slab Surface (Defaults)',
+      helpText: 'Default for all areas - override per area below',
       options: [
         { value: 'none', label: 'No Reinforcement' },
         { value: 'mesh', label: 'Steel Mesh' },
@@ -53,7 +53,7 @@ export const reinforcementRaftModule: EstimateModule = {
     {
       id: 'mesh_type',
       type: 'select',
-      label: 'Mesh Type',
+      label: 'Default Mesh Type',
       options: [
         { value: 'SL62', label: 'SL62' },
         { value: 'SL72', label: 'SL72' },
@@ -93,7 +93,7 @@ export const reinforcementRaftModule: EstimateModule = {
     {
       id: 'bar_size',
       type: 'select',
-      label: 'Bar Size',
+      label: 'Default Bar Size',
       options: [
         { value: 'N10', label: 'N10' },
         { value: 'N12', label: 'N12' },
@@ -106,7 +106,7 @@ export const reinforcementRaftModule: EstimateModule = {
     {
       id: 'bar_spacing',
       type: 'select',
-      label: 'Bar Spacing',
+      label: 'Default Bar Spacing',
       options: [
         { value: '100', label: '100mm' },
         { value: '150', label: '150mm' },
@@ -119,7 +119,7 @@ export const reinforcementRaftModule: EstimateModule = {
     {
       id: 'bar_layers',
       type: 'select',
-      label: 'Layers',
+      label: 'Default Layers',
       options: [
         { value: '1', label: 'Single (bottom)' },
         { value: '2', label: 'Double (top & bottom)' },
@@ -216,19 +216,20 @@ export const reinforcementRaftModule: EstimateModule = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 3: EDGE BEAMS
+    // SECTION 3: EDGE BEAM DEFAULTS
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'edge_beam_reo',
       type: 'boolean',
       label: 'Include Edge Beam Reinforcement',
       defaultValue: true,
-      sectionLabel: 'Edge Beams',
+      sectionLabel: 'Edge Beams (Defaults)',
     },
     {
       id: 'edge_beam_tm_type',
       type: 'select',
-      label: 'Trench Mesh Type',
+      label: 'Default TM Type',
+      helpText: 'Override per beam below',
       options: [
         { value: 'L8TM3', label: 'L8TM3 (300mm)' },
         { value: 'L8TM4', label: 'L8TM4 (400mm)' },
@@ -257,14 +258,14 @@ export const reinforcementRaftModule: EstimateModule = {
     {
       id: 'edge_beam_add_ligs',
       type: 'boolean',
-      label: 'Add Ligatures',
+      label: 'Default: Add Ligatures',
       defaultValue: false,
       showIf: (answers) => answers.edge_beam_reo === true,
     },
     {
       id: 'edge_beam_lig_size',
       type: 'select',
-      label: 'Ligature Size',
+      label: 'Default Lig Size',
       options: [
         { value: 'R10', label: 'R10' },
         { value: 'R12', label: 'R12' },
@@ -275,7 +276,7 @@ export const reinforcementRaftModule: EstimateModule = {
     {
       id: 'edge_beam_lig_centres',
       type: 'number',
-      label: 'Lig Centres',
+      label: 'Default Lig Centres',
       defaultValue: 200,
       min: 100,
       max: 600,
@@ -296,19 +297,20 @@ export const reinforcementRaftModule: EstimateModule = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 4: INTERNAL BEAMS
+    // SECTION 4: INTERNAL BEAM DEFAULTS
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'internal_beam_reo',
       type: 'boolean',
       label: 'Include Internal Beam Reinforcement',
       defaultValue: true,
-      sectionLabel: 'Internal Beams',
+      sectionLabel: 'Internal Beams (Defaults)',
     },
     {
       id: 'internal_beam_tm_type',
       type: 'select',
-      label: 'Trench Mesh Type',
+      label: 'Default TM Type',
+      helpText: 'Override per beam below',
       options: [
         { value: 'L8TM3', label: 'L8TM3 (300mm)' },
         { value: 'L8TM4', label: 'L8TM4 (400mm)' },
@@ -337,14 +339,14 @@ export const reinforcementRaftModule: EstimateModule = {
     {
       id: 'internal_beam_add_ligs',
       type: 'boolean',
-      label: 'Add Ligatures',
+      label: 'Default: Add Ligatures',
       defaultValue: false,
       showIf: (answers) => answers.internal_beam_reo === true,
     },
     {
       id: 'internal_beam_lig_size',
       type: 'select',
-      label: 'Ligature Size',
+      label: 'Default Lig Size',
       options: [
         { value: 'R10', label: 'R10' },
         { value: 'R12', label: 'R12' },
@@ -355,7 +357,7 @@ export const reinforcementRaftModule: EstimateModule = {
     {
       id: 'internal_beam_lig_centres',
       type: 'number',
-      label: 'Lig Centres',
+      label: 'Default Lig Centres',
       defaultValue: 200,
       min: 100,
       max: 600,
@@ -394,9 +396,25 @@ export const reinforcementRaftModule: EstimateModule = {
     let subtotal = 0;
     const LAP_ALLOWANCE = 1.125;
 
-    const slabReoType = answers.slab_reo_type || 'none';
+    // Default settings from module answers
+    const defaultSlabReoType = answers.slab_reo_type || 'mesh';
+    const defaultMeshType = answers.mesh_type || 'SL82';
+    const defaultBarSize = answers.bar_size || 'N12';
+    const defaultBarSpacing = answers.bar_spacing || '200';
+    const defaultBarLayers = answers.bar_layers || '2';
 
-    if (slabReoType === 'none' || slabReoType === 'fiber') {
+    // Get areas and beams from scope data
+    const areas: MeasurementArea[] = scopeData?.areas || [];
+    const edgeBeams: BeamConfig[] = scopeData?.edgeBeams || [];
+    const internalBeams: BeamConfig[] = scopeData?.beams || [];
+    const totalArea = Number(scopeData?.area) || 0;
+
+    // Check if any area has reinforcement
+    const hasAnySlabReo = areas.length > 0 
+      ? areas.some(a => (a.reo_type || defaultSlabReoType) !== 'none' && (a.reo_type || defaultSlabReoType) !== 'fiber')
+      : defaultSlabReoType !== 'none' && defaultSlabReoType !== 'fiber';
+
+    if (!hasAnySlabReo && !answers.edge_beam_reo && !answers.internal_beam_reo) {
       return {
         moduleId: 'reinforcement-raft',
         moduleName: 'Reinforcement',
@@ -406,32 +424,30 @@ export const reinforcementRaftModule: EstimateModule = {
       };
     }
 
-    const areas = scopeData?.areas || [];
-    const edgeBeams = scopeData?.edgeBeams || [];
-    const internalBeams = scopeData?.beams || [];
-    const totalArea = Number(scopeData?.area) || 0;
-
     // ═══════════════════════════════════════════════════════════════
-    // SLAB SURFACE REINFORCEMENT
+    // SLAB SURFACE REINFORCEMENT (per area)
     // ═══════════════════════════════════════════════════════════════
-    if (slabReoType === 'mesh') {
-      const meshType = answers.mesh_type || 'SL82';
-      const lapPercent = 1 + (Number(answers.mesh_lap_allowance) || 12.5) / 100;
-      const pricePerSheet = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', meshType, 95);
-      const sheetArea = 14.4;
+    const lapPercent = 1 + (Number(answers.mesh_lap_allowance) || 12.5) / 100;
+    const sheetArea = 14.4;
+    const pricePerTonne = Number(answers.rebar_price_per_tonne) || getPrice(priceMap, 'rebar', `${defaultBarSize} CB`, 2100);
 
-      if (areas.length > 0) {
-        areas.forEach((area: any) => {
-          const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
-          if (areaValue <= 0) return;
-          
+    if (areas.length > 0) {
+      areas.forEach((area) => {
+        const reoType = area.reo_type || defaultSlabReoType;
+        const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
+        
+        if (areaValue <= 0 || reoType === 'none' || reoType === 'fiber') return;
+
+        if (reoType === 'mesh') {
+          const meshType = area.mesh_type || defaultMeshType;
+          const pricePerSheet = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', meshType, 95);
           const totalMeshArea = areaValue * lapPercent;
           const sheets = Math.ceil(totalMeshArea / sheetArea);
           const cost = sheets * pricePerSheet;
 
           lineItems.push({
-            id: `mesh_${area.id || area.name}`,
-            description: `${area.name || 'Slab'} – ${meshType} (${sheets} sheets)`,
+            id: `mesh_${area.id}`,
+            description: `${area.name} – ${meshType} (${sheets} sheets)`,
             quantity: sheets,
             unit: 'sheets',
             unitPrice: pricePerSheet,
@@ -439,15 +455,44 @@ export const reinforcementRaftModule: EstimateModule = {
             category: 'materials',
           });
           subtotal += cost;
-        });
-      } else if (totalArea > 0) {
+        }
+
+        if (reoType === 'bar') {
+          const barSize = area.bar_size || defaultBarSize;
+          const spacing = Number(area.bar_spacing || defaultBarSpacing);
+          const layers = Number(area.bar_layers || defaultBarLayers);
+          const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
+
+          const barsPerMetre = 1000 / spacing;
+          const sideLength = Math.sqrt(areaValue);
+          const barsPerDirection = Math.ceil(sideLength * barsPerMetre);
+          const totalBarLength = barsPerDirection * sideLength * 2 * layers * LAP_ALLOWANCE;
+          const totalWeight = totalBarLength * weightPerMetre;
+          const cost = (totalWeight / 1000) * pricePerTonne;
+
+          lineItems.push({
+            id: `bar_${area.id}`,
+            description: `${area.name} – ${barSize} @ ${spacing}mm (${layers}L, ${Math.round(totalWeight)}kg)`,
+            quantity: Math.round(totalWeight),
+            unit: 'kg',
+            unitPrice: pricePerTonne / 1000,
+            total: Math.round(cost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += cost;
+        }
+      });
+    } else if (totalArea > 0 && defaultSlabReoType !== 'none' && defaultSlabReoType !== 'fiber') {
+      // Fallback for single area without per-area breakdown
+      if (defaultSlabReoType === 'mesh') {
+        const pricePerSheet = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', defaultMeshType, 95);
         const totalMeshArea = totalArea * lapPercent;
         const sheets = Math.ceil(totalMeshArea / sheetArea);
         const cost = sheets * pricePerSheet;
 
         lineItems.push({
           id: 'mesh_slab',
-          description: `Slab ${meshType} (${sheets} sheets)`,
+          description: `Slab ${defaultMeshType} (${sheets} sheets)`,
           quantity: sheets,
           unit: 'sheets',
           unitPrice: pricePerSheet,
@@ -458,75 +503,41 @@ export const reinforcementRaftModule: EstimateModule = {
       }
     }
 
-    if (slabReoType === 'bar') {
-      const barSize = answers.bar_size || 'N12';
-      const spacing = Number(answers.bar_spacing) || 200;
-      const layers = Number(answers.bar_layers) || 2;
-      const pricePerTonne = Number(answers.rebar_price_per_tonne) || getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
-      const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
-
-      const calculateBarForArea = (areaValue: number, areaName: string, areaId: string) => {
-        const barsPerMetre = 1000 / spacing;
-        const sideLength = Math.sqrt(areaValue);
-        const barsPerDirection = Math.ceil(sideLength * barsPerMetre);
-        const totalBarLength = barsPerDirection * sideLength * 2 * layers * LAP_ALLOWANCE;
-        const totalWeight = totalBarLength * weightPerMetre;
-        const totalTonnes = totalWeight / 1000;
-        const cost = totalTonnes * pricePerTonne;
-
-        lineItems.push({
-          id: `bar_${areaId}`,
-          description: `${areaName} – ${barSize} @ ${spacing}mm (${layers}L, ${Math.round(totalWeight)}kg)`,
-          quantity: Math.round(totalWeight),
-          unit: 'kg',
-          unitPrice: pricePerTonne / 1000,
-          total: Math.round(cost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += cost;
-      };
-
-      if (areas.length > 0) {
-        areas.forEach((area: any) => {
-          const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
-          if (areaValue > 0) {
-            calculateBarForArea(areaValue, area.name || 'Slab', area.id || area.name);
-          }
-        });
-      } else if (totalArea > 0) {
-        calculateBarForArea(totalArea, 'Slab', 'slab');
-      }
-    }
-
     // ═══════════════════════════════════════════════════════════════
     // ACCESSORIES
     // ═══════════════════════════════════════════════════════════════
-    if (answers.bar_chairs && (slabReoType === 'mesh' || slabReoType === 'bar')) {
+    if (answers.bar_chairs && hasAnySlabReo) {
       const chairType = answers.chair_type || getChairTypeFromThickness(Number(scopeData?.thickness) || 300);
       const chairsPerM2 = Number(answers.chairs_per_m2) || 4;
       const bagPrice = Number(answers.chair_price_per_100) || getPrice(priceMap, 'consumables', chairType, 35);
       
       const effectiveArea = areas.length > 0 
-        ? areas.reduce((sum: number, a: any) => sum + (a._actualArea || (Number(a.length) || 0) * (Number(a.width) || 0)), 0)
+        ? areas.reduce((sum, a) => {
+            const reoType = a.reo_type || defaultSlabReoType;
+            if (reoType === 'none' || reoType === 'fiber') return sum;
+            return sum + (a._actualArea || (Number(a.length) || 0) * (Number(a.width) || 0));
+          }, 0)
         : totalArea;
       
-      const totalChairs = Math.ceil(effectiveArea * chairsPerM2);
-      const bags = Math.ceil(totalChairs / 100);
-      const cost = bags * bagPrice;
+      if (effectiveArea > 0) {
+        const totalChairs = Math.ceil(effectiveArea * chairsPerM2);
+        const bags = Math.ceil(totalChairs / 100);
+        const cost = bags * bagPrice;
 
-      lineItems.push({
-        id: 'bar_chairs',
-        description: `Bar Chairs ${CHAIR_LABELS[chairType] || chairType} (${bags} × 100)`,
-        quantity: bags,
-        unit: 'bags',
-        unitPrice: bagPrice,
-        total: Math.round(cost * 100) / 100,
-        category: 'materials',
-      });
-      subtotal += cost;
+        lineItems.push({
+          id: 'bar_chairs',
+          description: `Bar Chairs ${CHAIR_LABELS[chairType] || chairType} (${bags} × 100)`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: bagPrice,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
     }
 
-    if (answers.tie_wire && (slabReoType === 'mesh' || slabReoType === 'bar')) {
+    if (answers.tie_wire && hasAnySlabReo) {
       const coils = Number(answers.tie_wire_coils) || 2;
       const pricePerCoil = Number(answers.tie_wire_price) || getPrice(priceMap, 'consumables', 'TIE WIRE', 15);
       const cost = coils * pricePerCoil;
@@ -544,32 +555,31 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // EDGE BEAMS
+    // EDGE BEAMS (per beam)
     // ═══════════════════════════════════════════════════════════════
     if (answers.edge_beam_reo && edgeBeams.length > 0) {
-      const tmType = answers.edge_beam_tm_type || 'L11TM4';
-      const tmPrice = Number(answers.edge_beam_tm_price) || getPrice(priceMap, 'trench_mesh', tmType, 108);
-      const addLigs = answers.edge_beam_add_ligs;
-      const ligSize = answers.edge_beam_lig_size || 'R10';
-      const ligCentres = Number(answers.edge_beam_lig_centres) || 200;
-      const ligPrice = Number(answers.edge_beam_lig_price) || getPrice(priceMap, 'rebar', `${ligSize} COIL`, 2100);
-      const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
+      const defaultTmType = answers.edge_beam_tm_type || 'L11TM4';
+      const defaultAddLigs = answers.edge_beam_add_ligs || false;
+      const defaultLigSize = answers.edge_beam_lig_size || 'R10';
+      const defaultLigCentres = Number(answers.edge_beam_lig_centres) || 200;
 
-      edgeBeams.forEach((beam: any) => {
+      edgeBeams.forEach((beam) => {
         const length = Number(beam.length) || 0;
-        const name = beam.name || 'Edge Beam';
-        const depth = Number(beam.depth) || 450;
-        const width = Number(beam.width) || 450;
-        
         if (length <= 0) return;
 
+        const tmType = beam.tm_type || defaultTmType;
+        const addLigs = beam.add_ligs ?? defaultAddLigs;
+        const ligSize = beam.lig_size || defaultLigSize;
+        const ligCentres = beam.lig_centres ?? defaultLigCentres;
+
+        const tmPrice = getPrice(priceMap, 'trench_mesh', tmType, 108);
         const tmLengthWithLap = length * LAP_ALLOWANCE;
         const tmSheets = Math.ceil(tmLengthWithLap / 6);
         const tmCost = tmSheets * tmPrice;
 
         lineItems.push({
-          id: `edge_tm_${beam.id || name}`,
-          description: `${name} – ${tmType} (${tmSheets} sheets)`,
+          id: `edge_tm_${beam.id}`,
+          description: `${beam.name} – ${tmType} (${tmSheets} sheets)`,
           quantity: tmSheets,
           unit: 'sheets',
           unitPrice: tmPrice,
@@ -579,16 +589,17 @@ export const reinforcementRaftModule: EstimateModule = {
         subtotal += tmCost;
 
         if (addLigs) {
+          const ligPrice = getPrice(priceMap, 'rebar', `${ligSize} COIL`, 2100);
+          const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
           const ligCount = Math.ceil((length * 1000) / ligCentres);
-          const ligPerimeter = 2 * ((width / 1000) + (depth / 1000)) + 0.1;
+          const ligPerimeter = 2 * ((Number(beam.width) / 1000) + (Number(beam.depth) / 1000)) + 0.1;
           const ligTotalLength = ligCount * ligPerimeter;
           const ligWeight = ligTotalLength * ligWeightPerM;
-          const ligTonnes = ligWeight / 1000;
-          const ligCost = ligTonnes * ligPrice;
+          const ligCost = (ligWeight / 1000) * ligPrice;
 
           lineItems.push({
-            id: `edge_ligs_${beam.id || name}`,
-            description: `${name} – ${ligSize} Ligs @ ${ligCentres}mm (${ligCount} pcs)`,
+            id: `edge_ligs_${beam.id}`,
+            description: `${beam.name} – ${ligSize} Ligs @ ${ligCentres}mm (${ligCount} pcs)`,
             quantity: ligCount,
             unit: 'pcs',
             unitPrice: Math.round((ligCost / ligCount) * 100) / 100,
@@ -621,32 +632,31 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // INTERNAL BEAMS
+    // INTERNAL BEAMS (per beam)
     // ═══════════════════════════════════════════════════════════════
     if (answers.internal_beam_reo && internalBeams.length > 0) {
-      const tmType = answers.internal_beam_tm_type || 'L11TM4';
-      const tmPrice = Number(answers.internal_beam_tm_price) || getPrice(priceMap, 'trench_mesh', tmType, 108);
-      const addLigs = answers.internal_beam_add_ligs;
-      const ligSize = answers.internal_beam_lig_size || 'R10';
-      const ligCentres = Number(answers.internal_beam_lig_centres) || 200;
-      const ligPrice = Number(answers.internal_beam_lig_price) || getPrice(priceMap, 'rebar', `${ligSize} COIL`, 2100);
-      const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
+      const defaultTmType = answers.internal_beam_tm_type || 'L11TM4';
+      const defaultAddLigs = answers.internal_beam_add_ligs || false;
+      const defaultLigSize = answers.internal_beam_lig_size || 'R10';
+      const defaultLigCentres = Number(answers.internal_beam_lig_centres) || 200;
 
-      internalBeams.forEach((beam: any) => {
+      internalBeams.forEach((beam) => {
         const length = Number(beam.length) || 0;
-        const name = beam.name || 'Internal Beam';
-        const depth = Number(beam.depth) || 400;
-        const width = Number(beam.width) || 300;
-        
         if (length <= 0) return;
 
+        const tmType = beam.tm_type || defaultTmType;
+        const addLigs = beam.add_ligs ?? defaultAddLigs;
+        const ligSize = beam.lig_size || defaultLigSize;
+        const ligCentres = beam.lig_centres ?? defaultLigCentres;
+
+        const tmPrice = getPrice(priceMap, 'trench_mesh', tmType, 108);
         const tmLengthWithLap = length * LAP_ALLOWANCE;
         const tmSheets = Math.ceil(tmLengthWithLap / 6);
         const tmCost = tmSheets * tmPrice;
 
         lineItems.push({
-          id: `internal_tm_${beam.id || name}`,
-          description: `${name} – ${tmType} (${tmSheets} sheets)`,
+          id: `internal_tm_${beam.id}`,
+          description: `${beam.name} – ${tmType} (${tmSheets} sheets)`,
           quantity: tmSheets,
           unit: 'sheets',
           unitPrice: tmPrice,
@@ -656,16 +666,17 @@ export const reinforcementRaftModule: EstimateModule = {
         subtotal += tmCost;
 
         if (addLigs) {
+          const ligPrice = getPrice(priceMap, 'rebar', `${ligSize} COIL`, 2100);
+          const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
           const ligCount = Math.ceil((length * 1000) / ligCentres);
-          const ligPerimeter = 2 * ((width / 1000) + (depth / 1000)) + 0.1;
+          const ligPerimeter = 2 * ((Number(beam.width) / 1000) + (Number(beam.depth) / 1000)) + 0.1;
           const ligTotalLength = ligCount * ligPerimeter;
           const ligWeight = ligTotalLength * ligWeightPerM;
-          const ligTonnes = ligWeight / 1000;
-          const ligCost = ligTonnes * ligPrice;
+          const ligCost = (ligWeight / 1000) * ligPrice;
 
           lineItems.push({
-            id: `internal_ligs_${beam.id || name}`,
-            description: `${name} – ${ligSize} Ligs @ ${ligCentres}mm (${ligCount} pcs)`,
+            id: `internal_ligs_${beam.id}`,
+            description: `${beam.name} – ${ligSize} Ligs @ ${ligCentres}mm (${ligCount} pcs)`,
             quantity: ligCount,
             unit: 'pcs',
             unitPrice: Math.round((ligCost / ligCount) * 100) / 100,
@@ -725,24 +736,36 @@ export const reinforcementRaftModule: EstimateModule = {
 
   getExclusions: (answers, scopeData): ExclusionItem[] => {
     const exclusions: ExclusionItem[] = [];
-    
-    if (answers.slab_reo_type === 'none') {
+    const defaultSlabReoType = answers.slab_reo_type || 'mesh';
+    const areas: MeasurementArea[] = scopeData?.areas || [];
+
+    // Check if any area has no reinforcement
+    const areasWithNoReo = areas.filter(a => (a.reo_type || defaultSlabReoType) === 'none');
+    const areasWithFiber = areas.filter(a => (a.reo_type || defaultSlabReoType) === 'fiber');
+
+    if (areasWithNoReo.length > 0 && areasWithNoReo.length === areas.length) {
       exclusions.push({
         id: 'no_reinforcement',
         text: 'Steel reinforcement is not included.',
         moduleId: 'reinforcement-raft',
       });
-    }
-
-    if (answers.slab_reo_type === 'fiber') {
+    } else if (areasWithNoReo.length > 0) {
       exclusions.push({
-        id: 'fiber_only',
-        text: 'Steel reinforcement excluded – fiber added to concrete mix.',
+        id: 'partial_no_reo',
+        text: `Steel reinforcement excluded for: ${areasWithNoReo.map(a => a.name).join(', ')}.`,
         moduleId: 'reinforcement-raft',
       });
     }
 
-    if (!answers.edge_beam_reo && answers.slab_reo_type !== 'none' && answers.slab_reo_type !== 'fiber') {
+    if (areasWithFiber.length > 0) {
+      exclusions.push({
+        id: 'fiber_areas',
+        text: `Fiber reinforcement only (no steel) for: ${areasWithFiber.map(a => a.name).join(', ')}.`,
+        moduleId: 'reinforcement-raft',
+      });
+    }
+
+    if (!answers.edge_beam_reo) {
       exclusions.push({
         id: 'no_edge_beam_reo',
         text: 'Edge beam reinforcement excluded.',
@@ -750,7 +773,7 @@ export const reinforcementRaftModule: EstimateModule = {
       });
     }
 
-    if (!answers.internal_beam_reo && answers.slab_reo_type !== 'none' && answers.slab_reo_type !== 'fiber') {
+    if (!answers.internal_beam_reo) {
       const internalBeams = scopeData?.beams || [];
       const hasInternalBeams = internalBeams.length > 0 || Number(scopeData?.internal_beams_length) > 0;
       if (hasInternalBeams) {

@@ -1,4 +1,4 @@
-import { ComponentQuestion, EstimateModule, CostLineItem } from "@/lib/estimate-components/types";
+import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -24,6 +24,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { BeamReinforcementInput } from "./BeamReinforcementInput";
+import { AreaReinforcementInput } from "./AreaReinforcementInput";
 
 interface ModuleSectionProps {
   module: EstimateModule;
@@ -36,6 +38,7 @@ interface ModuleSectionProps {
   isMarkedDone: boolean;
   onMarkDone: () => void;
   scopeData?: Record<string, any>;
+  onScopeDataChange?: (key: string, value: any) => void;
 }
 
 function formatCurrency(value: number): string {
@@ -206,7 +209,13 @@ export function ModuleSection({
   isMarkedDone,
   onMarkDone,
   scopeData,
+  onScopeDataChange,
 }: ModuleSectionProps) {
+  // Check if this is the raft reinforcement module
+  const isRaftReoModule = module.id === 'reinforcement-raft';
+  const areas = (scopeData?.areas || []) as MeasurementArea[];
+  const edgeBeams = (scopeData?.edgeBeams || []) as BeamConfig[];
+  const internalBeams = (scopeData?.beams || []) as BeamConfig[];
   // Get visible questions
   const visibleQuestions = module.questions.filter(
     (q) => !q.showIf || q.showIf(answers, scopeData)
@@ -295,6 +304,75 @@ export function ModuleSection({
 
               return elements;
             })()}
+
+            {/* Per-item reinforcement for raft slabs */}
+            {isRaftReoModule && onScopeDataChange && (
+              <div className="space-y-4">
+                {/* Per-area slab reinforcement */}
+                {areas.length > 0 && answers.slab_reo_type !== 'none' && answers.slab_reo_type !== 'fiber' && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Per-Area Settings
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <AreaReinforcementInput
+                      areas={areas}
+                      onChange={(newAreas) => onScopeDataChange('areas', newAreas)}
+                      defaultReoType={answers.slab_reo_type || 'mesh'}
+                      defaultMeshType={answers.mesh_type || 'SL82'}
+                      defaultBarSize={answers.bar_size || 'N12'}
+                      defaultBarSpacing={answers.bar_spacing || '200'}
+                      defaultBarLayers={answers.bar_layers || '2'}
+                      label="Slab Areas"
+                    />
+                  </div>
+                )}
+
+                {/* Per-beam edge beam reinforcement */}
+                {edgeBeams.length > 0 && answers.edge_beam_reo && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Edge Beam Settings
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <BeamReinforcementInput
+                      beams={edgeBeams}
+                      onChange={(newBeams) => onScopeDataChange('edgeBeams', newBeams)}
+                      defaultTmType={answers.edge_beam_tm_type || 'L11TM4'}
+                      defaultAddLigs={answers.edge_beam_add_ligs || false}
+                      defaultLigSize={answers.edge_beam_lig_size || 'R10'}
+                      defaultLigCentres={Number(answers.edge_beam_lig_centres) || 200}
+                      label="Edge Beams"
+                    />
+                  </div>
+                )}
+
+                {/* Per-beam internal beam reinforcement */}
+                {internalBeams.length > 0 && answers.internal_beam_reo && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Internal Beam Settings
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <BeamReinforcementInput
+                      beams={internalBeams}
+                      onChange={(newBeams) => onScopeDataChange('beams', newBeams)}
+                      defaultTmType={answers.internal_beam_tm_type || 'L11TM4'}
+                      defaultAddLigs={answers.internal_beam_add_ligs || false}
+                      defaultLigSize={answers.internal_beam_lig_size || 'R10'}
+                      defaultLigCentres={Number(answers.internal_beam_lig_centres) || 200}
+                      label="Internal Beams"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Line items breakdown */}
             {lineItems.length > 0 && (
