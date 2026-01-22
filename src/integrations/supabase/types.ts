@@ -546,6 +546,8 @@ export type Database = {
           client_email: string | null
           client_name: string
           client_phone: string | null
+          client_signature: string | null
+          client_signature_name: string | null
           company_name: string | null
           created_at: string
           created_by: string | null
@@ -560,6 +562,9 @@ export type Database = {
           quote_validity_days: number | null
           scope_data: Json | null
           selected_scopes: Json | null
+          signed_at: string | null
+          signing_token: string | null
+          signing_token_expires_at: string | null
           site_address: string
           site_visit_date: string | null
           status: Database["public"]["Enums"]["estimate_status"]
@@ -572,6 +577,8 @@ export type Database = {
           client_email?: string | null
           client_name: string
           client_phone?: string | null
+          client_signature?: string | null
+          client_signature_name?: string | null
           company_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -586,6 +593,9 @@ export type Database = {
           quote_validity_days?: number | null
           scope_data?: Json | null
           selected_scopes?: Json | null
+          signed_at?: string | null
+          signing_token?: string | null
+          signing_token_expires_at?: string | null
           site_address: string
           site_visit_date?: string | null
           status?: Database["public"]["Enums"]["estimate_status"]
@@ -598,6 +608,8 @@ export type Database = {
           client_email?: string | null
           client_name?: string
           client_phone?: string | null
+          client_signature?: string | null
+          client_signature_name?: string | null
           company_name?: string | null
           created_at?: string
           created_by?: string | null
@@ -612,6 +624,9 @@ export type Database = {
           quote_validity_days?: number | null
           scope_data?: Json | null
           selected_scopes?: Json | null
+          signed_at?: string | null
+          signing_token?: string | null
+          signing_token_expires_at?: string | null
           site_address?: string
           site_visit_date?: string | null
           status?: Database["public"]["Enums"]["estimate_status"]
@@ -996,6 +1011,8 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           business_id: string
+          client_signature: string | null
+          client_signature_name: string | null
           created_at: string | null
           created_by: string | null
           days_extension: number | null
@@ -1005,6 +1022,9 @@ export type Database = {
           job_id: string
           notes: string | null
           reason: string | null
+          signed_at: string | null
+          signing_token: string | null
+          signing_token_expires_at: string | null
           status: string
           submitted_at: string | null
           submitted_to_email: string | null
@@ -1017,6 +1037,8 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           business_id: string
+          client_signature?: string | null
+          client_signature_name?: string | null
           created_at?: string | null
           created_by?: string | null
           days_extension?: number | null
@@ -1026,6 +1048,9 @@ export type Database = {
           job_id: string
           notes?: string | null
           reason?: string | null
+          signed_at?: string | null
+          signing_token?: string | null
+          signing_token_expires_at?: string | null
           status?: string
           submitted_at?: string | null
           submitted_to_email?: string | null
@@ -1038,6 +1063,8 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           business_id?: string
+          client_signature?: string | null
+          client_signature_name?: string | null
           created_at?: string | null
           created_by?: string | null
           days_extension?: number | null
@@ -1047,6 +1074,9 @@ export type Database = {
           job_id?: string
           notes?: string | null
           reason?: string | null
+          signed_at?: string | null
+          signing_token?: string | null
+          signing_token_expires_at?: string | null
           status?: string
           submitted_at?: string | null
           submitted_to_email?: string | null
