@@ -780,6 +780,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: `${senderName} <Hello@contact.pourhub.au>`,
       to: [clientEmail],
+      cc: businessEmail ? [businessEmail] : undefined,
       subject: `Quote ${estimateNumber} from ${businessName}`,
       html: `
         <!DOCTYPE html>
