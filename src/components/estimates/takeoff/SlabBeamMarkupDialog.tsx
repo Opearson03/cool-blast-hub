@@ -544,7 +544,7 @@ export function SlabBeamMarkupDialog({
         </div>
 
         {/* Fixed footer with responsive buttons */}
-        <DialogFooter className="flex-col gap-2 sm:flex-row shrink-0 pt-4 border-t">
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end shrink-0 pt-4 border-t">
           {/* Step: Name */}
           {step === 'name' && isWafflePod && (
             <>
