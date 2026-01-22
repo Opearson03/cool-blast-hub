@@ -1263,7 +1263,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             areas: areasFromTakeoff,
           };
         }
-      } else if (scopeDefinition.supportsMultiplePiers && scope === 'piers') {
+      } else if (scopeDefinition.supportsMultiplePiers) {
         // For pier scopes, get pier configs grouped by unique dimensions
         const pierConfigs = getPierConfigsForScope(scope);
         
@@ -1331,9 +1331,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             };
           }
         }
-      } else if (scopeDefinition.supportsMultipleFootings) {
+      } else if (scopeDefinition.supportsMultipleFootings || scopeDefinition.supportsLinearSections) {
         // For linear scopes with multiple footings (strip_footings, kerbs, retaining walls)
-        // Use the new grouped footing configs function
+        // Check both supportsMultipleFootings and supportsLinearSections since they use the same data structure
         const footingConfigs = getFootingConfigsForScope(scope);
         
         if (footingConfigs.length > 0) {
