@@ -1347,16 +1347,23 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           const hasUserData = hasUserFootings || hasUserLinearSections;
 
           if (!hasUserData) {
+            // Helper to round length (in meters) to nearest 10mm (0.01m)
+            const roundTo10mm = (m: number) => Math.round(m * 100) / 100;
+
             // Map takeoff polyline markups to the MultiLinearInput shape
-            const linearSectionsFromTakeoff = footingConfigs.map((f: any) => ({
-              id: f.id,
-              name: f.name,
-              length: Number(f.length) || 0,
-              dimension1: Number(f.width) || 0,
-              dimension2: Number(f.depth) || 0,
-              _fromTakeoff: true,
-              _actualLength: Number(f._actualLength) || Number(f.length) || 0,
-            }));
+            const linearSectionsFromTakeoff = footingConfigs.map((f: any) => {
+              const rawLen = Number(f.length) || 0;
+              const rawActual = Number(f._actualLength) || rawLen;
+              return {
+                id: f.id,
+                name: f.name,
+                length: roundTo10mm(rawLen),
+                dimension1: Number(f.width) || 0,
+                dimension2: Number(f.depth) || 0,
+                _fromTakeoff: true,
+                _actualLength: roundTo10mm(rawActual),
+              };
+            });
 
             // Also compute derived totals/averages to match what handleLinearSectionsChange would produce
             const totalLength = linearSectionsFromTakeoff.reduce((sum: number, s: any) => {
