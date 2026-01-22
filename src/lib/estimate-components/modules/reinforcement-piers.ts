@@ -1,5 +1,5 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, PierGroup } from '../types';
-import { getPrice, REBAR_WEIGHTS } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PierGroup } from '../types';
+import { REBAR_WEIGHTS } from '../types';
 
 // Default values for pier reinforcement
 const DEFAULT_STARTER_COUNT = 4;
@@ -18,23 +18,8 @@ export const reinforcementPiersModule: EstimateModule = {
   icon: 'Grid3X3',
 
   questions: [
-    // Starter bars toggle
-    {
-      id: 'has_starters',
-      type: 'boolean',
-      label: 'Include Starter Bars?',
-      defaultValue: false,
-      required: true,
-      sectionLabel: 'Starter Bars',
-    },
-    // Cage reinforcement toggle  
-    {
-      id: 'is_reinforced',
-      type: 'boolean',
-      label: 'Include Cage Reinforcement?',
-      defaultValue: false,
-      sectionLabel: 'Cage Reinforcement',
-    },
+    // Note: Pier group reinforcement is configured inline per-group via PierReinforcementInput
+    // rendered in ModuleSection under the "Pier Groups" section header.
     // Pricing section
     {
       id: 'rebar_type',
@@ -45,7 +30,10 @@ export const reinforcementPiersModule: EstimateModule = {
         { value: 'stock', label: 'Stock Lengths' },
       ],
       defaultValue: 'cut_bend',
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
+      showIf: (_answers, scopeData) => {
+        const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
+        return pierGroups.some(g => g.has_starters || g.is_reinforced);
+      },
       sectionLabel: 'Pricing & Delivery',
     },
     {
@@ -54,7 +42,10 @@ export const reinforcementPiersModule: EstimateModule = {
       label: 'Rebar price per tonne',
       defaultValue: 2100,
       unit: '/tonne',
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
+      showIf: (_answers, scopeData) => {
+        const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
+        return pierGroups.some(g => g.has_starters || g.is_reinforced);
+      },
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
         const barSize = DEFAULT_STARTER_SIZE;
         const supplyType = moduleAnswers.rebar_type === 'cut_bend' ? 'CB' : 'STOCK';
@@ -67,7 +58,10 @@ export const reinforcementPiersModule: EstimateModule = {
       label: 'Reo delivery charge',
       defaultValue: 150,
       priceListKey: 'rebar.REO DELIVERY',
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
+      showIf: (_answers, scopeData) => {
+        const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
+        return pierGroups.some(g => g.has_starters || g.is_reinforced);
+      },
     },
     {
       id: 'reo_sundries',
@@ -75,11 +69,14 @@ export const reinforcementPiersModule: EstimateModule = {
       label: 'Sundry materials for reinforcement',
       defaultValue: 200,
       helpText: 'Tie wire, bar chairs, spacers, etc.',
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
+      showIf: (_answers, scopeData) => {
+        const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
+        return pierGroups.some(g => g.has_starters || g.is_reinforced);
+      },
     },
   ],
 
-  calculate: (answers, priceMap, scopeData): ComponentCost => {
+  calculate: (answers, _priceMap, scopeData): ComponentCost => {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
@@ -93,9 +90,8 @@ export const reinforcementPiersModule: EstimateModule = {
       const pierDepthM = (group.depth || 600) / 1000;
       const pierDiameterM = (group.diameter || 450) / 1000;
       
-      // Starter bars for this group
-      const hasStarters = group.has_starters ?? answers.has_starters;
-      if (hasStarters) {
+      // Starter bars for this group (per-group setting only, no global fallback)
+      if (group.has_starters) {
         const starterCount = group.starter_count ?? DEFAULT_STARTER_COUNT;
         const starterSize = group.starter_size || DEFAULT_STARTER_SIZE;
         const starterLength = (group.starter_length ?? DEFAULT_STARTER_LENGTH) / 1000;
@@ -120,9 +116,8 @@ export const reinforcementPiersModule: EstimateModule = {
         }
       }
 
-      // Cage reinforcement for this group
-      const isReinforced = group.is_reinforced ?? answers.is_reinforced;
-      if (isReinforced) {
+      // Cage reinforcement for this group (per-group setting only, no global fallback)
+      if (group.is_reinforced) {
         const verticalBars = group.vertical_bars_count ?? DEFAULT_VERTICAL_BARS_COUNT;
         const verticalSize = group.vertical_bar_size || DEFAULT_VERTICAL_BAR_SIZE;
         const ligSize = group.lig_size || DEFAULT_LIG_SIZE;
@@ -159,9 +154,8 @@ export const reinforcementPiersModule: EstimateModule = {
       }
     });
 
-    // Delivery and sundries
-    const hasAnyReo = answers.has_starters || answers.is_reinforced || 
-      pierGroups.some(g => g.has_starters || g.is_reinforced);
+    // Delivery and sundries - check if any pier group has reinforcement
+    const hasAnyReo = pierGroups.some(g => g.has_starters || g.is_reinforced);
     if (hasAnyReo && lineItems.length > 0) {
       const delivery = Number(answers.reo_delivery) || 150;
       if (delivery > 0) {
@@ -201,13 +195,13 @@ export const reinforcementPiersModule: EstimateModule = {
     };
   },
 
-  getExclusions: (answers, scopeData): ExclusionItem[] => {
+  getExclusions: (_answers, scopeData): ExclusionItem[] => {
     const exclusions: ExclusionItem[] = [];
     const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
     
-    // Check if any group has reinforcement
-    const anyStartersEnabled = answers.has_starters || pierGroups.some(g => g.has_starters);
-    const anyReinforcementEnabled = answers.is_reinforced || pierGroups.some(g => g.is_reinforced);
+    // Check if any group has reinforcement (per-group settings only)
+    const anyStartersEnabled = pierGroups.some(g => g.has_starters);
+    const anyReinforcementEnabled = pierGroups.some(g => g.is_reinforced);
     
     if (!anyStartersEnabled && !anyReinforcementEnabled) {
       exclusions.push({
