@@ -357,6 +357,307 @@ async function generateSignedQuotePDF(
   return doc.output('datauristring').split(',')[1];
 }
 
+// Generate signed Variation PDF with embedded signature
+async function generateSignedVariationPDF(
+  variation: any,
+  job: any,
+  business: any,
+  signature: string,
+  signerName: string,
+  signedAt: Date
+): Promise<string> {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 20;
+  const contentWidth = pageWidth - (margin * 2);
+  let yPos = margin;
+
+  const primaryColor = hexToRgb(business?.quote_primary_color || '#f97316');
+  const darkColor = [51, 51, 51] as [number, number, number];
+  const grayColor = [102, 102, 102] as [number, number, number];
+  const pdfFont = 'helvetica';
+
+  // Fetch logo
+  const logoData = business?.logo_url ? await fetchLogoAsBase64(business.logo_url) : null;
+
+  // Header with logo
+  let logoWidth = 0;
+  if (logoData) {
+    try {
+      const logoDims = calculateLogoDimensions(logoData, 40, 25);
+      doc.addImage(`data:image/${logoData.format.toLowerCase()};base64,${logoData.base64}`, logoData.format, margin, yPos - 5, logoDims.width, logoDims.height);
+      logoWidth = logoDims.width + 5;
+    } catch (e) {
+      console.error("Failed to add logo to variation PDF:", e);
+    }
+  }
+
+  // Business Name
+  doc.setFontSize(20);
+  doc.setFont(pdfFont, "bold");
+  doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+  doc.text(business?.name || "Company Name", margin + logoWidth, yPos);
+
+  // Business Details (right side)
+  doc.setFontSize(10);
+  doc.setFont(pdfFont, "normal");
+  doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+  
+  let rightY = yPos;
+  if (business?.address) {
+    doc.text(business.address, pageWidth - margin, rightY, { align: 'right' });
+    rightY += 5;
+  }
+  if (business?.phone) {
+    doc.text(`Ph: ${business.phone}`, pageWidth - margin, rightY, { align: 'right' });
+    rightY += 5;
+  }
+  if (business?.email) {
+    doc.text(business.email, pageWidth - margin, rightY, { align: 'right' });
+    rightY += 5;
+  }
+  if (business?.abn) {
+    doc.text(`ABN: ${business.abn}`, pageWidth - margin, rightY, { align: 'right' });
+    rightY += 5;
+  }
+
+  yPos = Math.max(yPos + 20, rightY + 5);
+
+  // APPROVED VARIATION title with green accent
+  doc.setFontSize(24);
+  doc.setFont(pdfFont, "bold");
+  doc.setTextColor(34, 197, 94); // Green
+  doc.text("APPROVED VARIATION", pageWidth - margin, yPos, { align: 'right' });
+  
+  yPos += 8;
+  doc.setFontSize(14);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text(variation.variation_number, pageWidth - margin, yPos, { align: 'right' });
+
+  yPos += 8;
+  doc.setFontSize(10);
+  doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+  doc.text(`Approved: ${signedAt.toLocaleDateString('en-AU')}`, pageWidth - margin, yPos, { align: 'right' });
+
+  yPos += 5;
+
+  // Divider line
+  doc.setDrawColor(darkColor[0], darkColor[1], darkColor[2]);
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos, pageWidth - margin, yPos);
+  yPos += 10;
+
+  // Job Details Section
+  const colWidth = contentWidth / 2;
+  
+  doc.setFontSize(9);
+  doc.setFont(pdfFont, "bold");
+  doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+  doc.text("JOB", margin, yPos);
+  doc.text("SITE ADDRESS", margin + colWidth, yPos);
+  yPos += 6;
+
+  doc.setFontSize(11);
+  doc.setFont(pdfFont, "bold");
+  doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+  doc.text(job?.name || 'N/A', margin, yPos);
+  
+  doc.setFont(pdfFont, "normal");
+  const siteAddr = job?.site_address || 'N/A';
+  const siteLines = splitTextToLines(doc, siteAddr, colWidth - 10);
+  doc.text(siteLines, margin + colWidth, yPos);
+  
+  yPos += 5;
+  doc.setFontSize(10);
+  doc.setFont(pdfFont, "normal");
+  doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+  
+  if (job?.builder_client) {
+    doc.text(`Client: ${job.builder_client}`, margin, yPos);
+    yPos += 5;
+  }
+
+  yPos = Math.max(yPos, yPos + (siteLines.length * 5)) + 10;
+
+  // Description
+  if (variation.description) {
+    doc.setFontSize(9);
+    doc.setFont(pdfFont, "bold");
+    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+    doc.text("DESCRIPTION", margin, yPos);
+    yPos += 6;
+
+    doc.setFontSize(10);
+    doc.setFont(pdfFont, "normal");
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    const descLines = splitTextToLines(doc, variation.description, contentWidth);
+    doc.text(descLines, margin, yPos);
+    yPos += descLines.length * 5 + 10;
+  }
+
+  // Line Items Table
+  const items = variation.items as Array<{ description: string; quantity: number; unit: string; unit_price: number; total: number }> || [];
+  if (items.length > 0) {
+    doc.setFontSize(9);
+    doc.setFont(pdfFont, "bold");
+    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+    doc.text("COST BREAKDOWN", margin, yPos);
+    yPos += 6;
+
+    // Table header
+    doc.setFillColor(245, 245, 245);
+    doc.rect(margin, yPos, contentWidth, 8, 'F');
+    doc.setFontSize(9);
+    doc.setFont(pdfFont, "bold");
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.text("Description", margin + 2, yPos + 5);
+    doc.text("Qty", margin + 90, yPos + 5);
+    doc.text("Unit", margin + 105, yPos + 5);
+    doc.text("Rate", margin + 125, yPos + 5);
+    doc.text("Total", pageWidth - margin - 5, yPos + 5, { align: 'right' });
+    yPos += 10;
+
+    // Table rows
+    doc.setFont(pdfFont, "normal");
+    doc.setFontSize(9);
+    items.forEach((item) => {
+      if (yPos > pageHeight - 60) {
+        doc.addPage();
+        yPos = margin;
+      }
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      const itemDesc = splitTextToLines(doc, item.description, 85);
+      doc.text(itemDesc[0], margin + 2, yPos + 4);
+      doc.text(String(item.quantity), margin + 90, yPos + 4);
+      doc.text(item.unit || '', margin + 105, yPos + 4);
+      doc.text(`$${item.unit_price.toFixed(2)}`, margin + 125, yPos + 4);
+      doc.text(`$${item.total.toFixed(2)}`, pageWidth - margin - 5, yPos + 4, { align: 'right' });
+      
+      doc.setDrawColor(230, 230, 230);
+      doc.line(margin, yPos + 7, pageWidth - margin, yPos + 7);
+      yPos += 8;
+    });
+    yPos += 5;
+  }
+
+  // Totals
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-AU', {
+      style: 'currency',
+      currency: 'AUD',
+      minimumFractionDigits: 2,
+    }).format(amount);
+  };
+
+  const subtotal = Number(variation.amount) || 0;
+  const gst = subtotal * 0.1;
+  const total = subtotal + gst;
+
+  doc.setDrawColor(darkColor[0], darkColor[1], darkColor[2]);
+  doc.setLineWidth(0.5);
+  doc.line(pageWidth - margin - 90, yPos, pageWidth - margin, yPos);
+  yPos += 8;
+
+  doc.setFontSize(10);
+  doc.setFont(pdfFont, "normal");
+  doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+  doc.text("Subtotal (ex GST)", pageWidth - margin - 90, yPos);
+  doc.text(formatCurrency(subtotal), pageWidth - margin, yPos, { align: 'right' });
+  yPos += 6;
+
+  doc.text("GST (10%)", pageWidth - margin - 90, yPos);
+  doc.text(formatCurrency(gst), pageWidth - margin, yPos, { align: 'right' });
+  yPos += 6;
+
+  doc.setDrawColor(180, 180, 180);
+  doc.setLineWidth(0.3);
+  doc.line(pageWidth - margin - 90, yPos, pageWidth - margin, yPos);
+  yPos += 6;
+
+  doc.setFontSize(12);
+  doc.setFont(pdfFont, "bold");
+  doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+  doc.text("Total (inc GST)", pageWidth - margin - 90, yPos);
+  
+  doc.setFontSize(16);
+  doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+  doc.text(formatCurrency(total), pageWidth - margin, yPos, { align: 'right' });
+  yPos += 20;
+
+  // SIGNED APPROVAL SECTION with green border
+  if (yPos > pageHeight - 80) {
+    doc.addPage();
+    yPos = margin;
+  }
+
+  doc.setFillColor(240, 253, 244); // Light green background
+  doc.setDrawColor(34, 197, 94); // Green border
+  doc.setLineWidth(1);
+  doc.roundedRect(margin, yPos, contentWidth, 60, 3, 3, 'FD');
+  yPos += 8;
+
+  // Approved stamp
+  doc.setFontSize(11);
+  doc.setFont(pdfFont, "bold");
+  doc.setTextColor(34, 197, 94);
+  doc.text("✓ VARIATION APPROVED", margin + 5, yPos);
+  yPos += 8;
+
+  doc.setFontSize(9);
+  doc.setFont(pdfFont, "normal");
+  doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+  doc.text(`Approved electronically on ${signedAt.toLocaleDateString('en-AU')} at ${signedAt.toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })}`, margin + 5, yPos);
+  yPos += 10;
+
+  // Add signature image
+  try {
+    const sigBase64 = signature.startsWith('data:') ? signature : `data:image/png;base64,${signature}`;
+    doc.addImage(sigBase64, 'PNG', margin + 5, yPos, 50, 20);
+    
+    // Signature line
+    doc.setDrawColor(grayColor[0], grayColor[1], grayColor[2]);
+    doc.setLineWidth(0.3);
+    doc.line(margin + 5, yPos + 22, margin + 80, yPos + 22);
+    
+    // Signer name
+    doc.setFontSize(10);
+    doc.setFont(pdfFont, "bold");
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.text(signerName, margin + 5, yPos + 28);
+    
+    // Date
+    doc.setFont(pdfFont, "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+    doc.text(`Date: ${signedAt.toLocaleDateString('en-AU')}`, margin + contentWidth - 50, yPos + 28);
+  } catch (e) {
+    console.error("Failed to add signature to variation PDF:", e);
+    doc.setFontSize(10);
+    doc.setFont(pdfFont, "bold");
+    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+    doc.text(`Approved by: ${signerName}`, margin + 5, yPos + 10);
+  }
+
+  // Footer
+  yPos = pageHeight - 15;
+  doc.setFontSize(8);
+  doc.setTextColor(153, 153, 153);
+  doc.setDrawColor(238, 238, 238);
+  doc.line(margin, yPos - 5, pageWidth - margin, yPos - 5);
+  doc.text(`Thank you for choosing ${business?.name || "us"} for your project.`, pageWidth / 2, yPos, { align: 'center' });
+  yPos += 4;
+  doc.setFontSize(7);
+  doc.text("Generated by PourHub • Digitally Signed Document", pageWidth / 2, yPos, { align: 'center' });
+
+  return doc.output('datauristring').split(',')[1];
+}
+
 // Parse estimate data for job creation (simplified version)
 function parseEstimateForJob(estimate: any) {
   const scopeData = estimate.scope_data as Record<string, any> | null;
@@ -831,9 +1132,135 @@ serve(async (req: Request) => {
         );
       }
 
-      // Send notification email to business
+      console.log('Variation signature saved, generating signed PDF...');
+
       const job = variation.jobs as any;
       const business = job?.businesses as any;
+
+      // Generate signed variation PDF
+      let signedPdfBase64: string | null = null;
+      try {
+        signedPdfBase64 = await generateSignedVariationPDF(variation, job, business, signature, signerName, now);
+        console.log('Signed variation PDF generated successfully');
+      } catch (pdfError) {
+        console.error('Failed to generate signed variation PDF:', pdfError);
+      }
+
+      // Upload signed PDF to storage and create document record
+      if (signedPdfBase64 && variation.job_id) {
+        try {
+          const binaryString = atob(signedPdfBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          const fileName = `${variation.job_id}/${Date.now()}-signed-variation-${variation.variation_number}.pdf`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(fileName, bytes, {
+              contentType: 'application/pdf',
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error('Failed to upload signed variation PDF:', uploadError);
+          } else {
+            const { data: urlData } = supabase.storage
+              .from('documents')
+              .getPublicUrl(fileName);
+
+            const { error: docError } = await supabase
+              .from('documents')
+              .insert({
+                business_id: variation.business_id,
+                file_name: `Signed Variation - ${variation.variation_number}.pdf`,
+                file_type: 'application/pdf',
+                file_url: urlData.publicUrl,
+                category: 'job',
+                reference_id: variation.job_id
+              });
+
+            if (docError) {
+              console.error('Failed to create variation document record:', docError);
+            } else {
+              console.log('Signed variation PDF uploaded and linked to job');
+            }
+          }
+        } catch (uploadErr) {
+          console.error('Error uploading signed variation PDF:', uploadErr);
+        }
+      }
+
+      // Send signed PDF to client
+      const clientEmail = variation.submitted_to_email;
+      if (resend && clientEmail && signedPdfBase64) {
+        try {
+          const senderName = business?.name ? `${business.name} via Pourhub` : "Pourhub";
+          const totalAmount = (Number(variation.amount) * 1.1);
+          
+          await resend.emails.send({
+            from: `${senderName} <Hello@contact.pourhub.au>`,
+            to: clientEmail,
+            subject: `Approved: Variation ${variation.variation_number} - ${job?.name || 'Job'}`,
+            html: `
+              <!DOCTYPE html>
+              <html>
+              <head>
+                <meta charset="utf-8">
+                <style>
+                  body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+                  .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+                  .header { background: #22c55e; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+                  .content { padding: 30px 20px; background: #f9f9f9; }
+                  .highlight { background: #f0fdf4; border-left: 4px solid #22c55e; padding: 15px; margin: 20px 0; border-radius: 0 8px 8px 0; }
+                  .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; }
+                </style>
+              </head>
+              <body>
+                <div class="container">
+                  <div class="header">
+                    <h1 style="margin: 0;">✓ Variation Approved</h1>
+                  </div>
+                  <div class="content">
+                    <p>Hi ${signerName},</p>
+                    <p>Thank you for approving this variation. This email confirms your approval and includes a copy of the signed variation for your records.</p>
+                    
+                    <div class="highlight">
+                      <p style="margin: 0;"><strong>Variation:</strong> ${variation.variation_number}</p>
+                      <p style="margin: 10px 0 0;"><strong>Job:</strong> ${job?.name || 'N/A'}</p>
+                      <p style="margin: 10px 0 0;"><strong>Amount:</strong> $${totalAmount.toLocaleString('en-AU', { minimumFractionDigits: 2 })} inc GST</p>
+                      <p style="margin: 10px 0 0;"><strong>Approved By:</strong> ${signerName}</p>
+                      <p style="margin: 10px 0 0;"><strong>Date:</strong> ${now.toLocaleDateString('en-AU')}</p>
+                    </div>
+                    
+                    <p>If you have any questions, please don't hesitate to contact us.</p>
+                    
+                    <p>Kind regards,<br><strong>${business?.name || 'The Team'}</strong></p>
+                  </div>
+                  <div class="footer">
+                    <p>A copy of your approved variation is attached to this email.</p>
+                    <p style="font-size: 10px; color: #9ca3af;">Powered by PourHub</p>
+                  </div>
+                </div>
+              </body>
+              </html>
+            `,
+            attachments: [
+              {
+                filename: `Signed-Variation-${variation.variation_number}.pdf`,
+                content: signedPdfBase64,
+              },
+            ],
+          });
+          console.log('Signed variation email sent to client');
+        } catch (clientEmailError) {
+          console.error('Failed to send signed variation to client:', clientEmailError);
+        }
+      }
+
+      // Send notification email to business
       if (resend && business?.email) {
         try {
           await resend.emails.send({
@@ -852,6 +1279,9 @@ serve(async (req: Request) => {
                   <p><strong>Approved By:</strong> ${signerName}</p>
                   <p><strong>Approved At:</strong> ${now.toLocaleString('en-AU', { timeZone: 'Australia/Sydney' })}</p>
                 </div>
+                <p style="background: #dbeafe; padding: 15px; border-radius: 8px;">
+                  <strong>✓ The signed variation PDF has been uploaded to the job documents.</strong>
+                </p>
                 <p>Log in to PourHub to view the approved variation.</p>
               </div>
             `
