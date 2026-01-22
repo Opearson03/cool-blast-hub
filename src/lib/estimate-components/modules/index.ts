@@ -7,6 +7,7 @@ export { reinforcementPiersModule } from './reinforcement-piers';
 export { reinforcementSlabModule } from './reinforcement-slab';
 export { reinforcementFootingModule } from './reinforcement-footing';
 export { reinforcementPadModule } from './reinforcement-pad';
+export { reinforcementRaftModule } from './reinforcement-raft';
 export { connectionsJointsModule } from './connections-joints';
 export { concreteSupplyModule } from './concrete-supply';
 export { labourModule } from './labour';
@@ -31,6 +32,7 @@ import { reinforcementPiersModule } from './reinforcement-piers';
 import { reinforcementSlabModule } from './reinforcement-slab';
 import { reinforcementFootingModule } from './reinforcement-footing';
 import { reinforcementPadModule } from './reinforcement-pad';
+import { reinforcementRaftModule } from './reinforcement-raft';
 import { connectionsJointsModule } from './connections-joints';
 import { concreteSupplyModule } from './concrete-supply';
 import { labourModule } from './labour';
@@ -61,6 +63,7 @@ export const MODULE_REGISTRY: Record<string, EstimateModule> = {
   'reinforcement-slab': reinforcementSlabModule,
   'reinforcement-footing': reinforcementFootingModule,
   'reinforcement-pad': reinforcementPadModule,
+  'reinforcement-raft': reinforcementRaftModule,
   'connections-joints': connectionsJointsModule,
   'concrete-supply': concreteSupplyModule,
   'labour': labourModule,

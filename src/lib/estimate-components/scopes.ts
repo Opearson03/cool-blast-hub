@@ -261,8 +261,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     'excavation',
     'base-preparation',
     'formwork',
-    'reinforcement-slab',
-    'reinforcement-footing',  // For edge/internal beam reinforcement (trench mesh, bars, verticals)
+    'reinforcement-raft',  // Consolidated reinforcement for slab, edge beams, and internal beams
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
