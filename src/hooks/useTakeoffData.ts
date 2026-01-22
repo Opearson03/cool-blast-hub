@@ -32,6 +32,7 @@ interface UseTakeoffDataReturn {
   getPageScale: (fileId: string, pageNumber: number) => number | null;
   deletePlan: () => Promise<void>;
   addMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
+  addAreaPadMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], depthMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases') => Promise<TakeoffMarkup | null>;
@@ -549,6 +550,81 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     } catch (error: any) {
       console.error('Error adding markup:', error);
       toast({ title: 'Failed to add markup', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
+  // Add area-based pad footing markup (polygon/rectangle with depth)
+  const addAreaPadMarkup = async (
+    fileId: string,
+    scopeId: string, 
+    shapeType: 'polygon' | 'rectangle', 
+    points: TakeoffPoint[],
+    depthMm: number,
+    color: string,
+    pageNumber: number,
+    name?: string
+  ): Promise<TakeoffMarkup | null> => {
+    if (!takeoff) return null;
+
+    try {
+      const { calculatePolygonArea, calculatePolygonPerimeter, calculateRectangleArea, calculateRectanglePerimeter } = await import('@/types/takeoff');
+      
+      const scale = getPageScale(fileId, pageNumber);
+      let area: number | null = null;
+      let perimeter: number | null = null;
+      
+      if (scale) {
+        if (shapeType === 'polygon') {
+          area = calculatePolygonArea(points, scale);
+          perimeter = calculatePolygonPerimeter(points, scale);
+        } else {
+          area = calculateRectangleArea(points, scale);
+          perimeter = calculateRectanglePerimeter(points, scale);
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('takeoff_markups')
+        .insert({
+          takeoff_id: takeoff.id,
+          file_id: fileId,
+          scope_id: scopeId,
+          shape_type: shapeType,
+          points: points as unknown as Json,
+          color,
+          area_sqm: area,
+          perimeter_m: perimeter,
+          page_number: pageNumber,
+          name: name || null,
+          depth_mm: depthMm
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newMarkup: TakeoffMarkup = {
+        ...data,
+        name: data.name || null,
+        file_id: data.file_id || null,
+        shape_type: data.shape_type as 'polygon' | 'rectangle',
+        points: data.points as unknown as TakeoffPoint[],
+        diameter_mm: null,
+        depth_mm: depthMm,
+        pier_quantity: 1, // One pad footing per area markup
+        width_mm: null,
+        height_mm: null,
+        length_m: null,
+        parent_markup_id: data.parent_markup_id || null,
+        markup_type: (data.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening',
+      };
+
+      setMarkups(prev => [...prev, newMarkup]);
+      return newMarkup;
+    } catch (error: any) {
+      console.error('Error adding area pad markup:', error);
+      toast({ title: 'Failed to add pad footing', description: error.message, variant: 'destructive' });
       return null;
     }
   };
@@ -1133,6 +1209,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     getPageScale,
     deletePlan,
     addMarkup,
+    addAreaPadMarkup,
     addPierMarkups,
     addBollardMarkups,
     addPadMarkups,
