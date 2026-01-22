@@ -564,19 +564,19 @@ export function ModularCalculator({
     }));
   };
 
-  // Handler for pier group changes (new grouped structure)
+  // Handler for pier group changes (simplified group structure)
   const handlePierGroupsChange = (pierGroups: PierGroup[]) => {
-    // Flatten all piers from all groups to get total count
-    const allPiers = pierGroups.flatMap(g => g.piers);
-    const totalPiers = allPiers.length;
+    // Calculate total pier count from group quantities
+    const totalPiers = pierGroups.reduce((sum, g) => sum + (g.quantity || 1), 0);
     
     // Calculate weighted averages for diameter and depth
     let weightedDiameter = 0;
     let weightedDepth = 0;
     if (totalPiers > 0) {
-      allPiers.forEach(pier => {
-        weightedDiameter += Number(pier.diameter) || 0;
-        weightedDepth += Number(pier.depth) || 0;
+      pierGroups.forEach(group => {
+        const qty = group.quantity || 1;
+        weightedDiameter += (Number(group.diameter) || 0) * qty;
+        weightedDepth += (Number(group.depth) || 0) * qty;
       });
       weightedDiameter = weightedDiameter / totalPiers;
       weightedDepth = weightedDepth / totalPiers;

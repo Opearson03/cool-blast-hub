@@ -1,4 +1,4 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, PierGroup, PierItem } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, PierGroup } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
 
 // Default values for pier reinforcement
@@ -87,78 +87,81 @@ export const reinforcementPiersModule: EstimateModule = {
     const lapMargin = 1 + DEFAULT_LAP_MARGIN / 100;
     const pricePerTonne = Number(answers.rebar_price_per_tonne) || 2100;
 
-    // Process each pier group and its piers
+    // Process each pier group (all piers in a group are identical)
     pierGroups.forEach((group) => {
-      group.piers.forEach((pier) => {
-        const pierDepthM = pier.depth / 1000;
-        const pierDiameterM = pier.diameter / 1000;
+      const quantity = group.quantity || 1;
+      const pierDepthM = (group.depth || 600) / 1000;
+      const pierDiameterM = (group.diameter || 450) / 1000;
+      
+      // Starter bars for this group
+      const hasStarters = group.has_starters ?? answers.has_starters;
+      if (hasStarters) {
+        const starterCount = group.starter_count ?? DEFAULT_STARTER_COUNT;
+        const starterSize = group.starter_size || DEFAULT_STARTER_SIZE;
+        const starterLength = (group.starter_length ?? DEFAULT_STARTER_LENGTH) / 1000;
         
-        // Starter bars for this pier
-        const hasStarters = pier.has_starters ?? answers.has_starters;
-        if (hasStarters) {
-          const starterCount = pier.starter_count ?? DEFAULT_STARTER_COUNT;
-          const starterSize = pier.starter_size || DEFAULT_STARTER_SIZE;
-          const starterLength = (pier.starter_length ?? DEFAULT_STARTER_LENGTH) / 1000;
-          
-          const weightPerMetre = REBAR_WEIGHTS[starterSize] || 1.58;
-          const totalStarterWeight = starterCount * starterLength * lapMargin * weightPerMetre;
-          const starterCost = (totalStarterWeight / 1000) * pricePerTonne;
+        const weightPerMetre = REBAR_WEIGHTS[starterSize] || 1.58;
+        // Calculate for single pier then multiply by quantity
+        const singlePierStarterWeight = starterCount * starterLength * lapMargin * weightPerMetre;
+        const totalStarterWeight = singlePierStarterWeight * quantity;
+        const starterCost = (totalStarterWeight / 1000) * pricePerTonne;
 
-          if (starterCost > 0) {
-            lineItems.push({
-              id: `starter_${pier.id}`,
-              description: `${group.name} - ${pier.name} - Starters ${starterSize} (${starterCount} bars)`,
-              quantity: Math.round(totalStarterWeight),
-              unit: 'kg',
-              unitPrice: pricePerTonne / 1000,
-              total: Math.round(starterCost * 100) / 100,
-              category: 'materials',
-            });
-            subtotal += starterCost;
-          }
+        if (starterCost > 0) {
+          lineItems.push({
+            id: `starter_${group.id}`,
+            description: `${group.name} - Starters ${starterSize} (${starterCount} bars × ${quantity} piers)`,
+            quantity: Math.round(totalStarterWeight),
+            unit: 'kg',
+            unitPrice: pricePerTonne / 1000,
+            total: Math.round(starterCost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += starterCost;
         }
+      }
 
-        // Cage reinforcement for this pier
-        const isReinforced = pier.is_reinforced ?? answers.is_reinforced;
-        if (isReinforced) {
-          const verticalBars = pier.vertical_bars_count ?? DEFAULT_VERTICAL_BARS_COUNT;
-          const verticalSize = pier.vertical_bar_size || DEFAULT_VERTICAL_BAR_SIZE;
-          const ligSize = pier.lig_size || DEFAULT_LIG_SIZE;
-          const ligCentres = pier.lig_centres ?? DEFAULT_LIG_CENTRES;
+      // Cage reinforcement for this group
+      const isReinforced = group.is_reinforced ?? answers.is_reinforced;
+      if (isReinforced) {
+        const verticalBars = group.vertical_bars_count ?? DEFAULT_VERTICAL_BARS_COUNT;
+        const verticalSize = group.vertical_bar_size || DEFAULT_VERTICAL_BAR_SIZE;
+        const ligSize = group.lig_size || DEFAULT_LIG_SIZE;
+        const ligCentres = group.lig_centres ?? DEFAULT_LIG_CENTRES;
 
-          // Calculate lig count from depth and centres
-          const ligCount = Math.ceil(pier.depth / ligCentres);
+        // Calculate lig count from depth and centres
+        const ligCount = Math.ceil((group.depth || 600) / ligCentres);
 
-          // Vertical bars weight
-          const verticalWeightPerM = REBAR_WEIGHTS[verticalSize] || 1.58;
-          const totalVerticalWeight = verticalBars * pierDepthM * lapMargin * verticalWeightPerM;
+        // Vertical bars weight per pier
+        const verticalWeightPerM = REBAR_WEIGHTS[verticalSize] || 1.58;
+        const singlePierVerticalWeight = verticalBars * pierDepthM * lapMargin * verticalWeightPerM;
 
-          // Ligature weight (circumference based on diameter)
-          const ligCircumference = Math.PI * (pierDiameterM - 0.05); // Allow for cover
-          const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
-          const totalLigWeight = ligCount * ligCircumference * lapMargin * ligWeightPerM;
+        // Ligature weight per pier (circumference based on diameter)
+        const ligCircumference = Math.PI * (pierDiameterM - 0.05); // Allow for cover
+        const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
+        const singlePierLigWeight = ligCount * ligCircumference * lapMargin * ligWeightPerM;
 
-          const totalCageWeight = totalVerticalWeight + totalLigWeight;
-          const cageCost = (totalCageWeight / 1000) * pricePerTonne;
+        const singlePierCageWeight = singlePierVerticalWeight + singlePierLigWeight;
+        const totalCageWeight = singlePierCageWeight * quantity;
+        const cageCost = (totalCageWeight / 1000) * pricePerTonne;
 
-          if (cageCost > 0) {
-            lineItems.push({
-              id: `cage_${pier.id}`,
-              description: `${group.name} - ${pier.name} - Cage ${verticalSize}/${ligSize} @ ${ligCentres}mm`,
-              quantity: Math.round(totalCageWeight),
-              unit: 'kg',
-              unitPrice: pricePerTonne / 1000,
-              total: Math.round(cageCost * 100) / 100,
-              category: 'materials',
-            });
-            subtotal += cageCost;
-          }
+        if (cageCost > 0) {
+          lineItems.push({
+            id: `cage_${group.id}`,
+            description: `${group.name} - Cage ${verticalSize}/${ligSize} @ ${ligCentres}mm (${quantity} piers)`,
+            quantity: Math.round(totalCageWeight),
+            unit: 'kg',
+            unitPrice: pricePerTonne / 1000,
+            total: Math.round(cageCost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += cageCost;
         }
-      });
+      }
     });
 
     // Delivery and sundries
-    const hasAnyReo = answers.has_starters || answers.is_reinforced;
+    const hasAnyReo = answers.has_starters || answers.is_reinforced || 
+      pierGroups.some(g => g.has_starters || g.is_reinforced);
     if (hasAnyReo && lineItems.length > 0) {
       const delivery = Number(answers.reo_delivery) || 150;
       if (delivery > 0) {
@@ -202,10 +205,9 @@ export const reinforcementPiersModule: EstimateModule = {
     const exclusions: ExclusionItem[] = [];
     const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
     
-    // Check if any pier has reinforcement
-    const allPiers = pierGroups.flatMap(g => g.piers);
-    const anyStartersEnabled = answers.has_starters || allPiers.some(p => p.has_starters);
-    const anyReinforcementEnabled = answers.is_reinforced || allPiers.some(p => p.is_reinforced);
+    // Check if any group has reinforcement
+    const anyStartersEnabled = answers.has_starters || pierGroups.some(g => g.has_starters);
+    const anyReinforcementEnabled = answers.is_reinforced || pierGroups.some(g => g.is_reinforced);
     
     if (!anyStartersEnabled && !anyReinforcementEnabled) {
       exclusions.push({
@@ -220,7 +222,6 @@ export const reinforcementPiersModule: EstimateModule = {
 
   validate: (answers) => {
     const errors: string[] = [];
-    // Validation is now per-pier, minimal module-level validation needed
     return { valid: errors.length === 0, errors };
   },
 };

@@ -16,14 +16,13 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { PierGroup, PierItem } from "@/lib/estimate-components/types";
+import { PierGroup } from "@/lib/estimate-components/types";
 import { MarkupPromptDialog } from "./MarkupPromptDialog";
 
 interface MultiPierGroupInputProps {
   label: string;
   pierGroups: PierGroup[];
   onChange: (pierGroups: PierGroup[]) => void;
-  // Markup prompt support
   onRequestMarkup?: () => void;
   hasPlans?: boolean;
   skipMarkupPrompt?: boolean;
@@ -46,27 +45,21 @@ export function MultiPierGroupInput({
     new Set(pierGroups.map((g) => g.id))
   );
 
-  // Check if any pier is from takeoff
-  const hasAnyTakeoffPiers = pierGroups.some(
-    (g) => g._fromTakeoff || g.piers.some((p) => p._fromTakeoff)
-  );
+  // Check if any group is from takeoff
+  const hasAnyTakeoffPiers = pierGroups.some((g) => g._fromTakeoff);
 
   // Calculate totals
   const totalPiers = pierGroups.reduce(
-    (sum, group) => sum + group.piers.length,
+    (sum, group) => sum + (group.quantity || 1),
     0
   );
 
   const totalVolume = pierGroups.reduce((sum, group) => {
-    return (
-      sum +
-      group.piers.reduce((pierSum, pier) => {
-        const diamM = (Number(pier.diameter) || 0) / 1000;
-        const depthM = (Number(pier.depth) || 0) / 1000;
-        const radius = diamM / 2;
-        return pierSum + Math.PI * radius * radius * depthM;
-      }, 0)
-    );
+    const diamM = (Number(group.diameter) || 0) / 1000;
+    const depthM = (Number(group.depth) || 0) / 1000;
+    const radius = diamM / 2;
+    const singleVolume = Math.PI * radius * radius * depthM;
+    return sum + singleVolume * (group.quantity || 1);
   }, 0);
 
   const toggleGroup = (groupId: string) => {
@@ -87,14 +80,9 @@ export function MultiPierGroupInput({
     const newGroup: PierGroup = {
       id: `pier-group-${Date.now()}`,
       name,
-      piers: [
-        {
-          id: `pier-${Date.now()}`,
-          name: "P1",
-          diameter: 450,
-          depth: 600,
-        },
-      ],
+      quantity: 1,
+      diameter: 450,
+      depth: 600,
     };
     onChange([...pierGroups, newGroup]);
     setNewGroupName("");
@@ -136,85 +124,15 @@ export function MultiPierGroupInput({
       ...group,
       id: `pier-group-${Date.now()}`,
       name: `${group.name} (copy)`,
-      piers: group.piers.map((p, i) => ({
-        ...p,
-        id: `pier-${Date.now()}-${i}`,
-        _fromTakeoff: false,
-      })),
       _fromTakeoff: false,
     };
     onChange([...pierGroups, newGroup]);
     setExpandedGroups((prev) => new Set([...prev, newGroup.id]));
   };
 
-  const updateGroupName = (groupId: string, name: string) => {
-    onChange(
-      pierGroups.map((group) =>
-        group.id === groupId
-          ? { ...group, name, _fromTakeoff: false }
-          : group
-      )
-    );
-  };
-
-  const addPierToGroup = (groupId: string) => {
-    onChange(
-      pierGroups.map((group) => {
-        if (group.id !== groupId) return group;
-        const pierNumber = group.piers.length + 1;
-        return {
-          ...group,
-          piers: [
-            ...group.piers,
-            {
-              id: `pier-${Date.now()}`,
-              name: `P${pierNumber}`,
-              diameter: 450,
-              depth: 600,
-            },
-          ],
-        };
-      })
-    );
-  };
-
-  const removePierFromGroup = (groupId: string, pierId: string) => {
-    onChange(
-      pierGroups.map((group) => {
-        if (group.id !== groupId) return group;
-        if (group.piers.length <= 1) return group;
-        return {
-          ...group,
-          piers: group.piers.filter((p) => p.id !== pierId),
-        };
-      })
-    );
-  };
-
-  const duplicatePier = (groupId: string, pier: PierItem) => {
-    onChange(
-      pierGroups.map((group) => {
-        if (group.id !== groupId) return group;
-        return {
-          ...group,
-          piers: [
-            ...group.piers,
-            {
-              ...pier,
-              id: `pier-${Date.now()}`,
-              name: `${pier.name} (copy)`,
-              _fromTakeoff: false,
-            },
-          ],
-        };
-      })
-    );
-  };
-
-  const updatePier = (
+  const updateGroup = (
     groupId: string,
-    pierId: string,
-    field: keyof PierItem,
+    field: keyof PierGroup,
     value: any
   ) => {
     onChange(
@@ -222,29 +140,19 @@ export function MultiPierGroupInput({
         if (group.id !== groupId) return group;
         return {
           ...group,
-          piers: group.piers.map((pier) => {
-            if (pier.id !== pierId) return pier;
-            // Clear takeoff flag when editing
-            return {
-              ...pier,
-              [field]: value,
-              _fromTakeoff: false,
-            };
-          }),
+          [field]: value,
+          _fromTakeoff: false,
         };
       })
     );
   };
 
-  const calculateGroupTotals = (group: PierGroup) => {
-    const count = group.piers.length;
-    const volume = group.piers.reduce((sum, pier) => {
-      const diamM = (Number(pier.diameter) || 0) / 1000;
-      const depthM = (Number(pier.depth) || 0) / 1000;
-      const radius = diamM / 2;
-      return sum + Math.PI * radius * radius * depthM;
-    }, 0);
-    return { count, volume };
+  const calculateGroupVolume = (group: PierGroup) => {
+    const diamM = (Number(group.diameter) || 0) / 1000;
+    const depthM = (Number(group.depth) || 0) / 1000;
+    const radius = diamM / 2;
+    const singleVolume = Math.PI * radius * radius * depthM;
+    return singleVolume * (group.quantity || 1);
   };
 
   return (
@@ -268,7 +176,7 @@ export function MultiPierGroupInput({
         <div className="space-y-3">
           {pierGroups.map((group) => {
             const isExpanded = expandedGroups.has(group.id);
-            const { count, volume } = calculateGroupTotals(group);
+            const volume = calculateGroupVolume(group);
 
             return (
               <Collapsible
@@ -317,14 +225,14 @@ export function MultiPierGroupInput({
 
                     <Input
                       value={group.name}
-                      onChange={(e) => updateGroupName(group.id, e.target.value)}
+                      onChange={(e) => updateGroup(group.id, "name", e.target.value)}
                       placeholder="Group name"
                       className="font-medium flex-1"
                       onClick={(e) => e.stopPropagation()}
                     />
 
                     <Badge variant="outline" className="shrink-0">
-                      {count} pier{count !== 1 ? "s" : ""}
+                      {group.quantity || 1} pier{(group.quantity || 1) !== 1 ? "s" : ""}
                     </Badge>
 
                     <span className="text-sm text-muted-foreground shrink-0">
@@ -362,166 +270,92 @@ export function MultiPierGroupInput({
                     </div>
                   </div>
 
-                  {/* Group content - individual piers */}
+                  {/* Group content - shared dimensions */}
                   <CollapsibleContent>
-                    <div className="border-t p-3 space-y-3">
-                      {group.piers.map((pier) => {
-                        const diamM = (Number(pier.diameter) || 0) / 1000;
-                        const depthM = (Number(pier.depth) || 0) / 1000;
-                        const radius = diamM / 2;
-                        const pierVolume = Math.PI * radius * radius * depthM;
+                    <div className="border-t p-4 space-y-4 bg-background">
+                      <div className="grid grid-cols-3 gap-4">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">
+                            Quantity
+                          </Label>
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            value={group.quantity || ""}
+                            onChange={(e) =>
+                              updateGroup(
+                                group.id,
+                                "quantity",
+                                e.target.value === "" ? 1 : Number(e.target.value)
+                              )
+                            }
+                            min={1}
+                            step={1}
+                            className="h-10"
+                          />
+                        </div>
 
-                        return (
-                          <div
-                            key={pier.id}
-                            className={`border rounded-lg p-3 space-y-3 ${
-                              pier._fromTakeoff
-                                ? "bg-blue-50/30 border-blue-200 dark:bg-blue-950/10 dark:border-blue-800/50"
-                                : "bg-background"
-                            }`}
-                          >
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2 flex-1">
-                                {pier._fromTakeoff && (
-                                  <TooltipProvider>
-                                    <Tooltip>
-                                      <TooltipTrigger asChild>
-                                        <div className="shrink-0 w-5 h-5 rounded bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                                          <Ruler className="h-3 w-3 text-blue-600 dark:text-blue-400" />
-                                        </div>
-                                      </TooltipTrigger>
-                                      <TooltipContent>
-                                        <p>From plan takeoff</p>
-                                      </TooltipContent>
-                                    </Tooltip>
-                                  </TooltipProvider>
-                                )}
-                                <Input
-                                  value={pier.name}
-                                  onChange={(e) =>
-                                    updatePier(
-                                      group.id,
-                                      pier.id,
-                                      "name",
-                                      e.target.value
-                                    )
-                                  }
-                                  placeholder="Pier name"
-                                  className="font-medium w-24"
-                                />
-                              </div>
-                              <div className="flex gap-1">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8"
-                                  onClick={() => duplicatePier(group.id, pier)}
-                                  title="Duplicate pier"
-                                >
-                                  <Copy className="h-3.5 w-3.5" />
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-destructive hover:text-destructive"
-                                  onClick={() =>
-                                    removePierFromGroup(group.id, pier.id)
-                                  }
-                                  disabled={group.piers.length <= 1}
-                                  title="Remove pier"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-3">
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">
-                                  Diameter
-                                </Label>
-                                <div className="relative">
-                                  <Input
-                                    type="number"
-                                    inputMode="numeric"
-                                    value={pier.diameter || ""}
-                                    onChange={(e) =>
-                                      updatePier(
-                                        group.id,
-                                        pier.id,
-                                        "diameter",
-                                        e.target.value === ""
-                                          ? 0
-                                          : Number(e.target.value)
-                                      )
-                                    }
-                                    min={100}
-                                    step={50}
-                                    className="pr-12 h-9"
-                                  />
-                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                                    mm
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">
-                                  Depth
-                                </Label>
-                                <div className="relative">
-                                  <Input
-                                    type="number"
-                                    inputMode="numeric"
-                                    value={pier.depth || ""}
-                                    onChange={(e) =>
-                                      updatePier(
-                                        group.id,
-                                        pier.id,
-                                        "depth",
-                                        e.target.value === ""
-                                          ? 0
-                                          : Number(e.target.value)
-                                      )
-                                    }
-                                    min={100}
-                                    step={50}
-                                    className="pr-12 h-9"
-                                  />
-                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                                    mm
-                                  </span>
-                                </div>
-                              </div>
-
-                              <div className="space-y-1">
-                                <Label className="text-xs text-muted-foreground">
-                                  Volume
-                                </Label>
-                                <div className="h-9 flex items-center px-3 bg-muted rounded-md text-sm">
-                                  {pierVolume > 0
-                                    ? `${pierVolume.toFixed(3)} m³`
-                                    : "—"}
-                                </div>
-                              </div>
-                            </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">
+                            Diameter
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              value={group.diameter || ""}
+                              onChange={(e) =>
+                                updateGroup(
+                                  group.id,
+                                  "diameter",
+                                  e.target.value === "" ? 0 : Number(e.target.value)
+                                )
+                              }
+                              min={100}
+                              step={50}
+                              className="pr-12 h-10"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                              mm
+                            </span>
                           </div>
-                        );
-                      })}
+                        </div>
 
-                      {/* Add pier to group button */}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => addPierToGroup(group.id)}
-                        className="w-full"
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Pier to {group.name}
-                      </Button>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">
+                            Depth
+                          </Label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              value={group.depth || ""}
+                              onChange={(e) =>
+                                updateGroup(
+                                  group.id,
+                                  "depth",
+                                  e.target.value === "" ? 0 : Number(e.target.value)
+                                )
+                              }
+                              min={100}
+                              step={100}
+                              className="pr-12 h-10"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                              mm
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t">
+                        <p className="text-xs text-muted-foreground">
+                          All {group.quantity || 1} piers in this group share the same dimensions: 
+                          <span className="font-medium text-foreground ml-1">
+                            ⌀{group.diameter}mm × {group.depth}mm deep
+                          </span>
+                        </p>
+                      </div>
                     </div>
                   </CollapsibleContent>
                 </div>
@@ -530,13 +364,13 @@ export function MultiPierGroupInput({
           })}
         </div>
 
-        {/* Add group button */}
-        <div className="flex flex-col sm:flex-row gap-2">
+        {/* Add group section */}
+        <div className="flex items-center gap-2 pt-2 border-t">
           <Input
-            placeholder="New group name (optional)"
             value={newGroupName}
             onChange={(e) => setNewGroupName(e.target.value)}
-            className="flex-1 h-11 sm:h-9"
+            placeholder="New group name (optional)"
+            className="flex-1"
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
@@ -547,40 +381,36 @@ export function MultiPierGroupInput({
           <Button
             type="button"
             variant="outline"
+            size="sm"
             onClick={handleAddClick}
-            className="shrink-0 h-11 sm:h-9"
+            className="gap-1"
           >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Pier Group
+            <Plus className="h-4 w-4" />
+            Add Group
           </Button>
         </div>
 
-        {/* Combined totals */}
-        <div className="flex flex-wrap gap-4 pt-3 border-t text-sm">
-          <div>
-            <span className="text-muted-foreground">Total Groups: </span>
-            <span className="font-medium">{pierGroups.length}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Total Piers: </span>
-            <span className="font-medium">{totalPiers}</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Total Volume: </span>
-            <span className="font-medium">{totalVolume.toFixed(3)} m³</span>
-          </div>
+        {/* Summary */}
+        <div className="flex items-center justify-between pt-3 border-t text-sm">
+          <span className="text-muted-foreground">
+            {pierGroups.length} group{pierGroups.length !== 1 ? "s" : ""}, {totalPiers} total pier{totalPiers !== 1 ? "s" : ""}
+          </span>
+          <span className="font-medium">
+            Total: {totalVolume.toFixed(2)} m³
+          </span>
         </div>
-      </CardContent>
 
-      <MarkupPromptDialog
-        open={showMarkupPrompt}
-        onOpenChange={setShowMarkupPrompt}
-        itemType="pier"
-        onMarkOnPlans={handleMarkOnPlans}
-        onEnterManually={handleEnterManually}
-        dontAskAgain={dontAskAgain}
-        onDontAskAgainChange={setDontAskAgain}
-      />
+        {/* Markup prompt dialog */}
+        <MarkupPromptDialog
+          open={showMarkupPrompt}
+          onOpenChange={setShowMarkupPrompt}
+          itemType="pier group"
+          onMarkOnPlans={handleMarkOnPlans}
+          onEnterManually={handleEnterManually}
+          dontAskAgain={dontAskAgain}
+          onDontAskAgainChange={setDontAskAgain}
+        />
+      </CardContent>
     </Card>
   );
 }

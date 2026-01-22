@@ -147,6 +147,7 @@ export interface MeasurementArea {
 
 /**
  * Individual pier within a pier group
+ * @deprecated Individual pier items no longer have unique names - use PierGroup.quantity instead
  */
 export interface PierItem {
   id: string;
@@ -169,15 +170,31 @@ export interface PierItem {
 }
 
 /**
- * A group of piers with a shared group name (e.g., "Footing Piers")
- * Contains multiple individual pier items
+ * A group of identical piers with shared dimensions and reinforcement
+ * All piers within a group have the same specifications
  */
 export interface PierGroup {
   id: string;
   name: string;           // Group name, e.g., "Footing Piers"
-  piers: PierItem[];      // Individual piers in this group
+  quantity: number;       // Number of identical piers in this group
+  diameter: number;       // mm - shared diameter for all piers in group
+  depth: number;          // mm - shared depth for all piers in group
   /** If true, this group was imported from plan takeoff */
   _fromTakeoff?: boolean;
+  
+  // Legacy: array of individual piers (for backwards compatibility)
+  piers?: PierItem[];
+  
+  // Group-level reinforcement settings
+  has_starters?: boolean;
+  starter_count?: number;
+  starter_size?: string;
+  starter_length?: number;
+  is_reinforced?: boolean;
+  vertical_bars_count?: number;
+  vertical_bar_size?: string;
+  lig_size?: string;
+  lig_centres?: number;
 }
 
 /**
