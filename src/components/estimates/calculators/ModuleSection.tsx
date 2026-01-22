@@ -378,20 +378,83 @@ export function ModuleSection({
             {lineItems.length > 0 && (
               <div className="border-t pt-4 mt-4">
                 <h4 className="text-sm font-medium mb-3 text-muted-foreground">Cost Breakdown</h4>
-                <div className="space-y-2">
-                  {lineItems.map((item) => (
-                    <div key={item.id} className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">
-                        {item.description}
-                        {item.quantity > 0 && item.unit && (
-                          <span className="ml-1">
-                            ({item.quantity} {item.unit} × {formatCurrency(item.unitPrice)})
-                          </span>
-                        )}
-                      </span>
-                      <span className="font-medium">{formatCurrency(item.total)}</span>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {isRaftReoModule ? (
+                    // Grouped breakdown for raft reinforcement
+                    (() => {
+                      // Group line items by type
+                      const slabItems = lineItems.filter(item => 
+                        item.id.startsWith('mesh_') || item.id.startsWith('bar_')
+                      );
+                      const edgeBeamItems = lineItems.filter(item => 
+                        item.id.startsWith('edge_tm_') || item.id.startsWith('edge_ligs_')
+                      );
+                      const internalBeamItems = lineItems.filter(item => 
+                        item.id.startsWith('internal_tm_') || item.id.startsWith('internal_ligs_')
+                      );
+                      const accessoryItems = lineItems.filter(item => 
+                        ['bar_chairs', 'tie_wire', 'reo_delivery'].includes(item.id)
+                      );
+                      const otherItems = lineItems.filter(item => 
+                        !slabItems.includes(item) && 
+                        !edgeBeamItems.includes(item) && 
+                        !internalBeamItems.includes(item) &&
+                        !accessoryItems.includes(item)
+                      );
+
+                      const renderGroup = (title: string, items: CostLineItem[]) => {
+                        if (items.length === 0) return null;
+                        const groupTotal = items.reduce((sum, item) => sum + item.total, 0);
+                        return (
+                          <div key={title} className="space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                                {title}
+                              </span>
+                              <span className="text-xs font-medium text-muted-foreground">
+                                {formatCurrency(groupTotal)}
+                              </span>
+                            </div>
+                            <div className="space-y-1 pl-2 border-l-2 border-muted">
+                              {items.map((item) => (
+                                <div key={item.id} className="flex justify-between text-sm py-0.5">
+                                  <span className="text-muted-foreground">
+                                    {item.description}
+                                  </span>
+                                  <span className="font-medium ml-2 shrink-0">{formatCurrency(item.total)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      };
+
+                      return (
+                        <>
+                          {renderGroup('Slab Areas', slabItems)}
+                          {renderGroup('Edge Beams', edgeBeamItems)}
+                          {renderGroup('Internal Beams', internalBeamItems)}
+                          {renderGroup('Accessories', accessoryItems)}
+                          {renderGroup('Other', otherItems)}
+                        </>
+                      );
+                    })()
+                  ) : (
+                    // Standard flat list for other modules
+                    lineItems.map((item) => (
+                      <div key={item.id} className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          {item.description}
+                          {item.quantity > 0 && item.unit && (
+                            <span className="ml-1">
+                              ({item.quantity} {item.unit} × {formatCurrency(item.unitPrice)})
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-medium">{formatCurrency(item.total)}</span>
+                      </div>
+                    ))
+                  )}
                   <div className="flex justify-between font-medium border-t pt-2">
                     <span>Module Subtotal</span>
                     <span className="text-primary">{formatCurrency(subtotal)}</span>
