@@ -1,5 +1,15 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, PierConfig } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
+
+// Default values for pier reinforcement
+const DEFAULT_STARTER_COUNT = 4;
+const DEFAULT_STARTER_SIZE = 'N16';
+const DEFAULT_STARTER_LENGTH = 1200;
+const DEFAULT_VERTICAL_BARS_COUNT = 6;
+const DEFAULT_VERTICAL_BAR_SIZE = 'N16';
+const DEFAULT_LIG_SIZE = 'R10';
+const DEFAULT_LIG_CENTRES = 200;
+const DEFAULT_LAP_MARGIN = 12.5;
 
 export const reinforcementPiersModule: EstimateModule = {
   id: 'reinforcement-piers',
@@ -8,141 +18,49 @@ export const reinforcementPiersModule: EstimateModule = {
   icon: 'Grid3X3',
 
   questions: [
-    // Starter bars section
+    // Starter bars toggle
     {
       id: 'has_starters',
       type: 'boolean',
-      label: 'Do the piers have starter bars?',
+      label: 'Include Starter Bars?',
       defaultValue: false,
       required: true,
+      sectionLabel: 'Starter Bars',
     },
-    {
-      id: 'starter_count',
-      type: 'number',
-      label: 'How many starters per pier?',
-      defaultValue: 4,
-      min: 1,
-      max: 20,
-      showIf: (answers) => answers.has_starters === true,
-    },
-    {
-      id: 'starter_size',
-      type: 'select',
-      label: 'Starter bar size',
-      options: [
-        { value: 'N12', label: 'N12 (12mm)' },
-        { value: 'N16', label: 'N16 (16mm)' },
-        { value: 'N20', label: 'N20 (20mm)' },
-        { value: 'N24', label: 'N24 (24mm)' },
-        { value: 'N28', label: 'N28 (28mm)' },
-      ],
-      defaultValue: 'N16',
-      showIf: (answers) => answers.has_starters === true,
-    },
-    {
-      id: 'starter_length',
-      type: 'number',
-      label: 'Total length of starters (mm)',
-      defaultValue: 1200,
-      helpText: 'Including embedment and projection',
-      unit: 'mm',
-      showIf: (answers) => answers.has_starters === true,
-    },
-    {
-      id: 'starter_lap_margin',
-      type: 'number',
-      label: 'Lap/bending/rolling margin (%)',
-      defaultValue: 12.5,
-      min: 0,
-      max: 50,
-      step: 0.5,
-      unit: '%',
-      showIf: (answers) => answers.has_starters === true,
-    },
-    // Main reinforcement section
+    // Cage reinforcement toggle  
     {
       id: 'is_reinforced',
       type: 'boolean',
-      label: 'Are the piers reinforced (cages)?',
+      label: 'Include Cage Reinforcement?',
       defaultValue: false,
+      sectionLabel: 'Cage Reinforcement',
     },
+    // Pricing section
     {
-      id: 'vertical_bars_count',
-      type: 'number',
-      label: 'Number of vertical bars per pier',
-      defaultValue: 6,
-      min: 1,
-      max: 20,
-      showIf: (answers) => answers.is_reinforced === true,
-    },
-    {
-      id: 'vertical_bar_size',
+      id: 'rebar_type',
       type: 'select',
-      label: 'Vertical bar size',
+      label: 'Rebar supply type',
       options: [
-        { value: 'N12', label: 'N12 (12mm)' },
-        { value: 'N16', label: 'N16 (16mm)' },
-        { value: 'N20', label: 'N20 (20mm)' },
-        { value: 'N24', label: 'N24 (24mm)' },
+        { value: 'cut_bend', label: 'Cut & Bend' },
+        { value: 'stock', label: 'Stock Lengths' },
       ],
-      defaultValue: 'N16',
-      showIf: (answers) => answers.is_reinforced === true,
+      defaultValue: 'cut_bend',
+      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
+      sectionLabel: 'Pricing & Delivery',
     },
     {
-      id: 'lig_size',
-      type: 'select',
-      label: 'Ligature bar size',
-      options: [
-        { value: 'R10', label: 'R10 (10mm)' },
-        { value: 'R12', label: 'R12 (12mm)' },
-      ],
-      defaultValue: 'R10',
-      showIf: (answers) => answers.is_reinforced === true,
-    },
-    {
-      id: 'lig_centres',
-      type: 'number',
-      label: 'Ligature centres (mm)',
-      defaultValue: 200,
-      min: 50,
-      max: 500,
-      step: 25,
-      unit: 'mm',
-      helpText: 'Spacing between ligatures',
-      showIf: (answers) => answers.is_reinforced === true,
-    },
-    {
-      id: 'calculated_ligs',
-      type: 'text',
-      label: 'Calculated ligatures per pier',
-      derivedReadOnly: true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        // For piers, prefer averageExcavationDepth (weighted from multi-pier configs),
-        // then fall back to depth, then first pier's depth if available
-        const firstPierDepth = scopeData.piers?.[0]?.depth;
-        const pierDepth = Number(scopeData.averageExcavationDepth) || 
-                          Number(scopeData.depth) || 
-                          Number(firstPierDepth) || 
-                          600;
-        const ligCentres = Number(moduleAnswers.lig_centres) || 200;
-        const ligCount = Math.ceil(pierDepth / ligCentres);
-        const ligSize = moduleAnswers.lig_size || 'R10';
-        return `${ligSize} @ ${ligCentres}mm = ${ligCount} ligs`;
+      id: 'rebar_price_per_tonne',
+      type: 'currency',
+      label: 'Rebar price per tonne',
+      defaultValue: 2100,
+      unit: '/tonne',
+      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const barSize = DEFAULT_STARTER_SIZE;
+        const supplyType = moduleAnswers.rebar_type === 'cut_bend' ? 'CB' : 'STOCK';
+        return priceMap?.['rebar']?.[`${barSize} ${supplyType}`];
       },
-      showIf: (answers) => answers.is_reinforced === true,
     },
-    {
-      id: 'cage_lap_margin',
-      type: 'number',
-      label: 'Lap/bending margin (%)',
-      defaultValue: 12.5,
-      min: 0,
-      max: 50,
-      step: 0.5,
-      unit: '%',
-      showIf: (answers) => answers.is_reinforced === true,
-    },
-    // Delivery and sundries
     {
       id: 'reo_delivery',
       type: 'currency',
@@ -159,117 +77,87 @@ export const reinforcementPiersModule: EstimateModule = {
       helpText: 'Tie wire, bar chairs, spacers, etc.',
       showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
     },
-    // Rebar pricing - default to cut and bend
-    {
-      id: 'rebar_type',
-      type: 'select',
-      label: 'Rebar supply type',
-      options: [
-        { value: 'cut_bend', label: 'Cut & Bend' },
-        { value: 'stock', label: 'Stock Lengths' },
-      ],
-      defaultValue: 'cut_bend',
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
-    },
-    {
-      id: 'rebar_price_per_tonne',
-      type: 'currency',
-      label: 'Rebar price per tonne',
-      defaultValue: 2100,
-      unit: '/tonne',
-      showIf: (answers) => answers.has_starters === true || answers.is_reinforced === true,
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const barSize = moduleAnswers.starter_size || moduleAnswers.vertical_bar_size || 'N16';
-        const supplyType = moduleAnswers.rebar_type === 'cut_bend' ? 'CB' : 'STOCK';
-        return priceMap?.['rebar']?.[`${barSize} ${supplyType}`];
-      },
-    },
   ],
 
   calculate: (answers, priceMap, scopeData): ComponentCost => {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
-    const numPiers = Number(scopeData.num_piers) || 1;
-    const pierDepth = (Number(scopeData.depth) || 600) / 1000; // Convert mm to m
+    const piers = (scopeData.piers || []) as PierConfig[];
+    const lapMargin = 1 + DEFAULT_LAP_MARGIN / 100;
+    const pricePerTonne = Number(answers.rebar_price_per_tonne) || 2100;
 
-    // Calculate starter bar weight
-    if (answers.has_starters) {
-      const starterCount = Number(answers.starter_count) || 4;
-      const starterSize = answers.starter_size || 'N16';
-      const starterLength = (Number(answers.starter_length) || 1200) / 1000; // mm to m
-      const lapMargin = 1 + (Number(answers.starter_lap_margin) || 12.5) / 100;
-
-      const weightPerMetre = REBAR_WEIGHTS[starterSize] || 1.58;
-      const totalStarterWeight = numPiers * starterCount * starterLength * lapMargin * weightPerMetre;
-      const totalStarterTonnes = totalStarterWeight / 1000;
-
-      const rebarType = answers.rebar_type === 'cut_bend' ? 'CB' : 'STOCK';
-      const priceKey = `${starterSize} ${rebarType}`;
-      const pricePerTonne = Number(answers.rebar_price_per_tonne) || getPrice(priceMap, 'rebar', priceKey, 2100);
-      const starterCost = totalStarterTonnes * pricePerTonne;
-
-      if (starterCost > 0) {
-        lineItems.push({
-          id: 'starter_bars',
-          description: `Starter Bars ${starterSize} (${numPiers} piers × ${starterCount} starters)`,
-          quantity: Math.round(totalStarterWeight),
-          unit: 'kg',
-          unitPrice: pricePerTonne / 1000,
-          total: Math.round(starterCost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += starterCost;
-      }
-    }
-
-    // Calculate cage reinforcement weight
-    if (answers.is_reinforced) {
-      const verticalBars = Number(answers.vertical_bars_count) || 6;
-      const verticalSize = answers.vertical_bar_size || 'N16';
-      const ligSize = answers.lig_size || 'R10';
-      const ligCentres = Number(answers.lig_centres) || 200;
-      const lapMargin = 1 + (Number(answers.cage_lap_margin) || 12.5) / 100;
+    // Process each pier configuration
+    piers.forEach((pier) => {
+      const pierDepthM = pier.depth / 1000;
+      const pierDiameterM = pier.diameter / 1000;
       
-      // Calculate lig count from depth and centres
-      const pierDepthMm = Number(scopeData.depth) || 600;
-      const ligCount = Math.ceil(pierDepthMm / ligCentres);
+      // Starter bars for this pier
+      const hasStarters = pier.has_starters ?? answers.has_starters;
+      if (hasStarters) {
+        const starterCount = pier.starter_count ?? DEFAULT_STARTER_COUNT;
+        const starterSize = pier.starter_size || DEFAULT_STARTER_SIZE;
+        const starterLength = (pier.starter_length ?? DEFAULT_STARTER_LENGTH) / 1000;
+        
+        const weightPerMetre = REBAR_WEIGHTS[starterSize] || 1.58;
+        const totalStarterWeight = pier.quantity * starterCount * starterLength * lapMargin * weightPerMetre;
+        const starterCost = (totalStarterWeight / 1000) * pricePerTonne;
 
-      // Vertical bars weight
-      const verticalWeightPerM = REBAR_WEIGHTS[verticalSize] || 1.58;
-      const totalVerticalWeight = numPiers * verticalBars * pierDepth * lapMargin * verticalWeightPerM;
-
-      // Ligature weight (approximate circumference based on pier diameter)
-      const pierDiameter = (Number(scopeData.diameter) || 450) / 1000;
-      const ligCircumference = Math.PI * (pierDiameter - 0.05); // Allow for cover
-      const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
-      const totalLigWeight = numPiers * ligCount * ligCircumference * lapMargin * ligWeightPerM;
-
-      const totalCageWeight = totalVerticalWeight + totalLigWeight;
-      const totalCageTonnes = totalCageWeight / 1000;
-
-      const rebarType = answers.rebar_type === 'cut_bend' ? 'CB' : 'STOCK';
-      const priceKey = `${verticalSize} ${rebarType}`;
-      const pricePerTonne = Number(answers.rebar_price_per_tonne) || getPrice(priceMap, 'rebar', priceKey, 2100);
-      const cageCost = totalCageTonnes * pricePerTonne;
-
-      if (cageCost > 0) {
-        lineItems.push({
-          id: 'cage_reinforcement',
-          description: `Pier Cages ${verticalSize}/${ligSize} @ ${ligCentres}mm (${numPiers} piers × ${ligCount} ligs)`,
-          quantity: Math.round(totalCageWeight),
-          unit: 'kg',
-          unitPrice: pricePerTonne / 1000,
-          total: Math.round(cageCost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += cageCost;
+        if (starterCost > 0) {
+          lineItems.push({
+            id: `starter_${pier.id}`,
+            description: `${pier.name} - Starters ${starterSize} (${pier.quantity}× ${starterCount} bars)`,
+            quantity: Math.round(totalStarterWeight),
+            unit: 'kg',
+            unitPrice: pricePerTonne / 1000,
+            total: Math.round(starterCost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += starterCost;
+        }
       }
-    }
 
-    // Delivery and sundries (materials only, no labour)
-    if (answers.has_starters || answers.is_reinforced) {
-      // Delivery
+      // Cage reinforcement for this pier
+      const isReinforced = pier.is_reinforced ?? answers.is_reinforced;
+      if (isReinforced) {
+        const verticalBars = pier.vertical_bars_count ?? DEFAULT_VERTICAL_BARS_COUNT;
+        const verticalSize = pier.vertical_bar_size || DEFAULT_VERTICAL_BAR_SIZE;
+        const ligSize = pier.lig_size || DEFAULT_LIG_SIZE;
+        const ligCentres = pier.lig_centres ?? DEFAULT_LIG_CENTRES;
+
+        // Calculate lig count from depth and centres
+        const ligCount = Math.ceil(pier.depth / ligCentres);
+
+        // Vertical bars weight
+        const verticalWeightPerM = REBAR_WEIGHTS[verticalSize] || 1.58;
+        const totalVerticalWeight = pier.quantity * verticalBars * pierDepthM * lapMargin * verticalWeightPerM;
+
+        // Ligature weight (circumference based on diameter)
+        const ligCircumference = Math.PI * (pierDiameterM - 0.05); // Allow for cover
+        const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
+        const totalLigWeight = pier.quantity * ligCount * ligCircumference * lapMargin * ligWeightPerM;
+
+        const totalCageWeight = totalVerticalWeight + totalLigWeight;
+        const cageCost = (totalCageWeight / 1000) * pricePerTonne;
+
+        if (cageCost > 0) {
+          lineItems.push({
+            id: `cage_${pier.id}`,
+            description: `${pier.name} - Cages ${verticalSize}/${ligSize} @ ${ligCentres}mm (${pier.quantity}×)`,
+            quantity: Math.round(totalCageWeight),
+            unit: 'kg',
+            unitPrice: pricePerTonne / 1000,
+            total: Math.round(cageCost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += cageCost;
+        }
+      }
+    });
+
+    // Delivery and sundries
+    const hasAnyReo = answers.has_starters || answers.is_reinforced;
+    if (hasAnyReo && lineItems.length > 0) {
       const delivery = Number(answers.reo_delivery) || 150;
       if (delivery > 0) {
         lineItems.push({
@@ -284,7 +172,6 @@ export const reinforcementPiersModule: EstimateModule = {
         subtotal += delivery;
       }
 
-      // Sundries
       const sundries = Number(answers.reo_sundries) || 200;
       if (sundries > 0) {
         lineItems.push({
@@ -309,10 +196,15 @@ export const reinforcementPiersModule: EstimateModule = {
     };
   },
 
-  getExclusions: (answers): ExclusionItem[] => {
+  getExclusions: (answers, scopeData): ExclusionItem[] => {
     const exclusions: ExclusionItem[] = [];
+    const piers = (scopeData?.piers || []) as PierConfig[];
     
-    if (!answers.has_starters && !answers.is_reinforced) {
+    // Check if any pier has reinforcement
+    const anyStartersEnabled = answers.has_starters || piers.some(p => p.has_starters);
+    const anyReinforcementEnabled = answers.is_reinforced || piers.some(p => p.is_reinforced);
+    
+    if (!anyStartersEnabled && !anyReinforcementEnabled) {
       exclusions.push({
         id: 'no_reinforcement',
         text: 'Reinforcement and starter bars are not included in this quote.',
@@ -325,25 +217,7 @@ export const reinforcementPiersModule: EstimateModule = {
 
   validate: (answers) => {
     const errors: string[] = [];
-
-    if (answers.has_starters) {
-      if (!answers.starter_count || answers.starter_count < 1) {
-        errors.push('Please specify the number of starter bars');
-      }
-      if (!answers.starter_size) {
-        errors.push('Please select a starter bar size');
-      }
-    }
-
-    if (answers.is_reinforced) {
-      if (!answers.vertical_bars_count || answers.vertical_bars_count < 1) {
-        errors.push('Please specify the number of vertical bars');
-      }
-      if (!answers.lig_centres || answers.lig_centres < 50) {
-        errors.push('Please specify ligature centres');
-      }
-    }
-
+    // Validation is now per-pier, minimal module-level validation needed
     return { valid: errors.length === 0, errors };
   },
 };

@@ -156,6 +156,17 @@ export interface PierConfig {
   depth: number;     // mm
   /** If true, this pier config was imported from plan takeoff */
   _fromTakeoff?: boolean;
+  
+  // Per-pier reinforcement overrides
+  has_starters?: boolean;
+  starter_count?: number;
+  starter_size?: string;
+  starter_length?: number;
+  is_reinforced?: boolean;
+  vertical_bars_count?: number;
+  vertical_bar_size?: string;
+  lig_size?: string;
+  lig_centres?: number;
 }
 
 /**
@@ -171,6 +182,16 @@ export interface FootingConfig {
   _fromTakeoff?: boolean;
   /** Actual measured length from takeoff (more accurate) */
   _actualLength?: number;
+  
+  // Per-footing reinforcement overrides
+  reo_type?: 'none' | 'trench_mesh' | 'bar' | 'both';
+  tm_type?: string;
+  add_ligs?: boolean;
+  lig_size?: string;
+  lig_centres?: number;
+  add_vertical_bars?: boolean;
+  vertical_bar_size?: string;
+  vertical_bar_centres?: number;
 }
 
 /**
@@ -186,6 +207,16 @@ export interface LinearSection {
   _fromTakeoff?: boolean;
   /** Actual measured length from takeoff (more accurate) */
   _actualLength?: number;
+  
+  // Per-section reinforcement overrides
+  reo_type?: 'none' | 'trench_mesh' | 'bar' | 'both';
+  tm_type?: string;
+  add_ligs?: boolean;
+  lig_size?: string;
+  lig_centres?: number;
+  add_vertical_bars?: boolean;
+  vertical_bar_size?: string;
+  vertical_bar_centres?: number;
 }
 
 /**

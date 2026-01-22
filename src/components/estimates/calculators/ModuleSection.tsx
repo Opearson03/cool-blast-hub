@@ -1,4 +1,4 @@
-import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea } from "@/lib/estimate-components/types";
+import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierConfig, FootingConfig, LinearSection } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -26,6 +26,8 @@ import {
 } from "@/components/ui/tooltip";
 import { BeamReinforcementInput } from "./BeamReinforcementInput";
 import { AreaReinforcementInput } from "./AreaReinforcementInput";
+import { PierReinforcementInput } from "./PierReinforcementInput";
+import { FootingReinforcementInput } from "./FootingReinforcementInput";
 
 interface ModuleSectionProps {
   module: EstimateModule;
@@ -211,11 +213,16 @@ export function ModuleSection({
   scopeData,
   onScopeDataChange,
 }: ModuleSectionProps) {
-  // Check if this is the raft reinforcement module
+  // Check module types for inline inputs
   const isRaftReoModule = module.id === 'reinforcement-raft';
+  const isPiersReoModule = module.id === 'reinforcement-piers';
+  const isFootingReoModule = module.id === 'reinforcement-footing';
+  
   const areas = (scopeData?.areas || []) as MeasurementArea[];
   const edgeBeams = (scopeData?.edgeBeams || []) as BeamConfig[];
   const internalBeams = (scopeData?.beams || []) as BeamConfig[];
+  const piers = (scopeData?.piers || []) as PierConfig[];
+  const footings = (scopeData?.footings || scopeData?.linearSections || []) as (FootingConfig | LinearSection)[];
   // Get visible questions
   const visibleQuestions = module.questions.filter(
     (q) => !q.showIf || q.showIf(answers, scopeData)
@@ -267,10 +274,15 @@ export function ModuleSection({
                 if (sectionQuestions.length > 0) {
                   const sectionKey = currentSection || 'default';
                   
-                  // Check if this section should have inline beam/area inputs
+                  // Check if this section should have inline inputs
                   const isSlabSurfaceSection = isRaftReoModule && currentSection === 'Slab Surface (Defaults)';
                   const isEdgeBeamsSection = isRaftReoModule && currentSection === 'Edge Beams';
                   const isInternalBeamsSection = isRaftReoModule && currentSection === 'Internal Beams';
+                  const isPierStartersSection = isPiersReoModule && currentSection === 'Starter Bars';
+                  const isPierCagesSection = isPiersReoModule && currentSection === 'Cage Reinforcement';
+                  const isFootingTmSection = isFootingReoModule && currentSection === 'Trench Mesh';
+                  const isFootingLigsSection = isFootingReoModule && currentSection === 'Ligatures';
+                  const isFootingStartersSection = isFootingReoModule && currentSection === 'Vertical Starters';
                   
                   elements.push(
                     <div key={`section-${sectionKey}`} className="space-y-4">
@@ -338,6 +350,51 @@ export function ModuleSection({
                             defaultLigSize="R10"
                             defaultLigCentres={200}
                             label="Internal Beams"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Inline per-pier inputs for Piers reinforcement */}
+                      {(isPierStartersSection || isPierCagesSection) && onScopeDataChange && piers.length > 0 && (answers.has_starters || answers.is_reinforced) && (
+                        <div className="mt-4">
+                          <PierReinforcementInput
+                            piers={piers}
+                            onChange={(newPiers) => onScopeDataChange('piers', newPiers)}
+                            defaultHasStarters={answers.has_starters || false}
+                            defaultStarterCount={4}
+                            defaultStarterSize="N16"
+                            defaultStarterLength={1200}
+                            defaultIsReinforced={answers.is_reinforced || false}
+                            defaultVerticalBarsCount={6}
+                            defaultVerticalBarSize="N16"
+                            defaultLigSize="R10"
+                            defaultLigCentres={200}
+                            label="Pier Configurations"
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Inline per-footing inputs for Footing reinforcement */}
+                      {(isFootingTmSection || isFootingLigsSection || isFootingStartersSection) && onScopeDataChange && footings.length > 0 && (answers.include_trench_mesh || answers.add_ligs || answers.add_vertical_bars) && (
+                        <div className="mt-4">
+                          <FootingReinforcementInput
+                            footings={footings}
+                            onChange={(newFootings) => {
+                              if (scopeData?.footings) {
+                                onScopeDataChange('footings', newFootings);
+                              } else {
+                                onScopeDataChange('linearSections', newFootings);
+                              }
+                            }}
+                            defaultReoType={answers.include_trench_mesh ? 'trench_mesh' : 'none'}
+                            defaultTmType="L11TM4"
+                            defaultAddLigs={answers.add_ligs || false}
+                            defaultLigSize="R10"
+                            defaultLigCentres={200}
+                            defaultAddVerticalBars={answers.add_vertical_bars || false}
+                            defaultVerticalBarSize="N16"
+                            defaultVerticalBarCentres={400}
+                            label="Footing Sections"
                           />
                         </div>
                       )}
