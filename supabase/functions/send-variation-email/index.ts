@@ -51,8 +51,8 @@ function hexToRgb(hex: string): [number, number, number] {
     : [249, 115, 22];
 }
 
-// Helper to fetch logo and convert to base64
-async function fetchLogoAsBase64(logoUrl: string | null): Promise<{ base64: string; format: string } | null> {
+// Helper to fetch logo, convert to base64, and get dimensions
+async function fetchLogoAsBase64(logoUrl: string | null): Promise<{ base64: string; format: string; width: number; height: number } | null> {
   if (!logoUrl) return null;
   
   try {
@@ -80,12 +80,58 @@ async function fetchLogoAsBase64(logoUrl: string | null): Promise<{ base64: stri
       format = 'GIF';
     }
     
-    console.log("Logo fetched successfully, format:", format);
-    return { base64, format };
+    // Parse image dimensions from the binary data
+    let width = 100;
+    let height = 100;
+    
+    try {
+      if (format === 'PNG') {
+        // PNG: width at bytes 16-19, height at bytes 20-23 (big-endian)
+        if (uint8Array.length > 24) {
+          width = (uint8Array[16] << 24) | (uint8Array[17] << 16) | (uint8Array[18] << 8) | uint8Array[19];
+          height = (uint8Array[20] << 24) | (uint8Array[21] << 16) | (uint8Array[22] << 8) | uint8Array[23];
+        }
+      } else if (format === 'JPEG') {
+        // JPEG: Search for SOF0 marker (0xFF 0xC0) to find dimensions
+        for (let i = 0; i < uint8Array.length - 10; i++) {
+          if (uint8Array[i] === 0xFF && (uint8Array[i + 1] === 0xC0 || uint8Array[i + 1] === 0xC2)) {
+            height = (uint8Array[i + 5] << 8) | uint8Array[i + 6];
+            width = (uint8Array[i + 7] << 8) | uint8Array[i + 8];
+            break;
+          }
+        }
+      } else if (format === 'GIF') {
+        // GIF: width at bytes 6-7, height at bytes 8-9 (little-endian)
+        if (uint8Array.length > 10) {
+          width = uint8Array[6] | (uint8Array[7] << 8);
+          height = uint8Array[8] | (uint8Array[9] << 8);
+        }
+      }
+    } catch (dimError) {
+      console.error("Failed to parse image dimensions:", dimError);
+    }
+    
+    console.log("Logo fetched successfully, format:", format, "dimensions:", width, "x", height);
+    return { base64, format, width, height };
   } catch (error) {
     console.error('Failed to fetch logo:', error);
     return null;
   }
+}
+
+// Helper to calculate logo dimensions preserving aspect ratio
+function calculateLogoDimensions(logoData: { width: number; height: number }, maxWidth: number, maxHeight: number): { width: number; height: number } {
+  const aspectRatio = logoData.width / logoData.height;
+  
+  let width = maxWidth;
+  let height = width / aspectRatio;
+  
+  if (height > maxHeight) {
+    height = maxHeight;
+    width = height * aspectRatio;
+  }
+  
+  return { width, height };
 }
 
 // Map PDF-safe fonts
@@ -175,10 +221,13 @@ const handler = async (req: Request): Promise<Response> => {
     doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
     doc.rect(0, 0, pageWidth, 40, 'F');
 
-    // Logo in header
+    // Logo in header (preserve aspect ratio)
+    let logoDisplayWidth = 0;
     if (logoData) {
       try {
-        doc.addImage(`data:image/${logoData.format.toLowerCase()};base64,${logoData.base64}`, logoData.format, margin, 8, 24, 24);
+        const logoDims = calculateLogoDimensions(logoData, 40, 24);
+        doc.addImage(`data:image/${logoData.format.toLowerCase()};base64,${logoData.base64}`, logoData.format, margin, 8, logoDims.width, logoDims.height);
+        logoDisplayWidth = logoDims.width + 6;
       } catch (e) {
         console.error("Failed to add logo to PDF:", e);
       }
@@ -188,12 +237,12 @@ const handler = async (req: Request): Promise<Response> => {
     doc.setFontSize(18);
     doc.setFont(pdfFont, "bold");
     doc.setTextColor(255, 255, 255);
-    doc.text(businessName || "Company Name", logoData ? margin + 30 : margin, 20);
+    doc.text(businessName || "Company Name", logoData ? margin + logoDisplayWidth : margin, 20);
     
     if (businessAbn) {
       doc.setFontSize(9);
       doc.setFont(pdfFont, "normal");
-      doc.text(`ABN: ${businessAbn}`, logoData ? margin + 30 : margin, 28);
+      doc.text(`ABN: ${businessAbn}`, logoData ? margin + logoDisplayWidth : margin, 28);
     }
 
     // VARIATION title
