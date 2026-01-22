@@ -37,6 +37,7 @@ interface UseTakeoffDataReturn {
   addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases') => Promise<TakeoffMarkup | null>;
   addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string, toeMm?: number) => Promise<TakeoffMarkup | null>;
   addSlabWithBeams: (fileId: string, scopeId: string, slabData: { points: TakeoffPoint[]; shapeType: 'polygon' | 'rectangle'; name: string }, edgeBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, internalBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
+  addBeamToSlab: (parentMarkupId: string, fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, depthMm: number, color: string, pageNumber: number, name: string, beamType: 'edge_beam' | 'internal_beam') => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
   deleteMarkup: (markupId: string) => Promise<void>;
   setCurrentPage: (page: number) => Promise<void>;
@@ -1052,6 +1053,69 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     }
   };
 
+  const addBeamToSlab = async (
+    parentMarkupId: string,
+    fileId: string,
+    scopeId: string,
+    points: TakeoffPoint[],
+    lengthM: number,
+    widthMm: number,
+    depthMm: number,
+    color: string,
+    pageNumber: number,
+    name: string,
+    beamType: 'edge_beam' | 'internal_beam'
+  ): Promise<TakeoffMarkup | null> => {
+    if (!takeoff) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from('takeoff_markups')
+        .insert({
+          takeoff_id: takeoff.id,
+          file_id: fileId,
+          scope_id: scopeId,
+          shape_type: 'polyline',
+          points: points as unknown as Json,
+          color,
+          page_number: pageNumber,
+          parent_markup_id: parentMarkupId,
+          markup_type: beamType,
+          name,
+          width_mm: widthMm,
+          height_mm: depthMm,
+          length_m: lengthM
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newMarkup: TakeoffMarkup = {
+        ...data,
+        name: data.name || null,
+        file_id: data.file_id || null,
+        shape_type: 'polyline',
+        points: data.points as unknown as TakeoffPoint[],
+        diameter_mm: null,
+        depth_mm: null,
+        pier_quantity: null,
+        width_mm: data.width_mm,
+        height_mm: data.height_mm,
+        length_m: data.length_m ? Number(data.length_m) : null,
+        parent_markup_id: data.parent_markup_id || null,
+        markup_type: beamType,
+      };
+
+      setMarkups(prev => [...prev, newMarkup]);
+      return newMarkup;
+    } catch (error: any) {
+      console.error('Error adding beam to slab:', error);
+      toast({ title: 'Failed to add beam', description: error.message, variant: 'destructive' });
+      return null;
+    }
+  };
+
   return {
     takeoff,
     files,
@@ -1074,6 +1138,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     addPadMarkups,
     addPolylineMarkup,
     addSlabWithBeams,
+    addBeamToSlab,
     updateMarkup,
     deleteMarkup,
     setCurrentPage,

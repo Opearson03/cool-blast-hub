@@ -439,17 +439,17 @@ export function PlanTakeoffStep({
     if (slabMarkup && pendingSlabData.edgeBeams.length > 0) {
       for (const beam of pendingSlabData.edgeBeams) {
         await addBeamToSlab(
+          slabMarkup.id,
           currentFileId,
           activeScope,
-          slabMarkup.id,
-          'edge_beam',
           beam.points,
-          beam.name,
+          beam.length,
           beam.width,
           beam.depth,
-          beam.length,
           color,
-          currentPage
+          currentPage,
+          beam.name,
+          'edge_beam'
         );
       }
     }
@@ -498,32 +498,32 @@ export function PlanTakeoffStep({
     if (slabMarkup) {
       for (const beam of pendingSlabData.edgeBeams) {
         await addBeamToSlab(
+          slabMarkup.id,
           currentFileId,
           activeScope,
-          slabMarkup.id,
-          'edge_beam',
           beam.points,
-          beam.name,
+          beam.length,
           beam.width,
           beam.depth,
-          beam.length,
           color,
-          currentPage
+          currentPage,
+          beam.name,
+          'edge_beam'
         );
       }
       for (const beam of pendingSlabData.internalBeams) {
         await addBeamToSlab(
+          slabMarkup.id,
           currentFileId,
           activeScope,
-          slabMarkup.id,
-          'internal_beam',
           beam.points,
-          beam.name,
+          beam.length,
           beam.width,
           beam.depth,
-          beam.length,
           color,
-          currentPage
+          currentPage,
+          beam.name,
+          'internal_beam'
         );
       }
     }
