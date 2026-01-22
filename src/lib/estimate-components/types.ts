@@ -136,6 +136,13 @@ export interface MeasurementArea {
   _actualArea?: number;
   /** Actual measured perimeter from takeoff */
   _actualPerimeter?: number;
+  
+  // Per-area reinforcement settings
+  reo_type?: 'none' | 'mesh' | 'bar' | 'fiber';
+  mesh_type?: string;
+  bar_size?: string;
+  bar_spacing?: string;
+  bar_layers?: string;
 }
 
 /**
@@ -190,6 +197,12 @@ export interface BeamConfig {
   length: number;    // metres
   width: number;     // mm
   depth: number;     // mm
+  
+  // Per-beam reinforcement settings
+  tm_type?: string;
+  add_ligs?: boolean;
+  lig_size?: string;
+  lig_centres?: number;
 }
 
 /**
