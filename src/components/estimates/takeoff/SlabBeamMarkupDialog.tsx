@@ -6,25 +6,36 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tag, ArrowRight, Check, SkipForward, Minus } from 'lucide-react';
+import { Tag, ArrowRight, Check, SkipForward, Minus, Plus } from 'lucide-react';
 import { EDGE_BEAM_COLOR, INTERNAL_BEAM_COLOR } from './DrawingCanvas';
 
 export type SlabWorkflowStep = 
   | 'name'
-  | 'mark_edge_beams'
-  | 'edge_beam_dimensions'
-  | 'mark_internal_beams'
-  | 'internal_beam_dimensions'
+  | 'mark_edge_beam'      // Drawing a single edge beam
+  | 'edge_beam_details'   // Name + dimensions for single edge beam
+  | 'edge_beams_complete' // Summary of edge beams, option to add more or move to internal
+  | 'mark_internal_beam'  // Drawing a single internal beam
+  | 'internal_beam_details' // Name + dimensions for single internal beam
+  | 'internal_beams_complete' // Summary, option to add more or finish
   | 'complete';
+
+// Individual beam data - each beam has its own name and dimensions
+export interface BeamData {
+  id?: string;
+  name: string;
+  points: { x: number; y: number }[];
+  width: number;
+  depth: number;
+  length: number;
+}
 
 export interface PendingSlabData {
   slabPoints: { x: number; y: number }[];
   slabShapeType: 'polygon' | 'rectangle';
   slabName: string;
-  edgeBeamSegments: { x: number; y: number }[][];
-  edgeBeamDimensions: { width: number; depth: number } | null;
-  internalBeamSegments: { x: number; y: number }[][];
-  internalBeamDimensions: { width: number; depth: number } | null;
+  slabMarkupId?: string; // Set after slab is saved
+  edgeBeams: BeamData[];
+  internalBeams: BeamData[];
   // Waffle pod specific
   wafflePodSize?: string;
   wafflePodThickness?: number;
@@ -58,35 +69,33 @@ interface SlabBeamMarkupDialogProps {
   slabArea?: number;
   /** Perimeter in meters */
   slabPerimeter?: number;
-  /** Total edge beam length marked so far */
-  edgeBeamLength?: number;
-  /** Total internal beam length marked so far */
-  internalBeamLength?: number;
-  /** Edge beam dimensions */
-  edgeBeamWidth?: number;
-  edgeBeamDepth?: number;
-  onEdgeBeamDimensionsChange?: (width: number, depth: number) => void;
-  /** Internal beam dimensions */
-  internalBeamWidth?: number;
-  internalBeamDepth?: number;
-  onInternalBeamDimensionsChange?: (width: number, depth: number) => void;
+  /** Current beam being marked (for details step) */
+  currentBeamPoints?: { x: number; y: number }[];
+  currentBeamLength?: number;
+  /** List of already saved edge beams */
+  savedEdgeBeams?: BeamData[];
+  /** List of already saved internal beams */
+  savedInternalBeams?: BeamData[];
   /** Waffle pod dimensions */
   wafflePodSize?: string;
   wafflePodThickness?: number;
   wafflePodTopThickness?: number;
   onWafflePodDimensionsChange?: (size: string, podThickness: number, topThickness: number) => void;
   
-  // Actions
-  onAddEdgeBeams: () => void;
-  onSkipEdgeBeams: () => void;
-  onDoneMarkingEdgeBeams: () => void;
-  onAddInternalBeams: () => void;
-  onSkipInternalBeams: () => void;
-  onDoneMarkingInternalBeams: () => void;
-  /** Called to add more internal beams after saving current dimensions */
-  onAddMoreInternalBeams: (currentDimensions: { width: number; depth: number }) => void;
-  /** Called with final internal beam dimensions to ensure they're captured before save */
-  onFinish: (finalInternalBeamDimensions?: { width: number; depth: number }) => void;
+  // Actions for slab naming step
+  onStartEdgeBeams: () => void;
+  onSkipAllBeams: () => void;
+  
+  // Actions for individual beam details
+  onSaveBeam: (beamData: { name: string; width: number; depth: number }) => void;
+  
+  // Actions for beam completion steps
+  onAddAnotherEdgeBeam: () => void;
+  onFinishEdgeBeams: () => void;
+  onStartInternalBeams: () => void;
+  onAddAnotherInternalBeam: () => void;
+  onFinishAllBeams: () => void;
+  
   onCancel: () => void;
 }
 
@@ -100,48 +109,62 @@ export function SlabBeamMarkupDialog({
   scopeId,
   slabArea = 0,
   slabPerimeter = 0,
-  edgeBeamLength = 0,
-  internalBeamLength = 0,
-  edgeBeamWidth = 450,
-  edgeBeamDepth = 450,
-  onEdgeBeamDimensionsChange,
-  internalBeamWidth = 300,
-  internalBeamDepth = 400,
-  onInternalBeamDimensionsChange,
+  currentBeamPoints = [],
+  currentBeamLength = 0,
+  savedEdgeBeams = [],
+  savedInternalBeams = [],
   wafflePodSize = '1090x1090',
   wafflePodThickness = 225,
   wafflePodTopThickness = 85,
   onWafflePodDimensionsChange,
-  onAddEdgeBeams,
-  onSkipEdgeBeams,
-  onDoneMarkingEdgeBeams,
-  onAddInternalBeams,
-  onSkipInternalBeams,
-  onDoneMarkingInternalBeams,
-  onAddMoreInternalBeams,
-  onFinish,
+  onStartEdgeBeams,
+  onSkipAllBeams,
+  onSaveBeam,
+  onAddAnotherEdgeBeam,
+  onFinishEdgeBeams,
+  onStartInternalBeams,
+  onAddAnotherInternalBeam,
+  onFinishAllBeams,
   onCancel,
 }: SlabBeamMarkupDialogProps) {
-  const [localEdgeWidth, setLocalEdgeWidth] = useState(edgeBeamWidth);
-  const [localEdgeDepth, setLocalEdgeDepth] = useState(edgeBeamDepth);
-  const [localInternalWidth, setLocalInternalWidth] = useState(internalBeamWidth);
-  const [localInternalDepth, setLocalInternalDepth] = useState(internalBeamDepth);
+  // Local state for beam details
+  const [beamName, setBeamName] = useState('');
+  const [beamWidth, setBeamWidth] = useState(450);
+  const [beamDepth, setBeamDepth] = useState(450);
+  
+  // Waffle pod state
   const [localPodSize, setLocalPodSize] = useState(wafflePodSize);
   const [localPodThickness, setLocalPodThickness] = useState(wafflePodThickness);
   const [localTopThickness, setLocalTopThickness] = useState(wafflePodTopThickness);
 
   const isWafflePod = scopeId === 'waffle_pod';
 
-  // Sync local state with props
+  // Generate default beam name based on type and count
   useEffect(() => {
-    setLocalEdgeWidth(edgeBeamWidth);
-    setLocalEdgeDepth(edgeBeamDepth);
-  }, [edgeBeamWidth, edgeBeamDepth]);
-
-  useEffect(() => {
-    setLocalInternalWidth(internalBeamWidth);
-    setLocalInternalDepth(internalBeamDepth);
-  }, [internalBeamWidth, internalBeamDepth]);
+    if (step === 'edge_beam_details') {
+      setBeamName(`Edge Beam ${savedEdgeBeams.length + 1}`);
+      // Use dimensions from last edge beam if available
+      if (savedEdgeBeams.length > 0) {
+        const lastBeam = savedEdgeBeams[savedEdgeBeams.length - 1];
+        setBeamWidth(lastBeam.width);
+        setBeamDepth(lastBeam.depth);
+      } else {
+        setBeamWidth(450);
+        setBeamDepth(450);
+      }
+    } else if (step === 'internal_beam_details') {
+      setBeamName(`Internal Beam ${savedInternalBeams.length + 1}`);
+      // Use dimensions from last internal beam if available
+      if (savedInternalBeams.length > 0) {
+        const lastBeam = savedInternalBeams[savedInternalBeams.length - 1];
+        setBeamWidth(lastBeam.width);
+        setBeamDepth(lastBeam.depth);
+      } else {
+        setBeamWidth(300);
+        setBeamDepth(400);
+      }
+    }
+  }, [step, savedEdgeBeams.length, savedInternalBeams.length]);
 
   useEffect(() => {
     setLocalPodSize(wafflePodSize);
@@ -149,24 +172,26 @@ export function SlabBeamMarkupDialog({
     setLocalTopThickness(wafflePodTopThickness);
   }, [wafflePodSize, wafflePodThickness, wafflePodTopThickness]);
 
-  const handleEdgeDimensionsSave = () => {
-    onEdgeBeamDimensionsChange?.(localEdgeWidth, localEdgeDepth);
-  };
-
-  const handleInternalDimensionsSave = () => {
-    onInternalBeamDimensionsChange?.(localInternalWidth, localInternalDepth);
-  };
-
   const handleWafflePodSave = () => {
     onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness);
-    onSkipEdgeBeams(); // Save immediately, no beam workflow
+    onSkipAllBeams();
   };
 
-  // Calculate total thickness for display
+  const handleSaveBeam = () => {
+    onSaveBeam({
+      name: beamName.trim() || (step === 'edge_beam_details' ? `Edge Beam ${savedEdgeBeams.length + 1}` : `Internal Beam ${savedInternalBeams.length + 1}`),
+      width: beamWidth,
+      depth: beamDepth,
+    });
+  };
+
+  // Calculate totals
+  const totalEdgeLength = savedEdgeBeams.reduce((sum, b) => sum + b.length, 0);
+  const totalInternalLength = savedInternalBeams.reduce((sum, b) => sum + b.length, 0);
   const totalThickness = localPodThickness + localTopThickness;
 
-  // Don't render dialog during marking steps - show floating bar instead
-  if (step === 'mark_edge_beams' || step === 'mark_internal_beams' || step === 'complete') {
+  // Don't render dialog during marking steps
+  if (step === 'mark_edge_beam' || step === 'mark_internal_beam' || step === 'complete') {
     return null;
   }
 
@@ -177,10 +202,14 @@ export function SlabBeamMarkupDialog({
     switch (step) {
       case 'name':
         return 'Name This Slab';
-      case 'edge_beam_dimensions':
-        return 'Edge Beam Dimensions';
-      case 'internal_beam_dimensions':
-        return 'Internal Beam Dimensions';
+      case 'edge_beam_details':
+        return 'Edge Beam Details';
+      case 'edge_beams_complete':
+        return 'Edge Beams Summary';
+      case 'internal_beam_details':
+        return 'Internal Beam Details';
+      case 'internal_beams_complete':
+        return 'Internal Beams Summary';
       default:
         return 'Slab Markup';
     }
@@ -192,11 +221,15 @@ export function SlabBeamMarkupDialog({
     }
     switch (step) {
       case 'name':
-        return `Give this ${scopeLabel.toLowerCase()} a descriptive name, then add edge beams if needed.`;
-      case 'edge_beam_dimensions':
-        return 'Enter the dimensions for the edge beams you marked.';
-      case 'internal_beam_dimensions':
-        return 'Enter the dimensions for the internal beams you marked.';
+        return `Give this ${scopeLabel.toLowerCase()} a descriptive name, then add beams if needed.`;
+      case 'edge_beam_details':
+        return 'Name this edge beam and enter its dimensions.';
+      case 'edge_beams_complete':
+        return 'Review edge beams or continue to internal beams.';
+      case 'internal_beam_details':
+        return 'Name this internal beam and enter its dimensions.';
+      case 'internal_beams_complete':
+        return 'Review all beams for this slab.';
       default:
         return '';
     }
@@ -313,7 +346,7 @@ export function SlabBeamMarkupDialog({
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Edge Beams</Label>
                     <p className="text-xs text-muted-foreground">
-                      Raft slabs typically have thickened edge beams around the perimeter. Would you like to mark them?
+                      Raft slabs typically have thickened edge beams around the perimeter. Each beam can have its own name and dimensions.
                     </p>
                   </div>
                 </>
@@ -321,93 +354,191 @@ export function SlabBeamMarkupDialog({
             </div>
           )}
 
-          {/* Step: Edge Beam Dimensions */}
-          {step === 'edge_beam_dimensions' && (
+          {/* Step: Edge Beam Details */}
+          {step === 'edge_beam_details' && (
             <div className="space-y-4 py-4">
-              {/* Length summary */}
+              {/* Length display */}
               <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Minus className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Edge Beam Length:</span>
+                  <span className="text-sm font-medium">Beam Length:</span>
                 </div>
-                <Badge variant="default">{edgeBeamLength.toFixed(1)} m</Badge>
+                <Badge variant="default">{currentBeamLength.toFixed(2)} m</Badge>
+              </div>
+
+              {/* Beam name */}
+              <div className="space-y-2">
+                <Label htmlFor="beam-name">Beam Name</Label>
+                <Input
+                  id="beam-name"
+                  value={beamName}
+                  onChange={(e) => setBeamName(e.target.value)}
+                  placeholder="e.g., North Edge, Front Wall"
+                  autoFocus
+                />
               </div>
 
               {/* Dimensions */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edge-width">Width (mm)</Label>
+                  <Label htmlFor="beam-width">Width (mm)</Label>
                   <Input
-                    id="edge-width"
+                    id="beam-width"
                     type="number"
-                    value={localEdgeWidth}
-                    onChange={(e) => setLocalEdgeWidth(Number(e.target.value))}
+                    value={beamWidth}
+                    onChange={(e) => setBeamWidth(Number(e.target.value))}
                     min={100}
                     max={1000}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edge-depth">Depth (mm)</Label>
+                  <Label htmlFor="beam-depth">Depth (mm)</Label>
                   <Input
-                    id="edge-depth"
+                    id="beam-depth"
                     type="number"
-                    value={localEdgeDepth}
-                    onChange={(e) => setLocalEdgeDepth(Number(e.target.value))}
+                    value={beamDepth}
+                    onChange={(e) => setBeamDepth(Number(e.target.value))}
                     min={100}
                     max={1500}
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Step: Edge Beams Complete Summary */}
+          {step === 'edge_beams_complete' && (
+            <div className="space-y-4 py-4">
+              {/* Edge beams list */}
+              {savedEdgeBeams.length > 0 ? (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Edge Beams Added ({savedEdgeBeams.length})</Label>
+                  <div className="border rounded-lg divide-y max-h-40 overflow-y-auto">
+                    {savedEdgeBeams.map((beam, idx) => (
+                      <div key={idx} className="p-2 flex justify-between items-center text-sm">
+                        <span className="font-medium">{beam.name}</span>
+                        <div className="flex gap-2 text-muted-foreground">
+                          <span>{beam.length.toFixed(1)}m</span>
+                          <span>•</span>
+                          <span>{beam.width}×{beam.depth}mm</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-2 bg-muted rounded-lg flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Edge Beam Length:</span>
+                    <span className="font-medium">{totalEdgeLength.toFixed(1)} m</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-muted rounded-lg text-center text-sm text-muted-foreground">
+                  No edge beams added yet
+                </div>
+              )}
 
               <Separator />
 
-              {/* Internal beam options */}
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Internal Beams</Label>
                 <p className="text-xs text-muted-foreground">
-                  Would you like to mark internal beams or thickenings within the slab?
+                  Would you like to add internal beams or thickenings within the slab?
                 </p>
               </div>
             </div>
           )}
 
-          {/* Step: Internal Beam Dimensions */}
-          {step === 'internal_beam_dimensions' && (
+          {/* Step: Internal Beam Details */}
+          {step === 'internal_beam_details' && (
             <div className="space-y-4 py-4">
-              {/* Length summary */}
+              {/* Length display */}
               <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Minus className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Internal Beam Length:</span>
+                  <span className="text-sm font-medium">Beam Length:</span>
                 </div>
-                <Badge variant="default">{internalBeamLength.toFixed(1)} m</Badge>
+                <Badge variant="default">{currentBeamLength.toFixed(2)} m</Badge>
+              </div>
+
+              {/* Beam name */}
+              <div className="space-y-2">
+                <Label htmlFor="beam-name">Beam Name</Label>
+                <Input
+                  id="beam-name"
+                  value={beamName}
+                  onChange={(e) => setBeamName(e.target.value)}
+                  placeholder="e.g., Grid Line A, Centre Thickening"
+                  autoFocus
+                />
               </div>
 
               {/* Dimensions */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="internal-width">Width (mm)</Label>
+                  <Label htmlFor="beam-width">Width (mm)</Label>
                   <Input
-                    id="internal-width"
+                    id="beam-width"
                     type="number"
-                    value={localInternalWidth}
-                    onChange={(e) => setLocalInternalWidth(Number(e.target.value))}
+                    value={beamWidth}
+                    onChange={(e) => setBeamWidth(Number(e.target.value))}
                     min={100}
                     max={1000}
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="internal-depth">Depth (mm)</Label>
+                  <Label htmlFor="beam-depth">Depth (mm)</Label>
                   <Input
-                    id="internal-depth"
+                    id="beam-depth"
                     type="number"
-                    value={localInternalDepth}
-                    onChange={(e) => setLocalInternalDepth(Number(e.target.value))}
+                    value={beamDepth}
+                    onChange={(e) => setBeamDepth(Number(e.target.value))}
                     min={100}
                     max={1500}
                   />
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* Step: Internal Beams Complete Summary */}
+          {step === 'internal_beams_complete' && (
+            <div className="space-y-4 py-4">
+              {/* Edge beams summary */}
+              {savedEdgeBeams.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Edge Beams ({savedEdgeBeams.length})</Label>
+                  <div className="p-2 bg-muted rounded-lg flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Length:</span>
+                    <span className="font-medium">{totalEdgeLength.toFixed(1)} m</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Internal beams list */}
+              {savedInternalBeams.length > 0 ? (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Internal Beams ({savedInternalBeams.length})</Label>
+                  <div className="border rounded-lg divide-y max-h-40 overflow-y-auto">
+                    {savedInternalBeams.map((beam, idx) => (
+                      <div key={idx} className="p-2 flex justify-between items-center text-sm">
+                        <span className="font-medium">{beam.name}</span>
+                        <div className="flex gap-2 text-muted-foreground">
+                          <span>{beam.length.toFixed(1)}m</span>
+                          <span>•</span>
+                          <span>{beam.width}×{beam.depth}mm</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="p-2 bg-muted rounded-lg flex justify-between text-sm">
+                    <span className="text-muted-foreground">Total Internal Beam Length:</span>
+                    <span className="font-medium">{totalInternalLength.toFixed(1)} m</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 bg-muted rounded-lg text-center text-sm text-muted-foreground">
+                  No internal beams added yet
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -433,67 +564,85 @@ export function SlabBeamMarkupDialog({
               </Button>
               <Button 
                 variant="secondary" 
-                onClick={onSkipEdgeBeams}
+                onClick={onSkipAllBeams}
                 className="w-full sm:w-auto gap-1"
               >
                 <SkipForward className="h-4 w-4" />
                 Skip Beams
               </Button>
-              <Button onClick={onAddEdgeBeams} className="w-full sm:w-auto gap-1">
-                Add Edge Beams
+              <Button onClick={onStartEdgeBeams} className="w-full sm:w-auto gap-1">
+                Add Edge Beam
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </>
           )}
 
-          {/* Step: Edge Beam Dimensions */}
-          {step === 'edge_beam_dimensions' && (
+          {/* Step: Edge Beam Details */}
+          {step === 'edge_beam_details' && (
             <>
-              <Button 
-                variant="secondary" 
-                onClick={() => {
-                  handleEdgeDimensionsSave();
-                  onSkipInternalBeams();
-                }}
-                className="w-full sm:w-auto gap-1"
-              >
+              <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
+                Cancel
+              </Button>
+              <Button onClick={handleSaveBeam} className="w-full sm:w-auto gap-1">
                 <Check className="h-4 w-4" />
-                Finish
-              </Button>
-              <Button 
-                onClick={() => {
-                  handleEdgeDimensionsSave();
-                  onAddInternalBeams();
-                }} 
-                className="w-full sm:w-auto gap-1"
-              >
-                Add Internal Beams
-                <ArrowRight className="h-4 w-4" />
+                Save Beam
               </Button>
             </>
           )}
 
-          {/* Step: Internal Beam Dimensions */}
-          {step === 'internal_beam_dimensions' && (
+          {/* Step: Edge Beams Complete */}
+          {step === 'edge_beams_complete' && (
             <>
+              <Button 
+                variant="outline"
+                onClick={onAddAnotherEdgeBeam}
+                className="w-full sm:w-auto gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Add Edge Beam
+              </Button>
               <Button 
                 variant="secondary"
-                onClick={() => {
-                  onAddMoreInternalBeams({ width: localInternalWidth, depth: localInternalDepth });
-                }} 
-                className="w-full sm:w-auto gap-1"
-              >
-                <ArrowRight className="h-4 w-4" />
-                Add More
-              </Button>
-              <Button 
-                onClick={() => {
-                  onFinish({ width: localInternalWidth, depth: localInternalDepth });
-                }} 
+                onClick={onFinishEdgeBeams}
                 className="w-full sm:w-auto gap-1"
               >
                 <Check className="h-4 w-4" />
-                Save All
+                Finish (No Internal)
+              </Button>
+              <Button onClick={onStartInternalBeams} className="w-full sm:w-auto gap-1">
+                Add Internal Beam
+                <ArrowRight className="h-4 w-4" />
+              </Button>
+            </>
+          )}
+
+          {/* Step: Internal Beam Details */}
+          {step === 'internal_beam_details' && (
+            <>
+              <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
+                Cancel
+              </Button>
+              <Button onClick={handleSaveBeam} className="w-full sm:w-auto gap-1">
+                <Check className="h-4 w-4" />
+                Save Beam
+              </Button>
+            </>
+          )}
+
+          {/* Step: Internal Beams Complete */}
+          {step === 'internal_beams_complete' && (
+            <>
+              <Button 
+                variant="outline"
+                onClick={onAddAnotherInternalBeam}
+                className="w-full sm:w-auto gap-1"
+              >
+                <Plus className="h-4 w-4" />
+                Add Internal Beam
+              </Button>
+              <Button onClick={onFinishAllBeams} className="w-full sm:w-auto gap-1">
+                <Check className="h-4 w-4" />
+                Finish Slab
               </Button>
             </>
           )}
@@ -503,12 +652,13 @@ export function SlabBeamMarkupDialog({
   );
 }
 
-// Floating bar component for when user is marking beams
+// Floating bar component for when user is marking a single beam
 interface SlabBeamMarkingBarProps {
   slabName: string;
   beamType: 'edge' | 'internal';
-  segmentCount: number;
+  beamNumber: number;
   currentLength: number;
+  pointCount: number;
   onUndo: () => void;
   canUndo: boolean;
   onDone: () => void;
@@ -518,14 +668,15 @@ interface SlabBeamMarkingBarProps {
 export function SlabBeamMarkingBar({
   slabName,
   beamType,
-  segmentCount,
+  beamNumber,
   currentLength,
+  pointCount,
   onUndo,
   canUndo,
   onDone,
   onCancel,
 }: SlabBeamMarkingBarProps) {
-  const beamLabel = beamType === 'edge' ? 'Edge Beams' : 'Internal Beams';
+  const beamLabel = beamType === 'edge' ? 'Edge Beam' : 'Internal Beam';
   const beamColor = beamType === 'edge' ? EDGE_BEAM_COLOR : INTERNAL_BEAM_COLOR;
   
   return (
@@ -535,7 +686,7 @@ export function SlabBeamMarkingBar({
         <div className="flex items-center gap-2">
           <Minus className="h-5 w-5 shrink-0" style={{ color: beamColor }} />
           <span className="font-semibold text-foreground">
-            Marking {beamLabel}
+            Drawing {beamLabel} #{beamNumber}
           </span>
           <span className="text-muted-foreground">for</span>
           <Badge variant="secondary">{slabName || 'Slab'}</Badge>
@@ -548,14 +699,14 @@ export function SlabBeamMarkingBar({
         <div className="flex items-center gap-3 flex-1">
           <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
             <span className="text-xs text-muted-foreground">Points:</span>
-            <span className="font-bold text-foreground">{segmentCount}</span>
+            <span className="font-bold text-foreground">{pointCount}</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1.5 bg-muted rounded-lg">
             <span className="text-xs text-muted-foreground">Length:</span>
-            <span className="font-bold text-foreground">{currentLength.toFixed(1)}m</span>
+            <span className="font-bold text-foreground">{currentLength.toFixed(2)}m</span>
           </div>
           <span className="text-xs text-muted-foreground hidden sm:inline">
-            Click to add points along the beam, then click Done
+            Click to add points, then Done to name this beam
           </span>
         </div>
         
@@ -563,7 +714,7 @@ export function SlabBeamMarkingBar({
         <div className="flex items-center gap-2">
           {canUndo && (
             <Button variant="outline" size="sm" onClick={onUndo} className="h-9">
-              Undo Point
+              Undo
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={onCancel} className="h-9 text-muted-foreground">
@@ -572,11 +723,12 @@ export function SlabBeamMarkingBar({
           <Button 
             size="lg" 
             onClick={onDone} 
+            disabled={pointCount < 2}
             className="h-11 px-6 font-semibold text-base shadow-lg gap-2 text-white"
             style={{ backgroundColor: beamColor }}
           >
             <Check className="h-5 w-5" />
-            Done with {beamLabel}
+            Done
           </Button>
         </div>
       </div>
