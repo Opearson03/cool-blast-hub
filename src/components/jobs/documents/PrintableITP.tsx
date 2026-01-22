@@ -105,7 +105,7 @@ export const PrintableITP = forwardRef<HTMLDivElement, PrintableITPProps>(
               <img
                 src={business.logo_url}
                 alt="Company logo"
-                className="h-10 w-10 object-contain"
+                className="max-h-10 max-w-[80px] w-auto h-auto object-contain"
               />
             ) : (
               <div className="h-10 w-10 bg-gray-200 flex items-center justify-center text-gray-500 text-[10px]">

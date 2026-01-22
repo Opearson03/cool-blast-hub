@@ -413,7 +413,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                   <img
                     src={business.logo_url}
                     alt="Company logo"
-                    style={{ height: "60px", width: "60px", objectFit: "contain", backgroundColor: "white", borderRadius: "8px", padding: "4px" }}
+                    style={{ maxHeight: "60px", maxWidth: "120px", width: "auto", height: "auto", objectFit: "contain", backgroundColor: "white", borderRadius: "8px", padding: "4px" }}
                   />
                 )}
                 <div style={{ color: "white" }}>
@@ -638,7 +638,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 <img
                   src={business.logo_url}
                   alt="Company logo"
-                  style={{ height: "48px", objectFit: "contain", marginBottom: "8px" }}
+                  style={{ maxHeight: "48px", maxWidth: "120px", width: "auto", height: "auto", objectFit: "contain", marginBottom: "8px" }}
                 />
               )}
               <h1 className="text-lg font-semibold text-gray-900">{business?.name || "Company Name"}</h1>
@@ -838,7 +838,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               <img
                 src={business.logo_url}
                 alt="Company logo"
-                style={{ height: "64px", width: "64px", objectFit: "contain" }}
+                style={{ maxHeight: "64px", maxWidth: "140px", width: "auto", height: "auto", objectFit: "contain" }}
               />
             )}
             <div>
