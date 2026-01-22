@@ -582,11 +582,11 @@ export function PlanTakeoffStep({
   };
 
   // Handler for completing pier marking
-  const handlePierDimensionsConfirm = useCallback(async (diameter: number, depth: number) => {
+  const handlePierDimensionsConfirm = useCallback(async (diameter: number, depth: number, name: string) => {
     if (!activeScope || !currentFileId || pierPoints.length === 0) return;
 
     const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-    await addPierMarkups(currentFileId, activeScope, pierPoints, diameter, depth, color, currentPage);
+    await addPierMarkups(currentFileId, activeScope, pierPoints, diameter, depth, color, currentPage, name);
 
     // Clear state
     setPierPoints([]);
@@ -595,11 +595,11 @@ export function PlanTakeoffStep({
   }, [activeScope, currentFileId, pierPoints, selectedScopes, addPierMarkups, currentPage]);
 
   // Handler for completing pier marking AND continuing to add more
-  const handlePierDimensionsConfirmAndAddAnother = useCallback(async (diameter: number, depth: number) => {
+  const handlePierDimensionsConfirmAndAddAnother = useCallback(async (diameter: number, depth: number, name: string) => {
     if (!activeScope || !currentFileId || pierPoints.length === 0) return;
 
     const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-    await addPierMarkups(currentFileId, activeScope, pierPoints, diameter, depth, color, currentPage);
+    await addPierMarkups(currentFileId, activeScope, pierPoints, diameter, depth, color, currentPage, name);
 
     // Clear points but keep tool and scope active for more marking
     setPierPoints([]);
