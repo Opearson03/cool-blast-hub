@@ -258,6 +258,7 @@ export default function AdminJobDetail() {
                   job_number: job.job_number,
                   site_address: job.site_address,
                   builder_client: job.builder_client,
+                  source_estimate_id: job.source_estimate_id,
                 }}
               />
             </TabsContent>

@@ -41,6 +41,7 @@ interface Job {
   job_number: string | null;
   site_address: string;
   builder_client: string | null;
+  source_estimate_id?: string | null;
 }
 
 interface SendVariationDialogProps {
@@ -48,6 +49,7 @@ interface SendVariationDialogProps {
   onOpenChange: (open: boolean) => void;
   variation: Variation;
   job: Job;
+  defaultClientEmail?: string | null;
 }
 
 export function SendVariationDialog({
@@ -55,6 +57,7 @@ export function SendVariationDialog({
   onOpenChange,
   variation,
   job,
+  defaultClientEmail,
 }: SendVariationDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -79,11 +82,35 @@ export function SendVariationDialog({
     enabled: !!businessId && open,
   });
 
+  // Fetch client email from source estimate if available
+  const { data: sourceEstimate } = useQuery({
+    queryKey: ["source-estimate-email", job.source_estimate_id],
+    queryFn: async () => {
+      if (!job.source_estimate_id) return null;
+      const { data, error } = await supabase
+        .from("estimates")
+        .select("client_email")
+        .eq("id", job.source_estimate_id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!job.source_estimate_id && open,
+  });
+
   useEffect(() => {
-    if (open && job.builder_client) {
-      setClientName(job.builder_client);
+    if (open) {
+      // Prefill client name from job
+      if (job.builder_client) {
+        setClientName(job.builder_client);
+      }
+      // Prefill client email from source estimate or passed default
+      const emailToUse = defaultClientEmail || sourceEstimate?.client_email || "";
+      if (emailToUse) {
+        setClientEmail(emailToUse);
+      }
     }
-  }, [open, job.builder_client]);
+  }, [open, job.builder_client, defaultClientEmail, sourceEstimate?.client_email]);
 
   const sendMutation = useMutation({
     mutationFn: async () => {

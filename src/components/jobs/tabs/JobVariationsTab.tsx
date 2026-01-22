@@ -40,6 +40,7 @@ interface Job {
   job_number: string | null;
   site_address: string;
   builder_client: string | null;
+  source_estimate_id?: string | null;
 }
 
 interface JobVariationsTabProps {
@@ -167,6 +168,20 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setEditingVariation(null);
+  };
+
+  // When a new variation is created, open the send dialog immediately
+  const handleVariationCreated = (variation: { 
+    id: string; 
+    variation_number: string; 
+    description: string; 
+    reason: string | null; 
+    items: VariationItem[]; 
+    amount: number; 
+    days_extension: number; 
+    notes: string | null; 
+  }) => {
+    setSendVariation(variation as Variation);
   };
 
   const formatCurrency = (amount: number) => {
@@ -421,6 +436,7 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
         businessId={businessId}
         existingCount={variations.length}
         editVariation={editingVariation}
+        onCreated={editingVariation ? undefined : handleVariationCreated}
       />
 
       {/* Send to Client Dialog */}
