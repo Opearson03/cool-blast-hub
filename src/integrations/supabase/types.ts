@@ -989,6 +989,80 @@ export type Database = {
           },
         ]
       }
+      job_variations: {
+        Row: {
+          amount: number
+          approval_reference: string | null
+          approved_at: string | null
+          approved_by: string | null
+          business_id: string
+          created_at: string | null
+          created_by: string | null
+          days_extension: number | null
+          description: string
+          id: string
+          items: Json
+          job_id: string
+          notes: string | null
+          reason: string | null
+          status: string
+          submitted_at: string | null
+          submitted_to_email: string | null
+          updated_at: string | null
+          variation_number: string
+        }
+        Insert: {
+          amount?: number
+          approval_reference?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id: string
+          created_at?: string | null
+          created_by?: string | null
+          days_extension?: number | null
+          description: string
+          id?: string
+          items?: Json
+          job_id: string
+          notes?: string | null
+          reason?: string | null
+          status?: string
+          submitted_at?: string | null
+          submitted_to_email?: string | null
+          updated_at?: string | null
+          variation_number: string
+        }
+        Update: {
+          amount?: number
+          approval_reference?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          days_extension?: number | null
+          description?: string
+          id?: string
+          items?: Json
+          job_id?: string
+          notes?: string | null
+          reason?: string | null
+          status?: string
+          submitted_at?: string | null
+          submitted_to_email?: string | null
+          updated_at?: string | null
+          variation_number?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_variations_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       jobs: {
         Row: {
           builder_client: string | null
