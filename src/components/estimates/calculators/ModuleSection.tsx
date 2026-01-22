@@ -1,4 +1,4 @@
-import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierConfig, FootingConfig, LinearSection } from "@/lib/estimate-components/types";
+import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -221,7 +221,7 @@ export function ModuleSection({
   const areas = (scopeData?.areas || []) as MeasurementArea[];
   const edgeBeams = (scopeData?.edgeBeams || []) as BeamConfig[];
   const internalBeams = (scopeData?.beams || []) as BeamConfig[];
-  const piers = (scopeData?.piers || []) as PierConfig[];
+  const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
   const footings = (scopeData?.footings || scopeData?.linearSections || []) as (FootingConfig | LinearSection)[];
   // Get visible questions
   const visibleQuestions = module.questions.filter(
@@ -355,11 +355,11 @@ export function ModuleSection({
                       )}
                       
                       {/* Inline per-pier inputs for Piers reinforcement */}
-                      {(isPierStartersSection || isPierCagesSection) && onScopeDataChange && piers.length > 0 && (answers.has_starters || answers.is_reinforced) && (
+                      {(isPierStartersSection || isPierCagesSection) && onScopeDataChange && pierGroups.length > 0 && (answers.has_starters || answers.is_reinforced) && (
                         <div className="mt-4">
                           <PierReinforcementInput
-                            piers={piers}
-                            onChange={(newPiers) => onScopeDataChange('piers', newPiers)}
+                            pierGroups={pierGroups}
+                            onChange={(newPierGroups) => onScopeDataChange('pierGroups', newPierGroups)}
                             defaultHasStarters={answers.has_starters || false}
                             defaultStarterCount={4}
                             defaultStarterSize="N16"
@@ -369,7 +369,7 @@ export function ModuleSection({
                             defaultVerticalBarSize="N16"
                             defaultLigSize="R10"
                             defaultLigCentres={200}
-                            label="Pier Configurations"
+                            label="Pier Groups"
                           />
                         </div>
                       )}
