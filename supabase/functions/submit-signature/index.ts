@@ -1398,6 +1398,104 @@ serve(async (req: Request) => {
               console.error('Error uploading signed PDF:', uploadErr);
             }
           }
+
+          // Transfer quote plans to job documents
+          console.log('Transferring quote plans to job documents...');
+          try {
+            // First get the estimate's takeoff
+            const { data: takeoff, error: takeoffError } = await supabase
+              .from('estimate_takeoffs')
+              .select('id')
+              .eq('estimate_id', estimate.id)
+              .single();
+
+            if (takeoffError && takeoffError.code !== 'PGRST116') {
+              console.error('Error fetching takeoff:', takeoffError);
+            }
+
+            if (takeoff) {
+              // Get all takeoff files
+              const { data: takeoffFiles, error: filesError } = await supabase
+                .from('takeoff_files')
+                .select('*')
+                .eq('takeoff_id', takeoff.id)
+                .order('sort_order', { ascending: true });
+
+              if (filesError) {
+                console.error('Error fetching takeoff files:', filesError);
+              }
+
+              if (takeoffFiles && takeoffFiles.length > 0) {
+                console.log(`Found ${takeoffFiles.length} plan files to transfer`);
+                
+                for (let i = 0; i < takeoffFiles.length; i++) {
+                  const file = takeoffFiles[i];
+                  try {
+                    // Fetch the original file
+                    const response = await fetch(file.file_url);
+                    if (!response.ok) {
+                      console.error(`Failed to fetch file: ${file.file_name}`);
+                      continue;
+                    }
+                    
+                    const arrayBuffer = await response.arrayBuffer();
+                    const bytes = new Uint8Array(arrayBuffer);
+                    
+                    // Generate new filename for job documents
+                    const planNumber = takeoffFiles.length > 1 ? ` ${i + 1}` : '';
+                    const newFileName = `${newJob.id}/${Date.now()}-quote-plan${planNumber}-${file.file_name}`;
+                    
+                    // Upload to documents storage
+                    const { error: uploadError } = await supabase.storage
+                      .from('documents')
+                      .upload(newFileName, bytes, {
+                        contentType: file.file_type || 'application/pdf',
+                        upsert: false
+                      });
+
+                    if (uploadError) {
+                      console.error(`Failed to upload plan file: ${file.file_name}`, uploadError);
+                      continue;
+                    }
+
+                    const { data: urlData } = supabase.storage
+                      .from('documents')
+                      .getPublicUrl(newFileName);
+
+                    // Create document record
+                    const displayName = takeoffFiles.length > 1 
+                      ? `Quote Building Plans (${i + 1} of ${takeoffFiles.length})`
+                      : 'Quote Building Plans';
+                      
+                    const { error: docError } = await supabase
+                      .from('documents')
+                      .insert({
+                        business_id: estimate.business_id,
+                        file_name: displayName,
+                        file_type: file.file_type || 'application/pdf',
+                        file_url: urlData.publicUrl,
+                        category: 'job',
+                        reference_id: newJob.id
+                      });
+
+                    if (docError) {
+                      console.error('Failed to create plan document record:', docError);
+                    } else {
+                      console.log(`Plan transferred: ${displayName}`);
+                    }
+                  } catch (fileErr) {
+                    console.error(`Error transferring file ${file.file_name}:`, fileErr);
+                  }
+                }
+              } else {
+                console.log('No plan files found for this estimate');
+              }
+            } else {
+              console.log('No takeoff found for this estimate');
+            }
+          } catch (plansErr) {
+            console.error('Error transferring plans:', plansErr);
+          }
         }
       } catch (jobErr) {
         console.error('Error creating job:', jobErr);
