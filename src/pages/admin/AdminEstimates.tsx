@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Square, Home, Building2 } from "lucide-react";
+import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Square, Home, Building2, Copy } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { SEOHead } from "@/components/seo/SEOHead";
@@ -20,6 +21,7 @@ import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
 import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracker";
 import { EstimateQuotaDialog } from "@/components/estimates/EstimateQuotaDialog";
+import { DuplicateEstimateDialog } from "@/components/estimates/DuplicateEstimateDialog";
 import { useEstimateQuota } from "@/hooks/useEstimateQuota";
 
 type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
@@ -44,6 +46,9 @@ interface Estimate {
   selected_scopes: string[] | null;
   site_visit_date: string | null;
   follow_up_date: string | null;
+  deposit_percentage: number | null;
+  quote_validity_days: number | null;
+  payment_terms_type: string | null;
 }
 
 const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Square }> = {
@@ -66,6 +71,7 @@ export default function AdminEstimates() {
   const [editingEstimate, setEditingEstimate] = useState<Estimate | null>(null);
   const [viewingEstimate, setViewingEstimate] = useState<Estimate | null>(null);
   const [quotaDialogOpen, setQuotaDialogOpen] = useState(false);
+  const [duplicatingEstimate, setDuplicatingEstimate] = useState<Estimate | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -577,6 +583,11 @@ export default function AdminEstimates() {
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onClick={(e) => handleEdit(estimate, e)}>Edit</DropdownMenuItem>
+                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDuplicatingEstimate(estimate); }}>
+                              <Copy className="w-4 h-4 mr-2" />
+                              Duplicate
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
                               Mark as Sent
                             </DropdownMenuItem>
@@ -586,6 +597,7 @@ export default function AdminEstimates() {
                             <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
                               Mark as Declined
                             </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem 
                               className="text-destructive"
                               onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(estimate.id); }}
@@ -678,6 +690,11 @@ export default function AdminEstimates() {
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={(e) => handleEdit(estimate, e)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDuplicatingEstimate(estimate); }}>
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Duplicate
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
                                   Mark as Sent
                                 </DropdownMenuItem>
@@ -687,6 +704,7 @@ export default function AdminEstimates() {
                                 <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
                                   Mark as Declined
                                 </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem 
                                   className="text-destructive"
                                   onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(estimate.id); }}
@@ -730,6 +748,13 @@ export default function AdminEstimates() {
         used={used}
         limit={limit || 1}
         resetsAt={resetsAt}
+      />
+
+      <DuplicateEstimateDialog
+        estimate={duplicatingEstimate}
+        open={!!duplicatingEstimate}
+        onOpenChange={(open) => !open && setDuplicatingEstimate(null)}
+        onDuplicated={() => refreshQuota()}
       />
     </AdminLayout>
   );
