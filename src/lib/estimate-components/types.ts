@@ -21,6 +21,12 @@ export interface ComponentQuestion {
   placeholder?: string;
   
   /** 
+   * Section label - displays a visual separator/header before this question
+   * Used to group related questions visually
+   */
+  sectionLabel?: string;
+  
+  /** 
    * Function to derive this field's value from scope data, module answers, and price map
    * Returns undefined if no auto-fill should occur
    */

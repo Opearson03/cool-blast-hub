@@ -247,19 +247,54 @@ export function ModuleSection({
         </AccordionTrigger>
         <AccordionContent className="pb-6">
           <div className="space-y-6">
-            {/* Questions - single column on mobile for easier touch */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-x-6">
-              {visibleQuestions.map((question) => (
-                <QuestionInput
-                  key={question.id}
-                  question={question}
-                  value={answers[question.id]}
-                  onChange={(val) => onAnswerChange(question.id, val)}
-                  allAnswers={answers}
-                  scopeData={scopeData}
-                />
-              ))}
-            </div>
+            {/* Questions - grouped by section */}
+            {(() => {
+              // Group questions by section
+              let currentSection: string | null = null;
+              const elements: React.ReactNode[] = [];
+              let sectionQuestions: typeof visibleQuestions = [];
+
+              const flushSection = () => {
+                if (sectionQuestions.length > 0) {
+                  elements.push(
+                    <div key={`section-${currentSection || 'default'}`} className="space-y-4">
+                      {currentSection && (
+                        <div className="flex items-center gap-2 pt-2 first:pt-0">
+                          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                            {currentSection}
+                          </h4>
+                          <div className="flex-1 h-px bg-border" />
+                        </div>
+                      )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-x-6">
+                        {sectionQuestions.map((question) => (
+                          <QuestionInput
+                            key={question.id}
+                            question={question}
+                            value={answers[question.id]}
+                            onChange={(val) => onAnswerChange(question.id, val)}
+                            allAnswers={answers}
+                            scopeData={scopeData}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                  sectionQuestions = [];
+                }
+              };
+
+              visibleQuestions.forEach((question) => {
+                if (question.sectionLabel && question.sectionLabel !== currentSection) {
+                  flushSection();
+                  currentSection = question.sectionLabel;
+                }
+                sectionQuestions.push(question);
+              });
+              flushSection();
+
+              return elements;
+            })()}
 
             {/* Line items breakdown */}
             {lineItems.length > 0 && (
