@@ -15,6 +15,33 @@ interface ScopeData {
   [key: string]: any;
 }
 
+// Interface for per-area reinforcement configuration (raft slabs)
+interface MeasurementAreaBOQ {
+  id?: string;
+  name: string;
+  length?: number;
+  width?: number;
+  _actualArea?: number;
+  reo_type?: string;
+  mesh_type?: string;
+  bar_size?: string;
+  bar_spacing?: string;
+  bar_layers?: string;
+}
+
+// Interface for per-beam reinforcement configuration (raft slabs)
+interface BeamConfigBOQ {
+  id?: string;
+  name: string;
+  length?: number;
+  width?: number;
+  depth?: number;
+  tm_type?: string;
+  add_ligs?: boolean;
+  lig_size?: string;
+  lig_centres?: number;
+}
+
 interface ScopeAnswers {
   area?: number;
   perimeter?: number;
@@ -26,6 +53,11 @@ interface ScopeAnswers {
   width?: number;
   trench_length?: number;
   connection_length?: number;
+  areas?: MeasurementAreaBOQ[];
+  edgeBeams?: BeamConfigBOQ[];
+  beams?: BeamConfigBOQ[];
+  internal_beams_length?: number;
+  edge_beam_length?: number;
   [key: string]: any;
 }
 
@@ -58,6 +90,38 @@ interface ModuleAnswers {
     rebar_caps?: boolean;
     rebar_caps_count?: number;
     rebar_cap_price?: number;
+  };
+  "reinforcement-raft"?: {
+    slab_reo_type?: string;
+    mesh_type?: string;
+    mesh_lap_allowance?: number;
+    mesh_price_per_sheet?: number;
+    bar_size?: string;
+    bar_spacing?: string;
+    bar_layers?: string;
+    rebar_price_per_tonne?: number;
+    bar_chairs?: boolean;
+    chair_type?: string;
+    chairs_per_m2?: number;
+    chair_price_per_100?: number;
+    tie_wire?: boolean;
+    tie_wire_coils?: number;
+    tie_wire_price?: number;
+    edge_beam_reo?: boolean;
+    edge_beam_tm_type?: string;
+    edge_beam_tm_price?: number;
+    edge_beam_add_ligs?: boolean;
+    edge_beam_lig_size?: string;
+    edge_beam_lig_centres?: number;
+    edge_beam_lig_price?: number;
+    internal_beam_reo?: boolean;
+    internal_beam_tm_type?: string;
+    internal_beam_tm_price?: number;
+    internal_beam_add_ligs?: boolean;
+    internal_beam_lig_size?: string;
+    internal_beam_lig_centres?: number;
+    internal_beam_lig_price?: number;
+    reo_delivery?: number;
   };
   "reinforcement-piers"?: {
     is_reinforced?: boolean;
@@ -491,6 +555,330 @@ export function generateBOQFromEstimate(
           reoSlabModule.rebar_caps_count,
           "pcs",
           reoSlabModule.rebar_cap_price
+        );
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // REINFORCEMENT-RAFT MODULE (per-area and per-beam breakdown)
+    // ═══════════════════════════════════════════════════════════════
+    const reoRaftModule = moduleAnswers["reinforcement-raft"];
+    if (reoRaftModule) {
+      const LAP_ALLOWANCE = 1.125;
+      const SHEET_AREA = 14.4; // 6m x 2.4m standard mesh sheet
+
+      // Default settings from module answers
+      const defaultSlabReoType = reoRaftModule.slab_reo_type || 'mesh';
+      const defaultMeshType = reoRaftModule.mesh_type || 'SL82';
+      const defaultBarSize = reoRaftModule.bar_size || 'N12';
+      const defaultBarSpacing = reoRaftModule.bar_spacing || '200';
+      const defaultBarLayers = reoRaftModule.bar_layers || '2';
+      const lapPercent = 1 + (Number(reoRaftModule.mesh_lap_allowance) || 12.5) / 100;
+      const pricePerTonne = reoRaftModule.rebar_price_per_tonne || 2100;
+
+      // Get areas and beams from scope answers
+      const areas: MeasurementAreaBOQ[] = scopeAnswers.areas || [];
+      const edgeBeams: BeamConfigBOQ[] = scopeAnswers.edgeBeams || [];
+      const internalBeams: BeamConfigBOQ[] = scopeAnswers.beams || [];
+      const totalArea = scopeAnswers.area || 0;
+
+      // ═══════════════════════════════════════════════════════════════
+      // SLAB SURFACE REINFORCEMENT (per area)
+      // ═══════════════════════════════════════════════════════════════
+      if (areas.length > 0) {
+        areas.forEach((area) => {
+          const reoType = area.reo_type || defaultSlabReoType;
+          const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
+          
+          if (areaValue <= 0 || reoType === 'none' || reoType === 'fiber') return;
+
+          if (reoType === 'mesh') {
+            const meshType = area.mesh_type || defaultMeshType;
+            const pricePerSheet = reoRaftModule.mesh_price_per_sheet || 95;
+            const totalMeshArea = areaValue * lapPercent;
+            const sheets = Math.ceil(totalMeshArea / SHEET_AREA);
+
+            addItem(
+              "reinforcement",
+              `${area.name} – ${meshType} Mesh`,
+              sheets,
+              "sheets",
+              pricePerSheet,
+              `${Math.round(areaValue)}m² coverage`
+            );
+          }
+
+          if (reoType === 'bar') {
+            const barSize = area.bar_size || defaultBarSize;
+            const spacing = Number(area.bar_spacing || defaultBarSpacing);
+            const layers = Number(area.bar_layers || defaultBarLayers);
+            const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
+
+            const barsPerMetre = 1000 / spacing;
+            const sideLength = Math.sqrt(areaValue);
+            const barsPerDirection = Math.ceil(sideLength * barsPerMetre);
+            const totalBarLength = barsPerDirection * sideLength * 2 * layers * LAP_ALLOWANCE;
+            const totalWeight = totalBarLength * weightPerMetre;
+
+            if (totalWeight > 0) {
+              const unitPrice = pricePerTonne / 1000;
+              addItem(
+                "reinforcement",
+                `${area.name} – ${barSize} @ ${spacing}mm`,
+                Math.round(totalWeight),
+                "kg",
+                Math.round(unitPrice * 1000) / 1000,
+                `${layers} layer(s)`
+              );
+            }
+          }
+        });
+      } else if (totalArea > 0 && defaultSlabReoType !== 'none' && defaultSlabReoType !== 'fiber') {
+        // Fallback for single area without per-area breakdown
+        if (defaultSlabReoType === 'mesh') {
+          const pricePerSheet = reoRaftModule.mesh_price_per_sheet || 95;
+          const totalMeshArea = totalArea * lapPercent;
+          const sheets = Math.ceil(totalMeshArea / SHEET_AREA);
+
+          addItem(
+            "reinforcement",
+            `${defaultMeshType} Mesh (${label})`,
+            sheets,
+            "sheets",
+            pricePerSheet
+          );
+        } else if (defaultSlabReoType === 'bar') {
+          const spacing = Number(defaultBarSpacing);
+          const layers = Number(defaultBarLayers);
+          const weightPerMetre = REBAR_WEIGHTS[defaultBarSize] || 0.888;
+
+          const barsPerMetre = 1000 / spacing;
+          const sideLength = Math.sqrt(totalArea);
+          const barsPerDirection = Math.ceil(sideLength * barsPerMetre);
+          const totalBarLength = barsPerDirection * sideLength * 2 * layers * LAP_ALLOWANCE;
+          const totalWeight = totalBarLength * weightPerMetre;
+
+          if (totalWeight > 0) {
+            const unitPrice = pricePerTonne / 1000;
+            addItem(
+              "reinforcement",
+              `${defaultBarSize} Rebar @ ${spacing}mm (${label})`,
+              Math.round(totalWeight),
+              "kg",
+              Math.round(unitPrice * 1000) / 1000
+            );
+          }
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // ACCESSORIES (bar chairs, tie wire)
+      // ═══════════════════════════════════════════════════════════════
+      const hasAnySlabReo = areas.length > 0 
+        ? areas.some(a => (a.reo_type || defaultSlabReoType) !== 'none' && (a.reo_type || defaultSlabReoType) !== 'fiber')
+        : defaultSlabReoType !== 'none' && defaultSlabReoType !== 'fiber';
+
+      if (reoRaftModule.bar_chairs && hasAnySlabReo) {
+        const chairsPerM2 = reoRaftModule.chairs_per_m2 || 4;
+        const bagPrice = reoRaftModule.chair_price_per_100 || 35;
+        
+        const effectiveArea = areas.length > 0 
+          ? areas.reduce((sum, a) => {
+              const reoType = a.reo_type || defaultSlabReoType;
+              if (reoType === 'none' || reoType === 'fiber') return sum;
+              return sum + (a._actualArea || (Number(a.length) || 0) * (Number(a.width) || 0));
+            }, 0)
+          : totalArea;
+        
+        if (effectiveArea > 0) {
+          const totalChairs = Math.ceil(effectiveArea * chairsPerM2);
+          const bags = Math.ceil(totalChairs / 100);
+          const chairType = reoRaftModule.chair_type || '7590C';
+          const chairLabels: Record<string, string> = {
+            '2540C': '25-40mm',
+            '5065C': '50-65mm',
+            '7590C': '75-90mm',
+            '100120C': '100-120mm',
+            '125150C': '125-150mm',
+          };
+
+          addItem(
+            "reinforcement",
+            `Bar Chairs (${chairLabels[chairType] || chairType})`,
+            bags,
+            "bags",
+            bagPrice,
+            `${bags} × 100 pcs`
+          );
+        }
+      }
+
+      if (reoRaftModule.tie_wire && hasAnySlabReo) {
+        const coils = reoRaftModule.tie_wire_coils || 2;
+        const pricePerCoil = reoRaftModule.tie_wire_price || 15;
+
+        addItem(
+          "reinforcement",
+          "Tie Wire (1.6mm)",
+          coils,
+          "coils",
+          pricePerCoil
+        );
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // EDGE BEAMS (per beam)
+      // ═══════════════════════════════════════════════════════════════
+      if (reoRaftModule.edge_beam_reo) {
+        const defaultTmType = reoRaftModule.edge_beam_tm_type || 'L11TM4';
+        const defaultAddLigs = reoRaftModule.edge_beam_add_ligs || false;
+        const defaultLigSize = reoRaftModule.edge_beam_lig_size || 'R10';
+        const defaultLigCentres = reoRaftModule.edge_beam_lig_centres || 200;
+
+        if (edgeBeams.length > 0) {
+          edgeBeams.forEach((beam) => {
+            const length = Number(beam.length) || 0;
+            if (length <= 0) return;
+
+            const tmType = beam.tm_type || defaultTmType;
+            const addLigs = beam.add_ligs ?? defaultAddLigs;
+            const ligSize = beam.lig_size || defaultLigSize;
+            const ligCentres = beam.lig_centres ?? defaultLigCentres;
+
+            const tmPrice = reoRaftModule.edge_beam_tm_price || 108;
+            const tmLengthWithLap = length * LAP_ALLOWANCE;
+            const tmSheets = Math.ceil(tmLengthWithLap / 6);
+
+            addItem(
+              "reinforcement",
+              `${beam.name} – ${tmType}`,
+              tmSheets,
+              "sheets",
+              tmPrice,
+              `${length.toFixed(1)}m beam`
+            );
+
+            if (addLigs) {
+              const ligPrice = reoRaftModule.edge_beam_lig_price || 2100;
+              const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
+              const ligCount = Math.ceil((length * 1000) / ligCentres);
+              const ligPerimeter = 2 * ((Number(beam.width) / 1000 || 0.3) + (Number(beam.depth) / 1000 || 0.5)) + 0.1;
+              const ligTotalLength = ligCount * ligPerimeter;
+              const ligWeight = ligTotalLength * ligWeightPerM;
+              const ligCost = (ligWeight / 1000) * ligPrice;
+
+              addItem(
+                "reinforcement",
+                `${beam.name} – ${ligSize} Ligs @ ${ligCentres}mm`,
+                ligCount,
+                "pcs",
+                Math.round((ligCost / ligCount) * 100) / 100,
+                `~${Math.round(ligWeight)}kg`
+              );
+            }
+          });
+        } else {
+          // Fallback: use perimeter for edge beams
+          const perimeter = scopeAnswers.perimeter || scopeAnswers.edge_beam_length || 0;
+          if (perimeter > 0) {
+            const tmPrice = reoRaftModule.edge_beam_tm_price || 108;
+            const tmLengthWithLap = perimeter * LAP_ALLOWANCE;
+            const tmSheets = Math.ceil(tmLengthWithLap / 6);
+
+            addItem(
+              "reinforcement",
+              `Edge Beams – ${defaultTmType}`,
+              tmSheets,
+              "sheets",
+              tmPrice,
+              `${perimeter.toFixed(1)}m total`
+            );
+          }
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // INTERNAL BEAMS (per beam)
+      // ═══════════════════════════════════════════════════════════════
+      if (reoRaftModule.internal_beam_reo) {
+        const defaultTmType = reoRaftModule.internal_beam_tm_type || 'L11TM4';
+        const defaultAddLigs = reoRaftModule.internal_beam_add_ligs || false;
+        const defaultLigSize = reoRaftModule.internal_beam_lig_size || 'R10';
+        const defaultLigCentres = reoRaftModule.internal_beam_lig_centres || 200;
+
+        if (internalBeams.length > 0) {
+          internalBeams.forEach((beam) => {
+            const length = Number(beam.length) || 0;
+            if (length <= 0) return;
+
+            const tmType = beam.tm_type || defaultTmType;
+            const addLigs = beam.add_ligs ?? defaultAddLigs;
+            const ligSize = beam.lig_size || defaultLigSize;
+            const ligCentres = beam.lig_centres ?? defaultLigCentres;
+
+            const tmPrice = reoRaftModule.internal_beam_tm_price || 108;
+            const tmLengthWithLap = length * LAP_ALLOWANCE;
+            const tmSheets = Math.ceil(tmLengthWithLap / 6);
+
+            addItem(
+              "reinforcement",
+              `${beam.name} – ${tmType}`,
+              tmSheets,
+              "sheets",
+              tmPrice,
+              `${length.toFixed(1)}m beam`
+            );
+
+            if (addLigs) {
+              const ligPrice = reoRaftModule.internal_beam_lig_price || 2100;
+              const ligWeightPerM = REBAR_WEIGHTS[ligSize] || 0.617;
+              const ligCount = Math.ceil((length * 1000) / ligCentres);
+              const ligPerimeter = 2 * ((Number(beam.width) / 1000 || 0.3) + (Number(beam.depth) / 1000 || 0.5)) + 0.1;
+              const ligTotalLength = ligCount * ligPerimeter;
+              const ligWeight = ligTotalLength * ligWeightPerM;
+              const ligCost = (ligWeight / 1000) * ligPrice;
+
+              addItem(
+                "reinforcement",
+                `${beam.name} – ${ligSize} Ligs @ ${ligCentres}mm`,
+                ligCount,
+                "pcs",
+                Math.round((ligCost / ligCount) * 100) / 100,
+                `~${Math.round(ligWeight)}kg`
+              );
+            }
+          });
+        } else {
+          // Fallback: use total internal beam length
+          const totalInternalLength = scopeAnswers.internal_beams_length || 0;
+          if (totalInternalLength > 0) {
+            const tmPrice = reoRaftModule.internal_beam_tm_price || 108;
+            const tmLengthWithLap = totalInternalLength * LAP_ALLOWANCE;
+            const tmSheets = Math.ceil(tmLengthWithLap / 6);
+
+            addItem(
+              "reinforcement",
+              `Internal Beams – ${defaultTmType}`,
+              tmSheets,
+              "sheets",
+              tmPrice,
+              `${totalInternalLength.toFixed(1)}m total`
+            );
+          }
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // DELIVERY
+      // ═══════════════════════════════════════════════════════════════
+      const delivery = reoRaftModule.reo_delivery || 150;
+      if (delivery > 0) {
+        addItem(
+          "reinforcement",
+          "Reinforcement Delivery",
+          1,
+          "item",
+          delivery
         );
       }
     }
