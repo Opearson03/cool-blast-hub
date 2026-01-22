@@ -119,18 +119,18 @@ export function PadFootingDepthDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={handleConfirm}>
+          <Button onClick={handleConfirm} className="w-full sm:w-auto">
             Save Pad Footing
           </Button>
           {onConfirmAndAddAnother && (
             <Button 
               variant="secondary" 
               onClick={handleConfirmAndAddAnother}
-              className="gap-1"
+              className="gap-1 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" />
               Save & Add More
