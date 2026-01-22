@@ -1332,19 +1332,64 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
           }
         }
       } else if (scopeDefinition.supportsMultipleFootings || scopeDefinition.supportsLinearSections) {
-        // For linear scopes with multiple footings (strip_footings, kerbs, retaining walls)
-        // Check both supportsMultipleFootings and supportsLinearSections since they use the same data structure
+        // Linear scopes (strip footings / kerbs / retaining walls) use MultiLinearInput (linearSections)
+        // while older/legacy scope calculations still rely on `footings` + total_length/width/depth.
+        // So: prefill BOTH shapes to keep UI + calculations in sync.
         const footingConfigs = getFootingConfigsForScope(scope);
-        
+
         if (footingConfigs.length > 0) {
-          const hasUserData = initialScopeAnswers.footings?.some((f: any) => f.length > 0 && f._fromTakeoff !== true);
-          
+          const hasUserFootings = initialScopeAnswers.footings?.some(
+            (f: any) => (Number(f.length) || 0) > 0 && f._fromTakeoff !== true
+          );
+          const hasUserLinearSections = initialScopeAnswers.linearSections?.some(
+            (s: any) => (Number(s.length) || 0) > 0 && s._fromTakeoff !== true
+          );
+          const hasUserData = hasUserFootings || hasUserLinearSections;
+
           if (!hasUserData) {
-            // Use grouped footing configs directly - each markup becomes a row
+            // Map takeoff polyline markups to the MultiLinearInput shape
+            const linearSectionsFromTakeoff = footingConfigs.map((f: any) => ({
+              id: f.id,
+              name: f.name,
+              length: Number(f.length) || 0,
+              dimension1: Number(f.width) || 0,
+              dimension2: Number(f.depth) || 0,
+              _fromTakeoff: true,
+              _actualLength: Number(f._actualLength) || Number(f.length) || 0,
+            }));
+
+            // Also compute derived totals/averages to match what handleLinearSectionsChange would produce
+            const totalLength = linearSectionsFromTakeoff.reduce((sum: number, s: any) => {
+              const len = s._actualLength && s._actualLength > 0 ? s._actualLength : (Number(s.length) || 0);
+              return sum + len;
+            }, 0);
+
+            let weightedDim1 = 0;
+            let weightedDim2 = 0;
+            if (totalLength > 0) {
+              linearSectionsFromTakeoff.forEach((s: any) => {
+                const len = s._actualLength && s._actualLength > 0 ? s._actualLength : (Number(s.length) || 0);
+                weightedDim1 += len * (Number(s.dimension1) || 0);
+                weightedDim2 += len * (Number(s.dimension2) || 0);
+              });
+              weightedDim1 = weightedDim1 / totalLength;
+              weightedDim2 = weightedDim2 / totalLength;
+            }
+
             initialScopeAnswers = {
               ...initialScopeAnswers,
               _fromTakeoff: true,
+              // UI
+              linearSections: linearSectionsFromTakeoff,
+              // Back-compat for scope.calculateVolume + module deriveFrom fields
               footings: footingConfigs,
+              total_length: totalLength,
+              width: weightedDim1,
+              depth: weightedDim2,
+              footing_width: weightedDim1,
+              footing_depth: weightedDim2,
+              wall_thickness: weightedDim1,
+              wall_height: weightedDim2,
             };
           }
         }
