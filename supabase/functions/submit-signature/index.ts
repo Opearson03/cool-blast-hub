@@ -297,11 +297,11 @@ async function generateSignedQuotePDF(
   doc.roundedRect(margin, yPos, contentWidth, 60, 3, 3, 'FD');
   yPos += 8;
 
-  // Signed stamp
+  // Signed stamp - use text instead of Unicode checkmark for PDF compatibility
   doc.setFontSize(11);
   doc.setFont(pdfFont, "bold");
   doc.setTextColor(34, 197, 94);
-  doc.text("✓ QUOTE ACCEPTED", margin + 5, yPos);
+  doc.text("QUOTE ACCEPTED", margin + 5, yPos);
   yPos += 8;
 
   doc.setFontSize(9);
@@ -602,11 +602,11 @@ async function generateSignedVariationPDF(
   doc.roundedRect(margin, yPos, contentWidth, 60, 3, 3, 'FD');
   yPos += 8;
 
-  // Approved stamp
+  // Approved stamp - use text instead of Unicode checkmark for PDF compatibility
   doc.setFontSize(11);
   doc.setFont(pdfFont, "bold");
   doc.setTextColor(34, 197, 94);
-  doc.text("✓ VARIATION APPROVED", margin + 5, yPos);
+  doc.text("VARIATION APPROVED", margin + 5, yPos);
   yPos += 8;
 
   doc.setFontSize(9);
@@ -952,6 +952,7 @@ serve(async (req: Request) => {
           await resend.emails.send({
             from: `${senderName} <Hello@contact.pourhub.au>`,
             to: estimate.client_email,
+            cc: business?.email ? [business.email] : undefined,
             subject: `Your Signed Quote ${estimate.estimate_number} - Confirmed`,
             html: `
               <!DOCTYPE html>
@@ -1203,6 +1204,7 @@ serve(async (req: Request) => {
           await resend.emails.send({
             from: `${senderName} <Hello@contact.pourhub.au>`,
             to: clientEmail,
+            cc: business?.email ? [business.email] : undefined,
             subject: `Approved: Variation ${variation.variation_number} - ${job?.name || 'Job'}`,
             html: `
               <!DOCTYPE html>

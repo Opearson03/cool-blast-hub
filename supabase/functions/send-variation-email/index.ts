@@ -519,6 +519,7 @@ const handler = async (req: Request): Promise<Response> => {
     const emailResponse = await resend.emails.send({
       from: `${senderName} <Hello@contact.pourhub.au>`,
       to: [clientEmail],
+      cc: businessEmail ? [businessEmail] : undefined,
       subject: `Variation ${variationNumber} - ${jobName}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
