@@ -687,8 +687,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("PDF generated successfully, sending email...");
 
+    // Format sender name as "Business Name via Pourhub"
+    const senderName = businessName ? `${businessName} via Pourhub` : "Pourhub";
+    
     const emailResponse = await resend.emails.send({
-      from: "PourHub <Hello@contact.pourhub.au>",
+      from: `${senderName} <Hello@contact.pourhub.au>`,
       to: [clientEmail],
       subject: `Quote ${estimateNumber} from ${businessName}`,
       html: `
