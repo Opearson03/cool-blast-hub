@@ -335,39 +335,21 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     
     if (pierMarkups.length === 0) return [];
     
-    // Group by unique diameter + depth combination
-    const grouped = new Map<string, { count: number; diameter: number; depth: number; name: string }>();
-    
-    pierMarkups.forEach(m => {
+    // Each markup is its own pier group (user names groups individually)
+    return pierMarkups.map((m, index) => {
       const diameter = m.diameter_mm || 450;
       const depth = m.depth_mm || 600;
-      const key = `${diameter}-${depth}`;
-      const qty = m.pier_quantity || 1;
+      const quantity = m.pier_quantity || 1;
       
-      if (grouped.has(key)) {
-        const existing = grouped.get(key)!;
-        existing.count += qty;
-        // Keep the first name or update with combined count
-        existing.name = `${existing.count} piers @ ${diameter}mm x ${depth}mm`;
-      } else {
-        grouped.set(key, {
-          count: qty,
-          diameter,
-          depth,
-          name: m.name || `${qty} piers @ ${diameter}mm x ${depth}mm`,
-        });
-      }
+      return {
+        id: `takeoff-pier-${m.markup_id}`,
+        name: m.name || `Pier Group ${index + 1}`,
+        quantity,
+        diameter,
+        depth,
+        _fromTakeoff: true as const,
+      };
     });
-    
-    // Convert to array of PierConfigFromTakeoff
-    return Array.from(grouped.entries()).map(([key, data], index) => ({
-      id: `takeoff-pier-${key}-${Date.now()}-${index}`,
-      name: data.name,
-      quantity: data.count,
-      diameter: data.diameter,
-      depth: data.depth,
-      _fromTakeoff: true as const,
-    }));
   }, [markups]);
 
   /**
