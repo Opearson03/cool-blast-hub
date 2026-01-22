@@ -725,6 +725,437 @@ function parseEstimateForJob(estimate: any) {
   };
 }
 
+// BOQ Item interface
+interface BOQItem {
+  id: string;
+  category: 'concrete' | 'reinforcement' | 'formwork' | 'finishing' | 'other';
+  description: string;
+  quantity: number;
+  unit: string;
+  unitPrice?: number;
+  totalPrice?: number;
+  notes?: string;
+}
+
+// Rebar weights in kg per metre
+const REBAR_WEIGHTS: Record<string, number> = {
+  'N12': 0.888,
+  'N16': 1.58,
+  'N20': 2.47,
+  'N24': 3.55,
+  'N28': 4.83,
+  'R10': 0.617,
+  'R12': 0.888,
+};
+
+// Maps scope key to human-readable label
+function getScopeLabel(scopeKey: string): string {
+  const labels: Record<string, string> = {
+    standard_slab: "Slab on Ground",
+    raft_slab: "Raft Slab",
+    waffle_pod: "Waffle Pod",
+    strip_footings: "Strip Footings",
+    piers: "Piers",
+    suspended_slab: "Suspended Slab",
+    crossovers: "Crossover",
+    driveway: "Small Slab",
+    paths_surrounds: "Paths & Surrounds",
+    retaining_wall: "Retaining Wall",
+  };
+  return labels[scopeKey] || scopeKey.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+}
+
+// Generate BOQ items from estimate scope data
+function generateBOQFromEstimateData(
+  scopeData: Record<string, any> | null,
+  selectedScopes: string[] | null,
+  description?: string | null
+): BOQItem[] {
+  // Check if scopeData is empty or has no valid scopes
+  const hasValidScopeData = scopeData && selectedScopes && selectedScopes.length > 0 &&
+    Object.keys(scopeData).some(key => {
+      const entry = scopeData[key];
+      return entry && (entry.scopeAnswers || entry.moduleAnswers);
+    });
+
+  // If no valid scope data, try to generate from description
+  if (!hasValidScopeData) {
+    return generateBOQFromDescription(description || null);
+  }
+
+  const items: BOQItem[] = [];
+  let itemId = 1;
+
+  const addItem = (
+    category: BOQItem['category'],
+    description: string,
+    quantity: number,
+    unit: string,
+    unitPrice?: number,
+    notes?: string
+  ) => {
+    if (quantity > 0) {
+      items.push({
+        id: `boq-${itemId++}`,
+        category,
+        description,
+        quantity: Math.round(quantity * 100) / 100,
+        unit,
+        unitPrice,
+        totalPrice: unitPrice ? Math.round(quantity * unitPrice * 100) / 100 : undefined,
+        notes,
+      });
+    }
+  };
+
+  // Process each selected scope
+  for (const scopeKey of selectedScopes || []) {
+    const scopeEntry = scopeData[scopeKey];
+    if (!scopeEntry) continue;
+
+    const scopeAnswers = scopeEntry.scopeAnswers || {};
+    const moduleAnswers = scopeEntry.moduleAnswers || {};
+    const label = getScopeLabel(scopeKey);
+
+    // CONCRETE
+    const concreteModule = moduleAnswers["concrete-supply"];
+    if (concreteModule) {
+      const volume = concreteModule.calculated_volume || 0;
+      const concreteType = concreteModule.concrete_type || "32MPA";
+      const mpa = concreteType.replace(/MPA/i, "").trim();
+      
+      if (volume > 0) {
+        addItem("concrete", `N${mpa} Concrete (${label})`, volume, "m³", concreteModule.concrete_price);
+      }
+    }
+
+    // SLAB REINFORCEMENT
+    const reoSlabModule = moduleAnswers["reinforcement-slab"];
+    if (reoSlabModule) {
+      if ((reoSlabModule.reo_type === "mesh" || !reoSlabModule.reo_type) && reoSlabModule.mesh_type) {
+        const meshArea = reoSlabModule.mesh_area || scopeAnswers.area || 0;
+        const meshSheets = reoSlabModule.mesh_sheets || Math.ceil((meshArea * 1.1) / 14.4);
+        if (meshSheets > 0) {
+          addItem("reinforcement", `${reoSlabModule.mesh_type} Mesh`, meshSheets, "sheets", reoSlabModule.mesh_price_per_sheet);
+        }
+      }
+      
+      if (reoSlabModule.reo_type === "bar" && reoSlabModule.bar_size) {
+        const barArea = reoSlabModule.bar_area || scopeAnswers.area || 0;
+        const spacing = Number(reoSlabModule.bar_spacing) || 200;
+        const layers = Number(reoSlabModule.bar_layers) || 1;
+        const barSize = reoSlabModule.bar_size || 'N12';
+        const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
+        
+        const barsPerMetre = 1000 / spacing;
+        const sideLength = Math.sqrt(barArea);
+        const barsPerDirection = Math.ceil(sideLength * barsPerMetre);
+        const totalBarLength = barsPerDirection * sideLength * 2 * layers;
+        const totalWeight = totalBarLength * weightPerMetre * 1.1;
+        
+        if (totalWeight > 0) {
+          const pricePerTonne = reoSlabModule.rebar_price_per_tonne || 2100;
+          addItem("reinforcement", `${barSize} Rebar @ ${spacing}mm ctrs`, Math.round(totalWeight), "kg", pricePerTonne / 1000);
+        }
+      }
+
+      if (reoSlabModule.bar_chairs) {
+        const area = scopeAnswers.area || 0;
+        const chairsPerM2 = reoSlabModule.chairs_per_m2 || 4;
+        const chairCount = Math.ceil(area * chairsPerM2);
+        if (chairCount > 0) {
+          addItem("reinforcement", `Bar Chairs`, chairCount, "pcs", reoSlabModule.chair_price_each);
+        }
+      }
+
+      if (reoSlabModule.tie_wire && reoSlabModule.tie_wire_coils) {
+        addItem("reinforcement", "Tie Wire (1.6mm)", reoSlabModule.tie_wire_coils, "coils", reoSlabModule.tie_wire_price);
+      }
+    }
+
+    // RAFT REINFORCEMENT
+    const reoRaftModule = moduleAnswers["reinforcement-raft"];
+    if (reoRaftModule) {
+      const totalArea = scopeAnswers.area || 0;
+      const defaultSlabReoType = reoRaftModule.slab_reo_type || 'mesh';
+      const defaultMeshType = reoRaftModule.mesh_type || 'SL82';
+      const lapPercent = 1 + (Number(reoRaftModule.mesh_lap_allowance) || 12.5) / 100;
+
+      if (totalArea > 0 && defaultSlabReoType === 'mesh') {
+        const totalMeshArea = totalArea * lapPercent;
+        const sheets = Math.ceil(totalMeshArea / 14.4);
+        addItem("reinforcement", `${defaultMeshType} Mesh (${label})`, sheets, "sheets", reoRaftModule.mesh_price_per_sheet || 95);
+      }
+
+      if (reoRaftModule.bar_chairs) {
+        const chairsPerM2 = reoRaftModule.chairs_per_m2 || 4;
+        const bags = Math.ceil((totalArea * chairsPerM2) / 100);
+        if (bags > 0) {
+          addItem("reinforcement", "Bar Chairs", bags, "bags", reoRaftModule.chair_price_per_100 || 35);
+        }
+      }
+
+      if (reoRaftModule.tie_wire) {
+        const coils = reoRaftModule.tie_wire_coils || 2;
+        addItem("reinforcement", "Tie Wire (1.6mm)", coils, "coils", reoRaftModule.tie_wire_price || 15);
+      }
+
+      // Edge beams
+      if (reoRaftModule.edge_beam_reo) {
+        const perimeter = scopeAnswers.perimeter || scopeAnswers.edge_beam_length || 0;
+        if (perimeter > 0) {
+          const tmType = reoRaftModule.edge_beam_tm_type || 'L11TM4';
+          const tmLengthWithLap = perimeter * 1.125;
+          const tmSheets = Math.ceil(tmLengthWithLap / 6);
+          addItem("reinforcement", `Edge Beams – ${tmType}`, tmSheets, "sheets", reoRaftModule.edge_beam_tm_price || 108);
+        }
+      }
+
+      // Internal beams
+      if (reoRaftModule.internal_beam_reo) {
+        const totalInternalLength = scopeAnswers.internal_beams_length || 0;
+        if (totalInternalLength > 0) {
+          const tmType = reoRaftModule.internal_beam_tm_type || 'L11TM4';
+          const tmLengthWithLap = totalInternalLength * 1.125;
+          const tmSheets = Math.ceil(tmLengthWithLap / 6);
+          addItem("reinforcement", `Internal Beams – ${tmType}`, tmSheets, "sheets", reoRaftModule.internal_beam_tm_price || 108);
+        }
+      }
+    }
+
+    // PIER REINFORCEMENT
+    const reoPiersModule = moduleAnswers["reinforcement-piers"];
+    if (reoPiersModule && reoPiersModule.is_reinforced) {
+      const pierCount = scopeAnswers.num_piers || 0;
+      if (pierCount > 0) {
+        const verticalBars = reoPiersModule.vertical_bars_count || 4;
+        const verticalSize = reoPiersModule.vertical_bar_size || 'N16';
+        addItem("reinforcement", `Pier Cages (${verticalSize} x ${verticalBars})`, pierCount, "units");
+        
+        if (reoPiersModule.tie_wire && reoPiersModule.tie_wire_coils) {
+          addItem("reinforcement", "Tie Wire (1.6mm)", reoPiersModule.tie_wire_coils, "coils", reoPiersModule.tie_wire_price);
+        }
+      }
+    }
+
+    // FOOTING REINFORCEMENT
+    const reoFootingModule = moduleAnswers["reinforcement-footing"];
+    if (reoFootingModule) {
+      const trenchLength = reoFootingModule.trench_mesh_length || scopeAnswers.trench_length || scopeAnswers.connection_length || 0;
+      
+      if ((reoFootingModule.reo_type === "trench_mesh" || reoFootingModule.reo_type === "both") && trenchLength > 0) {
+        const meshType = reoFootingModule.trench_mesh_type || "L11TM4";
+        addItem("reinforcement", `Trench Mesh (${meshType})`, trenchLength, "m", reoFootingModule.trench_mesh_price_per_m);
+      }
+
+      if (reoFootingModule.tie_wire && reoFootingModule.tie_wire_coils) {
+        addItem("reinforcement", "Tie Wire (1.6mm)", reoFootingModule.tie_wire_coils, "coils", reoFootingModule.tie_wire_price);
+      }
+    }
+
+    // BASE PREPARATION
+    const basePrepModule = moduleAnswers["base-preparation"];
+    if (basePrepModule) {
+      if (basePrepModule.crusher_dust_required) {
+        const area = basePrepModule.crusher_dust_area || scopeAnswers.area || 0;
+        const depthMM = Number(basePrepModule.crusher_dust_depth) || 75;
+        const volume = area * (depthMM / 1000);
+        const tonnes = volume * 1.6;
+        if (tonnes > 0) {
+          const pricePerM3 = basePrepModule.crusher_dust_price || 60;
+          addItem("other", `Crusher Dust (${depthMM}mm)`, Math.round(tonnes * 10) / 10, "tonnes", pricePerM3 / 1.6);
+        }
+      }
+
+      if (basePrepModule.membrane_required !== false) {
+        const membraneArea = basePrepModule.membrane_area || scopeAnswers.area || 0;
+        const overlapPercent = 1 + (Number(basePrepModule.membrane_overlap) || 15) / 100;
+        const totalArea = membraneArea * overlapPercent;
+        const rollsRequired = Math.ceil(totalArea / 200);
+        if (rollsRequired > 0) {
+          addItem("other", "Poly Membrane", rollsRequired, "rolls", basePrepModule.membrane_price || 180);
+        }
+      }
+    }
+
+    // FORMWORK
+    const formworkModule = moduleAnswers["formwork"];
+    if (formworkModule && formworkModule.formwork_required) {
+      const formworkMetres = formworkModule.formwork_metres || scopeAnswers.perimeter || 0;
+      if (formworkMetres > 0) {
+        const timberType = formworkModule.timber_type || "90x45";
+        addItem("formwork", `Formwork Timber (${timberType})`, formworkMetres, "lm", formworkModule.timber_price || 8);
+
+        if (formworkModule.stakes_included) {
+          const stakeCount = Math.ceil(formworkMetres / 0.6) + 1;
+          if (stakeCount > 0) {
+            addItem("formwork", "Timber Stakes", stakeCount, "pcs", formworkModule.stake_price || 3);
+          }
+        }
+      }
+    }
+
+    // CONNECTIONS & JOINTS
+    const connectionsModule = moduleAnswers["connections-joints"];
+    if (connectionsModule) {
+      if (connectionsModule.dowels_required && connectionsModule.dowel_count) {
+        const dowelSize = connectionsModule.dowel_size || "N12";
+        addItem("reinforcement", `Dowel Bars (${dowelSize})`, connectionsModule.dowel_count, "pcs", connectionsModule.dowel_price_each);
+      }
+
+      if (connectionsModule.foam_required && connectionsModule.foam_length) {
+        addItem("other", "Expansion Foam", connectionsModule.foam_length, "m", connectionsModule.foam_price_per_m);
+      }
+
+      if (connectionsModule.expansion_joints_required && connectionsModule.joint_quantity) {
+        addItem("other", "Expansion Joints", connectionsModule.joint_quantity, "pcs", connectionsModule.joint_price_each);
+      }
+    }
+
+    // CONTROL JOINTS
+    const controlModule = moduleAnswers["joints-control"];
+    if (controlModule) {
+      if (controlModule.saw_cutting_required && controlModule.saw_cut_metres) {
+        addItem("finishing", "Saw Cut Control Joints", controlModule.saw_cut_metres, "m", controlModule.saw_cut_price_per_m);
+      }
+      if (controlModule.caulking_required && controlModule.caulking_metres) {
+        addItem("finishing", "Joint Caulking/Sealant", controlModule.caulking_metres, "m", controlModule.caulking_price_per_m);
+      }
+    }
+
+    // PLUMBING
+    const plumbingModule = moduleAnswers["plumbing"];
+    if (plumbingModule && plumbingModule.plumbing_required) {
+      if (plumbingModule.strip_drain_required && plumbingModule.strip_drain_length && plumbingModule.strip_drain_length > 0) {
+        addItem("other", "Strip Drain", plumbingModule.strip_drain_length, "m", plumbingModule.strip_drain_price || 85);
+      }
+    }
+
+    // SURFACE FINISHING
+    const finishingModule = moduleAnswers["surface-finishing"];
+    if (finishingModule && finishingModule.finish_required) {
+      const finishArea = finishingModule.finish_area || scopeAnswers.area || 0;
+      
+      if ((finishingModule.sealing_required || finishingModule.sealer_required) && finishingModule.sealer_type) {
+        const coverageRate = finishingModule.sealer_coverage_rate || 8;
+        const coats = finishingModule.sealer_coats || 2;
+        const sealerLitres = Math.ceil((finishArea * coats) / coverageRate);
+        if (sealerLitres > 0) {
+          addItem("finishing", "Sealer", sealerLitres, "L", finishingModule.sealer_price_per_litre || 35);
+        }
+      }
+
+      if (finishingModule.curing_required && finishingModule.curing_method !== "water" && finishingModule.curing_method !== "plastic") {
+        const coverageRate = finishingModule.curing_coverage_rate || 6;
+        const curingLitres = Math.ceil(finishArea / coverageRate);
+        if (curingLitres > 0) {
+          addItem("finishing", "Curing Compound", curingLitres, "L", finishingModule.curing_product_price || 25);
+        }
+      }
+    }
+
+    // PIERS (scope-specific fallback)
+    if (scopeKey === "piers" && scopeAnswers.num_piers && !concreteModule?.calculated_volume) {
+      const pierCount = scopeAnswers.num_piers;
+      const diameter = scopeAnswers.diameter || 450;
+      const depth = scopeAnswers.depth || 1000;
+      const radiusM = (diameter / 1000) / 2;
+      const depthM = depth / 1000;
+      const volumePerPier = Math.PI * radiusM * radiusM * depthM;
+      const totalVolume = pierCount * volumePerPier * 1.1;
+      addItem("concrete", `N25 Concrete (${label})`, totalVolume, "m³");
+    }
+
+    // WAFFLE POD
+    if (scopeKey === "waffle_pod" && scopeAnswers.area) {
+      const area = scopeAnswers.area;
+      const podCount = Math.ceil(area / 1.04);
+      addItem("formwork", "Waffle Pods", podCount, "units");
+    }
+  }
+
+  if (items.length === 0) {
+    return generateBOQFromDescription(description || null);
+  }
+
+  return items;
+}
+
+// Fallback: Generate BOQ from description text
+function generateBOQFromDescription(description: string | null): BOQItem[] {
+  if (!description) return [];
+
+  const items: BOQItem[] = [];
+  let itemId = 1;
+
+  const addItem = (
+    category: BOQItem['category'],
+    desc: string,
+    quantity: number,
+    unit: string
+  ) => {
+    if (quantity > 0) {
+      items.push({
+        id: `boq-${itemId++}`,
+        category,
+        description: desc,
+        quantity: Math.round(quantity * 100) / 100,
+        unit,
+      });
+    }
+  };
+
+  // Parse "Standard Slab: 100.0m² standard slab"
+  const slabMatch = description.match(/Standard Slab:\s*([\d.]+)\s*m²/i);
+  if (slabMatch) {
+    const area = parseFloat(slabMatch[1]);
+    const volume = area * 0.1 * 1.05;
+    addItem("concrete", "N32 Concrete (Standard Slab)", volume, "m³");
+    const meshSheets = Math.ceil((area * 1.1) / 14.4);
+    addItem("reinforcement", "SL82 Mesh", meshSheets, "sheets");
+    addItem("other", "Poly Membrane", area, "m²");
+  }
+
+  // Parse "Piers: 10 piers"
+  const piersMatch = description.match(/Piers:\s*(\d+)\s*piers?/i);
+  if (piersMatch) {
+    const count = parseInt(piersMatch[1]);
+    const volumePerPier = Math.PI * 0.225 * 0.225 * 1;
+    addItem("concrete", "N25 Concrete (Piers)", count * volumePerPier, "m³");
+    addItem("reinforcement", "Pier Cages", count, "units");
+  }
+
+  // Parse "Driveway: 50.0m² driveway"
+  const drivewayMatch = description.match(/Driveway:\s*([\d.]+)\s*m²/i);
+  if (drivewayMatch) {
+    const area = parseFloat(drivewayMatch[1]);
+    if (area > 0) {
+      const volume = area * 0.1 * 1.05;
+      addItem("concrete", "N32 Concrete (Driveway)", volume, "m³");
+      const meshSheets = Math.ceil((area * 1.1) / 14.4);
+      addItem("reinforcement", "SL82 Mesh", meshSheets, "sheets");
+    }
+  }
+
+  // Parse "Concrete: 52.50m³ @ 32MPa"
+  const concreteMatch = description.match(/Concrete:\s*([\d.]+)\s*m³\s*@\s*(\d+)\s*MPa/i);
+  if (concreteMatch && items.length === 0) {
+    const volume = parseFloat(concreteMatch[1]);
+    const mpa = concreteMatch[2];
+    addItem("concrete", `N${mpa} Concrete`, volume, "m³");
+  }
+
+  // Parse "Reo: 39 sheets SL82"
+  const reoMatch = description.match(/Reo:\s*(\d+)\s*sheets?\s*(\w+)/i);
+  if (reoMatch && !items.find(i => i.category === 'reinforcement')) {
+    const sheets = parseInt(reoMatch[1]);
+    const meshType = reoMatch[2];
+    addItem("reinforcement", `${meshType} Mesh`, sheets, "sheets");
+  }
+
+  return items;
+}
+
 serve(async (req: Request) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -889,6 +1320,34 @@ serve(async (req: Request) => {
             } else {
               console.log('Pours created successfully');
             }
+          }
+
+          // Generate BOQ from estimate data
+          console.log('Generating BOQ from estimate data...');
+          try {
+            const boqItems = generateBOQFromEstimateData(
+              estimate.scope_data as Record<string, any> | null,
+              estimate.selected_scopes as string[] | null,
+              estimate.description
+            );
+            
+            if (boqItems.length > 0) {
+              const { error: boqError } = await supabase
+                .from('job_boq')
+                .insert({
+                  job_id: newJob.id,
+                  items: boqItems,
+                  notes: `Auto-generated from signed quote ${estimate.estimate_number}`,
+                });
+              
+              if (boqError) {
+                console.error('Failed to create BOQ:', boqError);
+              } else {
+                console.log(`BOQ created with ${boqItems.length} items`);
+              }
+            }
+          } catch (boqErr) {
+            console.error('Error generating BOQ:', boqErr);
           }
 
           // Upload signed PDF to storage and create document record
