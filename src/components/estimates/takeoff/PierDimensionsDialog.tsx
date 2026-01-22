@@ -10,8 +10,9 @@ interface PierDimensionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pierCount: number;
-  onConfirm: (diameter: number, depth: number) => void;
-  onConfirmAndAddAnother?: (diameter: number, depth: number) => void;
+  onConfirm: (diameter: number, depth: number, name: string) => void;
+  onConfirmAndAddAnother?: (diameter: number, depth: number, name: string) => void;
+  defaultName?: string;
 }
 
 export function PierDimensionsDialog({
@@ -20,18 +21,23 @@ export function PierDimensionsDialog({
   pierCount,
   onConfirm,
   onConfirmAndAddAnother,
+  defaultName = '',
 }: PierDimensionsDialogProps) {
+  const [name, setName] = useState(defaultName || `Pier Group ${Date.now().toString().slice(-4)}`);
   const [diameter, setDiameter] = useState(450);
   const [depth, setDepth] = useState(600);
 
   const handleConfirm = () => {
-    onConfirm(diameter, depth);
+    const groupName = name.trim() || `Pier Group`;
+    onConfirm(diameter, depth, groupName);
     onOpenChange(false);
   };
 
   const handleConfirmAndAddAnother = () => {
-    onConfirmAndAddAnother?.(diameter, depth);
-    onOpenChange(false);
+    const groupName = name.trim() || `Pier Group`;
+    onConfirmAndAddAnother?.(diameter, depth, groupName);
+    // Reset name for next group
+    setName(`Pier Group ${Date.now().toString().slice(-4)}`);
   };
 
   // Calculate volume for preview
@@ -54,6 +60,22 @@ export function PierDimensionsDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Group name input */}
+          <div className="space-y-2">
+            <Label htmlFor="pier-name">Group Name</Label>
+            <Input
+              id="pier-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g., Footing Piers, Deck Piers"
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              Name this group of piers (e.g., "Footing Piers", "Deck Piers")
+            </p>
+          </div>
+
           {/* Pier count display */}
           <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
             <Badge variant="default" className="text-base px-3 py-1">

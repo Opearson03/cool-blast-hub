@@ -33,7 +33,7 @@ interface UseTakeoffDataReturn {
   deletePlan: () => Promise<void>;
   addMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addAreaPadMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], depthMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
-  addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
+  addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases') => Promise<TakeoffMarkup | null>;
   addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string, toeMm?: number) => Promise<TakeoffMarkup | null>;
@@ -636,7 +636,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     diameterMm: number,
     depthMm: number,
     color: string,
-    pageNumber: number
+    pageNumber: number,
+    name?: string
   ): Promise<TakeoffMarkup | null> => {
     if (!takeoff) return null;
 
@@ -653,7 +654,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           page_number: pageNumber,
           diameter_mm: diameterMm,
           depth_mm: depthMm,
-          pier_quantity: points.length
+          pier_quantity: points.length,
+          name: name || null
         })
         .select()
         .single();
@@ -662,7 +664,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       const newMarkup: TakeoffMarkup = {
         ...data,
-        name: null,
+        name: data.name || null,
         file_id: data.file_id || null,
         shape_type: 'point',
         points: data.points as unknown as TakeoffPoint[],
