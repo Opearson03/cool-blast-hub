@@ -146,7 +146,43 @@ export interface MeasurementArea {
 }
 
 /**
+ * Individual pier within a pier group
+ */
+export interface PierItem {
+  id: string;
+  name: string;
+  diameter: number;  // mm
+  depth: number;     // mm
+  /** If true, this pier was imported from plan takeoff */
+  _fromTakeoff?: boolean;
+  
+  // Per-pier reinforcement overrides
+  has_starters?: boolean;
+  starter_count?: number;
+  starter_size?: string;
+  starter_length?: number;
+  is_reinforced?: boolean;
+  vertical_bars_count?: number;
+  vertical_bar_size?: string;
+  lig_size?: string;
+  lig_centres?: number;
+}
+
+/**
+ * A group of piers with a shared group name (e.g., "Footing Piers")
+ * Contains multiple individual pier items
+ */
+export interface PierGroup {
+  id: string;
+  name: string;           // Group name, e.g., "Footing Piers"
+  piers: PierItem[];      // Individual piers in this group
+  /** If true, this group was imported from plan takeoff */
+  _fromTakeoff?: boolean;
+}
+
+/**
  * Individual pier configuration for multi-pier scopes
+ * @deprecated Use PierGroup and PierItem instead for grouped piers
  */
 export interface PierConfig {
   id: string;

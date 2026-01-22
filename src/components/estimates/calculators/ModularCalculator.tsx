@@ -8,6 +8,7 @@ import {
   PriceMap,
   MeasurementArea,
   PierConfig,
+  PierGroup,
   FootingConfig,
   BeamConfig,
   DemolitionArea,
@@ -22,6 +23,7 @@ import { ModularCostSummary } from "./ModularCostSummary";
 import { ExclusionsSummary } from "./ExclusionsSummary";
 import { MultiAreaInput } from "./MultiAreaInput";
 import { MultiPierInput } from "./MultiPierInput";
+import { MultiPierGroupInput } from "./MultiPierGroupInput";
 import { MultiFootingInput } from "./MultiFootingInput";
 import { MultiLinearInput } from "./MultiLinearInput";
 import { MultiBeamInput } from "./MultiBeamInput";
@@ -535,7 +537,7 @@ export function ModularCalculator({
     }));
   };
 
-  // Handler for multi-pier changes
+  // Handler for multi-pier changes (legacy flat structure)
   const handlePiersChange = (piers: PierConfig[]) => {
     // Calculate totals from pier configs
     const totalPiers = piers.reduce((sum, pier) => sum + (Number(pier.quantity) || 0), 0);
@@ -556,6 +558,33 @@ export function ModularCalculator({
     setScopeAnswers((prev) => ({
       ...prev,
       piers,
+      num_piers: totalPiers,
+      diameter: weightedDiameter,
+      depth: weightedDepth,
+    }));
+  };
+
+  // Handler for pier group changes (new grouped structure)
+  const handlePierGroupsChange = (pierGroups: PierGroup[]) => {
+    // Flatten all piers from all groups to get total count
+    const allPiers = pierGroups.flatMap(g => g.piers);
+    const totalPiers = allPiers.length;
+    
+    // Calculate weighted averages for diameter and depth
+    let weightedDiameter = 0;
+    let weightedDepth = 0;
+    if (totalPiers > 0) {
+      allPiers.forEach(pier => {
+        weightedDiameter += Number(pier.diameter) || 0;
+        weightedDepth += Number(pier.depth) || 0;
+      });
+      weightedDiameter = weightedDiameter / totalPiers;
+      weightedDepth = weightedDepth / totalPiers;
+    }
+    
+    setScopeAnswers((prev) => ({
+      ...prev,
+      pierGroups,
       num_piers: totalPiers,
       diameter: weightedDiameter,
       depth: weightedDepth,
@@ -795,12 +824,16 @@ export function ModularCalculator({
         />
       )}
 
-      {/* Multi-pier input */}
+      {/* Multi-pier group input */}
       {scope.supportsMultiplePiers && (
-        <MultiPierInput
-          label={scope.piersLabel || 'Pier Configurations'}
-          piers={scopeAnswers.piers || [{ id: 'pier-1', name: 'Pier Type 1', quantity: 1, diameter: 450, depth: 600 }]}
-          onChange={handlePiersChange}
+        <MultiPierGroupInput
+          label={scope.piersLabel || 'Pier Groups'}
+          pierGroups={scopeAnswers.pierGroups || [{ 
+            id: 'pier-group-1', 
+            name: 'Pier Group 1', 
+            piers: [{ id: 'pier-1', name: 'P1', diameter: 450, depth: 600 }] 
+          }]}
+          onChange={handlePierGroupsChange}
           // Markup prompt support
           onRequestMarkup={onRequestMarkup}
           hasPlans={hasPlans}
