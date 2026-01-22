@@ -31,11 +31,21 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus, MoreHorizontal, Pencil, Trash2, Send, CheckCircle, XCircle, FileText, Loader2 } from "lucide-react";
 import { VariationFormDialog } from "@/components/jobs/VariationFormDialog";
+import { SendVariationDialog } from "@/components/jobs/SendVariationDialog";
 import { format } from "date-fns";
+
+interface Job {
+  id: string;
+  name: string;
+  job_number: string | null;
+  site_address: string;
+  builder_client: string | null;
+}
 
 interface JobVariationsTabProps {
   jobId: string;
   businessId: string;
+  job: Job;
 }
 
 interface VariationItem {
@@ -84,10 +94,11 @@ const reasonLabels: Record<string, string> = {
   other: "Other",
 };
 
-export function JobVariationsTab({ jobId, businessId }: JobVariationsTabProps) {
+export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingVariation, setEditingVariation] = useState<Variation | null>(null);
   const [deleteVariation, setDeleteVariation] = useState<Variation | null>(null);
+  const [sendVariation, setSendVariation] = useState<Variation | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -272,9 +283,9 @@ export function JobVariationsTab({ jobId, businessId }: JobVariationsTabProps) {
                               <Pencil className="w-4 h-4 mr-2" />
                               Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: variation.id, status: "submitted", extra: { submitted_at: new Date().toISOString() } })}>
+                            <DropdownMenuItem onClick={() => setSendVariation(variation)}>
                               <Send className="w-4 h-4 mr-2" />
-                              Mark as Submitted
+                              Send to Client
                             </DropdownMenuItem>
                           </>
                         )}
@@ -357,9 +368,9 @@ export function JobVariationsTab({ jobId, businessId }: JobVariationsTabProps) {
                                   <Pencil className="w-4 h-4 mr-2" />
                                   Edit
                                 </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => updateStatusMutation.mutate({ id: variation.id, status: "submitted", extra: { submitted_at: new Date().toISOString() } })}>
+                                <DropdownMenuItem onClick={() => setSendVariation(variation)}>
                                   <Send className="w-4 h-4 mr-2" />
-                                  Mark as Submitted
+                                  Send to Client
                                 </DropdownMenuItem>
                               </>
                             )}
@@ -411,6 +422,16 @@ export function JobVariationsTab({ jobId, businessId }: JobVariationsTabProps) {
         existingCount={variations.length}
         editVariation={editingVariation}
       />
+
+      {/* Send to Client Dialog */}
+      {sendVariation && (
+        <SendVariationDialog
+          open={!!sendVariation}
+          onOpenChange={() => setSendVariation(null)}
+          variation={sendVariation}
+          job={job}
+        />
+      )}
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteVariation} onOpenChange={() => setDeleteVariation(null)}>
