@@ -1292,14 +1292,23 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         
         if (pierConfigs.length > 0) {
           // Check if user hasn't already overridden with their own values
-          const hasUserData = initialScopeAnswers.piers?.some((p: any) => p.quantity > 0 && p._fromTakeoff !== true);
+          const hasUserData = initialScopeAnswers.pierGroups?.some((p: any) => (p.quantity || 0) > 0 && p._fromTakeoff !== true);
           
           if (!hasUserData) {
-            // Use grouped configs directly - each unique dimension combo becomes a row
+            // Convert pier configs to new PierGroup format
+            const pierGroups = pierConfigs.map((config, index) => ({
+              id: config.id || `pier-group-${Date.now()}-${index}`,
+              name: config.name || `Pier Group ${index + 1}`,
+              quantity: config.quantity || 1,
+              diameter: config.diameter || 450,
+              depth: config.depth || 600,
+              _fromTakeoff: true,
+            }));
+            
             initialScopeAnswers = {
               ...initialScopeAnswers,
               _fromTakeoff: true,
-              piers: pierConfigs,
+              pierGroups,
             };
           }
         }
