@@ -216,165 +216,27 @@ export const reinforcementRaftModule: EstimateModule = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 3: EDGE BEAM DEFAULTS
+    // SECTION 3: EDGE BEAMS (toggle only - per-beam config in UI)
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'edge_beam_reo',
       type: 'boolean',
       label: 'Include Edge Beam Reinforcement',
       defaultValue: true,
-      sectionLabel: 'Edge Beams (Defaults)',
-    },
-    {
-      id: 'edge_beam_tm_type',
-      type: 'select',
-      label: 'Default TM Type',
-      helpText: 'Override per beam below',
-      options: [
-        { value: 'L8TM3', label: 'L8TM3 (300mm)' },
-        { value: 'L8TM4', label: 'L8TM4 (400mm)' },
-        { value: 'L11TM3', label: 'L11TM3 (300mm)' },
-        { value: 'L11TM4', label: 'L11TM4 (400mm)' },
-        { value: 'L12TM3', label: 'L12TM3 (300mm)' },
-        { value: 'L12TM4', label: 'L12TM4 (400mm)' },
-        { value: 'L12TM5', label: 'L12TM5 (500mm)' },
-        { value: 'L16TM3', label: 'L16TM3 (300mm)' },
-      ],
-      defaultValue: 'L11TM4',
-      showIf: (answers) => answers.edge_beam_reo === true,
-    },
-    {
-      id: 'edge_beam_tm_price',
-      type: 'currency',
-      label: 'TM Price/Sheet',
-      defaultValue: 108,
-      unit: '/sheet',
-      showIf: (answers) => answers.edge_beam_reo === true,
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const tmType = moduleAnswers.edge_beam_tm_type || 'L11TM4';
-        return priceMap?.['trench_mesh']?.[tmType];
-      },
-    },
-    {
-      id: 'edge_beam_add_ligs',
-      type: 'boolean',
-      label: 'Default: Add Ligatures',
-      defaultValue: false,
-      showIf: (answers) => answers.edge_beam_reo === true,
-    },
-    {
-      id: 'edge_beam_lig_size',
-      type: 'select',
-      label: 'Default Lig Size',
-      options: [
-        { value: 'R10', label: 'R10' },
-        { value: 'R12', label: 'R12' },
-      ],
-      defaultValue: 'R10',
-      showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_add_ligs === true,
-    },
-    {
-      id: 'edge_beam_lig_centres',
-      type: 'number',
-      label: 'Default Lig Centres',
-      defaultValue: 200,
-      min: 100,
-      max: 600,
-      unit: 'mm',
-      showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_add_ligs === true,
-    },
-    {
-      id: 'edge_beam_lig_price',
-      type: 'currency',
-      label: 'Lig Price/Tonne',
-      defaultValue: 2100,
-      unit: '/t',
-      showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_add_ligs === true,
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const ligSize = moduleAnswers.edge_beam_lig_size || 'R10';
-        return priceMap?.['rebar']?.[`${ligSize} COIL`];
-      },
+      sectionLabel: 'Edge Beams',
+      // Note: Per-beam TM type, ligatures etc are configured inline in the UI
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 4: INTERNAL BEAM DEFAULTS
+    // SECTION 4: INTERNAL BEAMS (toggle only - per-beam config in UI)
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'internal_beam_reo',
       type: 'boolean',
       label: 'Include Internal Beam Reinforcement',
       defaultValue: true,
-      sectionLabel: 'Internal Beams (Defaults)',
-    },
-    {
-      id: 'internal_beam_tm_type',
-      type: 'select',
-      label: 'Default TM Type',
-      helpText: 'Override per beam below',
-      options: [
-        { value: 'L8TM3', label: 'L8TM3 (300mm)' },
-        { value: 'L8TM4', label: 'L8TM4 (400mm)' },
-        { value: 'L11TM3', label: 'L11TM3 (300mm)' },
-        { value: 'L11TM4', label: 'L11TM4 (400mm)' },
-        { value: 'L12TM3', label: 'L12TM3 (300mm)' },
-        { value: 'L12TM4', label: 'L12TM4 (400mm)' },
-        { value: 'L12TM5', label: 'L12TM5 (500mm)' },
-        { value: 'L16TM3', label: 'L16TM3 (300mm)' },
-      ],
-      defaultValue: 'L11TM4',
-      showIf: (answers) => answers.internal_beam_reo === true,
-    },
-    {
-      id: 'internal_beam_tm_price',
-      type: 'currency',
-      label: 'TM Price/Sheet',
-      defaultValue: 108,
-      unit: '/sheet',
-      showIf: (answers) => answers.internal_beam_reo === true,
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const tmType = moduleAnswers.internal_beam_tm_type || 'L11TM4';
-        return priceMap?.['trench_mesh']?.[tmType];
-      },
-    },
-    {
-      id: 'internal_beam_add_ligs',
-      type: 'boolean',
-      label: 'Default: Add Ligatures',
-      defaultValue: false,
-      showIf: (answers) => answers.internal_beam_reo === true,
-    },
-    {
-      id: 'internal_beam_lig_size',
-      type: 'select',
-      label: 'Default Lig Size',
-      options: [
-        { value: 'R10', label: 'R10' },
-        { value: 'R12', label: 'R12' },
-      ],
-      defaultValue: 'R10',
-      showIf: (answers) => answers.internal_beam_reo === true && answers.internal_beam_add_ligs === true,
-    },
-    {
-      id: 'internal_beam_lig_centres',
-      type: 'number',
-      label: 'Default Lig Centres',
-      defaultValue: 200,
-      min: 100,
-      max: 600,
-      unit: 'mm',
-      showIf: (answers) => answers.internal_beam_reo === true && answers.internal_beam_add_ligs === true,
-    },
-    {
-      id: 'internal_beam_lig_price',
-      type: 'currency',
-      label: 'Lig Price/Tonne',
-      defaultValue: 2100,
-      unit: '/t',
-      showIf: (answers) => answers.internal_beam_reo === true && answers.internal_beam_add_ligs === true,
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const ligSize = moduleAnswers.internal_beam_lig_size || 'R10';
-        return priceMap?.['rebar']?.[`${ligSize} COIL`];
-      },
+      sectionLabel: 'Internal Beams',
+      // Note: Per-beam TM type, ligatures etc are configured inline in the UI
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -555,22 +417,23 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // EDGE BEAMS (per beam)
+    // EDGE BEAMS (per beam - all config stored on beam object)
     // ═══════════════════════════════════════════════════════════════
     if (answers.edge_beam_reo && edgeBeams.length > 0) {
-      const defaultTmType = answers.edge_beam_tm_type || 'L11TM4';
-      const defaultAddLigs = answers.edge_beam_add_ligs || false;
-      const defaultLigSize = answers.edge_beam_lig_size || 'R10';
-      const defaultLigCentres = Number(answers.edge_beam_lig_centres) || 200;
+      // Hardcoded defaults for beams that don't have explicit settings
+      const DEFAULT_TM_TYPE = 'L11TM4';
+      const DEFAULT_ADD_LIGS = false;
+      const DEFAULT_LIG_SIZE = 'R10';
+      const DEFAULT_LIG_CENTRES = 200;
 
       edgeBeams.forEach((beam) => {
         const length = Number(beam.length) || 0;
         if (length <= 0) return;
 
-        const tmType = beam.tm_type || defaultTmType;
-        const addLigs = beam.add_ligs ?? defaultAddLigs;
-        const ligSize = beam.lig_size || defaultLigSize;
-        const ligCentres = beam.lig_centres ?? defaultLigCentres;
+        const tmType = beam.tm_type || DEFAULT_TM_TYPE;
+        const addLigs = beam.add_ligs ?? DEFAULT_ADD_LIGS;
+        const ligSize = beam.lig_size || DEFAULT_LIG_SIZE;
+        const ligCentres = beam.lig_centres ?? DEFAULT_LIG_CENTRES;
 
         const tmPrice = getPrice(priceMap, 'trench_mesh', tmType, 108);
         const tmLengthWithLap = length * LAP_ALLOWANCE;
@@ -612,8 +475,8 @@ export const reinforcementRaftModule: EstimateModule = {
     } else if (answers.edge_beam_reo && !edgeBeams.length) {
       const perimeter = Number(scopeData?.perimeter) || Number(scopeData?.edge_beam_length) || 0;
       if (perimeter > 0) {
-        const tmType = answers.edge_beam_tm_type || 'L11TM4';
-        const tmPrice = Number(answers.edge_beam_tm_price) || getPrice(priceMap, 'trench_mesh', tmType, 108);
+        const tmType = 'L11TM4';
+        const tmPrice = getPrice(priceMap, 'trench_mesh', tmType, 108);
         const tmLengthWithLap = perimeter * LAP_ALLOWANCE;
         const tmSheets = Math.ceil(tmLengthWithLap / 6);
         const tmCost = tmSheets * tmPrice;
@@ -632,22 +495,23 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // INTERNAL BEAMS (per beam)
+    // INTERNAL BEAMS (per beam - all config stored on beam object)
     // ═══════════════════════════════════════════════════════════════
     if (answers.internal_beam_reo && internalBeams.length > 0) {
-      const defaultTmType = answers.internal_beam_tm_type || 'L11TM4';
-      const defaultAddLigs = answers.internal_beam_add_ligs || false;
-      const defaultLigSize = answers.internal_beam_lig_size || 'R10';
-      const defaultLigCentres = Number(answers.internal_beam_lig_centres) || 200;
+      // Hardcoded defaults for beams that don't have explicit settings
+      const DEFAULT_TM_TYPE = 'L11TM4';
+      const DEFAULT_ADD_LIGS = false;
+      const DEFAULT_LIG_SIZE = 'R10';
+      const DEFAULT_LIG_CENTRES = 200;
 
       internalBeams.forEach((beam) => {
         const length = Number(beam.length) || 0;
         if (length <= 0) return;
 
-        const tmType = beam.tm_type || defaultTmType;
-        const addLigs = beam.add_ligs ?? defaultAddLigs;
-        const ligSize = beam.lig_size || defaultLigSize;
-        const ligCentres = beam.lig_centres ?? defaultLigCentres;
+        const tmType = beam.tm_type || DEFAULT_TM_TYPE;
+        const addLigs = beam.add_ligs ?? DEFAULT_ADD_LIGS;
+        const ligSize = beam.lig_size || DEFAULT_LIG_SIZE;
+        const ligCentres = beam.lig_centres ?? DEFAULT_LIG_CENTRES;
 
         const tmPrice = getPrice(priceMap, 'trench_mesh', tmType, 108);
         const tmLengthWithLap = length * LAP_ALLOWANCE;
@@ -689,8 +553,8 @@ export const reinforcementRaftModule: EstimateModule = {
     } else if (answers.internal_beam_reo) {
       const totalInternalLength = Number(scopeData?.internal_beams_length) || 0;
       if (totalInternalLength > 0) {
-        const tmType = answers.internal_beam_tm_type || 'L11TM4';
-        const tmPrice = Number(answers.internal_beam_tm_price) || getPrice(priceMap, 'trench_mesh', tmType, 108);
+        const tmType = 'L11TM4';
+        const tmPrice = getPrice(priceMap, 'trench_mesh', tmType, 108);
         const tmLengthWithLap = totalInternalLength * LAP_ALLOWANCE;
         const tmSheets = Math.ceil(tmLengthWithLap / 6);
         const tmCost = tmSheets * tmPrice;
