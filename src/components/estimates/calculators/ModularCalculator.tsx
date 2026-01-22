@@ -722,6 +722,20 @@ export function ModularCalculator({
     }));
   };
 
+  // Handler for scope data changes from modules (e.g., per-beam reinforcement settings)
+  const handleModuleScopeDataChange = (key: string, value: any) => {
+    if (key === 'areas') {
+      handleAreasChange(value);
+    } else if (key === 'edgeBeams') {
+      handleEdgeBeamsChange(value);
+    } else if (key === 'beams') {
+      handleBeamsChange(value);
+    } else {
+      // Generic fallback for other scope data
+      setScopeAnswers((prev) => ({ ...prev, [key]: value }));
+    }
+  };
+
   const handleAddCustomExclusion = (text: string) => {
     setCustomExclusions((prev) => [
       ...prev,
@@ -1006,6 +1020,7 @@ export function ModularCalculator({
                   onModuleDone?.();
                 }}
                 scopeData={scopeData}
+                onScopeDataChange={handleModuleScopeDataChange}
               />
             );
           })}
