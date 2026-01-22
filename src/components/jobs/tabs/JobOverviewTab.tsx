@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Truck, FileText, Package } from "lucide-react";
+import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { BOQCard } from "@/components/jobs/boq/BOQCard";
@@ -19,6 +19,14 @@ interface ScopeConcreteSpec {
   slump?: string;
   supplier?: string;
   finishType?: string;
+}
+
+interface CustomerInfo {
+  clientName: string | null;
+  companyName: string | null;
+  clientEmail: string | null;
+  clientPhone: string | null;
+  siteAddress: string | null;
 }
 
 const SCOPE_LABELS: Record<string, string> = {
@@ -97,15 +105,33 @@ function extractConcreteSpecsFromEstimate(
   return specs;
 }
 
+function extractCustomerInfoFromEstimate(estimate: {
+  client_name: string | null;
+  company_name: string | null;
+  client_email: string | null;
+  client_phone: string | null;
+  site_address: string | null;
+} | null): CustomerInfo | null {
+  if (!estimate) return null;
+  
+  return {
+    clientName: estimate.client_name,
+    companyName: estimate.company_name,
+    clientEmail: estimate.client_email,
+    clientPhone: estimate.client_phone,
+    siteAddress: estimate.site_address,
+  };
+}
+
 export function JobOverviewTab({ job }: JobOverviewTabProps) {
   // Fetch source estimate if job was converted from a quote
   const { data: sourceEstimate } = useQuery({
-    queryKey: ["source-estimate-specs", job.source_estimate_id],
+    queryKey: ["source-estimate-full", job.source_estimate_id],
     queryFn: async () => {
       if (!job.source_estimate_id) return null;
       const { data, error } = await supabase
         .from("estimates")
-        .select("scope_data, selected_scopes")
+        .select("scope_data, selected_scopes, client_name, company_name, client_email, client_phone, site_address")
         .eq("id", job.source_estimate_id)
         .maybeSingle();
       if (error) throw error;
@@ -121,12 +147,98 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
       )
     : [];
 
+  const customerInfo = extractCustomerInfoFromEstimate(sourceEstimate);
+
   // Calculate totals from scope specs
   const totalEstimatedVolume = scopeSpecs.reduce((sum, s) => sum + s.volume, 0);
   const hasMultipleScopes = scopeSpecs.length > 1;
 
+  // Check if we have any customer info to display
+  const hasCustomerInfo = customerInfo && (
+    customerInfo.clientName || 
+    customerInfo.companyName || 
+    customerInfo.clientEmail || 
+    customerInfo.clientPhone
+  );
+
   return (
     <div className="grid gap-6 md:grid-cols-2">
+      {/* Customer Info Card - auto-populated from quote */}
+      {hasCustomerInfo && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <User className="w-5 h-5" />
+              Customer Details
+              <span className="text-xs font-normal text-muted-foreground ml-auto">
+                From Quote
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {customerInfo.clientName && (
+              <div className="flex items-start gap-3">
+                <User className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Contact Name</p>
+                  <p className="text-sm text-muted-foreground">{customerInfo.clientName}</p>
+                </div>
+              </div>
+            )}
+
+            {customerInfo.companyName && (
+              <div className="flex items-start gap-3">
+                <Building2 className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Company</p>
+                  <p className="text-sm text-muted-foreground">{customerInfo.companyName}</p>
+                </div>
+              </div>
+            )}
+
+            {customerInfo.clientEmail && (
+              <div className="flex items-start gap-3">
+                <Mail className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Email</p>
+                  <a 
+                    href={`mailto:${customerInfo.clientEmail}`}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {customerInfo.clientEmail}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {customerInfo.clientPhone && (
+              <div className="flex items-start gap-3">
+                <Phone className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Phone</p>
+                  <a 
+                    href={`tel:${customerInfo.clientPhone}`}
+                    className="text-sm text-primary hover:underline"
+                  >
+                    {customerInfo.clientPhone}
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {customerInfo.siteAddress && (
+              <div className="flex items-start gap-3 pt-3 border-t">
+                <MapPin className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-sm font-medium">Site Address</p>
+                  <p className="text-sm text-muted-foreground">{customerInfo.siteAddress}</p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Job Details Card */}
       <Card>
         <CardHeader>
