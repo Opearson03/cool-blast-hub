@@ -34,6 +34,7 @@ import { JobSWMSTab } from "@/components/jobs/tabs/JobSWMSTab";
 import { JobTestResultsTab } from "@/components/jobs/tabs/JobTestResultsTab";
 import { JobDocumentsTab } from "@/components/jobs/tabs/JobDocumentsTab";
 import { JobEquipmentTab } from "@/components/jobs/tabs/JobEquipmentTab";
+import { JobVariationsTab } from "@/components/jobs/tabs/JobVariationsTab";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Job = Tables<"jobs">;
@@ -237,6 +238,9 @@ export default function AdminJobDetail() {
                 </TabsTrigger>
               </>
             )}
+            <TabsTrigger value="variations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Variations
+            </TabsTrigger>
             <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Documents
             </TabsTrigger>
@@ -272,6 +276,9 @@ export default function AdminJobDetail() {
                 </TabsContent>
               </>
             )}
+            <TabsContent value="variations" className="m-0">
+              <JobVariationsTab jobId={job.id} businessId={job.business_id} />
+            </TabsContent>
             <TabsContent value="documents" className="m-0">
               <JobDocumentsTab jobId={job.id} businessId={job.business_id} />
             </TabsContent>
