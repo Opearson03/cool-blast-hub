@@ -591,7 +591,7 @@ export function ModularCalculator({
     }));
   };
 
-  // Handler for multi-beam changes
+  // Handler for multi-beam changes (internal beams)
   const handleBeamsChange = (beams: BeamConfig[]) => {
     // Calculate totals from beam configs
     const totalLength = beams.reduce((sum, beam) => sum + (Number(beam.length) || 0), 0);
@@ -615,6 +615,33 @@ export function ModularCalculator({
       internal_beams_length: totalLength,
       internal_beam_width: weightedWidth,
       internal_beam_depth: weightedDepth,
+    }));
+  };
+
+  // Handler for edge beam changes
+  const handleEdgeBeamsChange = (edgeBeams: BeamConfig[]) => {
+    // Calculate totals from beam configs
+    const totalLength = edgeBeams.reduce((sum, beam) => sum + (Number(beam.length) || 0), 0);
+    
+    // Calculate weighted averages for width and depth
+    let weightedWidth = 0;
+    let weightedDepth = 0;
+    if (totalLength > 0) {
+      edgeBeams.forEach(beam => {
+        const length = Number(beam.length) || 0;
+        weightedWidth += length * (Number(beam.width) || 0);
+        weightedDepth += length * (Number(beam.depth) || 0);
+      });
+      weightedWidth = weightedWidth / totalLength;
+      weightedDepth = weightedDepth / totalLength;
+    }
+    
+    setScopeAnswers((prev) => ({
+      ...prev,
+      edgeBeams,
+      edge_beam_length: totalLength,
+      edge_beam_width: Math.round(weightedWidth),
+      edge_beam_depth: Math.round(weightedDepth),
     }));
   };
 
@@ -854,6 +881,36 @@ export function ModularCalculator({
           </Card>
         );
       })()}
+
+      {/* Multi-edge-beam input for raft slabs */}
+      {scope.supportsMultipleEdgeBeams && (
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base">{scope.edgeBeamsLabel || 'Edge Beams'}</CardTitle>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="has-edge-beams" className="text-sm font-normal text-muted-foreground">
+                  Include edge beams?
+                </Label>
+                <Switch
+                  id="has-edge-beams"
+                  checked={scopeAnswers.hasEdgeBeams ?? true}
+                  onCheckedChange={(checked) => handleScopeAnswerChange('hasEdgeBeams', checked)}
+                />
+              </div>
+            </div>
+          </CardHeader>
+          {(scopeAnswers.hasEdgeBeams ?? true) && (
+            <CardContent className="pt-0">
+              <MultiBeamInput
+                label=""
+                beams={scopeAnswers.edgeBeams || [{ id: 'edge-1', name: 'Edge Beam 1', length: 0, width: 450, depth: 450 }]}
+                onChange={handleEdgeBeamsChange}
+              />
+            </CardContent>
+          )}
+        </Card>
+      )}
 
       {/* Multi-beam input for raft slabs - optional with toggle */}
       {scope.supportsMultipleBeams && (

@@ -1171,43 +1171,66 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
               };
             });
             
-            // Aggregate edge beam data across all slab areas
-            const totalEdgeBeamLength = raftSlabAreas.reduce(
-              (sum, s) => sum + (s.edgeBeam?.totalLength || 0), 0
-            );
-            const firstEdgeBeam = raftSlabAreas.find(s => s.edgeBeam)?.edgeBeam;
+            // Collect ALL edge beams from all slab areas into a single array
+            const allEdgeBeams = raftSlabAreas.flatMap(s => s.edgeBeams || []);
+            const totalEdgeBeamLength = allEdgeBeams.reduce((sum, b) => sum + b.length, 0);
+            const hasEdgeBeams = allEdgeBeams.length > 0;
             
-            // Aggregate internal beam data
-            const totalInternalBeamLength = raftSlabAreas.reduce(
-              (sum, s) => sum + (s.internalBeams?.totalLength || 0), 0
-            );
-            const firstInternalBeam = raftSlabAreas.find(s => s.internalBeams)?.internalBeams;
-            const hasInternalBeams = totalInternalBeamLength > 0;
+            // Collect ALL internal beams from all slab areas
+            const allInternalBeams = raftSlabAreas.flatMap(s => s.internalBeams || []);
+            const totalInternalBeamLength = allInternalBeams.reduce((sum, b) => sum + b.length, 0);
+            const hasInternalBeams = allInternalBeams.length > 0;
+            
+            // Calculate weighted averages for edge beams
+            let edgeBeamAvgWidth = 450, edgeBeamAvgDepth = 450;
+            if (totalEdgeBeamLength > 0) {
+              edgeBeamAvgWidth = allEdgeBeams.reduce((sum, b) => sum + b.length * b.width, 0) / totalEdgeBeamLength;
+              edgeBeamAvgDepth = allEdgeBeams.reduce((sum, b) => sum + b.length * b.depth, 0) / totalEdgeBeamLength;
+            }
+            
+            // Calculate weighted averages for internal beams
+            let internalBeamAvgWidth = 300, internalBeamAvgDepth = 400;
+            if (totalInternalBeamLength > 0) {
+              internalBeamAvgWidth = allInternalBeams.reduce((sum, b) => sum + b.length * b.width, 0) / totalInternalBeamLength;
+              internalBeamAvgDepth = allInternalBeams.reduce((sum, b) => sum + b.length * b.depth, 0) / totalInternalBeamLength;
+            }
             
             initialScopeAnswers = {
               ...initialScopeAnswers,
               _fromTakeoff: true,
               areas: areasFromTakeoff,
-              // Edge beam dimensions from takeoff
-              ...(totalEdgeBeamLength > 0 && { edge_beam_length: totalEdgeBeamLength }),
-              ...(firstEdgeBeam && { edge_beam_width: firstEdgeBeam.width }),
-              ...(firstEdgeBeam && { edge_beam_depth: firstEdgeBeam.depth }),
-              // Internal beams - auto-enable if marked
-              ...(hasInternalBeams && { hasInternalBeams: true }),
-              ...(hasInternalBeams && { internal_beams_length: totalInternalBeamLength }),
-              ...(firstInternalBeam && { internal_beam_width: firstInternalBeam.width }),
-              ...(firstInternalBeam && { internal_beam_depth: firstInternalBeam.depth }),
-              // Pre-populate beams array for MultiBeamInput
-              ...(hasInternalBeams && {
-                beams: [{
-                  id: 'beam-takeoff-1',
-                  name: 'Internal Beams (from takeoff)',
-                  length: totalInternalBeamLength,
-                  width: firstInternalBeam?.width || 300,
-                  depth: firstInternalBeam?.depth || 400,
+              // Edge beam array for MultiBeamInput
+              ...(hasEdgeBeams && { hasEdgeBeams: true }),
+              ...(hasEdgeBeams && {
+                edgeBeams: allEdgeBeams.map((b) => ({
+                  id: b.id,
+                  name: b.name,
+                  length: parseFloat(b.length.toFixed(2)),
+                  width: b.width,
+                  depth: b.depth,
                   _fromTakeoff: true,
-                }],
+                })),
               }),
+              // Legacy aggregate edge beam fields for calculations
+              ...(totalEdgeBeamLength > 0 && { edge_beam_length: parseFloat(totalEdgeBeamLength.toFixed(2)) }),
+              ...(hasEdgeBeams && { edge_beam_width: Math.round(edgeBeamAvgWidth) }),
+              ...(hasEdgeBeams && { edge_beam_depth: Math.round(edgeBeamAvgDepth) }),
+              // Internal beams array for MultiBeamInput
+              ...(hasInternalBeams && { hasInternalBeams: true }),
+              ...(hasInternalBeams && {
+                beams: allInternalBeams.map((b) => ({
+                  id: b.id,
+                  name: b.name,
+                  length: parseFloat(b.length.toFixed(2)),
+                  width: b.width,
+                  depth: b.depth,
+                  _fromTakeoff: true,
+                })),
+              }),
+              // Legacy aggregate internal beam fields
+              ...(hasInternalBeams && { internal_beams_length: parseFloat(totalInternalBeamLength.toFixed(2)) }),
+              ...(hasInternalBeams && { internal_beam_width: Math.round(internalBeamAvgWidth) }),
+              ...(hasInternalBeams && { internal_beam_depth: Math.round(internalBeamAvgDepth) }),
             };
             
             // For waffle pod scope, also estimate pod count from area
