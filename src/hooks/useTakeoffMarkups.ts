@@ -418,49 +418,83 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
 
   /**
    * Get pad footing/pit base configs grouped by unique dimensions (length + width + depth)
+   * Handles both point-based (pit_bases) and area-based (pad_footings) markups
    */
   const getPadConfigsForScope = useCallback((scopeId: string): PadConfigFromTakeoff[] => {
-    const padMarkups = markups.filter(
+    // For pit_bases: point-based markups with manual dimensions
+    const pointMarkups = markups.filter(
       m => m.scope_id === scopeId && m.shape_type === 'point'
     );
     
-    if (padMarkups.length === 0) return [];
+    // For pad_footings: area-based markups (polygon/rectangle) with depth
+    const areaMarkups = markups.filter(
+      m => m.scope_id === scopeId && (m.shape_type === 'polygon' || m.shape_type === 'rectangle')
+    );
     
-    // Group by unique length + width + depth combination
-    const grouped = new Map<string, { count: number; length: number; width: number; depth: number; name: string }>();
+    const results: PadConfigFromTakeoff[] = [];
     
-    padMarkups.forEach(m => {
-      // For pad footings: width_mm = length, height_mm = width, depth_mm = depth
-      const length = m.width_mm || 600;
-      const width = m.height_mm || 600;
-      const depth = m.depth_mm || 300;
-      const key = `${length}-${width}-${depth}`;
-      const qty = m.pier_quantity || 1;
+    // Handle point-based markups (pit_bases) - group by dimensions
+    if (pointMarkups.length > 0) {
+      const grouped = new Map<string, { count: number; length: number; width: number; depth: number; name: string }>();
       
-      if (grouped.has(key)) {
-        const existing = grouped.get(key)!;
-        existing.count += qty;
-        existing.name = `${existing.count} pads @ ${length}x${width}x${depth}mm`;
-      } else {
-        grouped.set(key, {
-          count: qty,
-          length,
-          width,
-          depth,
-          name: m.name || `${qty} pads @ ${length}x${width}x${depth}mm`,
-        });
-      }
-    });
+      pointMarkups.forEach(m => {
+        // For pad footings: width_mm = length, height_mm = width, depth_mm = depth
+        const length = m.width_mm || 600;
+        const width = m.height_mm || 600;
+        const depth = m.depth_mm || 300;
+        const key = `${length}-${width}-${depth}`;
+        const qty = m.pier_quantity || 1;
+        
+        if (grouped.has(key)) {
+          const existing = grouped.get(key)!;
+          existing.count += qty;
+          existing.name = `${existing.count} pads @ ${length}x${width}x${depth}mm`;
+        } else {
+          grouped.set(key, {
+            count: qty,
+            length,
+            width,
+            depth,
+            name: m.name || `${qty} pads @ ${length}x${width}x${depth}mm`,
+          });
+        }
+      });
+      
+      results.push(...Array.from(grouped.entries()).map(([key, data], index) => ({
+        id: `takeoff-pad-${key}-${Date.now()}-${index}`,
+        name: data.name,
+        quantity: data.count,
+        length: data.length,
+        width: data.width,
+        depth: data.depth,
+        _fromTakeoff: true as const,
+      })));
+    }
     
-    return Array.from(grouped.entries()).map(([key, data], index) => ({
-      id: `takeoff-pad-${key}-${Date.now()}-${index}`,
-      name: data.name,
-      quantity: data.count,
-      length: data.length,
-      width: data.width,
-      depth: data.depth,
-      _fromTakeoff: true as const,
-    }));
+    // Handle area-based markups (pad_footings) - each is a unique pad
+    if (areaMarkups.length > 0) {
+      areaMarkups.forEach((m, index) => {
+        const area = m.area_sqm || 0;
+        const depth = m.depth_mm || 300;
+        // Estimate length/width from area (assume square for simplicity)
+        const sideM = Math.sqrt(area);
+        const sideMm = Math.round(sideM * 1000);
+        
+        results.push({
+          id: `takeoff-pad-area-${m.markup_id}-${index}`,
+          name: m.name || `Pad ${index + 1}`,
+          quantity: 1, // Each area markup is one pad
+          length: sideMm,
+          width: sideMm,
+          depth: depth,
+          _fromTakeoff: true as const,
+          // Add actual area for calculations
+          _actualArea: area,
+        } as PadConfigFromTakeoff & { _actualArea?: number });
+      });
+    }
+    
+    return results;
   }, [markups]);
 
   /**
