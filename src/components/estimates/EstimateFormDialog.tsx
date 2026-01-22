@@ -1333,25 +1333,40 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         const padConfigs = getPadConfigsForScope(scope);
         
         if (padConfigs.length > 0) {
-          const hasUserData = initialScopeAnswers.num_pads > 0 || initialScopeAnswers.num_pits > 0;
+          // Check for existing user data using correct field names
+          const hasUserData = initialScopeAnswers.total_num_pads > 0 || initialScopeAnswers.num_pits > 0;
           
           if (!hasUserData) {
             // Sum up total count from all config types
             const totalCount = padConfigs.reduce((sum, c) => sum + c.quantity, 0);
             // Use first config for dimensions (or could create multi-pad support in future)
             const firstConfig = padConfigs[0];
-            const countField = scope === 'pad_footings' ? 'num_pads' : 'num_pits';
             
-            initialScopeAnswers = {
-              ...initialScopeAnswers,
-              _fromTakeoff: true,
-              [countField]: totalCount,
-              pad_length: firstConfig.length,
-              pad_width: firstConfig.width,
-              pad_depth: firstConfig.depth,
-              // Store all configs for potential future multi-pad support
-              _padConfigs: padConfigs,
-            };
+            if (scope === 'pad_footings') {
+              // Pad footings use total_num_pads, total_length, total_width, total_depth
+              initialScopeAnswers = {
+                ...initialScopeAnswers,
+                _fromTakeoff: true,
+                total_num_pads: totalCount,
+                total_length: firstConfig.length,
+                total_width: firstConfig.width,
+                total_depth: firstConfig.depth,
+                // Store all configs for potential future multi-pad support
+                _padConfigs: padConfigs,
+              };
+            } else {
+              // Pit bases use num_pits and pit-specific fields
+              initialScopeAnswers = {
+                ...initialScopeAnswers,
+                _fromTakeoff: true,
+                num_pits: totalCount,
+                pit_length: firstConfig.length,
+                pit_width: firstConfig.width,
+                pit_depth: firstConfig.depth,
+                // Store all configs for potential future multi-pad support
+                _padConfigs: padConfigs,
+              };
+            }
           }
         }
       } else if (scopeDefinition.supportsMultipleFootings || scopeDefinition.supportsLinearSections) {
