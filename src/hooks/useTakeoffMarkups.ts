@@ -91,6 +91,18 @@ export interface FootingConfigFromTakeoff {
 }
 
 /**
+ * Individual beam data from takeoff
+ */
+export interface BeamFromTakeoff {
+  id: string;
+  name: string;
+  length: number;  // meters
+  width: number;   // mm
+  depth: number;   // mm
+  _fromTakeoff: true;
+}
+
+/**
  * Raft slab area data with associated beam information from takeoff
  */
 export interface RaftSlabAreaFromTakeoff {
@@ -98,12 +110,17 @@ export interface RaftSlabAreaFromTakeoff {
   name: string;
   area: number;
   perimeter: number;
+  // Individual edge beams with their own names/dimensions
+  edgeBeams: BeamFromTakeoff[];
+  // Individual internal beams with their own names/dimensions
+  internalBeams: BeamFromTakeoff[];
+  // Legacy aggregated data for backward compatibility
   edgeBeam: {
     totalLength: number;
     width: number;  // mm
     depth: number;  // mm
   } | null;
-  internalBeams: {
+  internalBeamsSummary: {
     totalLength: number;
     width: number;  // mm
     depth: number;  // mm
@@ -495,27 +512,44 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         m => m.parent_markup_id === primary.markup_id && m.markup_type === 'internal_beam'
       );
       
-      // Aggregate edge beam data
+      // Convert to individual beam arrays
+      const edgeBeams: BeamFromTakeoff[] = edgeBeamMarkups.map((m, i) => ({
+        id: `edge-beam-${m.markup_id}`,
+        name: m.name || `Edge Beam ${i + 1}`,
+        length: m.length_m || 0,
+        width: m.width_mm || 450,
+        depth: m.height_mm || 450,
+        _fromTakeoff: true as const,
+      }));
+      
+      const internalBeams: BeamFromTakeoff[] = internalBeamMarkups.map((m, i) => ({
+        id: `internal-beam-${m.markup_id}`,
+        name: m.name || `Internal Beam ${i + 1}`,
+        length: m.length_m || 0,
+        width: m.width_mm || 300,
+        depth: m.height_mm || 400,
+        _fromTakeoff: true as const,
+      }));
+      
+      // Legacy aggregated edge beam data for backward compatibility
       let edgeBeam: RaftSlabAreaFromTakeoff['edgeBeam'] = null;
-      if (edgeBeamMarkups.length > 0) {
-        const totalLength = edgeBeamMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
-        const firstBeam = edgeBeamMarkups[0];
+      if (edgeBeams.length > 0) {
+        const totalLength = edgeBeams.reduce((sum, b) => sum + b.length, 0);
         edgeBeam = {
           totalLength,
-          width: firstBeam.width_mm || 450,
-          depth: firstBeam.height_mm || 450,
+          width: edgeBeams[0].width,
+          depth: edgeBeams[0].depth,
         };
       }
       
-      // Aggregate internal beam data
-      let internalBeams: RaftSlabAreaFromTakeoff['internalBeams'] = null;
-      if (internalBeamMarkups.length > 0) {
-        const totalLength = internalBeamMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
-        const firstBeam = internalBeamMarkups[0];
-        internalBeams = {
+      // Legacy aggregated internal beam data
+      let internalBeamsSummary: RaftSlabAreaFromTakeoff['internalBeamsSummary'] = null;
+      if (internalBeams.length > 0) {
+        const totalLength = internalBeams.reduce((sum, b) => sum + b.length, 0);
+        internalBeamsSummary = {
           totalLength,
-          width: firstBeam.width_mm || 300,
-          depth: firstBeam.height_mm || 400,
+          width: internalBeams[0].width,
+          depth: internalBeams[0].depth,
         };
       }
       
@@ -524,8 +558,10 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         name: primary.name || `Slab Area ${index + 1}`,
         area: primary.area_sqm || 0,
         perimeter: primary.perimeter_m || 0,
-        edgeBeam,
+        edgeBeams,
         internalBeams,
+        edgeBeam,
+        internalBeamsSummary,
         _fromTakeoff: true as const,
       };
     });

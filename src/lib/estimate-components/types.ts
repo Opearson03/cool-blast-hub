@@ -251,6 +251,12 @@ export interface ScopeDefinition {
   /** Label for the beams section (e.g., "Internal Stiffening Beams") */
   beamsLabel?: string;
   
+  /** If true, allows multiple edge beam configurations within this scope */
+  supportsMultipleEdgeBeams?: boolean;
+  
+  /** Label for the edge beams section (e.g., "Edge Beams") */
+  edgeBeamsLabel?: string;
+  
   /** Question IDs that should be hidden from standard rendering (managed by multi-input components) */
   hideStandardQuestions?: string[];
 }

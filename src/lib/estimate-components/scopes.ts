@@ -165,8 +165,10 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
   areasLabel: 'Raft Slab Areas',
   supportsMultipleBeams: true,
   beamsLabel: 'Internal Stiffening Beams',
-  // Hide internal beam fields from standard rendering - they're managed by MultiBeamInput
-  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth'],
+  supportsMultipleEdgeBeams: true,
+  edgeBeamsLabel: 'Edge Beams',
+  // Hide beam fields from standard rendering - they're managed by MultiBeamInput
+  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
     {
       id: 'area',
