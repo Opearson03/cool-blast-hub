@@ -71,6 +71,9 @@ verify_jwt = false
 [functions.send-estimate-email]
 verify_jwt = false
 
+[functions.send-variation-email]
+verify_jwt = false
+
 [functions.send-feedback]
 verify_jwt = false
 

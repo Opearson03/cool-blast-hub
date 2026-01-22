@@ -277,7 +277,17 @@ export default function AdminJobDetail() {
               </>
             )}
             <TabsContent value="variations" className="m-0">
-              <JobVariationsTab jobId={job.id} businessId={job.business_id} />
+              <JobVariationsTab 
+                jobId={job.id} 
+                businessId={job.business_id} 
+                job={{
+                  id: job.id,
+                  name: job.name,
+                  job_number: job.job_number,
+                  site_address: job.site_address,
+                  builder_client: job.builder_client,
+                }}
+              />
             </TabsContent>
             <TabsContent value="documents" className="m-0">
               <JobDocumentsTab jobId={job.id} businessId={job.business_id} />
