@@ -648,15 +648,16 @@ export function PlanTakeoffStep({
     setShowAddBeamDimensionsDialog(false);
   }, []);
 
-  // Auto-trigger dialog when 2 points are placed for adding beam to existing slab
+  // Auto-trigger dialog when 2 points are placed for adding internal beam to existing slab
+  // Edge beams use continuous polyline markup (double-click to finish)
   useEffect(() => {
-    if (isAddingBeamToExistingSlab && polylinePoints.length === 2) {
+    if (isAddingBeamToExistingSlab && addingBeamType === 'internal_beam' && polylinePoints.length === 2) {
       const timer = setTimeout(() => {
         handleDoneAddingBeamToSlab();
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isAddingBeamToExistingSlab, polylinePoints.length, handleDoneAddingBeamToSlab]);
+  }, [isAddingBeamToExistingSlab, addingBeamType, polylinePoints.length, handleDoneAddingBeamToSlab]);
 
   // Handler for completing pier marking
   const handlePierDimensionsConfirm = useCallback(async (diameter: number, depth: number, name: string) => {
