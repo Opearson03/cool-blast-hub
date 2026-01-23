@@ -1,141 +1,224 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
-import { getPrice, EXCAVATOR_CAPACITY } from '../types';
+import { getPrice } from '../types';
+
+// Scopes that primarily need bulk excavation (site cuts)
+const BULK_EXCAVATION_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds'];
+
+// Scopes that primarily need detailed excavation (point/linear elements)
+const DETAILED_EXCAVATION_SCOPES = ['piers', 'pad_footings', 'strip_footings', 'retaining_wall_footings'];
 
 export const excavationModule: EstimateModule = {
   id: 'excavation',
   name: 'Excavation',
-  description: 'Site preparation, setout, and excavation works',
+  description: 'Bulk site cuts and detailed excavation for beams, pads, piers, and footings',
   icon: 'Shovel',
 
   questions: [
+    // ==================== BULK EXCAVATION SECTION ====================
     {
-      id: 'excavation_required',
+      id: 'bulk_excavation_required',
       type: 'boolean',
-      label: 'Are you doing excavation?',
+      label: 'Bulk excavation required? (site cuts / level cuts)',
       defaultValue: false,
-      required: true,
+      helpText: 'For general site preparation and level cuts. Usually done by others.',
+      showIf: (_answers, scopeData) => {
+        // Only show bulk excavation for slab/driveway scopes
+        const scopeId = scopeData?.scopeId;
+        return BULK_EXCAVATION_SCOPES.includes(scopeId);
+      },
     },
     {
-      id: 'setout_materials',
-      type: 'currency',
-      label: 'Setout materials',
-      defaultValue: 80,
-      helpText: 'Pegs, string lines, spray paint, etc.',
-      showIf: (answers) => answers.excavation_required === true,
-    },
-    // Cut depth and volume estimation
-    {
-      id: 'cut_depth',
+      id: 'bulk_cut_depth',
       type: 'number',
       label: 'Average cut depth (mm)',
       defaultValue: 0,
       min: 0,
       max: 2000,
       unit: 'mm',
-      helpText: 'Average depth of excavation cut (auto-fills from scope dimensions)',
-      showIf: (answers) => answers.excavation_required === true,
-      deriveFrom: (scopeData) => {
-        // Auto-fill from scope's average excavation depth (piers, footings, bollards, etc.)
-        if (scopeData.averageExcavationDepth && scopeData.averageExcavationDepth > 0) {
-          return Math.round(scopeData.averageExcavationDepth);
-        }
-        return undefined;
+      helpText: 'Average depth of site cut',
+      showIf: (answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return BULK_EXCAVATION_SCOPES.includes(scopeId) && answers.bulk_excavation_required === true;
       },
     },
     {
-      id: 'excavation_area',
+      id: 'bulk_excavation_area',
       type: 'number',
       label: 'Area to excavate (m²)',
       unit: 'm²',
       min: 0,
       helpText: 'Auto-fills from scope dimensions',
       deriveFrom: (scopeData) => {
-        // Prefer excavation-specific area (for piers/footings), fallback to total area
-        if (scopeData.excavation_area && scopeData.excavation_area > 0) {
-          return Number(scopeData.excavation_area.toFixed(2));
-        }
         return scopeData.area || undefined;
       },
-      showIf: (answers) => answers.excavation_required === true,
+      showIf: (answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return BULK_EXCAVATION_SCOPES.includes(scopeId) && answers.bulk_excavation_required === true;
+      },
     },
     {
-      id: 'estimated_cut_volume',
+      id: 'bulk_estimated_volume',
       type: 'text',
       label: 'Estimated cut volume',
       derivedReadOnly: true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        // Prefer pre-calculated excavation volume for piers/footings/bollards
-        if (scopeData.excavation_volume && scopeData.excavation_volume > 0) {
-          return `~${scopeData.excavation_volume.toFixed(2)}m³`;
-        }
-        // Fallback to area × cut depth for slabs
-        const cutDepthM = (Number(moduleAnswers.cut_depth) || 0) / 1000;
-        const area = Number(moduleAnswers.excavation_area) || Number(scopeData.area) || 0;
+      deriveFrom: (_scopeData, moduleAnswers) => {
+        const cutDepthM = (Number(moduleAnswers.bulk_cut_depth) || 0) / 1000;
+        const area = Number(moduleAnswers.bulk_excavation_area) || 0;
         if (cutDepthM <= 0 || area <= 0) return undefined;
         const volume = area * cutDepthM;
         return `~${volume.toFixed(1)}m³`;
       },
-      showIf: (answers) => answers.excavation_required === true && Number(answers.cut_depth) > 0,
+      showIf: (answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return BULK_EXCAVATION_SCOPES.includes(scopeId) && 
+          answers.bulk_excavation_required === true && 
+          Number(answers.bulk_cut_depth) > 0;
+      },
     },
-    // Machine section
     {
-      id: 'machine_type',
+      id: 'bulk_machine_type',
       type: 'select',
-      label: 'Select machine required',
+      label: 'Machine for bulk excavation',
       options: [
-        { value: 'EXC 1.4T', label: '1.4T Excavator', priceKey: 'excavation.EXC 1.4T' },
-        { value: 'EXC 3.2T', label: '3.2T Excavator', priceKey: 'excavation.EXC 3.2T' },
-        { value: 'EXC 4T', label: '4T Excavator', priceKey: 'excavation.EXC 4T' },
         { value: 'EXC 6T', label: '6T Excavator', priceKey: 'excavation.EXC 6T' },
         { value: 'EXC 9T', label: '9T Excavator', priceKey: 'excavation.EXC 9T' },
         { value: 'POSI TRACK', label: 'Posi Track', priceKey: 'excavation.POSI TRACK' },
       ],
-      defaultValue: 'EXC 3.2T',
-      showIf: (answers) => answers.excavation_required === true,
+      defaultValue: 'EXC 6T',
+      showIf: (answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return BULK_EXCAVATION_SCOPES.includes(scopeId) && answers.bulk_excavation_required === true;
+      },
     },
     {
-      id: 'machine_rate',
+      id: 'bulk_machine_rate',
+      type: 'currency',
+      label: 'Machine hourly rate',
+      defaultValue: 180,
+      unit: '/hr',
+      helpText: 'Auto-fills from price list based on machine selected',
+      showIf: (answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return BULK_EXCAVATION_SCOPES.includes(scopeId) && answers.bulk_excavation_required === true;
+      },
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const machineType = moduleAnswers.bulk_machine_type || 'EXC 6T';
+        return priceMap['excavation']?.[machineType];
+      },
+    },
+    {
+      id: 'bulk_excavation_hours',
+      type: 'number',
+      label: 'Bulk excavation hours',
+      defaultValue: 8,
+      min: 0.5,
+      step: 0.5,
+      unit: 'hrs',
+      helpText: 'Expected hours for site cut',
+      showIf: (answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return BULK_EXCAVATION_SCOPES.includes(scopeId) && answers.bulk_excavation_required === true;
+      },
+    },
+    {
+      id: 'bulk_float_charge',
+      type: 'currency',
+      label: 'Float charge to site',
+      defaultValue: 150,
+      priceListKey: 'excavation.FLOAT',
+      showIf: (answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return BULK_EXCAVATION_SCOPES.includes(scopeId) && answers.bulk_excavation_required === true;
+      },
+    },
+
+    // ==================== DETAILED EXCAVATION SECTION ====================
+    {
+      id: 'detailed_excavation_required',
+      type: 'boolean',
+      label: 'Detailed excavation required? (beams, pads, piers, footings)',
+      defaultValue: true,
+      helpText: 'For excavating specific elements like edge beams, pad footings, piers, and strip footings',
+      showIf: (_answers, _scopeData) => true, // Show for all scopes
+    },
+    {
+      id: 'detailed_excavation_volume',
+      type: 'text',
+      label: 'Estimated detailed excavation volume',
+      derivedReadOnly: true,
+      deriveFrom: (scopeData) => {
+        // Use pre-calculated excavation volume from scope
+        if (scopeData.excavation_volume && scopeData.excavation_volume > 0) {
+          return `~${scopeData.excavation_volume.toFixed(2)}m³`;
+        }
+        return undefined;
+      },
+      showIf: (answers, scopeData) => {
+        return answers.detailed_excavation_required === true && 
+          scopeData.excavation_volume && scopeData.excavation_volume > 0;
+      },
+    },
+    {
+      id: 'detailed_machine_type',
+      type: 'select',
+      label: 'Machine for detailed excavation',
+      options: [
+        { value: 'EXC 1.4T', label: '1.4T Excavator', priceKey: 'excavation.EXC 1.4T' },
+        { value: 'EXC 3.2T', label: '3.2T Excavator', priceKey: 'excavation.EXC 3.2T' },
+        { value: 'EXC 4T', label: '4T Excavator', priceKey: 'excavation.EXC 4T' },
+      ],
+      defaultValue: 'EXC 3.2T',
+      showIf: (answers) => answers.detailed_excavation_required === true,
+    },
+    {
+      id: 'detailed_machine_rate',
       type: 'currency',
       label: 'Machine hourly rate',
       defaultValue: 150,
       unit: '/hr',
       helpText: 'Auto-fills from price list based on machine selected',
-      showIf: (answers) => answers.excavation_required === true,
+      showIf: (answers) => answers.detailed_excavation_required === true,
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const machineType = moduleAnswers.machine_type || 'EXC 3.2T';
+        const machineType = moduleAnswers.detailed_machine_type || 'EXC 3.2T';
         return priceMap['excavation']?.[machineType];
       },
     },
     {
-      id: 'float_charge',
-      type: 'currency',
-      label: 'Float charge to site',
-      defaultValue: 150,
-      priceListKey: 'excavation.FLOAT',
-      showIf: (answers) => answers.excavation_required === true,
-    },
-    {
-      id: 'excavation_hours',
+      id: 'detailed_excavation_hours',
       type: 'number',
-      label: 'Excavation hours',
+      label: 'Detailed excavation hours',
       defaultValue: 4,
       min: 0.5,
       step: 0.5,
       unit: 'hrs',
-      helpText: 'Enter expected excavation hours',
-      showIf: (answers) => answers.excavation_required === true,
+      helpText: 'Expected hours for detailed excavation',
+      showIf: (answers) => answers.detailed_excavation_required === true,
     },
-    // Auger options - only for point excavation scopes (piers, bollards, pad footings)
+    {
+      id: 'detailed_float_charge',
+      type: 'currency',
+      label: 'Float charge to site',
+      defaultValue: 150,
+      priceListKey: 'excavation.FLOAT',
+      showIf: (answers, scopeData) => {
+        // Only show float if bulk excavation is not already charging for it
+        const scopeId = scopeData?.scopeId;
+        const bulkShown = BULK_EXCAVATION_SCOPES.includes(scopeId) && answers.bulk_excavation_required === true;
+        return answers.detailed_excavation_required === true && !bulkShown;
+      },
+    },
+    
+    // Auger options - for point excavation (piers, pad footings)
     {
       id: 'auger_required',
       type: 'boolean',
       label: 'Is an auger required?',
       defaultValue: false,
-      showIf: (answers, scopeData) => 
-        answers.excavation_required === true && 
-        (scopeData?.scopeId === 'piers' || 
-         scopeData?.scopeId === 'bollards' || 
-         scopeData?.scopeId === 'pad_footings'),
+      showIf: (answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return answers.detailed_excavation_required === true && 
+          DETAILED_EXCAVATION_SCOPES.includes(scopeId);
+      },
     },
     {
       id: 'auger_hire_cost',
@@ -143,7 +226,7 @@ export const excavationModule: EstimateModule = {
       label: 'Auger hire cost per day',
       defaultValue: 100,
       priceListKey: 'excavation.AUGER HIRE',
-      showIf: (answers) => answers.excavation_required === true && answers.auger_required === true,
+      showIf: (answers) => answers.detailed_excavation_required === true && answers.auger_required === true,
     },
     {
       id: 'auger_drive_cost',
@@ -151,15 +234,30 @@ export const excavationModule: EstimateModule = {
       label: 'Auger drive attachment cost per day',
       defaultValue: 100,
       priceListKey: 'excavation.AUGER DRIVE',
-      showIf: (answers) => answers.excavation_required === true && answers.auger_required === true,
+      showIf: (answers) => answers.detailed_excavation_required === true && answers.auger_required === true,
+    },
+
+    // ==================== SHARED COSTS ====================
+    {
+      id: 'setout_materials',
+      type: 'currency',
+      label: 'Setout materials',
+      defaultValue: 80,
+      helpText: 'Pegs, string lines, spray paint, etc.',
+      showIf: (answers) => answers.bulk_excavation_required === true || answers.detailed_excavation_required === true,
     },
   ],
 
-  calculate: (answers, priceMap, _scopeData): ComponentCost => {
+  calculate: (answers, priceMap, scopeData): ComponentCost => {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
+    const scopeId = scopeData?.scopeId;
+    const isBulkScope = BULK_EXCAVATION_SCOPES.includes(scopeId);
 
-    if (!answers.excavation_required) {
+    const bulkEnabled = isBulkScope && answers.bulk_excavation_required === true;
+    const detailedEnabled = answers.detailed_excavation_required === true;
+
+    if (!bulkEnabled && !detailedEnabled) {
       return {
         moduleId: 'excavation',
         moduleName: 'Excavation',
@@ -169,69 +267,109 @@ export const excavationModule: EstimateModule = {
       };
     }
 
-    // Setout materials
-    const setoutMaterials = Number(answers.setout_materials) || 80;
-    if (setoutMaterials > 0) {
-      lineItems.push({
-        id: 'setout_materials',
-        description: 'Setout Materials',
-        quantity: 1,
-        unit: 'lot',
-        unitPrice: setoutMaterials,
-        total: setoutMaterials,
-        category: 'materials',
-      });
-      subtotal += setoutMaterials;
+    // Setout materials (shared)
+    if (bulkEnabled || detailedEnabled) {
+      const setoutMaterials = Number(answers.setout_materials) || 80;
+      if (setoutMaterials > 0) {
+        lineItems.push({
+          id: 'setout_materials',
+          description: 'Setout Materials',
+          quantity: 1,
+          unit: 'lot',
+          unitPrice: setoutMaterials,
+          total: setoutMaterials,
+          category: 'materials',
+        });
+        subtotal += setoutMaterials;
+      }
     }
 
-    // Machine hire
-    const machineType = answers.machine_type || 'EXC 3.2T';
-    const machineRate = Number(answers.machine_rate) || getPrice(priceMap, 'excavation', machineType, 150);
-    const excavationHours = Number(answers.excavation_hours) || 4;
-    const machineCost = excavationHours * machineRate;
+    // ==================== BULK EXCAVATION COSTS ====================
+    if (bulkEnabled) {
+      const machineType = answers.bulk_machine_type || 'EXC 6T';
+      const machineRate = Number(answers.bulk_machine_rate) || getPrice(priceMap, 'excavation', machineType, 180);
+      const hours = Number(answers.bulk_excavation_hours) || 8;
+      const machineCost = hours * machineRate;
 
-    lineItems.push({
-      id: 'machine_hire',
-      description: `${machineType} Excavator (${excavationHours} hrs)`,
-      quantity: excavationHours,
-      unit: 'hrs',
-      unitPrice: machineRate,
-      total: machineCost,
-      category: 'plant',
-    });
-    subtotal += machineCost;
-
-    // Float charge
-    const floatCharge = Number(answers.float_charge) || getPrice(priceMap, 'excavation', 'FLOAT', 150);
-    if (floatCharge > 0) {
       lineItems.push({
-        id: 'float_charge',
-        description: 'Float Charge to Site',
-        quantity: 1,
-        unit: 'item',
-        unitPrice: floatCharge,
-        total: floatCharge,
+        id: 'bulk_machine_hire',
+        description: `Bulk Excavation - ${machineType} (${hours} hrs)`,
+        quantity: hours,
+        unit: 'hrs',
+        unitPrice: machineRate,
+        total: machineCost,
         category: 'plant',
       });
-      subtotal += floatCharge;
+      subtotal += machineCost;
+
+      // Float charge for bulk
+      const floatCharge = Number(answers.bulk_float_charge) || getPrice(priceMap, 'excavation', 'FLOAT', 150);
+      if (floatCharge > 0) {
+        lineItems.push({
+          id: 'bulk_float_charge',
+          description: 'Float Charge to Site (Bulk Machine)',
+          quantity: 1,
+          unit: 'item',
+          unitPrice: floatCharge,
+          total: floatCharge,
+          category: 'plant',
+        });
+        subtotal += floatCharge;
+      }
     }
 
-    // Auger
-    if (answers.auger_required) {
-      const augerHire = Number(answers.auger_hire_cost) || getPrice(priceMap, 'excavation', 'AUGER HIRE', 100);
-      const augerDrive = Number(answers.auger_drive_cost) || getPrice(priceMap, 'excavation', 'AUGER DRIVE', 100);
-      const augerTotal = augerHire + augerDrive;
+    // ==================== DETAILED EXCAVATION COSTS ====================
+    if (detailedEnabled) {
+      const machineType = answers.detailed_machine_type || 'EXC 3.2T';
+      const machineRate = Number(answers.detailed_machine_rate) || getPrice(priceMap, 'excavation', machineType, 150);
+      const hours = Number(answers.detailed_excavation_hours) || 4;
+      const machineCost = hours * machineRate;
 
       lineItems.push({
-        id: 'auger_hire',
-        description: 'Auger Hire & Drive Attachment',
-        quantity: 1,
-        unit: 'day',
-        unitPrice: augerTotal,
-        total: augerTotal,
+        id: 'detailed_machine_hire',
+        description: `Detailed Excavation - ${machineType} (${hours} hrs)`,
+        quantity: hours,
+        unit: 'hrs',
+        unitPrice: machineRate,
+        total: machineCost,
         category: 'plant',
       });
-      subtotal += augerTotal;
+      subtotal += machineCost;
+
+      // Float charge for detailed (only if bulk not already charging)
+      if (!bulkEnabled) {
+        const floatCharge = Number(answers.detailed_float_charge) || getPrice(priceMap, 'excavation', 'FLOAT', 150);
+        if (floatCharge > 0) {
+          lineItems.push({
+            id: 'detailed_float_charge',
+            description: 'Float Charge to Site (Detailed Machine)',
+            quantity: 1,
+            unit: 'item',
+            unitPrice: floatCharge,
+            total: floatCharge,
+            category: 'plant',
+          });
+          subtotal += floatCharge;
+        }
+      }
+
+      // Auger
+      if (answers.auger_required) {
+        const augerHire = Number(answers.auger_hire_cost) || getPrice(priceMap, 'excavation', 'AUGER HIRE', 100);
+        const augerDrive = Number(answers.auger_drive_cost) || getPrice(priceMap, 'excavation', 'AUGER DRIVE', 100);
+        const augerTotal = augerHire + augerDrive;
+
+        lineItems.push({
+          id: 'auger_hire',
+          description: 'Auger Hire & Drive Attachment',
+          quantity: 1,
+          unit: 'day',
+          unitPrice: augerTotal,
+          total: augerTotal,
+          category: 'plant',
+        });
+        subtotal += augerTotal;
+      }
     }
 
     return {
@@ -243,28 +381,60 @@ export const excavationModule: EstimateModule = {
     };
   },
 
-  getExclusions: (answers): ExclusionItem[] => {
-    if (!answers.excavation_required) {
-      return [
-        {
-          id: 'no_excavation',
-          text: 'Excavation and site preparation works are not included. Site to be prepared by others prior to commencement.',
-          moduleId: 'excavation',
-        },
-      ];
+  getExclusions: (answers, scopeData): ExclusionItem[] => {
+    const exclusions: ExclusionItem[] = [];
+    const scopeId = scopeData?.scopeId;
+    const isBulkScope = BULK_EXCAVATION_SCOPES.includes(scopeId);
+
+    const bulkEnabled = isBulkScope && answers.bulk_excavation_required === true;
+    const detailedEnabled = answers.detailed_excavation_required === true;
+
+    // If bulk excavation scope but bulk is off
+    if (isBulkScope && !bulkEnabled) {
+      exclusions.push({
+        id: 'no_bulk_excavation',
+        text: 'Bulk excavation and site cut works are not included. Site to be prepared by others prior to commencement.',
+        moduleId: 'excavation',
+      });
     }
-    return [];
+
+    // If detailed excavation is off
+    if (!detailedEnabled) {
+      exclusions.push({
+        id: 'no_detailed_excavation',
+        text: 'Detailed excavation for beams, footings, pads, and piers is not included.',
+        moduleId: 'excavation',
+      });
+    }
+
+    return exclusions;
   },
 
   validate: (answers) => {
+    // Note: scopeData is available via answers context in practice
+    const scopeData = (answers as any)._scopeData || {};
     const errors: string[] = [];
+    const scopeId = scopeData?.scopeId;
+    const isBulkScope = BULK_EXCAVATION_SCOPES.includes(scopeId);
 
-    if (answers.excavation_required) {
-      if (!answers.excavation_hours || answers.excavation_hours < 0.5) {
-        errors.push('Please specify expected excavation hours');
+    const bulkEnabled = isBulkScope && answers.bulk_excavation_required === true;
+    const detailedEnabled = answers.detailed_excavation_required === true;
+
+    if (bulkEnabled) {
+      if (!answers.bulk_excavation_hours || answers.bulk_excavation_hours < 0.5) {
+        errors.push('Please specify expected bulk excavation hours');
       }
-      if (!answers.machine_type) {
-        errors.push('Please select a machine type');
+      if (!answers.bulk_machine_type) {
+        errors.push('Please select a machine type for bulk excavation');
+      }
+    }
+
+    if (detailedEnabled) {
+      if (!answers.detailed_excavation_hours || answers.detailed_excavation_hours < 0.5) {
+        errors.push('Please specify expected detailed excavation hours');
+      }
+      if (!answers.detailed_machine_type) {
+        errors.push('Please select a machine type for detailed excavation');
       }
     }
 
