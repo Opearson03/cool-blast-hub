@@ -14,7 +14,6 @@ import { CalibrationDialog } from './CalibrationDialog';
 import { PierDimensionsDialog } from './PierDimensionsDialog';
 import { BollardDimensionsDialog } from './BollardDimensionsDialog';
 import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
-import { PadFootingDepthDialog } from './PadFootingDepthDialog';
 import { LinearDimensionsDialog } from './LinearDimensionsDialog';
 import { MarkupNameDialog } from './MarkupNameDialog';
 import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData, type BeamData } from './SlabBeamMarkupDialog';
@@ -63,7 +62,6 @@ export function PlanTakeoffStep({
     getPageScale,
     deletePlan,
     addMarkup,
-    addAreaPadMarkup,
     addPierMarkups,
     addBollardMarkups,
     addPadMarkups,
@@ -82,7 +80,6 @@ export function PlanTakeoffStep({
   const [showPierDimensions, setShowPierDimensions] = useState(false);
   const [showBollardDimensions, setShowBollardDimensions] = useState(false);
   const [showPadDimensions, setShowPadDimensions] = useState(false);
-  const [showPadDepthDialog, setShowPadDepthDialog] = useState(false);
   const [showLinearDimensions, setShowLinearDimensions] = useState(false);
   const [showMarkupNameDialog, setShowMarkupNameDialog] = useState(false);
   const [zoom, setZoom] = useState(1);
@@ -106,13 +103,6 @@ export function PlanTakeoffStep({
     pageNumber: number;
   } | null>(null);
 
-  // Pending pad footing state (area-based pad footings)
-  const [pendingPadData, setPendingPadData] = useState<{
-    points: TakeoffPoint[];
-    shapeType: 'polygon' | 'rectangle';
-    area: number;
-    defaultName: string;
-  } | null>(null);
 
   // ============= NEW SLAB WORKFLOW STATE =============
   const [slabWorkflowActive, setSlabWorkflowActive] = useState(false);
@@ -134,15 +124,14 @@ export function PlanTakeoffStep({
   const hasFiles = files.length > 0;
 
   // Define scope types for different drawing tools
-  const POINT_SCOPES = ['piers', 'bollards', 'pit_bases'];
+  const POINT_SCOPES = ['piers', 'bollards', 'pit_bases', 'pad_footings'];
   const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls'];
   
   const isPointScope = activeScope !== null && POINT_SCOPES.includes(activeScope);
   const isLinearScope = activeScope !== null && LINEAR_SCOPES.includes(activeScope);
   const isPierScope = activeScope === 'piers';
   const isBollardScope = activeScope === 'bollards';
-  const isPadScope = activeScope === 'pit_bases'; // pad_footings now area-based, only pit_bases uses point tool
-  const isPadFootingScope = activeScope === 'pad_footings'; // Area-based pad footings
+  const isPadScope = activeScope === 'pit_bases' || activeScope === 'pad_footings'; // Both use point tool now
 
   const scopes = useMemo(() => 
     selectedScopes.map(id => ({ id, label: scopeLabels[id] || id })),
@@ -243,9 +232,6 @@ export function PlanTakeoffStep({
     // Check if this is a slab scope that supports beam marking
     const isSlabWithBeamsScope = SLAB_WITH_BEAMS_SCOPES.includes(activeScope as any);
     
-    // Check if this is an area-based pad footing
-    const isAreaPadFooting = activeScope === 'pad_footings';
-    
     if (isSlabWithBeamsScope && currentScale) {
       // Start multi-step slab workflow
       const existingForScope = markups.filter(m => m.scope_id === activeScope);
@@ -264,25 +250,6 @@ export function PlanTakeoffStep({
       setSlabWorkflowStep('name');
       setShowSlabBeamDialog(true);
       setDrawingPoints([]);
-    } else if (isAreaPadFooting && currentScale) {
-      // Area-based pad footing - show depth dialog
-      const area = shapeType === 'polygon' 
-        ? calculatePolygonArea(points, currentScale)
-        : calculateRectangleArea(points, currentScale);
-      
-      const existingForScope = markups.filter(m => m.scope_id === activeScope);
-      const defaultName = existingForScope.length === 0 
-        ? 'Pad 1' 
-        : `Pad ${existingForScope.length + 1}`;
-      
-      setPendingPadData({
-        points,
-        shapeType,
-        area,
-        defaultName,
-      });
-      setDrawingPoints([]);
-      setShowPadDepthDialog(true);
     } else {
       // Standard naming flow for non-slab scopes
       const existingForScope = markups.filter(m => m.scope_id === activeScope);
@@ -1073,52 +1040,28 @@ export function PlanTakeoffStep({
         }}
       />
 
-      {/* Pad footing dimensions dialog (for pit_bases only - point-based) */}
+      {/* Pad footing dimensions dialog (for both pit_bases and pad_footings - point-based) */}
       <PadFootingDimensionsDialog
         open={showPadDimensions}
         onOpenChange={setShowPadDimensions}
         padCount={pierPoints.length}
-        scopeType="pit_bases"
-        onConfirm={async (length, width, depth) => {
+        scopeType={activeScope === 'pit_bases' ? 'pit_bases' : 'pad_footings'}
+        defaultName={activeScope === 'pit_bases' ? 'Pit Bases' : 'Pad Footings'}
+        onConfirm={async (length, width, depth, name) => {
           if (!activeScope || !currentFileId || pierPoints.length === 0) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-          await addPadMarkups(currentFileId, activeScope, pierPoints, length, width, depth, color, currentPage, 'pit_bases');
+          const scopeType = activeScope === 'pit_bases' ? 'pit_bases' : 'pad_footings';
+          await addPadMarkups(currentFileId, activeScope, pierPoints, length, width, depth, color, currentPage, scopeType, name);
           setPierPoints([]);
           setActiveTool('select');
           setActiveScope(null);
         }}
-        onConfirmAndAddAnother={async (length, width, depth) => {
+        onConfirmAndAddAnother={async (length, width, depth, name) => {
           if (!activeScope || !currentFileId || pierPoints.length === 0) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-          await addPadMarkups(currentFileId, activeScope, pierPoints, length, width, depth, color, currentPage, 'pit_bases');
+          const scopeType = activeScope === 'pit_bases' ? 'pit_bases' : 'pad_footings';
+          await addPadMarkups(currentFileId, activeScope, pierPoints, length, width, depth, color, currentPage, scopeType, name);
           setPierPoints([]); // Clear points but keep tool and scope active
-        }}
-      />
-
-      {/* Pad footing depth dialog (for pad_footings - area-based) */}
-      <PadFootingDepthDialog
-        open={showPadDepthDialog}
-        onOpenChange={setShowPadDepthDialog}
-        areaSquareMeters={pendingPadData?.area || 0}
-        defaultName={pendingPadData?.defaultName || 'Pad 1'}
-        onConfirm={async (depth, name) => {
-          if (!activeScope || !currentFileId || !pendingPadData) return;
-          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-          await addAreaPadMarkup(currentFileId, activeScope, pendingPadData.shapeType, pendingPadData.points, depth, color, currentPage, name);
-          setPendingPadData(null);
-          setActiveTool('select');
-          setActiveScope(null);
-        }}
-        onConfirmAndAddAnother={async (depth, name) => {
-          if (!activeScope || !currentFileId || !pendingPadData) return;
-          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-          await addAreaPadMarkup(currentFileId, activeScope, pendingPadData.shapeType, pendingPadData.points, depth, color, currentPage, name);
-          setPendingPadData(null);
-          // Keep activeScope and activeTool so user can continue marking
-          const existingForScope = markups.filter(m => m.scope_id === activeScope);
-          const nextDefaultName = `Pad ${existingForScope.length + 2}`;
-          // Tool remains as polygon for next pad
-          setDrawingPoints([]);
         }}
       />
 

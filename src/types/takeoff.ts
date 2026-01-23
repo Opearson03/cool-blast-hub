@@ -74,9 +74,9 @@ export interface DrawingTool {
 }
 
 // Scope type classifications for takeoff tool selection
-export const POINT_SCOPES = ['piers', 'bollards', 'pit_bases'] as const;
+export const POINT_SCOPES = ['piers', 'bollards', 'pit_bases', 'pad_footings'] as const;
 export const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls'] as const;
-export const AREA_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'suspended_slab', 'pad_footings'] as const;
+export const AREA_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'suspended_slab'] as const;
 
 // Scopes that support sub-element marking (beams over slabs)
 export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod'] as const;

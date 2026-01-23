@@ -35,7 +35,7 @@ interface UseTakeoffDataReturn {
   addAreaPadMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], depthMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
-  addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases') => Promise<TakeoffMarkup | null>;
+  addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases', name?: string) => Promise<TakeoffMarkup | null>;
   addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string, toeMm?: number) => Promise<TakeoffMarkup | null>;
   addSlabWithBeams: (fileId: string, scopeId: string, slabData: { points: TakeoffPoint[]; shapeType: 'polygon' | 'rectangle'; name: string }, edgeBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, internalBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addBeamToSlab: (parentMarkupId: string, fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, depthMm: number, color: string, pageNumber: number, name: string, beamType: 'edge_beam' | 'internal_beam') => Promise<TakeoffMarkup | null>;
@@ -754,7 +754,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     depthMm: number,
     color: string,
     pageNumber: number,
-    scopeType: 'pad_footings' | 'pit_bases'
+    scopeType: 'pad_footings' | 'pit_bases',
+    name?: string
   ): Promise<TakeoffMarkup | null> => {
     if (!takeoff) return null;
 
@@ -777,7 +778,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           depth_mm: depthMm,
           height_mm: lengthMm, // Using height_mm to store length for pads
           pier_quantity: points.length,
-          area_sqm: totalArea
+          area_sqm: totalArea,
+          name: name || null
         })
         .select()
         .single();
@@ -786,7 +788,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
 
       const newMarkup: TakeoffMarkup = {
         ...data,
-        name: null,
+        name: data.name || null,
         file_id: data.file_id || null,
         shape_type: 'point',
         points: data.points as unknown as TakeoffPoint[],
