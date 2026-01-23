@@ -1081,8 +1081,9 @@ export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
   name: 'Pad Footings',
   description: 'Isolated pad/spread footings for columns and point loads',
   icon: 'square',
-  supportsMultipleFootings: true,
-  footingsLabel: 'Pad Footing Configurations',
+  supportsPadGroups: true,
+  padGroupsLabel: 'Pad Footing Groups',
+  hideStandardQuestions: ['total_num_pads', 'total_length', 'total_width', 'total_depth'],
   questions: [
     {
       id: 'total_num_pads',
@@ -1128,6 +1129,19 @@ export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
     'sundries',
   ],
   calculateVolume: (answers) => {
+    // Use padGroups if available (new grouped system)
+    const padGroups = answers.padGroups || [];
+    if (padGroups.length > 0) {
+      const volume = padGroups.reduce((sum: number, group: any) => {
+        const qty = Number(group.quantity) || 1;
+        const lengthM = (Number(group.length) || 0) / 1000;
+        const widthM = (Number(group.width) || 0) / 1000;
+        const depthM = (Number(group.depth) || 0) / 1000;
+        return sum + qty * lengthM * widthM * depthM;
+      }, 0);
+      return safeVolume(volume);
+    }
+    // Fallback to legacy footings array
     const footings = answers.footings || [];
     if (footings.length > 0) {
       const volume = footings.reduce((sum: number, footing: any) => {
@@ -1139,6 +1153,7 @@ export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
       }, 0);
       return safeVolume(volume);
     }
+    // Fallback to flat values
     const numPads = Number(answers.total_num_pads) || 0;
     const lengthM = (Number(answers.total_length) || 0) / 1000;
     const widthM = (Number(answers.total_width) || 0) / 1000;
