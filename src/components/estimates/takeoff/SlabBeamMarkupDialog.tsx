@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,8 +6,17 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Tag, ArrowRight, Check, SkipForward, Minus, Plus } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Tag, ArrowRight, Check, SkipForward, Minus, Plus, Layers } from 'lucide-react';
 import { EDGE_BEAM_COLOR, INTERNAL_BEAM_COLOR } from './DrawingCanvas';
+
+// Interface for beam types (groups of beams with same dimensions)
+interface BeamType {
+  name: string;
+  width: number;
+  depth: number;
+  count: number;
+}
 
 export type SlabWorkflowStep = 
   | 'name'
@@ -132,12 +141,42 @@ export function SlabBeamMarkupDialog({
   const [beamWidth, setBeamWidth] = useState(450);
   const [beamDepth, setBeamDepth] = useState(450);
   
+  // Internal beam type selection mode
+  const [beamTypeMode, setBeamTypeMode] = useState<'existing' | 'new'>('new');
+  const [selectedBeamTypeKey, setSelectedBeamTypeKey] = useState<string | null>(null);
+  
   // Waffle pod state
   const [localPodSize, setLocalPodSize] = useState(wafflePodSize);
   const [localPodThickness, setLocalPodThickness] = useState(wafflePodThickness);
   const [localTopThickness, setLocalTopThickness] = useState(wafflePodTopThickness);
 
   const isWafflePod = scopeId === 'waffle_pod';
+
+  // Derive existing internal beam types from saved beams
+  const existingBeamTypes = useMemo((): BeamType[] => {
+    const typeMap = new Map<string, BeamType>();
+    savedInternalBeams.forEach(beam => {
+      // Extract base name (before hyphen suffix, e.g., "IB1" from "IB1-2")
+      const baseName = beam.name.split('-')[0].trim();
+      const key = `${baseName}-${beam.width}-${beam.depth}`;
+      if (!typeMap.has(key)) {
+        typeMap.set(key, { name: baseName, width: beam.width, depth: beam.depth, count: 1 });
+      } else {
+        typeMap.get(key)!.count++;
+      }
+    });
+    return Array.from(typeMap.values());
+  }, [savedInternalBeams]);
+
+  // Get next suggested type name for new internal beam type
+  const nextNewTypeName = useMemo(() => {
+    const existingNumbers = existingBeamTypes
+      .map(t => t.name)
+      .filter(name => /^IB\d+$/.test(name))
+      .map(name => parseInt(name.replace('IB', ''), 10));
+    const maxNum = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+    return `IB${maxNum + 1}`;
+  }, [existingBeamTypes]);
 
   // Generate default beam name based on type and count
   useEffect(() => {
@@ -153,18 +192,54 @@ export function SlabBeamMarkupDialog({
         setBeamDepth(450);
       }
     } else if (step === 'internal_beam_details') {
-      setBeamName(`Internal Beam ${savedInternalBeams.length + 1}`);
-      // Use dimensions from last internal beam if available
-      if (savedInternalBeams.length > 0) {
-        const lastBeam = savedInternalBeams[savedInternalBeams.length - 1];
-        setBeamWidth(lastBeam.width);
-        setBeamDepth(lastBeam.depth);
+      // Reset mode when entering internal beam details
+      if (existingBeamTypes.length > 0) {
+        // Default to existing type mode if we have types
+        setBeamTypeMode('existing');
+        const firstType = existingBeamTypes[0];
+        const key = `${firstType.name}-${firstType.width}-${firstType.depth}`;
+        setSelectedBeamTypeKey(key);
+        // Calculate next beam number for this type
+        const beamCount = savedInternalBeams.filter(b => b.name.split('-')[0].trim() === firstType.name).length;
+        setBeamName(`${firstType.name}-${beamCount + 1}`);
+        setBeamWidth(firstType.width);
+        setBeamDepth(firstType.depth);
       } else {
+        // No existing types, start fresh
+        setBeamTypeMode('new');
+        setSelectedBeamTypeKey(null);
+        setBeamName(nextNewTypeName);
         setBeamWidth(300);
         setBeamDepth(400);
       }
     }
-  }, [step, savedEdgeBeams.length, savedInternalBeams.length]);
+  }, [step, savedEdgeBeams.length, savedInternalBeams.length, existingBeamTypes, nextNewTypeName]);
+
+  // Handle beam type selection change
+  const handleBeamTypeSelect = (key: string) => {
+    setSelectedBeamTypeKey(key);
+    const selectedType = existingBeamTypes.find(t => `${t.name}-${t.width}-${t.depth}` === key);
+    if (selectedType) {
+      const beamCount = savedInternalBeams.filter(b => b.name.split('-')[0].trim() === selectedType.name).length;
+      setBeamName(`${selectedType.name}-${beamCount + 1}`);
+      setBeamWidth(selectedType.width);
+      setBeamDepth(selectedType.depth);
+    }
+  };
+
+  // Handle switching between existing/new type mode
+  const handleBeamTypeModeChange = (mode: 'existing' | 'new') => {
+    setBeamTypeMode(mode);
+    if (mode === 'new') {
+      setSelectedBeamTypeKey(null);
+      setBeamName(nextNewTypeName);
+      setBeamWidth(300);
+      setBeamDepth(400);
+    } else if (mode === 'existing' && existingBeamTypes.length > 0) {
+      const firstType = existingBeamTypes[0];
+      handleBeamTypeSelect(`${firstType.name}-${firstType.width}-${firstType.depth}`);
+    }
+  };
 
   useEffect(() => {
     setLocalPodSize(wafflePodSize);
@@ -459,19 +534,75 @@ export function SlabBeamMarkupDialog({
                 <Badge variant="default">{currentBeamLength.toFixed(2)} m</Badge>
               </div>
 
-              {/* Beam name */}
-              <div className="space-y-2">
-                <Label htmlFor="beam-name">Beam Name</Label>
-                <Input
-                  id="beam-name"
-                  value={beamName}
-                  onChange={(e) => setBeamName(e.target.value)}
-                  placeholder="e.g., Grid Line A, Centre Thickening"
-                  autoFocus
-                />
-              </div>
+              {/* Beam Type Selection - only show if existing types exist */}
+              {existingBeamTypes.length > 0 && (
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium flex items-center gap-2">
+                    <Layers className="h-4 w-4" />
+                    Beam Type
+                  </Label>
+                  <Tabs value={beamTypeMode} onValueChange={(v) => handleBeamTypeModeChange(v as 'existing' | 'new')}>
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="existing">Existing Type</TabsTrigger>
+                      <TabsTrigger value="new">New Type</TabsTrigger>
+                    </TabsList>
+                  </Tabs>
 
-              {/* Dimensions */}
+                  {beamTypeMode === 'existing' && (
+                    <Select value={selectedBeamTypeKey || ''} onValueChange={handleBeamTypeSelect}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select beam type" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {existingBeamTypes.map(type => {
+                          const key = `${type.name}-${type.width}-${type.depth}`;
+                          return (
+                            <SelectItem key={key} value={key}>
+                              <span className="flex items-center gap-2">
+                                <span className="font-medium">{type.name}</span>
+                                <span className="text-muted-foreground">
+                                  ({type.width}×{type.depth}mm) - {type.count} beam{type.count !== 1 ? 's' : ''}
+                                </span>
+                              </span>
+                            </SelectItem>
+                          );
+                        })}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </div>
+              )}
+
+              <Separator />
+
+              {/* Type Name - for new types or if no existing types */}
+              {(beamTypeMode === 'new' || existingBeamTypes.length === 0) && (
+                <div className="space-y-2">
+                  <Label htmlFor="beam-type-name">Type Name</Label>
+                  <Input
+                    id="beam-type-name"
+                    value={beamName}
+                    onChange={(e) => setBeamName(e.target.value)}
+                    placeholder="e.g., IB1, IB2"
+                    autoFocus
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    This creates a new beam type. Future beams can reuse these dimensions.
+                  </p>
+                </div>
+              )}
+
+              {/* Show read-only name for existing type */}
+              {beamTypeMode === 'existing' && existingBeamTypes.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="text-sm text-muted-foreground">Beam Name</Label>
+                  <div className="p-2 bg-muted rounded-lg">
+                    <span className="font-medium">{beamName}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Dimensions - editable for new, read-only for existing */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="beam-width">Width (mm)</Label>
@@ -482,6 +613,8 @@ export function SlabBeamMarkupDialog({
                     onChange={(e) => setBeamWidth(Number(e.target.value))}
                     min={100}
                     max={1000}
+                    disabled={beamTypeMode === 'existing' && existingBeamTypes.length > 0}
+                    className={beamTypeMode === 'existing' && existingBeamTypes.length > 0 ? 'bg-muted' : ''}
                   />
                 </div>
                 <div className="space-y-2">
@@ -493,6 +626,8 @@ export function SlabBeamMarkupDialog({
                     onChange={(e) => setBeamDepth(Number(e.target.value))}
                     min={100}
                     max={1500}
+                    disabled={beamTypeMode === 'existing' && existingBeamTypes.length > 0}
+                    className={beamTypeMode === 'existing' && existingBeamTypes.length > 0 ? 'bg-muted' : ''}
                   />
                 </div>
               </div>
@@ -513,21 +648,41 @@ export function SlabBeamMarkupDialog({
                 </div>
               )}
 
-              {/* Internal beams list */}
+              {/* Internal beams grouped by type */}
               {savedInternalBeams.length > 0 ? (
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Internal Beams ({savedInternalBeams.length})</Label>
-                  <div className="border rounded-lg divide-y max-h-40 overflow-y-auto">
-                    {savedInternalBeams.map((beam, idx) => (
-                      <div key={idx} className="p-2 flex justify-between items-center text-sm">
-                        <span className="font-medium">{beam.name}</span>
-                        <div className="flex gap-2 text-muted-foreground">
-                          <span>{beam.length.toFixed(1)}m</span>
-                          <span>•</span>
-                          <span>{beam.width}×{beam.depth}mm</span>
+                  <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
+                    {existingBeamTypes.map((beamType) => {
+                      const beamsOfType = savedInternalBeams.filter(
+                        b => b.name.split('-')[0].trim() === beamType.name && 
+                             b.width === beamType.width && 
+                             b.depth === beamType.depth
+                      );
+                      const typeLength = beamsOfType.reduce((sum, b) => sum + b.length, 0);
+                      
+                      return (
+                        <div key={`${beamType.name}-${beamType.width}-${beamType.depth}`} className="p-3 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="secondary" className="font-mono">{beamType.name}</Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {beamType.width}×{beamType.depth}mm
+                              </span>
+                            </div>
+                            <span className="text-sm font-medium">{typeLength.toFixed(1)}m total</span>
+                          </div>
+                          <div className="pl-2 space-y-1">
+                            {beamsOfType.map((beam, idx) => (
+                              <div key={idx} className="flex justify-between items-center text-xs text-muted-foreground">
+                                <span>{beam.name}</span>
+                                <span>{beam.length.toFixed(1)}m</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                   <div className="p-2 bg-muted rounded-lg flex justify-between text-sm">
                     <span className="text-muted-foreground">Total Internal Beam Length:</span>
