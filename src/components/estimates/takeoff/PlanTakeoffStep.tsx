@@ -661,6 +661,17 @@ export function PlanTakeoffStep({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTool, polylinePoints.length, handleDoneMarkingPolyline, handleUndo]);
 
+  // Auto-complete internal beam after 2 points (internal beams are always point-to-point)
+  useEffect(() => {
+    if (slabWorkflowStep === 'mark_internal_beam' && polylinePoints.length === 2) {
+      // Small timeout to ensure the point is visually rendered before transitioning
+      const timer = setTimeout(() => {
+        handleDoneMarkingSingleBeam();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [slabWorkflowStep, polylinePoints.length, handleDoneMarkingSingleBeam]);
+
   const handleToolChange = useCallback((tool: DrawingTool['type']) => {
     setActiveTool(tool);
     if (tool !== 'polygon' && tool !== 'rectangle') {
