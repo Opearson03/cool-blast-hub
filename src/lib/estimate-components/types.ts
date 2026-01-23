@@ -241,6 +241,11 @@ export interface PadFootingGroup {
   bottom_a_centres?: number;
   bottom_b_size?: string;
   bottom_b_centres?: number;
+  has_top_reo?: boolean;
+  top_a_size?: string;
+  top_a_centres?: number;
+  top_b_size?: string;
+  top_b_centres?: number;
 }
 
 /**
