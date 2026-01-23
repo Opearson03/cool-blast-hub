@@ -3,9 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle2, Circle, SkipForward, Trash2, Plus, ChevronDown, ChevronUp, Layers, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { TakeoffMarkup, ScopeMarkupStatus } from '@/types/takeoff';
 import { SLAB_WITH_BEAMS_SCOPES } from '@/types/takeoff';
+
+// Interface for beam type grouping
+interface BeamTypeGroup {
+  baseName: string;
+  width: number;
+  depth: number;
+  markupType: string;
+  beams: TakeoffMarkup[];
+  totalLength: number;
+  totalVolume: number;
+}
 
 interface ScopeMarkupChecklistProps {
   scopes: { id: string; label: string }[];
@@ -310,40 +321,63 @@ export function ScopeMarkupChecklist({
                             </Button>
                           </div>
                           
-                          {/* Show child beams and add beam buttons for slab scopes */}
+                          {/* Show child beams grouped by type for slab scopes */}
                           {SLAB_WITH_BEAMS_SCOPES.includes(scope.id as any) && (
                             <div className="ml-3 mt-1 space-y-1 border-l-2 border-primary/20 pl-2">
-                              {childBeams.map((beam) => (
-                                <div 
-                                  key={beam.id}
-                                  className="flex items-center gap-1 text-[10px] py-0.5 px-1 rounded bg-primary/5"
-                                >
-                                  <span className="flex-1 truncate text-muted-foreground">
-                                    {beam.name || (beam.markup_type === 'edge_beam' ? 'Edge Beam' : 'Internal Beam')}
-                                  </span>
-                                  <span className="text-muted-foreground font-mono">
-                                    {formatLength(beam.length_m || null)}
-                                  </span>
-                                  {onEditBeam && (
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="h-4 w-4 p-0 touch-manipulation"
-                                      onClick={() => onEditBeam(beam.id)}
-                                    >
-                                      <Pencil className="h-2 w-2 text-primary" />
-                                    </Button>
-                                  )}
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-4 w-4 p-0 touch-manipulation"
-                                    onClick={() => onDeleteMarkup(beam.id)}
+                              {/* Group beams by type */}
+                              {(() => {
+                                // Group beams by baseName + dimensions
+                                const beamGroups: BeamTypeGroup[] = [];
+                                const groupMap = new Map<string, BeamTypeGroup>();
+                                
+                                childBeams.forEach(beam => {
+                                  const baseName = (beam.name || '').split('-')[0].trim() || 
+                                    (beam.markup_type === 'edge_beam' ? 'EB' : 'IB');
+                                  const width = beam.width_mm || 0;
+                                  const depth = beam.depth_mm || 0;
+                                  const key = `${baseName}-${width}-${depth}-${beam.markup_type}`;
+                                  
+                                  if (!groupMap.has(key)) {
+                                    const group: BeamTypeGroup = {
+                                      baseName,
+                                      width,
+                                      depth,
+                                      markupType: beam.markup_type || '',
+                                      beams: [beam],
+                                      totalLength: beam.length_m || 0,
+                                      totalVolume: (beam.length_m || 0) * (width / 1000) * (depth / 1000)
+                                    };
+                                    groupMap.set(key, group);
+                                    beamGroups.push(group);
+                                  } else {
+                                    const group = groupMap.get(key)!;
+                                    group.beams.push(beam);
+                                    group.totalLength += beam.length_m || 0;
+                                    group.totalVolume += (beam.length_m || 0) * (width / 1000) * (depth / 1000);
+                                  }
+                                });
+                                
+                                return beamGroups.map((group) => (
+                                  <div 
+                                    key={`${group.baseName}-${group.width}-${group.depth}-${group.markupType}`}
+                                    className="flex items-center gap-1 text-[10px] py-0.5 px-1 rounded bg-primary/5"
                                   >
-                                    <Trash2 className="h-2 w-2 text-destructive" />
-                                  </Button>
-                                </div>
-                              ))}
+                                    <Badge variant="outline" className="h-4 text-[9px] px-1 font-mono">
+                                      {group.baseName}
+                                    </Badge>
+                                    <span className="text-muted-foreground">
+                                      {group.width}×{group.depth}mm
+                                    </span>
+                                    <span className="flex-1" />
+                                    <span className="text-muted-foreground font-mono">
+                                      {group.totalLength.toFixed(1)}m
+                                    </span>
+                                    <span className="text-muted-foreground font-mono">
+                                      {group.totalVolume.toFixed(2)}m³
+                                    </span>
+                                  </div>
+                                ));
+                              })()}
                               
                               {/* Add beam buttons */}
                               {onAddBeamToSlab && isCalibrated && (
