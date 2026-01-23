@@ -180,7 +180,18 @@ export const concretePumpingModule: EstimateModule = {
       defaultValue: 8,
       priceListKey: 'pumping.PUMP M3',
       unit: '/m³',
-      helpText: 'Always applied when pumping is required',
+      helpText: 'Applied to total volume including wastage',
+      showIf: (answers) => answers.pump_required === true,
+    },
+    {
+      id: 'wastage_percent',
+      type: 'number',
+      label: 'Wastage allowance',
+      defaultValue: 10,
+      min: 0,
+      max: 30,
+      unit: '%',
+      helpText: 'Should match concrete supply wastage',
       showIf: (answers) => answers.pump_required === true,
     },
   ],
@@ -297,13 +308,16 @@ export const concretePumpingModule: EstimateModule = {
     }
 
     if (volume > 0) {
-      const roundedVolume = roundUpToM3(volume);
+      // Apply wastage to match concrete supply
+      const wastagePercent = Number(answers.wastage_percent) || 10;
+      const volumeWithWastage = volume * (1 + wastagePercent / 100);
+      const roundedVolume = roundUpToM3(volumeWithWastage);
       const m3Rate = Number(answers.m3_rate) || getPrice(priceMap, 'pumping', 'PUMP M3', 8);
       const m3Cost = roundedVolume * m3Rate;
 
       lineItems.push({
         id: 'pump_per_m3',
-        description: `Pumping Charge (${roundedVolume} m³)`,
+        description: `Pumping Charge (${roundedVolume} m³ incl. wastage)`,
         quantity: roundedVolume,
         unit: 'm³',
         unitPrice: m3Rate,
