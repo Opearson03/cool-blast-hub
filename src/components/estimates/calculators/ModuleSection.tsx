@@ -278,7 +278,7 @@ export function ModuleSection({
                   const sectionKey = currentSection || 'default';
                   
                   // Check if this section should have inline inputs
-                  const isSlabSurfaceSection = isRaftReoModule && currentSection === 'Slab Surface (Defaults)';
+                  const isSlabSurfaceSection = isRaftReoModule && currentSection === 'Slab Surface';
                   const isEdgeBeamsSection = isRaftReoModule && currentSection === 'Edge Beams';
                   const isInternalBeamsSection = isRaftReoModule && currentSection === 'Internal Beams';
                   // Note: Pier reinforcement is rendered as a standalone section after flushSection
@@ -310,17 +310,16 @@ export function ModuleSection({
                       </div>
                       
                       {/* Inline per-area inputs for Slab Surface section */}
-                      {isSlabSurfaceSection && onScopeDataChange && areas.length > 0 && 
-                       answers.slab_reo_type !== 'none' && answers.slab_reo_type !== 'fiber' && (
+                      {isSlabSurfaceSection && onScopeDataChange && areas.length > 0 && (
                         <div className="mt-4">
                           <AreaReinforcementInput
                             areas={areas}
                             onChange={(newAreas) => onScopeDataChange('areas', newAreas)}
-                            defaultReoType={answers.slab_reo_type || 'mesh'}
-                            defaultMeshType={answers.mesh_type || 'SL82'}
-                            defaultBarSize={answers.bar_size || 'N12'}
-                            defaultBarSpacing={answers.bar_spacing || '200'}
-                            defaultBarLayers={answers.bar_layers || '2'}
+                            defaultReoType="mesh"
+                            defaultMeshType="SL82"
+                            defaultBarSize="N12"
+                            defaultBarSpacing="200"
+                            defaultBarLayers="2"
                             label="Slab Areas"
                           />
                         </div>

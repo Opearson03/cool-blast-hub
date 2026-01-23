@@ -96,7 +96,10 @@ export function AreaReinforcementInput({
   }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Configure reinforcement for each slab area. Expand to customize type and specs.
+      </p>
       {areas.map((area, index) => {
         const isOpen = openAreas[area.id] || false;
         const reoType = area.reo_type || defaultReoType;
