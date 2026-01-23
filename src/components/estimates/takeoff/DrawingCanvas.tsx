@@ -143,10 +143,15 @@ export function DrawingCanvas({
 
     const point: TakeoffPoint = { x: pos.x, y: pos.y };
 
-    // Handle calibration mode clicks
+    // Handle calibration mode clicks - always allowed
     if (isCalibrationMode && calibrationPoints.length < 2) {
       const newPoints = [...calibrationPoints, point];
       onCalibrationPointsChange?.(newPoints);
+      return;
+    }
+
+    // Block all markup actions if not calibrated (except calibration mode above)
+    if (!isCalibrated && tool !== 'select') {
       return;
     }
 
@@ -194,7 +199,7 @@ export function DrawingCanvas({
       setDrawingPoints(newPoints);
       onPointsChange?.(newPoints);
     }
-  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange, polylinePoints, onPolylinePointsChange, isPanning]);
+  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, isCalibrated, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange, polylinePoints, onPolylinePointsChange, isPanning]);
 
   // Handle double click to close polygon
   const handleDoubleClick = useCallback(() => {
