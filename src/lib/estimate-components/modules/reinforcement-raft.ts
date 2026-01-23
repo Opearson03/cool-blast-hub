@@ -45,16 +45,6 @@ export const reinforcementRaftModule: EstimateModule = {
       unit: '%',
       sectionLabel: 'Slab Surface',
     },
-    {
-      id: 'mesh_price_per_sheet',
-      type: 'currency',
-      label: 'Price/Sheet',
-      defaultValue: 95,
-      unit: '/sheet',
-      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
-        return priceMap?.['mesh']?.['SL82'];
-      },
-    },
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 2: ACCESSORIES
@@ -262,7 +252,7 @@ export const reinforcementRaftModule: EstimateModule = {
       });
     } else if (totalArea > 0) {
       // Fallback for single area without per-area breakdown - default to mesh
-      const pricePerSheet = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', defaultMeshType, 95);
+      const pricePerSheet = getPrice(priceMap, 'mesh', defaultMeshType, 95);
       const totalMeshArea = totalArea * lapPercent;
       const sheets = Math.ceil(totalMeshArea / sheetArea);
       const cost = sheets * pricePerSheet;
