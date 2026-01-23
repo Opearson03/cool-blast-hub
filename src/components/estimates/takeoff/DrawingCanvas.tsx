@@ -317,23 +317,40 @@ export function DrawingCanvas({
     );
   };
 
-  // Render pier point markers
+  // Render pier point markers (during drawing)
   const renderPierPoints = () => {
     if (tool !== 'point' || pierPoints.length === 0) return null;
+
+    // Use squares for pad footings/pit bases, circles for piers/bollards
+    const isPadOrPit = activeScope === 'pad_footings' || activeScope === 'pit_bases';
+    const size = 12;
 
     return (
       <Group>
         {pierPoints.map((point, index) => (
           <Group key={index}>
-            <Circle
-              x={point.x}
-              y={point.y}
-              radius={12}
-              fill={activeScopeColor}
-              stroke="#fff"
-              strokeWidth={2}
-              opacity={0.9}
-            />
+            {isPadOrPit ? (
+              <Rect
+                x={point.x - size}
+                y={point.y - size}
+                width={size * 2}
+                height={size * 2}
+                fill={activeScopeColor}
+                stroke="#fff"
+                strokeWidth={2}
+                opacity={0.9}
+              />
+            ) : (
+              <Circle
+                x={point.x}
+                y={point.y}
+                radius={size}
+                fill={activeScopeColor}
+                stroke="#fff"
+                strokeWidth={2}
+                opacity={0.9}
+              />
+            )}
             <Text
               x={point.x}
               y={point.y}
@@ -677,21 +694,42 @@ export function DrawingCanvas({
 
       // Handle point markups (piers/bollards/pads)
       if (markup.shape_type === 'point' && markup.points.length > 0) {
+        // Use squares for pad footings/pit bases, circles for piers/bollards
+        const isPadOrPit = markup.scope_id === 'pad_footings' || markup.scope_id === 'pit_bases';
+        const size = isSelected ? 14 : 12;
+        
         return (
           <Group key={markup.id}>
             {markup.points.map((point, index) => (
               <Group key={index}>
-                <Circle
-                  x={point.x}
-                  y={point.y}
-                  radius={isSelected ? 14 : 12}
-                  fill={markup.color}
-                  stroke={isSelected ? '#fff' : '#000'}
-                  strokeWidth={isSelected ? 3 : 1}
-                  opacity={0.85}
-                  onClick={() => tool === 'select' && onMarkupSelect(markup.id)}
-                  onTap={() => tool === 'select' && onMarkupSelect(markup.id)}
-                />
+                {isPadOrPit ? (
+                  // Render squares for pad footings
+                  <Rect
+                    x={point.x - size}
+                    y={point.y - size}
+                    width={size * 2}
+                    height={size * 2}
+                    fill={markup.color}
+                    stroke={isSelected ? '#fff' : '#000'}
+                    strokeWidth={isSelected ? 3 : 1}
+                    opacity={0.85}
+                    onClick={() => tool === 'select' && onMarkupSelect(markup.id)}
+                    onTap={() => tool === 'select' && onMarkupSelect(markup.id)}
+                  />
+                ) : (
+                  // Render circles for piers/bollards
+                  <Circle
+                    x={point.x}
+                    y={point.y}
+                    radius={size}
+                    fill={markup.color}
+                    stroke={isSelected ? '#fff' : '#000'}
+                    strokeWidth={isSelected ? 3 : 1}
+                    opacity={0.85}
+                    onClick={() => tool === 'select' && onMarkupSelect(markup.id)}
+                    onTap={() => tool === 'select' && onMarkupSelect(markup.id)}
+                  />
+                )}
                 <Text
                   x={point.x}
                   y={point.y}
