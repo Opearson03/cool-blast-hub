@@ -1594,10 +1594,19 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className={cn(
-        "max-h-[95vh] overflow-hidden flex flex-col",
-        currentStep === "takeoff" ? "max-w-[95vw] w-full" : "max-w-4xl"
-      )}>
+      <DialogContent 
+        className={cn(
+          "max-h-[95vh] overflow-hidden flex flex-col",
+          currentStep === "takeoff" ? "max-w-[95vw] w-full" : "max-w-4xl"
+        )}
+        onEscapeKeyDown={(e) => {
+          // Prevent Escape from closing the estimate dialog during takeoff step
+          // The PlanTakeoffStep handles Escape internally for canceling markups
+          if (currentStep === "takeoff") {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader className="pb-2">
           <DialogTitle className="flex items-center gap-2">
             <Calculator className="w-5 h-5" />

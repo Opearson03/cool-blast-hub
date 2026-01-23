@@ -786,7 +786,8 @@ export function PlanTakeoffStep({
         return;
       }
 
-      // Escape key to cancel current markup (only when actively marking, not to close dialogs)
+      // Escape key to cancel current markup (only when actively marking)
+      // Note: The parent EstimateFormDialog blocks Escape from closing during takeoff step
       if (e.key === 'Escape') {
         // Only handle if we're actively drawing something
         const hasActiveDrawing = 
@@ -798,13 +799,33 @@ export function PlanTakeoffStep({
         
         if (hasActiveDrawing) {
           e.preventDefault();
+          e.stopPropagation();
           handleCancelCurrentMarkup();
         }
         return;
       }
 
-      // Enter key to complete current markup (like clicking "Done")
+      // Enter key behavior:
+      // 1. If a details dialog is open, don't interfere (dialog handles its own Enter via form/button)
+      // 2. Otherwise, complete current markup (like clicking "Done")
       if (e.key === 'Enter') {
+        // Check if any detail dialog is open - if so, let the dialog handle Enter naturally
+        const isAnyDialogOpen = 
+          showPierDimensions ||
+          showBollardDimensions ||
+          showPadDimensions ||
+          showLinearDimensions ||
+          showMarkupNameDialog ||
+          showSlabBeamDialog ||
+          showAddBeamDimensionsDialog ||
+          !!editingBeam ||
+          showCalibration;
+        
+        if (isAnyDialogOpen) {
+          // Don't prevent default - let the dialog's form submission or button click work
+          return;
+        }
+        
         e.preventDefault();
         
         // Handle polyline/beam completion
@@ -892,7 +913,18 @@ export function PlanTakeoffStep({
     handleDoneMarkingPolyline, 
     handleDoneMarkingPiers,
     handleUndo,
-    handleCancelCurrentMarkup
+    handleCancelCurrentMarkup,
+    showPierDimensions,
+    showBollardDimensions,
+    showPadDimensions,
+    showLinearDimensions,
+    showMarkupNameDialog,
+    showSlabBeamDialog,
+    showAddBeamDimensionsDialog,
+    editingBeam,
+    showCalibration,
+    slabWorkflowActive,
+    isAddingBeamToExistingSlab,
   ]);
 
   // Callback to allow DrawingCanvas to report points for Enter key handling
