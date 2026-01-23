@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import * as pdfjs from 'pdfjs-dist';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ interface PlanViewerProps {
   onPageChange: (page: number) => void;
   onPagesLoaded?: (count: number) => void;
   onDimensionsChange?: (dimensions: { width: number; height: number }) => void;
+  onZoomChange?: (zoom: number) => void;
   children?: React.ReactNode;
 }
 
@@ -28,6 +29,7 @@ export function PlanViewer({
   onPageChange,
   onPagesLoaded,
   onDimensionsChange,
+  onZoomChange,
   children,
 }: PlanViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -37,10 +39,12 @@ export function PlanViewer({
   const [pdfDoc, setPdfDoc] = useState<pdfjs.PDFDocumentProxy | null>(null);
   const [naturalDimensions, setNaturalDimensions] = useState({ width: 0, height: 0 });
   
-  // Pan state
+  // Pan state - now controlled by parent when drawing is active
   const [isPanning, setIsPanning] = useState(false);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
+  const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // Load PDF document
   useEffect(() => {
@@ -121,23 +125,48 @@ export function PlanViewer({
     setIsLoading(false);
   }, [onDimensionsChange]);
 
-  // Pan handlers
+  // Pan handlers with drag detection (5px threshold)
+  const DRAG_THRESHOLD = 5;
+  
   const handleMouseDown = (e: React.MouseEvent) => {
     if (e.button !== 0) return;
-    setIsPanning(true);
+    setDragStartPos({ x: e.clientX, y: e.clientY });
     setPanStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning) return;
-    setPanOffset({
-      x: e.clientX - panStart.x,
-      y: e.clientY - panStart.y,
-    });
+    if (!dragStartPos) return;
+    
+    // Check if we've moved past the drag threshold
+    const dx = Math.abs(e.clientX - dragStartPos.x);
+    const dy = Math.abs(e.clientY - dragStartPos.y);
+    
+    if (!isDragging && (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD)) {
+      setIsDragging(true);
+      setIsPanning(true);
+    }
+    
+    if (isPanning) {
+      setPanOffset({
+        x: e.clientX - panStart.x,
+        y: e.clientY - panStart.y,
+      });
+    }
   };
 
   const handleMouseUp = () => {
+    setDragStartPos(null);
+    setIsDragging(false);
     setIsPanning(false);
+  };
+
+  // Scroll wheel zoom handler
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const zoomFactor = 0.15;
+    const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
+    const newZoom = Math.min(Math.max(zoom + delta, 0.25), 3);
+    onZoomChange?.(newZoom);
   };
 
   // Reset pan when zoom changes
@@ -182,11 +211,13 @@ export function PlanViewer({
       {/* Main viewer container */}
       <div
         ref={containerRef}
-        className="aspect-[4/3] flex items-center justify-center cursor-grab active:cursor-grabbing overflow-hidden relative"
+        className="aspect-[4/3] flex items-center justify-center overflow-hidden relative"
+        style={{ cursor: isDragging ? 'grabbing' : 'default' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
@@ -238,7 +269,9 @@ export function PlanViewer({
                 height: naturalDimensions.height,
               }}
             >
-              {children}
+              {React.isValidElement(children) 
+                ? React.cloneElement(children as React.ReactElement<any>, { isPanning: isDragging })
+                : children}
             </div>
           )}
         </div>
