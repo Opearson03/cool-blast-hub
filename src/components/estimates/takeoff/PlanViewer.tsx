@@ -160,8 +160,11 @@ export function PlanViewer({
     setIsPanning(false);
   };
 
-  // Scroll wheel zoom handler
+  // Scroll wheel zoom handler - requires Shift key
   const handleWheel = (e: React.WheelEvent) => {
+    // Only zoom when Shift is held
+    if (!e.shiftKey) return;
+    
     e.preventDefault();
     const zoomFactor = 0.15;
     const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
