@@ -73,6 +73,7 @@ interface EstimateFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editEstimate?: Estimate | null;
+  onFinalized?: (estimateId: string) => void;
 }
 
 interface FormData {
@@ -374,7 +375,7 @@ function migrateLegacyScopeData(
   return result;
 }
 
-export function EstimateFormDialog({ open, onOpenChange, editEstimate }: EstimateFormDialogProps) {
+export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinalized }: EstimateFormDialogProps) {
   const hasInitializedOnOpenRef = useRef(false);
   
   const [currentStep, setCurrentStep] = useState<WizardStep>("scopes");
@@ -888,7 +889,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
    * Shared helper to build estimate data and save it
    * Consolidates logic from saveDraftMutation, finalizeMutation, and mutation
    */
-  const saveEstimate = async (status: 'draft' | 'pending'): Promise<void> => {
+  const saveEstimate = async (status: 'draft' | 'pending'): Promise<string> => {
     // Validation for non-draft saves
     if (status !== 'draft') {
       if (!formData.client_name || !formData.site_address) {
@@ -989,6 +990,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
         .update(estimateData)
         .eq("id", workingEstimateId);
       if (error) throw error;
+      return workingEstimateId;
     } else {
       // Create new estimate and capture the ID
       const { data, error } = await supabase
@@ -999,6 +1001,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       if (error) throw error;
       // Store the new ID so subsequent saves update instead of insert
       setDraftEstimateId(data.id);
+      return data.id;
     }
   };
 
@@ -1046,13 +1049,17 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   // Finalize Quote mutation - marks estimate as pending (ready to send)
   const finalizeMutation = useMutation({
     mutationFn: () => saveEstimate('pending'),
-    onSuccess: () => {
+    onSuccess: (estimateId: string) => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
       toast({ 
         title: "Quote finalized", 
         description: "Ready to send to the client when you're ready." 
       });
       onOpenChange(false);
+      // Auto-open the finalized estimate detail sheet
+      if (onFinalized) {
+        onFinalized(estimateId);
+      }
     },
     onError: (error: Error) => {
       toast({ title: "Error finalizing quote", description: error.message, variant: "destructive" });
