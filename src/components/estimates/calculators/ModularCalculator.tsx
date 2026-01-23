@@ -352,8 +352,9 @@ export function ModularCalculator({
     return {
       ...derivedScopeAnswers,
       volume: scopeVolume,
+      scopeId: scope.id,
     };
-  }, [derivedScopeAnswers, scopeVolume]);
+  }, [derivedScopeAnswers, scopeVolume, scope.id]);
 
   // Apply derived values and auto-fill from price list when fields become visible
   useEffect(() => {
