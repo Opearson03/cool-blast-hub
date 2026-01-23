@@ -410,7 +410,7 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     
     if (pointMarkups.length === 0) return [];
     
-    // Group by unique length + width + depth combination
+    // Group by markup name to preserve user-defined groups from takeoff
     const grouped = new Map<string, { count: number; length: number; width: number; depth: number; name: string }>();
     
     pointMarkups.forEach(m => {
@@ -418,20 +418,22 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
       const length = m.height_mm || 600;
       const width = m.width_mm || 600;
       const depth = m.depth_mm || 300;
-      const key = `${length}-${width}-${depth}`;
       const qty = m.pier_quantity || 1;
+      // Use the markup name as the grouping key to preserve user-defined groups
+      const groupName = m.name || `Pad Footings`;
+      const key = groupName;
       
       if (grouped.has(key)) {
         const existing = grouped.get(key)!;
         existing.count += qty;
-        existing.name = `${existing.count} pads @ ${length}x${width}x${depth}mm`;
+        // Keep the original name, don't overwrite
       } else {
         grouped.set(key, {
           count: qty,
           length,
           width,
           depth,
-          name: m.name || `${qty} pads @ ${length}x${width}x${depth}mm`,
+          name: groupName,
         });
       }
     });
