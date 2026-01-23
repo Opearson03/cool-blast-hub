@@ -1,6 +1,8 @@
 import { MeasurementArea } from "@/lib/estimate-components/types";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -13,16 +15,9 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Grid3X3, Settings2, Layers, ChevronsUpDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Grid3X3, Layers, ChevronsUpDown } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
-
-const REO_TYPE_OPTIONS = [
-  { value: 'mesh', label: 'Steel Mesh', icon: '◼' },
-  { value: 'bar', label: 'Bar Reo', icon: '▬' },
-  { value: 'fiber', label: 'Fiber Only', icon: '∿' },
-  { value: 'none', label: 'None', icon: '○' },
-];
 
 const MESH_OPTIONS = [
   { value: 'SL62', label: 'SL62' },
@@ -76,7 +71,7 @@ export function AreaReinforcementInput({
   defaultBarLayers,
   label,
 }: AreaReinforcementInputProps) {
-  const [openAreas, setOpenAreas] = useState<Record<string, boolean>>({});
+  const [openAreas, setOpenAreas] = useState<Set<string>>(new Set());
 
   const updateArea = (index: number, updates: Partial<MeasurementArea>) => {
     const newAreas = [...areas];
@@ -85,14 +80,24 @@ export function AreaReinforcementInput({
   };
 
   const toggleArea = (areaId: string) => {
-    setOpenAreas(prev => ({ ...prev, [areaId]: !prev[areaId] }));
+    setOpenAreas(prev => {
+      const next = new Set(prev);
+      if (next.has(areaId)) {
+        next.delete(areaId);
+      } else {
+        next.add(areaId);
+      }
+      return next;
+    });
   };
 
   const toggleAll = () => {
-    const allOpen = areas.every(a => openAreas[a.id]);
-    const newState: Record<string, boolean> = {};
-    areas.forEach(a => { newState[a.id] = !allOpen; });
-    setOpenAreas(newState);
+    const allOpen = areas.every(a => openAreas.has(a.id));
+    if (allOpen) {
+      setOpenAreas(new Set());
+    } else {
+      setOpenAreas(new Set(areas.map(a => a.id)));
+    }
   };
 
   // Summary calculations
@@ -100,6 +105,8 @@ export function AreaReinforcementInput({
     let totalArea = 0;
     let meshCount = 0;
     let barCount = 0;
+    let fiberCount = 0;
+    let noneCount = 0;
     let customCount = 0;
 
     areas.forEach(area => {
@@ -109,11 +116,13 @@ export function AreaReinforcementInput({
       const reoType = area.reo_type || defaultReoType;
       if (reoType === 'mesh') meshCount++;
       else if (reoType === 'bar') barCount++;
+      else if (reoType === 'fiber') fiberCount++;
+      else if (reoType === 'none') noneCount++;
       
       if (area.reo_type || area.mesh_type || area.bar_size) customCount++;
     });
 
-    return { totalArea, meshCount, barCount, customCount, total: areas.length };
+    return { totalArea, meshCount, barCount, fiberCount, noneCount, customCount, total: areas.length };
   }, [areas, defaultReoType]);
 
   if (areas.length === 0) {
@@ -127,20 +136,31 @@ export function AreaReinforcementInput({
 
   return (
     <div className="space-y-3">
-      {/* Summary Header */}
+      {/* Summary Header - matching pier style */}
       <div className="flex items-center justify-between gap-4 pb-2">
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1.5">
             <Layers className="h-3.5 w-3.5" />
             <span className="font-medium text-foreground">{summary.total}</span>
             <span>area{summary.total !== 1 ? 's' : ''}</span>
+            <span className="text-muted-foreground/60">({summary.totalArea.toFixed(1)} m²)</span>
           </div>
-          <span className="text-border">•</span>
-          <span>{summary.totalArea.toFixed(1)}m² total</span>
+          {summary.meshCount > 0 && (
+            <>
+              <span className="text-border">•</span>
+              <span>{summary.meshCount} with mesh</span>
+            </>
+          )}
+          {summary.barCount > 0 && (
+            <>
+              <span className="text-border">•</span>
+              <span>{summary.barCount} with bar</span>
+            </>
+          )}
           {summary.customCount > 0 && (
             <>
               <span className="text-border">•</span>
-              <span className="text-primary">{summary.customCount} customized</span>
+              <span className="text-primary">{summary.customCount} custom</span>
             </>
           )}
         </div>
@@ -151,14 +171,14 @@ export function AreaReinforcementInput({
           className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
         >
           <ChevronsUpDown className="h-3.5 w-3.5" />
-          {areas.every(a => openAreas[a.id]) ? 'Collapse' : 'Expand'}
+          {areas.every(a => openAreas.has(a.id)) ? 'Collapse' : 'Expand'}
         </Button>
       </div>
 
       {/* Area Cards */}
       <div className="space-y-2">
         {areas.map((area, index) => {
-          const isOpen = openAreas[area.id] || false;
+          const isOpen = openAreas.has(area.id);
           const reoType = area.reo_type || defaultReoType;
           const meshType = area.mesh_type || defaultMeshType;
           const barSize = area.bar_size || defaultBarSize;
@@ -166,9 +186,7 @@ export function AreaReinforcementInput({
           const barLayers = area.bar_layers || defaultBarLayers;
           const areaValue = area._actualArea || (area.length * area.width);
           const hasCustomSettings = area.reo_type || area.mesh_type || area.bar_size;
-
-          const reoOption = REO_TYPE_OPTIONS.find(o => o.value === reoType);
-          const reoLabel = reoOption?.label || 'Mesh';
+          const hasReinforcement = reoType === 'mesh' || reoType === 'bar';
 
           return (
             <Collapsible key={area.id} open={isOpen} onOpenChange={() => toggleArea(area.id)}>
@@ -184,143 +202,175 @@ export function AreaReinforcementInput({
                       ) : (
                         <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                       )}
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{area.name}</span>
-                        <span className="text-xs text-muted-foreground tabular-nums">
-                          {areaValue.toFixed(1)}m²
-                        </span>
-                      </div>
+                      <span className="font-medium text-sm">{area.name}</span>
+                      <Badge variant="outline" className="text-xs font-normal h-5">
+                        {areaValue.toFixed(1)} m²
+                      </Badge>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className={cn(
-                        "text-[11px] px-2 py-0.5 rounded-full font-medium",
-                        reoType === 'mesh' && "bg-primary/10 text-primary",
-                        reoType === 'bar' && "bg-accent text-accent-foreground",
-                        reoType === 'fiber' && "bg-secondary text-secondary-foreground",
-                        reoType === 'none' && "bg-muted text-muted-foreground"
-                      )}>
-                        {reoLabel}
-                      </span>
+                      <Badge 
+                        variant="secondary" 
+                        className={cn(
+                          "text-[11px] h-5",
+                          reoType === 'mesh' && "bg-primary/10 text-primary border-primary/20",
+                          reoType === 'bar' && "bg-accent text-accent-foreground",
+                          reoType === 'fiber' && "bg-secondary text-secondary-foreground",
+                          reoType === 'none' && "bg-muted text-muted-foreground"
+                        )}
+                      >
+                        {reoType === 'mesh' ? 'Mesh' : reoType === 'bar' ? 'Bar' : reoType === 'fiber' ? 'Fiber' : 'None'}
+                      </Badge>
                       {hasCustomSettings && (
-                        <span className="text-[10px] bg-primary/15 text-primary px-1.5 py-0.5 rounded font-medium">
+                        <Badge variant="outline" className="text-[10px] h-5 border-primary/30 text-primary">
                           Custom
-                        </span>
+                        </Badge>
                       )}
-                      <Settings2 className="h-3.5 w-3.5 text-muted-foreground ml-1" />
                     </div>
                   </div>
                 </CollapsibleTrigger>
                 
                 <CollapsibleContent>
-                  <div className="px-3 pb-3 pt-2 border-t bg-muted/30">
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Reo Type */}
-                      <div className="space-y-1.5 col-span-2">
-                        <Label className="text-xs font-medium">Reinforcement Type</Label>
-                        <Select
-                          value={reoType}
-                          onValueChange={(val) => updateArea(index, { reo_type: val as any })}
-                        >
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="z-[150]">
-                            {REO_TYPE_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                <span className="flex items-center gap-2">
-                                  <span className="opacity-50">{opt.icon}</span>
-                                  {opt.label}
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                  <div className="px-3 pb-3 pt-2 border-t bg-muted/30 space-y-3">
+                    {/* Surface Reinforcement Toggle */}
+                    <div className="flex items-center justify-between">
+                      <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                        Surface Reinforcement
+                      </Label>
+                      <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                        <Switch
+                          checked={hasReinforcement}
+                          onCheckedChange={(checked) => {
+                            updateArea(index, { 
+                              reo_type: checked ? 'mesh' : 'none' 
+                            });
+                          }}
+                        />
+                        <span className={cn(
+                          "text-sm min-w-[3ch]",
+                          hasReinforcement ? "text-foreground" : "text-muted-foreground"
+                        )}>
+                          {hasReinforcement ? 'Yes' : 'No'}
+                        </span>
                       </div>
-
-                      {/* Mesh options */}
-                      {reoType === 'mesh' && (
-                        <div className="space-y-1.5 col-span-2">
-                          <Label className="text-xs">Mesh Type</Label>
-                          <Select
-                            value={meshType}
-                            onValueChange={(val) => updateArea(index, { mesh_type: val })}
-                          >
-                            <SelectTrigger className="h-9 text-sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="z-[150]">
-                              {MESH_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={opt.value}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      )}
-
-                      {/* Bar options */}
-                      {reoType === 'bar' && (
-                        <>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Bar Size</Label>
-                            <Select
-                              value={barSize}
-                              onValueChange={(val) => updateArea(index, { bar_size: val })}
-                            >
-                              <SelectTrigger className="h-9 text-sm">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="z-[150]">
-                                {BAR_SIZE_OPTIONS.map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Spacing</Label>
-                            <Select
-                              value={barSpacing}
-                              onValueChange={(val) => updateArea(index, { bar_spacing: val })}
-                            >
-                              <SelectTrigger className="h-9 text-sm">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="z-[150]">
-                                {BAR_SPACING_OPTIONS.map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-
-                          <div className="space-y-1.5 col-span-2">
-                            <Label className="text-xs">Layers</Label>
-                            <Select
-                              value={barLayers}
-                              onValueChange={(val) => updateArea(index, { bar_layers: val })}
-                            >
-                              <SelectTrigger className="h-9 text-sm">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="z-[150]">
-                                {BAR_LAYERS_OPTIONS.map((opt) => (
-                                  <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                          </div>
-                        </>
-                      )}
                     </div>
+
+                    {/* Reinforcement Settings - only show if reinforcement enabled */}
+                    {hasReinforcement && (
+                      <>
+                        <div className="pt-3 border-t space-y-3">
+                          {/* Type Selection */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground">Type</Label>
+                              <Select
+                                value={reoType}
+                                onValueChange={(val) => updateArea(index, { reo_type: val as any })}
+                              >
+                                <SelectTrigger className="h-8 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="z-[150]">
+                                  <SelectItem value="mesh">Steel Mesh</SelectItem>
+                                  <SelectItem value="bar">Bar Reo</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+
+                            {/* Mesh Type */}
+                            {reoType === 'mesh' && (
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Mesh Type</Label>
+                                <Select
+                                  value={meshType}
+                                  onValueChange={(val) => updateArea(index, { mesh_type: val })}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="z-[150]">
+                                    {MESH_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Bar options */}
+                          {reoType === 'bar' && (
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Bar Size</Label>
+                                <Select
+                                  value={barSize}
+                                  onValueChange={(val) => updateArea(index, { bar_size: val })}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="z-[150]">
+                                    {BAR_SIZE_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Spacing</Label>
+                                <Select
+                                  value={barSpacing}
+                                  onValueChange={(val) => updateArea(index, { bar_spacing: val })}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="z-[150]">
+                                    {BAR_SPACING_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Layers</Label>
+                                <Select
+                                  value={barLayers}
+                                  onValueChange={(val) => updateArea(index, { bar_layers: val })}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="z-[150]">
+                                    {BAR_LAYERS_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Summary Footer */}
+                        <div className="pt-2 border-t">
+                          <p className="text-xs text-muted-foreground">
+                            {reoType === 'mesh' && `${meshType} mesh • ${areaValue.toFixed(1)} m²`}
+                            {reoType === 'bar' && `${barSize} @ ${barSpacing}mm ${barLayers === '2' ? '(T&B)' : '(bottom)'} • ${areaValue.toFixed(1)} m²`}
+                          </p>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </CollapsibleContent>
               </div>
