@@ -3,8 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Square, Plus } from 'lucide-react';
+import { Square, Plus, Layers, Ruler } from 'lucide-react';
 
 interface PadFootingDimensionsDialogProps {
   open: boolean;
@@ -61,130 +60,150 @@ export function PadFootingDimensionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
-        <DialogHeader className="flex-shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Square className="h-5 w-5 text-primary" />
-            Enter {title} Dimensions
+      <DialogContent className="sm:max-w-[420px] max-h-[90vh] flex flex-col p-0 gap-0 overflow-hidden">
+        {/* Header */}
+        <DialogHeader className="flex-shrink-0 px-5 pt-5 pb-4 border-b border-border/50">
+          <DialogTitle className="flex items-center gap-2.5 text-lg">
+            <div className="p-1.5 rounded-md bg-primary/10">
+              <Square className="h-4 w-4 text-primary" />
+            </div>
+            {title} Dimensions
           </DialogTitle>
-          <DialogDescription>
-            Enter the dimensions for the {title.toLowerCase()}s you marked on the plan.
+          <DialogDescription className="text-sm">
+            Set the dimensions for the {title.toLowerCase()}s you marked.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto space-y-4 py-4">
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-5">
+          {/* Count badge - prominent */}
+          <div className="flex items-center gap-3 p-3.5 bg-primary/10 rounded-xl border border-primary/20">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary text-primary-foreground font-bold text-lg">
+              {padCount}
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-sm">
+                {title}{padCount !== 1 ? 's' : ''} marked
+              </p>
+              <p className="text-xs text-muted-foreground">on plan</p>
+            </div>
+            <Layers className="h-5 w-5 text-primary/60" />
+          </div>
+
           {/* Group name input */}
           <div className="space-y-2">
-            <Label htmlFor="pad-name">Group Name</Label>
+            <Label htmlFor="pad-name" className="text-sm font-medium">Group Name</Label>
             <Input
               id="pad-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={`e.g., ${isPitBase ? 'Stormwater Pits' : 'Column Footings'}`}
+              placeholder={isPitBase ? 'e.g., Stormwater Pits' : 'e.g., Column A Footings'}
+              className="h-11"
               autoFocus
             />
-            <p className="text-xs text-muted-foreground">
-              Name this group of {title.toLowerCase()}s (e.g., "{isPitBase ? 'Stormwater Pits' : 'Column A Footings'}")
-            </p>
           </div>
 
-          {/* Count display */}
-          <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
-            <Badge variant="default" className="text-base px-3 py-1">
-              {padCount}
-            </Badge>
-            <span className="text-sm font-medium">
-              {title.toLowerCase()}{padCount !== 1 ? 's' : ''} marked on plan
-            </span>
-          </div>
+          {/* Dimensions section */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Ruler className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-muted-foreground">Dimensions</span>
+            </div>
+            
+            {/* 3-column grid for L × W × D */}
+            <div className="grid grid-cols-3 gap-2.5">
+              {/* Length */}
+              <div className="space-y-1.5">
+                <Label htmlFor="length" className="text-xs text-muted-foreground">Length</Label>
+                <div className="relative">
+                  <Input
+                    id="length"
+                    type="number"
+                    value={length}
+                    onChange={(e) => setLength(Number(e.target.value) || 0)}
+                    min={100}
+                    max={5000}
+                    step={50}
+                    className="h-11 pr-9 text-center font-medium"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                    mm
+                  </span>
+                </div>
+              </div>
 
-          {/* Dimensions grid - 2 columns on mobile for L/W */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Length input */}
-            <div className="space-y-1.5">
-              <Label htmlFor="length" className="text-sm">Length</Label>
-              <div className="relative">
-                <Input
-                  id="length"
-                  type="number"
-                  value={length}
-                  onChange={(e) => setLength(Number(e.target.value) || 0)}
-                  min={100}
-                  max={5000}
-                  step={50}
-                  className="pr-10"
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                  mm
-                </span>
+              {/* Width */}
+              <div className="space-y-1.5">
+                <Label htmlFor="width" className="text-xs text-muted-foreground">Width</Label>
+                <div className="relative">
+                  <Input
+                    id="width"
+                    type="number"
+                    value={width}
+                    onChange={(e) => setWidth(Number(e.target.value) || 0)}
+                    min={100}
+                    max={5000}
+                    step={50}
+                    className="h-11 pr-9 text-center font-medium"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                    mm
+                  </span>
+                </div>
+              </div>
+
+              {/* Depth */}
+              <div className="space-y-1.5">
+                <Label htmlFor="depth" className="text-xs text-muted-foreground">Depth</Label>
+                <div className="relative">
+                  <Input
+                    id="depth"
+                    type="number"
+                    value={depth}
+                    onChange={(e) => setDepth(Number(e.target.value) || 0)}
+                    min={50}
+                    max={2000}
+                    step={50}
+                    className="h-11 pr-9 text-center font-medium"
+                  />
+                  <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                    mm
+                  </span>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* Width input */}
-            <div className="space-y-1.5">
-              <Label htmlFor="width" className="text-sm">Width</Label>
-              <div className="relative">
-                <Input
-                  id="width"
-                  type="number"
-                  value={width}
-                  onChange={(e) => setWidth(Number(e.target.value) || 0)}
-                  min={100}
-                  max={5000}
-                  step={50}
-                  className="pr-10"
-                />
-                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                  mm
-                </span>
+          {/* Volume summary card */}
+          <div className="rounded-xl bg-muted/50 border border-border/50 overflow-hidden">
+            <div className="px-4 py-3 bg-muted/80 border-b border-border/50">
+              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Summary</span>
+            </div>
+            <div className="px-4 py-3 space-y-2">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Each {title.toLowerCase()}</span>
+                <span className="font-mono font-medium">{length} × {width} × {depth}</span>
               </div>
-            </div>
-          </div>
-
-          {/* Depth input - full width */}
-          <div className="space-y-1.5">
-            <Label htmlFor="depth" className="text-sm">Depth</Label>
-            <div className="relative">
-              <Input
-                id="depth"
-                type="number"
-                value={depth}
-                onChange={(e) => setDepth(Number(e.target.value) || 0)}
-                min={50}
-                max={2000}
-                step={50}
-                className="pr-10"
-              />
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                mm
-              </span>
-            </div>
-            {!isPitBase && (
-              <p className="text-xs text-muted-foreground">
-                Common: 300, 450, 600mm
-              </p>
-            )}
-          </div>
-
-          {/* Volume preview */}
-          <div className="p-3 bg-muted rounded-lg space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Size:</span>
-              <span className="font-medium">{length} × {width} × {depth}mm</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Total vol ({padCount}):</span>
-              <span className="font-medium">{totalVolume.toFixed(3)} m³</span>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-muted-foreground">Volume per unit</span>
+                <span className="font-mono">{singleVolume.toFixed(4)} m³</span>
+              </div>
+              <div className="h-px bg-border/50 my-1" />
+              <div className="flex justify-between items-center">
+                <span className="font-medium">Total volume</span>
+                <span className="font-mono font-bold text-primary">{totalVolume.toFixed(3)} m³</span>
+              </div>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="flex-shrink-0 flex-col-reverse sm:flex-row gap-2 pt-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+        {/* Footer */}
+        <DialogFooter className="flex-shrink-0 px-5 py-4 border-t border-border/50 bg-muted/30 gap-2 sm:gap-2">
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="flex-1 sm:flex-none">
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={padCount === 0} className="w-full sm:w-auto">
+          <Button onClick={handleConfirm} disabled={padCount === 0} className="flex-1 sm:flex-none">
             Save {title}s
           </Button>
           {onConfirmAndAddAnother && (
@@ -192,10 +211,10 @@ export function PadFootingDimensionsDialog({
               variant="secondary" 
               onClick={handleConfirmAndAddAnother} 
               disabled={padCount === 0}
-              className="gap-1 w-full sm:w-auto"
+              className="gap-1.5 flex-1 sm:flex-none"
             >
               <Plus className="h-4 w-4" />
-              Save & Add More
+              Add More
             </Button>
           )}
         </DialogFooter>
