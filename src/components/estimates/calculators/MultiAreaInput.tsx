@@ -61,6 +61,7 @@ export function MultiAreaInput({
   const [newAreaName, setNewAreaName] = useState("");
   const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
+  const [pendingAreaName, setPendingAreaName] = useState("");
 
   // Check if any areas are from takeoff
   const hasAnyTakeoffAreas = areas.some((area) => area._fromTakeoff);
@@ -88,9 +89,10 @@ export function MultiAreaInput({
     return sum;
   }, 0);
 
-  const addArea = () => {
+  const addArea = (nameOverride?: string) => {
     const areaNumber = areas.length + 1;
-    const name = newAreaName.trim() || `Area ${areaNumber}`;
+    const nameToUse = nameOverride !== undefined ? nameOverride : newAreaName;
+    const name = nameToUse.trim() || `Area ${areaNumber}`;
     onChange([
       ...areas,
       {
@@ -101,11 +103,14 @@ export function MultiAreaInput({
       },
     ]);
     setNewAreaName("");
+    setPendingAreaName("");
   };
 
   const handleAddClick = () => {
     // Show prompt if: plans exist, callback provided, and user hasn't chosen to skip
     if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
+      // Store the current name before showing dialog
+      setPendingAreaName(newAreaName);
       setShowMarkupPrompt(true);
     } else {
       addArea();
@@ -117,6 +122,8 @@ export function MultiAreaInput({
       onSkipMarkupPromptChange?.(true);
     }
     setShowMarkupPrompt(false);
+    setPendingAreaName("");
+    setNewAreaName("");
     onRequestMarkup?.();
   };
 
@@ -125,7 +132,8 @@ export function MultiAreaInput({
       onSkipMarkupPromptChange?.(true);
     }
     setShowMarkupPrompt(false);
-    addArea();
+    // Use the stored pending name
+    addArea(pendingAreaName);
   };
 
   const removeArea = (id: string) => {
