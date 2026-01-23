@@ -9,6 +9,7 @@ import {
   MeasurementArea,
   PierConfig,
   PierGroup,
+  PadFootingGroup,
   FootingConfig,
   BeamConfig,
   DemolitionArea,
@@ -24,6 +25,7 @@ import { ExclusionsSummary } from "./ExclusionsSummary";
 import { MultiAreaInput } from "./MultiAreaInput";
 import { MultiPierInput } from "./MultiPierInput";
 import { MultiPierGroupInput } from "./MultiPierGroupInput";
+import { MultiPadFootingGroupInput } from "./MultiPadFootingGroupInput";
 import { MultiFootingInput } from "./MultiFootingInput";
 import { MultiLinearInput } from "./MultiLinearInput";
 import { MultiBeamInput } from "./MultiBeamInput";
@@ -620,6 +622,37 @@ export function ModularCalculator({
     }));
   };
 
+  // Handler for pad footing group changes
+  const handlePadGroupsChange = (padGroups: PadFootingGroup[]) => {
+    // Calculate total pad count from group quantities
+    const totalPads = padGroups.reduce((sum, g) => sum + (g.quantity || 1), 0);
+    
+    // Calculate weighted averages for dimensions
+    let weightedLength = 0;
+    let weightedWidth = 0;
+    let weightedDepth = 0;
+    if (totalPads > 0) {
+      padGroups.forEach(group => {
+        const qty = group.quantity || 1;
+        weightedLength += (Number(group.length) || 0) * qty;
+        weightedWidth += (Number(group.width) || 0) * qty;
+        weightedDepth += (Number(group.depth) || 0) * qty;
+      });
+      weightedLength = weightedLength / totalPads;
+      weightedWidth = weightedWidth / totalPads;
+      weightedDepth = weightedDepth / totalPads;
+    }
+    
+    setScopeAnswers((prev) => ({
+      ...prev,
+      padGroups,
+      total_num_pads: totalPads,
+      total_length: weightedLength,
+      total_width: weightedWidth,
+      total_depth: weightedDepth,
+    }));
+  };
+
   // Handler for multi-beam changes (internal beams)
   const handleBeamsChange = (beams: BeamConfig[]) => {
     // Calculate totals from beam configs
@@ -865,6 +898,27 @@ export function ModularCalculator({
           label={scope.linearSectionsLabel}
           sections={scopeAnswers.linearSections || [{ id: 'section-1', name: 'Section 1', length: 0, dimension1: 450, dimension2: 300 }]}
           onChange={handleLinearSectionsChange}
+          // Markup prompt support
+          onRequestMarkup={onRequestMarkup}
+          hasPlans={hasPlans}
+          skipMarkupPrompt={skipMarkupPrompt}
+          onSkipMarkupPromptChange={onSkipMarkupPromptChange}
+        />
+      )}
+
+      {/* Multi-pad-footing group input */}
+      {scope.supportsPadGroups && (
+        <MultiPadFootingGroupInput
+          label={scope.padGroupsLabel || 'Pad Footing Groups'}
+          padGroups={scopeAnswers.padGroups || [{ 
+            id: 'pad-group-1', 
+            name: 'Pad Footing Group 1', 
+            quantity: 1,
+            length: 450,
+            width: 450,
+            depth: 300,
+          }]}
+          onChange={handlePadGroupsChange}
           // Markup prompt support
           onRequestMarkup={onRequestMarkup}
           hasPlans={hasPlans}

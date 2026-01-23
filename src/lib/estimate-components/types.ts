@@ -223,6 +223,27 @@ export interface PierConfig {
 }
 
 /**
+ * Pad footing group - all footings in a group share the same dimensions
+ */
+export interface PadFootingGroup {
+  id: string;
+  name: string;           // Group name, e.g., "Column A Footings"
+  quantity: number;       // Number of identical pad footings in this group
+  length: number;         // mm - shared length for all pads in group
+  width: number;          // mm - shared width for all pads in group
+  depth: number;          // mm - shared depth for all pads in group
+  /** If true, this group was imported from plan takeoff */
+  _fromTakeoff?: boolean;
+  
+  // Group-level reinforcement settings
+  has_bottom_reo?: boolean;
+  bottom_a_size?: string;
+  bottom_a_centres?: number;
+  bottom_b_size?: string;
+  bottom_b_centres?: number;
+}
+
+/**
  * Individual footing configuration for multi-footing scopes
  */
 export interface FootingConfig {
@@ -359,6 +380,12 @@ export interface ScopeDefinition {
   
   /** Label for the edge beams section (e.g., "Edge Beams") */
   edgeBeamsLabel?: string;
+  
+  /** If true, allows multiple pad footing group configurations */
+  supportsPadGroups?: boolean;
+  
+  /** Label for the pad footing groups section (e.g., "Pad Footing Groups") */
+  padGroupsLabel?: string;
   
   /** Question IDs that should be hidden from standard rendering (managed by multi-input components) */
   hideStandardQuestions?: string[];
