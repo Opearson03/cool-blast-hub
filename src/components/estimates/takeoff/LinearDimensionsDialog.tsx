@@ -79,8 +79,8 @@ export function LinearDimensionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md z-[100]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md z-[100] flex flex-col max-h-[90vh]">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Ruler className="h-5 w-5 text-primary" />
             Enter {getScopeTitle()} Dimensions
@@ -90,7 +90,7 @@ export function LinearDimensionsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="flex-1 overflow-y-auto space-y-4 py-4">
           {/* Length display */}
           <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
             <span className="text-sm font-medium">Total Length:</span>
@@ -185,7 +185,7 @@ export function LinearDimensionsDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col-reverse sm:flex-row sm:justify-end gap-2 pt-2">
+        <DialogFooter className="flex-shrink-0 flex-col sm:flex-row gap-2 pt-2 border-t">
           <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
             Cancel
           </Button>
