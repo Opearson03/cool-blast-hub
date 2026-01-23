@@ -218,6 +218,22 @@ export default function AdminEstimates() {
     refreshQuota();
   };
 
+  // Handler for when an estimate is finalized - opens the detail sheet
+  const handleEstimateFinalized = async (estimateId: string) => {
+    // Wait a moment for the query to refresh, then find and open the estimate
+    await queryClient.invalidateQueries({ queryKey: ["estimates"] });
+    // Fetch the estimate directly to ensure we have fresh data
+    const { data: freshEstimate } = await supabase
+      .from("estimates")
+      .select("*")
+      .eq("id", estimateId)
+      .single();
+    
+    if (freshEstimate) {
+      setViewingEstimate(freshEstimate as Estimate);
+    }
+  };
+
   const handleNewEstimate = () => {
     // Check quota before allowing new estimate creation
     if (!canCreate && limit !== null) {
@@ -747,6 +763,7 @@ export default function AdminEstimates() {
           scope_data: editingEstimate.scope_data as any,
           selected_scopes: editingEstimate.selected_scopes as any,
         } : null}
+        onFinalized={handleEstimateFinalized}
       />
 
       <EstimateDetailSheet
