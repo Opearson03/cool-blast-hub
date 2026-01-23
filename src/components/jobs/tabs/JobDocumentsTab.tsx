@@ -3,7 +3,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Plus, Image, File, Download, Loader2, Trash2 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FileText, Plus, Image, File, Download, Loader2, Trash2, X, ExternalLink } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
@@ -22,10 +28,16 @@ function getFileIcon(fileType: string | null) {
   return <File className="w-8 h-8" />;
 }
 
+function isPreviewable(fileType: string | null): boolean {
+  if (!fileType) return false;
+  return fileType.startsWith("image/") || fileType === "application/pdf";
+}
+
 export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["job-documents", jobId],
@@ -121,6 +133,15 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
     window.open(doc.file_url, "_blank");
   };
 
+  const handleCardClick = (doc: Document) => {
+    if (isPreviewable(doc.file_type)) {
+      setPreviewDoc(doc);
+    } else {
+      // Non-previewable files just download
+      handleDownload(doc);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="text-center py-8 text-muted-foreground">Loading documents...</div>
@@ -166,12 +187,18 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {documents.map((doc) => (
-            <Card key={doc.id} className="hover:border-primary/50 transition-colors">
+            <Card 
+              key={doc.id} 
+              className="hover:border-primary/50 transition-colors cursor-pointer group"
+              onClick={() => handleCardClick(doc)}
+            >
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
                   {getFileIcon(doc.file_type)}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{doc.file_name}</p>
+                    <p className="font-medium truncate group-hover:text-primary transition-colors">
+                      {doc.file_name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(doc.created_at!), "d MMM yyyy")}
                     </p>
@@ -181,7 +208,10 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
                       variant="ghost"
                       size="icon"
                       className="shrink-0"
-                      onClick={() => handleDownload(doc)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDownload(doc);
+                      }}
                     >
                       <Download className="w-4 h-4" />
                     </Button>
@@ -189,7 +219,10 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
                       variant="ghost"
                       size="icon"
                       className="shrink-0 text-destructive hover:text-destructive"
-                      onClick={() => deleteMutation.mutate(doc)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteMutation.mutate(doc);
+                      }}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -200,6 +233,49 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
           ))}
         </div>
       )}
+
+      {/* Preview Dialog */}
+      <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>
+        <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-0">
+          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
+            <div className="flex items-center justify-between gap-4">
+              <DialogTitle className="truncate pr-4">
+                {previewDoc?.file_name}
+              </DialogTitle>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => previewDoc && handleDownload(previewDoc)}
+                >
+                  <ExternalLink className="w-4 h-4 mr-2" />
+                  Open in New Tab
+                </Button>
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="flex-1 overflow-auto bg-muted/30">
+            {previewDoc?.file_type?.startsWith("image/") && (
+              <div className="flex items-center justify-center p-4 min-h-[300px]">
+                <img
+                  src={previewDoc.file_url}
+                  alt={previewDoc.file_name}
+                  className="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg"
+                />
+              </div>
+            )}
+            
+            {previewDoc?.file_type === "application/pdf" && (
+              <iframe
+                src={previewDoc.file_url}
+                className="w-full h-[75vh] border-0"
+                title={previewDoc.file_name}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
