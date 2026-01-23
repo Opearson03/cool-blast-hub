@@ -136,7 +136,7 @@ export const excavationModule: EstimateModule = {
     {
       id: 'detailed_excavation_required',
       type: 'boolean',
-      label: 'Detailed excavation required? (beams, pads, piers, footings)',
+      label: 'Detailed excavation required?',
       defaultValue: true,
       helpText: 'For excavating specific elements like edge beams, pad footings, piers, and strip footings',
       showIf: (_answers, _scopeData) => true, // Show for all scopes
