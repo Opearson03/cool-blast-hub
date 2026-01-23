@@ -544,7 +544,8 @@ const handler = async (req: Request): Promise<Response> => {
     }
 
     // Total Amount Box - Calculate GST breakdown
-    const totalAmountNum = parseFloat(totalAmount.replace(/[^0-9.-]+/g, '')) || 0;
+    const safeAmount = totalAmount || "$0.00";
+    const totalAmountNum = parseFloat(safeAmount.replace(/[^0-9.-]+/g, '')) || 0;
     const exGstAmount = totalAmountNum / 1.1;
     const gstAmount = totalAmountNum - exGstAmount;
     
@@ -777,7 +778,9 @@ const handler = async (req: Request): Promise<Response> => {
     // Format sender name as "Business Name via Pourhub"
     const senderName = businessName ? `${businessName} via Pourhub` : "Pourhub";
     
-    const emailResponse = await resend.emails.send({
+    console.log("Sending email to client:", clientEmail, "with CC:", businessEmail || "none");
+    
+    const { data: emailData, error: emailError } = await resend.emails.send({
       from: `${senderName} <Hello@contact.pourhub.au>`,
       to: [clientEmail],
       cc: businessEmail ? [businessEmail] : undefined,
@@ -812,7 +815,7 @@ const handler = async (req: Request): Promise<Response> => {
               
               <div class="highlight">
                 <p style="margin: 0;"><strong>Quote Reference:</strong> ${estimateNumber}</p>
-                <p style="margin: 10px 0 0;"><strong>Total Amount:</strong> <span class="total">${totalAmount}</span></p>
+                <p style="margin: 10px 0 0;"><strong>Total Amount:</strong> <span class="total">${safeAmount}</span></p>
               </div>
               
               <div class="options">
@@ -847,7 +850,13 @@ const handler = async (req: Request): Promise<Response> => {
       ],
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    // Check for Resend API errors
+    if (emailError) {
+      console.error("Resend API error:", JSON.stringify(emailError));
+      throw new Error(`Failed to send email via Resend: ${emailError.message || JSON.stringify(emailError)}`);
+    }
+
+    console.log("Email sent successfully - Resend ID:", emailData?.id);
 
     // Update estimate status to 'sent' in database
     await supabase
@@ -856,7 +865,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("id", estimateId);
 
     return new Response(
-      JSON.stringify({ success: true, data: emailResponse }),
+      JSON.stringify({ success: true, data: emailData }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },
