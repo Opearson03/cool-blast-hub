@@ -1211,76 +1211,7 @@ export function PlanTakeoffStep({
             </div>
           )}
 
-          {/* Active scope indicator (only for non-pier scopes and not in slab beam workflow) */}
-          {activeScope && !isCalibrationMode && !isPierScope && !isLinearScope && !slabWorkflowActive && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-wrap items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border z-20">
-              <Badge 
-                style={{ backgroundColor: getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) }}
-              >
-                Drawing: {scopeLabels[activeScope]}
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                {activeTool === 'polygon' 
-                  ? 'Click to add points, double-click to close'
-                  : 'Click and drag to draw rectangle'}
-              </span>
-            </div>
-          )}
-          
-          {/* Beam marking floating bar */}
-          {isSlabBeamMarking && pendingSlabData && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30 w-auto max-w-[95%]">
-              <SlabBeamMarkingBar
-                slabName={pendingSlabData.slabName}
-                beamType={slabWorkflowStep === 'mark_edge_beam' ? 'edge' : 'internal'}
-                beamNumber={
-                  slabWorkflowStep === 'mark_edge_beam' 
-                    ? pendingSlabData.edgeBeams.length + 1 
-                    : pendingSlabData.internalBeams.length + 1
-                }
-                currentLength={currentBeamLength}
-                pointCount={polylinePoints.length}
-                onUndo={handleUndo}
-                canUndo={polylinePoints.length > 0}
-                onDone={handleDoneMarkingSingleBeam}
-                onCancel={handleCancelSlabWorkflow}
-              />
-            </div>
-          )}
-          
-          {/* Floating bar for adding beam to existing slab */}
-          {isAddingBeamToExistingSlab && addingBeamToSlabId && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
-              <div className="flex items-center gap-3 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border border-primary/20">
-                <Badge 
-                  variant="outline" 
-                  className="bg-orange-500/10 text-orange-600 border-orange-500/30"
-                >
-                  {addingBeamType === 'edge_beam' ? 'Edge Beam' : 'Internal Beam'}
-                </Badge>
-                <span className="text-xs text-muted-foreground">
-                  {polylinePoints.length}/2 points • {currentBeamLength.toFixed(2)}m
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleUndo}
-                  disabled={polylinePoints.length === 0}
-                  className="text-xs h-6"
-                >
-                  Undo
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleCancelAddingBeamToSlab}
-                  className="text-xs h-6 text-destructive"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Floating bottom popups removed - status info is shown in toolbar */}
         </div>
 
         {/* Floating scope panel - positioned on left side */}
