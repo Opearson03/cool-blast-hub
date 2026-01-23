@@ -786,10 +786,20 @@ export function PlanTakeoffStep({
         return;
       }
 
-      // Escape key to cancel current markup
+      // Escape key to cancel current markup (only when actively marking, not to close dialogs)
       if (e.key === 'Escape') {
-        e.preventDefault();
-        handleCancelCurrentMarkup();
+        // Only handle if we're actively drawing something
+        const hasActiveDrawing = 
+          (activeTool === 'polygon' && drawingPoints.length > 0) ||
+          (activeTool === 'polyline' && polylinePoints.length > 0) ||
+          (activeTool === 'point' && pierPoints.length > 0) ||
+          slabWorkflowActive ||
+          isAddingBeamToExistingSlab;
+        
+        if (hasActiveDrawing) {
+          e.preventDefault();
+          handleCancelCurrentMarkup();
+        }
         return;
       }
 
