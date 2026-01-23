@@ -1,4 +1,4 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, PadFootingGroup } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
 
 /**
@@ -386,11 +386,14 @@ export const reinforcementPadModule: EstimateModule = {
     let totalCost = 0;
     let itemIdx = 0;
     
-    const numPads = Number(scopeData.total_num_pads) || 1;
-    const padLength = Number(scopeData.total_length) || 2400;
-    const padWidth = Number(scopeData.total_width) || 2400;
-    const padDepth = Number(scopeData.total_depth) || 300;
+    const padGroups = (scopeData.padGroups || []) as PadFootingGroup[];
     const pricePerTonne = Number(answers.rebar_price_per_tonne) || 2100;
+    
+    // Fallback for legacy data without groups
+    const legacyNumPads = Number(scopeData.total_num_pads) || 1;
+    const legacyPadLength = Number(scopeData.total_length) || 2400;
+    const legacyPadWidth = Number(scopeData.total_width) || 2400;
+    const legacyPadDepth = Number(scopeData.total_depth) || 300;
     
     let totalWeightKg = 0;
     
@@ -400,102 +403,149 @@ export const reinforcementPadModule: EstimateModule = {
       return (lengthMm / 1000) * weightPerM * count;
     };
     
-    // Bottom Reinforcement
-    if (answers.has_bottom_reo) {
-      // Bottom Bar A
-      const bottomASize = answers.bottom_a_size || 'N16';
-      const bottomACentres = Number(answers.bottom_a_centres) || 200;
-      const bottomACountPerPad = calculateBarCount(padWidth, bottomACentres);
-      const bottomATotalBars = bottomACountPerPad * numPads;
-      const { totalLength: bottomALength } = calculateBarLengthWithCrank(padLength, padDepth);
-      const bottomAWeightKg = getBarWeight(bottomASize, bottomALength, bottomATotalBars);
-      totalWeightKg += bottomAWeightKg;
-      const bottomACost = (bottomAWeightKg / 1000) * pricePerTonne;
-      totalCost += bottomACost;
-      
-      lineItems.push({
-        id: `reo-pad-${itemIdx++}`,
-        description: `Bottom Bar A: ${bottomATotalBars} × ${bottomASize} @ ${bottomALength}mm`,
-        quantity: bottomAWeightKg,
-        unit: 'kg',
-        unitPrice: pricePerTonne / 1000,
-        total: bottomACost,
-        category: 'materials',
-      });
-      
-      // Bottom Bar B
-      const bottomBSize = answers.bottom_b_size || 'N16';
-      const bottomBCentres = Number(answers.bottom_b_centres) || 200;
-      const bottomBCountPerPad = calculateBarCount(padLength, bottomBCentres);
-      const bottomBTotalBars = bottomBCountPerPad * numPads;
-      const { totalLength: bottomBLength } = calculateBarLengthWithCrank(padWidth, padDepth);
-      const bottomBWeightKg = getBarWeight(bottomBSize, bottomBLength, bottomBTotalBars);
-      totalWeightKg += bottomBWeightKg;
-      const bottomBCost = (bottomBWeightKg / 1000) * pricePerTonne;
-      totalCost += bottomBCost;
-      
-      lineItems.push({
-        id: `reo-pad-${itemIdx++}`,
-        description: `Bottom Bar B: ${bottomBTotalBars} × ${bottomBSize} @ ${bottomBLength}mm`,
-        quantity: bottomBWeightKg,
-        unit: 'kg',
-        unitPrice: pricePerTonne / 1000,
-        total: bottomBCost,
-        category: 'materials',
-      });
-    }
+    // Default values from module answers
+    const defaultHasBottomReo = answers.has_bottom_reo ?? true;
+    const defaultBottomASize = answers.bottom_a_size || 'N16';
+    const defaultBottomACentres = Number(answers.bottom_a_centres) || 200;
+    const defaultBottomBSize = answers.bottom_b_size || 'N16';
+    const defaultBottomBCentres = Number(answers.bottom_b_centres) || 200;
+    const defaultHasTopReo = answers.has_top_reo ?? false;
+    const defaultTopASize = answers.top_a_size || 'N16';
+    const defaultTopACentres = Number(answers.top_a_centres) || 200;
+    const defaultTopBSize = answers.top_b_size || 'N16';
+    const defaultTopBCentres = Number(answers.top_b_centres) || 200;
     
-    // Top Reinforcement
-    if (answers.has_top_reo) {
-      // Top Bar A
-      const topASize = answers.top_a_size || 'N16';
-      const topACentres = Number(answers.top_a_centres) || 200;
-      const topACountPerPad = calculateBarCount(padWidth, topACentres);
-      const topATotalBars = topACountPerPad * numPads;
-      const { totalLength: topALength } = calculateBarLengthWithCrank(padLength, padDepth);
-      const topAWeightKg = getBarWeight(topASize, topALength, topATotalBars);
-      totalWeightKg += topAWeightKg;
-      const topACost = (topAWeightKg / 1000) * pricePerTonne;
-      totalCost += topACost;
+    // Process pad groups (or fallback to legacy single calculation)
+    const groupsToProcess = padGroups.length > 0 
+      ? padGroups 
+      : [{
+          id: 'legacy',
+          name: 'Pad Footings',
+          quantity: legacyNumPads,
+          length: legacyPadLength,
+          width: legacyPadWidth,
+          depth: legacyPadDepth,
+        } as PadFootingGroup];
+    
+    groupsToProcess.forEach((group) => {
+      const groupName = group.name || 'Pad Footings';
+      const numPads = group.quantity || 1;
+      const padLength = Number(group.length) || 2400;
+      const padWidth = Number(group.width) || 2400;
+      const padDepth = Number(group.depth) || 300;
       
-      lineItems.push({
-        id: `reo-pad-${itemIdx++}`,
-        description: `Top Bar A: ${topATotalBars} × ${topASize} @ ${topALength}mm`,
-        quantity: topAWeightKg,
-        unit: 'kg',
-        unitPrice: pricePerTonne / 1000,
-        total: topACost,
-        category: 'materials',
-      });
+      // Get group-specific or default values
+      const hasBottomReo = group.has_bottom_reo ?? defaultHasBottomReo;
+      const bottomASize = group.bottom_a_size || defaultBottomASize;
+      const bottomACentres = group.bottom_a_centres ?? defaultBottomACentres;
+      const bottomBSize = group.bottom_b_size || defaultBottomBSize;
+      const bottomBCentres = group.bottom_b_centres ?? defaultBottomBCentres;
+      const hasTopReo = group.has_top_reo ?? defaultHasTopReo;
+      const topASize = group.top_a_size || defaultTopASize;
+      const topACentres = group.top_a_centres ?? defaultTopACentres;
+      const topBSize = group.top_b_size || defaultTopBSize;
+      const topBCentres = group.top_b_centres ?? defaultTopBCentres;
       
-      // Top Bar B
-      const topBSize = answers.top_b_size || 'N16';
-      const topBCentres = Number(answers.top_b_centres) || 200;
-      const topBCountPerPad = calculateBarCount(padLength, topBCentres);
-      const topBTotalBars = topBCountPerPad * numPads;
-      const { totalLength: topBLength } = calculateBarLengthWithCrank(padWidth, padDepth);
-      const topBWeightKg = getBarWeight(topBSize, topBLength, topBTotalBars);
-      totalWeightKg += topBWeightKg;
-      const topBCost = (topBWeightKg / 1000) * pricePerTonne;
-      totalCost += topBCost;
+      // Bottom Reinforcement
+      if (hasBottomReo) {
+        // Bottom Bar A
+        const bottomACountPerPad = calculateBarCount(padWidth, bottomACentres);
+        const bottomATotalBars = bottomACountPerPad * numPads;
+        const { totalLength: bottomALength } = calculateBarLengthWithCrank(padLength, padDepth);
+        const bottomAWeightKg = getBarWeight(bottomASize, bottomALength, bottomATotalBars);
+        totalWeightKg += bottomAWeightKg;
+        const bottomACost = (bottomAWeightKg / 1000) * pricePerTonne;
+        totalCost += bottomACost;
+        
+        lineItems.push({
+          id: `reo-pad-${itemIdx++}`,
+          description: `${groupName} - Bottom Bar A: ${bottomATotalBars} × ${bottomASize} @ ${bottomALength}mm`,
+          quantity: bottomAWeightKg,
+          unit: 'kg',
+          unitPrice: pricePerTonne / 1000,
+          total: bottomACost,
+          category: 'materials',
+        });
+        
+        // Bottom Bar B
+        const bottomBCountPerPad = calculateBarCount(padLength, bottomBCentres);
+        const bottomBTotalBars = bottomBCountPerPad * numPads;
+        const { totalLength: bottomBLength } = calculateBarLengthWithCrank(padWidth, padDepth);
+        const bottomBWeightKg = getBarWeight(bottomBSize, bottomBLength, bottomBTotalBars);
+        totalWeightKg += bottomBWeightKg;
+        const bottomBCost = (bottomBWeightKg / 1000) * pricePerTonne;
+        totalCost += bottomBCost;
+        
+        lineItems.push({
+          id: `reo-pad-${itemIdx++}`,
+          description: `${groupName} - Bottom Bar B: ${bottomBTotalBars} × ${bottomBSize} @ ${bottomBLength}mm`,
+          quantity: bottomBWeightKg,
+          unit: 'kg',
+          unitPrice: pricePerTonne / 1000,
+          total: bottomBCost,
+          category: 'materials',
+        });
+      }
       
-      lineItems.push({
-        id: `reo-pad-${itemIdx++}`,
-        description: `Top Bar B: ${topBTotalBars} × ${topBSize} @ ${topBLength}mm`,
-        quantity: topBWeightKg,
-        unit: 'kg',
-        unitPrice: pricePerTonne / 1000,
-        total: topBCost,
-        category: 'materials',
-      });
-    }
+      // Top Reinforcement
+      if (hasTopReo) {
+        // Top Bar A
+        const topACountPerPad = calculateBarCount(padWidth, topACentres);
+        const topATotalBars = topACountPerPad * numPads;
+        const { totalLength: topALength } = calculateBarLengthWithCrank(padLength, padDepth);
+        const topAWeightKg = getBarWeight(topASize, topALength, topATotalBars);
+        totalWeightKg += topAWeightKg;
+        const topACost = (topAWeightKg / 1000) * pricePerTonne;
+        totalCost += topACost;
+        
+        lineItems.push({
+          id: `reo-pad-${itemIdx++}`,
+          description: `${groupName} - Top Bar A: ${topATotalBars} × ${topASize} @ ${topALength}mm`,
+          quantity: topAWeightKg,
+          unit: 'kg',
+          unitPrice: pricePerTonne / 1000,
+          total: topACost,
+          category: 'materials',
+        });
+        
+        // Top Bar B
+        const topBCountPerPad = calculateBarCount(padLength, topBCentres);
+        const topBTotalBars = topBCountPerPad * numPads;
+        const { totalLength: topBLength } = calculateBarLengthWithCrank(padWidth, padDepth);
+        const topBWeightKg = getBarWeight(topBSize, topBLength, topBTotalBars);
+        totalWeightKg += topBWeightKg;
+        const topBCost = (topBWeightKg / 1000) * pricePerTonne;
+        totalCost += topBCost;
+        
+        lineItems.push({
+          id: `reo-pad-${itemIdx++}`,
+          description: `${groupName} - Top Bar B: ${topBTotalBars} × ${topBSize} @ ${topBLength}mm`,
+          quantity: topBWeightKg,
+          unit: 'kg',
+          unitPrice: pricePerTonne / 1000,
+          total: topBCost,
+          category: 'materials',
+        });
+      }
+    });
+    
+    // Additional Horizontal Bars (global setting, applied across all pads)
+    const totalPads = padGroups.length > 0 
+      ? padGroups.reduce((sum, g) => sum + (g.quantity || 1), 0)
+      : legacyNumPads;
+    const avgPadLength = padGroups.length > 0
+      ? padGroups.reduce((sum, g) => sum + (g.length || 2400) * (g.quantity || 1), 0) / totalPads
+      : legacyPadLength;
+    const avgPadWidth = padGroups.length > 0
+      ? padGroups.reduce((sum, g) => sum + (g.width || 2400) * (g.quantity || 1), 0) / totalPads
+      : legacyPadWidth;
     
     // Additional Horizontal Bars
     if (answers.has_additional_horizontal) {
       const addHSize = answers.additional_h_size || 'N16';
       const addHCount = Number(answers.additional_h_count) || 2;
-      const addHLength = Number(answers.additional_h_length) || (padLength - 100);
-      const addHTotalBars = addHCount * numPads;
+      const addHLength = Number(answers.additional_h_length) || (avgPadLength - 100);
+      const addHTotalBars = addHCount * totalPads;
       const addHWeightKg = getBarWeight(addHSize, addHLength, addHTotalBars);
       totalWeightKg += addHWeightKg;
       const addHCost = (addHWeightKg / 1000) * pricePerTonne;
@@ -514,7 +564,7 @@ export const reinforcementPadModule: EstimateModule = {
     
     // Bar chairs
     if (answers.bar_chairs) {
-      const padAreaSqm = (padLength / 1000) * (padWidth / 1000) * numPads;
+      const padAreaSqm = (avgPadLength / 1000) * (avgPadWidth / 1000) * totalPads;
       const chairsPerSqm = Number(answers.chairs_per_sqm) || 4;
       const totalChairs = Math.ceil(padAreaSqm * chairsPerSqm);
       const chairPrice = Number(answers.chair_price_per_100) || 45;

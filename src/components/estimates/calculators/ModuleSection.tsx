@@ -1,4 +1,4 @@
-import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection } from "@/lib/estimate-components/types";
+import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -28,6 +28,7 @@ import { BeamReinforcementInput } from "./BeamReinforcementInput";
 import { AreaReinforcementInput } from "./AreaReinforcementInput";
 import { PierReinforcementInput } from "./PierReinforcementInput";
 import { FootingReinforcementInput } from "./FootingReinforcementInput";
+import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
 
 interface ModuleSectionProps {
   module: EstimateModule;
@@ -217,11 +218,13 @@ export function ModuleSection({
   const isRaftReoModule = module.id === 'reinforcement-raft';
   const isPiersReoModule = module.id === 'reinforcement-piers';
   const isFootingReoModule = module.id === 'reinforcement-footing';
+  const isPadReoModule = module.id === 'reinforcement-pad';
   
   const areas = (scopeData?.areas || []) as MeasurementArea[];
   const edgeBeams = (scopeData?.edgeBeams || []) as BeamConfig[];
   const internalBeams = (scopeData?.beams || []) as BeamConfig[];
   const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
+  const padGroups = (scopeData?.padGroups || []) as PadFootingGroup[];
   const footings = (scopeData?.footings || scopeData?.linearSections || []) as (FootingConfig | LinearSection)[];
   // Get visible questions
   const visibleQuestions = module.questions.filter(
@@ -419,6 +422,38 @@ export function ModuleSection({
                       defaultLigSize="R10"
                       defaultLigCentres={200}
                       label="Pier Groups"
+                    />
+                  </div>
+                );
+              }
+
+              // Special case: Pad footing reinforcement module renders pad groups
+              if (isPadReoModule && padGroups.length > 0 && onScopeDataChange) {
+                elements.push(
+                  <div key="pad-groups-section" className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2 first:pt-0">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Pad Footing Groups
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      Configure reinforcement for each pad footing group individually.
+                    </p>
+                    <PadFootingGroupReinforcementInput
+                      padGroups={padGroups}
+                      onChange={(newPadGroups) => onScopeDataChange('padGroups', newPadGroups)}
+                      defaultHasBottomReo={answers.has_bottom_reo ?? true}
+                      defaultBottomASize={answers.bottom_a_size || 'N16'}
+                      defaultBottomACentres={answers.bottom_a_centres ?? 200}
+                      defaultBottomBSize={answers.bottom_b_size || 'N16'}
+                      defaultBottomBCentres={answers.bottom_b_centres ?? 200}
+                      defaultHasTopReo={answers.has_top_reo ?? false}
+                      defaultTopASize={answers.top_a_size || 'N16'}
+                      defaultTopACentres={answers.top_a_centres ?? 200}
+                      defaultTopBSize={answers.top_b_size || 'N16'}
+                      defaultTopBCentres={answers.top_b_centres ?? 200}
+                      label="Pad Footing Groups"
                     />
                   </div>
                 );
