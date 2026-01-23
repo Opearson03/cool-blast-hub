@@ -615,6 +615,8 @@ export function SlabBeamMarkupDialog({
                       );
                       const typeLength = beamsOfType.reduce((sum, b) => sum + b.length, 0);
                       
+                      const typeVolume = typeLength * (beamType.width / 1000) * (beamType.depth / 1000);
+                      
                       return (
                         <div key={`${beamType.name}-${beamType.width}-${beamType.depth}`} className="p-3 space-y-2">
                           <div className="flex justify-between items-center">
@@ -624,15 +626,17 @@ export function SlabBeamMarkupDialog({
                                 {beamType.width}×{beamType.depth}mm
                               </span>
                             </div>
-                            <span className="text-sm font-medium">{typeLength.toFixed(1)}m total</span>
+                            <span className="text-xs text-muted-foreground">{beamsOfType.length} beam{beamsOfType.length !== 1 ? 's' : ''}</span>
                           </div>
-                          <div className="pl-2 space-y-1">
-                            {beamsOfType.map((beam, idx) => (
-                              <div key={idx} className="flex justify-between items-center text-xs text-muted-foreground">
-                                <span>{beam.name}</span>
-                                <span>{beam.length.toFixed(1)}m</span>
-                              </div>
-                            ))}
+                          <div className="flex flex-col gap-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total Length:</span>
+                              <span className="font-medium">{typeLength.toFixed(2)}m</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total Volume:</span>
+                              <span className="font-medium">{typeVolume.toFixed(2)}m³</span>
+                            </div>
                           </div>
                         </div>
                       );
@@ -799,6 +803,8 @@ export function SlabBeamMarkupDialog({
                       );
                       const typeLength = beamsOfType.reduce((sum, b) => sum + b.length, 0);
                       
+                      const typeVolume = typeLength * (beamType.width / 1000) * (beamType.depth / 1000);
+                      
                       return (
                         <div key={`${beamType.name}-${beamType.width}-${beamType.depth}`} className="p-3 space-y-2">
                           <div className="flex justify-between items-center">
@@ -808,15 +814,17 @@ export function SlabBeamMarkupDialog({
                                 {beamType.width}×{beamType.depth}mm
                               </span>
                             </div>
-                            <span className="text-sm font-medium">{typeLength.toFixed(1)}m total</span>
+                            <span className="text-xs text-muted-foreground">{beamsOfType.length} beam{beamsOfType.length !== 1 ? 's' : ''}</span>
                           </div>
-                          <div className="pl-2 space-y-1">
-                            {beamsOfType.map((beam, idx) => (
-                              <div key={idx} className="flex justify-between items-center text-xs text-muted-foreground">
-                                <span>{beam.name}</span>
-                                <span>{beam.length.toFixed(1)}m</span>
-                              </div>
-                            ))}
+                          <div className="flex flex-col gap-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total Length:</span>
+                              <span className="font-medium">{typeLength.toFixed(2)}m</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Total Volume:</span>
+                              <span className="font-medium">{typeVolume.toFixed(2)}m³</span>
+                            </div>
                           </div>
                         </div>
                       );
