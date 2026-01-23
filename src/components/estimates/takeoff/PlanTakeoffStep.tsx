@@ -635,6 +635,32 @@ export function PlanTakeoffStep({
     }
   }, [activeTool, polylinePoints.length, pierPoints.length, drawingPoints.length]);
 
+  // Keyboard shortcuts: Enter to complete polyline, Ctrl+Z/Cmd+Z to undo
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input/textarea
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+
+      // Enter key to complete polyline/beam measurement
+      if (e.key === 'Enter' && activeTool === 'polyline' && polylinePoints.length >= 2) {
+        e.preventDefault();
+        handleDoneMarkingPolyline();
+        return;
+      }
+
+      // Ctrl+Z / Cmd+Z for undo
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        handleUndo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTool, polylinePoints.length, handleDoneMarkingPolyline, handleUndo]);
+
   const handleToolChange = useCallback((tool: DrawingTool['type']) => {
     setActiveTool(tool);
     if (tool !== 'polygon' && tool !== 'rectangle') {
