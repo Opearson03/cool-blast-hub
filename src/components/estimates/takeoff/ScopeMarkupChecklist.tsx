@@ -5,6 +5,7 @@ import { CheckCircle2, Circle, SkipForward, Trash2, Plus, ChevronDown, ChevronUp
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import type { TakeoffMarkup, ScopeMarkupStatus } from '@/types/takeoff';
+import { SLAB_WITH_BEAMS_SCOPES } from '@/types/takeoff';
 
 interface ScopeMarkupChecklistProps {
   scopes: { id: string; label: string }[];
@@ -16,6 +17,7 @@ interface ScopeMarkupChecklistProps {
   onEditMarkup: (markupId: string) => void;
   onEditBeam?: (markupId: string) => void;
   onDeleteMarkup: (markupId: string) => void;
+  onAddBeamToSlab?: (slabMarkupId: string, beamType: 'edge_beam' | 'internal_beam') => void;
   isCalibrated: boolean;
   /** When true, panel collapses to a compact toggle button */
   isCollapsed?: boolean;
@@ -33,14 +35,16 @@ export function ScopeMarkupChecklist({
   onEditMarkup,
   onEditBeam,
   onDeleteMarkup,
+  onAddBeamToSlab,
   isCalibrated,
   isCollapsed = false,
   onToggle
 }: ScopeMarkupChecklistProps) {
   const [isExpanded, setIsExpanded] = useState(true);
   
+  // Filter to only get root-level markups (no parent) for a scope
   const getScopeMarkups = (scopeId: string) => {
-    return markups.filter(m => m.scope_id === scopeId);
+    return markups.filter(m => m.scope_id === scopeId && !m.parent_markup_id);
   };
 
   const getScopeStatus = (scopeId: string): ScopeMarkupStatus & { pierCount?: number; totalLength?: number } => {
@@ -306,8 +310,8 @@ export function ScopeMarkupChecklist({
                             </Button>
                           </div>
                           
-                          {/* Show child beams */}
-                          {childBeams.length > 0 && (
+                          {/* Show child beams and add beam buttons for slab scopes */}
+                          {SLAB_WITH_BEAMS_SCOPES.includes(scope.id as any) && (
                             <div className="ml-3 mt-1 space-y-1 border-l-2 border-primary/20 pl-2">
                               {childBeams.map((beam) => (
                                 <div 
@@ -340,6 +344,28 @@ export function ScopeMarkupChecklist({
                                   </Button>
                                 </div>
                               ))}
+                              
+                              {/* Add beam buttons */}
+                              {onAddBeamToSlab && isCalibrated && (
+                                <div className="flex gap-1 mt-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 text-[10px] px-1.5 text-primary hover:bg-primary/10"
+                                    onClick={() => onAddBeamToSlab(markup.id, 'edge_beam')}
+                                  >
+                                    <Plus className="h-2.5 w-2.5 mr-0.5" /> Edge
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-5 text-[10px] px-1.5 text-primary hover:bg-primary/10"
+                                    onClick={() => onAddBeamToSlab(markup.id, 'internal_beam')}
+                                  >
+                                    <Plus className="h-2.5 w-2.5 mr-0.5" /> Internal
+                                  </Button>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
