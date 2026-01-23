@@ -33,50 +33,17 @@ export const reinforcementRaftModule: EstimateModule = {
 
   questions: [
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 1: SLAB DEFAULTS
+    // SECTION 1: SLAB SURFACE (pricing/calculation params only)
     // ═══════════════════════════════════════════════════════════════
-    {
-      id: 'slab_reo_type',
-      type: 'select',
-      label: 'Default Slab Reo Type',
-      required: true,
-      sectionLabel: 'Slab Surface (Defaults)',
-      helpText: 'Default for all areas - override per area below',
-      options: [
-        { value: 'none', label: 'No Reinforcement' },
-        { value: 'mesh', label: 'Steel Mesh' },
-        { value: 'bar', label: 'Bar Reinforcement' },
-        { value: 'fiber', label: 'Fiber Only' },
-      ],
-      defaultValue: 'mesh',
-    },
-    {
-      id: 'mesh_type',
-      type: 'select',
-      label: 'Default Mesh Type',
-      options: [
-        { value: 'SL62', label: 'SL62' },
-        { value: 'SL72', label: 'SL72' },
-        { value: 'SL82', label: 'SL82' },
-        { value: 'SL92', label: 'SL92' },
-        { value: 'SL102', label: 'SL102' },
-        { value: 'RL718', label: 'RL718' },
-        { value: 'RL818', label: 'RL818' },
-        { value: 'RL918', label: 'RL918' },
-        { value: 'RL1018', label: 'RL1018' },
-      ],
-      defaultValue: 'SL82',
-      showIf: (answers) => answers.slab_reo_type === 'mesh',
-    },
     {
       id: 'mesh_lap_allowance',
       type: 'number',
-      label: 'Lap Allowance',
+      label: 'Mesh Lap Allowance',
       defaultValue: 12.5,
       min: 0,
       max: 30,
       unit: '%',
-      showIf: (answers) => answers.slab_reo_type === 'mesh',
+      sectionLabel: 'Slab Surface',
     },
     {
       id: 'mesh_price_per_sheet',
@@ -84,59 +51,8 @@ export const reinforcementRaftModule: EstimateModule = {
       label: 'Price/Sheet',
       defaultValue: 95,
       unit: '/sheet',
-      showIf: (answers) => answers.slab_reo_type === 'mesh',
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const meshType = moduleAnswers.mesh_type || 'SL82';
-        return priceMap?.['mesh']?.[meshType];
-      },
-    },
-    {
-      id: 'bar_size',
-      type: 'select',
-      label: 'Default Bar Size',
-      options: [
-        { value: 'N10', label: 'N10' },
-        { value: 'N12', label: 'N12' },
-        { value: 'N16', label: 'N16' },
-        { value: 'N20', label: 'N20' },
-      ],
-      defaultValue: 'N12',
-      showIf: (answers) => answers.slab_reo_type === 'bar',
-    },
-    {
-      id: 'bar_spacing',
-      type: 'select',
-      label: 'Default Bar Spacing',
-      options: [
-        { value: '100', label: '100mm' },
-        { value: '150', label: '150mm' },
-        { value: '200', label: '200mm' },
-        { value: '250', label: '250mm' },
-      ],
-      defaultValue: '200',
-      showIf: (answers) => answers.slab_reo_type === 'bar',
-    },
-    {
-      id: 'bar_layers',
-      type: 'select',
-      label: 'Default Layers',
-      options: [
-        { value: '1', label: 'Single (bottom)' },
-        { value: '2', label: 'Double (top & bottom)' },
-      ],
-      defaultValue: '2',
-      showIf: (answers) => answers.slab_reo_type === 'bar',
-    },
-    {
-      id: 'rebar_price_per_tonne',
-      type: 'currency',
-      label: 'Price/Tonne',
-      defaultValue: 2100,
-      unit: '/t',
-      showIf: (answers) => answers.slab_reo_type === 'bar',
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const barSize = moduleAnswers.bar_size || 'N12';
-        return priceMap?.['rebar']?.[`${barSize} CB`];
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
+        return priceMap?.['mesh']?.['SL82'];
       },
     },
 
@@ -258,12 +174,12 @@ export const reinforcementRaftModule: EstimateModule = {
     let subtotal = 0;
     const LAP_ALLOWANCE = 1.125;
 
-    // Default settings from module answers
-    const defaultSlabReoType = answers.slab_reo_type || 'mesh';
-    const defaultMeshType = answers.mesh_type || 'SL82';
-    const defaultBarSize = answers.bar_size || 'N12';
-    const defaultBarSpacing = answers.bar_spacing || '200';
-    const defaultBarLayers = answers.bar_layers || '2';
+    // Hardcoded defaults (per-area overrides take precedence)
+    const defaultSlabReoType = 'mesh';
+    const defaultMeshType = 'SL82';
+    const defaultBarSize = 'N12';
+    const defaultBarSpacing = '200';
+    const defaultBarLayers = '2';
 
     // Get areas and beams from scope data
     const areas: MeasurementArea[] = scopeData?.areas || [];
@@ -274,7 +190,7 @@ export const reinforcementRaftModule: EstimateModule = {
     // Check if any area has reinforcement
     const hasAnySlabReo = areas.length > 0 
       ? areas.some(a => (a.reo_type || defaultSlabReoType) !== 'none' && (a.reo_type || defaultSlabReoType) !== 'fiber')
-      : defaultSlabReoType !== 'none' && defaultSlabReoType !== 'fiber';
+      : true; // Default to mesh if no areas defined
 
     if (!hasAnySlabReo && !answers.edge_beam_reo && !answers.internal_beam_reo) {
       return {
@@ -291,7 +207,7 @@ export const reinforcementRaftModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     const lapPercent = 1 + (Number(answers.mesh_lap_allowance) || 12.5) / 100;
     const sheetArea = 14.4;
-    const pricePerTonne = Number(answers.rebar_price_per_tonne) || getPrice(priceMap, 'rebar', `${defaultBarSize} CB`, 2100);
+    const pricePerTonne = getPrice(priceMap, 'rebar', `${defaultBarSize} CB`, 2100);
 
     if (areas.length > 0) {
       areas.forEach((area) => {
@@ -344,25 +260,23 @@ export const reinforcementRaftModule: EstimateModule = {
           subtotal += cost;
         }
       });
-    } else if (totalArea > 0 && defaultSlabReoType !== 'none' && defaultSlabReoType !== 'fiber') {
-      // Fallback for single area without per-area breakdown
-      if (defaultSlabReoType === 'mesh') {
-        const pricePerSheet = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', defaultMeshType, 95);
-        const totalMeshArea = totalArea * lapPercent;
-        const sheets = Math.ceil(totalMeshArea / sheetArea);
-        const cost = sheets * pricePerSheet;
+    } else if (totalArea > 0) {
+      // Fallback for single area without per-area breakdown - default to mesh
+      const pricePerSheet = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', defaultMeshType, 95);
+      const totalMeshArea = totalArea * lapPercent;
+      const sheets = Math.ceil(totalMeshArea / sheetArea);
+      const cost = sheets * pricePerSheet;
 
-        lineItems.push({
-          id: 'mesh_slab',
-          description: `Slab ${defaultMeshType} (${sheets} sheets)`,
-          quantity: sheets,
-          unit: 'sheets',
-          unitPrice: pricePerSheet,
-          total: Math.round(cost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += cost;
-      }
+      lineItems.push({
+        id: 'mesh_slab',
+        description: `Slab ${defaultMeshType} (${sheets} sheets)`,
+        quantity: sheets,
+        unit: 'sheets',
+        unitPrice: pricePerSheet,
+        total: Math.round(cost * 100) / 100,
+        category: 'materials',
+      });
+      subtotal += cost;
     }
 
     // ═══════════════════════════════════════════════════════════════
