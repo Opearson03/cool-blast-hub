@@ -47,7 +47,31 @@ export const reinforcementRaftModule: EstimateModule = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 2: ACCESSORIES
+    // SECTION 2: EDGE BEAMS (toggle only - per-beam config in UI)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'edge_beam_reo',
+      type: 'boolean',
+      label: 'Include Edge Beam Reinforcement',
+      defaultValue: true,
+      sectionLabel: 'Edge Beams',
+      // Note: Per-beam TM type, ligatures etc are configured inline in the UI
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 3: INTERNAL BEAMS (toggle only - per-beam config in UI)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'internal_beam_reo',
+      type: 'boolean',
+      label: 'Include Internal Beam Reinforcement',
+      defaultValue: true,
+      sectionLabel: 'Internal Beams',
+      // Note: Per-beam TM type, ligatures etc are configured inline in the UI
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 4: ACCESSORIES
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'bar_chairs',
@@ -119,30 +143,6 @@ export const reinforcementRaftModule: EstimateModule = {
       deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
         return priceMap?.['consumables']?.['TIE WIRE'];
       },
-    },
-
-    // ═══════════════════════════════════════════════════════════════
-    // SECTION 3: EDGE BEAMS (toggle only - per-beam config in UI)
-    // ═══════════════════════════════════════════════════════════════
-    {
-      id: 'edge_beam_reo',
-      type: 'boolean',
-      label: 'Include Edge Beam Reinforcement',
-      defaultValue: true,
-      sectionLabel: 'Edge Beams',
-      // Note: Per-beam TM type, ligatures etc are configured inline in the UI
-    },
-
-    // ═══════════════════════════════════════════════════════════════
-    // SECTION 4: INTERNAL BEAMS (toggle only - per-beam config in UI)
-    // ═══════════════════════════════════════════════════════════════
-    {
-      id: 'internal_beam_reo',
-      type: 'boolean',
-      label: 'Include Internal Beam Reinforcement',
-      defaultValue: true,
-      sectionLabel: 'Internal Beams',
-      // Note: Per-beam TM type, ligatures etc are configured inline in the UI
     },
 
     // ═══════════════════════════════════════════════════════════════
