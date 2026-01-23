@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, Circle, SkipForward, Trash2, Plus, ChevronDown, ChevronUp, Layers } from 'lucide-react';
+import { CheckCircle2, Circle, SkipForward, Trash2, Plus, ChevronDown, ChevronUp, Layers, Pencil } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
 import type { TakeoffMarkup, ScopeMarkupStatus } from '@/types/takeoff';
@@ -14,6 +14,7 @@ interface ScopeMarkupChecklistProps {
   onMarkArea: (scopeId: string) => void;
   onSkipScope: (scopeId: string) => void;
   onEditMarkup: (markupId: string) => void;
+  onEditBeam?: (markupId: string) => void;
   onDeleteMarkup: (markupId: string) => void;
   isCalibrated: boolean;
   /** When true, panel collapses to a compact toggle button */
@@ -30,6 +31,7 @@ export function ScopeMarkupChecklist({
   onMarkArea,
   onSkipScope,
   onEditMarkup,
+  onEditBeam,
   onDeleteMarkup,
   isCalibrated,
   isCollapsed = false,
@@ -273,9 +275,10 @@ export function ScopeMarkupChecklist({
                 {/* Markup details - compact list */}
                 {scopeMarkups.length > 0 && (
                   <div className="border-t mt-2 pt-2 space-y-1">
-                    {scopeMarkups.slice(0, 2).map((markup, idx) => {
+                    {scopeMarkups.slice(0, 5).map((markup, idx) => {
                       const isPolyline = markup.shape_type === 'polyline';
                       const isPoint = markup.shape_type === 'point';
+                      const isBeam = markup.markup_type === 'edge_beam' || markup.markup_type === 'internal_beam';
                       const displayLabel = isPoint 
                         ? `${markup.pier_quantity || 1} item${(markup.pier_quantity || 1) !== 1 ? 's' : ''}`
                         : isPolyline
@@ -283,27 +286,68 @@ export function ScopeMarkupChecklist({
                           : formatArea(markup.area_sqm);
                       const defaultName = isPolyline ? `Section ${idx + 1}` : `Area ${idx + 1}`;
                       
+                      // Get child beams for this markup
+                      const childBeams = markups.filter(m => m.parent_markup_id === markup.id);
+                      
                       return (
-                        <div 
-                          key={markup.id}
-                          className="flex items-center gap-1.5 text-xs py-1 px-1.5 rounded bg-muted/50"
-                        >
-                          <span className="flex-1 truncate">{markup.name || defaultName}</span>
-                          <span className="text-muted-foreground font-mono text-[10px]">{displayLabel}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-5 w-5 p-0 touch-manipulation"
-                            onClick={() => onDeleteMarkup(markup.id)}
+                        <div key={markup.id}>
+                          <div 
+                            className="flex items-center gap-1.5 text-xs py-1 px-1.5 rounded bg-muted/50"
                           >
-                            <Trash2 className="h-2.5 w-2.5 text-destructive" />
-                          </Button>
+                            <span className="flex-1 truncate">{markup.name || defaultName}</span>
+                            <span className="text-muted-foreground font-mono text-[10px]">{displayLabel}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-5 w-5 p-0 touch-manipulation"
+                              onClick={() => onDeleteMarkup(markup.id)}
+                            >
+                              <Trash2 className="h-2.5 w-2.5 text-destructive" />
+                            </Button>
+                          </div>
+                          
+                          {/* Show child beams */}
+                          {childBeams.length > 0 && (
+                            <div className="ml-3 mt-1 space-y-1 border-l-2 border-primary/20 pl-2">
+                              {childBeams.map((beam) => (
+                                <div 
+                                  key={beam.id}
+                                  className="flex items-center gap-1 text-[10px] py-0.5 px-1 rounded bg-primary/5"
+                                >
+                                  <span className="flex-1 truncate text-muted-foreground">
+                                    {beam.name || (beam.markup_type === 'edge_beam' ? 'Edge Beam' : 'Internal Beam')}
+                                  </span>
+                                  <span className="text-muted-foreground font-mono">
+                                    {formatLength(beam.length_m || null)}
+                                  </span>
+                                  {onEditBeam && (
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-4 w-4 p-0 touch-manipulation"
+                                      onClick={() => onEditBeam(beam.id)}
+                                    >
+                                      <Pencil className="h-2 w-2 text-primary" />
+                                    </Button>
+                                  )}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-4 w-4 p-0 touch-manipulation"
+                                    onClick={() => onDeleteMarkup(beam.id)}
+                                  >
+                                    <Trash2 className="h-2 w-2 text-destructive" />
+                                  </Button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </div>
                       );
                     })}
-                    {scopeMarkups.length > 2 && (
+                    {scopeMarkups.length > 5 && (
                       <p className="text-[10px] text-muted-foreground text-center">
-                        +{scopeMarkups.length - 2} more
+                        +{scopeMarkups.length - 5} more
                       </p>
                     )}
                   </div>
