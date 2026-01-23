@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -54,23 +55,33 @@ export function BeamReinforcementInput({
   defaultLigCentres,
   label,
 }: BeamReinforcementInputProps) {
-  const [openBeams, setOpenBeams] = useState<Record<string, boolean>>({});
+  const [openBeams, setOpenBeams] = useState<Set<string>>(new Set());
+
+  const toggleBeam = (beamId: string) => {
+    setOpenBeams(prev => {
+      const next = new Set(prev);
+      if (next.has(beamId)) {
+        next.delete(beamId);
+      } else {
+        next.add(beamId);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    const allOpen = beams.every(b => openBeams.has(b.id));
+    if (allOpen) {
+      setOpenBeams(new Set());
+    } else {
+      setOpenBeams(new Set(beams.map(b => b.id)));
+    }
+  };
 
   const updateBeam = (index: number, updates: Partial<BeamConfig>) => {
     const newBeams = [...beams];
     newBeams[index] = { ...newBeams[index], ...updates };
     onChange(newBeams);
-  };
-
-  const toggleBeam = (beamId: string) => {
-    setOpenBeams(prev => ({ ...prev, [beamId]: !prev[beamId] }));
-  };
-
-  const toggleAll = () => {
-    const allOpen = beams.every(b => openBeams[b.id]);
-    const newState: Record<string, boolean> = {};
-    beams.forEach(b => { newState[b.id] = !allOpen; });
-    setOpenBeams(newState);
   };
 
   // Summary calculations
@@ -102,14 +113,13 @@ export function BeamReinforcementInput({
     <div className="space-y-3">
       {/* Summary Header */}
       <div className="flex items-center justify-between gap-4 pb-2">
-        <div className="flex items-center gap-4 text-xs text-muted-foreground">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1.5">
             <Ruler className="h-3.5 w-3.5" />
             <span className="font-medium text-foreground">{summary.total}</span>
             <span>beam{summary.total !== 1 ? 's' : ''}</span>
+            <span className="text-muted-foreground/60">({summary.totalLength.toFixed(1)}m)</span>
           </div>
-          <span className="text-border">•</span>
-          <span>{summary.totalLength.toFixed(1)}m total</span>
           {summary.withLigsCount > 0 && (
             <>
               <span className="text-border">•</span>
@@ -127,17 +137,17 @@ export function BeamReinforcementInput({
           variant="ghost"
           size="sm"
           onClick={toggleAll}
-          className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground"
+          className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground shrink-0"
         >
           <ChevronsUpDown className="h-3.5 w-3.5" />
-          {beams.every(b => openBeams[b.id]) ? 'Collapse' : 'Expand'}
+          {beams.every(b => openBeams.has(b.id)) ? 'Collapse' : 'Expand'}
         </Button>
       </div>
 
       {/* Beam Cards */}
       <div className="space-y-2">
         {beams.map((beam, index) => {
-          const isOpen = openBeams[beam.id] || false;
+          const isOpen = openBeams.has(beam.id);
           const tmType = beam.tm_type || defaultTmType;
           const addLigs = beam.add_ligs ?? defaultAddLigs;
           const ligSize = beam.lig_size || defaultLigSize;
@@ -152,6 +162,7 @@ export function BeamReinforcementInput({
                 "border rounded-lg overflow-hidden transition-colors",
                 hasCustomSettings ? "border-primary/30 bg-primary/[0.02]" : "bg-card"
               )}>
+                {/* Header */}
                 <CollapsibleTrigger className="w-full">
                   <div className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/50 transition-colors">
                     <div className="flex items-center gap-2.5">
@@ -162,8 +173,11 @@ export function BeamReinforcementInput({
                       )}
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">{beam.name}</span>
+                        <Badge variant="outline" className="text-xs font-normal h-5">
+                          {beam.length.toFixed(1)}m
+                        </Badge>
                         <span className="text-xs text-muted-foreground tabular-nums">
-                          {beam.length.toFixed(1)}m × {beam.width}w × {beam.depth}d
+                          {beam.width}w × {beam.depth}d
                         </span>
                       </div>
                     </div>
@@ -186,17 +200,18 @@ export function BeamReinforcementInput({
                   </div>
                 </CollapsibleTrigger>
                 
+                {/* Content */}
                 <CollapsibleContent>
-                  <div className="px-3 pb-3 pt-2 border-t bg-muted/30">
-                    <div className="grid grid-cols-2 gap-3">
-                      {/* Trench Mesh Type */}
+                  <div className="px-3 pb-3 pt-2 border-t bg-muted/30 space-y-4">
+                    {/* Trench Mesh */}
+                    <div className="space-y-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium">Trench Mesh</Label>
                         <Select
                           value={tmType}
                           onValueChange={(val) => updateBeam(index, { tm_type: val })}
                         >
-                          <SelectTrigger className="h-9 text-sm">
+                          <SelectTrigger className="h-8 text-sm">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="z-[150]">
@@ -211,34 +226,35 @@ export function BeamReinforcementInput({
                           </SelectContent>
                         </Select>
                       </div>
+                    </div>
 
-                      {/* Add Ligatures Toggle */}
-                      <div className="space-y-1.5">
+                    {/* Ligatures */}
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
                         <Label className="text-xs font-medium">Ligatures</Label>
-                        <div className="flex items-center gap-3 h-9 px-3 rounded-md border bg-background">
+                        <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
                           <Switch
                             checked={addLigs}
                             onCheckedChange={(val) => updateBeam(index, { add_ligs: val })}
                           />
                           <span className={cn(
-                            "text-sm",
+                            "text-sm min-w-[3ch]",
                             addLigs ? "text-foreground" : "text-muted-foreground"
                           )}>
-                            {addLigs ? 'Included' : 'None'}
+                            {addLigs ? 'Yes' : 'No'}
                           </span>
                         </div>
                       </div>
 
-                      {/* Ligature options - only show if enabled */}
                       {addLigs && (
-                        <>
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Lig Size</Label>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Lig Size</Label>
                             <Select
                               value={ligSize}
                               onValueChange={(val) => updateBeam(index, { lig_size: val })}
                             >
-                              <SelectTrigger className="h-9 text-sm">
+                              <SelectTrigger className="h-8 text-sm">
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent className="z-[150]">
@@ -250,26 +266,32 @@ export function BeamReinforcementInput({
                               </SelectContent>
                             </Select>
                           </div>
-
-                          <div className="space-y-1.5">
-                            <Label className="text-xs">Lig Centres</Label>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Lig Centres</Label>
                             <div className="relative">
                               <Input
                                 type="number"
                                 value={ligCentres}
                                 onChange={(e) => updateBeam(index, { lig_centres: Number(e.target.value) })}
-                                className="h-9 text-sm pr-10"
+                                className="h-8 text-sm pr-8"
                                 min={100}
                                 max={600}
                                 step={50}
                               />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                                 mm
                               </span>
                             </div>
                           </div>
-                        </>
+                        </div>
                       )}
+                    </div>
+
+                    {/* Summary Footer */}
+                    <div className="pt-2 border-t">
+                      <p className="text-xs text-muted-foreground">
+                        {tmOption?.label || tmType}{addLigs ? ` + ${ligSize} ligs @ ${ligCentres}mm` : ''} • {beam.length.toFixed(1)}m
+                      </p>
                     </div>
                   </div>
                 </CollapsibleContent>
