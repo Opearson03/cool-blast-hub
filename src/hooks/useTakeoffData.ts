@@ -40,6 +40,7 @@ interface UseTakeoffDataReturn {
   addSlabWithBeams: (fileId: string, scopeId: string, slabData: { points: TakeoffPoint[]; shapeType: 'polygon' | 'rectangle'; name: string }, edgeBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, internalBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addBeamToSlab: (parentMarkupId: string, fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, depthMm: number, color: string, pageNumber: number, name: string, beamType: 'edge_beam' | 'internal_beam') => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
+  updateBeamMarkup: (markupId: string, data: { name?: string; width_mm?: number; height_mm?: number }) => Promise<void>;
   deleteMarkup: (markupId: string) => Promise<void>;
   setCurrentPage: (page: number) => Promise<void>;
   refetch: () => Promise<void>;
@@ -916,6 +917,43 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     }
   };
 
+  const updateBeamMarkup = async (markupId: string, data: { name?: string; width_mm?: number; height_mm?: number }) => {
+    try {
+      const markup = markups.find(m => m.id === markupId);
+      if (!markup) return;
+
+      const updateData: Record<string, any> = {};
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.width_mm !== undefined) updateData.width_mm = data.width_mm;
+      if (data.height_mm !== undefined) updateData.height_mm = data.height_mm;
+
+      if (Object.keys(updateData).length === 0) return;
+
+      const { error } = await supabase
+        .from('takeoff_markups')
+        .update(updateData)
+        .eq('id', markupId);
+
+      if (error) throw error;
+
+      setMarkups(prev => prev.map(m => 
+        m.id === markupId 
+          ? { 
+              ...m, 
+              name: data.name ?? m.name,
+              width_mm: data.width_mm ?? m.width_mm,
+              height_mm: data.height_mm ?? m.height_mm,
+            }
+          : m
+      ));
+
+      toast({ title: 'Beam updated successfully' });
+    } catch (error: any) {
+      console.error('Error updating beam markup:', error);
+      toast({ title: 'Failed to update beam', description: error.message, variant: 'destructive' });
+    }
+  };
+
   const deleteMarkup = async (markupId: string) => {
     try {
       const { error } = await supabase
@@ -1221,6 +1259,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     addSlabWithBeams,
     addBeamToSlab,
     updateMarkup,
+    updateBeamMarkup,
     deleteMarkup,
     setCurrentPage,
     refetch: fetchTakeoffData,

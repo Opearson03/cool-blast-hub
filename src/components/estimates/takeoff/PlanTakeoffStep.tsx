@@ -17,9 +17,10 @@ import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
 import { LinearDimensionsDialog } from './LinearDimensionsDialog';
 import { MarkupNameDialog } from './MarkupNameDialog';
 import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData, type BeamData } from './SlabBeamMarkupDialog';
+import { EditBeamDialog } from './EditBeamDialog';
 import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea, calculatePolygonPerimeter, calculateRectanglePerimeter, SLAB_WITH_BEAMS_SCOPES } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
-import type { DrawingTool, TakeoffPoint } from '@/types/takeoff';
+import type { DrawingTool, TakeoffPoint, TakeoffMarkup } from '@/types/takeoff';
 
 interface PlanTakeoffStepProps {
   estimateId: string | null;
@@ -68,6 +69,7 @@ export function PlanTakeoffStep({
     addPolylineMarkup,
     addSlabWithBeams,
     addBeamToSlab,
+    updateBeamMarkup,
     deleteMarkup,
     setCurrentPage
   } = useTakeoffData({ estimateId, businessId });
@@ -111,8 +113,9 @@ export function PlanTakeoffStep({
   const [pendingSlabData, setPendingSlabData] = useState<PendingSlabData | null>(null);
   // Current beam being drawn (points collected before naming)
   const [currentBeamPoints, setCurrentBeamPoints] = useState<TakeoffPoint[]>([]);
-
-  // Auto-collapse scope panel when actively marking (unless manually expanded)
+  
+  // Edit beam dialog state
+  const [editingBeam, setEditingBeam] = useState<TakeoffMarkup | null>(null);
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
   const isSlabBeamMarking = slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beam' || slabWorkflowStep === 'mark_internal_beam');
   const isScopePanelCollapsed = (isActivelyMarking || isSlabBeamMarking) && !scopePanelManuallyExpanded;
@@ -209,6 +212,23 @@ export function PlanTakeoffStep({
     await deleteMarkup(markupId);
     setSelectedMarkupId(null);
   };
+
+  const handleEditBeam = useCallback((markupId: string) => {
+    const beam = markups.find(m => m.id === markupId);
+    if (beam && (beam.markup_type === 'edge_beam' || beam.markup_type === 'internal_beam')) {
+      setEditingBeam(beam);
+    }
+  }, [markups]);
+
+  const handleSaveBeamEdit = useCallback(async (data: { name: string; width: number; depth: number }) => {
+    if (!editingBeam) return;
+    await updateBeamMarkup(editingBeam.id, {
+      name: data.name,
+      width_mm: data.width,
+      height_mm: data.depth,
+    });
+    setEditingBeam(null);
+  }, [editingBeam, updateBeamMarkup]);
 
   const handleCalibrate = async (pixelsPerMeter: number) => {
     if (!currentFileId) return;
@@ -991,6 +1011,7 @@ export function PlanTakeoffStep({
               }}
               onSkipScope={handleSkipScope}
               onEditMarkup={(id) => setSelectedMarkupId(id)}
+              onEditBeam={handleEditBeam}
               onDeleteMarkup={handleDeleteMarkup}
               isCalibrated={isCalibrated}
               isCollapsed={isScopePanelCollapsed}
@@ -1191,6 +1212,18 @@ export function PlanTakeoffStep({
         onAddAnotherInternalBeam={handleAddAnotherInternalBeam}
         onFinishAllBeams={handleFinishAllBeams}
         onCancel={handleCancelSlabWorkflow}
+      />
+
+      {/* Edit beam dialog */}
+      <EditBeamDialog
+        open={!!editingBeam}
+        onOpenChange={(open) => !open && setEditingBeam(null)}
+        beamType={(editingBeam?.markup_type as 'edge_beam' | 'internal_beam') || 'edge_beam'}
+        initialName={editingBeam?.name || ''}
+        initialWidth={editingBeam?.width_mm || 450}
+        initialDepth={editingBeam?.height_mm || 450}
+        length={editingBeam?.length_m || 0}
+        onSave={handleSaveBeamEdit}
       />
     </div>
   );
