@@ -29,6 +29,7 @@ import { MultiPadFootingGroupInput } from "./MultiPadFootingGroupInput";
 import { MultiFootingInput } from "./MultiFootingInput";
 import { MultiLinearInput } from "./MultiLinearInput";
 import { MultiBeamInput } from "./MultiBeamInput";
+import { MultiBeamTypeInput } from "./MultiBeamTypeInput";
 import { MultiDemolitionInput } from "./MultiDemolitionInput";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1003,10 +1004,11 @@ export function ModularCalculator({
           </CardHeader>
           {(scopeAnswers.hasEdgeBeams ?? true) && (
             <CardContent className="pt-0">
-              <MultiBeamInput
+              <MultiBeamTypeInput
                 label=""
-                beams={scopeAnswers.edgeBeams || [{ id: 'edge-1', name: 'Edge Beam 1', length: 0, width: 450, depth: 450 }]}
+                beams={scopeAnswers.edgeBeams || [{ id: 'edge-1', name: 'EB1-1', length: 0, width: 450, depth: 450 }]}
                 onChange={handleEdgeBeamsChange}
+                typePrefix="EB"
               />
             </CardContent>
           )}
@@ -1033,10 +1035,11 @@ export function ModularCalculator({
           </CardHeader>
           {scopeAnswers.hasInternalBeams && (
             <CardContent className="pt-0">
-              <MultiBeamInput
+              <MultiBeamTypeInput
                 label=""
-                beams={scopeAnswers.beams || [{ id: 'beam-1', name: 'Internal Beam 1', length: 0, width: 300, depth: 400 }]}
+                beams={scopeAnswers.beams || [{ id: 'beam-1', name: 'IB1-1', length: 0, width: 300, depth: 400 }]}
                 onChange={handleBeamsChange}
+                typePrefix="IB"
               />
             </CardContent>
           )}
