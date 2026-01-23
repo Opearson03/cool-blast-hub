@@ -29,6 +29,7 @@ import {
   Wrench,
   CheckCircle,
   Percent,
+  DollarSign,
   MessageSquareWarning
 } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
@@ -382,8 +383,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
   const [selectedInclusions, setSelectedInclusions] = useState<Set<string>>(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
   const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
   
-  // Global margin percentage (applied to all scopes)
+  // Global margin/markup (applied to all scopes)
+  const [markupMode, setMarkupMode] = useState<'percentage' | 'fixed'>('percentage');
   const [globalMarginPercent, setGlobalMarginPercent] = useState<number>(15);
+  const [fixedProfitAmount, setFixedProfitAmount] = useState<number>(0);
   
   // Payment terms state
   const [paymentTermsType, setPaymentTermsType] = useState<PaymentTermsType>('deposit_balance');
@@ -514,10 +517,21 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
     return selectedScopesArray.reduce((sum, scope) => sum + scopeTotals[scope].total, 0);
   }, [selectedScopesArray, scopeTotals]);
 
-  // Calculate margin amount and final total
+  // Calculate margin amount and final total based on mode
   const marginAmount = useMemo(() => {
+    if (markupMode === 'fixed') {
+      return fixedProfitAmount;
+    }
     return combinedSubtotal * (globalMarginPercent / 100);
-  }, [combinedSubtotal, globalMarginPercent]);
+  }, [combinedSubtotal, globalMarginPercent, markupMode, fixedProfitAmount]);
+
+  // Effective percentage (for display when in fixed mode)
+  const effectiveMarginPercent = useMemo(() => {
+    if (markupMode === 'fixed' && combinedSubtotal > 0) {
+      return (fixedProfitAmount / combinedSubtotal) * 100;
+    }
+    return globalMarginPercent;
+  }, [markupMode, fixedProfitAmount, combinedSubtotal, globalMarginPercent]);
 
   const combinedTotal = useMemo(() => {
     return combinedSubtotal + marginAmount;
@@ -1857,52 +1871,122 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
                     </div>
                   </div>
 
-                  {/* Markup input */}
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="margin">Markup Percentage</Label>
-                      <span className="text-sm text-muted-foreground">
-                        +{formatCurrency(marginAmount)}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="range"
-                        value={globalMarginPercent}
-                        onChange={(e) => setGlobalMarginPercent(Number(e.target.value))}
-                        min={0}
-                        max={50}
-                        step={1}
-                        className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
-                      />
-                      <div className="flex items-center gap-1">
-                        <Input
-                          id="margin"
-                          type="number"
-                          value={globalMarginPercent}
-                          onChange={(e) => setGlobalMarginPercent(Number(e.target.value) || 0)}
-                          className="w-20 text-center"
-                          min={0}
-                          max={100}
-                        />
-                        <span className="text-muted-foreground">%</span>
-                      </div>
-                    </div>
-                    {/* Quick presets */}
-                    <div className="flex gap-2">
-                      {[10, 15, 20, 25].map((preset) => (
-                        <Button
-                          key={preset}
-                          type="button"
-                          variant={globalMarginPercent === preset ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setGlobalMarginPercent(preset)}
-                        >
-                          {preset}%
-                        </Button>
-                      ))}
+                  {/* Markup mode toggle */}
+                  <div className="flex items-center gap-2 pb-2">
+                    <Label className="text-muted-foreground">Markup Method:</Label>
+                    <div className="flex rounded-lg border overflow-hidden">
+                      <Button
+                        type="button"
+                        variant={markupMode === 'percentage' ? 'default' : 'ghost'}
+                        size="sm"
+                        className="rounded-none border-0"
+                        onClick={() => setMarkupMode('percentage')}
+                      >
+                        <Percent className="w-3 h-3 mr-1" />
+                        Percentage
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={markupMode === 'fixed' ? 'default' : 'ghost'}
+                        size="sm"
+                        className="rounded-none border-0"
+                        onClick={() => setMarkupMode('fixed')}
+                      >
+                        <DollarSign className="w-3 h-3 mr-1" />
+                        Fixed Profit
+                      </Button>
                     </div>
                   </div>
+
+                  {/* Markup input - Percentage mode */}
+                  {markupMode === 'percentage' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="margin">Markup Percentage</Label>
+                        <span className="text-sm text-muted-foreground">
+                          +{formatCurrency(marginAmount)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="range"
+                          value={globalMarginPercent}
+                          onChange={(e) => setGlobalMarginPercent(Number(e.target.value))}
+                          min={0}
+                          max={50}
+                          step={1}
+                          className="flex-1 h-2 bg-muted rounded-lg appearance-none cursor-pointer accent-primary"
+                        />
+                        <div className="flex items-center gap-1">
+                          <Input
+                            id="margin"
+                            type="number"
+                            value={globalMarginPercent}
+                            onChange={(e) => setGlobalMarginPercent(Number(e.target.value) || 0)}
+                            className="w-20 text-center"
+                            min={0}
+                            max={100}
+                          />
+                          <span className="text-muted-foreground">%</span>
+                        </div>
+                      </div>
+                      {/* Quick presets */}
+                      <div className="flex gap-2">
+                        {[10, 15, 20, 25].map((preset) => (
+                          <Button
+                            key={preset}
+                            type="button"
+                            variant={globalMarginPercent === preset ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setGlobalMarginPercent(preset)}
+                          >
+                            {preset}%
+                          </Button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Markup input - Fixed profit mode */}
+                  {markupMode === 'fixed' && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="fixed-profit">Desired Profit</Label>
+                        <span className="text-sm text-muted-foreground">
+                          ≈ {effectiveMarginPercent.toFixed(1)}% markup
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">$</span>
+                        <Input
+                          id="fixed-profit"
+                          type="number"
+                          value={fixedProfitAmount || ''}
+                          onChange={(e) => setFixedProfitAmount(Number(e.target.value) || 0)}
+                          className="flex-1"
+                          min={0}
+                          placeholder="Enter profit amount"
+                        />
+                      </div>
+                      {/* Quick preset amounts based on subtotal */}
+                      <div className="flex flex-wrap gap-2">
+                        {[2000, 5000, 10000, 15000].map((preset) => (
+                          <Button
+                            key={preset}
+                            type="button"
+                            variant={fixedProfitAmount === preset ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => setFixedProfitAmount(preset)}
+                          >
+                            ${preset.toLocaleString()}
+                          </Button>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Enter the dollar amount you want as profit. The percentage will be calculated automatically.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Final totals */}
                   <div className="bg-muted/50 rounded-lg p-4 space-y-2">
