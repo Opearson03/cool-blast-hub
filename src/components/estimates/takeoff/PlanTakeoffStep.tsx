@@ -746,7 +746,32 @@ export function PlanTakeoffStep({
     }
   }, [activeTool, polylinePoints.length, pierPoints.length, drawingPoints.length]);
 
-  // Keyboard shortcuts: Enter to complete polyline, Ctrl+Z/Cmd+Z to undo
+  // Handler to cancel current markup and clear unsaved points
+  const handleCancelCurrentMarkup = useCallback(() => {
+    // If adding beam to existing slab, cancel that
+    if (isAddingBeamToExistingSlab) {
+      handleCancelAddingBeamToSlab();
+      return;
+    }
+    
+    // If in slab workflow, cancel it
+    if (slabWorkflowActive) {
+      handleCancelSlabWorkflow();
+      return;
+    }
+    
+    // Clear all drawing state
+    setDrawingPoints([]);
+    setPierPoints([]);
+    setPolylinePoints([]);
+    setPendingPolylineLength(0);
+    setCalibrationPoints([]);
+    setIsCalibrationMode(false);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [isAddingBeamToExistingSlab, slabWorkflowActive, handleCancelAddingBeamToSlab, handleCancelSlabWorkflow]);
+
+  // Keyboard shortcuts: Backspace (undo), Enter (Done), Escape (cancel), Ctrl+Z/Cmd+Z (undo)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input/textarea
@@ -754,10 +779,83 @@ export function PlanTakeoffStep({
         return;
       }
 
-      // Enter key to complete polyline/beam measurement
-      if (e.key === 'Enter' && activeTool === 'polyline' && polylinePoints.length >= 2) {
+      // Backspace key to delete last point (same as undo)
+      if (e.key === 'Backspace') {
         e.preventDefault();
-        handleDoneMarkingPolyline();
+        handleUndo();
+        return;
+      }
+
+      // Escape key to cancel current markup
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        handleCancelCurrentMarkup();
+        return;
+      }
+
+      // Enter key to complete current markup (like clicking "Done")
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        
+        // Handle polyline/beam completion
+        if (activeTool === 'polyline' && polylinePoints.length >= 2) {
+          handleDoneMarkingPolyline();
+          return;
+        }
+        
+        // Handle point tool completion (piers/bollards/pads)
+        if (activeTool === 'point' && pierPoints.length > 0) {
+          handleDoneMarkingPiers();
+          return;
+        }
+        
+        // Handle polygon completion (need at least 3 points)
+        if (activeTool === 'polygon' && drawingPoints.length >= 3) {
+          // Trigger the markup complete with current points
+          if (activeScope && currentFileId) {
+            const points = drawingPoints;
+            onPointsChange?.([]);
+            setDrawingPoints([]);
+            
+            // Check if this is a slab scope that supports beam marking
+            const isSlabWithBeamsScope = SLAB_WITH_BEAMS_SCOPES.includes(activeScope as any);
+            
+            if (isSlabWithBeamsScope && currentScale) {
+              const existingForScope = markups.filter(m => m.scope_id === activeScope);
+              const defaultName = existingForScope.length === 0 
+                ? 'Slab 1' 
+                : `Slab ${existingForScope.length + 1}`;
+              
+              setPendingSlabData({
+                slabPoints: points,
+                slabShapeType: 'polygon',
+                slabName: defaultName,
+                edgeBeams: [],
+                internalBeams: [],
+              });
+              setSlabWorkflowActive(true);
+              setSlabWorkflowStep('name');
+              setShowSlabBeamDialog(true);
+            } else {
+              const existingForScope = markups.filter(m => m.scope_id === activeScope);
+              const defaultName = existingForScope.length === 0 
+                ? 'Area 1' 
+                : `Area ${existingForScope.length + 1}`;
+              
+              setPendingMarkupData({
+                points,
+                shapeType: 'polygon',
+                scopeId: activeScope,
+                fileId: currentFileId,
+                pageNumber: currentPage,
+              });
+              setPendingMarkupName(defaultName);
+              setShowMarkupNameDialog(true);
+            }
+          }
+          return;
+        }
+        
         return;
       }
 
@@ -770,7 +868,27 @@ export function PlanTakeoffStep({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTool, polylinePoints.length, handleDoneMarkingPolyline, handleUndo]);
+  }, [
+    activeTool, 
+    polylinePoints.length, 
+    pierPoints.length, 
+    drawingPoints.length,
+    drawingPoints,
+    activeScope,
+    currentFileId,
+    currentPage,
+    currentScale,
+    markups,
+    handleDoneMarkingPolyline, 
+    handleDoneMarkingPiers,
+    handleUndo,
+    handleCancelCurrentMarkup
+  ]);
+
+  // Callback to allow DrawingCanvas to report points for Enter key handling
+  const onPointsChange = useCallback((points: TakeoffPoint[]) => {
+    setDrawingPoints(points);
+  }, []);
 
   // Auto-complete internal beam after 2 points (internal beams are always point-to-point)
   useEffect(() => {
@@ -970,6 +1088,7 @@ export function PlanTakeoffStep({
               onPageChange={setCurrentPage}
               onPagesLoaded={handlePagesLoaded}
               onDimensionsChange={handleDimensionsChange}
+              onZoomChange={setZoom}
             >
               <DrawingCanvas
                 width={planDimensions.width}

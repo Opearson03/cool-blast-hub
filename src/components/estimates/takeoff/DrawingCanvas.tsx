@@ -43,6 +43,8 @@ interface DrawingCanvasProps {
   pendingSlabReference?: PendingSlabReference;
   /** Already-marked beam segments to show during beam marking */
   existingBeamSegments?: BeamSegmentReference[];
+  /** When true, user is panning the view - don't place points on click */
+  isPanning?: boolean;
   onMarkupComplete: (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => void;
   onPolylineComplete?: (points: TakeoffPoint[], lengthMeters: number) => void;
   onMarkupSelect: (id: string | null) => void;
@@ -71,6 +73,7 @@ export function DrawingCanvas({
   activeBeamType = null,
   pendingSlabReference,
   existingBeamSegments = [],
+  isPanning = false,
   onMarkupComplete,
   onPolylineComplete,
   onMarkupSelect,
@@ -129,6 +132,9 @@ export function DrawingCanvas({
 
   // Handle stage click
   const handleStageClick = useCallback((e: KonvaEventObject<MouseEvent>) => {
+    // Skip if user was panning (dragging to move the view)
+    if (isPanning) return;
+    
     const stage = e.target.getStage();
     if (!stage) return;
 
@@ -188,7 +194,7 @@ export function DrawingCanvas({
       setDrawingPoints(newPoints);
       onPointsChange?.(newPoints);
     }
-  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange, polylinePoints, onPolylinePointsChange]);
+  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange, polylinePoints, onPolylinePointsChange, isPanning]);
 
   // Handle double click to close polygon
   const handleDoubleClick = useCallback(() => {
