@@ -61,8 +61,8 @@ export function PadFootingDimensionsDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Square className="h-5 w-5 text-primary" />
             Enter {title} Dimensions
@@ -72,7 +72,7 @@ export function PadFootingDimensionsDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="flex-1 overflow-y-auto space-y-4 py-4">
           {/* Group name input */}
           <div className="space-y-2">
             <Label htmlFor="pad-name">Group Name</Label>
@@ -99,54 +99,52 @@ export function PadFootingDimensionsDialog({
             </span>
           </div>
 
-          {/* Length input */}
-          <div className="space-y-2">
-            <Label htmlFor="length">Length</Label>
-            <div className="relative">
-              <Input
-                id="length"
-                type="number"
-                value={length}
-                onChange={(e) => setLength(Number(e.target.value) || 0)}
-                min={100}
-                max={5000}
-                step={50}
-                className="pr-12"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                mm
-              </span>
+          {/* Dimensions grid - 2 columns on mobile for L/W */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Length input */}
+            <div className="space-y-1.5">
+              <Label htmlFor="length" className="text-sm">Length</Label>
+              <div className="relative">
+                <Input
+                  id="length"
+                  type="number"
+                  value={length}
+                  onChange={(e) => setLength(Number(e.target.value) || 0)}
+                  min={100}
+                  max={5000}
+                  step={50}
+                  className="pr-10"
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  mm
+                </span>
+              </div>
             </div>
-            {!isPitBase && (
-              <p className="text-xs text-muted-foreground">
-                Common sizes: 450mm, 600mm, 750mm, 900mm
-              </p>
-            )}
-          </div>
 
-          {/* Width input */}
-          <div className="space-y-2">
-            <Label htmlFor="width">Width</Label>
-            <div className="relative">
-              <Input
-                id="width"
-                type="number"
-                value={width}
-                onChange={(e) => setWidth(Number(e.target.value) || 0)}
-                min={100}
-                max={5000}
-                step={50}
-                className="pr-12"
-              />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                mm
-              </span>
+            {/* Width input */}
+            <div className="space-y-1.5">
+              <Label htmlFor="width" className="text-sm">Width</Label>
+              <div className="relative">
+                <Input
+                  id="width"
+                  type="number"
+                  value={width}
+                  onChange={(e) => setWidth(Number(e.target.value) || 0)}
+                  min={100}
+                  max={5000}
+                  step={50}
+                  className="pr-10"
+                />
+                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                  mm
+                </span>
+              </div>
             </div>
           </div>
 
-          {/* Depth input */}
-          <div className="space-y-2">
-            <Label htmlFor="depth">Depth</Label>
+          {/* Depth input - full width */}
+          <div className="space-y-1.5">
+            <Label htmlFor="depth" className="text-sm">Depth</Label>
             <div className="relative">
               <Input
                 id="depth"
@@ -156,41 +154,37 @@ export function PadFootingDimensionsDialog({
                 min={50}
                 max={2000}
                 step={50}
-                className="pr-12"
+                className="pr-10"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
                 mm
               </span>
             </div>
             {!isPitBase && (
               <p className="text-xs text-muted-foreground">
-                Common depths: 300mm, 450mm, 600mm
+                Common: 300, 450, 600mm
               </p>
             )}
           </div>
 
           {/* Volume preview */}
-          <div className="p-3 bg-muted rounded-lg space-y-1">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Dimensions:</span>
-              <span className="font-medium">{length}mm × {width}mm × {depth}mm</span>
+          <div className="p-3 bg-muted rounded-lg space-y-1 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Size:</span>
+              <span className="font-medium">{length} × {width} × {depth}mm</span>
             </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Volume per {title.toLowerCase()}:</span>
-              <span className="font-medium">{singleVolume.toFixed(4)} m³</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Total volume ({padCount}):</span>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Total vol ({padCount}):</span>
               <span className="font-medium">{totalVolume.toFixed(3)} m³</span>
             </div>
           </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+        <DialogFooter className="flex-shrink-0 flex-col-reverse sm:flex-row gap-2 pt-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={padCount === 0}>
+          <Button onClick={handleConfirm} disabled={padCount === 0} className="w-full sm:w-auto">
             Save {title}s
           </Button>
           {onConfirmAndAddAnother && (
@@ -198,7 +192,7 @@ export function PadFootingDimensionsDialog({
               variant="secondary" 
               onClick={handleConfirmAndAddAnother} 
               disabled={padCount === 0}
-              className="gap-1"
+              className="gap-1 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" />
               Save & Add More
