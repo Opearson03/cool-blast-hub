@@ -11,8 +11,9 @@ interface PadFootingDimensionsDialogProps {
   onOpenChange: (open: boolean) => void;
   padCount: number;
   scopeType: 'pad_footings' | 'pit_bases';
-  onConfirm: (length: number, width: number, depth: number) => void;
-  onConfirmAndAddAnother?: (length: number, width: number, depth: number) => void;
+  onConfirm: (length: number, width: number, depth: number, name: string) => void;
+  onConfirmAndAddAnother?: (length: number, width: number, depth: number, name: string) => void;
+  defaultName?: string;
 }
 
 export function PadFootingDimensionsDialog({
@@ -22,21 +23,34 @@ export function PadFootingDimensionsDialog({
   scopeType,
   onConfirm,
   onConfirmAndAddAnother,
+  defaultName = '',
 }: PadFootingDimensionsDialogProps) {
   const isPitBase = scopeType === 'pit_bases';
   
   const [length, setLength] = useState(isPitBase ? 600 : 450);
   const [width, setWidth] = useState(isPitBase ? 600 : 450);
   const [depth, setDepth] = useState(isPitBase ? 150 : 300);
+  const [name, setName] = useState(defaultName);
+
+  // Reset name when dialog opens with new default
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      setName(defaultName);
+    }
+    onOpenChange(newOpen);
+  };
 
   const handleConfirm = () => {
-    onConfirm(length, width, depth);
+    const groupName = name.trim() || (isPitBase ? 'Pit Base Group' : 'Pad Footing Group');
+    onConfirm(length, width, depth, groupName);
     onOpenChange(false);
   };
 
   const handleConfirmAndAddAnother = () => {
-    onConfirmAndAddAnother?.(length, width, depth);
-    onOpenChange(false);
+    const groupName = name.trim() || (isPitBase ? 'Pit Base Group' : 'Pad Footing Group');
+    onConfirmAndAddAnother?.(length, width, depth, groupName);
+    // Reset name for next group
+    setName(`${isPitBase ? 'Pit Bases' : 'Pad Footings'} ${Date.now().toString().slice(-4)}`);
   };
 
   // Calculate volume for preview
@@ -46,7 +60,7 @@ export function PadFootingDimensionsDialog({
   const title = isPitBase ? 'Pit Base' : 'Pad Footing';
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -59,6 +73,22 @@ export function PadFootingDimensionsDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Group name input */}
+          <div className="space-y-2">
+            <Label htmlFor="pad-name">Group Name</Label>
+            <Input
+              id="pad-name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={`e.g., ${isPitBase ? 'Stormwater Pits' : 'Column Footings'}`}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              Name this group of {title.toLowerCase()}s (e.g., "{isPitBase ? 'Stormwater Pits' : 'Column A Footings'}")
+            </p>
+          </div>
+
           {/* Count display */}
           <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
             <Badge variant="default" className="text-base px-3 py-1">
