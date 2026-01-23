@@ -116,9 +116,18 @@ export function PlanTakeoffStep({
   
   // Edit beam dialog state
   const [editingBeam, setEditingBeam] = useState<TakeoffMarkup | null>(null);
+  
+  // State for adding beams to existing slabs
+  const [addingBeamToSlabId, setAddingBeamToSlabId] = useState<string | null>(null);
+  const [addingBeamType, setAddingBeamType] = useState<'edge_beam' | 'internal_beam' | null>(null);
+  const [showAddBeamDimensionsDialog, setShowAddBeamDimensionsDialog] = useState(false);
+  const [pendingBeamPoints, setPendingBeamPoints] = useState<TakeoffPoint[]>([]);
+  const [pendingBeamLength, setPendingBeamLength] = useState<number>(0);
+  
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
   const isSlabBeamMarking = slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beam' || slabWorkflowStep === 'mark_internal_beam');
-  const isScopePanelCollapsed = (isActivelyMarking || isSlabBeamMarking) && !scopePanelManuallyExpanded;
+  const isAddingBeamToExistingSlab = addingBeamToSlabId !== null && activeTool === 'polyline';
+  const isScopePanelCollapsed = (isActivelyMarking || isSlabBeamMarking || isAddingBeamToExistingSlab) && !scopePanelManuallyExpanded;
 
   const currentFile = files.find(f => f.id === currentFileId);
   const currentPage = takeoff?.current_page || 1;
@@ -568,6 +577,87 @@ export function PlanTakeoffStep({
     setActiveScope(null);
   };
 
+  // ============= ADD BEAM TO EXISTING SLAB HANDLERS =============
+  
+  // Handler: Start adding a beam to an existing slab
+  const handleAddBeamToExistingSlab = useCallback((slabMarkupId: string, beamType: 'edge_beam' | 'internal_beam') => {
+    // Find the slab markup to get its scope
+    const slabMarkup = markups.find(m => m.id === slabMarkupId);
+    if (!slabMarkup || !isCalibrated) return;
+    
+    setAddingBeamToSlabId(slabMarkupId);
+    setAddingBeamType(beamType);
+    setActiveScope(slabMarkup.scope_id);
+    setPolylinePoints([]);
+    setActiveTool('polyline');
+  }, [markups, isCalibrated]);
+
+  // Handler: Done marking beam for existing slab (2 points placed)
+  const handleDoneAddingBeamToSlab = useCallback(() => {
+    if (polylinePoints.length >= 2 && currentScale) {
+      const length = calculatePolylineLength(polylinePoints, currentScale);
+      setPendingBeamPoints([...polylinePoints]);
+      setPendingBeamLength(length);
+      setShowAddBeamDimensionsDialog(true);
+      setPolylinePoints([]);
+      setActiveTool('select');
+    }
+  }, [polylinePoints, currentScale]);
+
+  // Handler: Save beam to existing slab with dimensions
+  const handleSaveBeamToExistingSlab = useCallback(async (data: { name: string; width: number; depth: number }) => {
+    if (!addingBeamToSlabId || !addingBeamType || !currentFileId || pendingBeamPoints.length < 2) return;
+    
+    const slabMarkup = markups.find(m => m.id === addingBeamToSlabId);
+    if (!slabMarkup) return;
+    
+    const color = slabMarkup.color || getScopeColor(selectedScopes.indexOf(slabMarkup.scope_id as ScopeType));
+    
+    await addBeamToSlab(
+      addingBeamToSlabId,
+      currentFileId,
+      slabMarkup.scope_id,
+      pendingBeamPoints,
+      pendingBeamLength,
+      data.width,
+      data.depth,
+      color,
+      currentPage,
+      data.name,
+      addingBeamType
+    );
+    
+    // Reset state
+    setShowAddBeamDimensionsDialog(false);
+    setAddingBeamToSlabId(null);
+    setAddingBeamType(null);
+    setPendingBeamPoints([]);
+    setPendingBeamLength(0);
+    setActiveScope(null);
+  }, [addingBeamToSlabId, addingBeamType, currentFileId, pendingBeamPoints, pendingBeamLength, markups, selectedScopes, addBeamToSlab, currentPage]);
+
+  // Handler: Cancel adding beam to existing slab
+  const handleCancelAddingBeamToSlab = useCallback(() => {
+    setAddingBeamToSlabId(null);
+    setAddingBeamType(null);
+    setPolylinePoints([]);
+    setPendingBeamPoints([]);
+    setPendingBeamLength(0);
+    setActiveTool('select');
+    setActiveScope(null);
+    setShowAddBeamDimensionsDialog(false);
+  }, []);
+
+  // Auto-trigger dialog when 2 points are placed for adding beam to existing slab
+  useEffect(() => {
+    if (isAddingBeamToExistingSlab && polylinePoints.length === 2) {
+      const timer = setTimeout(() => {
+        handleDoneAddingBeamToSlab();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [isAddingBeamToExistingSlab, polylinePoints.length, handleDoneAddingBeamToSlab]);
+
   // Handler for completing pier marking
   const handlePierDimensionsConfirm = useCallback(async (diameter: number, depth: number, name: string) => {
     if (!activeScope || !currentFileId || pierPoints.length === 0) return;
@@ -995,6 +1085,40 @@ export function PlanTakeoffStep({
               />
             </div>
           )}
+          
+          {/* Floating bar for adding beam to existing slab */}
+          {isAddingBeamToExistingSlab && addingBeamToSlabId && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-30">
+              <div className="flex items-center gap-3 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border border-primary/20">
+                <Badge 
+                  variant="outline" 
+                  className="bg-orange-500/10 text-orange-600 border-orange-500/30"
+                >
+                  {addingBeamType === 'edge_beam' ? 'Edge Beam' : 'Internal Beam'}
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  {polylinePoints.length}/2 points • {currentBeamLength.toFixed(2)}m
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleUndo}
+                  disabled={polylinePoints.length === 0}
+                  className="text-xs h-6"
+                >
+                  Undo
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleCancelAddingBeamToSlab}
+                  className="text-xs h-6 text-destructive"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Floating scope panel - positioned on left side */}
@@ -1013,6 +1137,7 @@ export function PlanTakeoffStep({
               onEditMarkup={(id) => setSelectedMarkupId(id)}
               onEditBeam={handleEditBeam}
               onDeleteMarkup={handleDeleteMarkup}
+              onAddBeamToSlab={handleAddBeamToExistingSlab}
               isCalibrated={isCalibrated}
               isCollapsed={isScopePanelCollapsed}
               onToggle={() => setScopePanelManuallyExpanded(!scopePanelManuallyExpanded)}
@@ -1224,6 +1349,22 @@ export function PlanTakeoffStep({
         initialDepth={editingBeam?.height_mm || 450}
         length={editingBeam?.length_m || 0}
         onSave={handleSaveBeamEdit}
+      />
+
+      {/* Add beam to existing slab dialog */}
+      <EditBeamDialog
+        open={showAddBeamDimensionsDialog}
+        onOpenChange={(open) => {
+          if (!open) handleCancelAddingBeamToSlab();
+        }}
+        beamType={addingBeamType || 'edge_beam'}
+        initialName={addingBeamType === 'edge_beam' ? 'Edge Beam' : 'Internal Beam'}
+        initialWidth={450}
+        initialDepth={450}
+        length={pendingBeamLength}
+        onSave={handleSaveBeamToExistingSlab}
+        mode="add"
+        slabName={markups.find(m => m.id === addingBeamToSlabId)?.name || 'Slab'}
       />
     </div>
   );

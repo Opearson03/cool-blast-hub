@@ -15,6 +15,10 @@ interface EditBeamDialogProps {
   initialDepth: number;
   length: number;
   onSave: (data: { name: string; width: number; depth: number }) => void;
+  /** If true, shows "Add" instead of "Edit" in title */
+  mode?: 'edit' | 'add';
+  /** Optional parent slab name for context */
+  slabName?: string;
 }
 
 export function EditBeamDialog({
@@ -26,6 +30,8 @@ export function EditBeamDialog({
   initialDepth,
   length,
   onSave,
+  mode = 'edit',
+  slabName,
 }: EditBeamDialogProps) {
   const [name, setName] = useState(initialName);
   const [width, setWidth] = useState(initialWidth);
@@ -50,14 +56,18 @@ export function EditBeamDialog({
   };
 
   const beamLabel = beamType === 'edge_beam' ? 'Edge Beam' : 'Internal Beam';
+  const actionLabel = mode === 'add' ? 'Add' : 'Edit';
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md z-[100]">
         <DialogHeader>
-          <DialogTitle>Edit {beamLabel}</DialogTitle>
+          <DialogTitle>{actionLabel} {beamLabel}</DialogTitle>
           <DialogDescription>
-            Update the name and dimensions for this beam.
+            {mode === 'add' 
+              ? `Add a new ${beamLabel.toLowerCase()} to ${slabName || 'the slab'}.`
+              : 'Update the name and dimensions for this beam.'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -115,7 +125,7 @@ export function EditBeamDialog({
             Cancel
           </Button>
           <Button onClick={handleSave}>
-            Save Changes
+            {mode === 'add' ? 'Add Beam' : 'Save Changes'}
           </Button>
         </DialogFooter>
       </DialogContent>
