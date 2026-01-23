@@ -1880,16 +1880,7 @@ export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   paths_surrounds: PATHS_SURROUNDS_SCOPE,
   strip_footings: STRIP_FOOTINGS_SCOPE,
   retaining_wall_footings: RETAINING_WALL_FOOTINGS_SCOPE,
-  suspended_slab: SUSPENDED_SLAB_SCOPE,
-  architectural_concrete: ARCHITECTURAL_CONCRETE_SCOPE,
-  // Commercial-specific scopes
   pad_footings: PAD_FOOTINGS_SCOPE,
-  osd_tank: OSD_TANK_SCOPE,
-  kerbs_channels: KERBS_CHANNELS_SCOPE,
-  concrete_stairs: CONCRETE_STAIRS_SCOPE,
-  retaining_walls: RETAINING_WALLS_SCOPE,
-  pit_bases: PIT_BASES_SCOPE,
-  bollards: BOLLARDS_SCOPE,
 };
 
 // Get scope by ID

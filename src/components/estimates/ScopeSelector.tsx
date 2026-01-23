@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { Building, Layers, Car, Wrench, Landmark } from "lucide-react";
+import { Building, Layers, Car, Wrench } from "lucide-react";
 
 // EstimateType kept for backwards compatibility
 export type EstimateType = "driveway" | "house_slab" | "commercial_slab";
@@ -16,20 +16,12 @@ export type ScopeType =
   | "standard_slab"
   | "raft_slab"
   | "waffle_pod"
-  | "suspended_slab"
   | "driveway"
   | "paths_surrounds"
   | "crossovers"
-  | "architectural_concrete"
-  | "pad_footings"
-  | "osd_tank"
-  | "kerbs_channels"
-  | "concrete_stairs"
-  | "retaining_walls"
-  | "pit_bases"
-  | "bollards";
+  | "pad_footings";
 
-export type ScopeCategory = 'site_works' | 'foundations' | 'slabs' | 'external' | 'infrastructure' | 'structures';
+export type ScopeCategory = 'site_works' | 'foundations' | 'slabs' | 'external';
 
 export interface ScopeOption {
   id: ScopeType;
@@ -44,8 +36,6 @@ const CATEGORY_CONFIG: Record<ScopeCategory, { label: string; icon: React.Compon
   foundations: { label: "Foundations", icon: Building },
   slabs: { label: "Floor Slabs", icon: Layers },
   external: { label: "External Works", icon: Car },
-  infrastructure: { label: "Infrastructure", icon: Wrench },
-  structures: { label: "Structures", icon: Landmark },
 };
 
 export const SCOPE_OPTIONS: ScopeOption[] = [
@@ -87,7 +77,7 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     category: "foundations"
   },
   // Slabs
-{ 
+  { 
     id: "standard_slab", 
     label: "Slab on Ground", 
     description: "Basic slab on ground (no edge beams)",
@@ -106,13 +96,6 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     label: "Waffle Pod Slab", 
     description: "Waffle pod system slab",
     availableFor: ["house_slab", "commercial_slab"],
-    category: "slabs"
-  },
-  { 
-    id: "suspended_slab", 
-    label: "Suspended Slab", 
-    description: "Elevated slab with formwork and propping",
-    availableFor: ["commercial_slab"],
     category: "slabs"
   },
   // External Works
@@ -136,57 +119,6 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     description: "Council crossover / vehicle crossing",
     availableFor: ["driveway", "house_slab", "commercial_slab"],
     category: "external"
-  },
-  // Infrastructure
-  { 
-    id: "osd_tank", 
-    label: "OSD Tank / Stormwater", 
-    description: "On-site detention tanks and stormwater pits",
-    availableFor: ["commercial_slab"],
-    category: "infrastructure"
-  },
-  { 
-    id: "kerbs_channels", 
-    label: "Kerbs & Channels", 
-    description: "Concrete kerbing and drainage channels",
-    availableFor: ["commercial_slab"],
-    category: "infrastructure"
-  },
-  { 
-    id: "pit_bases", 
-    label: "Pit Bases", 
-    description: "Pump pits, lift pits, sump bases",
-    availableFor: ["commercial_slab"],
-    category: "infrastructure"
-  },
-  { 
-    id: "bollards", 
-    label: "Bollards", 
-    description: "Concrete bollards for car parks and barriers",
-    availableFor: ["commercial_slab"],
-    category: "infrastructure"
-  },
-  // Structures
-  { 
-    id: "concrete_stairs", 
-    label: "Concrete Stairs", 
-    description: "Cast-in-place concrete stairways",
-    availableFor: ["commercial_slab"],
-    category: "structures"
-  },
-  { 
-    id: "retaining_walls", 
-    label: "Retaining Walls", 
-    description: "Full retaining wall construction",
-    availableFor: ["commercial_slab"],
-    category: "structures"
-  },
-  { 
-    id: "architectural_concrete", 
-    label: "Architectural Concrete", 
-    description: "Bench tops, garden walls, tables, seats, planters",
-    availableFor: ["house_slab"],
-    category: "structures"
   },
 ];
 

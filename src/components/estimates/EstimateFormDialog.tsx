@@ -327,12 +327,7 @@ function migrateLegacyScopeData(
         scopeAnswers.footing_depth = parseInt(legacyData.depth) || 300;
         break;
         
-      case 'suspended_slab':
-        scopeAnswers.area = parseFloat(legacyData.slabArea) || parseFloat(legacyData.length) * parseFloat(legacyData.width) || 0;
-        scopeAnswers.perimeter = parseFloat(legacyData.perimeter) || 0;
-        scopeAnswers.thickness = parseInt(legacyData.slabThickness) || 200;
-        scopeAnswers.height = parseInt(legacyData.height) || 3000;
-        break;
+      // suspended_slab removed
         
       case 'paths_surrounds':
         scopeAnswers.area = parseFloat(legacyData.totalArea) || 
@@ -481,19 +476,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
       standard_slab: { total: 0, description: "" },
       raft_slab: { total: 0, description: "" },
       waffle_pod: { total: 0, description: "" },
-      suspended_slab: { total: 0, description: "" },
       driveway: { total: 0, description: "" },
       paths_surrounds: { total: 0, description: "" },
       crossovers: { total: 0, description: "" },
-      architectural_concrete: { total: 0, description: "" },
-      // Commercial-specific scopes
       pad_footings: { total: 0, description: "" },
-      osd_tank: { total: 0, description: "" },
-      kerbs_channels: { total: 0, description: "" },
-      concrete_stairs: { total: 0, description: "" },
-      retaining_walls: { total: 0, description: "" },
-      pit_bases: { total: 0, description: "" },
-      bollards: { total: 0, description: "" },
     };
 
     for (const scopeType of Array.from(selectedScopes)) {
@@ -1312,81 +1298,42 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate }: Estimat
             };
           }
         }
-      } else if (scope === 'bollards') {
-        // For bollards, get bollard configs grouped by unique dimensions
-        const bollardConfigs = getBollardConfigsForScope(scope);
-        
-        if (bollardConfigs.length > 0) {
-          const hasUserData = initialScopeAnswers.num_bollards > 0;
-          
-          if (!hasUserData) {
-            // Sum up total count from all config types
-            const totalCount = bollardConfigs.reduce((sum, c) => sum + c.quantity, 0);
-            // Use first config for dimensions (or could create multi-bollard support in future)
-            const firstConfig = bollardConfigs[0];
-            
-            initialScopeAnswers = {
-              ...initialScopeAnswers,
-              _fromTakeoff: true,
-              num_bollards: totalCount,
-              diameter: firstConfig.diameter,
-              height_above: firstConfig.heightAbove,
-              embedment_depth: firstConfig.embedmentDepth,
-              // Store all configs for potential future multi-bollard support
-              _bollardConfigs: bollardConfigs,
-            };
-          }
-        }
-      } else if (scope === 'pad_footings' || scope === 'pit_bases') {
-        // For pad footings and pit bases, get configs grouped by unique dimensions
+      } else if (scope === 'pad_footings') {
+        // For pad footings, get configs grouped by unique dimensions
         const padConfigs = getPadConfigsForScope(scope);
         
         if (padConfigs.length > 0) {
           // Check for existing user data using correct field names
-          const hasUserData = initialScopeAnswers.total_num_pads > 0 || initialScopeAnswers.num_pits > 0;
+          const hasUserData = initialScopeAnswers.total_num_pads > 0;
           
           if (!hasUserData) {
             // Sum up total count from all config types
             const totalCount = padConfigs.reduce((sum, c) => sum + c.quantity, 0);
-            // Use first config for dimensions (or could create multi-pad support in future)
+            // Use first config for dimensions
             const firstConfig = padConfigs[0];
             
-            if (scope === 'pad_footings') {
-              // Map takeoff configs to padGroups for the new grouped system
-              const padGroupsFromTakeoff = padConfigs.map((p: any) => ({
-                id: p.id,
-                name: p.name,
-                quantity: Number(p.quantity) || 1,
-                length: Number(p.length) || 450,
-                width: Number(p.width) || 450,
-                depth: Number(p.depth) || 300,
-                _fromTakeoff: true,
-              }));
+            // Map takeoff configs to padGroups for the new grouped system
+            const padGroupsFromTakeoff = padConfigs.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+              quantity: Number(p.quantity) || 1,
+              length: Number(p.length) || 450,
+              width: Number(p.width) || 450,
+              depth: Number(p.depth) || 300,
+              _fromTakeoff: true,
+            }));
 
-              // Pad footings use padGroups and derived totals
-              initialScopeAnswers = {
-                ...initialScopeAnswers,
-                _fromTakeoff: true,
-                total_num_pads: totalCount,
-                total_length: firstConfig.length,
-                total_width: firstConfig.width,
-                total_depth: firstConfig.depth,
-                // Use new grouped system
-                padGroups: padGroupsFromTakeoff,
-              };
-            } else {
-              // Pit bases use num_pits and pit-specific fields
-              initialScopeAnswers = {
-                ...initialScopeAnswers,
-                _fromTakeoff: true,
-                num_pits: totalCount,
-                pit_length: firstConfig.length,
-                pit_width: firstConfig.width,
-                pit_depth: firstConfig.depth,
-                // Store all configs for potential future multi-pad support
-                _padConfigs: padConfigs,
-              };
-            }
+            // Pad footings use padGroups and derived totals
+            initialScopeAnswers = {
+              ...initialScopeAnswers,
+              _fromTakeoff: true,
+              total_num_pads: totalCount,
+              total_length: firstConfig.length,
+              total_width: firstConfig.width,
+              total_depth: firstConfig.depth,
+              // Use new grouped system
+              padGroups: padGroupsFromTakeoff,
+            };
           }
         }
       } else if (scopeDefinition.supportsMultipleFootings || scopeDefinition.supportsLinearSections) {
