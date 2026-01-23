@@ -1,11 +1,15 @@
-import { useState } from "react";
-import { Plus, Trash2, Copy, Ruler, MapPin } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Trash2, Copy, Ruler, ChevronDown, ChevronRight, Settings2, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { FootingConfig } from "@/lib/estimate-components/types";
 import { cn } from "@/lib/utils";
 import { MarkupPromptDialog } from "./MarkupPromptDialog";
@@ -37,34 +41,60 @@ export function MultiFootingInput({
   const [newFootingName, setNewFootingName] = useState("");
   const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
+  const [openFootings, setOpenFootings] = useState<Set<string>>(new Set(footings.map(f => f.id)));
 
-  // Check if any footing is from takeoff
-  const hasAnyFromTakeoff = footings.some(f => f._fromTakeoff);
+  const toggleFooting = (footingId: string) => {
+    setOpenFootings(prev => {
+      const next = new Set(prev);
+      if (next.has(footingId)) {
+        next.delete(footingId);
+      } else {
+        next.add(footingId);
+      }
+      return next;
+    });
+  };
 
-  // Calculate totals
-  const totalLength = footings.reduce((sum, footing) => sum + (Number(footing.length) || 0), 0);
+  const toggleAll = () => {
+    const allOpen = footings.every(f => openFootings.has(f.id));
+    if (allOpen) {
+      setOpenFootings(new Set());
+    } else {
+      setOpenFootings(new Set(footings.map(f => f.id)));
+    }
+  };
 
-  const totalVolume = footings.reduce((sum, footing) => {
-    const length = Number(footing.length) || 0;
-    const widthM = (Number(footing.width) || 0) / 1000;
-    const depthM = (Number(footing.depth) || 0) / 1000;
-    return sum + length * widthM * depthM;
-  }, 0);
+  // Summary calculations
+  const summary = useMemo(() => {
+    let totalLength = 0;
+    let totalVolume = 0;
+    let fromTakeoffCount = 0;
+
+    footings.forEach(footing => {
+      const length = Number(footing.length) || 0;
+      const widthM = (Number(footing.width) || 0) / 1000;
+      const depthM = (Number(footing.depth) || 0) / 1000;
+      totalLength += length;
+      totalVolume += length * widthM * depthM;
+      if (footing._fromTakeoff) fromTakeoffCount++;
+    });
+
+    return { totalLength, totalVolume, fromTakeoffCount, total: footings.length };
+  }, [footings]);
 
   const addFooting = () => {
     const footingNumber = footings.length + 1;
     const name = newFootingName.trim() || `Footing ${footingNumber}`;
-    onChange([
-      ...footings,
-      {
-        id: `footing-${Date.now()}`,
-        name,
-        length: 0,
-        width: 450,
-        depth: 300,
-      },
-    ]);
+    const newFooting: FootingConfig = {
+      id: `footing-${Date.now()}`,
+      name,
+      length: 0,
+      width: 450,
+      depth: 300,
+    };
+    onChange([...footings, newFooting]);
     setNewFootingName("");
+    setOpenFootings(prev => new Set([...prev, newFooting.id]));
   };
 
   const handleAddClick = () => {
@@ -98,15 +128,14 @@ export function MultiFootingInput({
   };
 
   const duplicateFooting = (footing: FootingConfig) => {
-    onChange([
-      ...footings,
-      {
-        ...footing,
-        id: `footing-${Date.now()}`,
-        name: `${footing.name} (copy)`,
-        _fromTakeoff: false, // Duplicated footings are not from takeoff
-      },
-    ]);
+    const newFooting: FootingConfig = {
+      ...footing,
+      id: `footing-${Date.now()}`,
+      name: `${footing.name} (copy)`,
+      _fromTakeoff: false,
+    };
+    onChange([...footings, newFooting]);
+    setOpenFootings(prev => new Set([...prev, newFooting.id]));
   };
 
   const updateFooting = (id: string, field: keyof FootingConfig, value: any) => {
@@ -116,7 +145,6 @@ export function MultiFootingInput({
           ? { 
               ...footing, 
               [field]: value,
-              // Clear takeoff flag when user edits dimensions
               ...(field !== 'name' && footing._fromTakeoff ? { _fromTakeoff: false } : {})
             } 
           : footing
@@ -125,214 +153,235 @@ export function MultiFootingInput({
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">{label}</CardTitle>
-          {hasAnyFromTakeoff && (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge variant="outline" className="gap-1 bg-blue-500/10 text-blue-600 border-blue-500/30">
-                    <Ruler className="h-3 w-3" />
-                    From plan takeoff
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Measurements imported from plan takeoff</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+    <div className="space-y-4">
+      {/* Summary Header */}
+      <div className="flex items-center justify-between gap-4 pb-2">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <Ruler className="h-3.5 w-3.5" />
+            <span className="font-medium text-foreground">{summary.total}</span>
+            <span>footing{summary.total !== 1 ? 's' : ''}</span>
+            <span className="text-muted-foreground/60">({summary.totalLength.toFixed(1)}m)</span>
+          </div>
+          <span className="text-border">•</span>
+          <span>{summary.totalVolume.toFixed(3)} m³ total</span>
+          {summary.fromTakeoffCount > 0 && (
+            <>
+              <span className="text-border">•</span>
+              <span className="text-blue-600 dark:text-blue-400">{summary.fromTakeoffCount} from takeoff</span>
+            </>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Footing list */}
-        <div className="space-y-3">
-          {footings.map((footing, index) => {
-            const length = Number(footing.length) || 0;
-            const widthM = (Number(footing.width) || 0) / 1000;
-            const depthM = (Number(footing.depth) || 0) / 1000;
-            const footingVolume = length * widthM * depthM;
-            const isFromTakeoff = footing._fromTakeoff;
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleAll}
+          className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground shrink-0"
+        >
+          <ChevronsUpDown className="h-3.5 w-3.5" />
+          {footings.every(f => openFootings.has(f.id)) ? 'Collapse' : 'Expand'}
+        </Button>
+      </div>
 
-            return (
-              <div
-                key={footing.id}
-                className={cn(
-                  "border rounded-lg p-3 space-y-3",
-                  isFromTakeoff 
-                    ? "bg-blue-500/5 border-blue-500/20" 
-                    : "bg-muted/30"
-                )}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1">
-                    <Input
-                      value={footing.name}
-                      onChange={(e) => updateFooting(footing.id, "name", e.target.value)}
-                      placeholder={`Footing ${index + 1}`}
-                      className="font-medium flex-1"
-                    />
-                    {isFromTakeoff && (
-                      <Ruler className="h-4 w-4 text-blue-500 shrink-0" />
-                    )}
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 sm:h-8 sm:w-8"
-                      onClick={() => duplicateFooting(footing)}
-                      title="Duplicate footing"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
-                      onClick={() => removeFooting(footing.id)}
-                      disabled={footings.length <= 1}
-                      title="Remove footing"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+      {/* Footing Cards */}
+      <div className="space-y-2">
+        {footings.map((footing) => {
+          const isOpen = openFootings.has(footing.id);
+          const length = Number(footing.length) || 0;
+          const widthM = (Number(footing.width) || 0) / 1000;
+          const depthM = (Number(footing.depth) || 0) / 1000;
+          const volume = length * widthM * depthM;
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Length
-                    </Label>
-                    <div className="relative">
+          return (
+            <Collapsible key={footing.id} open={isOpen} onOpenChange={() => toggleFooting(footing.id)}>
+              <div className={cn(
+                "border rounded-lg overflow-hidden transition-colors",
+                footing._fromTakeoff ? "border-blue-500/30 bg-blue-500/[0.02]" : "bg-card"
+              )}>
+                {/* Header */}
+                <CollapsibleTrigger className="w-full">
+                  <div className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      {isOpen ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                      )}
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{footing.name}</span>
+                        <Badge variant="outline" className="text-xs font-normal h-5">
+                          {length.toFixed(1)}m
+                        </Badge>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {footing.width}w × {footing.depth}d
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {footing._fromTakeoff && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400">
+                                Takeoff
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Measured from plan takeoff</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      {volume > 0 && (
+                        <span className="text-xs text-muted-foreground">
+                          {volume.toFixed(3)} m³
+                        </span>
+                      )}
+                      <Settings2 className="h-3.5 w-3.5 text-muted-foreground ml-1" />
+                    </div>
+                  </div>
+                </CollapsibleTrigger>
+                
+                {/* Content */}
+                <CollapsibleContent>
+                  <div className="px-3 pb-3 pt-2 border-t bg-muted/30 space-y-3">
+                    {/* Name Input */}
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Name</Label>
                       <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={footing.length || ""}
-                        onChange={(e) =>
-                          updateFooting(
-                            footing.id,
-                            "length",
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={0}
-                        step={0.1}
-                        className="pr-8 h-11 sm:h-9"
+                        value={footing.name}
+                        onChange={(e) => updateFooting(footing.id, "name", e.target.value)}
+                        className="h-8 text-sm"
                       />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        m
-                      </span>
                     </div>
-                  </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      {widthLabel}
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        value={footing.width || ""}
-                        onChange={(e) =>
-                          updateFooting(
-                            footing.id,
-                            "width",
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={100}
-                        step={50}
-                        className="pr-12 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        mm
-                      </span>
-                    </div>
-                  </div>
+                    {/* Dimensions */}
+                    <div className="grid grid-cols-4 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Length</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={footing.length || ""}
+                            onChange={(e) =>
+                              updateFooting(footing.id, "length", e.target.value === "" ? 0 : Number(e.target.value))
+                            }
+                            min={0}
+                            step={0.1}
+                            className="pr-8 h-8 text-sm"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                            m
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      {depthLabel}
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        value={footing.depth || ""}
-                        onChange={(e) =>
-                          updateFooting(
-                            footing.id,
-                            "depth",
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={100}
-                        step={50}
-                        className="pr-12 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        mm
-                      </span>
-                    </div>
-                  </div>
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">{widthLabel}</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            value={footing.width || ""}
+                            onChange={(e) =>
+                              updateFooting(footing.id, "width", e.target.value === "" ? 0 : Number(e.target.value))
+                            }
+                            min={100}
+                            step={50}
+                            className="pr-10 h-8 text-sm"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                            mm
+                          </span>
+                        </div>
+                      </div>
 
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Volume
-                    </Label>
-                    <div className="h-11 sm:h-9 flex items-center px-3 bg-muted rounded-md text-sm">
-                      {footingVolume > 0 ? `${footingVolume.toFixed(3)} m³` : "—"}
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">{depthLabel}</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            inputMode="numeric"
+                            value={footing.depth || ""}
+                            onChange={(e) =>
+                              updateFooting(footing.id, "depth", e.target.value === "" ? 0 : Number(e.target.value))
+                            }
+                            min={100}
+                            step={50}
+                            className="pr-10 h-8 text-sm"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                            mm
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Volume</Label>
+                        <div className="h-8 flex items-center px-3 bg-muted rounded-md text-sm">
+                          {volume > 0 ? `${volume.toFixed(3)} m³` : "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-end pt-2 border-t gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1"
+                        onClick={() => duplicateFooting(footing)}
+                      >
+                        <Copy className="h-3 w-3" />
+                        Duplicate
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
+                        onClick={() => removeFooting(footing.id)}
+                        disabled={footings.length <= 1}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Remove
+                      </Button>
                     </div>
                   </div>
-                </div>
+                </CollapsibleContent>
               </div>
-            );
-          })}
-        </div>
+            </Collapsible>
+          );
+        })}
+      </div>
 
-        {/* Add footing button */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            placeholder="New footing name (optional)"
-            value={newFootingName}
-            onChange={(e) => setNewFootingName(e.target.value)}
-            className="flex-1 h-11 sm:h-9"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleAddClick();
-              }
-            }}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleAddClick}
-            className="shrink-0 h-11 sm:h-9"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Footing
-          </Button>
-        </div>
-
-        {/* Combined totals */}
-        <div className="flex flex-wrap gap-4 pt-3 border-t text-sm">
-          <div>
-            <span className="text-muted-foreground">Total Length: </span>
-            <span className="font-medium">{totalLength.toFixed(1)} m</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Total Volume: </span>
-            <span className="font-medium">{totalVolume.toFixed(3)} m³</span>
-          </div>
-        </div>
-      </CardContent>
+      {/* Add footing input */}
+      <div className="flex items-center gap-2 pt-2 border-t">
+        <Input
+          placeholder="New footing name (optional)"
+          value={newFootingName}
+          onChange={(e) => setNewFootingName(e.target.value)}
+          className="flex-1 h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAddClick();
+            }
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAddClick}
+          className="gap-1 h-8"
+        >
+          <Plus className="h-4 w-4" />
+          Add Footing
+        </Button>
+      </div>
 
       <MarkupPromptDialog
         open={showMarkupPrompt}
@@ -343,6 +392,6 @@ export function MultiFootingInput({
         dontAskAgain={dontAskAgain}
         onDontAskAgainChange={setDontAskAgain}
       />
-    </Card>
+    </div>
   );
 }

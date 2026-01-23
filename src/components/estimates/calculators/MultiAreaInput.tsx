@@ -1,9 +1,8 @@
-import { useState } from "react";
-import { Plus, Trash2, Copy, Ruler, MapPin } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Plus, Trash2, Copy, Ruler, ChevronDown, ChevronRight, Settings2, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,8 +11,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { MeasurementArea } from "@/lib/estimate-components/types";
 import { MarkupPromptDialog } from "./MarkupPromptDialog";
+import { cn } from "@/lib/utils";
 
 interface MultiAreaInputProps {
   label: string;
@@ -62,54 +67,78 @@ export function MultiAreaInput({
   const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
   const [pendingAreaName, setPendingAreaName] = useState("");
+  const [openAreas, setOpenAreas] = useState<Set<string>>(new Set(areas.map(a => a.id)));
 
-  // Check if any areas are from takeoff
-  const hasAnyTakeoffAreas = areas.some((area) => area._fromTakeoff);
+  const toggleArea = (areaId: string) => {
+    setOpenAreas(prev => {
+      const next = new Set(prev);
+      if (next.has(areaId)) {
+        next.delete(areaId);
+      } else {
+        next.add(areaId);
+      }
+      return next;
+    });
+  };
 
-  // Calculate totals - use _actualArea if available, otherwise calculate
-  const totalArea = areas.reduce((sum, area) => {
-    if (area._actualArea && area._actualArea > 0) {
-      return sum + area._actualArea;
+  const toggleAll = () => {
+    const allOpen = areas.every(a => openAreas.has(a.id));
+    if (allOpen) {
+      setOpenAreas(new Set());
+    } else {
+      setOpenAreas(new Set(areas.map(a => a.id)));
     }
-    const l = Number(area.length) || 0;
-    const w = Number(area.width) || 0;
-    return sum + l * w;
-  }, 0);
+  };
 
-  // Approximate perimeter - use _actualPerimeter if available
-  const totalPerimeter = areas.reduce((sum, area) => {
-    if (area._actualPerimeter && area._actualPerimeter > 0) {
-      return sum + area._actualPerimeter;
-    }
-    const l = Number(area.length) || 0;
-    const w = Number(area.width) || 0;
-    if (l > 0 && w > 0) {
-      return sum + 2 * (l + w);
-    }
-    return sum;
-  }, 0);
+  // Summary calculations
+  const summary = useMemo(() => {
+    let totalArea = 0;
+    let totalPerimeter = 0;
+    let fromTakeoffCount = 0;
+
+    areas.forEach(area => {
+      if (area._actualArea && area._actualArea > 0) {
+        totalArea += area._actualArea;
+      } else {
+        const l = Number(area.length) || 0;
+        const w = Number(area.width) || 0;
+        totalArea += l * w;
+      }
+
+      if (area._actualPerimeter && area._actualPerimeter > 0) {
+        totalPerimeter += area._actualPerimeter;
+      } else {
+        const l = Number(area.length) || 0;
+        const w = Number(area.width) || 0;
+        if (l > 0 && w > 0) {
+          totalPerimeter += 2 * (l + w);
+        }
+      }
+
+      if (area._fromTakeoff) fromTakeoffCount++;
+    });
+
+    return { totalArea, totalPerimeter, fromTakeoffCount, total: areas.length };
+  }, [areas]);
 
   const addArea = (nameOverride?: string) => {
     const areaNumber = areas.length + 1;
     const nameToUse = nameOverride !== undefined ? nameOverride : newAreaName;
     const name = nameToUse.trim() || `Area ${areaNumber}`;
-    onChange([
-      ...areas,
-      {
-        id: `area-${Date.now()}`,
-        name,
-        length: 0,
-        width: 0,
-      },
-    ]);
+    const newArea: MeasurementArea = {
+      id: `area-${Date.now()}`,
+      name,
+      length: 0,
+      width: 0,
+    };
+    onChange([...areas, newArea]);
     setNewAreaName("");
     setPendingAreaName("");
+    setOpenAreas(prev => new Set([...prev, newArea.id]));
   };
 
   const handleAddClick = () => {
-    // Show prompt if: plans exist, callback provided, and user hasn't chosen to skip
     if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
-      // Store the current name before showing dialog
       setPendingAreaName(newAreaName);
       setShowMarkupPrompt(true);
     } else {
@@ -132,7 +161,6 @@ export function MultiAreaInput({
       onSkipMarkupPromptChange?.(true);
     }
     setShowMarkupPrompt(false);
-    // Use the stored pending name
     addArea(pendingAreaName);
   };
 
@@ -143,17 +171,16 @@ export function MultiAreaInput({
   };
 
   const duplicateArea = (area: MeasurementArea) => {
-    onChange([
-      ...areas,
-      {
-        ...area,
-        id: `area-${Date.now()}`,
-        name: `${area.name} (copy)`,
-        _fromTakeoff: false, // Duplicates are manual entries
-        _actualArea: undefined,
-        _actualPerimeter: undefined,
-      },
-    ]);
+    const newArea: MeasurementArea = {
+      ...area,
+      id: `area-${Date.now()}`,
+      name: `${area.name} (copy)`,
+      _fromTakeoff: false,
+      _actualArea: undefined,
+      _actualPerimeter: undefined,
+    };
+    onChange([...areas, newArea]);
+    setOpenAreas(prev => new Set([...prev, newArea.id]));
   };
 
   const updateArea = (id: string, field: keyof MeasurementArea, value: any) => {
@@ -161,7 +188,6 @@ export function MultiAreaInput({
       areas.map((area) => {
         if (area.id !== id) return area;
         
-        // If editing length or width, clear takeoff flags since user is overriding
         if (field === "length" || field === "width") {
           return {
             ...area,
@@ -178,297 +204,319 @@ export function MultiAreaInput({
   };
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base">{label}</CardTitle>
-          {hasAnyTakeoffAreas && (
-            <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 gap-1">
-              <Ruler className="h-3 w-3" />
-              From plan takeoff
-            </Badge>
+    <div className="space-y-4">
+      {/* Summary Header */}
+      <div className="flex items-center justify-between gap-4 pb-2">
+        <div className="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <Ruler className="h-3.5 w-3.5" />
+            <span className="font-medium text-foreground">{summary.total}</span>
+            <span>area{summary.total !== 1 ? 's' : ''}</span>
+            <span className="text-muted-foreground/60">({summary.totalArea.toFixed(1)} m²)</span>
+          </div>
+          <span className="text-border">•</span>
+          <span>{summary.totalPerimeter.toFixed(1)}m perimeter</span>
+          {summary.fromTakeoffCount > 0 && (
+            <>
+              <span className="text-border">•</span>
+              <span className="text-blue-600 dark:text-blue-400">{summary.fromTakeoffCount} from takeoff</span>
+            </>
           )}
         </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Area list */}
-        <div className="space-y-3">
-          {areas.map((area, index) => {
-            // Use actual area from takeoff if available
-            const displayArea = area._actualArea && area._actualArea > 0
-              ? area._actualArea
-              : (Number(area.length) || 0) * (Number(area.width) || 0);
-            
-            return (
-              <div
-                key={area.id}
-                className={`border rounded-lg p-3 space-y-3 ${
-                  area._fromTakeoff 
-                    ? "bg-blue-50/50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800" 
-                    : "bg-muted/30"
-                }`}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1">
-                    {area._fromTakeoff && (
-                      <TooltipProvider>
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="shrink-0 w-6 h-6 rounded bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
-                              <Ruler className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                            </div>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Measured from plan takeoff</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      </TooltipProvider>
-                    )}
-                    <Input
-                      value={area.name}
-                      onChange={(e) => updateArea(area.id, "name", e.target.value)}
-                      placeholder={`Area ${index + 1}`}
-                      className="font-medium flex-1"
-                    />
-                  </div>
-                  <div className="flex gap-1">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 sm:h-8 sm:w-8"
-                      onClick={() => duplicateArea(area)}
-                      title="Duplicate area"
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      className="h-10 w-10 sm:h-8 sm:w-8 text-destructive hover:text-destructive"
-                      onClick={() => removeArea(area.id)}
-                      disabled={areas.length <= 1}
-                      title="Remove area"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={toggleAll}
+          className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground shrink-0"
+        >
+          <ChevronsUpDown className="h-3.5 w-3.5" />
+          {areas.every(a => openAreas.has(a.id)) ? 'Collapse' : 'Expand'}
+        </Button>
+      </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Length
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={area.length || ""}
-                        onChange={(e) =>
-                          updateArea(
-                            area.id,
-                            "length",
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={0}
-                        step={0.1}
-                        className="pr-8 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        m
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Width
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={area.width || ""}
-                        onChange={(e) =>
-                          updateArea(
-                            area.id,
-                            "width",
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={0}
-                        step={0.1}
-                        className="pr-8 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        m
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1 col-span-2 sm:col-span-1">
-                    <Label className="text-xs text-muted-foreground">
-                      Area
-                      {area._fromTakeoff && area._actualArea && (
-                        <span className="ml-1 text-blue-600 dark:text-blue-400">(measured)</span>
+      {/* Area Cards */}
+      <div className="space-y-2">
+        {areas.map((area) => {
+          const isOpen = openAreas.has(area.id);
+          const displayArea = area._actualArea && area._actualArea > 0
+            ? area._actualArea
+            : (Number(area.length) || 0) * (Number(area.width) || 0);
+          
+          return (
+            <Collapsible key={area.id} open={isOpen} onOpenChange={() => toggleArea(area.id)}>
+              <div className={cn(
+                "border rounded-lg overflow-hidden transition-colors",
+                area._fromTakeoff ? "border-blue-500/30 bg-blue-500/[0.02]" : "bg-card"
+              )}>
+                {/* Header */}
+                <CollapsibleTrigger className="w-full">
+                  <div className="flex items-center justify-between px-3 py-2.5 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-2.5">
+                      {isOpen ? (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
                       )}
-                    </Label>
-                    <div className={`h-11 sm:h-9 flex items-center px-3 rounded-md text-sm ${
-                      area._fromTakeoff && area._actualArea
-                        ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
-                        : "bg-muted"
-                    }`}>
-                      {displayArea > 0 ? `${displayArea.toFixed(1)} m²` : "—"}
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{area.name}</span>
+                        <Badge variant="outline" className="text-xs font-normal h-5">
+                          {displayArea.toFixed(1)} m²
+                        </Badge>
+                        {area.length > 0 && area.width > 0 && (
+                          <span className="text-xs text-muted-foreground tabular-nums">
+                            {area.length.toFixed(1)}m × {area.width.toFixed(1)}m
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {area._fromTakeoff && (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400">
+                                Takeoff
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Measured from plan takeoff</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      )}
+                      <Settings2 className="h-3.5 w-3.5 text-muted-foreground ml-1" />
                     </div>
                   </div>
-                </div>
+                </CollapsibleTrigger>
+                
+                {/* Content */}
+                <CollapsibleContent>
+                  <div className="px-3 pb-3 pt-2 border-t bg-muted/30 space-y-3">
+                    {/* Name Input */}
+                    <div className="space-y-1">
+                      <Label className="text-[10px] text-muted-foreground">Name</Label>
+                      <Input
+                        value={area.name}
+                        onChange={(e) => updateArea(area.id, "name", e.target.value)}
+                        className="h-8 text-sm"
+                      />
+                    </div>
 
-                {/* Show note for takeoff areas explaining dimensions are approximate */}
-                {area._fromTakeoff && area._actualArea && (
-                  <p className="text-xs text-blue-600 dark:text-blue-400">
-                    📐 Area measured from plan. Length/width are approximations for reference.
-                  </p>
-                )}
+                    {/* Dimensions */}
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Length</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={area.length || ""}
+                            onChange={(e) =>
+                              updateArea(area.id, "length", e.target.value === "" ? 0 : Number(e.target.value))
+                            }
+                            min={0}
+                            step={0.1}
+                            className="pr-8 h-8 text-sm"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                            m
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">Width</Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={area.width || ""}
+                            onChange={(e) =>
+                              updateArea(area.id, "width", e.target.value === "" ? 0 : Number(e.target.value))
+                            }
+                            min={0}
+                            step={0.1}
+                            className="pr-8 h-8 text-sm"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                            m
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="space-y-1">
+                        <Label className="text-[10px] text-muted-foreground">
+                          Area
+                          {area._fromTakeoff && area._actualArea && (
+                            <span className="ml-1 text-blue-600 dark:text-blue-400">(measured)</span>
+                          )}
+                        </Label>
+                        <div className={cn(
+                          "h-8 flex items-center px-3 rounded-md text-sm",
+                          area._fromTakeoff && area._actualArea
+                            ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-medium"
+                            : "bg-muted"
+                        )}>
+                          {displayArea > 0 ? `${displayArea.toFixed(1)} m²` : "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between pt-2 border-t">
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={() => duplicateArea(area)}
+                        >
+                          <Copy className="h-3 w-3" />
+                          Duplicate
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs gap-1 text-destructive hover:text-destructive"
+                          onClick={() => removeArea(area.id)}
+                          disabled={areas.length <= 1}
+                        >
+                          <Trash2 className="h-3 w-3" />
+                          Remove
+                        </Button>
+                      </div>
+                      {area._fromTakeoff && area._actualArea && (
+                        <p className="text-[10px] text-blue-600 dark:text-blue-400">
+                          📐 Measured from plan
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CollapsibleContent>
               </div>
-            );
-          })}
-        </div>
+            </Collapsible>
+          );
+        })}
+      </div>
 
-        {/* Add area button */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Input
-            placeholder="New area name (optional)"
-            value={newAreaName}
-            onChange={(e) => setNewAreaName(e.target.value)}
-            className="flex-1 h-11 sm:h-9"
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                handleAddClick();
-              }
-            }}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            onClick={handleAddClick}
-            className="shrink-0 h-11 sm:h-9"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Area
-          </Button>
-        </div>
+      {/* Add area input */}
+      <div className="flex items-center gap-2 pt-2 border-t">
+        <Input
+          placeholder="New area name (optional)"
+          value={newAreaName}
+          onChange={(e) => setNewAreaName(e.target.value)}
+          className="flex-1 h-8 text-sm"
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleAddClick();
+            }
+          }}
+        />
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={handleAddClick}
+          className="gap-1 h-8"
+        >
+          <Plus className="h-4 w-4" />
+          Add Area
+        </Button>
+      </div>
 
-        {/* Combined totals */}
-        <div className="flex flex-wrap gap-4 pt-3 border-t text-sm">
-          <div>
-            <span className="text-muted-foreground">Total Area: </span>
-            <span className="font-medium">{totalArea.toFixed(1)} m²</span>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Est. Perimeter: </span>
-            <span className="font-medium">{totalPerimeter.toFixed(1)} m</span>
-          </div>
-        </div>
-
-        {/* Shared thickness setting */}
-        <div className="pt-3 border-t">
-          <Label className="text-sm font-medium">
-            Thickness (mm)
-            <span className="text-muted-foreground ml-1 font-normal">
-              — shared across all areas
-            </span>
+      {/* Shared thickness setting */}
+      <div className="pt-3 border-t space-y-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
+            Thickness
+            <span className="text-muted-foreground ml-1 font-normal">— shared across all areas</span>
           </Label>
-          <div className="relative mt-1.5 max-w-full sm:max-w-[200px]">
+          <div className="relative max-w-[200px]">
             <Input
               type="number"
               inputMode="numeric"
               value={thickness || ""}
               onChange={(e) =>
-                onThicknessChange(
-                  e.target.value === "" ? thicknessDefault : Number(e.target.value)
-                )
+                onThicknessChange(e.target.value === "" ? thicknessDefault : Number(e.target.value))
               }
               min={thicknessMin}
               step={5}
-              className="pr-12 h-11 sm:h-9"
+              className="pr-10 h-8 text-sm"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
               mm
             </span>
           </div>
         </div>
+      </div>
 
-        {/* Thickening / Edge Beams option */}
-        {showThickeningOption && (
-          <div className="pt-3 border-t space-y-3">
-            <div className="flex items-center justify-between">
-              <Label className="text-sm font-medium">
-                Thickening / Edge Beams
-              </Label>
+      {/* Thickening / Edge Beams option */}
+      {showThickeningOption && (
+        <div className="pt-3 border-t space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-xs font-medium">Thickening / Edge Beams</Label>
+            <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
               <Switch
                 checked={hasThickening}
                 onCheckedChange={(checked) => onThickeningChange?.(checked)}
               />
+              <span className={cn(
+                "text-sm min-w-[3ch]",
+                hasThickening ? "text-foreground" : "text-muted-foreground"
+              )}>
+                {hasThickening ? 'Yes' : 'No'}
+              </span>
             </div>
-            
-            {hasThickening && (
-              <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-lg">
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    Thickening Depth (mm)
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      value={thickeningDepth || ""}
-                      onChange={(e) =>
-                        onThickeningDepthChange?.(
-                          e.target.value === "" ? 300 : Number(e.target.value)
-                        )
-                      }
-                      min={100}
-                      step={50}
-                      className="pr-12"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      mm
-                    </span>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    Thickening Width (mm)
-                  </Label>
-                  <div className="relative">
-                    <Input
-                      type="number"
-                      value={thickeningWidth || ""}
-                      onChange={(e) =>
-                        onThickeningWidthChange?.(
-                          e.target.value === "" ? 300 : Number(e.target.value)
-                        )
-                      }
-                      min={100}
-                      step={50}
-                      className="pr-12"
-                    />
-                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                      mm
-                    </span>
-                  </div>
-                </div>
-                <p className="col-span-2 text-xs text-muted-foreground">
-                  Extra volume will be calculated based on perimeter × depth × width
-                </p>
-              </div>
-            )}
           </div>
-        )}
-      </CardContent>
+          
+          {hasThickening && (
+            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/50 rounded-lg">
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Thickening Depth</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    value={thickeningDepth || ""}
+                    onChange={(e) =>
+                      onThickeningDepthChange?.(e.target.value === "" ? 300 : Number(e.target.value))
+                    }
+                    min={100}
+                    step={50}
+                    className="pr-10 h-8 text-sm"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                    mm
+                  </span>
+                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] text-muted-foreground">Thickening Width</Label>
+                <div className="relative">
+                  <Input
+                    type="number"
+                    value={thickeningWidth || ""}
+                    onChange={(e) =>
+                      onThickeningWidthChange?.(e.target.value === "" ? 300 : Number(e.target.value))
+                    }
+                    min={100}
+                    step={50}
+                    className="pr-10 h-8 text-sm"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                    mm
+                  </span>
+                </div>
+              </div>
+              <p className="col-span-2 text-[10px] text-muted-foreground">
+                Extra volume calculated based on perimeter × depth × width
+              </p>
+            </div>
+          )}
+        </div>
+      )}
 
       <MarkupPromptDialog
         open={showMarkupPrompt}
@@ -479,6 +527,6 @@ export function MultiAreaInput({
         dontAskAgain={dontAskAgain}
         onDontAskAgainChange={setDontAskAgain}
       />
-    </Card>
+    </div>
   );
 }
