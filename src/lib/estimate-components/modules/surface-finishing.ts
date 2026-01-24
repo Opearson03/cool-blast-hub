@@ -25,8 +25,6 @@ export const surfaceFinishingModule: EstimateModule = {
       options: [
         { value: 'exposed_aggregate', label: 'Exposed aggregate' },
         { value: 'stencilled', label: 'Stencilled' },
-        { value: 'stamped', label: 'Stamped' },
-        { value: 'honed_polished', label: 'Honed & polished' },
         { value: 'sealed', label: 'Sealed' },
         { value: 'other', label: 'Other' },
       ],
@@ -46,253 +44,149 @@ export const surfaceFinishingModule: EstimateModule = {
       deriveFrom: (scopeData) => scopeData.area || 0,
     },
 
-    // ========== Stencilled Finish Specific ==========
+    // ═══════════════════════════════════════════════════════════════
+    // STENCILLED - Roll-based + Colour bags (no labour - included in pour)
+    // ═══════════════════════════════════════════════════════════════
     {
-      id: 'stencil_pattern',
-      type: 'select',
-      label: 'Stencil pattern type',
-      options: [
-        { value: 'tile', label: 'Tile pattern' },
-        { value: 'brick', label: 'Brick pattern' },
-        { value: 'slate', label: 'Slate pattern' },
-        { value: 'cobblestone', label: 'Cobblestone pattern' },
-        { value: 'custom', label: 'Custom pattern' },
-      ],
-      defaultValue: 'tile',
+      id: 'stencil_roll_price',
+      type: 'currency',
+      label: 'Stencil roll price',
+      helpText: '1m wide × 100m rolls',
+      defaultValue: 150,
+      priceListKey: 'materials.STENCIL_ROLL',
       showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
     },
     {
-      id: 'stencil_material_rate',
-      type: 'currency',
-      label: 'Stencil material cost per m²',
-      defaultValue: 25,
-      unit: '/m²',
+      id: 'stencil_rolls_required',
+      type: 'number',
+      label: 'Rolls required',
+      helpText: 'Auto-calculated: 100m² per roll + 10% waste',
+      min: 1,
+      unit: 'rolls',
       showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
-    },
-    {
-      id: 'stencil_colour_required',
-      type: 'boolean',
-      label: 'Colour/dye required?',
-      defaultValue: true,
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
-    },
-    {
-      id: 'stencil_colour_rate',
-      type: 'currency',
-      label: 'Colour hardener cost per m²',
-      defaultValue: 15,
-      unit: '/m²',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'stencilled' && 
-        answers.stencil_colour_required === true,
-    },
-    {
-      id: 'stencil_labour_hours',
-      type: 'number',
-      label: 'Application labour hours',
-      defaultValue: 4,
-      min: 1,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
-    },
-    {
-      id: 'stencil_crew_size',
-      type: 'number',
-      label: 'Crew size for stencilling',
-      defaultValue: 2,
-      min: 1,
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
-    },
-
-    // ========== Stamped Finish Specific ==========
-    {
-      id: 'stamp_pattern',
-      type: 'select',
-      label: 'Stamp pattern type',
-      options: [
-        { value: 'slate', label: 'Slate' },
-        { value: 'brick', label: 'Brick' },
-        { value: 'cobblestone', label: 'Cobblestone' },
-        { value: 'wood_plank', label: 'Wood plank' },
-        { value: 'tile', label: 'Tile' },
-        { value: 'custom', label: 'Custom pattern' },
-      ],
-      defaultValue: 'slate',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
-    },
-    {
-      id: 'stamp_mat_hire',
-      type: 'currency',
-      label: 'Stamp mat hire/cost',
-      defaultValue: 200,
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
-    },
-    {
-      id: 'release_agent_required',
-      type: 'boolean',
-      label: 'Release agent required?',
-      defaultValue: true,
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
-    },
-    {
-      id: 'release_agent_rate',
-      type: 'currency',
-      label: 'Release agent cost per m²',
-      defaultValue: 8,
-      unit: '/m²',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'stamped' && 
-        answers.release_agent_required === true,
-    },
-    {
-      id: 'stamp_colour_hardener_required',
-      type: 'boolean',
-      label: 'Colour hardener required?',
-      defaultValue: true,
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
-    },
-    {
-      id: 'stamp_colour_rate',
-      type: 'currency',
-      label: 'Colour hardener cost per m²',
-      defaultValue: 18,
-      unit: '/m²',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'stamped' && 
-        answers.stamp_colour_hardener_required === true,
-    },
-    {
-      id: 'stamp_labour_hours',
-      type: 'number',
-      label: 'Stamping labour hours',
-      defaultValue: 6,
-      min: 1,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
-    },
-    {
-      id: 'stamp_crew_size',
-      type: 'number',
-      label: 'Crew size for stamping',
-      defaultValue: 2,
-      min: 1,
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stamped',
-    },
-
-    // ========== Honed & Polished Specific ==========
-    {
-      id: 'polish_grade',
-      type: 'select',
-      label: 'Polish grade',
-      options: [
-        { value: 'grind_seal', label: 'Grind & seal' },
-        { value: 'honed', label: 'Honed (matte)' },
-        { value: 'semi_polished', label: 'Semi-polished' },
-        { value: 'high_polish', label: 'High polish (mirror)' },
-      ],
-      defaultValue: 'honed',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'honed_polished',
-    },
-    {
-      id: 'polish_rate',
-      type: 'currency',
-      label: 'Polishing rate per m²',
-      defaultValue: 65,
-      unit: '/m²',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'honed_polished',
-    },
-
-    // ========== Other Finish Specific ==========
-    {
-      id: 'other_finish_allowance',
-      type: 'currency',
-      label: 'Finish allowance (lump sum)',
-      defaultValue: 500,
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'other',
-    },
-    {
-      id: 'other_finish_description',
-      type: 'text',
-      label: 'Finish description',
-      helpText: 'Describe the finish type for the quote',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'other',
-    },
-
-    // ========== Exposed Aggregate Specific ==========
-    // Method: Place concrete → finish → spray retarder → wash off → cure 28 days → acid wash → seal
-    {
-      id: 'retarder_drum_size',
-      type: 'number',
-      label: 'Retarder drum size (L)',
-      defaultValue: 20,
-      min: 1,
-      unit: 'L',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
-    },
-    {
-      id: 'retarder_drum_price',
-      type: 'currency',
-      label: 'Retarder price per drum',
-      defaultValue: 125,
-      priceListKey: 'materials.RETARDER_DRUM',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
-    },
-    {
-      id: 'retarder_drums_required',
-      type: 'number',
-      label: 'Drums required',
-      helpText: 'Auto-calculated: 4m²/L coverage, rounded up to whole drums',
-      min: 1,
-      unit: 'drums',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
       deriveFrom: (scopeData, moduleAnswers) => {
-        const area = Number(moduleAnswers.finish_area) || Number(scopeData.area) || 0;
-        const drumSize = Number(moduleAnswers.retarder_drum_size) || 20;
-        const coverageRate = 4; // 4m²/L
-        const litresNeeded = area / coverageRate;
-        return Math.ceil(litresNeeded / drumSize);
+        const area = Number(moduleAnswers?.finish_area) || Number(scopeData.area) || 0;
+        const areaWithWaste = area * 1.1; // 10% waste
+        const rollCoverage = 100; // 1m × 100m = 100m²
+        return Math.ceil(areaWithWaste / rollCoverage) || 1;
       },
       derivedReadOnly: false,
     },
     {
-      id: 'acid_wash_required',
+      id: 'stencil_colour_required',
       type: 'boolean',
-      label: 'Include acid wash & seal return visit?',
-      helpText: 'Required after 28 days cure - before sealing',
+      label: 'Colour hardener required?',
       defaultValue: true,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled',
+    },
+    {
+      id: 'stencil_colour_bag_price',
+      type: 'currency',
+      label: 'Colour price per bag (20kg)',
+      defaultValue: 50,
+      priceListKey: 'materials.COLOUR_BAG',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled' && answers.stencil_colour_required === true,
+    },
+    {
+      id: 'stencil_colour_bags_required',
+      type: 'number',
+      label: 'Colour bags required',
+      helpText: 'Auto-calculated: 8m² per 20kg bag',
+      min: 1,
+      unit: 'bags',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'stencilled' && answers.stencil_colour_required === true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const area = Number(moduleAnswers?.finish_area) || Number(scopeData.area) || 0;
+        const coveragePerBag = 8; // 8m² per bag
+        return Math.ceil(area / coveragePerBag) || 1;
+      },
+      derivedReadOnly: false,
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // EXPOSED AGGREGATE
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'exposed_retarder_rate',
+      type: 'currency',
+      label: 'Retarder rate (per m²)',
+      defaultValue: 8,
+      priceListKey: 'materials.RETARDER',
       showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
     },
     {
-      id: 'acid_wash_hours',
+      id: 'exposed_wash_labour_hours',
       type: 'number',
-      label: 'Acid wash labour hours',
-      defaultValue: 3,
-      min: 0.5,
-      step: 0.5,
+      label: 'Wash-off labour hours',
+      defaultValue: 2,
+      min: 0,
       unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'exposed_aggregate' &&
-        answers.acid_wash_required === true,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
     },
     {
-      id: 'acid_price',
-      type: 'currency',
-      label: 'Acid wash materials cost',
-      defaultValue: 85,
-      priceListKey: 'materials.ACID_WASH',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'exposed_aggregate' &&
-        answers.acid_wash_required === true,
+      id: 'exposed_wash_crew_size',
+      type: 'number',
+      label: 'Wash-off crew size',
+      defaultValue: 2,
+      min: 1,
+      unit: 'men',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
     },
 
-    // ========== Curing (Simplified - Spray-on only, drum-based) ==========
+    // ═══════════════════════════════════════════════════════════════
+    // SEALED - Colour sealer option
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'sealed_colour_required',
+      type: 'boolean',
+      label: 'Colour sealer required?',
+      defaultValue: false,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'sealed',
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // OTHER FINISH
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'other_finish_description',
+      type: 'text',
+      label: 'Describe other finish',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'other',
+    },
+    {
+      id: 'other_finish_material_cost',
+      type: 'currency',
+      label: 'Material cost',
+      defaultValue: 0,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'other',
+    },
+    {
+      id: 'other_finish_labour_hours',
+      type: 'number',
+      label: 'Labour hours',
+      defaultValue: 0,
+      min: 0,
+      unit: 'hrs',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'other',
+    },
+    {
+      id: 'other_finish_crew_size',
+      type: 'number',
+      label: 'Crew size',
+      defaultValue: 1,
+      min: 1,
+      unit: 'men',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'other',
+    },
+
+    // ═══════════════════════════════════════════════════════════════
+    // CURING - Drum-based (no labour - included in pour)
+    // ═══════════════════════════════════════════════════════════════
     {
       id: 'curing_required',
       type: 'boolean',
-      label: 'Is curing required?',
-      defaultValue: true,
+      label: 'Spray-on curing required?',
+      defaultValue: false,
       showIf: (answers) => answers.finish_required === true,
     },
     {
@@ -316,27 +210,29 @@ export const surfaceFinishingModule: EstimateModule = {
       id: 'curing_drums_required',
       type: 'number',
       label: 'Drums required',
-      helpText: 'Auto-calculated: 5m²/L coverage, rounded up to whole drums',
+      helpText: 'Auto-calculated: 5m²/L coverage',
       min: 1,
       unit: 'drums',
       showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
       deriveFrom: (scopeData, moduleAnswers) => {
-        const area = Number(moduleAnswers.finish_area) || Number(scopeData.area) || 0;
-        const drumSize = Number(moduleAnswers.curing_drum_size) || 20;
+        const area = Number(moduleAnswers?.finish_area) || Number(scopeData.area) || 0;
+        const drumSize = Number(moduleAnswers?.curing_drum_size) || 20;
         const coverageRate = 5; // 5m²/L standard
         const litresNeeded = area / coverageRate;
-        return Math.ceil(litresNeeded / drumSize);
+        return Math.ceil(litresNeeded / drumSize) || 1;
       },
       derivedReadOnly: false,
     },
 
-    // ========== Sealing (Simplified - Drum-based, prime 1-coat) ==========
+    // ═══════════════════════════════════════════════════════════════
+    // SEALING - Drum-based with labour (separate trip)
+    // ═══════════════════════════════════════════════════════════════
     {
       id: 'sealing_required',
       type: 'boolean',
-      label: 'Is sealing required?',
+      label: 'Sealing required?',
       defaultValue: false,
-      showIf: (answers) => answers.finish_required === true,
+      showIf: (answers) => answers.finish_required === true && answers.finish_type !== 'sealed',
     },
     {
       id: 'sealer_drum_size',
@@ -345,7 +241,7 @@ export const surfaceFinishingModule: EstimateModule = {
       defaultValue: 20,
       min: 1,
       unit: 'L',
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
+      showIf: (answers) => answers.finish_required === true && (answers.sealing_required === true || answers.finish_type === 'sealed'),
     },
     {
       id: 'sealer_drum_price',
@@ -353,297 +249,209 @@ export const surfaceFinishingModule: EstimateModule = {
       label: 'Sealer price per drum',
       defaultValue: 200,
       priceListKey: 'materials.SEALER_DRUM',
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
+      showIf: (answers) => answers.finish_required === true && (answers.sealing_required === true || (answers.finish_type === 'sealed' && answers.sealed_colour_required !== true)),
+    },
+    {
+      id: 'colour_sealer_drum_price',
+      type: 'currency',
+      label: 'Colour sealer price per drum',
+      defaultValue: 250,
+      priceListKey: 'materials.COLOUR_SEALER_DRUM',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'sealed' && answers.sealed_colour_required === true,
     },
     {
       id: 'sealer_drums_required',
       type: 'number',
       label: 'Drums required',
-      helpText: 'Auto-calculated: 8m²/L (prime 1-coat), rounded up to whole drums',
+      helpText: 'Auto-calculated: 8m²/L coverage (prime 1-coat)',
       min: 1,
       unit: 'drums',
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
+      showIf: (answers) => answers.finish_required === true && (answers.sealing_required === true || answers.finish_type === 'sealed'),
       deriveFrom: (scopeData, moduleAnswers) => {
-        const area = Number(moduleAnswers.finish_area) || Number(scopeData.area) || 0;
-        const drumSize = Number(moduleAnswers.sealer_drum_size) || 20;
+        const area = Number(moduleAnswers?.finish_area) || Number(scopeData.area) || 0;
+        const drumSize = Number(moduleAnswers?.sealer_drum_size) || 20;
         const coverageRate = 8; // Prime 1-coat coverage rate (m²/L)
         const litresNeeded = area / coverageRate;
-        return Math.ceil(litresNeeded / drumSize);
+        return Math.ceil(litresNeeded / drumSize) || 1;
       },
       derivedReadOnly: false,
     },
     {
       id: 'sealing_men',
       type: 'number',
-      label: 'How many men for sealing?',
+      label: 'Sealing crew size',
       defaultValue: 1,
       min: 1,
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
+      unit: 'men',
+      showIf: (answers) => answers.finish_required === true && (answers.sealing_required === true || answers.finish_type === 'sealed'),
     },
     {
       id: 'sealing_hours_per_man',
       type: 'number',
-      label: 'Hours per man for sealing',
+      label: 'Hours per man',
       defaultValue: 2,
-      min: 0.5,
-      step: 0.5,
+      min: 0,
       unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
+      showIf: (answers) => answers.finish_required === true && (answers.sealing_required === true || answers.finish_type === 'sealed'),
+    },
+    {
+      id: 'sealing_callout',
+      type: 'currency',
+      label: 'Return visit call-out fee',
+      defaultValue: 150,
+      priceListKey: 'other.CALLOUT',
+      showIf: (answers) => answers.finish_required === true && (answers.sealing_required === true || answers.finish_type === 'sealed'),
     },
 
-    // ========== Sundries Allowance ==========
+    // ═══════════════════════════════════════════════════════════════
+    // SUNDRIES
+    // ═══════════════════════════════════════════════════════════════
     {
       id: 'sundries_allowance',
       type: 'currency',
-      label: 'Sundries allowance (rollers, sprayers, PPE, etc.)',
-      helpText: 'For application tools, PPE, and consumables',
+      label: 'Sundries allowance',
+      helpText: 'Rollers, sprayers, PPE, misc consumables',
       defaultValue: 75,
       showIf: (answers) => answers.finish_required === true,
     },
   ],
 
-  calculate: (answers, priceMap, scopeData): ComponentCost => {
+  calculate: (scopeData, answers, priceMap) => {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
-    // If finish not required, skip everything
-    if (answers.finish_required === false) {
-      return {
-        moduleId: 'surface-finishing',
-        moduleName: 'Surface Finishing',
-        lineItems: [],
-        subtotal: 0,
-        exclusions: [],
-      };
+    if (answers.finish_required !== true) {
+      return { lineItems, subtotal };
     }
 
     const area = Number(answers.finish_area) || Number(scopeData.area) || 0;
-    const labourRate = getPrice(priceMap, 'labour', 'LABOUR HR', 85);
-    const effectiveRate = labourRate;
+    const labourRate = getPrice(priceMap, 'labour', 'LABOUR HR', 75);
 
-    // ========== Exposed Aggregate - Retarder (Drum-based) ==========
+    // ═══════════════════════════════════════════════════════════════
+    // FINISH TYPE CALCULATIONS
+    // ═══════════════════════════════════════════════════════════════
+
+    // EXPOSED AGGREGATE
     if (answers.finish_type === 'exposed_aggregate') {
-      const drumSize = Number(answers.retarder_drum_size) || 20;
-      const drumPrice = Number(answers.retarder_drum_price) || getPrice(priceMap, 'materials', 'RETARDER_DRUM', 125);
-      
-      // Calculate drums needed: 4m²/L coverage, rounded up to whole drums
-      const coverageRate = 4; // 4m²/L
-      const litresNeeded = area / coverageRate;
-      const drumsNeeded = Number(answers.retarder_drums_required) || Math.ceil(litresNeeded / drumSize);
-      const retarderCost = drumsNeeded * drumPrice;
+      const retarderRate = Number(answers.exposed_retarder_rate) || 
+        getPrice(priceMap, 'materials', 'RETARDER', 8);
+      const retarderCost = area * retarderRate;
 
       lineItems.push({
-        id: 'retarder_material',
-        description: `Surface Retarder (${drumsNeeded} × ${drumSize}L drums for ${area}m² @ 4m²/L)`,
-        quantity: drumsNeeded,
-        unit: 'drums',
-        unitPrice: drumPrice,
+        id: 'exposed_retarder',
+        description: `Exposed Aggregate Retarder (${area}m² @ $${retarderRate}/m²)`,
+        quantity: area,
+        unit: 'm²',
+        unitPrice: retarderRate,
         total: retarderCost,
         category: 'materials',
       });
       subtotal += retarderCost;
-    }
 
-    // ========== Exposed Aggregate - Acid Wash Return Visit ==========
-    if (answers.finish_type === 'exposed_aggregate' && answers.acid_wash_required === true) {
-      const acidPrice = Number(answers.acid_price) || getPrice(priceMap, 'materials', 'ACID_WASH', 85);
-      lineItems.push({
-        id: 'acid_wash_materials',
-        description: 'Acid Wash Materials (return visit after 28 day cure)',
-        quantity: 1,
-        unit: 'allow',
-        unitPrice: acidPrice,
-        total: acidPrice,
-        category: 'materials',
-      });
-      subtotal += acidPrice;
+      // Wash-off labour
+      const washHours = Number(answers.exposed_wash_labour_hours) || 2;
+      const washCrew = Number(answers.exposed_wash_crew_size) || 2;
+      const washLabour = washHours * washCrew * labourRate;
 
-      const washHours = Number(answers.acid_wash_hours) || 3;
-      const washCost = washHours * effectiveRate;
       lineItems.push({
-        id: 'acid_wash_labour',
-        description: `Acid Wash Labour (${washHours} hrs)`,
-        quantity: washHours,
+        id: 'exposed_wash_labour',
+        description: `Exposed Aggregate Wash-off Labour (${washCrew} men × ${washHours} hrs)`,
+        quantity: washHours * washCrew,
         unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: washCost,
+        unitPrice: labourRate,
+        total: washLabour,
         category: 'labour',
       });
-      subtotal += washCost;
-
-      // Callout charge for return visit
-      const callout = getPrice(priceMap, 'other', 'CALLOUT', 150);
-      lineItems.push({
-        id: 'acid_wash_callout',
-        description: 'Acid Wash Return Visit - Travel/Call-out',
-        quantity: 1,
-        unit: 'visit',
-        unitPrice: callout,
-        total: callout,
-        category: 'other',
-      });
-      subtotal += callout;
+      subtotal += washLabour;
     }
 
-    // ========== Stencilled Finish ==========
+    // STENCILLED - Roll-based + Colour bags (no labour)
     if (answers.finish_type === 'stencilled') {
-      const stencilRate = Number(answers.stencil_material_rate) || 25;
-      const stencilMaterialCost = area * stencilRate;
+      const rollPrice = Number(answers.stencil_roll_price) || 
+        getPrice(priceMap, 'materials', 'STENCIL_ROLL', 150);
+      const rollsNeeded = Number(answers.stencil_rolls_required) || 
+        Math.ceil((area * 1.1) / 100) || 1;
+      const rollCost = rollsNeeded * rollPrice;
 
       lineItems.push({
-        id: 'stencil_material',
-        description: `Stencil Materials (${area}m² @ $${stencilRate}/m²)`,
-        quantity: area,
-        unit: 'm²',
-        unitPrice: stencilRate,
-        total: stencilMaterialCost,
+        id: 'stencil_rolls',
+        description: `Stencil Rolls (${rollsNeeded} × 1m×100m rolls for ${area}m² + 10% waste)`,
+        quantity: rollsNeeded,
+        unit: 'rolls',
+        unitPrice: rollPrice,
+        total: rollCost,
         category: 'materials',
       });
-      subtotal += stencilMaterialCost;
+      subtotal += rollCost;
 
+      // Colour bags if required
       if (answers.stencil_colour_required === true) {
-        const colourRate = Number(answers.stencil_colour_rate) || 15;
-        const colourCost = area * colourRate;
+        const bagPrice = Number(answers.stencil_colour_bag_price) || 
+          getPrice(priceMap, 'materials', 'COLOUR_BAG', 50);
+        const bagsNeeded = Number(answers.stencil_colour_bags_required) || 
+          Math.ceil(area / 8) || 1;
+        const colourCost = bagsNeeded * bagPrice;
 
         lineItems.push({
           id: 'stencil_colour',
-          description: `Colour Hardener (${area}m² @ $${colourRate}/m²)`,
-          quantity: area,
-          unit: 'm²',
-          unitPrice: colourRate,
+          description: `Colour Hardener (${bagsNeeded} × 20kg bags for ${area}m² @ 8m²/bag)`,
+          quantity: bagsNeeded,
+          unit: 'bags',
+          unitPrice: bagPrice,
           total: colourCost,
           category: 'materials',
         });
         subtotal += colourCost;
       }
 
-      const labourHours = Number(answers.stencil_labour_hours) || 4;
-      const crewSize = Number(answers.stencil_crew_size) || 2;
-      const totalLabourHours = labourHours * crewSize;
-      const labourCost = totalLabourHours * effectiveRate;
-
-      lineItems.push({
-        id: 'stencil_labour',
-        description: `Stencilling Labour (${crewSize} men × ${labourHours} hrs)`,
-        quantity: totalLabourHours,
-        unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: labourCost,
-        category: 'labour',
-      });
-      subtotal += labourCost;
+      // NO labour - included in pour labour
     }
 
-    // ========== Stamped Finish ==========
-    if (answers.finish_type === 'stamped') {
-      const matCost = Number(answers.stamp_mat_hire) || 200;
-
-      lineItems.push({
-        id: 'stamp_mat',
-        description: 'Stamp Mat Hire/Cost',
-        quantity: 1,
-        unit: 'allow',
-        unitPrice: matCost,
-        total: matCost,
-        category: 'plant',
-      });
-      subtotal += matCost;
-
-      if (answers.release_agent_required === true) {
-        const releaseRate = Number(answers.release_agent_rate) || 8;
-        const releaseCost = area * releaseRate;
-
-        lineItems.push({
-          id: 'release_agent',
-          description: `Release Agent (${area}m² @ $${releaseRate}/m²)`,
-          quantity: area,
-          unit: 'm²',
-          unitPrice: releaseRate,
-          total: releaseCost,
-          category: 'materials',
-        });
-        subtotal += releaseCost;
-      }
-
-      if (answers.stamp_colour_hardener_required === true) {
-        const colourRate = Number(answers.stamp_colour_rate) || 18;
-        const colourCost = area * colourRate;
-
-        lineItems.push({
-          id: 'stamp_colour',
-          description: `Colour Hardener (${area}m² @ $${colourRate}/m²)`,
-          quantity: area,
-          unit: 'm²',
-          unitPrice: colourRate,
-          total: colourCost,
-          category: 'materials',
-        });
-        subtotal += colourCost;
-      }
-
-      const labourHours = Number(answers.stamp_labour_hours) || 6;
-      const crewSize = Number(answers.stamp_crew_size) || 2;
-      const totalLabourHours = labourHours * crewSize;
-      const labourCost = totalLabourHours * effectiveRate;
-
-      lineItems.push({
-        id: 'stamp_labour',
-        description: `Stamping Labour (${crewSize} men × ${labourHours} hrs)`,
-        quantity: totalLabourHours,
-        unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: labourCost,
-        category: 'labour',
-      });
-      subtotal += labourCost;
-    }
-
-    // ========== Honed & Polished ==========
-    if (answers.finish_type === 'honed_polished') {
-      const polishRate = Number(answers.polish_rate) || 65;
-      const polishCost = area * polishRate;
-
-      lineItems.push({
-        id: 'polish',
-        description: `${getPolishGradeName(answers.polish_grade)} Finish (${area}m² @ $${polishRate}/m²)`,
-        quantity: area,
-        unit: 'm²',
-        unitPrice: polishRate,
-        total: polishCost,
-        category: 'subcontractor',
-      });
-      subtotal += polishCost;
-    }
-
-    // ========== Sealed (Standalone) ==========
-    if (answers.finish_type === 'sealed') {
-      // Sealing is handled in the sealing section below
-    }
-
-    // ========== Other Finish ==========
+    // OTHER FINISH
     if (answers.finish_type === 'other') {
-      const allowance = Number(answers.other_finish_allowance) || 500;
+      const materialCost = Number(answers.other_finish_material_cost) || 0;
+      if (materialCost > 0) {
+        lineItems.push({
+          id: 'other_finish_material',
+          description: `Other Finish Materials: ${answers.other_finish_description || 'Custom finish'}`,
+          quantity: 1,
+          unit: 'lot',
+          unitPrice: materialCost,
+          total: materialCost,
+          category: 'materials',
+        });
+        subtotal += materialCost;
+      }
 
-      lineItems.push({
-        id: 'other_finish',
-        description: answers.other_finish_description || 'Custom Finish Allowance',
-        quantity: 1,
-        unit: 'allow',
-        unitPrice: allowance,
-        total: allowance,
-        category: 'other',
-      });
-      subtotal += allowance;
+      const otherHours = Number(answers.other_finish_labour_hours) || 0;
+      const otherCrew = Number(answers.other_finish_crew_size) || 1;
+      if (otherHours > 0) {
+        const otherLabour = otherHours * otherCrew * labourRate;
+        lineItems.push({
+          id: 'other_finish_labour',
+          description: `Other Finish Labour (${otherCrew} men × ${otherHours} hrs)`,
+          quantity: otherHours * otherCrew,
+          unit: 'hrs',
+          unitPrice: labourRate,
+          total: otherLabour,
+          category: 'labour',
+        });
+        subtotal += otherLabour;
+      }
     }
 
-    // ========== Curing - Drum-based (no labour - included in pour labour) ==========
+    // ═══════════════════════════════════════════════════════════════
+    // CURING - Drum-based (no labour - included in pour)
+    // ═══════════════════════════════════════════════════════════════
     if (answers.curing_required === true) {
       const drumSize = Number(answers.curing_drum_size) || 20;
-      const drumPrice = Number(answers.curing_drum_price) || getPrice(priceMap, 'materials', 'CURE_DRUM', 150);
-      
+      const drumPrice = Number(answers.curing_drum_price) || 
+        getPrice(priceMap, 'materials', 'CURE_DRUM', 150);
+
       const coverageRate = 5; // 5m²/L coverage
       const litresNeeded = area / coverageRate;
-      const drumsNeeded = Number(answers.curing_drums_required) || Math.ceil(litresNeeded / drumSize);
+      const drumsNeeded = Number(answers.curing_drums_required) || 
+        Math.ceil(litresNeeded / drumSize) || 1;
       const curingCost = drumsNeeded * drumPrice;
 
       lineItems.push({
@@ -656,23 +464,33 @@ export const surfaceFinishingModule: EstimateModule = {
         category: 'materials',
       });
       subtotal += curingCost;
-      
-      // NO labour line item - included in pour labour
+
+      // NO labour - included in pour labour
     }
 
-    // ========== Sealing - Drum-based with labour (separate trip) ==========
+    // ═══════════════════════════════════════════════════════════════
+    // SEALING - Drum-based with labour (separate trip)
+    // ═══════════════════════════════════════════════════════════════
     if (answers.sealing_required === true || answers.finish_type === 'sealed') {
       const drumSize = Number(answers.sealer_drum_size) || 20;
-      const drumPrice = Number(answers.sealer_drum_price) || getPrice(priceMap, 'materials', 'SEALER_DRUM', 200);
-      
+      const isColourSealer = answers.finish_type === 'sealed' && 
+        answers.sealed_colour_required === true;
+
+      const drumPrice = isColourSealer
+        ? (Number(answers.colour_sealer_drum_price) || getPrice(priceMap, 'materials', 'COLOUR_SEALER_DRUM', 250))
+        : (Number(answers.sealer_drum_price) || getPrice(priceMap, 'materials', 'SEALER_DRUM', 200));
+
       const coverageRate = 8; // Prime 1-coat coverage rate
       const litresNeeded = area / coverageRate;
-      const drumsNeeded = Number(answers.sealer_drums_required) || Math.ceil(litresNeeded / drumSize);
+      const drumsNeeded = Number(answers.sealer_drums_required) || 
+        Math.ceil(litresNeeded / drumSize) || 1;
       const sealerCost = drumsNeeded * drumPrice;
 
       lineItems.push({
         id: 'sealer_material',
-        description: `Concrete Sealer (${drumsNeeded} × ${drumSize}L drums for ${area}m² @ 8m²/L)`,
+        description: isColourSealer 
+          ? `Colour Sealer (${drumsNeeded} × ${drumSize}L drums for ${area}m² @ 8m²/L)`
+          : `Concrete Sealer (${drumsNeeded} × ${drumSize}L drums for ${area}m² @ 8m²/L)`,
         quantity: drumsNeeded,
         unit: 'drums',
         unitPrice: drumPrice,
@@ -681,24 +499,25 @@ export const surfaceFinishingModule: EstimateModule = {
       });
       subtotal += sealerCost;
 
-      // Keep labour - sealing is a separate trip
+      // Sealing labour - separate trip
       const sealingMen = Number(answers.sealing_men) || 1;
       const sealingHours = Number(answers.sealing_hours_per_man) || 2;
-      const sealingLabour = sealingMen * sealingHours * effectiveRate;
+      const sealingLabour = sealingMen * sealingHours * labourRate;
 
       lineItems.push({
         id: 'sealing_labour',
         description: `Sealer Application Labour (${sealingMen} men × ${sealingHours} hrs)`,
         quantity: sealingMen * sealingHours,
         unit: 'hrs',
-        unitPrice: effectiveRate,
+        unitPrice: labourRate,
         total: sealingLabour,
         category: 'labour',
       });
       subtotal += sealingLabour;
 
-      // Call-out for return visit (sealing is always a return visit)
-      const callout = getPrice(priceMap, 'other', 'CALLOUT', 150);
+      // Call-out for return visit
+      const callout = Number(answers.sealing_callout) || 
+        getPrice(priceMap, 'other', 'CALLOUT', 150);
       lineItems.push({
         id: 'sealing_callout',
         description: 'Sealing Return Visit - Travel/Call-out',
@@ -711,14 +530,16 @@ export const surfaceFinishingModule: EstimateModule = {
       subtotal += callout;
     }
 
-    // ========== Sundries ==========
+    // ═══════════════════════════════════════════════════════════════
+    // SUNDRIES
+    // ═══════════════════════════════════════════════════════════════
     const sundries = Number(answers.sundries_allowance) || 75;
     if (sundries > 0) {
       lineItems.push({
-        id: 'sundries',
+        id: 'finishing_sundries',
         description: 'Finishing Sundries (rollers, sprayers, PPE)',
         quantity: 1,
-        unit: 'allow',
+        unit: 'lot',
         unitPrice: sundries,
         total: sundries,
         category: 'materials',
@@ -726,114 +547,66 @@ export const surfaceFinishingModule: EstimateModule = {
       subtotal += sundries;
     }
 
-    return {
-      moduleId: 'surface-finishing',
-      moduleName: 'Surface Finishing',
-      lineItems,
-      subtotal: Math.round(subtotal * 100) / 100,
-      exclusions: [],
-    };
+    return { lineItems, subtotal };
   },
 
-  getExclusions: (answers): ExclusionItem[] => {
+  getExclusions: (answers) => {
     const exclusions: ExclusionItem[] = [];
 
-    // No finish at all
-    if (answers.finish_required === false) {
+    if (answers.finish_required !== true) {
       exclusions.push({
-        id: 'no_finishing',
-        text: 'Surface finishing, decorative finishes, curing compounds and sealing are excluded.',
-        moduleId: 'surface-finishing',
+        id: 'no_premium_finish',
+        text: 'All surface finishing works',
       });
       return exclusions;
     }
 
-    // Finish type specific exclusions
+    // Only add exclusions for finishes NOT selected
     if (answers.finish_type !== 'exposed_aggregate') {
       exclusions.push({
-        id: 'no_exposed_agg',
-        text: 'Exposed aggregate finish is excluded.',
-        moduleId: 'surface-finishing',
+        id: 'no_exposed',
+        text: 'Exposed aggregate finish',
       });
     }
-
     if (answers.finish_type !== 'stencilled') {
       exclusions.push({
         id: 'no_stencilled',
-        text: 'Stencilled concrete finish is excluded.',
-        moduleId: 'surface-finishing',
+        text: 'Stencilled/pattern finish',
       });
     }
-
-    if (answers.finish_type !== 'stamped') {
+    if (answers.finish_type !== 'sealed') {
       exclusions.push({
-        id: 'no_stamped',
-        text: 'Stamped concrete finish is excluded.',
-        moduleId: 'surface-finishing',
+        id: 'no_sealed',
+        text: 'Sealed finish',
       });
     }
 
-    if (answers.finish_type !== 'honed_polished') {
-      exclusions.push({
-        id: 'no_polishing',
-        text: 'Honed or polished concrete finishes are excluded.',
-        moduleId: 'surface-finishing',
-      });
-    }
+    // Always exclude these (temporarily removed options)
+    exclusions.push({
+      id: 'no_honed_polished',
+      text: 'Honed and polished finish',
+    });
+    exclusions.push({
+      id: 'no_stamped',
+      text: 'Stamped/textured finish',
+    });
 
-    // Curing exclusion
-    if (answers.curing_required === false) {
+    if (answers.curing_required !== true) {
       exclusions.push({
         id: 'no_curing',
-        text: 'Concrete curing is excluded.',
-        moduleId: 'surface-finishing',
+        text: 'Concrete curing compound',
       });
     }
 
-    // Sealing exclusion
-    if (answers.sealing_required === false && answers.finish_type !== 'sealed') {
+    if (answers.sealing_required !== true && answers.finish_type !== 'sealed') {
       exclusions.push({
         id: 'no_sealing',
-        text: 'Concrete sealing is excluded.',
-        moduleId: 'surface-finishing',
-      });
-    }
-
-    // Other finish - details TBD
-    if (answers.finish_type === 'other') {
-      exclusions.push({
-        id: 'decorative_tbd',
-        text: 'Decorative finish details to be confirmed.',
-        moduleId: 'surface-finishing',
+        text: 'Concrete sealing',
       });
     }
 
     return exclusions;
   },
-
-  validate: (answers) => {
-    const errors: string[] = [];
-
-    if (answers.finish_required === true) {
-      if (!answers.finish_type) {
-        errors.push('Please select a finish type');
-      }
-      if (!answers.finish_area || answers.finish_area <= 0) {
-        errors.push('Please specify the area to be finished');
-      }
-    }
-
-    return { valid: errors.length === 0, errors };
-  },
 };
 
-// Helper functions
-function getPolishGradeName(grade: string): string {
-  const names: Record<string, string> = {
-    'grind_seal': 'Grind & Seal',
-    'honed': 'Honed',
-    'semi_polished': 'Semi-Polished',
-    'high_polish': 'High Polish',
-  };
-  return names[grade] || 'Polished';
-}
+export default surfaceFinishingModule;
