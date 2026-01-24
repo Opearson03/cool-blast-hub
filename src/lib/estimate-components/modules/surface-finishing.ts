@@ -1,9 +1,12 @@
 import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
 import { getPrice } from '../types';
 
+const MODULE_ID = 'surface-finishing';
+const MODULE_NAME = 'Surface Finishing';
+
 export const surfaceFinishingModule: EstimateModule = {
-  id: 'surface-finishing',
-  name: 'Surface Finishing',
+  id: MODULE_ID,
+  name: MODULE_NAME,
   description: 'Surface finishes, curing, and sealing for concrete',
   icon: 'Paintbrush',
 
@@ -316,12 +319,18 @@ export const surfaceFinishingModule: EstimateModule = {
     },
   ],
 
-  calculate: (scopeData, answers, priceMap) => {
+  calculate: (answers, priceMap, scopeData): ComponentCost => {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
     if (answers.finish_required !== true) {
-      return { lineItems, subtotal };
+      return {
+        moduleId: MODULE_ID,
+        moduleName: MODULE_NAME,
+        lineItems: [],
+        subtotal: 0,
+        exclusions: [],
+      };
     }
 
     const area = Number(answers.finish_area) || Number(scopeData.area) || 0;
@@ -547,16 +556,23 @@ export const surfaceFinishingModule: EstimateModule = {
       subtotal += sundries;
     }
 
-    return { lineItems, subtotal };
+    return {
+      moduleId: MODULE_ID,
+      moduleName: MODULE_NAME,
+      lineItems,
+      subtotal,
+      exclusions: [],
+    };
   },
 
-  getExclusions: (answers) => {
+  getExclusions: (answers): ExclusionItem[] => {
     const exclusions: ExclusionItem[] = [];
 
     if (answers.finish_required !== true) {
       exclusions.push({
         id: 'no_premium_finish',
         text: 'All surface finishing works',
+        moduleId: MODULE_ID,
       });
       return exclusions;
     }
@@ -566,18 +582,21 @@ export const surfaceFinishingModule: EstimateModule = {
       exclusions.push({
         id: 'no_exposed',
         text: 'Exposed aggregate finish',
+        moduleId: MODULE_ID,
       });
     }
     if (answers.finish_type !== 'stencilled') {
       exclusions.push({
         id: 'no_stencilled',
         text: 'Stencilled/pattern finish',
+        moduleId: MODULE_ID,
       });
     }
     if (answers.finish_type !== 'sealed') {
       exclusions.push({
         id: 'no_sealed',
         text: 'Sealed finish',
+        moduleId: MODULE_ID,
       });
     }
 
@@ -585,16 +604,19 @@ export const surfaceFinishingModule: EstimateModule = {
     exclusions.push({
       id: 'no_honed_polished',
       text: 'Honed and polished finish',
+      moduleId: MODULE_ID,
     });
     exclusions.push({
       id: 'no_stamped',
       text: 'Stamped/textured finish',
+      moduleId: MODULE_ID,
     });
 
     if (answers.curing_required !== true) {
       exclusions.push({
         id: 'no_curing',
         text: 'Concrete curing compound',
+        moduleId: MODULE_ID,
       });
     }
 
@@ -602,10 +624,24 @@ export const surfaceFinishingModule: EstimateModule = {
       exclusions.push({
         id: 'no_sealing',
         text: 'Concrete sealing',
+        moduleId: MODULE_ID,
       });
     }
 
     return exclusions;
+  },
+
+  validate: (answers) => {
+    const errors: string[] = [];
+    
+    if (answers.finish_required === true && !answers.finish_type) {
+      errors.push('Please select a surface finish type');
+    }
+    
+    return {
+      valid: errors.length === 0,
+      errors,
+    };
   },
 };
 
