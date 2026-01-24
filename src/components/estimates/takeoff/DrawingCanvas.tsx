@@ -820,19 +820,27 @@ export function DrawingCanvas({
 
 
   return (
-    <Stage
-      ref={stageRef}
-      width={width}
-      height={height}
-      style={{ cursor: getCursor() }}
-      onClick={handleStageClick}
-      onDblClick={handleDoubleClick}
-      onMouseDown={handleMouseDown}
-      onMouseMove={handleMouseMove}
-      onMouseUp={handleMouseUp}
-      onMouseLeave={handleMouseUp}
-      onWheel={handleWheel}
+    <div 
+      tabIndex={-1} 
+      style={{ outline: 'none', width, height }}
+      onKeyDown={(e) => {
+        // Don't prevent keyboard events from bubbling to window
+        // This ensures Backspace/Escape shortcuts work from PlanTakeoffStep
+      }}
     >
+      <Stage
+        ref={stageRef}
+        width={width}
+        height={height}
+        style={{ cursor: getCursor() }}
+        onClick={handleStageClick}
+        onDblClick={handleDoubleClick}
+        onMouseDown={handleMouseDown}
+        onMouseMove={handleMouseMove}
+        onMouseUp={handleMouseUp}
+        onMouseLeave={handleMouseUp}
+        onWheel={handleWheel}
+      >
       <Layer>
         {/* Render pending slab reference first (as background) */}
         {renderPendingSlabReference()}
@@ -844,6 +852,7 @@ export function DrawingCanvas({
         {renderPolylinePreview()}
         {renderCalibrationOverlay()}
       </Layer>
-    </Stage>
+      </Stage>
+    </div>
   );
 }
