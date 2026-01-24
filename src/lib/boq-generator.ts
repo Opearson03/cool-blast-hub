@@ -1101,6 +1101,18 @@ export function generateBOQFromEstimate(
           pricePerRoll,
           `Covers ${Math.round(totalArea)}m² incl. overlap`
         );
+
+        // Duct tape - 2 rolls per membrane roll
+        const ductTapeRolls = rollsRequired * 2;
+        const ductTapePrice = 4; // Default $4 per roll
+        addItem(
+          "other",
+          "Duct Tape",
+          ductTapeRolls,
+          "rolls",
+          ductTapePrice,
+          "For membrane seams"
+        );
       }
     }
 

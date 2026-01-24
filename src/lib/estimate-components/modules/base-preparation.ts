@@ -252,6 +252,22 @@ export const basePreparationModule: EstimateModule = {
         category: 'materials',
       });
       subtotal += cost;
+
+      // Duct tape - 2 rolls per membrane roll
+      const ductTapeRolls = rollsRequired * 2;
+      const ductTapePrice = getPrice(priceMap, 'consumables', 'DUCT', 4);
+      const ductTapeCost = ductTapeRolls * ductTapePrice;
+
+      lineItems.push({
+        id: 'duct_tape',
+        description: `Duct Tape (${ductTapeRolls} rolls)`,
+        quantity: ductTapeRolls,
+        unit: 'rolls',
+        unitPrice: ductTapePrice,
+        total: Math.round(ductTapeCost * 100) / 100,
+        category: 'materials',
+      });
+      subtotal += ductTapeCost;
     }
 
     return {
