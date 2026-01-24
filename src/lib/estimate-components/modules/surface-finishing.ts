@@ -221,72 +221,48 @@ export const surfaceFinishingModule: EstimateModule = {
     },
 
     // ========== Exposed Aggregate Specific ==========
+    // Method: Place concrete → finish → spray retarder → wash off → cure 28 days → acid wash → seal
     {
-      id: 'exposure_level',
-      type: 'select',
-      label: 'Aggregate exposure level',
-      options: [
-        { value: 'light', label: 'Light' },
-        { value: 'medium', label: 'Medium' },
-        { value: 'heavy', label: 'Heavy' },
-      ],
-      defaultValue: 'medium',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
-    },
-    {
-      id: 'exposure_method',
-      type: 'select',
-      label: 'Exposure method',
-      options: [
-        { value: 'retarder', label: 'Surface retarder' },
-        { value: 'acid_wash', label: 'Acid wash' },
-        { value: 'both', label: 'Both' },
-      ],
-      defaultValue: 'retarder',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
-    },
-    {
-      id: 'retarder_coverage_rate',
+      id: 'retarder_drum_size',
       type: 'number',
-      label: 'Retarder coverage rate (m²/L)',
-      defaultValue: 8,
+      label: 'Retarder drum size (L)',
+      defaultValue: 20,
       min: 1,
-      unit: 'm²/L',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'exposed_aggregate' &&
-        (answers.exposure_method === 'retarder' || answers.exposure_method === 'both'),
+      unit: 'L',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
     },
     {
-      id: 'retarder_price_per_litre',
+      id: 'retarder_drum_price',
       type: 'currency',
-      label: 'Retarder price per litre',
-      defaultValue: 45,
-      unit: '/L',
-      priceListKey: 'materials.RETARDER',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'exposed_aggregate' &&
-        (answers.exposure_method === 'retarder' || answers.exposure_method === 'both'),
+      label: 'Retarder price per drum',
+      defaultValue: 125,
+      priceListKey: 'materials.RETARDER_DRUM',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
     },
     {
-      id: 'retarder_application_hours',
+      id: 'retarder_drums_required',
       type: 'number',
-      label: 'Application labour (hours)',
-      defaultValue: 2,
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'exposed_aggregate' &&
-        (answers.exposure_method === 'retarder' || answers.exposure_method === 'both'),
+      label: 'Drums required',
+      helpText: 'Auto-calculated: 4m²/L coverage, rounded up to whole drums',
+      min: 1,
+      unit: 'drums',
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const area = Number(moduleAnswers.finish_area) || Number(scopeData.area) || 0;
+        const drumSize = Number(moduleAnswers.retarder_drum_size) || 20;
+        const coverageRate = 4; // 4m²/L
+        const litresNeeded = area / coverageRate;
+        return Math.ceil(litresNeeded / drumSize);
+      },
+      derivedReadOnly: false,
     },
     {
-      id: 'neutralisation_required',
+      id: 'acid_wash_required',
       type: 'boolean',
-      label: 'Neutralisation required?',
+      label: 'Include acid wash & seal return visit?',
+      helpText: 'Required after 28 days cure - before sealing',
       defaultValue: true,
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'exposed_aggregate' &&
-        (answers.exposure_method === 'acid_wash' || answers.exposure_method === 'both'),
+      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
     },
     {
       id: 'acid_wash_hours',
@@ -298,7 +274,7 @@ export const surfaceFinishingModule: EstimateModule = {
       unit: 'hrs',
       showIf: (answers) => answers.finish_required === true && 
         answers.finish_type === 'exposed_aggregate' &&
-        (answers.exposure_method === 'acid_wash' || answers.exposure_method === 'both'),
+        answers.acid_wash_required === true,
     },
     {
       id: 'acid_price',
@@ -308,42 +284,8 @@ export const surfaceFinishingModule: EstimateModule = {
       priceListKey: 'materials.ACID_WASH',
       showIf: (answers) => answers.finish_required === true && 
         answers.finish_type === 'exposed_aggregate' &&
-        (answers.exposure_method === 'acid_wash' || answers.exposure_method === 'both'),
+        answers.acid_wash_required === true,
     },
-    {
-      id: 'washoff_timing',
-      type: 'select',
-      label: 'Wash-off timing',
-      options: [
-        { value: 'same_day', label: 'Same day' },
-        { value: 'next_day', label: 'Next day' },
-        { value: 'return_visit', label: 'Return visit required' },
-      ],
-      defaultValue: 'same_day',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
-    },
-    {
-      id: 'return_visit_labour',
-      type: 'number',
-      label: 'Return visit labour hours',
-      defaultValue: 4,
-      min: 1,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'exposed_aggregate' &&
-        answers.washoff_timing === 'return_visit',
-    },
-    {
-      id: 'callout_charge',
-      type: 'currency',
-      label: 'Travel / call-out charge',
-      defaultValue: 150,
-      priceListKey: 'other.CALLOUT',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.finish_type === 'exposed_aggregate' &&
-        answers.washoff_timing === 'return_visit',
-    },
-
     // ========== Curing (Reusable Module) ==========
     {
       id: 'curing_required',
@@ -576,46 +518,36 @@ export const surfaceFinishingModule: EstimateModule = {
     const labourRate = getPrice(priceMap, 'labour', 'LABOUR HR', 85);
     const effectiveRate = labourRate;
 
-    // ========== Exposed Aggregate - Retarder ==========
-    if (answers.finish_type === 'exposed_aggregate' &&
-        (answers.exposure_method === 'retarder' || answers.exposure_method === 'both')) {
-      const coverageRate = Number(answers.retarder_coverage_rate) || 8;
-      const pricePerLitre = Number(answers.retarder_price_per_litre) || getPrice(priceMap, 'materials', 'RETARDER', 45);
-      const litresNeeded = Math.ceil(area / coverageRate);
-      const retarderCost = litresNeeded * pricePerLitre;
+    // ========== Exposed Aggregate - Retarder (Drum-based) ==========
+    if (answers.finish_type === 'exposed_aggregate') {
+      const drumSize = Number(answers.retarder_drum_size) || 20;
+      const drumPrice = Number(answers.retarder_drum_price) || getPrice(priceMap, 'materials', 'RETARDER_DRUM', 125);
+      
+      // Calculate drums needed: 4m²/L coverage, rounded up to whole drums
+      const coverageRate = 4; // 4m²/L
+      const litresNeeded = area / coverageRate;
+      const drumsNeeded = Number(answers.retarder_drums_required) || Math.ceil(litresNeeded / drumSize);
+      const totalLitres = drumsNeeded * drumSize;
+      const retarderCost = drumsNeeded * drumPrice;
 
       lineItems.push({
         id: 'retarder_material',
-        description: `Surface Retarder (${litresNeeded}L for ${area}m²)`,
-        quantity: litresNeeded,
-        unit: 'L',
-        unitPrice: pricePerLitre,
+        description: `Surface Retarder (${drumsNeeded} × ${drumSize}L drums for ${area}m² @ 4m²/L)`,
+        quantity: drumsNeeded,
+        unit: 'drums',
+        unitPrice: drumPrice,
         total: retarderCost,
         category: 'materials',
       });
       subtotal += retarderCost;
-
-      const appHours = Number(answers.retarder_application_hours) || 2;
-      const appCost = appHours * effectiveRate;
-      lineItems.push({
-        id: 'retarder_application',
-        description: `Retarder Application Labour (${appHours} hrs)`,
-        quantity: appHours,
-        unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: appCost,
-        category: 'labour',
-      });
-      subtotal += appCost;
     }
 
-    // ========== Exposed Aggregate - Acid Wash ==========
-    if (answers.finish_type === 'exposed_aggregate' &&
-        (answers.exposure_method === 'acid_wash' || answers.exposure_method === 'both')) {
+    // ========== Exposed Aggregate - Acid Wash Return Visit ==========
+    if (answers.finish_type === 'exposed_aggregate' && answers.acid_wash_required === true) {
       const acidPrice = Number(answers.acid_price) || getPrice(priceMap, 'materials', 'ACID_WASH', 85);
       lineItems.push({
         id: 'acid_wash_materials',
-        description: 'Acid Wash Materials',
+        description: 'Acid Wash Materials (return visit after 28 day cure)',
         quantity: 1,
         unit: 'allow',
         unitPrice: acidPrice,
@@ -636,28 +568,12 @@ export const surfaceFinishingModule: EstimateModule = {
         category: 'labour',
       });
       subtotal += washCost;
-    }
 
-    // ========== Exposed Aggregate - Return Visit ==========
-    if (answers.finish_type === 'exposed_aggregate' && answers.washoff_timing === 'return_visit') {
-      const returnHours = Number(answers.return_visit_labour) || 4;
-      const returnCost = returnHours * effectiveRate;
-      const callout = Number(answers.callout_charge) || getPrice(priceMap, 'other', 'CALLOUT', 150);
-
+      // Callout charge for return visit
+      const callout = getPrice(priceMap, 'other', 'CALLOUT', 150);
       lineItems.push({
-        id: 'return_visit_labour',
-        description: `Return Visit Labour (${returnHours} hrs)`,
-        quantity: returnHours,
-        unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: returnCost,
-        category: 'labour',
-      });
-      subtotal += returnCost;
-
-      lineItems.push({
-        id: 'callout_charge',
-        description: 'Travel / Call-out Charge',
+        id: 'acid_wash_callout',
+        description: 'Acid Wash Return Visit - Travel/Call-out',
         quantity: 1,
         unit: 'visit',
         unitPrice: callout,
