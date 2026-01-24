@@ -85,9 +85,8 @@ export function LinearDimensionsDialog({
     setIsSaving(true);
     try {
       await onConfirmAndAddAnother?.(typeName, width, height, labels.showToe ? toe : undefined);
-      // Auto-increment name for next section (SF1 -> SF2, etc.)
-      const currentNum = parseInt(typeName.replace(/\D/g, '')) || 0;
-      setName(`${prefix}${currentNum + 1}`);
+      // Close dialog to return to drawing mode for next segment
+      onOpenChange(false);
     } finally {
       setIsSaving(false);
     }
