@@ -267,6 +267,17 @@ export function DrawingCanvas({
     }
   }, [drawingPoints, onPointsChange]);
 
+  // Handle wheel events - let Shift+scroll bubble up for zoom
+  const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
+    // If Shift is held, let the event bubble up for zoom handling
+    if (e.evt.shiftKey) {
+      // Don't prevent default - let parent handle zoom
+      return;
+    }
+    // For normal scroll, prevent default to avoid page scrolling
+    e.evt.preventDefault();
+  }, []);
+
   // Get cursor style
   const getCursor = (): string => {
     if (isCalibrationMode) return 'crosshair';
@@ -808,6 +819,7 @@ export function DrawingCanvas({
 
   if (width === 0 || height === 0) return null;
 
+
   return (
     <Stage
       ref={stageRef}
@@ -820,6 +832,7 @@ export function DrawingCanvas({
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
+      onWheel={handleWheel}
     >
       <Layer>
         {/* Render pending slab reference first (as background) */}
