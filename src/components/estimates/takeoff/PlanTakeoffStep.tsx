@@ -1362,7 +1362,15 @@ export function PlanTakeoffStep({
       {/* Linear dimensions dialog */}
       <LinearDimensionsDialog
         open={showLinearDimensions}
-        onOpenChange={setShowLinearDimensions}
+        onOpenChange={(open) => {
+          setShowLinearDimensions(open);
+          if (!open) {
+            // Dialog closed without saving, reset polyline state
+            if (pendingPolylineLength === 0) {
+              setPolylinePoints([]);
+            }
+          }
+        }}
         lengthMeters={pendingPolylineLength}
         scopeType={activeScope || 'strip_footings'}
         defaultName={(() => {
@@ -1378,7 +1386,7 @@ export function PlanTakeoffStep({
           return `${prefix}${existingForScope.length + 1}`;
         })()}
         onConfirm={async (name, width, height, toe) => {
-          if (!activeScope || !currentFileId || polylinePoints.length < 2) return;
+          if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
           const sectionName = name.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
           await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, sectionName, toe);
@@ -1389,14 +1397,14 @@ export function PlanTakeoffStep({
           setPendingMarkupName('');
         }}
         onConfirmAndAddAnother={async (name, width, height, toe) => {
-          if (!activeScope || !currentFileId || polylinePoints.length < 2) return;
+          if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
           const sectionName = name.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
           await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, sectionName, toe);
-          setPolylinePoints([]); // Clear points but keep tool and scope active
+          // Clear drawing state but keep scope and tool active for next segment
+          setPolylinePoints([]);
           setPendingPolylineLength(0);
-          // Reset name - the dialog handles auto-increment internally now
-          setPendingMarkupName('');
+          // Keep activeScope and activeTool so user can immediately continue drawing
         }}
       />
 
