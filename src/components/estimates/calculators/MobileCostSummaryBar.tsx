@@ -11,20 +11,12 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/format-currency";
 
 interface MobileCostSummaryBarProps {
   moduleCosts: ComponentCost[];
   marginPercent: number;
   scopeVolume?: number;
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 export function MobileCostSummaryBar({

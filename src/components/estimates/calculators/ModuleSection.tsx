@@ -29,6 +29,7 @@ import { AreaReinforcementInput } from "./AreaReinforcementInput";
 import { PierReinforcementInput } from "./PierReinforcementInput";
 import { FootingReinforcementInput } from "./FootingReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
+import { formatCurrency } from "@/lib/format-currency";
 
 interface ModuleSectionProps {
   module: EstimateModule;
@@ -42,15 +43,6 @@ interface ModuleSectionProps {
   onMarkDone: () => void;
   scopeData?: Record<string, any>;
   onScopeDataChange?: (key: string, value: any) => void;
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 function QuestionInput({

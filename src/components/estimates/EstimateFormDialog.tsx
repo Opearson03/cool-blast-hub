@@ -530,8 +530,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
     return new Intl.NumberFormat("en-AU", {
       style: "currency",
       currency: "AUD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 

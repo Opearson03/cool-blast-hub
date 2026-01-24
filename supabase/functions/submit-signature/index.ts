@@ -251,6 +251,7 @@ async function generateSignedQuotePDF(
       style: 'currency',
       currency: 'AUD',
       minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount);
   };
 

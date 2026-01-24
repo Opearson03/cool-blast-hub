@@ -554,6 +554,7 @@ const handler = async (req: Request): Promise<Response> => {
         style: 'currency',
         currency: 'AUD',
         minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
       }).format(amount);
     };
 

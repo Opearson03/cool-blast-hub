@@ -1,20 +1,12 @@
 import { ComponentCost } from "@/lib/estimate-components/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { formatCurrency } from "@/lib/format-currency";
 
 interface ModularCostSummaryProps {
   moduleCosts: ComponentCost[];
   marginPercent: number;
   scopeVolume?: number;
-}
-
-function formatCurrency(value: number): string {
-  return new Intl.NumberFormat('en-AU', {
-    style: 'currency',
-    currency: 'AUD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 export function ModularCostSummary({
