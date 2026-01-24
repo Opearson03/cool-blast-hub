@@ -150,6 +150,23 @@ export function PlanTakeoffStep({
     [selectedScopes, scopeLabels]
   );
 
+  // Get existing beams for the slab we're adding to (for beam type grouping)
+  const existingBeamsForAddDialog = useMemo(() => {
+    if (!addingBeamToSlabId || !addingBeamType) return [];
+    
+    // Find all beams that belong to the same parent slab and match the beam type
+    const beamMarkupType = addingBeamType; // 'edge_beam' or 'internal_beam'
+    return markups
+      .filter(m => m.parent_markup_id === addingBeamToSlabId && m.markup_type === beamMarkupType)
+      .map(m => ({
+        id: m.id,
+        name: m.name || '',
+        width: m.width_mm || 450,
+        depth: m.height_mm || 450,
+        length: m.length_m || 0,
+      }));
+  }, [addingBeamToSlabId, addingBeamType, markups]);
+
   // Track whether we've handled the initial scope to prevent re-triggering
   const initialScopeHandledRef = useRef(false);
 
@@ -1451,13 +1468,14 @@ export function PlanTakeoffStep({
           if (!open) handleCancelAddingBeamToSlab();
         }}
         beamType={addingBeamType || 'edge_beam'}
-        initialName={addingBeamType === 'edge_beam' ? 'Edge Beam' : 'Internal Beam'}
-        initialWidth={450}
-        initialDepth={450}
+        initialName={addingBeamType === 'edge_beam' ? 'EB1' : 'IB1'}
+        initialWidth={addingBeamType === 'edge_beam' ? 450 : 300}
+        initialDepth={addingBeamType === 'edge_beam' ? 450 : 400}
         length={pendingBeamLength}
         onSave={handleSaveBeamToExistingSlab}
         mode="add"
         slabName={markups.find(m => m.id === addingBeamToSlabId)?.name || 'Slab'}
+        existingBeams={existingBeamsForAddDialog}
       />
     </div>
   );
