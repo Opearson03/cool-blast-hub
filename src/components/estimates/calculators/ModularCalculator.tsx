@@ -28,6 +28,7 @@ import { MultiPierGroupInput } from "./MultiPierGroupInput";
 import { MultiPadFootingGroupInput } from "./MultiPadFootingGroupInput";
 import { MultiFootingInput } from "./MultiFootingInput";
 import { MultiLinearInput } from "./MultiLinearInput";
+import { MultiLinearTypeInput } from "./MultiLinearTypeInput";
 import { MultiBeamInput } from "./MultiBeamInput";
 import { MultiBeamTypeInput } from "./MultiBeamTypeInput";
 import { MultiDemolitionInput } from "./MultiDemolitionInput";
@@ -895,19 +896,20 @@ export function ModularCalculator({
         />
       )}
 
-      {/* Multi-linear input for linear scopes (walls, kerbs, strip footings) */}
+      {/* Multi-linear type input for linear scopes (walls, kerbs, strip footings) */}
       {scope.supportsLinearSections && (
-        <MultiLinearInput
-          scopeId={scope.id}
-          label={scope.linearSectionsLabel}
-          sections={scopeAnswers.linearSections || [{ id: 'section-1', name: 'Section 1', length: 0, dimension1: 450, dimension2: 300 }]}
-          onChange={handleLinearSectionsChange}
-          // Markup prompt support
-          onRequestMarkup={onRequestMarkup}
-          hasPlans={hasPlans}
-          skipMarkupPrompt={skipMarkupPrompt}
-          onSkipMarkupPromptChange={onSkipMarkupPromptChange}
-        />
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">{scope.linearSectionsLabel || `${scope.name} Sections`}</CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <MultiLinearTypeInput
+              scopeId={scope.id}
+              sections={scopeAnswers.linearSections || [{ id: 'section-1', name: 'SF1-1', length: 0, dimension1: 450, dimension2: 300 }]}
+              onChange={handleLinearSectionsChange}
+            />
+          </CardContent>
+        </Card>
       )}
 
       {/* Multi-pad-footing group input */}
