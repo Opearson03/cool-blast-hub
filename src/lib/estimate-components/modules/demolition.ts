@@ -166,6 +166,14 @@ export const demolitionModule: EstimateModule = {
       unit: '/hr',
       showIf: () => false, // Hidden - managed by custom component
     },
+    {
+      id: 'saw_cutting_establishment',
+      type: 'currency',
+      label: 'Site Establishment',
+      defaultValue: 150,
+      priceListKey: 'joint_saw_cutting.ESTABLISHMENT',
+      showIf: () => false, // Hidden - managed by custom component
+    },
     // ============ LABOUR HOURS SECTION ============
     {
       id: 'demo_labour_required',
@@ -332,6 +340,20 @@ export const demolitionModule: EstimateModule = {
     // Line 4: Saw Cutting (if required)
     if (answers.saw_cutting_required) {
       const sawCuttingMethod = answers.saw_cutting_method || 'linear';
+      const sawCuttingEstablishment = Number(answers.saw_cutting_establishment) || getPrice(priceMap, 'joint_saw_cutting', 'ESTABLISHMENT', 150);
+      
+      // Site establishment line item
+      if (sawCuttingEstablishment > 0) {
+        lineItems.push({
+          id: 'saw_cutting_establishment',
+          description: 'Saw Cutting - Site Establishment',
+          quantity: 1,
+          unit: 'ea',
+          unitPrice: sawCuttingEstablishment,
+          total: sawCuttingEstablishment,
+          category: 'subcontractor',
+        });
+      }
       
       if (sawCuttingMethod === 'linear') {
         const sawCuttingLength = Number(answers.saw_cutting_length) || 0;

@@ -1273,6 +1273,8 @@ function DemolitionModuleSection({
               onSawCuttingHoursChange={(hours) => onAnswerChange('saw_cutting_hours', hours)}
               sawCuttingHourlyRate={answers.saw_cutting_hourly_rate || getPrice('joint_saw_cutting', 'SAWCUT_HR', 180)}
               onSawCuttingHourlyRateChange={(rate) => onAnswerChange('saw_cutting_hourly_rate', rate)}
+              sawCuttingEstablishment={answers.saw_cutting_establishment ?? 150}
+              onSawCuttingEstablishmentChange={(rate) => onAnswerChange('saw_cutting_establishment', rate)}
               // Labour hours props
               demoLabourRequired={answers.demo_labour_required || false}
               onDemoLabourRequiredChange={(val) => onAnswerChange('demo_labour_required', val)}
