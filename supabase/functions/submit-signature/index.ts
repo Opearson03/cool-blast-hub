@@ -975,6 +975,10 @@ function generateBOQFromEstimateData(
         const rollsRequired = Math.ceil(totalArea / 200);
         if (rollsRequired > 0) {
           addItem("other", "Poly Membrane", rollsRequired, "rolls", basePrepModule.membrane_price || 180);
+          
+          // Duct tape - 2 rolls per membrane roll
+          const ductTapeRolls = rollsRequired * 2;
+          addItem("other", "Duct Tape", ductTapeRolls, "rolls", 4);
         }
       }
     }
