@@ -18,6 +18,19 @@ interface BeamTypeGroup {
   totalVolume: number;
 }
 
+// Interface for linear type grouping (strip footings, retaining wall footings, etc.)
+interface LinearTypeGroup {
+  baseName: string;
+  width: number;
+  depth: number;
+  segments: TakeoffMarkup[];
+  totalLength: number;
+  totalVolume: number;
+}
+
+// Linear scope IDs that should be grouped by type
+const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls'] as const;
+
 interface ScopeMarkupChecklistProps {
   scopes: { id: string; label: string }[];
   markups: TakeoffMarkup[];
@@ -290,121 +303,182 @@ export function ScopeMarkupChecklist({
                 {/* Markup details - compact list */}
                 {scopeMarkups.length > 0 && (
                   <div className="border-t mt-2 pt-2 space-y-1">
-                    {scopeMarkups.slice(0, 5).map((markup, idx) => {
-                      const isPolyline = markup.shape_type === 'polyline';
-                      const isPoint = markup.shape_type === 'point';
-                      const isBeam = markup.markup_type === 'edge_beam' || markup.markup_type === 'internal_beam';
-                      const displayLabel = isPoint 
-                        ? `${markup.pier_quantity || 1} item${(markup.pier_quantity || 1) !== 1 ? 's' : ''}`
-                        : isPolyline
-                          ? formatLength(markup.length_m || null)
-                          : formatArea(markup.area_sqm);
-                      const defaultName = isPolyline ? `Section ${idx + 1}` : `Area ${idx + 1}`;
-                      
-                      // Get child beams for this markup
-                      const childBeams = markups.filter(m => m.parent_markup_id === markup.id);
-                      
-                      return (
-                        <div key={markup.id}>
+                    {/* Check if this is a linear scope that should be grouped by type */}
+                    {LINEAR_SCOPES.includes(scope.id as any) ? (
+                      // Group linear markups by type (SF1, RF1, etc.)
+                      (() => {
+                        const linearGroups: LinearTypeGroup[] = [];
+                        const groupMap = new Map<string, LinearTypeGroup>();
+                        
+                        scopeMarkups.forEach(markup => {
+                          if (markup.shape_type !== 'polyline') return;
+                          
+                          const baseName = (markup.name || '').split('-')[0].trim() || 'Section';
+                          const width = markup.width_mm || 0;
+                          const depth = markup.depth_mm || markup.height_mm || 0;
+                          const key = `${baseName}-${width}-${depth}`;
+                          
+                          if (!groupMap.has(key)) {
+                            const group: LinearTypeGroup = {
+                              baseName,
+                              width,
+                              depth,
+                              segments: [markup],
+                              totalLength: markup.length_m || 0,
+                              totalVolume: (markup.length_m || 0) * (width / 1000) * (depth / 1000)
+                            };
+                            groupMap.set(key, group);
+                            linearGroups.push(group);
+                          } else {
+                            const group = groupMap.get(key)!;
+                            group.segments.push(markup);
+                            group.totalLength += markup.length_m || 0;
+                            group.totalVolume += (markup.length_m || 0) * (width / 1000) * (depth / 1000);
+                          }
+                        });
+                        
+                        // Sort by type name
+                        linearGroups.sort((a, b) => a.baseName.localeCompare(b.baseName, undefined, { numeric: true }));
+                        
+                        return linearGroups.map((group) => (
                           <div 
+                            key={`${group.baseName}-${group.width}-${group.depth}`}
                             className="flex items-center gap-1.5 text-xs py-1 px-1.5 rounded bg-muted/50"
                           >
-                            <span className="flex-1 truncate">{markup.name || defaultName}</span>
-                            <span className="text-muted-foreground font-mono text-[10px]">{displayLabel}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-5 w-5 p-0 touch-manipulation"
-                              onClick={() => onDeleteMarkup(markup.id)}
-                            >
-                              <Trash2 className="h-2.5 w-2.5 text-destructive" />
-                            </Button>
+                            <Badge variant="outline" className="h-5 text-[10px] px-1.5 font-mono">
+                              {group.baseName}
+                            </Badge>
+                            <span className="text-muted-foreground text-[10px]">
+                              {group.width}×{group.depth}mm
+                            </span>
+                            <span className="flex-1" />
+                            <span className="text-muted-foreground font-mono text-[10px]">
+                              {group.segments.length > 1 ? `${group.segments.length}× ` : ''}{group.totalLength.toFixed(1)}m
+                            </span>
+                            <span className="text-muted-foreground font-mono text-[10px]">
+                              {group.totalVolume.toFixed(2)}m³
+                            </span>
                           </div>
-                          
-                          {/* Show child beams grouped by type for slab scopes */}
-                          {SLAB_WITH_BEAMS_SCOPES.includes(scope.id as any) && (
-                            <div className="ml-3 mt-1 space-y-1 border-l-2 border-primary/20 pl-2">
-                              {/* Group beams by type */}
-                              {(() => {
-                                // Group beams by baseName + dimensions
-                                const beamGroups: BeamTypeGroup[] = [];
-                                const groupMap = new Map<string, BeamTypeGroup>();
-                                
-                                childBeams.forEach(beam => {
-                                  const baseName = (beam.name || '').split('-')[0].trim() || 
-                                    (beam.markup_type === 'edge_beam' ? 'EB' : 'IB');
-                                  const width = beam.width_mm || 0;
-                                  const depth = beam.depth_mm || 0;
-                                  const key = `${baseName}-${width}-${depth}-${beam.markup_type}`;
-                                  
-                                  if (!groupMap.has(key)) {
-                                    const group: BeamTypeGroup = {
-                                      baseName,
-                                      width,
-                                      depth,
-                                      markupType: beam.markup_type || '',
-                                      beams: [beam],
-                                      totalLength: beam.length_m || 0,
-                                      totalVolume: (beam.length_m || 0) * (width / 1000) * (depth / 1000)
-                                    };
-                                    groupMap.set(key, group);
-                                    beamGroups.push(group);
-                                  } else {
-                                    const group = groupMap.get(key)!;
-                                    group.beams.push(beam);
-                                    group.totalLength += beam.length_m || 0;
-                                    group.totalVolume += (beam.length_m || 0) * (width / 1000) * (depth / 1000);
-                                  }
-                                });
-                                
-                                return beamGroups.map((group) => (
-                                  <div 
-                                    key={`${group.baseName}-${group.width}-${group.depth}-${group.markupType}`}
-                                    className="flex items-center gap-1 text-[10px] py-0.5 px-1 rounded bg-primary/5"
-                                  >
-                                    <Badge variant="outline" className="h-4 text-[9px] px-1 font-mono">
-                                      {group.baseName}
-                                    </Badge>
-                                    <span className="text-muted-foreground">
-                                      {group.width}×{group.depth}mm
-                                    </span>
-                                    <span className="flex-1" />
-                                    <span className="text-muted-foreground font-mono">
-                                      {group.totalLength.toFixed(1)}m
-                                    </span>
-                                    <span className="text-muted-foreground font-mono">
-                                      {group.totalVolume.toFixed(2)}m³
-                                    </span>
-                                  </div>
-                                ));
-                              })()}
-                              
-                              {/* Add beam buttons */}
-                              {onAddBeamToSlab && isCalibrated && (
-                                <div className="flex gap-1 mt-1">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-5 text-[10px] px-1.5 text-primary hover:bg-primary/10"
-                                    onClick={() => onAddBeamToSlab(markup.id, 'edge_beam')}
-                                  >
-                                    <Plus className="h-2.5 w-2.5 mr-0.5" /> Edge
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-5 text-[10px] px-1.5 text-primary hover:bg-primary/10"
-                                    onClick={() => onAddBeamToSlab(markup.id, 'internal_beam')}
-                                  >
-                                    <Plus className="h-2.5 w-2.5 mr-0.5" /> Internal
-                                  </Button>
-                                </div>
-                              )}
+                        ));
+                      })()
+                    ) : (
+                      // Standard markup list for non-linear scopes
+                      scopeMarkups.slice(0, 5).map((markup, idx) => {
+                        const isPolyline = markup.shape_type === 'polyline';
+                        const isPoint = markup.shape_type === 'point';
+                        const isBeam = markup.markup_type === 'edge_beam' || markup.markup_type === 'internal_beam';
+                        const displayLabel = isPoint 
+                          ? `${markup.pier_quantity || 1} item${(markup.pier_quantity || 1) !== 1 ? 's' : ''}`
+                          : isPolyline
+                            ? formatLength(markup.length_m || null)
+                            : formatArea(markup.area_sqm);
+                        const defaultName = isPolyline ? `Section ${idx + 1}` : `Area ${idx + 1}`;
+                        
+                        // Get child beams for this markup
+                        const childBeams = markups.filter(m => m.parent_markup_id === markup.id);
+                        
+                        return (
+                          <div key={markup.id}>
+                            <div 
+                              className="flex items-center gap-1.5 text-xs py-1 px-1.5 rounded bg-muted/50"
+                            >
+                              <span className="flex-1 truncate">{markup.name || defaultName}</span>
+                              <span className="text-muted-foreground font-mono text-[10px]">{displayLabel}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 touch-manipulation"
+                                onClick={() => onDeleteMarkup(markup.id)}
+                              >
+                                <Trash2 className="h-2.5 w-2.5 text-destructive" />
+                              </Button>
                             </div>
-                          )}
-                        </div>
-                      );
-                    })}
+                            
+                            {/* Show child beams grouped by type for slab scopes */}
+                            {SLAB_WITH_BEAMS_SCOPES.includes(scope.id as any) && (
+                              <div className="ml-3 mt-1 space-y-1 border-l-2 border-primary/20 pl-2">
+                                {/* Group beams by type */}
+                                {(() => {
+                                  // Group beams by baseName + dimensions
+                                  const beamGroups: BeamTypeGroup[] = [];
+                                  const groupMap = new Map<string, BeamTypeGroup>();
+                                  
+                                  childBeams.forEach(beam => {
+                                    const baseName = (beam.name || '').split('-')[0].trim() || 
+                                      (beam.markup_type === 'edge_beam' ? 'EB' : 'IB');
+                                    const width = beam.width_mm || 0;
+                                    const depth = beam.depth_mm || 0;
+                                    const key = `${baseName}-${width}-${depth}-${beam.markup_type}`;
+                                    
+                                    if (!groupMap.has(key)) {
+                                      const group: BeamTypeGroup = {
+                                        baseName,
+                                        width,
+                                        depth,
+                                        markupType: beam.markup_type || '',
+                                        beams: [beam],
+                                        totalLength: beam.length_m || 0,
+                                        totalVolume: (beam.length_m || 0) * (width / 1000) * (depth / 1000)
+                                      };
+                                      groupMap.set(key, group);
+                                      beamGroups.push(group);
+                                    } else {
+                                      const group = groupMap.get(key)!;
+                                      group.beams.push(beam);
+                                      group.totalLength += beam.length_m || 0;
+                                      group.totalVolume += (beam.length_m || 0) * (width / 1000) * (depth / 1000);
+                                    }
+                                  });
+                                  
+                                  return beamGroups.map((group) => (
+                                    <div 
+                                      key={`${group.baseName}-${group.width}-${group.depth}-${group.markupType}`}
+                                      className="flex items-center gap-1 text-[10px] py-0.5 px-1 rounded bg-primary/5"
+                                    >
+                                      <Badge variant="outline" className="h-4 text-[9px] px-1 font-mono">
+                                        {group.baseName}
+                                      </Badge>
+                                      <span className="text-muted-foreground">
+                                        {group.width}×{group.depth}mm
+                                      </span>
+                                      <span className="flex-1" />
+                                      <span className="text-muted-foreground font-mono">
+                                        {group.totalLength.toFixed(1)}m
+                                      </span>
+                                      <span className="text-muted-foreground font-mono">
+                                        {group.totalVolume.toFixed(2)}m³
+                                      </span>
+                                    </div>
+                                  ));
+                                })()}
+                                
+                                {/* Add beam buttons */}
+                                {onAddBeamToSlab && isCalibrated && (
+                                  <div className="flex gap-1 mt-1">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 text-[10px] px-1.5 text-primary hover:bg-primary/10"
+                                      onClick={() => onAddBeamToSlab(markup.id, 'edge_beam')}
+                                    >
+                                      <Plus className="h-2.5 w-2.5 mr-0.5" /> Edge
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="h-5 text-[10px] px-1.5 text-primary hover:bg-primary/10"
+                                      onClick={() => onAddBeamToSlab(markup.id, 'internal_beam')}
+                                    >
+                                      <Plus className="h-2.5 w-2.5 mr-0.5" /> Internal
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })
+                    )}
                     {scopeMarkups.length > 5 && (
                       <p className="text-[10px] text-muted-foreground text-center">
                         +{scopeMarkups.length - 5} more

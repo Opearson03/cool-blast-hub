@@ -1,17 +1,26 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Ruler, Plus } from 'lucide-react';
 
+// Scope-specific type prefixes
+export const LINEAR_TYPE_PREFIXES: Record<string, string> = {
+  strip_footings: 'SF',
+  retaining_wall_footings: 'RF',
+  kerbs_channels: 'K',
+  retaining_walls: 'RW',
+};
+
 interface LinearDimensionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   lengthMeters: number;
   scopeType: string;
-  onConfirm: (width: number, height: number, toe?: number) => void;
-  onConfirmAndAddAnother?: (width: number, height: number, toe?: number) => void;
+  defaultName?: string;
+  onConfirm: (name: string, width: number, height: number, toe?: number) => Promise<void>;
+  onConfirmAndAddAnother?: (name: string, width: number, height: number, toe?: number) => Promise<void>;
 }
 
 const SCOPE_LABELS: Record<string, { 
@@ -33,6 +42,7 @@ export function LinearDimensionsDialog({
   onOpenChange,
   lengthMeters,
   scopeType,
+  defaultName,
   onConfirm,
   onConfirmAndAddAnother,
 }: LinearDimensionsDialogProps) {
@@ -43,18 +53,44 @@ export function LinearDimensionsDialog({
     heightDefault: 300 
   };
 
+  const prefix = LINEAR_TYPE_PREFIXES[scopeType] || 'L';
+  const computedDefaultName = defaultName || `${prefix}1`;
+
+  const [name, setName] = useState(computedDefaultName);
   const [width, setWidth] = useState(labels.widthDefault);
   const [height, setHeight] = useState(labels.heightDefault);
   const [toe, setToe] = useState(labels.toeDefault || 0);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleConfirm = () => {
-    onConfirm(width, height, labels.showToe ? toe : undefined);
-    onOpenChange(false);
+  // Sync name with defaultName when dialog opens or defaultName changes
+  useEffect(() => {
+    if (open) {
+      setName(defaultName || `${prefix}1`);
+    }
+  }, [open, defaultName, prefix]);
+
+  const handleConfirm = async () => {
+    const typeName = name.trim() || `${prefix}1`;
+    setIsSaving(true);
+    try {
+      await onConfirm(typeName, width, height, labels.showToe ? toe : undefined);
+      onOpenChange(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleConfirmAndAddAnother = () => {
-    onConfirmAndAddAnother?.(width, height, labels.showToe ? toe : undefined);
-    onOpenChange(false);
+  const handleConfirmAndAddAnother = async () => {
+    const typeName = name.trim() || `${prefix}1`;
+    setIsSaving(true);
+    try {
+      await onConfirmAndAddAnother?.(typeName, width, height, labels.showToe ? toe : undefined);
+      // Auto-increment name for next section (SF1 -> SF2, etc.)
+      const currentNum = parseInt(typeName.replace(/\D/g, '')) || 0;
+      setName(`${prefix}${currentNum + 1}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Calculate volume/area for preview
@@ -86,11 +122,27 @@ export function LinearDimensionsDialog({
             Enter {getScopeTitle()} Dimensions
           </DialogTitle>
           <DialogDescription>
-            You've traced {lengthMeters.toFixed(1)}m of {getScopeTitle().toLowerCase()}. Enter the cross-section dimensions.
+            You've traced {lengthMeters.toFixed(1)}m of {getScopeTitle().toLowerCase()}. Enter the type name and cross-section dimensions.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-4">
+          {/* Type name input */}
+          <div className="space-y-2">
+            <Label htmlFor="typeName">Type Name</Label>
+            <Input
+              id="typeName"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={`e.g., ${prefix}1, ${prefix}2`}
+              autoFocus
+            />
+            <p className="text-xs text-muted-foreground">
+              Group sections with same dimensions under one type (e.g., "{prefix}1")
+            </p>
+          </div>
+
           {/* Length display */}
           <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
             <span className="text-sm font-medium">Total Length:</span>
@@ -165,6 +217,10 @@ export function LinearDimensionsDialog({
           {/* Volume preview */}
           <div className="p-3 bg-muted rounded-lg space-y-1">
             <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Type:</span>
+              <span className="font-medium">{name || `${prefix}1`}</span>
+            </div>
+            <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Cross-section:</span>
               <span className="font-medium">{width}mm × {height}mm</span>
             </div>
@@ -186,17 +242,17 @@ export function LinearDimensionsDialog({
         </div>
 
         <DialogFooter className="flex-shrink-0 flex-col sm:flex-row gap-2 pt-2 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving} className="w-full sm:w-auto">
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={lengthMeters === 0} className="w-full sm:w-auto">
-            Save {getScopeTitle()}
+          <Button onClick={handleConfirm} disabled={lengthMeters === 0 || isSaving} className="w-full sm:w-auto">
+            {isSaving ? 'Saving...' : `Save ${getScopeTitle()}`}
           </Button>
           {onConfirmAndAddAnother && (
             <Button 
               variant="secondary" 
               onClick={handleConfirmAndAddAnother} 
-              disabled={lengthMeters === 0}
+              disabled={lengthMeters === 0 || isSaving}
               className="gap-1 w-full sm:w-auto"
             >
               <Plus className="h-4 w-4" />

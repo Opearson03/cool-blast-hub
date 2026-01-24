@@ -1365,27 +1365,38 @@ export function PlanTakeoffStep({
         onOpenChange={setShowLinearDimensions}
         lengthMeters={pendingPolylineLength}
         scopeType={activeScope || 'strip_footings'}
-        onConfirm={async (width, height, toe) => {
+        defaultName={(() => {
+          if (!activeScope) return 'SF1';
+          const prefixMap: Record<string, string> = {
+            strip_footings: 'SF',
+            retaining_wall_footings: 'RF',
+            kerbs_channels: 'K',
+            retaining_walls: 'RW',
+          };
+          const prefix = prefixMap[activeScope] || 'L';
+          const existingForScope = markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline');
+          return `${prefix}${existingForScope.length + 1}`;
+        })()}
+        onConfirm={async (name, width, height, toe) => {
           if (!activeScope || !currentFileId || polylinePoints.length < 2) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-          const name = pendingMarkupName.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
-          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, name, toe);
+          const sectionName = name.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
+          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, sectionName, toe);
           setPolylinePoints([]);
           setPendingPolylineLength(0);
           setActiveTool('select');
           setActiveScope(null);
           setPendingMarkupName('');
         }}
-        onConfirmAndAddAnother={async (width, height, toe) => {
+        onConfirmAndAddAnother={async (name, width, height, toe) => {
           if (!activeScope || !currentFileId || polylinePoints.length < 2) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
-          const name = pendingMarkupName.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
-          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, name, toe);
+          const sectionName = name.trim() || `Section ${markups.filter(m => m.scope_id === activeScope).length + 1}`;
+          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, width, height, color, currentPage, sectionName, toe);
           setPolylinePoints([]); // Clear points but keep tool and scope active
           setPendingPolylineLength(0);
-          // Update default name for next section
-          const existingForScope = markups.filter(m => m.scope_id === activeScope);
-          setPendingMarkupName(`Section ${existingForScope.length + 2}`);
+          // Reset name - the dialog handles auto-increment internally now
+          setPendingMarkupName('');
         }}
       />
 
