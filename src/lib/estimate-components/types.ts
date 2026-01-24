@@ -313,6 +313,32 @@ export interface BeamConfig {
   add_ligs?: boolean;
   lig_size?: string;
   lig_centres?: number;
+  
+  // Horizontal reinforcement (additional bars along beam length)
+  horizontal_bars?: HorizontalBarConfig[];
+  
+  // Vertical reinforcement (starter bars projecting from beam)
+  vertical_bars?: VerticalBarConfig[];
+}
+
+/**
+ * Horizontal bar reinforcement configuration for beams
+ */
+export interface HorizontalBarConfig {
+  id: string;
+  bar_size: string;    // e.g., 'N12', 'N16'
+  quantity: number;    // number of bars
+  position: 'top' | 'bottom';
+}
+
+/**
+ * Vertical bar reinforcement configuration for beams (starter bars)
+ */
+export interface VerticalBarConfig {
+  id: string;
+  bar_size: string;    // e.g., 'N12', 'N16'
+  centres: number;     // mm spacing
+  length: number;      // mm projection length
 }
 
 /**

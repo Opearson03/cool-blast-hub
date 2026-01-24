@@ -1,4 +1,4 @@
-import { BeamConfig } from "@/lib/estimate-components/types";
+import { BeamConfig, HorizontalBarConfig, VerticalBarConfig } from "@/lib/estimate-components/types";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -16,7 +16,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Settings2, Ruler, ChevronsUpDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Settings2, Ruler, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
 import { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +34,13 @@ const TM_OPTIONS = [
 const LIG_SIZE_OPTIONS = [
   { value: 'R10', label: 'R10' },
   { value: 'R12', label: 'R12' },
+];
+
+const BAR_SIZE_OPTIONS = [
+  { value: 'N12', label: 'N12' },
+  { value: 'N16', label: 'N16' },
+  { value: 'N20', label: 'N20' },
+  { value: 'N24', label: 'N24' },
 ];
 
 interface BeamReinforcementInputProps {
@@ -84,20 +91,80 @@ export function BeamReinforcementInput({
     onChange(newBeams);
   };
 
+  const addHorizontalBar = (beamIndex: number) => {
+    const beam = beams[beamIndex];
+    const currentBars = beam.horizontal_bars || [];
+    const newBar: HorizontalBarConfig = {
+      id: `hbar_${Date.now()}`,
+      bar_size: 'N16',
+      quantity: 2,
+      position: 'bottom',
+    };
+    updateBeam(beamIndex, { horizontal_bars: [...currentBars, newBar] });
+  };
+
+  const updateHorizontalBar = (beamIndex: number, barIndex: number, updates: Partial<HorizontalBarConfig>) => {
+    const beam = beams[beamIndex];
+    const currentBars = [...(beam.horizontal_bars || [])];
+    currentBars[barIndex] = { ...currentBars[barIndex], ...updates };
+    updateBeam(beamIndex, { horizontal_bars: currentBars });
+  };
+
+  const removeHorizontalBar = (beamIndex: number, barIndex: number) => {
+    const beam = beams[beamIndex];
+    const currentBars = [...(beam.horizontal_bars || [])];
+    currentBars.splice(barIndex, 1);
+    updateBeam(beamIndex, { horizontal_bars: currentBars });
+  };
+
+  const addVerticalBar = (beamIndex: number) => {
+    const beam = beams[beamIndex];
+    const currentBars = beam.vertical_bars || [];
+    const newBar: VerticalBarConfig = {
+      id: `vbar_${Date.now()}`,
+      bar_size: 'N16',
+      centres: 400,
+      length: 1200,
+    };
+    updateBeam(beamIndex, { vertical_bars: [...currentBars, newBar] });
+  };
+
+  const updateVerticalBar = (beamIndex: number, barIndex: number, updates: Partial<VerticalBarConfig>) => {
+    const beam = beams[beamIndex];
+    const currentBars = [...(beam.vertical_bars || [])];
+    currentBars[barIndex] = { ...currentBars[barIndex], ...updates };
+    updateBeam(beamIndex, { vertical_bars: currentBars });
+  };
+
+  const removeVerticalBar = (beamIndex: number, barIndex: number) => {
+    const beam = beams[beamIndex];
+    const currentBars = [...(beam.vertical_bars || [])];
+    currentBars.splice(barIndex, 1);
+    updateBeam(beamIndex, { vertical_bars: currentBars });
+  };
+
   // Summary calculations
   const summary = useMemo(() => {
     let totalLength = 0;
     let withLigsCount = 0;
     let customCount = 0;
+    let withHorizontalCount = 0;
+    let withVerticalCount = 0;
 
     beams.forEach(beam => {
       totalLength += beam.length || 0;
       const addLigs = beam.add_ligs ?? defaultAddLigs;
       if (addLigs) withLigsCount++;
-      if (beam.tm_type || beam.add_ligs !== undefined || beam.lig_size || beam.lig_centres) customCount++;
+      if (beam.horizontal_bars && beam.horizontal_bars.length > 0) withHorizontalCount++;
+      if (beam.vertical_bars && beam.vertical_bars.length > 0) withVerticalCount++;
+      if (beam.tm_type || beam.add_ligs !== undefined || beam.lig_size || beam.lig_centres || 
+          (beam.horizontal_bars && beam.horizontal_bars.length > 0) ||
+          (beam.vertical_bars && beam.vertical_bars.length > 0)) {
+        customCount++;
+      }
     });
 
-    return { totalLength, withLigsCount, customCount, total: beams.length };
+    return { totalLength, withLigsCount, customCount, total: beams.length, withHorizontalCount, withVerticalCount };
   }, [beams, defaultAddLigs]);
 
   if (beams.length === 0) {
@@ -152,7 +219,10 @@ export function BeamReinforcementInput({
           const addLigs = beam.add_ligs ?? defaultAddLigs;
           const ligSize = beam.lig_size || defaultLigSize;
           const ligCentres = beam.lig_centres ?? defaultLigCentres;
-          const hasCustomSettings = beam.tm_type || beam.add_ligs !== undefined || beam.lig_size || beam.lig_centres;
+          const horizontalBars = beam.horizontal_bars || [];
+          const verticalBars = beam.vertical_bars || [];
+          const hasCustomSettings = beam.tm_type || beam.add_ligs !== undefined || beam.lig_size || beam.lig_centres ||
+            horizontalBars.length > 0 || verticalBars.length > 0;
 
           const tmOption = TM_OPTIONS.find(o => o.value === tmType);
 
@@ -188,6 +258,16 @@ export function BeamReinforcementInput({
                       {addLigs && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-accent text-accent-foreground">
                           +Ligs
+                        </span>
+                      )}
+                      {horizontalBars.length > 0 && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-secondary text-secondary-foreground">
+                          +H-Bars
+                        </span>
+                      )}
+                      {verticalBars.length > 0 && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
+                          +V-Bars
                         </span>
                       )}
                       {hasCustomSettings && (
@@ -287,10 +367,196 @@ export function BeamReinforcementInput({
                       )}
                     </div>
 
+                    {/* Horizontal Reinforcement */}
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Horizontal Reinforcement</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addHorizontalBar(index);
+                          }}
+                          className="h-7 text-xs gap-1"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add Horizontal
+                        </Button>
+                      </div>
+
+                      {horizontalBars.length > 0 && (
+                        <div className="space-y-2">
+                          {horizontalBars.map((bar, barIndex) => (
+                            <div key={bar.id} className="flex items-center gap-2 p-2 rounded-md bg-background border">
+                              <div className="flex-1 grid grid-cols-3 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] text-muted-foreground">Bar Size</Label>
+                                  <Select
+                                    value={bar.bar_size}
+                                    onValueChange={(val) => updateHorizontalBar(index, barIndex, { bar_size: val })}
+                                  >
+                                    <SelectTrigger className="h-7 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="z-[150]">
+                                      {BAR_SIZE_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] text-muted-foreground">Qty</Label>
+                                  <Input
+                                    type="number"
+                                    value={bar.quantity}
+                                    onChange={(e) => updateHorizontalBar(index, barIndex, { quantity: Number(e.target.value) })}
+                                    className="h-7 text-xs"
+                                    min={1}
+                                    max={10}
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] text-muted-foreground">Position</Label>
+                                  <Select
+                                    value={bar.position}
+                                    onValueChange={(val) => updateHorizontalBar(index, barIndex, { position: val as 'top' | 'bottom' })}
+                                  >
+                                    <SelectTrigger className="h-7 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="z-[150]">
+                                      <SelectItem value="top">Top</SelectItem>
+                                      <SelectItem value="bottom">Bottom</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeHorizontalBar(index, barIndex);
+                                }}
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Vertical Reinforcement */}
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Vertical Reinforcement</Label>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addVerticalBar(index);
+                          }}
+                          className="h-7 text-xs gap-1"
+                        >
+                          <Plus className="h-3 w-3" />
+                          Add Vertical
+                        </Button>
+                      </div>
+
+                      {verticalBars.length > 0 && (
+                        <div className="space-y-2">
+                          {verticalBars.map((bar, barIndex) => (
+                            <div key={bar.id} className="flex items-center gap-2 p-2 rounded-md bg-background border">
+                              <div className="flex-1 grid grid-cols-3 gap-2">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] text-muted-foreground">Bar Size</Label>
+                                  <Select
+                                    value={bar.bar_size}
+                                    onValueChange={(val) => updateVerticalBar(index, barIndex, { bar_size: val })}
+                                  >
+                                    <SelectTrigger className="h-7 text-xs">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="z-[150]">
+                                      {BAR_SIZE_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] text-muted-foreground">Centres</Label>
+                                  <div className="relative">
+                                    <Input
+                                      type="number"
+                                      value={bar.centres}
+                                      onChange={(e) => updateVerticalBar(index, barIndex, { centres: Number(e.target.value) })}
+                                      className="h-7 text-xs pr-6"
+                                      min={100}
+                                      max={1200}
+                                      step={50}
+                                    />
+                                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground">
+                                      mm
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] text-muted-foreground">Length</Label>
+                                  <div className="relative">
+                                    <Input
+                                      type="number"
+                                      value={bar.length}
+                                      onChange={(e) => updateVerticalBar(index, barIndex, { length: Number(e.target.value) })}
+                                      className="h-7 text-xs pr-6"
+                                      min={300}
+                                      max={3000}
+                                      step={100}
+                                    />
+                                    <span className="absolute right-1.5 top-1/2 -translate-y-1/2 text-[9px] text-muted-foreground">
+                                      mm
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  removeVerticalBar(index, barIndex);
+                                }}
+                                className="h-7 w-7 text-muted-foreground hover:text-destructive shrink-0"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Summary Footer */}
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground">
-                        {tmOption?.label || tmType}{addLigs ? ` + ${ligSize} ligs @ ${ligCentres}mm` : ''} • {beam.length.toFixed(1)}m
+                        {tmOption?.label || tmType}
+                        {addLigs ? ` + ${ligSize} ligs @ ${ligCentres}mm` : ''}
+                        {horizontalBars.length > 0 ? ` + ${horizontalBars.length} H-bar${horizontalBars.length > 1 ? 's' : ''}` : ''}
+                        {verticalBars.length > 0 ? ` + ${verticalBars.length} V-bar${verticalBars.length > 1 ? 's' : ''}` : ''}
+                        {' '}• {beam.length.toFixed(1)}m
                       </p>
                     </div>
                   </div>
