@@ -23,6 +23,7 @@ import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracke
 import { EstimateQuotaDialog } from "@/components/estimates/EstimateQuotaDialog";
 import { DuplicateEstimateDialog } from "@/components/estimates/DuplicateEstimateDialog";
 import { useEstimateQuota } from "@/hooks/useEstimateQuota";
+import { formatCurrency } from "@/lib/format-currency";
 
 type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
 type EstimateType = "driveway" | "house_slab" | "commercial_slab";
@@ -188,13 +189,7 @@ export default function AdminEstimates() {
       estimate.site_address.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
+  // formatCurrency imported from @/lib/format-currency
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "-";

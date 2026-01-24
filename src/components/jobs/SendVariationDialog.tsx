@@ -205,7 +205,7 @@ export function SendVariationDialog({
             <div className="flex justify-between pt-2 border-t">
               <span className="font-medium">Total (inc GST)</span>
               <span className="font-bold text-lg">
-                {totalWithGst.toLocaleString("en-AU", { style: "currency", currency: "AUD" })}
+                {totalWithGst.toLocaleString("en-AU", { style: "currency", currency: "AUD", minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </span>
             </div>
           </div>

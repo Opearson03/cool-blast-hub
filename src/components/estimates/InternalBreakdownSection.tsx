@@ -3,6 +3,7 @@ import { ChevronDown, Lock, Users, Package, Truck, Wrench, HelpCircle } from "lu
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { formatCurrency } from "@/lib/format-currency";
 
 interface ScopeEntry {
   scopeAnswers?: Record<string, any>;
@@ -20,14 +21,6 @@ interface InternalBreakdownSectionProps {
   scopeData: ScopeData;
   selectedScopes?: string[] | null;
 }
-
-const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: "AUD",
-    minimumFractionDigits: 2,
-  }).format(value);
-};
 
 const formatModuleName = (moduleId: string): string => {
   return moduleId

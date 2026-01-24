@@ -188,6 +188,8 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
     const formatted = Math.abs(amount).toLocaleString("en-AU", {
       style: "currency",
       currency: "AUD",
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     });
     return amount < 0 ? `-${formatted}` : formatted;
   };

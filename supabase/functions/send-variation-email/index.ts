@@ -514,7 +514,7 @@ const handler = async (req: Request): Promise<Response> => {
     const senderName = businessName ? `${businessName} via Pourhub` : "Pourhub";
     
     const totalWithGst = amount * 1.1;
-    const formattedAmount = totalWithGst.toLocaleString('en-AU', { style: 'currency', currency: 'AUD' });
+    const formattedAmount = totalWithGst.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const emailResponse = await resend.emails.send({
       from: `${senderName} <Hello@contact.pourhub.au>`,

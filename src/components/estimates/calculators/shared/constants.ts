@@ -97,14 +97,8 @@ export const REBAR_WEIGHT: Record<string, number> = {
 // Standard mesh sheet area (6m × 2.4m)
 export const MESH_SHEET_AREA = 14.4;
 
-// Currency formatter for AU dollars
-export const formatCurrency = (amount: number) => {
-  return new Intl.NumberFormat("en-AU", {
-    style: "currency",
-    currency: "AUD",
-    minimumFractionDigits: 2,
-  }).format(amount);
-};
+// Currency formatter for AU dollars - re-export from centralized utility
+export { formatCurrency } from "@/lib/format-currency";
 
 // Common additional cost item interface
 export interface AdditionalCostItem {

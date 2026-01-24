@@ -39,6 +39,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Info, Ruler } from "lucide-react";
+import { formatCurrency } from "@/lib/format-currency";
 
 interface ModularCalculatorProps {
   scope: ScopeDefinition;
@@ -1166,13 +1167,7 @@ function DemolitionModuleSection({
   isStandaloneScope?: boolean;
 }) {
   // Import CostLineItem for display
-  const formatCurrency = (value: number) =>
-    new Intl.NumberFormat('en-AU', {
-      style: 'currency',
-      currency: 'AUD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+  // Use centralized formatCurrency - imported at top of file
 
   // For standalone scope, always treat as required (auto-enable on first render)
   const demolitionRequired = isStandaloneScope ? true : answers.demolition_required === true;

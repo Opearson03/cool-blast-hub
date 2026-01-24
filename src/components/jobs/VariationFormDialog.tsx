@@ -335,7 +335,7 @@ export function VariationFormDialog({
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Total (ex GST)</p>
                 <p className={`text-xl font-bold ${totalAmount >= 0 ? "text-foreground" : "text-red-600"}`}>
-                  ${totalAmount.toLocaleString("en-AU", { minimumFractionDigits: 2 })}
+                  ${totalAmount.toLocaleString("en-AU", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               </div>
             </div>
