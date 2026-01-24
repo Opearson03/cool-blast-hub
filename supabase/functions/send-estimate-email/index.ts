@@ -770,7 +770,7 @@ const handler = async (req: Request): Promise<Response> => {
       .eq("id", estimateId);
 
     // Build signing URL - use the published URL or a configurable domain
-    const appDomain = "https://cool-blast-hub.lovable.app";
+    const appDomain = "https://pourhub.com.au";
     const signingUrl = signingToken ? `${appDomain}/sign/quote/${signingToken}` : null;
 
     console.log("Signing URL generated:", signingUrl ? "Yes" : "No");

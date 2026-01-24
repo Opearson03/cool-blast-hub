@@ -507,7 +507,7 @@ const handler = async (req: Request): Promise<Response> => {
       .update({ signing_token_expires_at: signingTokenExpiry.toISOString() })
       .eq("id", variationId);
 
-    const appDomain = "https://cool-blast-hub.lovable.app";
+    const appDomain = "https://pourhub.com.au";
     const signingUrl = signingToken ? `${appDomain}/sign/variation/${signingToken}` : null;
 
     // Format sender name
