@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -10,8 +10,8 @@ interface PierDimensionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   pierCount: number;
-  onConfirm: (diameter: number, depth: number, name: string) => void;
-  onConfirmAndAddAnother?: (diameter: number, depth: number, name: string) => void;
+  onConfirm: (diameter: number, depth: number, name: string) => Promise<void>;
+  onConfirmAndAddAnother?: (diameter: number, depth: number, name: string) => Promise<void>;
   defaultName?: string;
 }
 
@@ -21,23 +21,42 @@ export function PierDimensionsDialog({
   pierCount,
   onConfirm,
   onConfirmAndAddAnother,
-  defaultName = '',
+  defaultName = 'P1',
 }: PierDimensionsDialogProps) {
-  const [name, setName] = useState(defaultName || `Pier Group ${Date.now().toString().slice(-4)}`);
+  const [name, setName] = useState(defaultName);
   const [diameter, setDiameter] = useState(450);
   const [depth, setDepth] = useState(600);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleConfirm = () => {
-    const groupName = name.trim() || `Pier Group`;
-    onConfirm(diameter, depth, groupName);
-    onOpenChange(false);
+  // Sync name with defaultName when dialog opens or defaultName changes
+  useEffect(() => {
+    if (open) {
+      setName(defaultName);
+    }
+  }, [open, defaultName]);
+
+  const handleConfirm = async () => {
+    const groupName = name.trim() || 'P1';
+    setIsSaving(true);
+    try {
+      await onConfirm(diameter, depth, groupName);
+      onOpenChange(false);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleConfirmAndAddAnother = () => {
-    const groupName = name.trim() || `Pier Group`;
-    onConfirmAndAddAnother?.(diameter, depth, groupName);
-    // Reset name for next group
-    setName(`Pier Group ${Date.now().toString().slice(-4)}`);
+  const handleConfirmAndAddAnother = async () => {
+    const groupName = name.trim() || 'P1';
+    setIsSaving(true);
+    try {
+      await onConfirmAndAddAnother?.(diameter, depth, groupName);
+      // Auto-increment name for next group (P1 -> P2, etc.)
+      const currentNum = parseInt(groupName.replace(/\D/g, '')) || 0;
+      setName(`P${currentNum + 1}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Calculate volume for preview
@@ -68,11 +87,11 @@ export function PierDimensionsDialog({
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g., Footing Piers, Deck Piers"
+              placeholder="e.g., P1, P2, Footing Piers"
               autoFocus
             />
             <p className="text-xs text-muted-foreground">
-              Name this group of piers (e.g., "Footing Piers", "Deck Piers")
+              Name this group of piers (e.g., "P1", "Deck Piers")
             </p>
           </div>
 
@@ -146,17 +165,17 @@ export function PierDimensionsDialog({
         </div>
 
         <DialogFooter className="flex-shrink-0 flex-col sm:flex-row gap-2 pt-4 border-t">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
             Cancel
           </Button>
-          <Button onClick={handleConfirm} disabled={pierCount === 0}>
-            Save Piers
+          <Button onClick={handleConfirm} disabled={pierCount === 0 || isSaving}>
+            {isSaving ? 'Saving...' : 'Save Piers'}
           </Button>
           {onConfirmAndAddAnother && (
             <Button 
               variant="secondary" 
               onClick={handleConfirmAndAddAnother} 
-              disabled={pierCount === 0}
+              disabled={pierCount === 0 || isSaving}
               className="gap-1"
             >
               <Plus className="h-4 w-4" />

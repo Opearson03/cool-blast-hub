@@ -1308,6 +1308,7 @@ export function PlanTakeoffStep({
         open={showPierDimensions}
         onOpenChange={setShowPierDimensions}
         pierCount={pierPoints.length}
+        defaultName={`P${markups.filter(m => m.scope_id === 'piers' && m.shape_type === 'point').length + 1}`}
         onConfirm={handlePierDimensionsConfirm}
         onConfirmAndAddAnother={handlePierDimensionsConfirmAndAddAnother}
       />
