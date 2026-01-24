@@ -286,7 +286,8 @@ export const surfaceFinishingModule: EstimateModule = {
         answers.finish_type === 'exposed_aggregate' &&
         answers.acid_wash_required === true,
     },
-    // ========== Curing (Reusable Module) ==========
+
+    // ========== Curing (Simplified - Spray-on only, drum-based) ==========
     {
       id: 'curing_required',
       type: 'boolean',
@@ -295,71 +296,41 @@ export const surfaceFinishingModule: EstimateModule = {
       showIf: (answers) => answers.finish_required === true,
     },
     {
-      id: 'curing_method',
-      type: 'select',
-      label: 'Curing method',
-      options: [
-        { value: 'spray', label: 'Spray-on curing compound' },
-        { value: 'plastic', label: 'Plastic / wet cure' },
-        { value: 'water', label: 'Water cure' },
-        { value: 'combined', label: 'Curing + sealing combined' },
-      ],
-      defaultValue: 'spray',
+      id: 'curing_drum_size',
+      type: 'number',
+      label: 'Cure drum size (L)',
+      defaultValue: 20,
+      min: 1,
+      unit: 'L',
       showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
     },
     {
-      id: 'curing_coverage_rate',
-      type: 'number',
-      label: 'Curing product coverage rate (m²/L)',
-      defaultValue: 6,
-      min: 1,
-      unit: 'm²/L',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.curing_required === true && 
-        answers.curing_method === 'spray',
-    },
-    {
-      id: 'curing_product_price',
+      id: 'curing_drum_price',
       type: 'currency',
-      label: 'Curing product price per litre',
-      defaultValue: 25,
-      unit: '/L',
-      priceListKey: 'materials.CURING_COMPOUND',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.curing_required === true && 
-        answers.curing_method === 'spray',
-    },
-    {
-      id: 'curing_coats',
-      type: 'number',
-      label: 'Number of coats',
-      defaultValue: 1,
-      min: 1,
-      max: 3,
-      showIf: (answers) => answers.finish_required === true && 
-        answers.curing_required === true && 
-        answers.curing_method === 'spray',
-    },
-    {
-      id: 'curing_men',
-      type: 'number',
-      label: 'How many men for curing?',
-      defaultValue: 1,
-      min: 1,
+      label: 'Cure price per drum',
+      defaultValue: 150,
+      priceListKey: 'materials.CURE_DRUM',
       showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
     },
     {
-      id: 'curing_hours_per_man',
+      id: 'curing_drums_required',
       type: 'number',
-      label: 'Hours per man for curing',
-      defaultValue: 1,
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
+      label: 'Drums required',
+      helpText: 'Auto-calculated: 5m²/L coverage, rounded up to whole drums',
+      min: 1,
+      unit: 'drums',
       showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const area = Number(moduleAnswers.finish_area) || Number(scopeData.area) || 0;
+        const drumSize = Number(moduleAnswers.curing_drum_size) || 20;
+        const coverageRate = 5; // 5m²/L standard
+        const litresNeeded = area / coverageRate;
+        return Math.ceil(litresNeeded / drumSize);
+      },
+      derivedReadOnly: false,
     },
 
-    // ========== Sealing (Reusable Module) ==========
+    // ========== Sealing (Simplified - Drum-based, prime 1-coat) ==========
     {
       id: 'sealing_required',
       type: 'boolean',
@@ -368,87 +339,38 @@ export const surfaceFinishingModule: EstimateModule = {
       showIf: (answers) => answers.finish_required === true,
     },
     {
-      id: 'sealer_type',
-      type: 'select',
-      label: 'Sealer type',
-      options: [
-        { value: 'acrylic', label: 'Acrylic' },
-        { value: 'penetrating', label: 'Penetrating' },
-        { value: 'high_gloss', label: 'High-gloss' },
-        { value: 'matte', label: 'Matte' },
-        { value: 'exposed_agg', label: 'Exposed-agg specific' },
-      ],
-      defaultValue: 'acrylic',
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
-    },
-    {
-      id: 'sealer_coats',
+      id: 'sealer_drum_size',
       type: 'number',
-      label: 'Number of sealer coats',
-      defaultValue: 2,
+      label: 'Sealer drum size (L)',
+      defaultValue: 20,
       min: 1,
-      max: 4,
+      unit: 'L',
       showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
     },
     {
-      id: 'sealer_coverage_rate',
+      id: 'sealer_drum_price',
+      type: 'currency',
+      label: 'Sealer price per drum',
+      defaultValue: 200,
+      priceListKey: 'materials.SEALER_DRUM',
+      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
+    },
+    {
+      id: 'sealer_drums_required',
       type: 'number',
-      label: 'Sealer coverage rate (m²/L)',
-      defaultValue: 8,
+      label: 'Drums required',
+      helpText: 'Auto-calculated: 8m²/L (prime 1-coat), rounded up to whole drums',
       min: 1,
-      unit: 'm²/L',
+      unit: 'drums',
       showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
-    },
-    {
-      id: 'sealer_price_per_litre',
-      type: 'currency',
-      label: 'Sealer price per litre',
-      defaultValue: 35,
-      unit: '/L',
-      priceListKey: 'materials.SEALER',
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
-    },
-    {
-      id: 'slip_additive_required',
-      type: 'boolean',
-      label: 'Slip additive required?',
-      defaultValue: false,
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
-    },
-    {
-      id: 'slip_additive_rate',
-      type: 'number',
-      label: 'Additive rate (kg/m²)',
-      defaultValue: 0.05,
-      min: 0.01,
-      step: 0.01,
-      unit: 'kg/m²',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.sealing_required === true && 
-        answers.slip_additive_required === true,
-    },
-    {
-      id: 'slip_additive_price',
-      type: 'currency',
-      label: 'Slip additive price per kg',
-      defaultValue: 45,
-      unit: '/kg',
-      priceListKey: 'materials.SLIP_ADDITIVE',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.sealing_required === true && 
-        answers.slip_additive_required === true,
-    },
-    {
-      id: 'slip_additive_extra_labour',
-      type: 'number',
-      label: 'Extra labour time for additive',
-      defaultValue: 0.5,
-      min: 0,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.sealing_required === true && 
-        answers.slip_additive_required === true,
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const area = Number(moduleAnswers.finish_area) || Number(scopeData.area) || 0;
+        const drumSize = Number(moduleAnswers.sealer_drum_size) || 20;
+        const coverageRate = 8; // Prime 1-coat coverage rate (m²/L)
+        const litresNeeded = area / coverageRate;
+        return Math.ceil(litresNeeded / drumSize);
+      },
+      derivedReadOnly: false,
     },
     {
       id: 'sealing_men',
@@ -467,25 +389,6 @@ export const surfaceFinishingModule: EstimateModule = {
       step: 0.5,
       unit: 'hrs',
       showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
-    },
-    {
-      id: 'sealing_return_visit',
-      type: 'boolean',
-      label: 'Return visit required for sealing?',
-      defaultValue: false,
-      showIf: (answers) => answers.finish_required === true && answers.sealing_required === true,
-    },
-    {
-      id: 'sealing_return_hours',
-      type: 'number',
-      label: 'Return visit hours',
-      defaultValue: 2,
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && 
-        answers.sealing_required === true && 
-        answers.sealing_return_visit === true,
     },
 
     // ========== Sundries Allowance ==========
@@ -527,7 +430,6 @@ export const surfaceFinishingModule: EstimateModule = {
       const coverageRate = 4; // 4m²/L
       const litresNeeded = area / coverageRate;
       const drumsNeeded = Number(answers.retarder_drums_required) || Math.ceil(litresNeeded / drumSize);
-      const totalLitres = drumsNeeded * drumSize;
       const retarderCost = drumsNeeded * drumPrice;
 
       lineItems.push({
@@ -734,45 +636,52 @@ export const surfaceFinishingModule: EstimateModule = {
       subtotal += allowance;
     }
 
-    // ========== Curing ==========
+    // ========== Curing - Drum-based (no labour - included in pour labour) ==========
     if (answers.curing_required === true) {
-      const curingMen = Number(answers.curing_men) || 1;
-      const curingHours = Number(answers.curing_hours_per_man) || 1;
-      const curingLabour = curingMen * curingHours * effectiveRate;
+      const drumSize = Number(answers.curing_drum_size) || 20;
+      const drumPrice = Number(answers.curing_drum_price) || getPrice(priceMap, 'materials', 'CURE_DRUM', 150);
+      
+      const coverageRate = 5; // 5m²/L coverage
+      const litresNeeded = area / coverageRate;
+      const drumsNeeded = Number(answers.curing_drums_required) || Math.ceil(litresNeeded / drumSize);
+      const curingCost = drumsNeeded * drumPrice;
 
       lineItems.push({
-        id: 'curing_labour',
-        description: `Curing Application Labour (${curingMen} men × ${curingHours} hrs)`,
-        quantity: curingMen * curingHours,
-        unit: 'hrs',
-        unitPrice: effectiveRate,
-        total: curingLabour,
-        category: 'labour',
+        id: 'curing_material',
+        description: `Spray-On Cure (${drumsNeeded} × ${drumSize}L drums for ${area}m² @ 5m²/L)`,
+        quantity: drumsNeeded,
+        unit: 'drums',
+        unitPrice: drumPrice,
+        total: curingCost,
+        category: 'materials',
       });
-      subtotal += curingLabour;
-
-      if (answers.curing_method === 'spray') {
-        const coverageRate = Number(answers.curing_coverage_rate) || 6;
-        const pricePerLitre = Number(answers.curing_product_price) || getPrice(priceMap, 'materials', 'CURING_COMPOUND', 25);
-        const coats = Number(answers.curing_coats) || 1;
-        const litresNeeded = Math.ceil((area / coverageRate) * coats);
-        const curingMaterialCost = litresNeeded * pricePerLitre;
-
-        lineItems.push({
-          id: 'curing_material',
-          description: `Curing Compound (${litresNeeded}L for ${area}m² × ${coats} coat${coats > 1 ? 's' : ''})`,
-          quantity: litresNeeded,
-          unit: 'L',
-          unitPrice: pricePerLitre,
-          total: curingMaterialCost,
-          category: 'materials',
-        });
-        subtotal += curingMaterialCost;
-      }
+      subtotal += curingCost;
+      
+      // NO labour line item - included in pour labour
     }
 
-    // ========== Sealing ==========
+    // ========== Sealing - Drum-based with labour (separate trip) ==========
     if (answers.sealing_required === true || answers.finish_type === 'sealed') {
+      const drumSize = Number(answers.sealer_drum_size) || 20;
+      const drumPrice = Number(answers.sealer_drum_price) || getPrice(priceMap, 'materials', 'SEALER_DRUM', 200);
+      
+      const coverageRate = 8; // Prime 1-coat coverage rate
+      const litresNeeded = area / coverageRate;
+      const drumsNeeded = Number(answers.sealer_drums_required) || Math.ceil(litresNeeded / drumSize);
+      const sealerCost = drumsNeeded * drumPrice;
+
+      lineItems.push({
+        id: 'sealer_material',
+        description: `Concrete Sealer (${drumsNeeded} × ${drumSize}L drums for ${area}m² @ 8m²/L)`,
+        quantity: drumsNeeded,
+        unit: 'drums',
+        unitPrice: drumPrice,
+        total: sealerCost,
+        category: 'materials',
+      });
+      subtotal += sealerCost;
+
+      // Keep labour - sealing is a separate trip
       const sealingMen = Number(answers.sealing_men) || 1;
       const sealingHours = Number(answers.sealing_hours_per_man) || 2;
       const sealingLabour = sealingMen * sealingHours * effectiveRate;
@@ -788,87 +697,18 @@ export const surfaceFinishingModule: EstimateModule = {
       });
       subtotal += sealingLabour;
 
-      // Sealer materials
-      const coverageRate = Number(answers.sealer_coverage_rate) || 8;
-      const pricePerLitre = Number(answers.sealer_price_per_litre) || getPrice(priceMap, 'materials', 'SEALER', 35);
-      const coats = Number(answers.sealer_coats) || 2;
-      const litresNeeded = Math.ceil((area / coverageRate) * coats);
-      const sealerCost = litresNeeded * pricePerLitre;
-
-      const sealerType = getSealerTypeName(answers.sealer_type);
+      // Call-out for return visit (sealing is always a return visit)
+      const callout = getPrice(priceMap, 'other', 'CALLOUT', 150);
       lineItems.push({
-        id: 'sealer_material',
-        description: `${sealerType} Sealer (${litresNeeded}L for ${area}m² × ${coats} coats)`,
-        quantity: litresNeeded,
-        unit: 'L',
-        unitPrice: pricePerLitre,
-        total: sealerCost,
-        category: 'materials',
+        id: 'sealing_callout',
+        description: 'Sealing Return Visit - Travel/Call-out',
+        quantity: 1,
+        unit: 'visit',
+        unitPrice: callout,
+        total: callout,
+        category: 'other',
       });
-      subtotal += sealerCost;
-
-      // Slip additive
-      if (answers.slip_additive_required === true) {
-        const additiveRate = Number(answers.slip_additive_rate) || 0.05;
-        const additivePrice = Number(answers.slip_additive_price) || getPrice(priceMap, 'materials', 'SLIP_ADDITIVE', 45);
-        const additiveKg = Math.ceil(area * additiveRate * 10) / 10;
-        const additiveCost = additiveKg * additivePrice;
-
-        lineItems.push({
-          id: 'slip_additive',
-          description: `Slip Additive (${additiveKg}kg for ${area}m²)`,
-          quantity: additiveKg,
-          unit: 'kg',
-          unitPrice: additivePrice,
-          total: additiveCost,
-          category: 'materials',
-        });
-        subtotal += additiveCost;
-
-        const extraLabour = Number(answers.slip_additive_extra_labour) || 0.5;
-        if (extraLabour > 0) {
-          const extraLabourCost = extraLabour * effectiveRate;
-          lineItems.push({
-            id: 'slip_additive_labour',
-            description: `Slip Additive Extra Labour (${extraLabour} hrs)`,
-            quantity: extraLabour,
-            unit: 'hrs',
-            unitPrice: effectiveRate,
-            total: extraLabourCost,
-            category: 'labour',
-          });
-          subtotal += extraLabourCost;
-        }
-      }
-
-      // Return visit for sealing
-      if (answers.sealing_return_visit === true) {
-        const returnHours = Number(answers.sealing_return_hours) || 2;
-        const returnCost = returnHours * effectiveRate;
-        const callout = getPrice(priceMap, 'other', 'CALLOUT', 150);
-
-        lineItems.push({
-          id: 'sealing_return_labour',
-          description: `Sealing Return Visit Labour (${returnHours} hrs)`,
-          quantity: returnHours,
-          unit: 'hrs',
-          unitPrice: effectiveRate,
-          total: returnCost,
-          category: 'labour',
-        });
-        subtotal += returnCost;
-
-        lineItems.push({
-          id: 'sealing_callout',
-          description: 'Sealing Return Visit Call-out',
-          quantity: 1,
-          unit: 'visit',
-          unitPrice: callout,
-          total: callout,
-          category: 'other',
-        });
-        subtotal += callout;
-      }
+      subtotal += callout;
     }
 
     // ========== Sundries ==========
@@ -959,15 +799,6 @@ export const surfaceFinishingModule: EstimateModule = {
       });
     }
 
-    // Return visits
-    if (answers.finish_type === 'exposed_aggregate' && answers.washoff_timing !== 'return_visit') {
-      exclusions.push({
-        id: 'no_return_visits',
-        text: 'Additional return visits for wash-off are excluded.',
-        moduleId: 'surface-finishing',
-      });
-    }
-
     // Other finish - details TBD
     if (answers.finish_type === 'other') {
       exclusions.push({
@@ -997,29 +828,6 @@ export const surfaceFinishingModule: EstimateModule = {
 };
 
 // Helper functions
-function getFinishTypeName(finishType: string): string {
-  const names: Record<string, string> = {
-    'exposed_aggregate': 'Exposed Aggregate',
-    'stencilled': 'Stencilled',
-    'stamped': 'Stamped',
-    'honed_polished': 'Honed & Polished',
-    'sealed': 'Sealed',
-    'other': 'Other',
-  };
-  return names[finishType] || 'Surface';
-}
-
-function getSealerTypeName(sealerType: string): string {
-  const names: Record<string, string> = {
-    'acrylic': 'Acrylic',
-    'penetrating': 'Penetrating',
-    'high_gloss': 'High-Gloss',
-    'matte': 'Matte',
-    'exposed_agg': 'Exposed Aggregate',
-  };
-  return names[sealerType] || 'Concrete';
-}
-
 function getPolishGradeName(grade: string): string {
   const names: Record<string, string> = {
     'grind_seal': 'Grind & Seal',
