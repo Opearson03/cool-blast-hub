@@ -352,6 +352,7 @@ export function ModularCalculator({
     return {
       ...derivedScopeAnswers,
       volume: scopeVolume,
+      concrete_volume: scopeVolume, // Alias for module compatibility (concrete-supply, concrete-pumping)
       scopeId: scope.id,
     };
   }, [derivedScopeAnswers, scopeVolume, scope.id]);
