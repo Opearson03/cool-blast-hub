@@ -30,6 +30,7 @@ export default function StaffDashboard() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -139,7 +140,10 @@ export default function StaffDashboard() {
       <main className="container mx-auto px-4 py-8">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <Card>
+          <Card 
+            className="cursor-pointer transition-colors hover:bg-accent/50"
+            onClick={() => setActiveTab("waitlist")}
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Waiting List
@@ -209,7 +213,7 @@ export default function StaffDashboard() {
         </div>
 
         {/* Tabs for different views */}
-        <Tabs defaultValue="overview" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="overview">
               <TrendingUp className="h-4 w-4 mr-2" />
