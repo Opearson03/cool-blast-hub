@@ -389,50 +389,6 @@ export function MultiDemolitionInput({
           </div>
         </div>
 
-        {/* Rock breaker option */}
-        <div className="pt-3 border-t space-y-3">
-          <div className="flex items-center justify-between">
-            <Label className="text-sm font-medium">
-              Is a rock breaker required?
-            </Label>
-            <Switch
-              checked={rockBreakerRequired}
-              onCheckedChange={onRockBreakerRequiredChange}
-            />
-          </div>
-
-          {rockBreakerRequired && (
-            <div className="p-3 bg-muted/50 rounded-lg">
-              <div className="space-y-1.5 max-w-[200px]">
-                <Label className="text-xs text-muted-foreground">
-                  Rock Breaker Hire
-                </Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    $
-                  </span>
-                  <Input
-                    type="number"
-                    inputMode="decimal"
-                    value={rockBreakerCost || ""}
-                    onChange={(e) =>
-                      onRockBreakerCostChange(
-                        e.target.value === "" ? 200 : Number(e.target.value)
-                      )
-                    }
-                    min={0}
-                    step={10}
-                    className="pl-7 pr-12"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                    /day
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Excavator Hire option */}
         {onExcavatorRequiredChange && (
           <div className="pt-3 border-t space-y-3">
@@ -554,6 +510,50 @@ export function MultiDemolitionInput({
             )}
           </div>
         )}
+
+        {/* Rock breaker option */}
+        <div className="pt-3 border-t space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              Is a rock breaker required?
+            </Label>
+            <Switch
+              checked={rockBreakerRequired}
+              onCheckedChange={onRockBreakerRequiredChange}
+            />
+          </div>
+
+          {rockBreakerRequired && (
+            <div className="p-3 bg-muted/50 rounded-lg">
+              <div className="space-y-1.5 max-w-[200px]">
+                <Label className="text-xs text-muted-foreground">
+                  Rock Breaker Hire
+                </Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                    $
+                  </span>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    value={rockBreakerCost || ""}
+                    onChange={(e) =>
+                      onRockBreakerCostChange(
+                        e.target.value === "" ? 200 : Number(e.target.value)
+                      )
+                    }
+                    min={0}
+                    step={10}
+                    className="pl-7 pr-12"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                    /day
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Saw Cutting option */}
         {onSawCuttingRequiredChange && (
