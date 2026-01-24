@@ -49,6 +49,8 @@ interface MultiDemolitionInputProps {
   onSawCuttingHoursChange?: (hours: number) => void;
   sawCuttingHourlyRate?: number;
   onSawCuttingHourlyRateChange?: (rate: number) => void;
+  sawCuttingEstablishment?: number;
+  onSawCuttingEstablishmentChange?: (rate: number) => void;
   // Labour hours props
   demoLabourRequired?: boolean;
   onDemoLabourRequiredChange?: (required: boolean) => void;
@@ -105,6 +107,8 @@ export function MultiDemolitionInput({
   onSawCuttingHoursChange,
   sawCuttingHourlyRate = 180,
   onSawCuttingHourlyRateChange,
+  sawCuttingEstablishment = 150,
+  onSawCuttingEstablishmentChange,
   // Labour hours
   demoLabourRequired = false,
   onDemoLabourRequiredChange,
@@ -692,15 +696,40 @@ export function MultiDemolitionInput({
                   </div>
                 )}
 
+                {/* Site Establishment */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Site Establishment
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      $
+                    </span>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      value={sawCuttingEstablishment || ""}
+                      onChange={(e) =>
+                        onSawCuttingEstablishmentChange?.(
+                          e.target.value === "" ? 150 : Number(e.target.value)
+                        )
+                      }
+                      min={0}
+                      step={10}
+                      className="pl-7 h-11 sm:h-9"
+                    />
+                  </div>
+                </div>
+
                 {/* Total display */}
                 {sawCuttingMethod === 'linear' && sawCuttingLength > 0 && sawCuttingRate > 0 && (
                   <div className="text-sm text-muted-foreground">
-                    Total: ${(sawCuttingLength * sawCuttingRate).toFixed(2)}
+                    Total: ${((sawCuttingLength * sawCuttingRate) + sawCuttingEstablishment).toFixed(2)}
                   </div>
                 )}
                 {sawCuttingMethod === 'hourly' && sawCuttingHours > 0 && sawCuttingHourlyRate > 0 && (
                   <div className="text-sm text-muted-foreground">
-                    Total: ${(sawCuttingHours * sawCuttingHourlyRate).toFixed(2)}
+                    Total: ${((sawCuttingHours * sawCuttingHourlyRate) + sawCuttingEstablishment).toFixed(2)}
                   </div>
                 )}
               </div>
