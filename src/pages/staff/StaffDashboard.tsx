@@ -175,7 +175,7 @@ export default function StaffDashboard() {
                 {statsLoading ? "..." : stats?.total_businesses ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                +{stats?.recent_signups_7d ?? 0} this week
+                +{stats?.recent_signups_7d ?? 0} this week • {stats?.demo_accounts ?? 0} demo
               </p>
             </CardContent>
           </Card>
