@@ -267,15 +267,14 @@ export function DrawingCanvas({
     }
   }, [drawingPoints, onPointsChange]);
 
-  // Handle wheel events - let Shift+scroll bubble up for zoom
+  // Handle wheel events - let Shift+scroll bubble up for zoom, normal scroll passes through
   const handleWheel = useCallback((e: KonvaEventObject<WheelEvent>) => {
     // If Shift is held, let the event bubble up for zoom handling
+    // Normal scroll also passes through to allow page scrolling
     if (e.evt.shiftKey) {
-      // Don't prevent default - let parent handle zoom
-      return;
+      e.evt.preventDefault(); // Prevent default only for zoom to avoid page scroll during zoom
     }
-    // For normal scroll, prevent default to avoid page scrolling
-    e.evt.preventDefault();
+    // Don't preventDefault for normal scroll - let the page scroll normally
   }, []);
 
   // Get cursor style
