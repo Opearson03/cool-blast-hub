@@ -2087,6 +2087,21 @@ export type Database = {
       calculate_queue_position: { Args: { _user_id: string }; Returns: number }
       check_employee_limit: { Args: { _business_id: string }; Returns: Json }
       check_invite_email: { Args: { _email: string }; Returns: boolean }
+      get_all_users_for_staff: {
+        Args: never
+        Returns: {
+          business_id: string
+          business_name: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          last_sign_in_at: string
+          role: string
+          subscription_exempt: boolean
+          subscription_status: string
+        }[]
+      }
       get_dashboard_stats: { Args: { p_business_id: string }; Returns: Json }
       get_referrer_by_code: { Args: { code: string }; Returns: string }
       get_signup_trends: {
