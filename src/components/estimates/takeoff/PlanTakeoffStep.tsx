@@ -14,7 +14,7 @@ import { CalibrationDialog } from './CalibrationDialog';
 import { PierDimensionsDialog } from './PierDimensionsDialog';
 import { BollardDimensionsDialog } from './BollardDimensionsDialog';
 import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
-import { LinearDimensionsDialog, type ExistingLinearSegment } from './LinearDimensionsDialog';
+import { LinearDimensionsDialog, type ExistingLinearSegment, type PolylineSegment } from './LinearDimensionsDialog';
 import { MarkupNameDialog } from './MarkupNameDialog';
 import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData, type BeamData } from './SlabBeamMarkupDialog';
 import { EditBeamDialog } from './EditBeamDialog';
@@ -407,6 +407,23 @@ export function PlanTakeoffStep({
   const currentBeamLength = useMemo(() => {
     if (!currentScale || polylinePoints.length < 2) return 0;
     return calculatePolylineLength(polylinePoints, currentScale);
+  }, [polylinePoints, currentScale]);
+
+  // Calculate individual polyline segments for linear scopes
+  const polylineSegments = useMemo(() => {
+    if (!currentScale || polylinePoints.length < 2) return [];
+    
+    return polylinePoints.slice(0, -1).map((point, i) => {
+      const nextPoint = polylinePoints[i + 1];
+      const pixelLength = Math.sqrt(
+        Math.pow(nextPoint.x - point.x, 2) + Math.pow(nextPoint.y - point.y, 2)
+      );
+      return {
+        startPoint: point,
+        endPoint: nextPoint,
+        length: pixelLength / currentScale,
+      };
+    });
   }, [polylinePoints, currentScale]);
 
   // Handler: Start drawing edge beams
@@ -1159,6 +1176,7 @@ export function PlanTakeoffStep({
         onDoneMarkingPoints={handleDoneMarkingPiers}
         isPolylineMode={activeTool === 'polyline' && isLinearScope && !isSlabBeamMarking}
         polylineLength={currentScale ? calculatePolylineLength(polylinePoints, currentScale) : 0}
+        polylineSegmentCount={polylinePoints.length > 1 ? polylinePoints.length - 1 : 0}
         polylineLabel={activeScope === 'kerbs_channels' ? 'kerb' : activeScope === 'retaining_walls' ? 'wall' : 'footing'}
         onDoneMarkingPolyline={handleDoneMarkingPolyline}
         isBeamMarkingMode={isSlabBeamMarking}
@@ -1414,6 +1432,7 @@ export function PlanTakeoffStep({
           }
         }}
         lengthMeters={pendingPolylineLength}
+        segments={polylineSegments}
         scopeType={activeScope || 'strip_footings'}
         defaultName={(() => {
           if (!activeScope) return 'SF1';

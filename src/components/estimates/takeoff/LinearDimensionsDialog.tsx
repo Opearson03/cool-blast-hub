@@ -24,6 +24,13 @@ export interface ExistingLinearSegment {
   length: number;
 }
 
+/** Segment data from polyline points */
+export interface PolylineSegment {
+  startPoint: { x: number; y: number };
+  endPoint: { x: number; y: number };
+  length: number; // in meters
+}
+
 interface LinearType {
   baseName: string;
   width: number;
@@ -34,7 +41,10 @@ interface LinearType {
 interface LinearDimensionsDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** Total length in meters (all segments combined) */
   lengthMeters: number;
+  /** Individual segments with their lengths */
+  segments?: PolylineSegment[];
   scopeType: string;
   defaultName?: string;
   onConfirm: (name: string, width: number, height: number, toe?: number) => Promise<void>;
@@ -63,6 +73,7 @@ export function LinearDimensionsDialog({
   open,
   onOpenChange,
   lengthMeters,
+  segments = [],
   scopeType,
   defaultName,
   onConfirm,
@@ -244,7 +255,9 @@ export function LinearDimensionsDialog({
             Enter {getScopeTitle()} Dimensions
           </DialogTitle>
           <DialogDescription>
-            You've traced {lengthMeters.toFixed(1)}m of {getScopeTitle().toLowerCase()}. 
+            {segments.length > 1 
+              ? `You've traced ${segments.length} segments totaling ${lengthMeters.toFixed(1)}m.`
+              : `You've traced ${lengthMeters.toFixed(1)}m of ${getScopeTitle().toLowerCase()}.`}
             {hasExistingTypes 
               ? ' Add to an existing type or create a new one.'
               : ' Enter the type name and cross-section dimensions.'}
@@ -252,10 +265,24 @@ export function LinearDimensionsDialog({
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-4">
-          {/* Length display */}
-          <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
-            <span className="text-sm font-medium">Total Length:</span>
-            <span className="text-lg font-bold">{lengthMeters.toFixed(2)} m</span>
+          {/* Length/segments display */}
+          <div className="p-3 bg-primary/10 rounded-lg space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium">Total Length:</span>
+              <span className="text-lg font-bold">{lengthMeters.toFixed(2)} m</span>
+            </div>
+            {segments.length > 1 && (
+              <div className="pt-2 border-t border-primary/20">
+                <span className="text-xs text-muted-foreground">Segments:</span>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {segments.map((seg, i) => (
+                    <Badge key={i} variant="outline" className="text-xs">
+                      {seg.length.toFixed(1)}m
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Type selection tabs - only show if existing types exist */}
