@@ -208,14 +208,17 @@ export const reinforcementRaftModule: EstimateModule = {
 
         if (reoType === 'mesh') {
           const meshType = area.mesh_type || defaultMeshType;
+          const meshLayers = Number(area.mesh_layers) || 1;
           const pricePerSheet = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', meshType, 95);
           const totalMeshArea = areaValue * lapPercent;
-          const sheets = Math.ceil(totalMeshArea / sheetArea);
+          const sheetsPerLayer = Math.ceil(totalMeshArea / sheetArea);
+          const sheets = sheetsPerLayer * meshLayers;
           const cost = sheets * pricePerSheet;
 
+          const layerText = meshLayers > 1 ? ` - ${meshLayers} layers` : '';
           lineItems.push({
             id: `mesh_${area.id}`,
-            description: `${area.name} – ${meshType} (${sheets} sheets)`,
+            description: `${area.name} – ${meshType} (${sheets} sheets${layerText})`,
             quantity: sheets,
             unit: 'sheets',
             unitPrice: pricePerSheet,
@@ -335,18 +338,21 @@ export const reinforcementRaftModule: EstimateModule = {
         if (length <= 0) return;
 
         const tmType = beam.tm_type || DEFAULT_TM_TYPE;
+        const tmLayers = Number(beam.tm_layers) || 1;
         const addLigs = beam.add_ligs ?? DEFAULT_ADD_LIGS;
         const ligSize = beam.lig_size || DEFAULT_LIG_SIZE;
         const ligCentres = beam.lig_centres ?? DEFAULT_LIG_CENTRES;
 
         const tmPrice = getPrice(priceMap, 'trench_mesh', tmType, 108);
         const tmLengthWithLap = length * LAP_ALLOWANCE;
-        const tmSheets = Math.ceil(tmLengthWithLap / 6);
+        const tmSheetsPerLayer = Math.ceil(tmLengthWithLap / 6);
+        const tmSheets = tmSheetsPerLayer * tmLayers;
         const tmCost = tmSheets * tmPrice;
 
+        const layerText = tmLayers > 1 ? ` - ${tmLayers} layers` : '';
         lineItems.push({
           id: `edge_tm_${beam.id}`,
-          description: `${beam.name} – ${tmType} (${tmSheets} sheets)`,
+          description: `${beam.name} – ${tmType} (${tmSheets} sheets${layerText})`,
           quantity: tmSheets,
           unit: 'sheets',
           unitPrice: tmPrice,
@@ -413,18 +419,21 @@ export const reinforcementRaftModule: EstimateModule = {
         if (length <= 0) return;
 
         const tmType = beam.tm_type || DEFAULT_TM_TYPE;
+        const tmLayers = Number(beam.tm_layers) || 1;
         const addLigs = beam.add_ligs ?? DEFAULT_ADD_LIGS;
         const ligSize = beam.lig_size || DEFAULT_LIG_SIZE;
         const ligCentres = beam.lig_centres ?? DEFAULT_LIG_CENTRES;
 
         const tmPrice = getPrice(priceMap, 'trench_mesh', tmType, 108);
         const tmLengthWithLap = length * LAP_ALLOWANCE;
-        const tmSheets = Math.ceil(tmLengthWithLap / 6);
+        const tmSheetsPerLayer = Math.ceil(tmLengthWithLap / 6);
+        const tmSheets = tmSheetsPerLayer * tmLayers;
         const tmCost = tmSheets * tmPrice;
 
+        const layerText = tmLayers > 1 ? ` - ${tmLayers} layers` : '';
         lineItems.push({
           id: `internal_tm_${beam.id}`,
-          description: `${beam.name} – ${tmType} (${tmSheets} sheets)`,
+          description: `${beam.name} – ${tmType} (${tmSheets} sheets${layerText})`,
           quantity: tmSheets,
           unit: 'sheets',
           unitPrice: tmPrice,
