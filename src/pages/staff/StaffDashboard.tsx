@@ -5,13 +5,14 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List } from "lucide-react";
+import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "@/components/ui/Logo";
 import { WaitlistTable } from "@/components/staff/WaitlistTable";
 import { SubscriptionMetrics } from "@/components/staff/SubscriptionMetrics";
 import { SignupTrends } from "@/components/staff/SignupTrends";
 import { SubscribersTable } from "@/components/staff/SubscribersTable";
+import { UsersTable } from "@/components/staff/UsersTable";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -24,6 +25,7 @@ interface SubscriptionStats {
   waiting_list_count: number;
   recent_signups_7d: number;
   recent_signups_30d: number;
+  active_today: number;
 }
 
 export default function StaffDashboard() {
@@ -76,6 +78,7 @@ export default function StaffDashboard() {
     queryClient.invalidateQueries({ queryKey: ["staff-subscribers"] });
     queryClient.invalidateQueries({ queryKey: ["staff-waitlist-entries"] });
     queryClient.invalidateQueries({ queryKey: ["staff-signup-trends"] });
+    queryClient.invalidateQueries({ queryKey: ["staff-all-users"] });
   }, [refetchStats, queryClient]);
 
   // Subscribe to realtime changes on relevant tables
@@ -197,7 +200,10 @@ export default function StaffDashboard() {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card 
+            className="cursor-pointer transition-colors hover:bg-accent/50"
+            onClick={() => setActiveTab("users")}
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Total Users
@@ -209,7 +215,7 @@ export default function StaffDashboard() {
                 {statsLoading ? "..." : stats?.total_users ?? 0}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Across all businesses
+                {stats?.active_today ?? 0} active today
               </p>
             </CardContent>
           </Card>
@@ -221,6 +227,10 @@ export default function StaffDashboard() {
             <TabsTrigger value="overview">
               <TrendingUp className="h-4 w-4 mr-2" />
               Overview
+            </TabsTrigger>
+            <TabsTrigger value="users">
+              <UserCheck className="h-4 w-4 mr-2" />
+              Users
             </TabsTrigger>
             <TabsTrigger value="waitlist">
               <List className="h-4 w-4 mr-2" />
@@ -237,6 +247,10 @@ export default function StaffDashboard() {
               <SignupTrends />
               <SubscriptionMetrics stats={stats} isLoading={statsLoading} />
             </div>
+          </TabsContent>
+
+          <TabsContent value="users">
+            <UsersTable />
           </TabsContent>
 
           <TabsContent value="waitlist">
