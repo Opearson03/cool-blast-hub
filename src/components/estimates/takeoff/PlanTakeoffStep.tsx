@@ -719,16 +719,8 @@ export function PlanTakeoffStep({
     setShowAddBeamDimensionsDialog(false);
   }, []);
 
-  // Auto-trigger dialog when 2 points are placed for adding internal beam to existing slab
-  // Edge beams use continuous polyline markup (double-click to finish)
-  useEffect(() => {
-    if (isAddingBeamToExistingSlab && addingBeamType === 'internal_beam' && polylinePoints.length === 2) {
-      const timer = setTimeout(() => {
-        handleDoneAddingBeamToSlab();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [isAddingBeamToExistingSlab, addingBeamType, polylinePoints.length, handleDoneAddingBeamToSlab]);
+  // Internal beams now use continuous polyline markup like edge beams
+  // User must click "Done" or press Enter to complete marking
 
   // Handler for completing pier marking
   const handlePierDimensionsConfirm = useCallback(async (diameter: number, depth: number, name: string) => {
@@ -1003,16 +995,8 @@ export function PlanTakeoffStep({
     setDrawingPoints(points);
   }, []);
 
-  // Auto-complete internal beam after 2 points (internal beams are always point-to-point)
-  useEffect(() => {
-    if (slabWorkflowStep === 'mark_internal_beam' && polylinePoints.length === 2) {
-      // Small timeout to ensure the point is visually rendered before transitioning
-      const timer = setTimeout(() => {
-        handleDoneMarkingSingleBeam();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [slabWorkflowStep, polylinePoints.length, handleDoneMarkingSingleBeam]);
+  // Internal beams now use continuous polyline markup like edge beams
+  // User must click "Done" or press Enter to complete marking
 
   const handleToolChange = useCallback((tool: DrawingTool['type']) => {
     setActiveTool(tool);
@@ -1514,6 +1498,7 @@ export function PlanTakeoffStep({
         slabPerimeter={slabStats.perimeter}
         currentBeamPoints={currentBeamPoints}
         currentBeamLength={currentBeamLength}
+        currentBeamSegments={polylineSegments}
         savedEdgeBeams={pendingSlabData?.edgeBeams || []}
         savedInternalBeams={pendingSlabData?.internalBeams || []}
         wafflePodSize={pendingSlabData?.wafflePodSize || '1090x1090'}

@@ -66,6 +66,13 @@ const WAFFLE_POD_THICKNESSES = [
   { value: '375', label: '375mm' },
 ];
 
+/** Segment data from polyline points */
+export interface BeamSegment {
+  startPoint: { x: number; y: number };
+  endPoint: { x: number; y: number };
+  length: number; // in meters
+}
+
 interface SlabBeamMarkupDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -81,6 +88,8 @@ interface SlabBeamMarkupDialogProps {
   /** Current beam being marked (for details step) */
   currentBeamPoints?: { x: number; y: number }[];
   currentBeamLength?: number;
+  /** Individual segments with their lengths (for multi-segment beams) */
+  currentBeamSegments?: BeamSegment[];
   /** List of already saved edge beams */
   savedEdgeBeams?: BeamData[];
   /** List of already saved internal beams */
@@ -120,6 +129,7 @@ export function SlabBeamMarkupDialog({
   slabPerimeter = 0,
   currentBeamPoints = [],
   currentBeamLength = 0,
+  currentBeamSegments = [],
   savedEdgeBeams = [],
   savedInternalBeams = [],
   wafflePodSize = '1090x1090',
@@ -490,13 +500,28 @@ export function SlabBeamMarkupDialog({
           {/* Step: Edge Beam Details */}
           {step === 'edge_beam_details' && (
             <div className="space-y-4 py-4">
-              {/* Length display */}
-              <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Minus className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Beam Length:</span>
+              {/* Length display with segments */}
+              <div className="p-3 bg-primary/10 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Minus className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">
+                      {currentBeamSegments.length > 1 
+                        ? `${currentBeamSegments.length} segments`
+                        : 'Beam Length'}:
+                    </span>
+                  </div>
+                  <Badge variant="default">{currentBeamLength.toFixed(2)} m</Badge>
                 </div>
-                <Badge variant="default">{currentBeamLength.toFixed(2)} m</Badge>
+                {currentBeamSegments.length > 1 && (
+                  <div className="text-xs text-muted-foreground border-t border-primary/20 pt-2 mt-2">
+                    {currentBeamSegments.map((seg, i) => (
+                      <span key={i}>
+                        {seg.length.toFixed(2)}m{i < currentBeamSegments.length - 1 ? ' + ' : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Beam Type Selection - only show if existing types exist */}
@@ -667,13 +692,28 @@ export function SlabBeamMarkupDialog({
           {/* Step: Internal Beam Details */}
           {step === 'internal_beam_details' && (
             <div className="space-y-4 py-4">
-              {/* Length display */}
-              <div className="p-3 bg-primary/10 rounded-lg flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Minus className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-medium">Beam Length:</span>
+              {/* Length display with segments */}
+              <div className="p-3 bg-primary/10 rounded-lg space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Minus className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">
+                      {currentBeamSegments.length > 1 
+                        ? `${currentBeamSegments.length} segments`
+                        : 'Beam Length'}:
+                    </span>
+                  </div>
+                  <Badge variant="default">{currentBeamLength.toFixed(2)} m</Badge>
                 </div>
-                <Badge variant="default">{currentBeamLength.toFixed(2)} m</Badge>
+                {currentBeamSegments.length > 1 && (
+                  <div className="text-xs text-muted-foreground border-t border-primary/20 pt-2 mt-2">
+                    {currentBeamSegments.map((seg, i) => (
+                      <span key={i}>
+                        {seg.length.toFixed(2)}m{i < currentBeamSegments.length - 1 ? ' + ' : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Beam Type Selection - only show if existing types exist */}
