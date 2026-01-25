@@ -122,6 +122,17 @@ export const basePreparationModule: EstimateModule = {
       showIf: (answers) => answers.membrane_required === true,
     },
     {
+      id: 'membrane_layers',
+      type: 'select',
+      label: 'Number of Layers',
+      options: [
+        { value: '1', label: '1 Layer' },
+        { value: '2', label: '2 Layers' },
+      ],
+      defaultValue: '1',
+      showIf: (answers) => answers.membrane_required === true,
+    },
+    {
       id: 'membrane_area',
       type: 'number',
       label: 'Area to Cover',
@@ -226,7 +237,9 @@ export const basePreparationModule: EstimateModule = {
       const totalArea = area * overlapPercent;
       
       const rollArea = 200; // 4m x 50m
-      const rollsRequired = Math.ceil(totalArea / rollArea);
+      const layers = Number(answers.membrane_layers) || 1;
+      const rollsPerLayer = Math.ceil(totalArea / rollArea);
+      const rollsRequired = rollsPerLayer * layers;
       const pricePerRoll = Number(answers.membrane_price) || 180;
       const membraneType = answers.membrane_type || 'PLASTIC 4X50 MED';
       
@@ -248,9 +261,10 @@ export const basePreparationModule: EstimateModule = {
         'PLASTIC 4X25 ORG': 'Orange 300um Builder\'s Film',
       };
 
+      const layerText = layers > 1 ? ` - ${layers} layers` : '';
       lineItems.push({
         id: 'plastic_membrane',
-        description: `Plastic Membrane ${typeLabels[membraneType] || membraneType} (${rollsRequired} rolls)`,
+        description: `Plastic Membrane ${typeLabels[membraneType] || membraneType} (${rollsRequired} rolls${layerText})`,
         quantity: rollsRequired,
         unit: 'rolls',
         unitPrice: actualPrice,
