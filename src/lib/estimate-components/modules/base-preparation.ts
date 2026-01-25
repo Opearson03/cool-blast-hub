@@ -136,11 +136,17 @@ export const basePreparationModule: EstimateModule = {
       label: 'Overlap Allowance',
       defaultValue: 10,
       min: 0,
-      max: 30,
+      max: 50,
       unit: '%',
       helpText: 'Extra for overlaps and edges',
       showIf: (answers) => answers.membrane_required === true,
-      deriveFrom: () => 10, // Standard 10% overlap allowance
+      deriveFrom: (scopeData) => {
+        // Raft slabs require 25% overlap due to complex beam formations
+        if (scopeData?.scopeId === 'raft-slab') {
+          return 25;
+        }
+        return 10; // Standard 10% overlap allowance for other scopes
+      },
     },
     {
       id: 'membrane_price',
