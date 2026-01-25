@@ -90,6 +90,8 @@ interface SlabBeamMarkupDialogProps {
   currentBeamLength?: number;
   /** Individual segments with their lengths (for multi-segment beams) */
   currentBeamSegments?: BeamSegment[];
+  /** Discrete internal beams (for point-pair workflow) */
+  discreteInternalBeams?: Array<{ startPoint: { x: number; y: number }; endPoint: { x: number; y: number }; length: number }>;
   /** List of already saved edge beams */
   savedEdgeBeams?: BeamData[];
   /** List of already saved internal beams */
@@ -130,6 +132,7 @@ export function SlabBeamMarkupDialog({
   currentBeamPoints = [],
   currentBeamLength = 0,
   currentBeamSegments = [],
+  discreteInternalBeams = [],
   savedEdgeBeams = [],
   savedInternalBeams = [],
   wafflePodSize = '1090x1090',
@@ -692,24 +695,28 @@ export function SlabBeamMarkupDialog({
           {/* Step: Internal Beam Details */}
           {step === 'internal_beam_details' && (
             <div className="space-y-4 py-4">
-              {/* Length display with segments */}
+              {/* Length display - for discrete internal beams */}
               <div className="p-3 bg-primary/10 rounded-lg space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Minus className="h-4 w-4 text-primary" />
                     <span className="text-sm font-medium">
-                      {currentBeamSegments.length > 1 
-                        ? `${currentBeamSegments.length} segments`
-                        : 'Beam Length'}:
+                      {discreteInternalBeams.length > 1 
+                        ? `${discreteInternalBeams.length} beams`
+                        : discreteInternalBeams.length === 1 ? '1 beam' : 'Beam Length'}:
                     </span>
                   </div>
-                  <Badge variant="default">{currentBeamLength.toFixed(2)} m</Badge>
+                  <Badge variant="default">
+                    {discreteInternalBeams.length > 0 
+                      ? discreteInternalBeams.reduce((sum, b) => sum + b.length, 0).toFixed(2)
+                      : currentBeamLength.toFixed(2)} m
+                  </Badge>
                 </div>
-                {currentBeamSegments.length > 1 && (
+                {discreteInternalBeams.length > 1 && (
                   <div className="text-xs text-muted-foreground border-t border-primary/20 pt-2 mt-2">
-                    {currentBeamSegments.map((seg, i) => (
+                    {discreteInternalBeams.map((beam, i) => (
                       <span key={i}>
-                        {seg.length.toFixed(2)}m{i < currentBeamSegments.length - 1 ? ' + ' : ''}
+                        {beam.length.toFixed(2)}m{i < discreteInternalBeams.length - 1 ? ' + ' : ''}
                       </span>
                     ))}
                   </div>

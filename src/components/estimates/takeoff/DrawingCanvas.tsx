@@ -43,6 +43,8 @@ interface DrawingCanvasProps {
   pendingSlabReference?: PendingSlabReference;
   /** Already-marked beam segments to show during beam marking */
   existingBeamSegments?: BeamSegmentReference[];
+  /** Discrete internal beams (point pairs, not connected) */
+  discreteInternalBeams?: Array<{ startPoint: TakeoffPoint; endPoint: TakeoffPoint; length: number }>;
   /** When true, user is panning the view - don't place points on click */
   isPanning?: boolean;
   /** When true, show individual segment length labels on polyline preview */
@@ -75,6 +77,7 @@ export function DrawingCanvas({
   activeBeamType = null,
   pendingSlabReference,
   existingBeamSegments = [],
+  discreteInternalBeams = [],
   isPanning = false,
   showSegmentLabels = true,
   onMarkupComplete,
@@ -604,6 +607,72 @@ export function DrawingCanvas({
     );
   };
 
+  // Render discrete internal beams (separate line segments, not connected)
+  const renderDiscreteInternalBeams = () => {
+    if (discreteInternalBeams.length === 0) return null;
+
+    return (
+      <Group>
+        {discreteInternalBeams.map((beam, index) => {
+          const midX = (beam.startPoint.x + beam.endPoint.x) / 2;
+          const midY = (beam.startPoint.y + beam.endPoint.y) / 2;
+          
+          return (
+            <Group key={`discrete-beam-${index}`}>
+              {/* Beam line */}
+              <Line
+                points={[beam.startPoint.x, beam.startPoint.y, beam.endPoint.x, beam.endPoint.y]}
+                stroke={INTERNAL_BEAM_COLOR}
+                strokeWidth={5}
+                lineCap="round"
+                opacity={0.9}
+              />
+              {/* Vertex points */}
+              <Circle
+                x={beam.startPoint.x}
+                y={beam.startPoint.y}
+                radius={6}
+                fill={INTERNAL_BEAM_COLOR}
+                stroke="#fff"
+                strokeWidth={2}
+              />
+              <Circle
+                x={beam.endPoint.x}
+                y={beam.endPoint.y}
+                radius={6}
+                fill="white"
+                stroke={INTERNAL_BEAM_COLOR}
+                strokeWidth={2}
+              />
+              {/* Length label at midpoint */}
+              <Group>
+                <Rect
+                  x={midX - 22}
+                  y={midY - 10}
+                  width={44}
+                  height={16}
+                  fill="rgba(0,0,0,0.7)"
+                  cornerRadius={4}
+                />
+                <Text
+                  x={midX}
+                  y={midY}
+                  text={`${beam.length.toFixed(1)}m`}
+                  fontSize={10}
+                  fontStyle="bold"
+                  fill="#fff"
+                  align="center"
+                  offsetX={18}
+                  offsetY={4}
+                />
+              </Group>
+            </Group>
+          );
+        })}
+      </Group>
+    );
+  };
+
   // Render preview of current drawing
   const renderDrawingPreview = () => {
     if (tool === 'polygon' && drawingPoints.length > 0) {
@@ -890,6 +959,8 @@ export function DrawingCanvas({
         {renderPendingSlabReference()}
         {/* Render already-marked beam segments */}
         {renderExistingBeamSegments()}
+        {/* Render discrete internal beams (not connected to each other) */}
+        {renderDiscreteInternalBeams()}
         {renderMarkups()}
         {renderDrawingPreview()}
         {renderPierPoints()}
