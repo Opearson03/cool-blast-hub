@@ -42,6 +42,8 @@ interface ScopeMarkupChecklistProps {
   onEditBeam?: (markupId: string) => void;
   onDeleteMarkup: (markupId: string) => void;
   onAddBeamToSlab?: (slabMarkupId: string, beamType: 'edge_beam' | 'internal_beam') => void;
+  /** Callback for adding a new segment to an existing linear type */
+  onAddToLinearType?: (scopeId: string, typeName: string, width: number, depth: number) => void;
   isCalibrated: boolean;
   /** When true, panel collapses to a compact toggle button */
   isCollapsed?: boolean;
@@ -60,6 +62,7 @@ export function ScopeMarkupChecklist({
   onEditBeam,
   onDeleteMarkup,
   onAddBeamToSlab,
+  onAddToLinearType,
   isCalibrated,
   isCollapsed = false,
   onToggle
@@ -358,6 +361,18 @@ export function ScopeMarkupChecklist({
                             <span className="text-muted-foreground font-mono text-[10px]">
                               {group.totalVolume.toFixed(2)}m³
                             </span>
+                            {/* Add segment button */}
+                            {onAddToLinearType && isCalibrated && (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 touch-manipulation"
+                                onClick={() => onAddToLinearType(scope.id, group.baseName, group.width, group.depth)}
+                                title={`Add segment to ${group.baseName}`}
+                              >
+                                <Plus className="h-2.5 w-2.5 text-primary" />
+                              </Button>
+                            )}
                           </div>
                         ));
                       })()
