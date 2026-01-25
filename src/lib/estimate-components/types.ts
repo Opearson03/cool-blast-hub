@@ -140,6 +140,7 @@ export interface MeasurementArea {
   // Per-area reinforcement settings
   reo_type?: 'none' | 'mesh' | 'bar' | 'fiber';
   mesh_type?: string;
+  mesh_layers?: number;  // 1 or 2 - number of mesh layers
   bar_size?: string;
   bar_spacing?: string;
   bar_layers?: string;
@@ -310,6 +311,7 @@ export interface BeamConfig {
   
   // Per-beam reinforcement settings
   tm_type?: string;
+  tm_layers?: number;  // 1 or 2 - number of trench mesh layers
   add_ligs?: boolean;
   lig_size?: string;
   lig_centres?: number;

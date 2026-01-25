@@ -31,6 +31,11 @@ const TM_OPTIONS = [
   { value: 'L16TM3', label: 'L16TM3', width: '300mm' },
 ];
 
+const TM_LAYERS_OPTIONS = [
+  { value: 1, label: '1 Layer' },
+  { value: 2, label: '2 Layers' },
+];
+
 const LIG_SIZE_OPTIONS = [
   { value: 'R10', label: 'R10' },
   { value: 'R12', label: 'R12' },
@@ -64,6 +69,7 @@ interface BeamTypeGroup {
   
   // Derived reinforcement from first segment (all segments in group share same reo)
   tm_type?: string;
+  tm_layers?: number;
   add_ligs?: boolean;
   lig_size?: string;
   lig_centres?: number;
@@ -98,6 +104,7 @@ function groupBeamsByType(beams: BeamConfig[]): BeamTypeGroup[] {
         groupKey: key,
         // Use first segment's reinforcement as group settings
         tm_type: beam.tm_type,
+        tm_layers: beam.tm_layers,
         add_ligs: beam.add_ligs,
         lig_size: beam.lig_size,
         lig_centres: beam.lig_centres,
@@ -346,12 +353,13 @@ export function BeamReinforcementInput({
         {groups.map((group) => {
           const isOpen = openGroups.has(group.groupKey);
           const tmType = group.tm_type || defaultTmType;
+          const tmLayers = group.tm_layers || 1;
           const addLigs = group.add_ligs ?? defaultAddLigs;
           const ligSize = group.lig_size || defaultLigSize;
           const ligCentres = group.lig_centres ?? defaultLigCentres;
           const horizontalBars = group.horizontal_bars || [];
           const verticalBars = group.vertical_bars || [];
-          const hasCustomSettings = group.tm_type || group.add_ligs !== undefined || group.lig_size || group.lig_centres ||
+          const hasCustomSettings = group.tm_type || (group.tm_layers && group.tm_layers > 1) || group.add_ligs !== undefined || group.lig_size || group.lig_centres ||
             horizontalBars.length > 0 || verticalBars.length > 0;
 
           const tmOption = TM_OPTIONS.find(o => o.value === tmType);
@@ -390,6 +398,11 @@ export function BeamReinforcementInput({
                       <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
                         {tmOption?.label || tmType}
                       </span>
+                      {tmLayers > 1 && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-secondary text-secondary-foreground">
+                          ×{tmLayers} layers
+                        </span>
+                      )}
                       {addLigs && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-accent text-accent-foreground">
                           +Ligs
@@ -430,26 +443,46 @@ export function BeamReinforcementInput({
 
                     {/* Trench Mesh */}
                     <div className="space-y-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Trench Mesh</Label>
-                        <Select
-                          value={tmType}
-                          onValueChange={(val) => updateGroupReinforcement(group, { tm_type: val })}
-                        >
-                          <SelectTrigger className="h-8 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="z-[150]">
-                            {TM_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                <span className="flex items-center gap-2">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">Trench Mesh</Label>
+                          <Select
+                            value={tmType}
+                            onValueChange={(val) => updateGroupReinforcement(group, { tm_type: val })}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="z-[150]">
+                              {TM_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  <span className="flex items-center gap-2">
+                                    {opt.label}
+                                    <span className="text-muted-foreground text-xs">({opt.width})</span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">Layers</Label>
+                          <Select
+                            value={String(tmLayers)}
+                            onValueChange={(val) => updateGroupReinforcement(group, { tm_layers: Number(val) })}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="z-[150]">
+                              {TM_LAYERS_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={String(opt.value)}>
                                   {opt.label}
-                                  <span className="text-muted-foreground text-xs">({opt.width})</span>
-                                </span>
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
                       </div>
                     </div>
 
@@ -697,7 +730,7 @@ export function BeamReinforcementInput({
                     {/* Summary Footer */}
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground">
-                        {tmOption?.label || tmType}
+                        {tmOption?.label || tmType}{tmLayers > 1 ? ` (${tmLayers} layers)` : ''}
                         {addLigs ? ` + ${ligSize} ligs @ ${ligCentres}mm` : ''}
                         {horizontalBars.length > 0 ? ` + ${horizontalBars.length} H-bar${horizontalBars.length > 1 ? 's' : ''}` : ''}
                         {verticalBars.length > 0 ? ` + ${verticalBars.length} V-bar${verticalBars.length > 1 ? 's' : ''}` : ''}

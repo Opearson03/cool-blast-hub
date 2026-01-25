@@ -50,6 +50,11 @@ const BAR_LAYERS_OPTIONS = [
   { value: '2', label: 'Double (T&B)' },
 ];
 
+const MESH_LAYERS_OPTIONS = [
+  { value: 1, label: '1 Layer' },
+  { value: 2, label: '2 Layers' },
+];
+
 interface AreaReinforcementInputProps {
   areas: MeasurementArea[];
   onChange: (areas: MeasurementArea[]) => void;
@@ -184,8 +189,9 @@ export function AreaReinforcementInput({
           const barSize = area.bar_size || defaultBarSize;
           const barSpacing = area.bar_spacing || defaultBarSpacing;
           const barLayers = area.bar_layers || defaultBarLayers;
+          const meshLayers = area.mesh_layers || 1;
           const areaValue = area._actualArea || (area.length * area.width);
-          const hasCustomSettings = area.reo_type || area.mesh_type || area.bar_size;
+          const hasCustomSettings = area.reo_type || area.mesh_type || area.bar_size || (area.mesh_layers && area.mesh_layers > 1);
           const hasReinforcement = reoType === 'mesh' || reoType === 'bar';
 
           return (
@@ -299,6 +305,30 @@ export function AreaReinforcementInput({
                             )}
                           </div>
 
+                          {/* Mesh Layers */}
+                          {reoType === 'mesh' && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Number of Layers</Label>
+                                <Select
+                                  value={String(meshLayers)}
+                                  onValueChange={(val) => updateArea(index, { mesh_layers: Number(val) })}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="z-[150]">
+                                    {MESH_LAYERS_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={String(opt.value)}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            </div>
+                          )}
+
                           {/* Bar options */}
                           {reoType === 'bar' && (
                             <div className="grid grid-cols-3 gap-3">
@@ -365,7 +395,7 @@ export function AreaReinforcementInput({
                         {/* Summary Footer */}
                         <div className="pt-2 border-t">
                           <p className="text-xs text-muted-foreground">
-                            {reoType === 'mesh' && `${meshType} mesh • ${areaValue.toFixed(1)} m²`}
+                            {reoType === 'mesh' && `${meshType} mesh${meshLayers > 1 ? ` (${meshLayers} layers)` : ''} • ${areaValue.toFixed(1)} m²`}
                             {reoType === 'bar' && `${barSize} @ ${barSpacing}mm ${barLayers === '2' ? '(T&B)' : '(bottom)'} • ${areaValue.toFixed(1)} m²`}
                           </p>
                         </div>

@@ -192,13 +192,16 @@ export const reinforcementFootingModule: EstimateModule = {
       // Trench Mesh
       if (showTm) {
         const tmType = footing.tm_type || DEFAULT_TM_TYPE;
-        const sheetsRequired = Math.ceil((length * lapAllowance) / 6);
+        const tmLayers = Number((footing as any).tm_layers) || 1;
+        const sheetsPerLayer = Math.ceil((length * lapAllowance) / 6);
+        const sheetsRequired = sheetsPerLayer * tmLayers;
         const pricePerSheet = Number(answers.trench_mesh_price_per_sheet) || getPrice(priceMap, 'trench_mesh', tmType, 108);
         const meshCost = sheetsRequired * pricePerSheet;
 
+        const layerText = tmLayers > 1 ? ` - ${tmLayers} layers` : '';
         lineItems.push({
           id: `tm_${footing.id}`,
-          description: `${footing.name} - ${tmType} (${sheetsRequired} sheets)`,
+          description: `${footing.name} - ${tmType} (${sheetsRequired} sheets${layerText})`,
           quantity: sheetsRequired,
           unit: 'sheets',
           unitPrice: pricePerSheet,
