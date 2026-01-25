@@ -141,6 +141,7 @@ export interface MeasurementArea {
   reo_type?: 'none' | 'mesh' | 'bar' | 'fiber';
   mesh_type?: string;
   mesh_layers?: number;  // 1 or 2 - number of mesh layers
+  mesh_type_top?: string;  // Top layer mesh type (when mesh_layers > 1)
   bar_size?: string;
   bar_spacing?: string;
   bar_layers?: string;
@@ -312,6 +313,7 @@ export interface BeamConfig {
   // Per-beam reinforcement settings
   tm_type?: string;
   tm_layers?: number;  // 1 or 2 - number of trench mesh layers
+  tm_type_top?: string;  // Top layer TM type (when tm_layers > 1)
   add_ligs?: boolean;
   lig_size?: string;
   lig_centres?: number;

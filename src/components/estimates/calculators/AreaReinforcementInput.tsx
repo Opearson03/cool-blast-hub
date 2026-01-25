@@ -282,10 +282,12 @@ export function AreaReinforcementInput({
                               </Select>
                             </div>
 
-                            {/* Mesh Type */}
+                            {/* Mesh Type (becomes Bottom Layer when 2 layers) */}
                             {reoType === 'mesh' && (
                               <div className="space-y-1">
-                                <Label className="text-[10px] text-muted-foreground">Mesh Type</Label>
+                                <Label className="text-[10px] text-muted-foreground">
+                                  {meshLayers > 1 ? 'Bottom Layer' : 'Mesh Type'}
+                                </Label>
                                 <Select
                                   value={meshType}
                                   onValueChange={(val) => updateArea(index, { mesh_type: val })}
@@ -305,7 +307,7 @@ export function AreaReinforcementInput({
                             )}
                           </div>
 
-                          {/* Mesh Layers */}
+                          {/* Mesh Layers & Top Layer Type */}
                           {reoType === 'mesh' && (
                             <div className="grid grid-cols-2 gap-3">
                               <div className="space-y-1">
@@ -326,6 +328,28 @@ export function AreaReinforcementInput({
                                   </SelectContent>
                                 </Select>
                               </div>
+                              
+                              {/* Top Layer Mesh Type - only when 2 layers */}
+                              {meshLayers > 1 && (
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] text-muted-foreground">Top Layer</Label>
+                                  <Select
+                                    value={area.mesh_type_top || meshType}
+                                    onValueChange={(val) => updateArea(index, { mesh_type_top: val })}
+                                  >
+                                    <SelectTrigger className="h-8 text-sm">
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="z-[150]">
+                                      {MESH_OPTIONS.map((opt) => (
+                                        <SelectItem key={opt.value} value={opt.value}>
+                                          {opt.label}
+                                        </SelectItem>
+                                      ))}
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              )}
                             </div>
                           )}
 
@@ -395,7 +419,11 @@ export function AreaReinforcementInput({
                         {/* Summary Footer */}
                         <div className="pt-2 border-t">
                           <p className="text-xs text-muted-foreground">
-                            {reoType === 'mesh' && `${meshType} mesh${meshLayers > 1 ? ` (${meshLayers} layers)` : ''} • ${areaValue.toFixed(1)} m²`}
+                            {reoType === 'mesh' && (
+                              meshLayers > 1 
+                                ? `${meshType} (bottom) + ${area.mesh_type_top || meshType} (top) • ${areaValue.toFixed(1)} m²`
+                                : `${meshType} mesh • ${areaValue.toFixed(1)} m²`
+                            )}
                             {reoType === 'bar' && `${barSize} @ ${barSpacing}mm ${barLayers === '2' ? '(T&B)' : '(bottom)'} • ${areaValue.toFixed(1)} m²`}
                           </p>
                         </div>
