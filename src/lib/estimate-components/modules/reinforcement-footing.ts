@@ -193,22 +193,42 @@ export const reinforcementFootingModule: EstimateModule = {
       if (showTm) {
         const tmType = footing.tm_type || DEFAULT_TM_TYPE;
         const tmLayers = Number((footing as any).tm_layers) || 1;
+        const tmTypeTop = (footing as any).tm_type_top || tmType;
         const sheetsPerLayer = Math.ceil((length * lapAllowance) / 6);
-        const sheetsRequired = sheetsPerLayer * tmLayers;
         const pricePerSheet = Number(answers.trench_mesh_price_per_sheet) || getPrice(priceMap, 'trench_mesh', tmType, 108);
-        const meshCost = sheetsRequired * pricePerSheet;
+        
+        // Bottom layer (always present)
+        const bottomCost = sheetsPerLayer * pricePerSheet;
 
-        const layerText = tmLayers > 1 ? ` - ${tmLayers} layers` : '';
         lineItems.push({
-          id: `tm_${footing.id}`,
-          description: `${footing.name} - ${tmType} (${sheetsRequired} sheets${layerText})`,
-          quantity: sheetsRequired,
+          id: `tm_${footing.id}_bottom`,
+          description: tmLayers > 1 
+            ? `${footing.name} - ${tmType} (${sheetsPerLayer} sheets) – Bottom`
+            : `${footing.name} - ${tmType} (${sheetsPerLayer} sheets)`,
+          quantity: sheetsPerLayer,
           unit: 'sheets',
           unitPrice: pricePerSheet,
-          total: Math.round(meshCost * 100) / 100,
+          total: Math.round(bottomCost * 100) / 100,
           category: 'materials',
         });
-        subtotal += meshCost;
+        subtotal += bottomCost;
+        
+        // Top layer (only if 2 layers)
+        if (tmLayers > 1) {
+          const pricePerSheetTop = getPrice(priceMap, 'trench_mesh', tmTypeTop, 108);
+          const topCost = sheetsPerLayer * pricePerSheetTop;
+          
+          lineItems.push({
+            id: `tm_${footing.id}_top`,
+            description: `${footing.name} - ${tmTypeTop} (${sheetsPerLayer} sheets) – Top`,
+            quantity: sheetsPerLayer,
+            unit: 'sheets',
+            unitPrice: pricePerSheetTop,
+            total: Math.round(topCost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += topCost;
+        }
       }
 
       // Ligatures

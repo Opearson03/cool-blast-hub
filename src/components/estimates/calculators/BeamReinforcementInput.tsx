@@ -70,6 +70,7 @@ interface BeamTypeGroup {
   // Derived reinforcement from first segment (all segments in group share same reo)
   tm_type?: string;
   tm_layers?: number;
+  tm_type_top?: string;  // Top layer TM type when tm_layers > 1
   add_ligs?: boolean;
   lig_size?: string;
   lig_centres?: number;
@@ -105,6 +106,7 @@ function groupBeamsByType(beams: BeamConfig[]): BeamTypeGroup[] {
         // Use first segment's reinforcement as group settings
         tm_type: beam.tm_type,
         tm_layers: beam.tm_layers,
+        tm_type_top: beam.tm_type_top,
         add_ligs: beam.add_ligs,
         lig_size: beam.lig_size,
         lig_centres: beam.lig_centres,
@@ -396,13 +398,11 @@ export function BeamReinforcementInput({
                     </div>
                     <div className="flex items-center gap-2">
                       <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
-                        {tmOption?.label || tmType}
+                        {tmLayers > 1 
+                          ? `${tmOption?.label || tmType} + ${group.tm_type_top || tmType}`
+                          : (tmOption?.label || tmType)
+                        }
                       </span>
-                      {tmLayers > 1 && (
-                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-secondary text-secondary-foreground">
-                          ×{tmLayers} layers
-                        </span>
-                      )}
                       {addLigs && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-accent text-accent-foreground">
                           +Ligs
@@ -445,7 +445,9 @@ export function BeamReinforcementInput({
                     <div className="space-y-3">
                       <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Trench Mesh</Label>
+                          <Label className="text-xs font-medium">
+                            {tmLayers > 1 ? 'Bottom Layer TM' : 'Trench Mesh'}
+                          </Label>
                           <Select
                             value={tmType}
                             onValueChange={(val) => updateGroupReinforcement(group, { tm_type: val })}
@@ -484,6 +486,31 @@ export function BeamReinforcementInput({
                           </Select>
                         </div>
                       </div>
+                      
+                      {/* Top Layer TM - only when 2 layers */}
+                      {tmLayers > 1 && (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs font-medium">Top Layer TM</Label>
+                          <Select
+                            value={group.tm_type_top || tmType}
+                            onValueChange={(val) => updateGroupReinforcement(group, { tm_type_top: val })}
+                          >
+                            <SelectTrigger className="h-8 text-sm">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="z-[150]">
+                              {TM_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  <span className="flex items-center gap-2">
+                                    {opt.label}
+                                    <span className="text-muted-foreground text-xs">({opt.width})</span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
                     </div>
 
                     {/* Ligatures */}
