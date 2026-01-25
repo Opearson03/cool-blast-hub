@@ -45,6 +45,8 @@ interface DrawingCanvasProps {
   existingBeamSegments?: BeamSegmentReference[];
   /** When true, user is panning the view - don't place points on click */
   isPanning?: boolean;
+  /** When true, show individual segment length labels on polyline preview */
+  showSegmentLabels?: boolean;
   onMarkupComplete: (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => void;
   onPolylineComplete?: (points: TakeoffPoint[], lengthMeters: number) => void;
   onMarkupSelect: (id: string | null) => void;
@@ -74,6 +76,7 @@ export function DrawingCanvas({
   pendingSlabReference,
   existingBeamSegments = [],
   isPanning = false,
+  showSegmentLabels = true,
   onMarkupComplete,
   onPolylineComplete,
   onMarkupSelect,
@@ -388,7 +391,7 @@ export function DrawingCanvas({
     );
   };
 
-  // Render polyline for linear elements
+  // Render polyline for linear elements with segment length labels
   const renderPolylinePreview = () => {
     if (tool !== 'polyline' || polylinePoints.length === 0) return null;
 
@@ -398,6 +401,22 @@ export function DrawingCanvas({
       : activeBeamType === 'internal' 
         ? INTERNAL_BEAM_COLOR 
         : activeScopeColor;
+
+    // Calculate individual segment lengths
+    const segmentLengths: { midX: number; midY: number; length: number }[] = [];
+    if (showSegmentLabels && pixelsPerMeter && polylinePoints.length >= 2) {
+      for (let i = 0; i < polylinePoints.length - 1; i++) {
+        const p1 = polylinePoints[i];
+        const p2 = polylinePoints[i + 1];
+        const pixelLength = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
+        const lengthMeters = pixelLength / pixelsPerMeter;
+        segmentLengths.push({
+          midX: (p1.x + p2.x) / 2,
+          midY: (p1.y + p2.y) / 2,
+          length: lengthMeters,
+        });
+      }
+    }
 
     return (
       <Group>
@@ -409,6 +428,31 @@ export function DrawingCanvas({
           lineCap="round"
           lineJoin="round"
         />
+        {/* Segment length labels */}
+        {segmentLengths.map((seg, index) => (
+          <Group key={`seg-label-${index}`}>
+            {/* Background for label */}
+            <Rect
+              x={seg.midX - 20}
+              y={seg.midY - 10}
+              width={40}
+              height={16}
+              fill="rgba(0,0,0,0.7)"
+              cornerRadius={4}
+            />
+            <Text
+              x={seg.midX}
+              y={seg.midY}
+              text={`${seg.length.toFixed(1)}m`}
+              fontSize={10}
+              fontStyle="bold"
+              fill="#fff"
+              align="center"
+              offsetX={16}
+              offsetY={4}
+            />
+          </Group>
+        ))}
         {/* Vertex points */}
         {polylinePoints.map((point, index) => (
           <Circle

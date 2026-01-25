@@ -52,6 +52,7 @@ interface TakeoffToolbarProps {
   // Polyline mode props (linear elements)
   isPolylineMode?: boolean;
   polylineLength?: number;
+  polylineSegmentCount?: number; // Number of segments (points - 1)
   polylineLabel?: string; // e.g. "footing", "kerb"
   onDoneMarkingPolyline?: () => void;
   // Beam marking mode props (edge/internal beams for slabs)
@@ -88,6 +89,7 @@ export function TakeoffToolbar({
   onDoneMarkingPoints,
   isPolylineMode = false,
   polylineLength = 0,
+  polylineSegmentCount = 0,
   polylineLabel = 'element',
   onDoneMarkingPolyline,
   isBeamMarkingMode = false,
@@ -152,14 +154,23 @@ export function TakeoffToolbar({
 
   // If in polyline mode (linear elements), show polyline-specific UI
   if (isPolylineMode) {
+    const segmentCount = polylineSegmentCount ?? 0;
+    const hasMultipleSegments = segmentCount > 1;
+    
     return (
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-primary/10 border border-primary/30 rounded-lg">
         <div className="flex items-center gap-2 flex-1">
           <Minus className="h-5 w-5 text-primary shrink-0" />
-          <span className="text-sm font-medium">Tap along the {polylineLabel} path</span>
+          <span className="text-sm font-medium">
+            {segmentCount === 0 
+              ? `Tap to start ${polylineLabel} path`
+              : `Continue adding ${polylineLabel} segments`}
+          </span>
           {polylineLength > 0 && (
             <Badge variant="default" className="ml-auto sm:ml-2">
-              {polylineLength.toFixed(1)}m
+              {hasMultipleSegments 
+                ? `${segmentCount} segs • ${polylineLength.toFixed(1)}m`
+                : `${polylineLength.toFixed(1)}m`}
             </Badge>
           )}
         </div>
