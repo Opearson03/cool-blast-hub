@@ -61,6 +61,7 @@ interface TakeoffToolbarProps {
   beamSlabName?: string;
   beamPointCount?: number;
   beamLength?: number;
+  discreteBeamCount?: number; // For internal beams: number of discrete beams marked
   onDoneMarkingBeams?: () => void;
   onCancelBeamMarking?: () => void;
 }
@@ -97,6 +98,7 @@ export function TakeoffToolbar({
   beamSlabName = 'Slab',
   beamPointCount = 0,
   beamLength = 0,
+  discreteBeamCount,
   onDoneMarkingBeams,
   onCancelBeamMarking,
 }: TakeoffToolbarProps) {
@@ -209,22 +211,33 @@ export function TakeoffToolbar({
   // If in beam marking mode (edge/internal beams for slabs), show beam-specific UI
   if (isBeamMarkingMode) {
     const beamTypeLabel = beamType === 'edge' ? 'Edge' : 'Internal';
+    const isInternalBeam = beamType === 'internal';
+    const hasDiscreteBeams = isInternalBeam && discreteBeamCount !== undefined && discreteBeamCount > 0;
+    const showDoneButton = isInternalBeam ? hasDiscreteBeams : beamPointCount >= 2;
+    
     return (
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-orange-500/10 border border-orange-500/30 rounded-lg">
         <div className="flex items-center gap-2 flex-1">
           <Minus className="h-5 w-5 text-orange-500 shrink-0" />
-          <span className="text-sm font-medium">Marking {beamTypeLabel} Beams</span>
+          <span className="text-sm font-medium">
+            {isInternalBeam ? 'Tap 2 points per beam' : `Marking ${beamTypeLabel} Beams`}
+          </span>
           <Badge variant="secondary" className="text-xs">
             {beamSlabName}
           </Badge>
-          {beamPointCount > 0 && (
+          {hasDiscreteBeams && (
+            <Badge variant="default" className="ml-auto sm:ml-2 bg-orange-500 hover:bg-orange-500">
+              {discreteBeamCount} beam{discreteBeamCount !== 1 ? 's' : ''} • {beamLength.toFixed(1)}m
+            </Badge>
+          )}
+          {!isInternalBeam && beamPointCount > 0 && (
             <Badge variant="default" className="ml-auto sm:ml-2 bg-orange-500 hover:bg-orange-500">
               {beamPointCount} pts | {beamLength.toFixed(1)}m
             </Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {beamPointCount > 0 && (
+          {(hasDiscreteBeams || beamPointCount > 0) && (
             <Button
               variant="outline"
               size="sm"
@@ -246,7 +259,7 @@ export function TakeoffToolbar({
           <Button
             size="sm"
             onClick={onDoneMarkingBeams}
-            disabled={beamPointCount < 2}
+            disabled={!showDoneButton}
             className="h-11 sm:h-8 bg-orange-500 hover:bg-orange-600 text-white"
           >
             Done

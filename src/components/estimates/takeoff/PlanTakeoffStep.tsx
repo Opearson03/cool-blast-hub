@@ -117,6 +117,11 @@ export function PlanTakeoffStep({
   // Edit beam dialog state
   const [editingBeam, setEditingBeam] = useState<TakeoffMarkup | null>(null);
   
+  // State for discrete internal beams (each pair of clicks = one separate beam)
+  const [discreteInternalBeams, setDiscreteInternalBeams] = useState<
+    Array<{ startPoint: TakeoffPoint; endPoint: TakeoffPoint; length: number }>
+  >([]);
+  
   // State for adding beams to existing slabs
   const [addingBeamToSlabId, setAddingBeamToSlabId] = useState<string | null>(null);
   const [addingBeamType, setAddingBeamType] = useState<'edge_beam' | 'internal_beam' | null>(null);
@@ -461,51 +466,111 @@ export function PlanTakeoffStep({
 
   // Handler: Done marking a single beam (ready for naming/dimensions)
   const handleDoneMarkingSingleBeam = useCallback(() => {
-    if (polylinePoints.length >= 2 && currentScale) {
+    // For edge beams: use continuous polyline points
+    if (slabWorkflowStep === 'mark_edge_beam' && polylinePoints.length >= 2 && currentScale) {
       setCurrentBeamPoints([...polylinePoints]);
       setPolylinePoints([]);
-      // Move to details step
-      if (slabWorkflowStep === 'mark_edge_beam') {
-        setSlabWorkflowStep('edge_beam_details');
-      } else if (slabWorkflowStep === 'mark_internal_beam') {
-        setSlabWorkflowStep('internal_beam_details');
-      }
+      setSlabWorkflowStep('edge_beam_details');
       setShowSlabBeamDialog(true);
       setActiveTool('select');
+      return;
     }
-  }, [polylinePoints, currentScale, slabWorkflowStep]);
+    
+    // For internal beams: use accumulated discrete beams
+    if (slabWorkflowStep === 'mark_internal_beam' && discreteInternalBeams.length > 0 && currentScale) {
+      // Convert discrete beams to points for the dialog
+      // We store all the discrete beams and pass total length
+      setCurrentBeamPoints([]); // Not used for discrete beams
+      setPolylinePoints([]);
+      setSlabWorkflowStep('internal_beam_details');
+      setShowSlabBeamDialog(true);
+      setActiveTool('select');
+      return;
+    }
+  }, [polylinePoints, currentScale, slabWorkflowStep, discreteInternalBeams.length]);
+
+  // Auto-capture internal beam pairs (every 2 clicks = 1 discrete beam)
+  useEffect(() => {
+    if (slabWorkflowStep === 'mark_internal_beam' && polylinePoints.length === 2 && currentScale) {
+      const [start, end] = polylinePoints;
+      const pixelLength = Math.sqrt(
+        Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)
+      );
+      const lengthMeters = pixelLength / currentScale;
+      
+      // Add to discrete beams array
+      setDiscreteInternalBeams(prev => [...prev, {
+        startPoint: start,
+        endPoint: end,
+        length: lengthMeters,
+      }]);
+      
+      // Reset polyline for next beam - stay in marking mode
+      setPolylinePoints([]);
+    }
+  }, [slabWorkflowStep, polylinePoints, currentScale]);
+  
+  // Also capture discrete beams when adding internal beams to existing slabs
+  useEffect(() => {
+    if (isAddingBeamToExistingSlab && addingBeamType === 'internal_beam' && polylinePoints.length === 2 && currentScale) {
+      const [start, end] = polylinePoints;
+      const pixelLength = Math.sqrt(
+        Math.pow(end.x - start.x, 2) + Math.pow(end.y - start.y, 2)
+      );
+      const lengthMeters = pixelLength / currentScale;
+      
+      // Add to discrete beams array
+      setDiscreteInternalBeams(prev => [...prev, {
+        startPoint: start,
+        endPoint: end,
+        length: lengthMeters,
+      }]);
+      
+      // Reset polyline for next beam
+      setPolylinePoints([]);
+    }
+  }, [isAddingBeamToExistingSlab, addingBeamType, polylinePoints, currentScale]);
 
   // Handler: Save a single beam with its name and dimensions
   const handleSaveBeam = useCallback(async (beamData: { name: string; width: number; depth: number }) => {
     if (!pendingSlabData || !currentScale) return;
     
-    const beamLength = calculatePolylineLength(currentBeamPoints, currentScale);
-    const newBeam: BeamData = {
-      name: beamData.name,
-      points: currentBeamPoints,
-      width: beamData.width,
-      depth: beamData.depth,
-      length: beamLength,
-    };
-    
     if (slabWorkflowStep === 'edge_beam_details') {
+      // Edge beams use continuous polyline
+      const beamLength = calculatePolylineLength(currentBeamPoints, currentScale);
+      const newBeam: BeamData = {
+        name: beamData.name,
+        points: currentBeamPoints,
+        width: beamData.width,
+        depth: beamData.depth,
+        length: beamLength,
+      };
       // Add to edge beams and go to summary
       setPendingSlabData(prev => prev ? {
         ...prev,
         edgeBeams: [...prev.edgeBeams, newBeam],
       } : null);
       setSlabWorkflowStep('edge_beams_complete');
+      setCurrentBeamPoints([]);
     } else if (slabWorkflowStep === 'internal_beam_details') {
-      // Add to internal beams and go to summary
+      // Internal beams: create one beam record per discrete segment
+      const newInternalBeams: BeamData[] = discreteInternalBeams.map((segment, index) => ({
+        name: discreteInternalBeams.length > 1 ? `${beamData.name}-${index + 1}` : beamData.name,
+        points: [segment.startPoint, segment.endPoint],
+        width: beamData.width,
+        depth: beamData.depth,
+        length: segment.length,
+      }));
+      
+      // Add all to internal beams and go to summary
       setPendingSlabData(prev => prev ? {
         ...prev,
-        internalBeams: [...prev.internalBeams, newBeam],
+        internalBeams: [...prev.internalBeams, ...newInternalBeams],
       } : null);
       setSlabWorkflowStep('internal_beams_complete');
+      setDiscreteInternalBeams([]); // Clear discrete beams after saving
     }
-    
-    setCurrentBeamPoints([]);
-  }, [pendingSlabData, currentScale, currentBeamPoints, slabWorkflowStep]);
+  }, [pendingSlabData, currentScale, currentBeamPoints, slabWorkflowStep, discreteInternalBeams]);
 
   // Handler: Add another edge beam
   const handleAddAnotherEdgeBeam = useCallback(() => {
@@ -644,6 +709,7 @@ export function PlanTakeoffStep({
     setPendingSlabData(null);
     setCurrentBeamPoints([]);
     setPolylinePoints([]);
+    setDiscreteInternalBeams([]); // Clear discrete beams
     setActiveTool('select');
     setActiveScope(null);
   };
@@ -1163,13 +1229,36 @@ export function PlanTakeoffStep({
         polylineSegmentCount={polylinePoints.length > 1 ? polylinePoints.length - 1 : 0}
         polylineLabel={activeScope === 'kerbs_channels' ? 'kerb' : activeScope === 'retaining_walls' ? 'wall' : 'footing'}
         onDoneMarkingPolyline={handleDoneMarkingPolyline}
-        isBeamMarkingMode={isSlabBeamMarking}
-        beamType={slabWorkflowStep === 'mark_edge_beam' ? 'edge' : 'internal'}
-        beamSlabName={pendingSlabData?.slabName || 'Slab'}
-        beamPointCount={polylinePoints.length}
-        beamLength={currentBeamLength}
-        onDoneMarkingBeams={handleDoneMarkingSingleBeam}
-        onCancelBeamMarking={handleCancelSlabWorkflow}
+        isBeamMarkingMode={isSlabBeamMarking || (isAddingBeamToExistingSlab && addingBeamType !== null)}
+        beamType={slabWorkflowStep === 'mark_edge_beam' || addingBeamType === 'edge_beam' ? 'edge' : 'internal'}
+        beamSlabName={pendingSlabData?.slabName || (addingBeamToSlabId ? markups.find(m => m.id === addingBeamToSlabId)?.name || 'Slab' : 'Slab')}
+        beamPointCount={
+          // For internal beams, show discrete beam count; for edge beams, show polyline points
+          (slabWorkflowStep === 'mark_internal_beam' || addingBeamType === 'internal_beam')
+            ? discreteInternalBeams.length * 2 + polylinePoints.length  // Total points placed
+            : polylinePoints.length
+        }
+        beamLength={
+          // For internal beams, calculate total from discrete beams
+          (slabWorkflowStep === 'mark_internal_beam' || addingBeamType === 'internal_beam')
+            ? discreteInternalBeams.reduce((sum, b) => sum + b.length, 0)
+            : currentBeamLength
+        }
+        discreteBeamCount={
+          (slabWorkflowStep === 'mark_internal_beam' || addingBeamType === 'internal_beam')
+            ? discreteInternalBeams.length
+            : undefined
+        }
+        onDoneMarkingBeams={
+          isAddingBeamToExistingSlab 
+            ? handleDoneAddingBeamToSlab 
+            : handleDoneMarkingSingleBeam
+        }
+        onCancelBeamMarking={
+          isAddingBeamToExistingSlab 
+            ? handleCancelAddingBeamToSlab 
+            : handleCancelSlabWorkflow
+        }
       />
 
       {/* Main content - plan takes full space, scopes float on left */}
@@ -1223,9 +1312,14 @@ export function PlanTakeoffStep({
                     })),
                   ] : []
                 }
+                discreteInternalBeams={
+                  (slabWorkflowStep === 'mark_internal_beam' || (isAddingBeamToExistingSlab && addingBeamType === 'internal_beam'))
+                    ? discreteInternalBeams
+                    : []
+                }
                 activeBeamType={
-                  slabWorkflowStep === 'mark_edge_beam' ? 'edge' 
-                  : slabWorkflowStep === 'mark_internal_beam' ? 'internal' 
+                  slabWorkflowStep === 'mark_edge_beam' || addingBeamType === 'edge_beam' ? 'edge' 
+                  : (slabWorkflowStep === 'mark_internal_beam' || addingBeamType === 'internal_beam') ? 'internal' 
                   : null
                 }
                 onMarkupComplete={handleMarkupComplete}
@@ -1499,6 +1593,7 @@ export function PlanTakeoffStep({
         currentBeamPoints={currentBeamPoints}
         currentBeamLength={currentBeamLength}
         currentBeamSegments={polylineSegments}
+        discreteInternalBeams={discreteInternalBeams}
         savedEdgeBeams={pendingSlabData?.edgeBeams || []}
         savedInternalBeams={pendingSlabData?.internalBeams || []}
         wafflePodSize={pendingSlabData?.wafflePodSize || '1090x1090'}
