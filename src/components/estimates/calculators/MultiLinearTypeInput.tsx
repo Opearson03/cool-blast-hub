@@ -191,6 +191,22 @@ export function MultiLinearTypeInput({
     setNewTypeName("");
   };
 
+  const addSegmentToGroup = (group: LinearTypeGroup) => {
+    // Find the next segment number for this group
+    const nextSegmentNum = group.segments.length + 1;
+    const newSegmentName = `${group.typeName}-${nextSegmentNum}`;
+    
+    const newSection: LinearSection = {
+      id: `section-${Date.now()}`,
+      name: newSegmentName,
+      length: 0,
+      dimension1: group.dimension1,
+      dimension2: group.dimension2,
+    };
+    
+    onChange([...sections, newSection]);
+  };
+
   const updateSegmentLength = (segmentId: string, newLength: number) => {
     const updatedSections = sections.map(section => 
       section.id === segmentId 
@@ -280,6 +296,16 @@ export function MultiLinearTypeInput({
                       ({group.segments.length} segment{group.segments.length !== 1 ? 's' : ''})
                     </span>
                   </div>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-primary hover:text-primary"
+                    onClick={() => addSegmentToGroup(group)}
+                    title="Add segment to this type"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
                   <Button
                     type="button"
                     variant="ghost"

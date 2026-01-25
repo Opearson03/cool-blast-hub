@@ -14,7 +14,7 @@ import { CalibrationDialog } from './CalibrationDialog';
 import { PierDimensionsDialog } from './PierDimensionsDialog';
 import { BollardDimensionsDialog } from './BollardDimensionsDialog';
 import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
-import { LinearDimensionsDialog } from './LinearDimensionsDialog';
+import { LinearDimensionsDialog, type ExistingLinearSegment } from './LinearDimensionsDialog';
 import { MarkupNameDialog } from './MarkupNameDialog';
 import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData, type BeamData } from './SlabBeamMarkupDialog';
 import { EditBeamDialog } from './EditBeamDialog';
@@ -124,6 +124,13 @@ export function PlanTakeoffStep({
   const [pendingBeamPoints, setPendingBeamPoints] = useState<TakeoffPoint[]>([]);
   const [pendingBeamLength, setPendingBeamLength] = useState<number>(0);
   
+  // Preselected linear type (for adding segments to existing types from sidebar)
+  const [preselectedLinearType, setPreselectedLinearType] = useState<{
+    typeName: string;
+    width: number;
+    depth: number;
+  } | null>(null);
+  
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
   const isSlabBeamMarking = slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beam' || slabWorkflowStep === 'mark_internal_beam');
   const isAddingBeamToExistingSlab = addingBeamToSlabId !== null && activeTool === 'polyline';
@@ -166,6 +173,21 @@ export function PlanTakeoffStep({
         length: m.length_m || 0,
       }));
   }, [addingBeamToSlabId, addingBeamType, markups]);
+
+  // Get existing linear segments for the active linear scope (for type grouping)
+  const existingLinearSegments = useMemo((): ExistingLinearSegment[] => {
+    if (!activeScope || !LINEAR_SCOPES.includes(activeScope)) return [];
+    
+    return markups
+      .filter(m => m.scope_id === activeScope && m.shape_type === 'polyline')
+      .map(m => ({
+        id: m.id,
+        name: m.name || '',
+        width: m.width_mm || 450,
+        depth: m.height_mm || 300,
+        length: m.length_m || 0,
+      }));
+  }, [activeScope, markups]);
 
   // Track whether we've handled the initial scope to prevent re-triggering
   const initialScopeHandledRef = useRef(false);
@@ -233,6 +255,21 @@ export function PlanTakeoffStep({
   const handleSkipScope = (scopeId: string) => {
     setSkippedScopes(prev => new Set([...prev, scopeId]));
   };
+
+  // Handler for adding a new segment to an existing linear type from sidebar
+  const handleAddToLinearType = useCallback((scopeId: string, typeName: string, width: number, depth: number) => {
+    if (!isCalibrated) {
+      setShowCalibration(true);
+      return;
+    }
+    
+    // Set the scope active and store the preselected type
+    setActiveScope(scopeId);
+    setPreselectedLinearType({ typeName, width, depth });
+    setPolylinePoints([]);
+    setPendingPolylineLength(0);
+    setActiveTool('polyline');
+  }, [isCalibrated]);
 
   const handleDeleteMarkup = async (markupId: string) => {
     await deleteMarkup(markupId);
@@ -1248,6 +1285,10 @@ export function PlanTakeoffStep({
               onEditBeam={handleEditBeam}
               onDeleteMarkup={handleDeleteMarkup}
               onAddBeamToSlab={handleAddBeamToExistingSlab}
+              onAddToLinearType={(scopeId, typeName, width, depth) => {
+                setScopePanelManuallyExpanded(false);
+                handleAddToLinearType(scopeId, typeName, width, depth);
+              }}
               isCalibrated={isCalibrated}
               isCollapsed={isScopePanelCollapsed}
               onToggle={() => setScopePanelManuallyExpanded(!scopePanelManuallyExpanded)}
@@ -1365,10 +1406,11 @@ export function PlanTakeoffStep({
         onOpenChange={(open) => {
           setShowLinearDimensions(open);
           if (!open) {
-            // Dialog closed without saving, reset polyline state
+            // Dialog closed without saving, reset polyline state and preselected type
             if (pendingPolylineLength === 0) {
               setPolylinePoints([]);
             }
+            setPreselectedLinearType(null);
           }
         }}
         lengthMeters={pendingPolylineLength}
@@ -1385,6 +1427,8 @@ export function PlanTakeoffStep({
           const existingForScope = markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline');
           return `${prefix}${existingForScope.length + 1}`;
         })()}
+        existingSegments={existingLinearSegments}
+        preselectedType={preselectedLinearType}
         onConfirm={async (name, width, height, toe) => {
           if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
           const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
@@ -1395,6 +1439,7 @@ export function PlanTakeoffStep({
           setActiveTool('select');
           setActiveScope(null);
           setPendingMarkupName('');
+          setPreselectedLinearType(null);
         }}
         onConfirmAndAddAnother={async (name, width, height, toe) => {
           if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
