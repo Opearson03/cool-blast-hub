@@ -54,6 +54,8 @@ export function PierDimensionsDialog({
       // Auto-increment name for next group (P1 -> P2, etc.)
       const currentNum = parseInt(groupName.replace(/\D/g, '')) || 0;
       setName(`P${currentNum + 1}`);
+      // Close dialog to return to drawing mode for next group
+      onOpenChange(false);
     } finally {
       setIsSaving(false);
     }
