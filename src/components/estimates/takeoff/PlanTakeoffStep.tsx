@@ -122,6 +122,9 @@ export function PlanTakeoffStep({
     Array<{ startPoint: TakeoffPoint; endPoint: TakeoffPoint; length: number }>
   >([]);
   
+  // Track if slab has already been saved (prevents duplicate saves)
+  const [slabSavedId, setSlabSavedId] = useState<string | null>(null);
+  
   // State for adding beams to existing slabs
   const [addingBeamToSlabId, setAddingBeamToSlabId] = useState<string | null>(null);
   const [addingBeamType, setAddingBeamType] = useState<'edge_beam' | 'internal_beam' | null>(null);
@@ -586,26 +589,32 @@ export function PlanTakeoffStep({
     
     const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
     
-    // Save slab with edge beams only
-    const slabMarkup = await addSlabWithBeams(
-      currentFileId,
-      activeScope,
-      {
-        points: pendingSlabData.slabPoints,
-        shapeType: pendingSlabData.slabShapeType,
-        name: pendingSlabData.slabName.trim() || 'Slab',
-      },
-      null, // Will add beams individually
-      null,
-      color,
-      currentPage
-    );
+    let slabId = slabSavedId;
+    
+    // Only create slab if not already saved
+    if (!slabId) {
+      const slabMarkup = await addSlabWithBeams(
+        currentFileId,
+        activeScope,
+        {
+          points: pendingSlabData.slabPoints,
+          shapeType: pendingSlabData.slabShapeType,
+          name: pendingSlabData.slabName.trim() || 'Slab',
+        },
+        null, // Will add beams individually
+        null,
+        color,
+        currentPage
+      );
+      slabId = slabMarkup?.id || null;
+      setSlabSavedId(slabId);
+    }
     
     // Now add each edge beam individually
-    if (slabMarkup && pendingSlabData.edgeBeams.length > 0) {
+    if (slabId && pendingSlabData.edgeBeams.length > 0) {
       for (const beam of pendingSlabData.edgeBeams) {
         await addBeamToSlab(
-          slabMarkup.id,
+          slabId,
           currentFileId,
           activeScope,
           beam.points,
@@ -621,7 +630,7 @@ export function PlanTakeoffStep({
     }
     
     resetSlabWorkflow();
-  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, addBeamToSlab, currentPage]);
+  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, addBeamToSlab, currentPage, slabSavedId]);
 
   // Handler: Start adding internal beams
   const handleStartInternalBeams = useCallback(() => {
@@ -645,41 +654,51 @@ export function PlanTakeoffStep({
     
     const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
     
-    // Save slab first
-    const slabMarkup = await addSlabWithBeams(
-      currentFileId,
-      activeScope,
-      {
-        points: pendingSlabData.slabPoints,
-        shapeType: pendingSlabData.slabShapeType,
-        name: pendingSlabData.slabName.trim() || 'Slab',
-      },
-      null,
-      null,
-      color,
-      currentPage
-    );
+    let slabId = slabSavedId;
     
-    // Add each beam individually
-    if (slabMarkup) {
-      for (const beam of pendingSlabData.edgeBeams) {
-        await addBeamToSlab(
-          slabMarkup.id,
-          currentFileId,
-          activeScope,
-          beam.points,
-          beam.length,
-          beam.width,
-          beam.depth,
-          color,
-          currentPage,
-          beam.name,
-          'edge_beam'
-        );
+    // Only create slab if not already saved
+    if (!slabId) {
+      const slabMarkup = await addSlabWithBeams(
+        currentFileId,
+        activeScope,
+        {
+          points: pendingSlabData.slabPoints,
+          shapeType: pendingSlabData.slabShapeType,
+          name: pendingSlabData.slabName.trim() || 'Slab',
+        },
+        null,
+        null,
+        color,
+        currentPage
+      );
+      slabId = slabMarkup?.id || null;
+      setSlabSavedId(slabId);
+    }
+    
+    // Add each beam individually - skip edge beams if slab was already saved (they were added then)
+    if (slabId) {
+      // Only add edge beams if they haven't been saved yet (slabSavedId was null before this call)
+      if (!slabSavedId) {
+        for (const beam of pendingSlabData.edgeBeams) {
+          await addBeamToSlab(
+            slabId,
+            currentFileId,
+            activeScope,
+            beam.points,
+            beam.length,
+            beam.width,
+            beam.depth,
+            color,
+            currentPage,
+            beam.name,
+            'edge_beam'
+          );
+        }
       }
+      // Always add internal beams (they're new)
       for (const beam of pendingSlabData.internalBeams) {
         await addBeamToSlab(
-          slabMarkup.id,
+          slabId,
           currentFileId,
           activeScope,
           beam.points,
@@ -695,7 +714,7 @@ export function PlanTakeoffStep({
     }
     
     resetSlabWorkflow();
-  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, addBeamToSlab, currentPage]);
+  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, addBeamToSlab, currentPage, slabSavedId]);
 
   // Handler: Cancel slab workflow
   const handleCancelSlabWorkflow = useCallback(() => {
@@ -710,6 +729,7 @@ export function PlanTakeoffStep({
     setCurrentBeamPoints([]);
     setPolylinePoints([]);
     setDiscreteInternalBeams([]); // Clear discrete beams
+    setSlabSavedId(null); // Clear saved slab ID to allow new slab creation
     setActiveTool('select');
     setActiveScope(null);
   };
