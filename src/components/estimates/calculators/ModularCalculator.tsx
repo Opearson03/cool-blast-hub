@@ -15,6 +15,7 @@ import {
   DemolitionArea,
   LinearSection,
   CostLineItem,
+  ExtraItem,
   createPriceMap,
 } from "@/lib/estimate-components/types";
 import { MODULE_REGISTRY } from "@/lib/estimate-components/modules";
@@ -434,11 +435,37 @@ export function ModularCalculator({
     }
   }, [scopeData, priceMap, modules, priceListLoading, priceListItems, userOverrides, moduleAnswers]);
 
-  // Calculate costs for each module
+  // Calculate costs for each module (including custom items)
   const moduleCosts = useMemo<ComponentCost[]>(() => {
     return modules.map((module) => {
       const answers = moduleAnswers[module.id] || {};
-      return module.calculate(answers, priceMap, scopeData);
+      const baseCost = module.calculate(answers, priceMap, scopeData);
+      
+      // Include custom items from this module's answers
+      const customItems: ExtraItem[] = answers.custom_items || [];
+      if (customItems.length > 0) {
+        const customLineItems: CostLineItem[] = customItems
+          .filter(item => item.description && item.total > 0)
+          .map((item, index) => ({
+            id: `${module.id}-custom-${index}`,
+            description: item.description,
+            quantity: item.quantity || 1,
+            unit: item.unit || 'ea',
+            unitPrice: item.rate || 0,
+            total: item.total,
+            category: 'other' as const,
+          }));
+        
+        const customSubtotal = customLineItems.reduce((sum, item) => sum + item.total, 0);
+        
+        return {
+          ...baseCost,
+          lineItems: [...baseCost.lineItems, ...customLineItems],
+          subtotal: baseCost.subtotal + customSubtotal,
+        };
+      }
+      
+      return baseCost;
     });
   }, [modules, moduleAnswers, priceMap, scopeData]);
 

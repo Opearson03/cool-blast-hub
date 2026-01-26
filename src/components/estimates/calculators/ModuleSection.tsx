@@ -23,7 +23,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { AccordionDoneBadge } from "./shared/AccordionDoneBadge";
-import { HelpCircle, Check, ChevronDown } from "lucide-react";
+import { HelpCircle, Check, ChevronDown, Plus, Trash2 } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -38,6 +38,7 @@ import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcemen
 import { ExtraItemsInput } from "./ExtraItemsInput";
 import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
 import { MultiPlacementInput } from "./MultiPlacementInput";
+import { AddCustomItemDialog } from "./AddCustomItemDialog";
 import { formatCurrency } from "@/lib/format-currency";
 import { aggregateRaftReinforcementItems, AggregatedMaterial } from "./shared/aggregateMaterials";
 
@@ -311,11 +312,15 @@ export function ModuleSection({
   onScopeDataChange,
   priceMap,
 }: ModuleSectionProps) {
+  // State for add custom item dialog
+  const [showAddItemDialog, setShowAddItemDialog] = useState(false);
+  
   // Check module types for inline inputs
   const isRaftReoModule = module.id === 'reinforcement-raft';
   const isPiersReoModule = module.id === 'reinforcement-piers';
   const isFootingReoModule = module.id === 'reinforcement-footing';
   const isPadReoModule = module.id === 'reinforcement-pad';
+  const isExtraItemsModule = module.id === 'extra-items';
   
   const areas = (scopeData?.areas || []) as MeasurementArea[];
   const edgeBeams = (scopeData?.edgeBeams || []) as BeamConfig[];
@@ -323,6 +328,10 @@ export function ModuleSection({
   const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
   const padGroups = (scopeData?.padGroups || []) as PadFootingGroup[];
   const footings = (scopeData?.footings || scopeData?.linearSections || []) as (FootingConfig | LinearSection)[];
+  
+  // Custom items for this module
+  const customItems: ExtraItem[] = answers.custom_items || [];
+  
   // Get visible questions - exclude custom-rendered questions (pump_visits, placements)
   const customRenderedQuestions = ['pump_visits', 'placements'];
   const visibleQuestions = module.questions.filter(
@@ -334,6 +343,18 @@ export function ModuleSection({
     if (val === module.id || val === '') {
       onToggle();
     }
+  };
+  
+  // Handle adding a custom item
+  const handleAddCustomItem = (item: ExtraItem) => {
+    const updatedItems = [...customItems, item];
+    onAnswerChange('custom_items', updatedItems);
+  };
+  
+  // Handle removing a custom item
+  const handleRemoveCustomItem = (itemId: string) => {
+    const updatedItems = customItems.filter(item => item.id !== itemId);
+    onAnswerChange('custom_items', updatedItems);
   };
 
   return (
@@ -641,19 +662,76 @@ export function ModuleSection({
               </div>
             )}
 
-            {/* Mark as Done button */}
-            {!isMarkedDone && (
+            {/* Custom Items for this module (not shown for extra-items module which has its own UI) */}
+            {!isExtraItemsModule && customItems.length > 0 && (
               <div className="border-t pt-4 mt-4">
-                <Button
-                  onClick={onMarkDone}
-                  className="w-full h-12 sm:h-10 text-base sm:text-sm"
-                  variant="default"
-                >
-                  <Check className="h-4 w-4 mr-2" />
-                  Mark as Done
-                </Button>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="text-sm font-medium text-muted-foreground">Custom Items</h4>
+                </div>
+                <div className="space-y-2">
+                  {customItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex items-center justify-between bg-muted/30 p-2 rounded-lg text-sm"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <span className="text-muted-foreground">
+                          {item.description}
+                          <span className="ml-1">
+                            ({item.quantity} {item.unit} × {formatCurrency(item.rate)})
+                          </span>
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        <span className="font-medium">{formatCurrency(item.total)}</span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => handleRemoveCustomItem(item.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
+
+            {/* Add Item and Mark as Done buttons */}
+            {!isMarkedDone && (
+              <div className="border-t pt-4 mt-4">
+                <div className="flex gap-2">
+                  {/* Add Item button - not shown for extra-items module which has its own UI */}
+                  {!isExtraItemsModule && (
+                    <Button
+                      onClick={() => setShowAddItemDialog(true)}
+                      variant="outline"
+                      className="h-12 sm:h-10 text-base sm:text-sm"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Item
+                    </Button>
+                  )}
+                  <Button
+                    onClick={onMarkDone}
+                    className="flex-1 h-12 sm:h-10 text-base sm:text-sm"
+                    variant="default"
+                  >
+                    <Check className="h-4 w-4 mr-2" />
+                    Done
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            {/* Add Custom Item Dialog */}
+            <AddCustomItemDialog
+              open={showAddItemDialog}
+              onOpenChange={setShowAddItemDialog}
+              onAdd={handleAddCustomItem}
+            />
           </div>
         </AccordionContent>
       </AccordionItem>
