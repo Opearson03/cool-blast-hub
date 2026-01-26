@@ -364,41 +364,44 @@ export const reinforcementRaftModule: EstimateModule = {
         const ligSize = beam.lig_size || DEFAULT_LIG_SIZE;
         const ligCentres = beam.lig_centres ?? DEFAULT_LIG_CENTRES;
 
-        const tmLengthWithLap = length * LAP_ALLOWANCE;
-        const tmSheetsPerLayer = Math.ceil(tmLengthWithLap / 6);
-        
-        // Bottom layer (always present)
-        const tmPriceBottom = getPrice(priceMap, 'trench_mesh', tmType, 108);
-        const bottomCost = tmSheetsPerLayer * tmPriceBottom;
-        
-        lineItems.push({
-          id: `edge_tm_${beam.id}_bottom`,
-          description: tmLayers > 1 
-            ? `${beam.name} – ${tmType} (${tmSheetsPerLayer} sheets) – Bottom`
-            : `${beam.name} – ${tmType} (${tmSheetsPerLayer} sheets)`,
-          quantity: tmSheetsPerLayer,
-          unit: 'sheets',
-          unitPrice: tmPriceBottom,
-          total: Math.round(bottomCost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += bottomCost;
-        
-        // Top layer (only if 2 layers)
-        if (tmLayers > 1) {
-          const tmPriceTop = getPrice(priceMap, 'trench_mesh', tmTypeTop, 108);
-          const topCost = tmSheetsPerLayer * tmPriceTop;
+        // Skip trench mesh if set to 'none'
+        if (tmType !== 'none') {
+          const tmLengthWithLap = length * LAP_ALLOWANCE;
+          const tmSheetsPerLayer = Math.ceil(tmLengthWithLap / 6);
+          
+          // Bottom layer (always present)
+          const tmPriceBottom = getPrice(priceMap, 'trench_mesh', tmType, 108);
+          const bottomCost = tmSheetsPerLayer * tmPriceBottom;
           
           lineItems.push({
-            id: `edge_tm_${beam.id}_top`,
-            description: `${beam.name} – ${tmTypeTop} (${tmSheetsPerLayer} sheets) – Top`,
+            id: `edge_tm_${beam.id}_bottom`,
+            description: tmLayers > 1 
+              ? `${beam.name} – ${tmType} (${tmSheetsPerLayer} sheets) – Bottom`
+              : `${beam.name} – ${tmType} (${tmSheetsPerLayer} sheets)`,
             quantity: tmSheetsPerLayer,
             unit: 'sheets',
-            unitPrice: tmPriceTop,
-            total: Math.round(topCost * 100) / 100,
+            unitPrice: tmPriceBottom,
+            total: Math.round(bottomCost * 100) / 100,
             category: 'materials',
           });
-          subtotal += topCost;
+          subtotal += bottomCost;
+          
+          // Top layer (only if 2 layers)
+          if (tmLayers > 1) {
+            const tmPriceTop = getPrice(priceMap, 'trench_mesh', tmTypeTop, 108);
+            const topCost = tmSheetsPerLayer * tmPriceTop;
+            
+            lineItems.push({
+              id: `edge_tm_${beam.id}_top`,
+              description: `${beam.name} – ${tmTypeTop} (${tmSheetsPerLayer} sheets) – Top`,
+              quantity: tmSheetsPerLayer,
+              unit: 'sheets',
+              unitPrice: tmPriceTop,
+              total: Math.round(topCost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += topCost;
+          }
         }
 
         if (addLigs) {
@@ -465,41 +468,44 @@ export const reinforcementRaftModule: EstimateModule = {
         const ligSize = beam.lig_size || DEFAULT_LIG_SIZE;
         const ligCentres = beam.lig_centres ?? DEFAULT_LIG_CENTRES;
 
-        const tmLengthWithLap = length * LAP_ALLOWANCE;
-        const tmSheetsPerLayer = Math.ceil(tmLengthWithLap / 6);
-        
-        // Bottom layer (always present)
-        const tmPriceBottom = getPrice(priceMap, 'trench_mesh', tmType, 108);
-        const bottomCost = tmSheetsPerLayer * tmPriceBottom;
-        
-        lineItems.push({
-          id: `internal_tm_${beam.id}_bottom`,
-          description: tmLayers > 1 
-            ? `${beam.name} – ${tmType} (${tmSheetsPerLayer} sheets) – Bottom`
-            : `${beam.name} – ${tmType} (${tmSheetsPerLayer} sheets)`,
-          quantity: tmSheetsPerLayer,
-          unit: 'sheets',
-          unitPrice: tmPriceBottom,
-          total: Math.round(bottomCost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += bottomCost;
-        
-        // Top layer (only if 2 layers)
-        if (tmLayers > 1) {
-          const tmPriceTop = getPrice(priceMap, 'trench_mesh', tmTypeTop, 108);
-          const topCost = tmSheetsPerLayer * tmPriceTop;
+        // Skip trench mesh if set to 'none'
+        if (tmType !== 'none') {
+          const tmLengthWithLap = length * LAP_ALLOWANCE;
+          const tmSheetsPerLayer = Math.ceil(tmLengthWithLap / 6);
+          
+          // Bottom layer (always present)
+          const tmPriceBottom = getPrice(priceMap, 'trench_mesh', tmType, 108);
+          const bottomCost = tmSheetsPerLayer * tmPriceBottom;
           
           lineItems.push({
-            id: `internal_tm_${beam.id}_top`,
-            description: `${beam.name} – ${tmTypeTop} (${tmSheetsPerLayer} sheets) – Top`,
+            id: `internal_tm_${beam.id}_bottom`,
+            description: tmLayers > 1 
+              ? `${beam.name} – ${tmType} (${tmSheetsPerLayer} sheets) – Bottom`
+              : `${beam.name} – ${tmType} (${tmSheetsPerLayer} sheets)`,
             quantity: tmSheetsPerLayer,
             unit: 'sheets',
-            unitPrice: tmPriceTop,
-            total: Math.round(topCost * 100) / 100,
+            unitPrice: tmPriceBottom,
+            total: Math.round(bottomCost * 100) / 100,
             category: 'materials',
           });
-          subtotal += topCost;
+          subtotal += bottomCost;
+          
+          // Top layer (only if 2 layers)
+          if (tmLayers > 1) {
+            const tmPriceTop = getPrice(priceMap, 'trench_mesh', tmTypeTop, 108);
+            const topCost = tmSheetsPerLayer * tmPriceTop;
+            
+            lineItems.push({
+              id: `internal_tm_${beam.id}_top`,
+              description: `${beam.name} – ${tmTypeTop} (${tmSheetsPerLayer} sheets) – Top`,
+              quantity: tmSheetsPerLayer,
+              unit: 'sheets',
+              unitPrice: tmPriceTop,
+              total: Math.round(topCost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += topCost;
+          }
         }
 
         if (addLigs) {

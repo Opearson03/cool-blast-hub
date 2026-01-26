@@ -185,7 +185,8 @@ export const reinforcementFootingModule: EstimateModule = {
       
       if (reoType === 'none') return;
 
-      const showTm = reoType === 'trench_mesh' || reoType === 'both';
+      const tmType = footing.tm_type || DEFAULT_TM_TYPE;
+      const showTm = (reoType === 'trench_mesh' || reoType === 'both') && tmType !== 'none';
       const showLigs = footing.add_ligs ?? answers.add_ligs;
       const showVerticalBars = footing.add_vertical_bars ?? answers.add_vertical_bars;
 
