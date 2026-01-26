@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import {
   ScopeDefinition,
   ScopeQuestion,
@@ -134,44 +134,6 @@ export function ModularCalculator({
 
   // Track which modules have been manually marked as done
   const [doneModules, setDoneModules] = useState<Set<string>>(new Set());
-
-  // Track initial mount to avoid overwriting state on first render
-  const isInitialMount = useRef(true);
-
-  // Sync scopeAnswers when initialScopeAnswers prop changes (e.g., when switching back to this scope)
-  useEffect(() => {
-    // Skip on initial mount - useState already handles that
-    if (isInitialMount.current) {
-      return;
-    }
-    
-    // Only sync if we have meaningful data from parent
-    if (Object.keys(initialScopeAnswers).length > 0) {
-      setScopeAnswers(prev => {
-        // Build defaults for this scope
-        const defaults: Record<string, any> = {};
-        scope.questions.forEach((q) => {
-          if (q.defaultValue !== undefined) {
-            defaults[q.id] = q.defaultValue;
-          }
-        });
-        // Merge: defaults < parent state (parent wins)
-        return { ...defaults, ...initialScopeAnswers };
-      });
-    }
-  }, [initialScopeAnswers, scope.questions]);
-
-  // Sync moduleAnswers when initialModuleAnswers prop changes
-  useEffect(() => {
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
-    
-    if (Object.keys(initialModuleAnswers).length > 0) {
-      setModuleAnswers(initialModuleAnswers);
-    }
-  }, [initialModuleAnswers]);
 
   // Build price map from price list
   const priceMap = useMemo<PriceMap>(() => {
