@@ -934,6 +934,11 @@ export function ModularCalculator({
               scopeId={scope.id}
               sections={scopeAnswers.linearSections || [{ id: 'section-1', name: 'SF1-1', length: 0, dimension1: 450, dimension2: 300 }]}
               onChange={handleLinearSectionsChange}
+              // Markup prompt support - pass scope identifier for navigation
+              onRequestMarkup={() => onRequestMarkup?.(scope.id)}
+              hasPlans={hasPlans}
+              skipMarkupPrompt={skipMarkupPrompt}
+              onSkipMarkupPromptChange={onSkipMarkupPromptChange}
             />
           </CardContent>
         </Card>
