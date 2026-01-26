@@ -112,8 +112,8 @@ export const concretePumpingModule: EstimateModule = {
       };
     }
 
-    // Get pump visits array (or create default if empty)
-    let pumpVisits: PumpVisit[] = answers.pump_visits || [];
+    // Get pump visits array (or create default if empty) - ensure it's actually an array
+    let pumpVisits: PumpVisit[] = Array.isArray(answers.pump_visits) ? answers.pump_visits : [];
     if (pumpVisits.length === 0) {
       // Create default visit based on recommended pump type
       const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
