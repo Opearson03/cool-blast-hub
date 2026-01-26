@@ -1228,7 +1228,7 @@ export function PlanTakeoffStep({
         onCalibrate={() => setShowCalibration(true)}
         onUndo={handleUndo}
         onDelete={() => selectedMarkupId && handleDeleteMarkup(selectedMarkupId)}
-        onZoomIn={() => setZoom(z => Math.min(z * 1.25, 3))}
+        onZoomIn={() => setZoom(z => Math.min(z * 1.25, 5))}
         onZoomOut={() => setZoom(z => Math.max(z / 1.25, 0.25))}
         onFitToScreen={() => setZoom(1)}
         canUndo={activeTool === 'polyline' ? polylinePoints.length > 0 : activeTool === 'point' ? pierPoints.length > 0 : drawingPoints.length > 0}
