@@ -23,6 +23,7 @@ export const concreteSupplyModule: EstimateModule = {
         { value: '25MPA COL', label: '25 MPa Colour Mix', priceKey: 'concrete.25MPA COL' },
         { value: '32MPA COL', label: '32 MPa Colour Mix', priceKey: 'concrete.32MPA COL' },
         { value: '40MPA COL', label: '40 MPa Colour Mix', priceKey: 'concrete.40MPA COL' },
+        { value: 'OTHER', label: 'Other (Custom)', priceKey: null },
       ],
       defaultValue: '32MPA',
       required: true,
@@ -36,6 +37,9 @@ export const concreteSupplyModule: EstimateModule = {
       helpText: 'Auto-fills from price list based on concrete type',
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
         const concreteType = moduleAnswers.concrete_type || '32MPA';
+        if (concreteType === 'OTHER') {
+          return undefined; // Allow manual price entry for custom mix
+        }
         return priceMap['concrete']?.[concreteType];
       },
     },
@@ -101,29 +105,6 @@ export const concreteSupplyModule: EstimateModule = {
       priceListKey: 'concrete.TESTING',
       showIf: (answers) => answers.require_testing === true,
     },
-    {
-      id: 'include_special_mix',
-      type: 'boolean',
-      label: 'Do you want to include a special concrete mix?',
-      defaultValue: false,
-      sectionLabel: 'Special Concrete Mix',
-    },
-    {
-      id: 'special_mix_name',
-      type: 'text',
-      label: 'Special mix description',
-      defaultValue: 'Special Concrete Mix',
-      placeholder: 'e.g. Polished Concrete, High-Flow Mix',
-      showIf: (answers) => answers.include_special_mix === true,
-    },
-    {
-      id: 'special_mix_rate',
-      type: 'currency',
-      label: 'Special mix rate per m³',
-      defaultValue: 400,
-      unit: '/m³',
-      showIf: (answers) => answers.include_special_mix === true,
-    },
   ],
 
   calculate: (answers, priceMap, scopeData): ComponentCost => {
@@ -149,13 +130,14 @@ export const concreteSupplyModule: EstimateModule = {
 
     // Concrete cost
     const concreteType = answers.concrete_type || '32MPA';
+    const concreteLabel = concreteType === 'OTHER' ? 'Custom Mix' : concreteType;
     const concretePrice = Number(answers.concrete_price) || getPrice(priceMap, 'concrete', concreteType, 245);
     const concreteCost = roundedVolume * concretePrice;
 
     if (concreteCost > 0) {
       lineItems.push({
         id: 'concrete_supply',
-        description: `${concreteType} Readymix Concrete (${roundUpToM3(volume)}m³ + ${wastagePercent}% wastage)`,
+        description: `${concreteLabel} Readymix Concrete (${roundUpToM3(volume)}m³ + ${wastagePercent}% wastage)`,
         quantity: roundedVolume,
         unit: 'm³',
         unitPrice: concretePrice,
@@ -200,26 +182,6 @@ export const concreteSupplyModule: EstimateModule = {
         category: 'other',
       });
       subtotal += testsRequired * testingCost;
-    }
-
-    // Special concrete mix
-    if (answers.include_special_mix) {
-      const specialMixName = answers.special_mix_name || 'Special Concrete Mix';
-      const specialMixRate = Number(answers.special_mix_rate) || 400;
-      const specialMixCost = roundedVolume * specialMixRate;
-
-      if (specialMixCost > 0) {
-        lineItems.push({
-          id: 'special_concrete_mix',
-          description: `${specialMixName} Premium`,
-          quantity: roundedVolume,
-          unit: 'm³',
-          unitPrice: specialMixRate,
-          total: Math.round(specialMixCost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += specialMixCost;
-      }
     }
 
     return {
