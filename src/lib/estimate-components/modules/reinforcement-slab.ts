@@ -171,7 +171,7 @@ export const reinforcementSlabModule: EstimateModule = {
       id: 'bar_chairs',
       type: 'boolean',
       label: 'Include Bar Chairs/Spacers',
-      defaultValue: true,
+      defaultValue: false,
       showIf: (answers) => answers.reo_type === 'mesh' || answers.reo_type === 'bar',
     },
     {
@@ -221,7 +221,7 @@ export const reinforcementSlabModule: EstimateModule = {
       id: 'tie_wire',
       type: 'boolean',
       label: 'Include Tie Wire',
-      defaultValue: true,
+      defaultValue: false,
       showIf: (answers) => answers.reo_type === 'mesh' || answers.reo_type === 'bar',
     },
     {
@@ -447,7 +447,7 @@ export const reinforcementSlabModule: EstimateModule = {
       id: 'edge_tm_chairs',
       type: 'boolean',
       label: 'Include Trench Mesh Chairs',
-      defaultValue: true,
+      defaultValue: false,
       showIf: (answers, scopeData) => 
         (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
         scopeData?.hasThickening === true && 

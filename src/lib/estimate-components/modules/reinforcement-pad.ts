@@ -42,7 +42,7 @@ export const reinforcementPadModule: EstimateModule = {
       id: 'has_bottom_reo',
       type: 'boolean',
       label: 'Include Bottom Reinforcement?',
-      defaultValue: true,
+      defaultValue: false,
     },
     
     // Bottom Bar A (spans Length direction)
@@ -345,7 +345,7 @@ export const reinforcementPadModule: EstimateModule = {
       id: 'bar_chairs',
       type: 'boolean',
       label: 'Include Bar Chairs?',
-      defaultValue: true,
+      defaultValue: false,
     },
     {
       id: 'chairs_per_sqm',

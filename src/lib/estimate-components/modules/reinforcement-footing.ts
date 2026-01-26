@@ -23,7 +23,7 @@ export const reinforcementFootingModule: EstimateModule = {
       id: 'include_trench_mesh',
       type: 'boolean',
       label: 'Include Trench Mesh?',
-      defaultValue: true,
+      defaultValue: false,
       sectionLabel: 'Trench Mesh',
     },
     // Ligatures toggle
@@ -83,7 +83,7 @@ export const reinforcementFootingModule: EstimateModule = {
       id: 'tie_wire',
       type: 'boolean',
       label: 'Include Tie Wire',
-      defaultValue: true,
+      defaultValue: false,
       showIf: (answers) => answers.include_trench_mesh || answers.add_ligs || answers.add_vertical_bars,
     },
     {

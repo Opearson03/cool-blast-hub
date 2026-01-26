@@ -11,7 +11,7 @@ export const architecturalFormworkModule: EstimateModule = {
       type: 'boolean',
       label: 'Is formwork/mold fabrication required?',
       required: true,
-      defaultValue: true,
+      defaultValue: false,
     },
     {
       id: 'formwork_type',
