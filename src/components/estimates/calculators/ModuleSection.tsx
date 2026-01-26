@@ -323,9 +323,10 @@ export function ModuleSection({
   const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
   const padGroups = (scopeData?.padGroups || []) as PadFootingGroup[];
   const footings = (scopeData?.footings || scopeData?.linearSections || []) as (FootingConfig | LinearSection)[];
-  // Get visible questions
+  // Get visible questions - exclude custom-rendered questions (pump_visits, placements)
+  const customRenderedQuestions = ['pump_visits', 'placements'];
   const visibleQuestions = module.questions.filter(
-    (q) => !q.showIf || q.showIf(answers, scopeData)
+    (q) => !customRenderedQuestions.includes(q.id) && (!q.showIf || q.showIf(answers, scopeData))
   );
 
   // Handle accordion toggle without scroll jumping
