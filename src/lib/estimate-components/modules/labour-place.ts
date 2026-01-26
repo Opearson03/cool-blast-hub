@@ -20,8 +20,8 @@ export const labourPlaceModule: EstimateModule = {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
-    // Get placements array
-    const placements: LabourPlacement[] = answers.placements || [];
+    // Get placements array - ensure it's actually an array
+    const placements: LabourPlacement[] = Array.isArray(answers.placements) ? answers.placements : [];
     
     if (placements.length === 0) {
       return {
