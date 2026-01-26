@@ -21,6 +21,7 @@ import { useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 
 const TM_OPTIONS = [
+  { value: 'none', label: 'None', width: '-' },
   { value: 'L8TM3', label: 'L8TM3', width: '300mm' },
   { value: 'L8TM4', label: 'L8TM4', width: '400mm' },
   { value: 'L11TM3', label: 'L11TM3', width: '300mm' },
@@ -397,12 +398,18 @@ export function BeamReinforcementInput({
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
-                        {tmLayers > 1 
-                          ? `${tmOption?.label || tmType} + ${group.tm_type_top || tmType}`
-                          : (tmOption?.label || tmType)
-                        }
-                      </span>
+                      {tmType === 'none' ? (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground">
+                          No TM
+                        </span>
+                      ) : (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-primary/10 text-primary">
+                          {tmLayers > 1 
+                            ? `${tmOption?.label || tmType} + ${group.tm_type_top || tmType}`
+                            : (tmOption?.label || tmType)
+                          }
+                        </span>
+                      )}
                       {addLigs && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-accent text-accent-foreground">
                           +Ligs
@@ -443,10 +450,10 @@ export function BeamReinforcementInput({
 
                     {/* Trench Mesh */}
                     <div className="space-y-3">
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className={cn("grid gap-3", tmType !== 'none' ? "grid-cols-2" : "grid-cols-1")}>
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium">
-                            {tmLayers > 1 ? 'Bottom Layer TM' : 'Trench Mesh'}
+                            {tmType !== 'none' && tmLayers > 1 ? 'Bottom Layer TM' : 'Trench Mesh'}
                           </Label>
                           <Select
                             value={tmType}
@@ -460,35 +467,39 @@ export function BeamReinforcementInput({
                                 <SelectItem key={opt.value} value={opt.value}>
                                   <span className="flex items-center gap-2">
                                     {opt.label}
-                                    <span className="text-muted-foreground text-xs">({opt.width})</span>
+                                    {opt.width !== '-' && (
+                                      <span className="text-muted-foreground text-xs">({opt.width})</span>
+                                    )}
                                   </span>
                                 </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label className="text-xs font-medium">Layers</Label>
-                          <Select
-                            value={String(tmLayers)}
-                            onValueChange={(val) => updateGroupReinforcement(group, { tm_layers: Number(val) })}
-                          >
-                            <SelectTrigger className="h-8 text-sm">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="z-[150]">
-                              {TM_LAYERS_OPTIONS.map((opt) => (
-                                <SelectItem key={opt.value} value={String(opt.value)}>
-                                  {opt.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                        {tmType !== 'none' && (
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">Layers</Label>
+                            <Select
+                              value={String(tmLayers)}
+                              onValueChange={(val) => updateGroupReinforcement(group, { tm_layers: Number(val) })}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="z-[150]">
+                                {TM_LAYERS_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={String(opt.value)}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        )}
                       </div>
                       
-                      {/* Top Layer TM - only when 2 layers */}
-                      {tmLayers > 1 && (
+                      {/* Top Layer TM - only when 2 layers and not "none" */}
+                      {tmType !== 'none' && tmLayers > 1 && (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium">Top Layer TM</Label>
                           <Select
@@ -499,7 +510,7 @@ export function BeamReinforcementInput({
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="z-[150]">
-                              {TM_OPTIONS.map((opt) => (
+                              {TM_OPTIONS.filter(opt => opt.value !== 'none').map((opt) => (
                                 <SelectItem key={opt.value} value={opt.value}>
                                   <span className="flex items-center gap-2">
                                     {opt.label}
