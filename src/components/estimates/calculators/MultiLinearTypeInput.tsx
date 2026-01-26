@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { LinearSection } from "@/lib/estimate-components/types";
+import { MarkupPromptDialog } from "./MarkupPromptDialog";
 
 // Scope-specific type prefixes
 export const LINEAR_TYPE_PREFIXES: Record<string, string> = {
@@ -43,6 +44,11 @@ interface MultiLinearTypeInputProps {
   label?: string;
   sections: LinearSection[];
   onChange: (sections: LinearSection[]) => void;
+  // Markup prompt support
+  onRequestMarkup?: () => void;
+  hasPlans?: boolean;
+  skipMarkupPrompt?: boolean;
+  onSkipMarkupPromptChange?: (skip: boolean) => void;
 }
 
 function parseLinearTypeName(name: string): string {
@@ -95,9 +101,15 @@ export function MultiLinearTypeInput({
   label,
   sections,
   onChange,
+  onRequestMarkup,
+  hasPlans = false,
+  skipMarkupPrompt = false,
+  onSkipMarkupPromptChange,
 }: MultiLinearTypeInputProps) {
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
   const [newTypeName, setNewTypeName] = useState("");
+  const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
+  const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
 
   const prefix = LINEAR_TYPE_PREFIXES[scopeId] || 'L';
   const config = LINEAR_SCOPE_CONFIG[scopeId] || {
@@ -191,6 +203,30 @@ export function MultiLinearTypeInput({
     setNewTypeName("");
   };
 
+  const handleAddClick = () => {
+    if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
+      setShowMarkupPrompt(true);
+    } else {
+      addNewType();
+    }
+  };
+
+  const handleMarkOnPlans = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    onRequestMarkup?.();
+  };
+
+  const handleEnterManually = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    addNewType();
+  };
+
   const addSegmentToGroup = (group: LinearTypeGroup) => {
     // Find the next segment number for this group
     const nextSegmentNum = group.segments.length + 1;
@@ -239,14 +275,14 @@ export function MultiLinearTypeInput({
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  addNewType();
+                  handleAddClick();
                 }
               }}
             />
             <Button
               type="button"
               variant="outline"
-              onClick={addNewType}
+              onClick={handleAddClick}
               className="shrink-0 h-11 sm:h-9"
             >
               <Plus className="h-4 w-4 mr-1" />
@@ -471,20 +507,30 @@ export function MultiLinearTypeInput({
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              addNewType();
+              handleAddClick();
             }
           }}
         />
         <Button
           type="button"
           variant="outline"
-          onClick={addNewType}
+          onClick={handleAddClick}
           className="shrink-0 h-11 sm:h-9"
         >
           <Plus className="h-4 w-4 mr-1" />
           Add Type
         </Button>
       </div>
+
+      <MarkupPromptDialog
+        open={showMarkupPrompt}
+        onOpenChange={setShowMarkupPrompt}
+        itemType="footing type"
+        onMarkOnPlans={handleMarkOnPlans}
+        onEnterManually={handleEnterManually}
+        dontAskAgain={dontAskAgain}
+        onDontAskAgainChange={setDontAskAgain}
+      />
     </div>
   );
 }
