@@ -393,38 +393,54 @@ export function ModuleSection({
               const elements: React.ReactNode[] = [];
               let sectionQuestions: typeof visibleQuestions = [];
 
-              const flushSection = () => {
+                  const flushSection = () => {
                 if (sectionQuestions.length > 0) {
                   const sectionKey = currentSection || 'default';
                   
+                  // Get scope ID for scope-aware labels
+                  const scopeId = scopeData?.scopeId || '';
+                  
                   // Check if this section should have inline inputs
+                  // Support both "Edge Beams" and "Edge Thickening" for driveway scope
                   const isSlabSurfaceSection = isRaftReoModule && currentSection === 'Slab Surface';
-                  const isEdgeBeamsSection = isRaftReoModule && currentSection === 'Edge Beams';
+                  const isEdgeBeamsSection = isRaftReoModule && (currentSection === 'Edge Beams' || currentSection === 'Edge Thickening');
                   const isInternalBeamsSection = isRaftReoModule && currentSection === 'Internal Beams';
                   // Footing reinforcement now uses LinearSectionReinforcementInput
                   const isFootingReoSection = isFootingReoModule && currentSection === 'Footing Reinforcement';
+                  
+                  // Get effective section label (scope-aware)
+                  const effectiveSectionLabel = sectionQuestions[0]?.getScopeSectionLabel
+                    ? sectionQuestions[0].getScopeSectionLabel(scopeId)
+                    : currentSection;
                   
                   elements.push(
                     <div key={`section-${sectionKey}`} className="space-y-4">
                       {currentSection && (
                         <div className="flex items-center gap-2 pt-2 first:pt-0">
                           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                            {currentSection}
+                            {effectiveSectionLabel}
                           </h4>
                           <div className="flex-1 h-px bg-border" />
                         </div>
                       )}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-x-6">
-                        {sectionQuestions.map((question) => (
-                          <QuestionInput
-                            key={question.id}
-                            question={question}
-                            value={answers[question.id]}
-                            onChange={(val) => onAnswerChange(question.id, val)}
-                            allAnswers={answers}
-                            scopeData={scopeData}
-                          />
-                        ))}
+                        {sectionQuestions.map((question) => {
+                          // Get effective label (scope-aware)
+                          const effectiveLabel = question.getScopeLabel
+                            ? question.getScopeLabel(scopeId)
+                            : question.label;
+                          
+                          return (
+                            <QuestionInput
+                              key={question.id}
+                              question={{ ...question, label: effectiveLabel }}
+                              value={answers[question.id]}
+                              onChange={(val) => onAnswerChange(question.id, val)}
+                              allAnswers={answers}
+                              scopeData={scopeData}
+                            />
+                          );
+                        })}
                       </div>
                       
                       {/* Inline per-area inputs for Slab Surface section */}

@@ -891,8 +891,8 @@ export function ModularCalculator({
           onThickeningDepthChange={(val) => handleScopeAnswerChange('thickeningDepth', val)}
           thickeningWidth={scopeAnswers.thickeningWidth || 300}
           onThickeningWidthChange={(val) => handleScopeAnswerChange('thickeningWidth', val)}
-          // Markup prompt support
-          onRequestMarkup={onRequestMarkup}
+          // Markup prompt support - pass scope identifier for navigation
+          onRequestMarkup={() => onRequestMarkup?.(scope.id)}
           hasPlans={hasPlans}
           skipMarkupPrompt={skipMarkupPrompt}
           onSkipMarkupPromptChange={onSkipMarkupPromptChange}
