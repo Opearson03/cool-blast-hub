@@ -429,32 +429,32 @@ export function MultiAreaInput({
 
       {/* Shared thickness setting - PROMINENT when empty */}
       <div className={cn(
-        "pt-3 border-t space-y-3 transition-all",
-        !thickness && "bg-amber-500/10 border-amber-500/30 rounded-lg p-4 -mx-1 mt-4"
+        "pt-4 border-t transition-all",
+        !thickness && "bg-amber-500/10 border border-amber-500/30 rounded-lg p-6 -mx-1 mt-4"
       )}>
         <div className={cn(
-          "space-y-3",
+          "space-y-4",
           !thickness && "flex flex-col items-center text-center"
         )}>
           {!thickness && (
             <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-              <AlertCircle className="h-5 w-5" />
-              <span className="font-semibold text-sm">Slab Thickness Required</span>
+              <AlertCircle className="h-6 w-6" />
+              <span className="font-semibold text-base">Slab Thickness Required</span>
             </div>
           )}
           
           <Label className={cn(
-            "font-medium",
-            !thickness ? "text-sm text-muted-foreground" : "text-xs"
+            "font-medium block",
+            !thickness ? "text-base text-muted-foreground" : "text-xs"
           )}>
             {thickness ? (
               <>Thickness <span className="text-muted-foreground font-normal">— shared across all areas</span></>
             ) : (
-              "Enter the slab thickness from drawings"
+              "Enter the slab thickness from your drawings"
             )}
           </Label>
           
-          <div className={cn("relative", !thickness && "w-48")}>
+          <div className={cn("relative", !thickness ? "w-64" : "max-w-[200px]")}>
             <Input
               type="number"
               inputMode="numeric"
@@ -466,15 +466,15 @@ export function MultiAreaInput({
               step={5}
               placeholder={!thickness ? "e.g. 100" : undefined}
               className={cn(
-                "pr-10 text-center transition-all",
+                "pr-12 text-center transition-all",
                 !thickness 
-                  ? "h-14 text-xl border-2 border-amber-500/50 bg-background" 
-                  : "h-8 text-sm max-w-[200px]"
+                  ? "h-16 text-2xl font-medium border-2 border-amber-500/50 bg-background" 
+                  : "h-8 text-sm"
               )}
             />
             <span className={cn(
-              "absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground",
-              !thickness ? "text-base" : "text-[10px]"
+              "absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground",
+              !thickness ? "text-lg" : "text-[10px]"
             )}>
               mm
             </span>
