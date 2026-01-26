@@ -27,8 +27,9 @@ interface PlanTakeoffStepProps {
   businessId: string | null;
   selectedScopes: ScopeType[];
   scopeLabels: Record<string, string>;
-  /** Optional scope to auto-activate when component mounts (from "Mark on plans" button) */
-  initialScope?: ScopeType | null;
+  /** Optional scope to auto-activate when component mounts (from "Mark on plans" button) 
+   * Can be a ScopeType or a string identifier like "scopeId:beamType:typeName" */
+  initialScope?: ScopeType | string | null;
   /** Callback to clear initialScope after it's been handled */
   onInitialScopeHandled?: () => void;
   onContinue: () => void;
@@ -253,8 +254,12 @@ export function PlanTakeoffStep({
       !isLoading
     ) {
       initialScopeHandledRef.current = true;
+      // Extract base scope from identifier (e.g., "raft_slab:edge_beam:EB1" -> "raft_slab")
+      const scopeToActivate = (typeof initialScope === 'string' && initialScope.includes(':'))
+        ? initialScope.split(':')[0]
+        : initialScope;
       // Use handleMarkArea to activate the scope with proper tool selection
-      handleMarkArea(initialScope);
+      handleMarkArea(scopeToActivate);
       // Notify parent that we've handled it
       onInitialScopeHandled?.();
     }
