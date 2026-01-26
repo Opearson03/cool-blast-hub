@@ -241,16 +241,21 @@ export function ModularCalculator({
 
       excavationVolume = scopeAnswers.footings.reduce((sum: number, f: any) => {
         const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
-        const widthM = (Number(f.width) || 0) / 1000; // mm to m
+        // For retaining wall footings, excavation width includes the toe
+        const footingWidth = Number(f.width) || 0;
+        const toe = Number(f.toe) || 0;
+        const excavationWidthM = (footingWidth + toe) / 1000; // mm to m
         const depthM = (Number(f.depth) || 0) / 1000; // mm to m
-        return sum + length * widthM * depthM;
+        return sum + length * excavationWidthM * depthM;
       }, 0);
 
-      // Excavation area as total trench area
+      // Excavation area as total trench area (including toe)
       excavationArea = scopeAnswers.footings.reduce((sum: number, f: any) => {
         const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
-        const widthM = (Number(f.width) || 0) / 1000;
-        return sum + length * widthM;
+        const footingWidth = Number(f.width) || 0;
+        const toe = Number(f.toe) || 0;
+        const excavationWidthM = (footingWidth + toe) / 1000;
+        return sum + length * excavationWidthM;
       }, 0);
 
       // Weighted average depth by length
@@ -783,6 +788,7 @@ export function ModularCalculator({
         length: s._actualLength && s._actualLength > 0 ? s._actualLength : s.length,
         width: s.dimension1,
         depth: s.dimension2,
+        toe: s.toe, // Include toe for retaining wall footings excavation calculation
         _fromTakeoff: s._fromTakeoff,
         _actualLength: s._actualLength,
       })),

@@ -876,6 +876,7 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
   linearSectionsLabel: 'Footing Sections',
   questions: [
     // These questions are derived from the multi-footing input
+    // Width, depth, and toe are now per-type in MultiLinearTypeInput
     {
       id: 'total_length',
       type: 'number',
@@ -883,31 +884,6 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
       required: true,
       min: 1,
       unit: 'm',
-    },
-    {
-      id: 'footing_width',
-      type: 'number',
-      label: 'Average Footing Width (mm)',
-      required: true,
-      min: 300,
-      unit: 'mm',
-    },
-    {
-      id: 'footing_depth',
-      type: 'number',
-      label: 'Average Footing Depth (mm)',
-      required: true,
-      min: 200,
-      unit: 'mm',
-    },
-    {
-      id: 'toe_length',
-      type: 'number',
-      label: 'Toe Length (mm)',
-      min: 0,
-      unit: 'mm',
-      defaultValue: 300,
-      helpText: 'Length of footing toe extending beyond wall face (0 if no toe)',
     },
   ],
   moduleIds: [
@@ -923,7 +899,7 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     'extra-items',
   ],
   calculateVolume: (answers) => {
-    // If we have footing configs, calculate from those
+    // Calculate from linear sections/footings (per-type dimensions)
     const footings = answers.footings || [];
     if (footings.length > 0) {
       const volume = footings.reduce((sum: number, footing: any) => {
@@ -934,10 +910,11 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
       }, 0);
       return safeVolume(volume);
     }
-    // Fallback to individual questions
+    // Fallback to total_length with default dimensions if no sections defined yet
     const length = Number(answers.total_length) || 0;
-    const widthM = (Number(answers.footing_width) || 0) / 1000;
-    const depthM = (Number(answers.footing_depth) || 0) / 1000;
+    // No global width/depth questions anymore - use defaults for initial estimate
+    const widthM = 600 / 1000; // Default 600mm width
+    const depthM = 400 / 1000; // Default 400mm depth
     return safeVolume(length * widthM * depthM);
   },
   defaultExclusions: [
