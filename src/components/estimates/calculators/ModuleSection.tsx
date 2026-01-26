@@ -379,14 +379,17 @@ export function ModuleSection({
                 }
               };
 
-              visibleQuestions.forEach((question) => {
-                if (question.sectionLabel && question.sectionLabel !== currentSection) {
-                  flushSection();
-                  currentSection = question.sectionLabel;
-                }
-                sectionQuestions.push(question);
-              });
-              flushSection();
+              // Skip default question rendering for extra-items module (uses custom component)
+              if (module.id !== 'extra-items') {
+                visibleQuestions.forEach((question) => {
+                  if (question.sectionLabel && question.sectionLabel !== currentSection) {
+                    flushSection();
+                    currentSection = question.sectionLabel;
+                  }
+                  sectionQuestions.push(question);
+                });
+                flushSection();
+              }
 
               // Special case: Pier reinforcement module renders pier groups without global toggles
               if (isPiersReoModule && pierGroups.length > 0 && onScopeDataChange) {
