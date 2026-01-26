@@ -518,8 +518,13 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
   icon: 'car',
   supportsMultipleAreas: true,
   areasLabel: 'Driveway Areas',
+  supportsMultipleBeams: true,
+  beamsLabel: 'Internal Stiffening Beams',
+  supportsMultipleEdgeBeams: true,
+  edgeBeamsLabel: 'Edge Beams',
+  // Hide beam fields from standard rendering - they're managed by MultiBeamInput
+  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
-    // These questions are now derived from the multi-area input
     {
       id: 'area',
       type: 'number',
@@ -539,81 +544,135 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     {
       id: 'thickness',
       type: 'number',
-      label: 'Thickness (mm)',
+      label: 'Driveway Thickness (mm)',
       required: true,
       requiresUserInput: true,
       min: 75,
       unit: 'mm',
       placeholder: 'Enter thickness',
+      helpText: 'Thickness of the main driveway slab',
     },
-    // Thickening/edge beam questions
+    // Edge Beam Questions (same as raft)
     {
-      id: 'hasThickening',
-      type: 'boolean',
-      label: 'Has Thickening/Edge Beams',
-      required: false,
-      defaultValue: false,
-    },
-    {
-      id: 'thickeningDepth',
+      id: 'edge_beam_depth',
       type: 'number',
-      label: 'Thickening Depth (mm)',
+      label: 'Edge Beam Depth (mm)',
       required: false,
-      min: 100,
+      min: 200,
       defaultValue: 300,
       unit: 'mm',
+      helpText: 'Total depth of thickened edge',
     },
     {
-      id: 'thickeningWidth',
+      id: 'edge_beam_width',
       type: 'number',
-      label: 'Thickening Width (mm)',
+      label: 'Edge Beam Width (mm)',
       required: false,
-      min: 100,
+      min: 200,
       defaultValue: 300,
       unit: 'mm',
+      helpText: 'Width of thickened edge',
+    },
+    {
+      id: 'edge_beam_length',
+      type: 'number',
+      label: 'Total Edge Beam Length (m)',
+      required: false,
+      min: 0,
+      unit: 'm',
+      helpText: 'Total continuous length of edge beams (defaults to perimeter if not specified)',
+    },
+    // Internal Beam Questions (derived from multi-beam input)
+    {
+      id: 'internal_beams_length',
+      type: 'number',
+      label: 'Total Internal Beam Length (m)',
+      required: false,
+      min: 0,
+      defaultValue: 0,
+      unit: 'm',
+      helpText: 'Derived from beam configurations',
+    },
+    {
+      id: 'internal_beam_width',
+      type: 'number',
+      label: 'Internal Beam Width (mm)',
+      required: false,
+      min: 200,
+      defaultValue: 300,
+      unit: 'mm',
+      helpText: 'Weighted average from beam configurations',
+    },
+    {
+      id: 'internal_beam_depth',
+      type: 'number',
+      label: 'Internal Beam Depth (mm)',
+      required: false,
+      min: 200,
+      defaultValue: 300,
+      unit: 'mm',
+      helpText: 'Weighted average from beam configurations',
     },
   ],
   moduleIds: [
     'excavation',
     'base-preparation',
     'formwork',
-    'reinforcement-slab',
-    'reinforcement-footing',  // For thickening reinforcement (trench mesh, bars, verticals)
-    'connections-joints',
-    'plumbing',
+    'reinforcement-raft',      // Consolidated reinforcement for slab, edge beams, and internal beams
+    'connections-joints',      // DRIVEWAY SPECIFIC - kept in position
+    'plumbing',                // DRIVEWAY SPECIFIC - kept in position
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
     'labour-place',
     'surface-finishing',
-    'joints-control',
+    'joints-control',          // DRIVEWAY SPECIFIC - kept in position
     'cleanup',
     'sundries',
     'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
-    const thicknessM = (Number(answers.thickness) || 0) / 1000;
+    const thicknessM = (Number(answers.thickness) || 100) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
+    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
+    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
+
+    // Main slab volume
+    const slabVolume = area * thicknessM;
+
+    // Edge beam extra volume (depth below slab thickness)
+    // Use edge_beam_length if explicitly provided, otherwise fall back to perimeter
+    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+    const edgeBeamVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+
+    // Internal beams volume - if we have beam configs, calculate from those
+    const beams = answers.beams || [];
+    let internalBeamVolume = 0;
     
-    // Base slab volume
-    let volume = area * thicknessM;
-    
-    // Add thickening/edge beam volume if enabled
-    if (answers.hasThickening) {
-      const thickeningDepthM = (Number(answers.thickeningDepth) || 300) / 1000;
-      const thickeningWidthM = (Number(answers.thickeningWidth) || 300) / 1000;
-      // Edge beam volume = perimeter × width × (depth - slab thickness)
-      // Only add the extra depth below the slab
-      const extraDepth = Math.max(0, thickeningDepthM - thicknessM);
-      const thickeningVolume = perimeter * thickeningWidthM * extraDepth;
-      volume += thickeningVolume;
+    if (beams.length > 0) {
+      internalBeamVolume = beams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 300) / 1000;
+        const depthM = (Number(beam.depth) || 300) / 1000;
+        const extraDepth = Math.max(0, depthM - thicknessM);
+        return sum + lengthM * widthM * extraDepth;
+      }, 0);
+    } else {
+      // Fallback to legacy single-value fields
+      const internalLength = Number(answers.internal_beams_length) || 0;
+      const internalWidthM = (Number(answers.internal_beam_width) || 300) / 1000;
+      const internalDepthM = (Number(answers.internal_beam_depth) || 300) / 1000;
+      const internalExtraDepth = Math.max(0, internalDepthM - thicknessM);
+      internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
     }
-    
-    return safeVolume(volume);
+
+    return safeVolume(slabVolume + edgeBeamVolume + internalBeamVolume);
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'driveway' },
+    { id: 'engineering', text: 'Engineering design and certification', moduleId: 'driveway' },
   ],
 };
 
