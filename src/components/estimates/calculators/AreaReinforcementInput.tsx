@@ -139,6 +139,44 @@ export function AreaReinforcementInput({
     return { totalArea, meshCount, barCount, fiberCount, noneCount, customCount, total: areas.length };
   }, [areas, defaultReoType]);
 
+  // Initialize mesh prices from priceMap when it becomes available
+  useEffect(() => {
+    if (!priceMap || areas.length === 0) return;
+    
+    let hasChanges = false;
+    const updatedAreas = areas.map(area => {
+      const reoType = area.reo_type || defaultReoType;
+      const meshType = area.mesh_type || defaultMeshType;
+      const meshLayers = area.mesh_layers || 1;
+      let updates: Partial<MeasurementArea> = {};
+      
+      // Initialize bottom/single layer price if mesh and price undefined
+      if (reoType === 'mesh' && area.mesh_price === undefined) {
+        const catalogPrice = getMeshPrice(meshType, priceMap);
+        if (catalogPrice !== undefined) {
+          updates.mesh_price = catalogPrice;
+          hasChanges = true;
+        }
+      }
+      
+      // Initialize top layer price if 2 layers and price undefined
+      if (reoType === 'mesh' && meshLayers > 1 && area.mesh_price_top === undefined) {
+        const topType = area.mesh_type_top || meshType;
+        const catalogPriceTop = getMeshPrice(topType, priceMap);
+        if (catalogPriceTop !== undefined) {
+          updates.mesh_price_top = catalogPriceTop;
+          hasChanges = true;
+        }
+      }
+      
+      return Object.keys(updates).length > 0 ? { ...area, ...updates } : area;
+    });
+    
+    if (hasChanges) {
+      onChange(updatedAreas);
+    }
+  }, [priceMap]); // Only run when priceMap changes
+
   if (areas.length === 0) {
     return (
       <div className="flex items-center gap-3 text-sm text-muted-foreground italic py-4 px-3 border border-dashed rounded-lg">
