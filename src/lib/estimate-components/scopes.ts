@@ -518,12 +518,10 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
   icon: 'car',
   supportsMultipleAreas: true,
   areasLabel: 'Driveway Areas',
-  supportsMultipleBeams: true,
-  beamsLabel: 'Internal Stiffening Beams',
   supportsMultipleEdgeBeams: true,
-  edgeBeamsLabel: 'Edge Beams',
-  // Hide beam fields from standard rendering - they're managed by MultiBeamInput
-  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
+  edgeBeamsLabel: 'Edge Thickening',
+  // Hide edge thickening fields from standard rendering - they're managed by MultiEdgeBeamInput
+  hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
     {
       id: 'area',
@@ -552,11 +550,11 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
       placeholder: 'Enter thickness',
       helpText: 'Thickness of the main driveway slab',
     },
-    // Edge Beam Questions (same as raft)
+    // Edge Thickening Questions
     {
       id: 'edge_beam_depth',
       type: 'number',
-      label: 'Edge Beam Depth (mm)',
+      label: 'Edge Thickening Depth (mm)',
       required: false,
       min: 200,
       defaultValue: 300,
@@ -566,7 +564,7 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     {
       id: 'edge_beam_width',
       type: 'number',
-      label: 'Edge Beam Width (mm)',
+      label: 'Edge Thickening Width (mm)',
       required: false,
       min: 200,
       defaultValue: 300,
@@ -576,42 +574,11 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     {
       id: 'edge_beam_length',
       type: 'number',
-      label: 'Total Edge Beam Length (m)',
+      label: 'Total Edge Thickening Length (m)',
       required: false,
       min: 0,
       unit: 'm',
-      helpText: 'Total continuous length of edge beams (defaults to perimeter if not specified)',
-    },
-    // Internal Beam Questions (derived from multi-beam input)
-    {
-      id: 'internal_beams_length',
-      type: 'number',
-      label: 'Total Internal Beam Length (m)',
-      required: false,
-      min: 0,
-      defaultValue: 0,
-      unit: 'm',
-      helpText: 'Derived from beam configurations',
-    },
-    {
-      id: 'internal_beam_width',
-      type: 'number',
-      label: 'Internal Beam Width (mm)',
-      required: false,
-      min: 200,
-      defaultValue: 300,
-      unit: 'mm',
-      helpText: 'Weighted average from beam configurations',
-    },
-    {
-      id: 'internal_beam_depth',
-      type: 'number',
-      label: 'Internal Beam Depth (mm)',
-      required: false,
-      min: 200,
-      defaultValue: 300,
-      unit: 'mm',
-      helpText: 'Weighted average from beam configurations',
+      helpText: 'Total continuous length of edge thickening (defaults to perimeter if not specified)',
     },
   ],
   moduleIds: [
@@ -641,34 +608,13 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     // Main slab volume
     const slabVolume = area * thicknessM;
 
-    // Edge beam extra volume (depth below slab thickness)
+    // Edge thickening extra volume (depth below slab thickness)
     // Use edge_beam_length if explicitly provided, otherwise fall back to perimeter
     const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
     const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-    const edgeBeamVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+    const edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
 
-    // Internal beams volume - if we have beam configs, calculate from those
-    const beams = answers.beams || [];
-    let internalBeamVolume = 0;
-    
-    if (beams.length > 0) {
-      internalBeamVolume = beams.reduce((sum: number, beam: any) => {
-        const lengthM = Number(beam.length) || 0;
-        const widthM = (Number(beam.width) || 300) / 1000;
-        const depthM = (Number(beam.depth) || 300) / 1000;
-        const extraDepth = Math.max(0, depthM - thicknessM);
-        return sum + lengthM * widthM * extraDepth;
-      }, 0);
-    } else {
-      // Fallback to legacy single-value fields
-      const internalLength = Number(answers.internal_beams_length) || 0;
-      const internalWidthM = (Number(answers.internal_beam_width) || 300) / 1000;
-      const internalDepthM = (Number(answers.internal_beam_depth) || 300) / 1000;
-      const internalExtraDepth = Math.max(0, internalDepthM - thicknessM);
-      internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
-    }
-
-    return safeVolume(slabVolume + edgeBeamVolume + internalBeamVolume);
+    return safeVolume(slabVolume + edgeThickeningVolume);
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'driveway' },
