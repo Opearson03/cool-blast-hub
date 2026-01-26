@@ -50,7 +50,7 @@ export const reinforcementRaftModule: EstimateModule = {
       id: 'slab_chairs',
       type: 'boolean',
       label: 'Include Slab Chairs',
-      defaultValue: true,
+      defaultValue: false,
     },
     {
       id: 'slab_chair_type',
@@ -99,7 +99,7 @@ export const reinforcementRaftModule: EstimateModule = {
       id: 'edge_beam_reo',
       type: 'boolean',
       label: 'Include Edge Beam Reinforcement',
-      defaultValue: true,
+      defaultValue: false,
       sectionLabel: 'Edge Beams',
     },
     // EDGE BEAM CHAIRS (700mm centres = ~1.4 chairs/m) - Part of Edge Beams section
@@ -107,7 +107,7 @@ export const reinforcementRaftModule: EstimateModule = {
       id: 'edge_beam_chairs',
       type: 'boolean',
       label: 'Include Edge Beam Chairs',
-      defaultValue: true,
+      defaultValue: false,
       showIf: (answers) => answers.edge_beam_reo === true,
     },
     {
@@ -138,7 +138,7 @@ export const reinforcementRaftModule: EstimateModule = {
       id: 'internal_beam_reo',
       type: 'boolean',
       label: 'Include Internal Beam Reinforcement',
-      defaultValue: true,
+      defaultValue: false,
       sectionLabel: 'Internal Beams',
     },
     // INTERNAL BEAM CHAIRS (700mm centres = ~1.4 chairs/m) - Part of Internal Beams section
@@ -146,7 +146,7 @@ export const reinforcementRaftModule: EstimateModule = {
       id: 'internal_beam_chairs',
       type: 'boolean',
       label: 'Include Internal Beam Chairs',
-      defaultValue: true,
+      defaultValue: false,
       showIf: (answers) => answers.internal_beam_reo === true,
     },
     {
@@ -177,7 +177,7 @@ export const reinforcementRaftModule: EstimateModule = {
       id: 'tie_wire',
       type: 'boolean',
       label: 'Include Tie Wire',
-      defaultValue: true,
+      defaultValue: false,
       sectionLabel: 'Other Accessories',
     },
     {

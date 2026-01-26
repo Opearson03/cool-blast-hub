@@ -1243,7 +1243,7 @@ export const OSD_TANK_SCOPE: ScopeDefinition = {
       id: 'include_lid',
       type: 'boolean',
       label: 'Include Lid Slab',
-      defaultValue: true,
+      defaultValue: false,
     },
     {
       id: 'lid_thickness',
@@ -1451,7 +1451,7 @@ export const CONCRETE_STAIRS_SCOPE: ScopeDefinition = {
       id: 'include_landings',
       type: 'boolean',
       label: 'Include Landing Platforms',
-      defaultValue: true,
+      defaultValue: false,
     },
     {
       id: 'landing_area',
@@ -1569,7 +1569,7 @@ export const RETAINING_WALLS_SCOPE: ScopeDefinition = {
       id: 'include_footing',
       type: 'boolean',
       label: 'Include Strip Footing',
-      defaultValue: true,
+      defaultValue: false,
     },
     {
       id: 'footing_width',

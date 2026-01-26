@@ -106,7 +106,7 @@ export const basePreparationModule: EstimateModule = {
       id: 'membrane_required',
       type: 'boolean',
       label: 'Is plastic membrane required?',
-      defaultValue: true,
+      defaultValue: false,
       required: true,
     },
     {

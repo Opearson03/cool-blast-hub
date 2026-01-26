@@ -12,7 +12,7 @@ export const architecturalFinishingModule: EstimateModule = {
       type: 'boolean',
       label: 'Is a premium finish required?',
       required: true,
-      defaultValue: true,
+      defaultValue: false,
     },
     // Section 2: Finish Type Selection
     {
