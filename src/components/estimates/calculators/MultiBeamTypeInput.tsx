@@ -123,8 +123,27 @@ export function MultiBeamTypeInput({
   };
 
   const updateGroupTotalLength = (group: BeamTypeGroup, newTotalLength: number) => {
-    if (group.totalLength === 0 || newTotalLength <= 0) return;
+    // Don't allow negative values
+    if (newTotalLength < 0) return;
     
+    // If group has no length yet (all segments are 0), distribute the new length equally
+    if (group.totalLength === 0) {
+      const segmentCount = group.segments.length;
+      if (segmentCount === 0) return;
+      
+      const lengthPerSegment = Math.round((newTotalLength / segmentCount) * 100) / 100;
+      const updatedBeams = beams.map(beam => {
+        const beamType = parseBeamTypeName(beam.name);
+        if (beamType === group.typeName && beam.width === group.width && beam.depth === group.depth) {
+          return { ...beam, length: lengthPerSegment };
+        }
+        return beam;
+      });
+      onChange(updatedBeams);
+      return;
+    }
+    
+    // Scale existing segments proportionally
     const ratio = newTotalLength / group.totalLength;
     
     const updatedBeams = beams.map(beam => {
