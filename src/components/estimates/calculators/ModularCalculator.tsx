@@ -899,8 +899,8 @@ export function ModularCalculator({
             piers: [{ id: 'pier-1', name: 'P1', diameter: 450, depth: 600 }] 
           }]}
           onChange={handlePierGroupsChange}
-          // Markup prompt support
-          onRequestMarkup={onRequestMarkup}
+          // Markup prompt support - pass scope identifier for navigation
+          onRequestMarkup={() => onRequestMarkup?.(scope.id)}
           hasPlans={hasPlans}
           skipMarkupPrompt={skipMarkupPrompt}
           onSkipMarkupPromptChange={onSkipMarkupPromptChange}
