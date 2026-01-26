@@ -79,7 +79,6 @@ export const reinforcementRaftModule: EstimateModule = {
       label: 'Include Bar Chairs',
       defaultValue: true,
       sectionLabel: 'Accessories',
-      showIf: (answers) => answers.slab_reo_type === 'mesh' || answers.slab_reo_type === 'bar',
     },
     {
       id: 'chair_type',
@@ -93,7 +92,7 @@ export const reinforcementRaftModule: EstimateModule = {
         { value: '125150C', label: '125-150mm' },
       ],
       defaultValue: '7590C',
-      showIf: (answers) => (answers.slab_reo_type === 'mesh' || answers.slab_reo_type === 'bar') && answers.bar_chairs === true,
+      showIf: (answers) => answers.bar_chairs === true,
       deriveFrom: (scopeData) => {
         const thickness = Number(scopeData?.thickness) || 300;
         return getChairTypeFromThickness(thickness);
@@ -106,14 +105,14 @@ export const reinforcementRaftModule: EstimateModule = {
       defaultValue: 4,
       min: 1,
       max: 10,
-      showIf: (answers) => (answers.slab_reo_type === 'mesh' || answers.slab_reo_type === 'bar') && answers.bar_chairs === true,
+      showIf: (answers) => answers.bar_chairs === true,
     },
     {
       id: 'chair_price_per_100',
       type: 'currency',
       label: 'Price/100',
       defaultValue: 35,
-      showIf: (answers) => (answers.slab_reo_type === 'mesh' || answers.slab_reo_type === 'bar') && answers.bar_chairs === true,
+      showIf: (answers) => answers.bar_chairs === true,
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
         const chairType = moduleAnswers.chair_type || '7590C';
         return priceMap?.['consumables']?.[chairType];
@@ -124,7 +123,6 @@ export const reinforcementRaftModule: EstimateModule = {
       type: 'boolean',
       label: 'Include Tie Wire',
       defaultValue: true,
-      showIf: (answers) => answers.slab_reo_type === 'mesh' || answers.slab_reo_type === 'bar',
     },
     {
       id: 'tie_wire_coils',
@@ -132,14 +130,14 @@ export const reinforcementRaftModule: EstimateModule = {
       label: 'Coils',
       defaultValue: 2,
       min: 1,
-      showIf: (answers) => (answers.slab_reo_type === 'mesh' || answers.slab_reo_type === 'bar') && answers.tie_wire === true,
+      showIf: (answers) => answers.tie_wire === true,
     },
     {
       id: 'tie_wire_price',
       type: 'currency',
       label: 'Price/Coil',
       defaultValue: 15,
-      showIf: (answers) => (answers.slab_reo_type === 'mesh' || answers.slab_reo_type === 'bar') && answers.tie_wire === true,
+      showIf: (answers) => answers.tie_wire === true,
       deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
         return priceMap?.['consumables']?.['TIE WIRE'];
       },
@@ -155,7 +153,6 @@ export const reinforcementRaftModule: EstimateModule = {
       defaultValue: 150,
       sectionLabel: 'Delivery',
       priceListKey: 'rebar.REO DELIVERY',
-      showIf: (answers) => answers.slab_reo_type !== 'none' && answers.slab_reo_type !== 'fiber',
     },
   ],
 
