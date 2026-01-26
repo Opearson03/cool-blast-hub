@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem } from "@/lib/estimate-components/types";
+import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem, PumpVisit, LabourPlacement } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -36,6 +36,8 @@ import { PierReinforcementInput } from "./PierReinforcementInput";
 import { FootingReinforcementInput } from "./FootingReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
 import { ExtraItemsInput } from "./ExtraItemsInput";
+import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
+import { MultiPlacementInput } from "./MultiPlacementInput";
 import { formatCurrency } from "@/lib/format-currency";
 import { aggregateRaftReinforcementItems, AggregatedMaterial } from "./shared/aggregateMaterials";
 
@@ -566,6 +568,38 @@ export function ModuleSection({
                     <ExtraItemsInput
                       items={(answers.extra_items || []) as ExtraItem[]}
                       onChange={(items) => onAnswerChange('extra_items', items)}
+                    />
+                  </div>
+                );
+              }
+
+              // Special case: Concrete Pumping module renders multi-visit input
+              if (module.id === 'concrete-pumping' && answers.pump_required) {
+                elements.push(
+                  <div key="pump-visits-section" className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Pump Visits
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <MultiPumpVisitInput
+                      visits={(answers.pump_visits || []) as PumpVisit[]}
+                      onChange={(visits) => onAnswerChange('pump_visits', visits)}
+                      priceMap={priceMap}
+                    />
+                  </div>
+                );
+              }
+
+              // Special case: Labour Place module renders multi-placement input
+              if (module.id === 'labour-place') {
+                elements.push(
+                  <div key="labour-placements-section" className="space-y-4">
+                    <MultiPlacementInput
+                      placements={(answers.placements || []) as LabourPlacement[]}
+                      onChange={(placements) => onAnswerChange('placements', placements)}
+                      priceMap={priceMap}
                     />
                   </div>
                 );

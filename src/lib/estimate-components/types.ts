@@ -568,3 +568,31 @@ export const PUMP_RECOMMENDATIONS = {
   largeBoom: { maxVolume: 100, label: '42M+ Boom Pump recommended' },
   multiple: { label: 'Large boom or multiple loads recommended' },
 };
+
+/**
+ * Individual pump visit configuration for multi-visit pumping
+ */
+export interface PumpVisit {
+  id: string;
+  pump_type: string;
+  pump_rate: number;
+  travel_hours: number;
+  pump_hours_on_site: number;
+  primer_count: number;
+  primer_cost: number;
+  offsite_washout: boolean;
+  washout_cost: number;
+  additional_pumpy: boolean;
+  pumpy_rate: number;
+}
+
+/**
+ * Individual labour placement (pour) configuration
+ */
+export interface LabourPlacement {
+  id: string;
+  name?: string;           // Optional pour name (e.g., "Slab Pour 1")
+  hourly_rate: number;
+  crew_size: number;
+  hours: number;           // Hours for this placement
+}
