@@ -17,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Settings2, Ruler, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const TM_OPTIONS = [
@@ -316,6 +316,43 @@ export function BeamReinforcementInput({
       withVerticalCount 
     };
   }, [groups, beams.length, defaultAddLigs]);
+
+  // Initialize TM prices from priceMap when it becomes available
+  useEffect(() => {
+    if (!priceMap || beams.length === 0) return;
+    
+    let hasChanges = false;
+    const updatedBeams = beams.map(beam => {
+      const tmType = beam.tm_type || defaultTmType;
+      const tmLayers = beam.tm_layers || 1;
+      let updates: Partial<BeamConfig> = {};
+      
+      // Initialize bottom/single layer price if TM type is not 'none' and price undefined
+      if (tmType !== 'none' && beam.tm_price === undefined) {
+        const catalogPrice = getTmPrice(tmType, priceMap);
+        if (catalogPrice !== undefined) {
+          updates.tm_price = catalogPrice;
+          hasChanges = true;
+        }
+      }
+      
+      // Initialize top layer price if 2 layers and price undefined
+      if (tmType !== 'none' && tmLayers > 1 && beam.tm_price_top === undefined) {
+        const topType = beam.tm_type_top || tmType;
+        const catalogPriceTop = getTmPrice(topType, priceMap);
+        if (catalogPriceTop !== undefined) {
+          updates.tm_price_top = catalogPriceTop;
+          hasChanges = true;
+        }
+      }
+      
+      return Object.keys(updates).length > 0 ? { ...beam, ...updates } : beam;
+    });
+    
+    if (hasChanges) {
+      onChange(updatedBeams);
+    }
+  }, [priceMap]); // Only run when priceMap changes
 
   if (beams.length === 0) {
     return (
