@@ -29,7 +29,7 @@ export const reinforcementFootingModule: EstimateModule = {
 
   questions: [
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 1: FOOTING REINFORCEMENT (toggle only - per-section config in UI)
+    // SECTION 1: FOOTING REINFORCEMENT
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'rebar_lap_allowance',
@@ -40,29 +40,6 @@ export const reinforcementFootingModule: EstimateModule = {
       max: 30,
       unit: '%',
       sectionLabel: 'Footing Reinforcement',
-    },
-    {
-      id: 'include_trench_mesh',
-      type: 'boolean',
-      label: 'Include Trench Mesh',
-      defaultValue: false,
-      helpText: 'Default setting for all sections (can be overridden per section)',
-    },
-    {
-      id: 'add_ligs',
-      type: 'boolean',
-      label: 'Include Ligatures',
-      defaultValue: false,
-      sectionLabel: 'Ligatures',
-      helpText: 'Default setting for all sections (can be overridden per section)',
-    },
-    {
-      id: 'add_vertical_bars',
-      type: 'boolean',
-      label: 'Include Vertical Starters',
-      defaultValue: false,
-      helpText: 'For blockwork starter bars in the footing',
-      sectionLabel: 'Vertical Starters',
     },
     
     // ═══════════════════════════════════════════════════════════════
@@ -114,21 +91,16 @@ export const reinforcementFootingModule: EstimateModule = {
     // Get linear sections from scope data
     const sections: LinearSection[] = scopeData?.linearSections || scopeData?.footings || [];
     const lapPercent = 1 + (Number(answers.rebar_lap_allowance) || DEFAULT_LAP_ALLOWANCE) / 100;
-    
-    // Default settings from module answers
-    const defaultReoType = answers.include_trench_mesh ? 'trench_mesh' : 'none';
-    const defaultAddLigs = answers.add_ligs ?? false;
-    const defaultAddVerticalBars = answers.add_vertical_bars ?? false;
 
     // Check if any section has reinforcement
     const hasAnyReo = sections.length > 0 
       ? sections.some(s => {
-          const reoType = s.reo_type || defaultReoType;
+          const reoType = s.reo_type || 'none';
           return reoType !== 'none';
         })
-      : answers.include_trench_mesh;
+      : false;
 
-    if (!hasAnyReo && !answers.add_ligs && !answers.add_vertical_bars) {
+    if (!hasAnyReo) {
       return {
         moduleId: 'reinforcement-footing',
         moduleName: 'Reinforcement',
@@ -146,7 +118,7 @@ export const reinforcementFootingModule: EstimateModule = {
         const length = section._actualLength || section.length;
         if (length <= 0) return;
 
-        const reoType = section.reo_type || defaultReoType;
+        const reoType = section.reo_type || 'none';
         if (reoType === 'none') return;
 
         const showTm = reoType === 'trench_mesh' || reoType === 'both';
@@ -227,25 +199,6 @@ export const reinforcementFootingModule: EstimateModule = {
           subtotal += barCost;
         }
       });
-    } else if (answers.include_trench_mesh) {
-      // Fallback for aggregate calculation without per-section breakdown
-      const totalLength = Number(scopeData?.total_length) || Number(scopeData?.perimeter) || 0;
-      if (totalLength > 0) {
-        const sheetsRequired = Math.ceil((totalLength * lapPercent) / 6);
-        const pricePerSheet = getPrice(priceMap, 'trench_mesh', DEFAULT_TM_TYPE, 108);
-        const meshCost = sheetsRequired * pricePerSheet;
-
-        lineItems.push({
-          id: 'trench_mesh_aggregate',
-          description: `Trench Mesh ${DEFAULT_TM_TYPE} (${sheetsRequired} × 6m sheets)`,
-          quantity: sheetsRequired,
-          unit: 'sheets',
-          unitPrice: pricePerSheet,
-          total: Math.round(meshCost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += meshCost;
-      }
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -316,7 +269,7 @@ export const reinforcementFootingModule: EstimateModule = {
       const ligsBySize: Record<string, { count: number; weight: number }> = {};
       
       sections.forEach((section) => {
-        const addLigs = section.add_ligs ?? defaultAddLigs;
+        const addLigs = section.add_ligs ?? false;
         if (!addLigs) return;
         
         const length = section._actualLength || section.length;
@@ -368,7 +321,7 @@ export const reinforcementFootingModule: EstimateModule = {
       const startersBySize: Record<string, { count: number; weight: number }> = {};
       
       sections.forEach((section) => {
-        const addVertical = section.add_vertical_bars ?? defaultAddVerticalBars;
+        const addVertical = section.add_vertical_bars ?? false;
         if (!addVertical) return;
         
         const length = section._actualLength || section.length;
