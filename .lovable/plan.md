@@ -1,160 +1,108 @@
 
 
-## Replace Strip Footings and Retaining Wall Footings Reinforcement Module
+## Add Per-Type Toe to Retaining Wall Footings
 
 ### Overview
-Replace the current `reinforcement-footing` module with an architecture similar to `reinforcement-raft`, adapted for linear footings.
+Add a `toe` property to each retaining wall footing type, allowing different footing types (RF1, RF2, etc.) to have their own toe dimension. Remove the redundant global "Retaining Wall Footing Dimensions" questions (average footing width, average footing depth, and toe length).
 
-**Key difference from raft slab reinforcement:**
-- **No standard mesh** (SL82, RL1018, etc.) - there's no slab surface to mesh
-- **Trench mesh IS included** - for footing reinforcement (up to 2 layers like raft beams)
-- **Linear sections** instead of areas - footings are measured by length, not area
+### Current State
+- **Global questions**: The `RETAINING_WALL_FOOTINGS_SCOPE` has global questions for `footing_width`, `footing_depth`, and `toe_length` that apply to all footings
+- **Per-type dimensions**: `MultiLinearTypeInput` already handles per-type `dimension1` (width) and `dimension2` (depth)
+- **Database support**: The `takeoff_markups` table already has a `toe_mm` column
+- **Prefill support**: The `useTakeoffMarkups` hook already maps `toe_mm` to a `toe` property
 
-### Architecture Changes
+### Changes Required
 
-#### 1. Create New Component: `LinearSectionReinforcementInput.tsx`
+#### 1. Update `LinearSection` Type (`types.ts`)
 
-Create a new UI component modeled after `AreaReinforcementInput.tsx` but adapted for linear footing sections:
-
-**Features:**
-- Collapsible accordion for each footing section (SF1-1, SF1-2, RW1-1, etc.)
-- Summary header showing total length, sections with reo, sections with ligs
-- Per-section configuration:
-  - **Reinforcement Type**: None, Trench Mesh, Bar, or Both
-  - **Trench Mesh** (when TM or Both selected):
-    - Type selection (L8TM3, L11TM4, L12TM5, etc.)
-    - Layers (1 or 2)
-    - Top layer type (when 2 layers selected)
-    - Price per sheet (auto-populated from price list)
-  - **Bar Reinforcement** (when Bar or Both selected):
-    - Bar Size (N12, N16, N20, N24)
-    - Bar Spacing (100mm, 150mm, 200mm, 250mm)
-    - Configuration: Top/Bottom or Bottom only
-- **Ligatures section** (inside accordion):
-  - Toggle enabled/disabled
-  - Size (R10, R12)
-  - Centres (100-600mm)
-- **Vertical Starters section** (inside accordion):
-  - Toggle enabled/disabled
-  - Bar size
-  - Centres
-- **Bar Chairs section** (inside accordion, like raft slab):
-  - Toggle enabled/disabled
-  - Chair type selection
-  - Chairs per metre (linear, not m²)
-  - Price per bag
-
-#### 2. Update `reinforcement-footing.ts` Module
-
-Rewrite the module to follow the raft slab pattern:
-
-**Updated Questions:**
-- Lap allowance (default 12.5%)
-- Include Trench Mesh toggle (global default)
-- Include Ligatures toggle (global default)
-- Include Vertical Starters toggle (global default)
-- Tie wire toggle + coils + price
-- Reinforcement Delivery price
-
-**Updated Calculate Function:**
-- Process each `linearSection` individually (like raft processes each area/beam)
-- Calculate trench mesh sheets per section (length × lap / 6m sheets)
-- Support 2-layer trench mesh (top + bottom)
-- Calculate bar reinforcement based on per-section settings
-- Calculate ligatures per section (aggregated by size)
-- Calculate vertical starters per section
-- Aggregate chairs by type (per linear metre)
-- Add tie wire and delivery
-
-#### 3. Update `LinearSection` Type in `types.ts`
-
-Extend `LinearSection` interface to include all reinforcement and chair settings:
+Add `toe` property to the `LinearSection` interface:
 
 ```typescript
 export interface LinearSection {
-  id: string;
-  name: string;
-  length: number;
-  dimension1: number;  // width in mm
-  dimension2: number;  // depth in mm
-  _fromTakeoff?: boolean;
-  _actualLength?: number;
+  // ... existing props
   
-  // Per-section reinforcement settings
-  reo_type?: 'none' | 'trench_mesh' | 'bar' | 'both';
+  /** Toe length in mm for retaining wall footings (distance footing extends beyond wall face) */
+  toe?: number;
   
-  // Trench mesh settings
-  tm_type?: string;
-  tm_layers?: number;
-  tm_type_top?: string;
-  tm_price_per_sheet?: number;
-  tm_price_per_sheet_top?: number;
-  
-  // Bar reinforcement settings
-  bar_size?: string;
-  bar_spacing?: string;
-  bar_config?: 'bottom' | 'top_bottom';
-  
-  // Ligatures
-  add_ligs?: boolean;
-  lig_size?: string;
-  lig_centres?: number;
-  
-  // Vertical starters
-  add_vertical_bars?: boolean;
-  vertical_bar_size?: string;
-  vertical_bar_centres?: number;
-  
-  // Bar chairs
-  chairs_enabled?: boolean;
-  chair_type?: string;
-  chairs_per_m?: number;
-  chair_price_per_bag?: number;
+  // ... rest of props
 }
 ```
 
-#### 4. Update `ModuleSection.tsx`
+#### 2. Update `MultiLinearTypeInput` Component
 
-Replace the `FootingReinforcementInput` rendering with the new `LinearSectionReinforcementInput`:
+Add toe input field for retaining wall footing scopes:
 
-- Detect when module is `reinforcement-footing` for strip/retaining wall scopes
-- Pass linear sections from scope data
-- Handle onChange to update scope data
-- Pass priceMap for auto-population of prices
+- Add `showToe` prop or detect from `scopeId === 'retaining_wall_footings'`
+- Add toe to the group interface: `LinearTypeGroup` should track `toe` dimension
+- Update `groupLinearByType` to include toe in grouping key (since different toes = different types)
+- Display a "Toe" input field in the type header alongside Width and Depth
+- Update `addNewType` to include default toe value (300mm) for retaining wall footings
+- Update `updateGroupDimensions` to handle toe updates
 
-### Files to Create
+#### 3. Update Scope Definition (`scopes.ts`)
 
-1. **`src/components/estimates/calculators/LinearSectionReinforcementInput.tsx`**
-   - New component based on `AreaReinforcementInput.tsx`
-   - Adapted for linear sections (length-based calculations)
-   - Includes trench mesh (no standard mesh), ligatures, vertical starters, and bar chairs
+Remove redundant global questions from `RETAINING_WALL_FOOTINGS_SCOPE`:
+
+- Remove `footing_width` question (handled per-type)
+- Remove `footing_depth` question (handled per-type)
+- Remove `toe_length` question (now handled per-type)
+
+Update `calculateVolume` to use per-section toe values (toe adds to excavation width, not concrete volume).
+
+#### 4. Update Volume/Excavation Calculations
+
+The toe affects excavation width but not the footing concrete volume. Update calculations in:
+
+- `ModularCalculator.tsx`: Update excavation calculation for retaining wall footings to include toe
+- The formwork module may also need to account for toe formwork
+
+### Technical Details
+
+**Toe dimension logic:**
+- Toe extends beyond the wall face on one side of the footing
+- Excavation width = footing width + toe length
+- Concrete volume = length × width × depth (no toe addition - the width already includes the heel)
+- Formwork = both sides of footing (may vary based on toe configuration)
+
+**Grouping with toe:**
+```typescript
+// Updated grouping key to include toe
+const key = `${typeName}-${section.dimension1}-${section.dimension2}-${section.toe || 0}`;
+```
+
+**UI Layout:**
+```
+[RF1]  Width: [600] mm  Depth: [400] mm  Toe: [300] mm  Total: 12.5m  Vol: 3.0m³
+  └─ RF1-1: 5.2m
+  └─ RF1-2: 7.3m
+```
 
 ### Files to Modify
 
 1. **`src/lib/estimate-components/types.ts`**
-   - Extend `LinearSection` interface with TM, bar, lig, starter, and chair settings
+   - Add `toe?: number` to `LinearSection` interface
 
-2. **`src/lib/estimate-components/modules/reinforcement-footing.ts`**
-   - Complete rewrite following raft slab pattern
-   - Include trench mesh calculations (remove standard mesh)
-   - Add per-section aggregation logic for TM, bars, ligs, starters, chairs
+2. **`src/components/estimates/calculators/MultiLinearTypeInput.tsx`**
+   - Add toe to `LinearTypeGroup` interface
+   - Update `groupLinearByType` to include toe
+   - Add toe input field for `retaining_wall_footings` scope
+   - Update `addNewType` with default toe for retaining wall footings
+   - Add `updateGroupToe` function to update all segments in a type
 
-3. **`src/components/estimates/calculators/ModuleSection.tsx`**
-   - Update rendering logic to use new `LinearSectionReinforcementInput`
-   - Pass appropriate props for scope data management
+3. **`src/lib/estimate-components/scopes.ts`**
+   - Remove `footing_width`, `footing_depth`, and `toe_length` questions from `RETAINING_WALL_FOOTINGS_SCOPE`
+   - Keep only `total_length` as a derived/summary field
+
+4. **`src/components/estimates/calculators/ModularCalculator.tsx`**
+   - Update excavation calculation to use per-section dimensions including toe
 
 ### Testing Checklist
 
-- [ ] Strip Footings: Each footing section shows collapsible reinforcement config
-- [ ] Retaining Walls: Same behavior as Strip Footings
-- [ ] Trench mesh options appear with type selector and layer count
-- [ ] 2-layer TM shows separate top layer type selector
-- [ ] Per-section bar reinforcement settings work correctly
-- [ ] Ligatures aggregate correctly across sections by size
-- [ ] Vertical starters aggregate correctly
-- [ ] Bar chairs calculate per linear metre
-- [ ] Tie wire and delivery work as before
-- [ ] Exclusions generate correctly when reo is disabled
-- [ ] Pricing calculates correctly with per-section overrides
-- [ ] Price fields auto-populate from price list
+- [ ] New retaining wall footing types get default toe of 300mm
+- [ ] Toe input appears in type header for retaining wall footings only
+- [ ] Changing toe updates all segments within that type
+- [ ] Types with different toes are grouped separately
+- [ ] Takeoff data with toe_mm is correctly mapped to sections
+- [ ] Excavation calculations include toe dimension
+- [ ] No global "Average Width/Depth/Toe" questions appear in the scope
 
