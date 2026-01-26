@@ -128,7 +128,7 @@ export const reinforcementRaftModule: EstimateModule = {
       defaultValue: 12.50,
       unit: '/bag',
       showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_chairs === true,
-      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TM CHAIRS'],
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TMCHAIR'],
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -167,7 +167,7 @@ export const reinforcementRaftModule: EstimateModule = {
       defaultValue: 12.50,
       unit: '/bag',
       showIf: (answers) => answers.internal_beam_reo === true && answers.internal_beam_chairs === true,
-      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TM CHAIRS'],
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TMCHAIR'],
     },
     
     // ═══════════════════════════════════════════════════════════════
@@ -384,7 +384,7 @@ export const reinforcementRaftModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     if (answers.edge_beam_chairs && answers.edge_beam_reo && edgeBeams.length > 0) {
       const chairsPerM = Number(answers.edge_beam_chairs_per_m) || 1.4;
-      const bagPrice = Number(answers.edge_beam_chair_price_per_25) || getPrice(priceMap, 'consumables', 'TM CHAIRS', 12.50);
+      const bagPrice = Number(answers.edge_beam_chair_price_per_25) || getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
       
       const totalEdgeLength = edgeBeams.reduce((sum, b) => sum + (Number(b.length) || 0), 0);
       const totalChairs = Math.ceil(totalEdgeLength * chairsPerM);
@@ -410,7 +410,7 @@ export const reinforcementRaftModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     if (answers.internal_beam_chairs && answers.internal_beam_reo && internalBeams.length > 0) {
       const chairsPerM = Number(answers.internal_beam_chairs_per_m) || 1.4;
-      const bagPrice = Number(answers.internal_beam_chair_price_per_25) || getPrice(priceMap, 'consumables', 'TM CHAIRS', 12.50);
+      const bagPrice = Number(answers.internal_beam_chair_price_per_25) || getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
       
       const totalInternalLength = internalBeams.reduce((sum, b) => sum + (Number(b.length) || 0), 0);
       const totalChairs = Math.ceil(totalInternalLength * chairsPerM);

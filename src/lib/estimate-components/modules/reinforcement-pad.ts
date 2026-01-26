@@ -364,7 +364,8 @@ export const reinforcementPadModule: EstimateModule = {
       unit: '/100',
       showIf: (answers) => answers.bar_chairs === true,
       deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
-        return priceMap?.['consumables']?.['BARCHAIR'];
+        // Default to 75-90mm chairs, can be overridden by user
+        return priceMap?.['consumables']?.['7590C'];
       },
     },
     {

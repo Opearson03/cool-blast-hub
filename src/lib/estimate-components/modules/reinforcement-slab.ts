@@ -481,7 +481,7 @@ export const reinforcementSlabModule: EstimateModule = {
         answers.edge_beam_reo === true &&
         answers.edge_tm_chairs === true,
       deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
-        return priceMap?.['consumables']?.['TM CHAIRS'];
+        return priceMap?.['consumables']?.['TMCHAIR'];
       },
     },
     // ============ EDGE BEAM ADDITIONAL REINFORCEMENT ============
@@ -1051,7 +1051,7 @@ export const reinforcementSlabModule: EstimateModule = {
         const chairsPerM = Number(answers.edge_tm_chairs_per_m) || 2;
         const totalTmChairs = Math.ceil(tmLength * chairsPerM);
         const bagsNeeded = Math.ceil(totalTmChairs / 25);
-        const tmChairPrice = Number(answers.edge_tm_chair_price) || getPrice(priceMap, 'consumables', 'TM CHAIRS', 12.50);
+        const tmChairPrice = Number(answers.edge_tm_chair_price) || getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
         const tmChairCost = bagsNeeded * tmChairPrice;
 
         lineItems.push({
