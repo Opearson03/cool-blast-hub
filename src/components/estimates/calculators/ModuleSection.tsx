@@ -1,4 +1,4 @@
-import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup } from "@/lib/estimate-components/types";
+import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -29,6 +29,7 @@ import { AreaReinforcementInput } from "./AreaReinforcementInput";
 import { PierReinforcementInput } from "./PierReinforcementInput";
 import { FootingReinforcementInput } from "./FootingReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
+import { ExtraItemsInput } from "./ExtraItemsInput";
 import { formatCurrency } from "@/lib/format-currency";
 
 interface ModuleSectionProps {
@@ -445,6 +446,18 @@ export function ModuleSection({
                       defaultTopBSize={answers.top_b_size || 'N16'}
                       defaultTopBCentres={answers.top_b_centres ?? 200}
                       label="Pad Footing Groups"
+                    />
+                  </div>
+                );
+              }
+
+              // Special case: Extra Items module renders custom input
+              if (module.id === 'extra-items') {
+                elements.push(
+                  <div key="extra-items-section" className="space-y-4">
+                    <ExtraItemsInput
+                      items={(answers.extra_items || []) as ExtraItem[]}
+                      onChange={(items) => onAnswerChange('extra_items', items)}
                     />
                   </div>
                 );

@@ -1,6 +1,18 @@
 // Core types for the modular estimate calculator system
 
 /**
+ * User-defined extra item for custom costs not covered by standard modules
+ */
+export interface ExtraItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unit: string;
+  rate: number;
+  total: number;
+}
+
+/**
  * Represents a question asked within a component module
  */
 export interface ComponentQuestion {
