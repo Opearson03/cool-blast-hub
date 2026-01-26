@@ -1,8 +1,9 @@
-import { MeasurementArea } from "@/lib/estimate-components/types";
+import { MeasurementArea, PriceMap } from "@/lib/estimate-components/types";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -16,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Grid3X3, Layers, ChevronsUpDown } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const MESH_OPTIONS = [
@@ -55,6 +56,12 @@ const MESH_LAYERS_OPTIONS = [
   { value: 2, label: '2 Layers' },
 ];
 
+// Get mesh price from price map
+function getMeshPrice(meshType: string, priceMap?: PriceMap): number | undefined {
+  if (!priceMap) return undefined;
+  return priceMap['mesh']?.[meshType];
+}
+
 interface AreaReinforcementInputProps {
   areas: MeasurementArea[];
   onChange: (areas: MeasurementArea[]) => void;
@@ -64,6 +71,7 @@ interface AreaReinforcementInputProps {
   defaultBarSpacing: string;
   defaultBarLayers: string;
   label: string;
+  priceMap?: PriceMap;
 }
 
 export function AreaReinforcementInput({
@@ -75,6 +83,7 @@ export function AreaReinforcementInput({
   defaultBarSpacing,
   defaultBarLayers,
   label,
+  priceMap,
 }: AreaReinforcementInputProps) {
   const [openAreas, setOpenAreas] = useState<Set<string>>(new Set());
 
@@ -290,7 +299,14 @@ export function AreaReinforcementInput({
                                 </Label>
                                 <Select
                                   value={meshType}
-                                  onValueChange={(val) => updateArea(index, { mesh_type: val })}
+                                  onValueChange={(val) => {
+                                    // When mesh type changes, update type and reset price to catalog price
+                                    const catalogPrice = getMeshPrice(val, priceMap);
+                                    updateArea(index, { 
+                                      mesh_type: val,
+                                      mesh_price: catalogPrice
+                                    });
+                                  }}
                                 >
                                   <SelectTrigger className="h-8 text-sm">
                                     <SelectValue />
@@ -307,11 +323,28 @@ export function AreaReinforcementInput({
                             )}
                           </div>
 
-                          {/* Mesh Layers & Top Layer Type */}
+                          {/* Mesh Price & Layers */}
                           {reoType === 'mesh' && (
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className={cn("grid gap-3", meshLayers > 1 ? "grid-cols-3" : "grid-cols-2")}>
                               <div className="space-y-1">
-                                <Label className="text-[10px] text-muted-foreground">Number of Layers</Label>
+                                <Label className="text-[10px] text-muted-foreground">
+                                  {meshLayers > 1 ? 'Bottom $/sheet' : '$/sheet'}
+                                </Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={area.mesh_price ?? getMeshPrice(meshType, priceMap) ?? ''}
+                                    onChange={(e) => updateArea(index, { mesh_price: e.target.value ? Number(e.target.value) : undefined })}
+                                    className="h-8 text-sm pl-6"
+                                    placeholder={String(getMeshPrice(meshType, priceMap) ?? '')}
+                                  />
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Layers</Label>
                                 <Select
                                   value={String(meshLayers)}
                                   onValueChange={(val) => updateArea(index, { mesh_layers: Number(val) })}
@@ -328,28 +361,52 @@ export function AreaReinforcementInput({
                                   </SelectContent>
                                 </Select>
                               </div>
-                              
-                              {/* Top Layer Mesh Type - only when 2 layers */}
+                              {/* Top layer price - only when 2 layers */}
                               {meshLayers > 1 && (
                                 <div className="space-y-1">
-                                  <Label className="text-[10px] text-muted-foreground">Top Layer</Label>
-                                  <Select
-                                    value={area.mesh_type_top || meshType}
-                                    onValueChange={(val) => updateArea(index, { mesh_type_top: val })}
-                                  >
-                                    <SelectTrigger className="h-8 text-sm">
-                                      <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent className="z-[150]">
-                                      {MESH_OPTIONS.map((opt) => (
-                                        <SelectItem key={opt.value} value={opt.value}>
-                                          {opt.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
+                                  <Label className="text-[10px] text-muted-foreground">Top $/sheet</Label>
+                                  <div className="relative">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={area.mesh_price_top ?? getMeshPrice(area.mesh_type_top || meshType, priceMap) ?? ''}
+                                      onChange={(e) => updateArea(index, { mesh_price_top: e.target.value ? Number(e.target.value) : undefined })}
+                                      className="h-8 text-sm pl-6"
+                                      placeholder={String(getMeshPrice(area.mesh_type_top || meshType, priceMap) ?? '')}
+                                    />
+                                  </div>
                                 </div>
                               )}
+                            </div>
+                          )}
+
+                          {/* Top Layer Type - only when 2 layers */}
+                          {reoType === 'mesh' && meshLayers > 1 && (
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground">Top Layer Type</Label>
+                              <Select
+                                value={area.mesh_type_top || meshType}
+                                onValueChange={(val) => {
+                                  const catalogPrice = getMeshPrice(val, priceMap);
+                                  updateArea(index, { 
+                                    mesh_type_top: val,
+                                    mesh_price_top: catalogPrice
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="h-8 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="z-[150]">
+                                  {MESH_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
                             </div>
                           )}
 

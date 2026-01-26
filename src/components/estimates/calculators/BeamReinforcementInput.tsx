@@ -1,4 +1,4 @@
-import { BeamConfig, HorizontalBarConfig, VerticalBarConfig } from "@/lib/estimate-components/types";
+import { BeamConfig, HorizontalBarConfig, VerticalBarConfig, PriceMap } from "@/lib/estimate-components/types";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -49,6 +49,12 @@ const BAR_SIZE_OPTIONS = [
   { value: 'N24', label: 'N24' },
 ];
 
+// Get TM price from price map
+function getTmPrice(tmType: string, priceMap?: PriceMap): number | undefined {
+  if (!priceMap || tmType === 'none') return undefined;
+  return priceMap['trench_mesh']?.[tmType];
+}
+
 interface BeamReinforcementInputProps {
   beams: BeamConfig[];
   onChange: (beams: BeamConfig[]) => void;
@@ -57,6 +63,7 @@ interface BeamReinforcementInputProps {
   defaultLigSize: string;
   defaultLigCentres: number;
   label: string;
+  priceMap?: PriceMap;
 }
 
 /** Beam type group with aggregated data and shared reinforcement */
@@ -72,6 +79,8 @@ interface BeamTypeGroup {
   tm_type?: string;
   tm_layers?: number;
   tm_type_top?: string;  // Top layer TM type when tm_layers > 1
+  tm_price?: number;     // Price per sheet for bottom/single layer
+  tm_price_top?: number; // Price per sheet for top layer
   add_ligs?: boolean;
   lig_size?: string;
   lig_centres?: number;
@@ -108,6 +117,8 @@ function groupBeamsByType(beams: BeamConfig[]): BeamTypeGroup[] {
         tm_type: beam.tm_type,
         tm_layers: beam.tm_layers,
         tm_type_top: beam.tm_type_top,
+        tm_price: beam.tm_price,
+        tm_price_top: beam.tm_price_top,
         add_ligs: beam.add_ligs,
         lig_size: beam.lig_size,
         lig_centres: beam.lig_centres,
@@ -135,6 +146,7 @@ export function BeamReinforcementInput({
   defaultLigSize,
   defaultLigCentres,
   label,
+  priceMap,
 }: BeamReinforcementInputProps) {
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
 
@@ -457,7 +469,14 @@ export function BeamReinforcementInput({
                           </Label>
                           <Select
                             value={tmType}
-                            onValueChange={(val) => updateGroupReinforcement(group, { tm_type: val })}
+                            onValueChange={(val) => {
+                              // When TM type changes, update type and reset price to catalog price
+                              const catalogPrice = getTmPrice(val, priceMap);
+                              updateGroupReinforcement(group, { 
+                                tm_type: val,
+                                tm_price: catalogPrice
+                              });
+                            }}
                           >
                             <SelectTrigger className="h-8 text-sm">
                               <SelectValue />
@@ -498,13 +517,63 @@ export function BeamReinforcementInput({
                         )}
                       </div>
                       
+                      {/* Price inputs for TM */}
+                      {tmType !== 'none' && (
+                        <div className={cn("grid gap-3", tmLayers > 1 ? "grid-cols-2" : "grid-cols-1")}>
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">
+                              {tmLayers > 1 ? 'Bottom $/sheet' : '$/sheet'}
+                            </Label>
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={group.tm_price ?? getTmPrice(tmType, priceMap) ?? ''}
+                                onChange={(e) => updateGroupReinforcement(group, { 
+                                  tm_price: e.target.value ? Number(e.target.value) : undefined 
+                                })}
+                                className="h-8 text-sm pl-6"
+                                placeholder={String(getTmPrice(tmType, priceMap) ?? '')}
+                              />
+                            </div>
+                          </div>
+                          {tmLayers > 1 && (
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium">Top $/sheet</Label>
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={group.tm_price_top ?? getTmPrice(group.tm_type_top || tmType, priceMap) ?? ''}
+                                  onChange={(e) => updateGroupReinforcement(group, { 
+                                    tm_price_top: e.target.value ? Number(e.target.value) : undefined 
+                                  })}
+                                  className="h-8 text-sm pl-6"
+                                  placeholder={String(getTmPrice(group.tm_type_top || tmType, priceMap) ?? '')}
+                                />
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      
                       {/* Top Layer TM - only when 2 layers and not "none" */}
                       {tmType !== 'none' && tmLayers > 1 && (
                         <div className="space-y-1.5">
                           <Label className="text-xs font-medium">Top Layer TM</Label>
                           <Select
                             value={group.tm_type_top || tmType}
-                            onValueChange={(val) => updateGroupReinforcement(group, { tm_type_top: val })}
+                            onValueChange={(val) => {
+                              const catalogPrice = getTmPrice(val, priceMap);
+                              updateGroupReinforcement(group, { 
+                                tm_type_top: val,
+                                tm_price_top: catalogPrice
+                              });
+                            }}
                           >
                             <SelectTrigger className="h-8 text-sm">
                               <SelectValue />

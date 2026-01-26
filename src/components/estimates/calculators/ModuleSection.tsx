@@ -51,6 +51,7 @@ interface ModuleSectionProps {
   onMarkDone: () => void;
   scopeData?: Record<string, any>;
   onScopeDataChange?: (key: string, value: any) => void;
+  priceMap?: Record<string, Record<string, number>>;
 }
 
 function QuestionInput({
@@ -306,6 +307,7 @@ export function ModuleSection({
   onMarkDone,
   scopeData,
   onScopeDataChange,
+  priceMap,
 }: ModuleSectionProps) {
   // Check module types for inline inputs
   const isRaftReoModule = module.id === 'reinforcement-raft';
@@ -414,6 +416,7 @@ export function ModuleSection({
                             defaultBarSpacing="200"
                             defaultBarLayers="2"
                             label="Slab Areas"
+                            priceMap={priceMap}
                           />
                         </div>
                       )}
@@ -429,6 +432,7 @@ export function ModuleSection({
                             defaultLigSize="R10"
                             defaultLigCentres={200}
                             label="Edge Beams"
+                            priceMap={priceMap}
                           />
                         </div>
                       )}
@@ -444,6 +448,7 @@ export function ModuleSection({
                             defaultLigSize="R10"
                             defaultLigCentres={200}
                             label="Internal Beams"
+                            priceMap={priceMap}
                           />
                         </div>
                       )}
