@@ -1,226 +1,148 @@
 
-## Update Driveway Scope to Match Raft Slab Flow
+
+## Update Driveway Scope: Remove Internal Beams and Rename Edge Beams to Edge Thickening
 
 ### Overview
-Update the DRIVEWAY_SCOPE to use the same modern module architecture as the RAFT_SLAB_SCOPE while retaining driveway-specific modules (Connections & Joints, Plumbing, Control Joints) in their current positions.
+Update the Driveway scope to:
+1. Remove "Internal Stiffening Beams" support entirely
+2. Rename "Edge Beams" to "Edge Thickening" throughout the UI
+3. Enable edge thickening markup at the takeoff stage (same flow as raft slab edge beams)
 
-### Current State Analysis
+### Current State
 
-**Driveway Current Modules:**
-```
-excavation → base-preparation → formwork → reinforcement-slab → reinforcement-footing →
-connections-joints → plumbing → labour-prep → concrete-supply → concrete-pumping →
-labour-place → surface-finishing → joints-control → cleanup → sundries → extra-items
-```
+**Driveway Scope Configuration:**
+- `supportsMultipleBeams: true` with label "Internal Stiffening Beams"
+- `supportsMultipleEdgeBeams: true` with label "Edge Beams"
+- Not included in `SLAB_WITH_BEAMS_SCOPES` array (takeoff doesn't support beam marking)
 
-**Raft Slab Modules (finalized):**
-```
-excavation → base-preparation → formwork → reinforcement-raft →
-labour-prep → concrete-supply → concrete-pumping →
-labour-place → surface-finishing → cleanup → sundries → extra-items
-```
+**Takeoff Classification:**
+- `SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod']` - driveway is excluded
 
-**Key Differences:**
-- Raft uses `reinforcement-raft` (unified per-area/per-beam config) instead of `reinforcement-slab` + `reinforcement-footing`
-- Raft supports multi-beam inputs with `supportsMultipleBeams` and `supportsMultipleEdgeBeams`
-- Driveway has `connections-joints`, `plumbing`, and `joints-control` which raft doesn't have
+### Changes Required
 
-### Proposed Changes
+#### 1. Update `scopes.ts` - Driveway Scope
 
-#### 1. Update DRIVEWAY_SCOPE in `scopes.ts`
+**Remove internal beam support:**
+- Set `supportsMultipleBeams: false` (or remove the property)
+- Remove `beamsLabel` 
+- Remove internal beam questions from `hideStandardQuestions`
 
-**Replace old questions with raft-style beam/thickening questions:**
-- Remove `hasThickening`, `thickeningDepth`, `thickeningWidth`
-- Add `edge_beam_depth`, `edge_beam_width`, `edge_beam_length` (like raft)
-- Add support for internal beams with `internal_beams_length`, `internal_beam_width`, `internal_beam_depth`
+**Update edge beam labelling:**
+- Change `edgeBeamsLabel` from `'Edge Beams'` to `'Edge Thickening'`
 
-**Add multi-beam support:**
-```typescript
-supportsMultipleBeams: true,
-beamsLabel: 'Internal Stiffening Beams',
-supportsMultipleEdgeBeams: true,
-edgeBeamsLabel: 'Edge Beams',
-hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
-```
+**Update volume calculation:**
+- Remove internal beam volume calculation since it's no longer supported
 
-**Update moduleIds:**
-```typescript
-moduleIds: [
-  'excavation',
-  'base-preparation',
-  'formwork',
-  'reinforcement-raft',      // ← Replace reinforcement-slab + reinforcement-footing
-  'connections-joints',      // ← KEEP in position
-  'plumbing',                // ← KEEP in position
-  'labour-prep',
-  'concrete-supply',
-  'concrete-pumping',
-  'labour-place',
-  'surface-finishing',
-  'joints-control',          // ← KEEP in position
-  'cleanup',
-  'sundries',
-  'extra-items',
-],
-```
+#### 2. Update `takeoff.ts` - Add Driveway to Beam Scopes
 
-**Update calculateVolume:**
-Use the same calculation logic as raft slab to account for:
-- Main slab volume (area × thickness)
-- Edge beam extra volume (length × width × extra depth)
-- Internal beam extra volume (from beam configs)
-
-#### 2. Updated Questions Structure
+Add `'driveway'` to the `SLAB_WITH_BEAMS_SCOPES` array to enable the slab + beam workflow during takeoff:
 
 ```typescript
-questions: [
-  {
-    id: 'area',
-    type: 'number',
-    label: 'Total Area (m²)',
-    required: true,
-    min: 1,
-    unit: 'm²',
-  },
-  {
-    id: 'perimeter',
-    type: 'number',
-    label: 'Total Perimeter (m)',
-    required: true,
-    min: 1,
-    unit: 'm',
-  },
-  {
-    id: 'thickness',
-    type: 'number',
-    label: 'Driveway Thickness (mm)',
-    required: true,
-    requiresUserInput: true,
-    min: 75,
-    unit: 'mm',
-    placeholder: 'Enter thickness',
-    helpText: 'Thickness of the main driveway slab',
-  },
-  // Edge Beam Questions (same as raft)
-  {
-    id: 'edge_beam_depth',
-    type: 'number',
-    label: 'Edge Beam Depth (mm)',
-    required: false,
-    min: 200,
-    defaultValue: 300,
-    unit: 'mm',
-    helpText: 'Total depth of thickened edge',
-  },
-  {
-    id: 'edge_beam_width',
-    type: 'number',
-    label: 'Edge Beam Width (mm)',
-    required: false,
-    min: 200,
-    defaultValue: 300,
-    unit: 'mm',
-    helpText: 'Width of thickened edge',
-  },
-  {
-    id: 'edge_beam_length',
-    type: 'number',
-    label: 'Total Edge Beam Length (m)',
-    required: false,
-    min: 0,
-    unit: 'm',
-    helpText: 'Total continuous length of edge beams (defaults to perimeter if not specified)',
-  },
-  // Internal Beam Questions (derived from multi-beam input)
-  {
-    id: 'internal_beams_length',
-    type: 'number',
-    label: 'Total Internal Beam Length (m)',
-    required: false,
-    min: 0,
-    defaultValue: 0,
-    unit: 'm',
-    helpText: 'Derived from beam configurations',
-  },
-  {
-    id: 'internal_beam_width',
-    type: 'number',
-    label: 'Internal Beam Width (mm)',
-    required: false,
-    min: 200,
-    defaultValue: 300,
-    unit: 'mm',
-    helpText: 'Weighted average from beam configurations',
-  },
-  {
-    id: 'internal_beam_depth',
-    type: 'number',
-    label: 'Internal Beam Depth (mm)',
-    required: false,
-    min: 200,
-    defaultValue: 300,
-    unit: 'mm',
-    helpText: 'Weighted average from beam configurations',
-  },
-],
+export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod', 'driveway'] as const;
 ```
+
+#### 3. Update `SlabBeamMarkupDialog.tsx` - Driveway-Specific Labels
+
+Add driveway-specific label handling:
+- When `scopeId === 'driveway'`, use "Edge Thickening" instead of "Edge Beam" in titles and labels
+- Skip internal beam options entirely for driveway (only show edge thickening flow)
+
+**Key Label Changes:**
+| Current Label | Driveway Label |
+|---------------|----------------|
+| "Edge Beam Details" | "Edge Thickening Details" |
+| "Edge Beams Summary" | "Edge Thickening Summary" |
+| "Add Edge Beam" | "Add Edge Thickening" |
+| "Edge Beams (X)" | "Edge Thickening (X)" |
+| "Finish (No Internal)" | "Finish" (and skip internal beam step entirely) |
+
+#### 4. Update `SlabBeamMarkingBar` - Driveway Labels
+
+Update the floating bar component to show "Edge Thickening" instead of "Edge Beam" when marking driveways.
 
 ### Files to Modify
 
 1. **`src/lib/estimate-components/scopes.ts`**
-   - Update `DRIVEWAY_SCOPE` definition with new questions, moduleIds, and capabilities
+   - Update `DRIVEWAY_SCOPE`: remove internal beam support, rename edge beam label
 
-### Updated Module Flow
+2. **`src/types/takeoff.ts`**
+   - Add `'driveway'` to `SLAB_WITH_BEAMS_SCOPES` array
+
+3. **`src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx`**
+   - Add `isDriveway` check similar to `isWafflePod`
+   - Update `getStepTitle()` and `getStepDescription()` for driveway
+   - Update button labels and section headers for driveway
+   - For driveway, skip straight to "Finish" after edge thickening (no internal beam option)
+
+### Updated Driveway Scope Flow
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    DRIVEWAY SCOPE (Updated)                     │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────┐         │
-│  │ Excavation  │→ │ Base Preparation │→ │  Formwork   │         │
-│  └─────────────┘  └─────────────────┘  └─────────────┘         │
-│         ↓                                                       │
-│  ┌───────────────────────────────────────────────────────────┐ │
-│  │           REINFORCEMENT-RAFT (Unified)                    │ │
-│  │  • Per-area mesh/bar configuration                        │ │
-│  │  • Per-edge-beam TM/ligatures configuration               │ │
-│  │  • Per-internal-beam TM/ligatures configuration           │ │
-│  └───────────────────────────────────────────────────────────┘ │
-│         ↓                                                       │
-│  ┌────────────────────┐  ┌───────────┐                         │
-│  │ Connections/Joints │→ │  Plumbing │   (DRIVEWAY SPECIFIC)   │
-│  └────────────────────┘  └───────────┘                         │
-│         ↓                                                       │
-│  ┌─────────────┐  ┌─────────────────┐  ┌─────────────────┐     │
-│  │ Labour Prep │→ │ Concrete Supply │→ │ Concrete Pumping│     │
-│  └─────────────┘  └─────────────────┘  └─────────────────┘     │
-│         ↓                                                       │
-│  ┌─────────────┐  ┌───────────────────┐  ┌────────────────┐    │
-│  │ Labour Place│→ │ Surface Finishing │→ │ Control Joints │    │
-│  └─────────────┘  └───────────────────┘  └────────────────┘    │
-│         ↓                               (DRIVEWAY SPECIFIC)     │
-│  ┌─────────┐  ┌──────────┐  ┌──────────────┐                   │
-│  │ Cleanup │→ │ Sundries │→ │ Extra Items  │                   │
-│  └─────────┘  └──────────┘  └──────────────┘                   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                 DRIVEWAY TAKEOFF WORKFLOW                   │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. Mark Driveway Area (polygon/rectangle)                  │
+│         ↓                                                   │
+│  2. Name Driveway Dialog                                    │
+│     • Enter name (e.g., "Main Driveway")                    │
+│     • Shows area and perimeter                              │
+│     • Buttons: [Cancel] [Skip Thickening] [Add Edge Thick.] │
+│         ↓                                                   │
+│  3. Mark Edge Thickening (polyline)                         │
+│     • Draw thickened edge around perimeter                  │
+│         ↓                                                   │
+│  4. Edge Thickening Details Dialog                          │
+│     • Name type (e.g., "ET1")                               │
+│     • Width (mm) and Depth (mm)                             │
+│         ↓                                                   │
+│  5. Edge Thickening Summary                                 │
+│     • Shows all marked thickenings                          │
+│     • Buttons: [Add Edge Thickening] [Finish]               │
+│         ↓                                                   │
+│  (No internal beam step for driveway)                       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### Benefits of This Update
+### Technical Details
 
-1. **Unified Reinforcement Config**: Per-area and per-beam reinforcement configuration (same as raft)
-2. **Multi-Beam Support**: Users can configure multiple edge beam types and internal stiffening beams
-3. **Consistent UI/UX**: Driveway estimator will have the same modern flow as raft slab
-4. **Retains Driveway-Specific Features**: Connections/Joints, Plumbing, and Control Joints modules remain in place
+**Updated DRIVEWAY_SCOPE Configuration:**
+```typescript
+export const DRIVEWAY_SCOPE: ScopeDefinition = {
+  id: 'driveway',
+  name: 'Driveway',
+  description: 'Concrete driveway installation',
+  icon: 'car',
+  supportsMultipleAreas: true,
+  areasLabel: 'Driveway Areas',
+  supportsMultipleBeams: false,  // ← REMOVED
+  supportsMultipleEdgeBeams: true,
+  edgeBeamsLabel: 'Edge Thickening',  // ← RENAMED
+  hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
+  // ... questions and modules remain the same
+};
+```
+
+**Dialog Label Logic:**
+```typescript
+const isWafflePod = scopeId === 'waffle_pod';
+const isDriveway = scopeId === 'driveway';
+
+const getEdgeBeamLabel = (singular: boolean = false) => {
+  if (isDriveway) {
+    return singular ? 'Edge Thickening' : 'Edge Thickening';
+  }
+  return singular ? 'Edge Beam' : 'Edge Beams';
+};
+```
 
 ### Testing Checklist
 
-- [ ] Edge beam configuration works with multiple types
-- [ ] Internal beam configuration works
-- [ ] Per-area reinforcement (mesh/bar) configuration works
-- [ ] Connections & Joints module appears in correct position
-- [ ] Plumbing module appears in correct position
-- [ ] Control Joints module appears in correct position
-- [ ] Volume calculations include edge beam and internal beam volumes
-- [ ] Existing driveway estimates continue to work (backward compatibility)
+- [ ] Driveway estimator no longer shows "Internal Stiffening Beams" section
+- [ ] Driveway estimator shows "Edge Thickening" instead of "Edge Beams"
+- [ ] Takeoff for driveway triggers slab + beam workflow
+- [ ] Takeoff dialogs show "Edge Thickening" labels for driveway
+- [ ] After marking edge thickening, "Finish" button saves without internal beam prompt
+- [ ] Edge thickening measurements flow correctly into scope answers
+- [ ] Volume calculations work correctly without internal beams
+
