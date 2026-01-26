@@ -20,6 +20,12 @@ export interface ComponentQuestion {
   required?: boolean;
   placeholder?: string;
   
+  /**
+   * If true, this field requires explicit user input and should not be prefilled with a default.
+   * Fields with this flag will be prominently displayed when empty to ensure users notice them.
+   */
+  requiresUserInput?: boolean;
+  
   /** 
    * Section label - displays a visual separator/header before this question
    * Used to group related questions visually

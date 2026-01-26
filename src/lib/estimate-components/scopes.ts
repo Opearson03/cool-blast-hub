@@ -122,9 +122,10 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
       type: 'number',
       label: 'Slab Thickness (mm)',
       required: true,
+      requiresUserInput: true,
       min: 50,
-      defaultValue: 100,
       unit: 'mm',
+      placeholder: 'Enter thickness',
     },
   ],
   moduleIds: [
@@ -191,9 +192,10 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
       type: 'number',
       label: 'Slab Thickness (mm)',
       required: true,
+      requiresUserInput: true,
       min: 100,
-      defaultValue: 300,
       unit: 'mm',
+      placeholder: 'Enter thickness',
       helpText: 'Thickness of the main slab portion',
     },
     {
@@ -389,10 +391,11 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       type: 'number',
       label: 'Top Slab Thickness (mm)',
       required: true,
+      requiresUserInput: true,
       min: 50,
       max: 200,
-      defaultValue: 85,
       unit: 'mm',
+      placeholder: 'Enter thickness',
       helpText: 'Concrete topping over waffle pods (typically 85mm)',
     },
     {
@@ -534,9 +537,10 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
       type: 'number',
       label: 'Thickness (mm)',
       required: true,
+      requiresUserInput: true,
       min: 75,
-      defaultValue: 100,
       unit: 'mm',
+      placeholder: 'Enter thickness',
     },
     // Thickening/edge beam questions
     {
@@ -641,9 +645,10 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
       type: 'number',
       label: 'Thickness (mm)',
       required: true,
+      requiresUserInput: true,
       min: 100,
-      defaultValue: 125,
       unit: 'mm',
+      placeholder: 'Enter thickness',
     },
   ],
   moduleIds: [
@@ -702,9 +707,10 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
       type: 'number',
       label: 'Thickness (mm)',
       required: true,
+      requiresUserInput: true,
       min: 50,
-      defaultValue: 75,
       unit: 'mm',
+      placeholder: 'Enter thickness',
     },
     // Thickening/edge beam questions (same as driveways)
     {
