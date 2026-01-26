@@ -168,6 +168,13 @@ export function SlabBeamMarkupDialog({
   const [localTopThickness, setLocalTopThickness] = useState(wafflePodTopThickness);
 
   const isWafflePod = scopeId === 'waffle_pod';
+  const isDriveway = scopeId === 'driveway';
+  
+  // Helper to get edge beam label (uses "Edge Thickening" for driveway)
+  const getEdgeLabel = (plural: boolean = true) => {
+    if (isDriveway) return 'Edge Thickening';
+    return plural ? 'Edge Beams' : 'Edge Beam';
+  };
 
   // Derive existing edge beam types from saved beams
   const existingEdgeBeamTypes = useMemo((): BeamType[] => {
@@ -345,13 +352,16 @@ export function SlabBeamMarkupDialog({
     if (isWafflePod && step === 'name') {
       return 'Name This Waffle Pod';
     }
+    if (isDriveway && step === 'name') {
+      return 'Name This Driveway';
+    }
     switch (step) {
       case 'name':
         return 'Name This Slab';
       case 'edge_beam_details':
-        return 'Edge Beam Details';
+        return isDriveway ? 'Edge Thickening Details' : 'Edge Beam Details';
       case 'edge_beams_complete':
-        return 'Edge Beams Summary';
+        return isDriveway ? 'Edge Thickening Summary' : 'Edge Beams Summary';
       case 'internal_beam_details':
         return 'Internal Beam Details';
       case 'internal_beams_complete':
@@ -365,13 +375,20 @@ export function SlabBeamMarkupDialog({
     if (isWafflePod && step === 'name') {
       return 'Give this waffle pod slab a name and select the pod dimensions.';
     }
+    if (isDriveway && step === 'name') {
+      return 'Give this driveway a descriptive name, then add edge thickening if needed.';
+    }
     switch (step) {
       case 'name':
         return `Give this ${scopeLabel.toLowerCase()} a descriptive name, then add beams if needed.`;
       case 'edge_beam_details':
-        return 'Name this edge beam and enter its dimensions.';
+        return isDriveway 
+          ? 'Name this edge thickening and enter its dimensions.' 
+          : 'Name this edge beam and enter its dimensions.';
       case 'edge_beams_complete':
-        return 'Review edge beams or continue to internal beams.';
+        return isDriveway 
+          ? 'Review edge thickening for this driveway.' 
+          : 'Review edge beams or continue to internal beams.';
       case 'internal_beam_details':
         return 'Name this internal beam and enter its dimensions.';
       case 'internal_beams_complete':
@@ -488,11 +505,13 @@ export function SlabBeamMarkupDialog({
               ) : (
                 <>
                   <Separator />
-                  {/* Edge beam options (raft slab only) */}
+                  {/* Edge beam/thickening options */}
                   <div className="space-y-2">
-                    <Label className="text-sm font-medium">Edge Beams</Label>
+                    <Label className="text-sm font-medium">{getEdgeLabel()}</Label>
                     <p className="text-xs text-muted-foreground">
-                      Raft slabs typically have thickened edge beams around the perimeter. Each beam can have its own name and dimensions.
+                      {isDriveway 
+                        ? 'Driveways can have thickened edges around the perimeter. Each thickening can have its own name and dimensions.'
+                        : 'Raft slabs typically have thickened edge beams around the perimeter. Each beam can have its own name and dimensions.'}
                     </p>
                   </div>
                 </>
@@ -633,7 +652,7 @@ export function SlabBeamMarkupDialog({
               {/* Edge beams grouped by type */}
               {savedEdgeBeams.length > 0 ? (
                 <div className="space-y-2">
-                  <Label className="text-sm font-medium">Edge Beams ({savedEdgeBeams.length})</Label>
+                  <Label className="text-sm font-medium">{getEdgeLabel()} ({savedEdgeBeams.length})</Label>
                   <div className="border rounded-lg divide-y max-h-60 overflow-y-auto">
                     {existingEdgeBeamTypes.map((beamType) => {
                       const beamsOfType = savedEdgeBeams.filter(
@@ -644,6 +663,7 @@ export function SlabBeamMarkupDialog({
                       const typeLength = beamsOfType.reduce((sum, b) => sum + b.length, 0);
                       
                       const typeVolume = typeLength * (beamType.width / 1000) * (beamType.depth / 1000);
+                      const itemLabel = isDriveway ? 'thickening' : 'beam';
                       
                       return (
                         <div key={`${beamType.name}-${beamType.width}-${beamType.depth}`} className="p-3 space-y-2">
@@ -654,7 +674,7 @@ export function SlabBeamMarkupDialog({
                                 {beamType.width}×{beamType.depth}mm
                               </span>
                             </div>
-                            <span className="text-xs text-muted-foreground">{beamsOfType.length} beam{beamsOfType.length !== 1 ? 's' : ''}</span>
+                            <span className="text-xs text-muted-foreground">{beamsOfType.length} {itemLabel}{beamsOfType.length !== 1 ? 's' : ''}</span>
                           </div>
                           <div className="flex flex-col gap-1 text-sm">
                             <div className="flex justify-between">
@@ -671,24 +691,29 @@ export function SlabBeamMarkupDialog({
                     })}
                   </div>
                   <div className="p-2 bg-muted rounded-lg flex justify-between text-sm">
-                    <span className="text-muted-foreground">Total Edge Beam Length:</span>
+                    <span className="text-muted-foreground">Total {isDriveway ? 'Edge Thickening' : 'Edge Beam'} Length:</span>
                     <span className="font-medium">{totalEdgeLength.toFixed(1)} m</span>
                   </div>
                 </div>
               ) : (
                 <div className="p-4 bg-muted rounded-lg text-center text-sm text-muted-foreground">
-                  No edge beams added yet
+                  No {isDriveway ? 'edge thickening' : 'edge beams'} added yet
                 </div>
               )}
 
-              <Separator />
+              {/* Only show internal beam option for non-driveway scopes */}
+              {!isDriveway && (
+                <>
+                  <Separator />
 
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Internal Beams</Label>
-                <p className="text-xs text-muted-foreground">
-                  Would you like to add internal beams or thickenings within the slab?
-                </p>
-              </div>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Internal Beams</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Would you like to add internal beams or thickenings within the slab?
+                    </p>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -916,10 +941,10 @@ export function SlabBeamMarkupDialog({
                 className="w-full sm:w-auto gap-1"
               >
                 <SkipForward className="h-4 w-4" />
-                Skip Beams
+                {isDriveway ? 'Skip Thickening' : 'Skip Beams'}
               </Button>
               <Button onClick={onStartEdgeBeams} className="w-full sm:w-auto gap-1">
-                Add Edge Beam
+                {isDriveway ? 'Add Edge Thickening' : 'Add Edge Beam'}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </>
@@ -947,20 +972,31 @@ export function SlabBeamMarkupDialog({
                 className="w-full sm:w-auto gap-1"
               >
                 <Plus className="h-4 w-4" />
-                Add Edge Beam
+                {isDriveway ? 'Add Edge Thickening' : 'Add Edge Beam'}
               </Button>
-              <Button 
-                variant="secondary"
-                onClick={onFinishEdgeBeams}
-                className="w-full sm:w-auto gap-1"
-              >
-                <Check className="h-4 w-4" />
-                Finish (No Internal)
-              </Button>
-              <Button onClick={onStartInternalBeams} className="w-full sm:w-auto gap-1">
-                Add Internal Beam
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              {isDriveway ? (
+                // Driveway: just Finish button, no internal beams
+                <Button onClick={onFinishEdgeBeams} className="w-full sm:w-auto gap-1">
+                  <Check className="h-4 w-4" />
+                  Finish
+                </Button>
+              ) : (
+                // Other slabs: option to finish or add internal beams
+                <>
+                  <Button 
+                    variant="secondary"
+                    onClick={onFinishEdgeBeams}
+                    className="w-full sm:w-auto gap-1"
+                  >
+                    <Check className="h-4 w-4" />
+                    Finish (No Internal)
+                  </Button>
+                  <Button onClick={onStartInternalBeams} className="w-full sm:w-auto gap-1">
+                    Add Internal Beam
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </>
           )}
 
@@ -1024,6 +1060,8 @@ export function SlabBeamMarkingBar({
   onDone,
   onCancel,
 }: SlabBeamMarkingBarProps) {
+  // Note: For driveway, edge beams are called "Edge Thickening" but this component
+  // doesn't have scopeId context, so we keep it generic for now
   const beamLabel = beamType === 'edge' ? 'Edge Beam' : 'Internal Beam';
   const beamColor = beamType === 'edge' ? EDGE_BEAM_COLOR : INTERNAL_BEAM_COLOR;
   
