@@ -394,82 +394,84 @@ export function MultiLinearTypeInput({
                   </Button>
                 </div>
 
-                {/* Dimensions & Totals Grid */}
-                <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">{config.dimension1Label}</Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        value={group.dimension1 || ""}
-                        onChange={(e) =>
-                          updateGroupDimensions(group, 'dimension1', 
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={50}
-                        step={50}
-                        className="pr-12 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        mm
-                      </span>
+                {/* Dimensions & Totals Grid - only shown when expanded */}
+                {isExpanded && (
+                  <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">{config.dimension1Label}</Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          value={group.dimension1 || ""}
+                          onChange={(e) =>
+                            updateGroupDimensions(group, 'dimension1', 
+                              e.target.value === "" ? 0 : Number(e.target.value)
+                            )
+                          }
+                          min={50}
+                          step={50}
+                          className="pr-12 h-11 sm:h-9"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          mm
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">{config.dimension2Label}</Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          value={group.dimension2 || ""}
+                          onChange={(e) =>
+                            updateGroupDimensions(group, 'dimension2',
+                              e.target.value === "" ? 0 : Number(e.target.value)
+                            )
+                          }
+                          min={50}
+                          step={50}
+                          className="pr-12 h-11 sm:h-9"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          mm
+                        </span>
+                      </div>
+                    </div>
+
+
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Total Length</Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          value={group.totalLength > 0 ? group.totalLength.toFixed(2) : ""}
+                          onChange={(e) =>
+                            updateGroupTotalLength(group,
+                              e.target.value === "" ? 0 : Number(e.target.value)
+                            )
+                          }
+                          min={0}
+                          step={0.1}
+                          className="pr-8 h-11 sm:h-9"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          m
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Volume</Label>
+                      <div className="h-11 sm:h-9 flex items-center px-3 bg-muted rounded-md text-sm">
+                        {group.totalVolume > 0 ? `${group.totalVolume.toFixed(2)} m³` : "—"}
+                      </div>
                     </div>
                   </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">{config.dimension2Label}</Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="numeric"
-                        value={group.dimension2 || ""}
-                        onChange={(e) =>
-                          updateGroupDimensions(group, 'dimension2',
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={50}
-                        step={50}
-                        className="pr-12 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        mm
-                      </span>
-                    </div>
-                  </div>
-
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Total Length</Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={group.totalLength > 0 ? group.totalLength.toFixed(2) : ""}
-                        onChange={(e) =>
-                          updateGroupTotalLength(group,
-                            e.target.value === "" ? 0 : Number(e.target.value)
-                          )
-                        }
-                        min={0}
-                        step={0.1}
-                        className="pr-8 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        m
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Volume</Label>
-                    <div className="h-11 sm:h-9 flex items-center px-3 bg-muted rounded-md text-sm">
-                      {group.totalVolume > 0 ? `${group.totalVolume.toFixed(2)} m³` : "—"}
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* Expanded Segments */}
