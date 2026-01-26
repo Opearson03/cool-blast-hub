@@ -842,9 +842,9 @@ export function ModularCalculator({
           label={scope.areasLabel || `${scope.name} Areas`}
           areas={scopeAnswers.areas || [{ id: 'area-1', name: 'Area 1', length: 0, width: 0 }]}
           onChange={handleAreasChange}
-          thickness={scopeAnswers.thickness || scope.questions.find(q => q.id === 'thickness')?.defaultValue || 100}
+          thickness={scopeAnswers.thickness || 0}
           onThicknessChange={(val) => handleScopeAnswerChange('thickness', val)}
-          thicknessDefault={scope.questions.find(q => q.id === 'thickness')?.defaultValue as number || 100}
+          thicknessDefault={0}
           thicknessMin={scope.questions.find(q => q.id === 'thickness')?.min || 50}
           // Thickening/edge beam support (for driveway and paths scopes)
           showThickeningOption={scope.id === 'driveway' || scope.id === 'paths_surrounds'}
