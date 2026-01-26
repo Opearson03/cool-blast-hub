@@ -414,9 +414,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
   
   // Pending scope for takeoff - when user clicks "Mark on plans", we store the scope
   // so takeoff can auto-activate it and start drawing mode
-  const [pendingTakeoffScope, setPendingTakeoffScope] = useState<ScopeType | null>(null);
+  // Can be a ScopeType or a string identifier like "scopeId:beamType:typeName"
+  const [pendingTakeoffScope, setPendingTakeoffScope] = useState<ScopeType | string | null>(null);
   // Ref to track the marked scope for use in navigation (state may be cleared before goNext runs)
-  const markedTakeoffScopeRef = useRef<ScopeType | null>(null);
+  const markedTakeoffScopeRef = useRef<ScopeType | string | null>(null);
   
   // Form validation errors
   const [formErrors, setFormErrors] = useState<FormErrors>({});
@@ -790,13 +791,18 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
           // so the calculator re-initializes with the new takeoff measurements
           const markedScope = markedTakeoffScopeRef.current;
           if (markedScope) {
+            // Extract base scope from identifier (e.g., "raft_slab:edge_beam:EB1" -> "raft_slab")
+            const baseScope = (typeof markedScope === 'string' && markedScope.includes(':'))
+              ? markedScope.split(':')[0] as ScopeType
+              : markedScope as ScopeType;
+            
             setModularScopeStates(prev => {
               const updated = { ...prev };
-              delete updated[markedScope];
+              delete updated[baseScope];
               return updated;
             });
             // Also set active scope to the one we just marked
-            const scopeIndex = selectedScopesArray.indexOf(markedScope);
+            const scopeIndex = selectedScopesArray.indexOf(baseScope);
             if (scopeIndex >= 0) {
               setActiveScopeIndex(scopeIndex);
             }
@@ -1464,13 +1470,18 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
           saveDraftMutation.mutate({ closeAfter: false, showToast: false });
         }}
         // Markup prompt support - navigate to takeoff when user wants to mark on plans
-        onRequestMarkup={() => {
+        onRequestMarkup={(identifier) => {
           void (async () => {
             try {
               // Store which scope the user wants to mark so takeoff can auto-activate it
-              setPendingTakeoffScope(scope);
-              // Also store in ref for navigation logic (state may be cleared before goNext runs)
-              markedTakeoffScopeRef.current = scope;
+              // identifier can be just "scope" or "scope:beamType:typeName"
+              if (identifier) {
+                setPendingTakeoffScope(identifier);
+                markedTakeoffScopeRef.current = identifier;
+              } else {
+                setPendingTakeoffScope(scope);
+                markedTakeoffScopeRef.current = scope;
+              }
               // Ensure estimate state is persisted before jumping to takeoff
               await saveDraftMutation.mutateAsync({ closeAfter: false, showToast: true });
               setCurrentStep("takeoff");

@@ -60,8 +60,8 @@ interface ModularCalculatorProps {
     total: number;
   }) => void;
   onModuleDone?: () => void;
-  // Markup prompt support
-  onRequestMarkup?: () => void;
+  // Markup prompt support - identifier format: "scopeId" or "scopeId:beamType:typeName"
+  onRequestMarkup?: (identifier?: string) => void;
   hasPlans?: boolean;
   skipMarkupPrompt?: boolean;
   onSkipMarkupPromptChange?: (skip: boolean) => void;
@@ -1014,6 +1014,10 @@ export function ModularCalculator({
                 beams={scopeAnswers.edgeBeams || [{ id: 'edge-1', name: 'EB1-1', length: 0, width: 450, depth: 450 }]}
                 onChange={handleEdgeBeamsChange}
                 typePrefix="EB"
+                onRequestMarkup={(typeName) => onRequestMarkup?.(`${scope.id}:edge_beam:${typeName}`)}
+                hasPlans={hasPlans}
+                skipMarkupPrompt={skipMarkupPrompt}
+                onSkipMarkupPromptChange={onSkipMarkupPromptChange}
               />
             </CardContent>
           )}
@@ -1045,6 +1049,10 @@ export function ModularCalculator({
                 beams={scopeAnswers.beams || [{ id: 'beam-1', name: 'IB1-1', length: 0, width: 300, depth: 400 }]}
                 onChange={handleBeamsChange}
                 typePrefix="IB"
+                onRequestMarkup={(typeName) => onRequestMarkup?.(`${scope.id}:internal_beam:${typeName}`)}
+                hasPlans={hasPlans}
+                skipMarkupPrompt={skipMarkupPrompt}
+                onSkipMarkupPromptChange={onSkipMarkupPromptChange}
               />
             </CardContent>
           )}

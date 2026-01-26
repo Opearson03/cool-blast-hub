@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { MarkupPromptDialog } from "./MarkupPromptDialog";
 
 export interface BeamConfig {
   id: string;
@@ -29,6 +30,11 @@ interface MultiBeamTypeInputProps {
   beams: BeamConfig[];
   onChange: (beams: BeamConfig[]) => void;
   typePrefix?: string; // "EB" for edge beams, "IB" for internal beams
+  // Markup prompt support
+  onRequestMarkup?: (typeName: string) => void;
+  hasPlans?: boolean;
+  skipMarkupPrompt?: boolean;
+  onSkipMarkupPromptChange?: (skip: boolean) => void;
 }
 
 function parseBeamTypeName(name: string): string {
@@ -76,9 +82,16 @@ export function MultiBeamTypeInput({
   beams,
   onChange,
   typePrefix = "EB",
+  onRequestMarkup,
+  hasPlans = false,
+  skipMarkupPrompt = false,
+  onSkipMarkupPromptChange,
 }: MultiBeamTypeInputProps) {
   const [expandedTypes, setExpandedTypes] = useState<Set<string>>(new Set());
   const [newTypeName, setNewTypeName] = useState("");
+  const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
+  const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
+  const [pendingTypeName, setPendingTypeName] = useState("");
 
   const groups = useMemo(() => groupBeamsByType(beams), [beams]);
 
@@ -132,7 +145,7 @@ export function MultiBeamTypeInput({
     onChange(updatedBeams);
   };
 
-  const addNewType = () => {
+  const getNextTypeName = (nameOverride?: string) => {
     // Find the next available type number
     const existingNumbers = groups
       .map(g => {
@@ -142,7 +155,12 @@ export function MultiBeamTypeInput({
       .filter(n => !isNaN(n));
     
     const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
-    const typeName = newTypeName.trim() || `${typePrefix}${nextNumber}`;
+    const nameToUse = nameOverride !== undefined ? nameOverride : newTypeName;
+    return nameToUse.trim() || `${typePrefix}${nextNumber}`;
+  };
+
+  const addNewType = (nameOverride?: string) => {
+    const typeName = getNextTypeName(nameOverride);
     
     const newBeam: BeamConfig = {
       id: `beam-${Date.now()}`,
@@ -154,6 +172,35 @@ export function MultiBeamTypeInput({
     
     onChange([...beams, newBeam]);
     setNewTypeName("");
+    setPendingTypeName("");
+  };
+
+  const handleAddClick = () => {
+    if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
+      setPendingTypeName(newTypeName);
+      setShowMarkupPrompt(true);
+    } else {
+      addNewType();
+    }
+  };
+
+  const handleMarkOnPlans = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    const typeName = getNextTypeName(pendingTypeName);
+    onRequestMarkup?.(typeName);
+    setNewTypeName("");
+    setPendingTypeName("");
+  };
+
+  const handleEnterManually = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    addNewType(pendingTypeName);
   };
 
   const updateSegmentLength = (segmentId: string, newLength: number) => {
@@ -182,14 +229,14 @@ export function MultiBeamTypeInput({
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
                   e.preventDefault();
-                  addNewType();
+                  handleAddClick();
                 }
               }}
             />
             <Button
               type="button"
               variant="outline"
-              onClick={addNewType}
+              onClick={handleAddClick}
               className="shrink-0 h-11 sm:h-9"
             >
               <Plus className="h-4 w-4 mr-1" />
@@ -401,20 +448,30 @@ export function MultiBeamTypeInput({
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              addNewType();
+              handleAddClick();
             }
           }}
         />
         <Button
           type="button"
           variant="outline"
-          onClick={addNewType}
+          onClick={handleAddClick}
           className="shrink-0 h-11 sm:h-9"
         >
           <Plus className="h-4 w-4 mr-1" />
           Add Type
         </Button>
       </div>
+
+      <MarkupPromptDialog
+        open={showMarkupPrompt}
+        onOpenChange={setShowMarkupPrompt}
+        itemType={`${typePrefix === 'IB' ? 'internal' : 'edge'} beam type`}
+        onMarkOnPlans={handleMarkOnPlans}
+        onEnterManually={handleEnterManually}
+        dontAskAgain={dontAskAgain}
+        onDontAskAgainChange={setDontAskAgain}
+      />
     </div>
   );
 }
