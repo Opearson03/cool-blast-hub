@@ -165,6 +165,15 @@ export interface MeasurementArea {
   bar_size?: string;
   bar_spacing?: string;
   bar_layers?: string;
+  
+  // Per-area bar chair settings
+  chairs_enabled?: boolean;
+  chair_type?: string;       // e.g., '7590C'
+  chairs_per_m2?: number;    // chairs per square metre
+  chair_price_per_bag?: number; // price per 100
+  layer_chairs_enabled?: boolean; // chairs between mesh layers
+  layer_chairs_per_m2?: number;   // layer chairs per m²
+  layer_chair_price?: number;     // price per 100 for layer chairs
 }
 
 /**
@@ -345,6 +354,14 @@ export interface BeamConfig {
   
   // Vertical reinforcement (starter bars projecting from beam)
   vertical_bars?: VerticalBarConfig[];
+  
+  // Per-beam bar chair settings
+  chairs_enabled?: boolean;
+  chairs_per_m?: number;         // chairs per linear metre
+  chair_price_per_bag?: number;  // price per 25
+  layer_chairs_enabled?: boolean; // chairs between TM layers
+  layer_chairs_per_m?: number;    // layer chairs per m
+  layer_chair_price?: number;     // price per 25 for layer chairs
 }
 
 /**

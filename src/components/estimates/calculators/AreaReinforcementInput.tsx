@@ -509,6 +509,130 @@ export function AreaReinforcementInput({
                           )}
                         </div>
 
+                        {/* Bar Chairs Section */}
+                        <div className="pt-3 border-t space-y-3">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                              Bar Chairs
+                            </Label>
+                            <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                              <Switch
+                                checked={area.chairs_enabled ?? false}
+                                onCheckedChange={(checked) => updateArea(index, { chairs_enabled: checked })}
+                              />
+                              <span className={cn(
+                                "text-sm min-w-[3ch]",
+                                area.chairs_enabled ? "text-foreground" : "text-muted-foreground"
+                              )}>
+                                {area.chairs_enabled ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {area.chairs_enabled && (
+                            <div className="grid grid-cols-3 gap-3">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Chair Size</Label>
+                                <Select
+                                  value={area.chair_type || '7590C'}
+                                  onValueChange={(val) => updateArea(index, { chair_type: val })}
+                                >
+                                  <SelectTrigger className="h-8 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="z-[150]">
+                                    <SelectItem value="2540C">25-40mm</SelectItem>
+                                    <SelectItem value="5065C">50-65mm</SelectItem>
+                                    <SelectItem value="7590C">75-90mm</SelectItem>
+                                    <SelectItem value="100120C">100-120mm</SelectItem>
+                                    <SelectItem value="125150C">125-150mm</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Chairs/m²</Label>
+                                <Input
+                                  type="number"
+                                  step="0.5"
+                                  min="1"
+                                  max="10"
+                                  value={area.chairs_per_m2 ?? 4}
+                                  onChange={(e) => updateArea(index, { chairs_per_m2: Number(e.target.value) })}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">$/100</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={area.chair_price_per_bag ?? 35}
+                                    onChange={(e) => updateArea(index, { chair_price_per_bag: Number(e.target.value) })}
+                                    className="h-8 text-sm pl-6"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Layer Chairs - only when 2 mesh layers */}
+                          {meshLayers > 1 && (
+                            <>
+                              <div className="flex items-center justify-between pt-2">
+                                <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                                  Chairs Between Layers
+                                </Label>
+                                <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                                  <Switch
+                                    checked={area.layer_chairs_enabled ?? false}
+                                    onCheckedChange={(checked) => updateArea(index, { layer_chairs_enabled: checked })}
+                                  />
+                                  <span className={cn(
+                                    "text-sm min-w-[3ch]",
+                                    area.layer_chairs_enabled ? "text-foreground" : "text-muted-foreground"
+                                  )}>
+                                    {area.layer_chairs_enabled ? 'Yes' : 'No'}
+                                  </span>
+                                </div>
+                              </div>
+                              
+                              {area.layer_chairs_enabled && (
+                                <div className="grid grid-cols-2 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] text-muted-foreground">Layer Chairs/m²</Label>
+                                    <Input
+                                      type="number"
+                                      step="0.5"
+                                      min="1"
+                                      max="10"
+                                      value={area.layer_chairs_per_m2 ?? 2}
+                                      onChange={(e) => updateArea(index, { layer_chairs_per_m2: Number(e.target.value) })}
+                                      className="h-8 text-sm"
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] text-muted-foreground">$/100</Label>
+                                    <div className="relative">
+                                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                      <Input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={area.layer_chair_price ?? 35}
+                                        onChange={(e) => updateArea(index, { layer_chair_price: Number(e.target.value) })}
+                                        className="h-8 text-sm pl-6"
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+
                         {/* Summary Footer */}
                         <div className="pt-2 border-t">
                           <p className="text-xs text-muted-foreground">
