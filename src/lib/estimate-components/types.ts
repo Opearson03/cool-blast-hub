@@ -313,8 +313,12 @@ export interface LinearSection {
   length: number;      // meters
   dimension1: number;  // mm (width or thickness, depending on scope)
   dimension2: number;  // mm (depth or height, depending on scope)
-  /** Toe length in mm for retaining wall footings (distance footing extends beyond wall face) */
-  toe?: number;
+  /** Whether this footing has a toe (for retaining wall footings) */
+  has_toe?: boolean;
+  /** Toe width in mm for retaining wall footings */
+  toe_width?: number;
+  /** Toe depth in mm for retaining wall footings */
+  toe_depth?: number;
   /** If true, this section was imported from plan takeoff */
   _fromTakeoff?: boolean;
   /** Actual measured length from takeoff (more accurate) */
