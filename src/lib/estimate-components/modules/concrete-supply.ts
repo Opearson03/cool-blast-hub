@@ -101,6 +101,29 @@ export const concreteSupplyModule: EstimateModule = {
       priceListKey: 'concrete.TESTING',
       showIf: (answers) => answers.require_testing === true,
     },
+    {
+      id: 'include_special_mix',
+      type: 'boolean',
+      label: 'Do you want to include a special concrete mix?',
+      defaultValue: false,
+      sectionLabel: 'Special Concrete Mix',
+    },
+    {
+      id: 'special_mix_name',
+      type: 'text',
+      label: 'Special mix description',
+      defaultValue: 'Special Concrete Mix',
+      placeholder: 'e.g. Polished Concrete, High-Flow Mix',
+      showIf: (answers) => answers.include_special_mix === true,
+    },
+    {
+      id: 'special_mix_rate',
+      type: 'currency',
+      label: 'Special mix rate per m³',
+      defaultValue: 400,
+      unit: '/m³',
+      showIf: (answers) => answers.include_special_mix === true,
+    },
   ],
 
   calculate: (answers, priceMap, scopeData): ComponentCost => {
@@ -177,6 +200,26 @@ export const concreteSupplyModule: EstimateModule = {
         category: 'other',
       });
       subtotal += testsRequired * testingCost;
+    }
+
+    // Special concrete mix
+    if (answers.include_special_mix) {
+      const specialMixName = answers.special_mix_name || 'Special Concrete Mix';
+      const specialMixRate = Number(answers.special_mix_rate) || 400;
+      const specialMixCost = roundedVolume * specialMixRate;
+
+      if (specialMixCost > 0) {
+        lineItems.push({
+          id: 'special_concrete_mix',
+          description: `${specialMixName} Premium`,
+          quantity: roundedVolume,
+          unit: 'm³',
+          unitPrice: specialMixRate,
+          total: Math.round(specialMixCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += specialMixCost;
+      }
     }
 
     return {
