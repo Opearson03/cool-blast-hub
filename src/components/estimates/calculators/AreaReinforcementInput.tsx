@@ -336,10 +336,9 @@ export function AreaReinforcementInput({
                                     type="number"
                                     step="0.01"
                                     min="0"
-                                    value={area.mesh_price ?? getMeshPrice(meshType, priceMap) ?? ''}
+                                    value={area.mesh_price !== undefined ? area.mesh_price : (getMeshPrice(meshType, priceMap) ?? '')}
                                     onChange={(e) => updateArea(index, { mesh_price: e.target.value ? Number(e.target.value) : undefined })}
                                     className="h-8 text-sm pl-6"
-                                    placeholder={String(getMeshPrice(meshType, priceMap) ?? '')}
                                   />
                                 </div>
                               </div>
@@ -371,10 +370,9 @@ export function AreaReinforcementInput({
                                       type="number"
                                       step="0.01"
                                       min="0"
-                                      value={area.mesh_price_top ?? getMeshPrice(area.mesh_type_top || meshType, priceMap) ?? ''}
+                                      value={area.mesh_price_top !== undefined ? area.mesh_price_top : (getMeshPrice(area.mesh_type_top || meshType, priceMap) ?? '')}
                                       onChange={(e) => updateArea(index, { mesh_price_top: e.target.value ? Number(e.target.value) : undefined })}
                                       className="h-8 text-sm pl-6"
-                                      placeholder={String(getMeshPrice(area.mesh_type_top || meshType, priceMap) ?? '')}
                                     />
                                   </div>
                                 </div>
