@@ -44,6 +44,18 @@ export interface ComponentQuestion {
    */
   sectionLabel?: string;
   
+  /**
+   * Get scope-specific label for this question
+   * Returns custom label based on scope (e.g., "Edge Thickening" for driveway)
+   */
+  getScopeLabel?: (scopeId: string) => string;
+  
+  /**
+   * Get scope-specific section label
+   * Returns custom section label based on scope
+   */
+  getScopeSectionLabel?: (scopeId: string) => string;
+  
   /** 
    * Function to derive this field's value from scope data, module answers, and price map
    * Returns undefined if no auto-fill should occur
