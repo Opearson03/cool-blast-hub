@@ -62,6 +62,7 @@ export const PIERS_SCOPE: ScopeDefinition = {
     'labour-place',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     // If we have pier configs, calculate from those
@@ -142,6 +143,7 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
     'joints-control',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -271,6 +273,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -453,6 +456,7 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -585,6 +589,7 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     'joints-control',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -662,6 +667,7 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     'surface-finishing',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -755,6 +761,7 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
     'joints-control',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
@@ -830,6 +837,7 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
     'labour-place',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     // If we have footing configs, calculate from those
@@ -912,6 +920,7 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     'labour-place',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     // If we have footing configs, calculate from those
@@ -1133,6 +1142,7 @@ export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
     'labour-place',
     'cleanup',
     'sundries',
+    'extra-items',
   ],
   calculateVolume: (answers) => {
     // Use padGroups if available (new grouped system)
@@ -1870,6 +1880,7 @@ export const DEMOLITION_SCOPE: ScopeDefinition = {
   questions: [],
   moduleIds: [
     'demolition',
+    'extra-items',
   ],
   calculateVolume: () => 0, // Volume is calculated per-area in the demolition module
   defaultExclusions: [],

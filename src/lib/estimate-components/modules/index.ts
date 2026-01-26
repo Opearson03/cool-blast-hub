@@ -24,6 +24,7 @@ export { sundriesModule } from './sundries';
 export { marginModule } from './margin';
 export { plumbingModule } from './plumbing';
 export { demolitionModule } from './demolition';
+export { extraItemsModule } from './extra-items';
 
 import { formworkModule } from './formwork';
 import { excavationModule } from './excavation';
@@ -49,6 +50,7 @@ import { sundriesModule } from './sundries';
 import { marginModule } from './margin';
 import { plumbingModule } from './plumbing';
 import { demolitionModule } from './demolition';
+import { extraItemsModule } from './extra-items';
 import type { EstimateModule } from '../types';
 
 /**
@@ -80,6 +82,7 @@ export const MODULE_REGISTRY: Record<string, EstimateModule> = {
   'margin': marginModule,
   'plumbing': plumbingModule,
   'demolition': demolitionModule,
+  'extra-items': extraItemsModule,
 };
 
 /**
