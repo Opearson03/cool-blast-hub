@@ -193,6 +193,26 @@ export const surfaceFinishingModule: EstimateModule = {
       showIf: (answers) => answers.finish_required === true,
     },
     {
+      id: 'curing_drum_price',
+      type: 'currency',
+      label: 'Cure price per drum',
+      defaultValue: 150,
+      priceListKey: 'materials.CURE_DRUM',
+      showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
+    },
+    {
+      id: 'curing_coverage_rate',
+      type: 'number',
+      label: 'Coverage rate (m²/L)',
+      defaultValue: 5,
+      min: 1,
+      max: 20,
+      step: 0.5,
+      unit: 'm²/L',
+      helpText: 'Typical: 5m²/L for spray application',
+      showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
+    },
+    {
       id: 'curing_drum_size',
       type: 'number',
       label: 'Cure drum size (L)',
@@ -202,25 +222,17 @@ export const surfaceFinishingModule: EstimateModule = {
       showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
     },
     {
-      id: 'curing_drum_price',
-      type: 'currency',
-      label: 'Cure price per drum',
-      defaultValue: 150,
-      priceListKey: 'materials.CURE_DRUM',
-      showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
-    },
-    {
       id: 'curing_drums_required',
       type: 'number',
       label: 'Drums required',
-      helpText: 'Auto-calculated: 5m²/L coverage',
+      helpText: 'Auto-calculated based on coverage rate',
       min: 1,
       unit: 'drums',
       showIf: (answers) => answers.finish_required === true && answers.curing_required === true,
       deriveFrom: (scopeData, moduleAnswers) => {
         const area = Number(moduleAnswers?.finish_area) || Number(scopeData.area) || 0;
         const drumSize = Number(moduleAnswers?.curing_drum_size) || 20;
-        const coverageRate = 5; // 5m²/L standard
+        const coverageRate = Number(moduleAnswers?.curing_coverage_rate) || 5;
         const litresNeeded = area / coverageRate;
         return Math.ceil(litresNeeded / drumSize) || 1;
       },
