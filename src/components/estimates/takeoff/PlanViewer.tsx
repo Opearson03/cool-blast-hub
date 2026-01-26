@@ -168,7 +168,7 @@ export function PlanViewer({
     e.preventDefault();
     const zoomFactor = 0.15;
     const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
-    const newZoom = Math.min(Math.max(zoom + delta, 0.25), 3);
+    const newZoom = Math.min(Math.max(zoom + delta, 0.25), 5);
     onZoomChange?.(newZoom);
   };
 
