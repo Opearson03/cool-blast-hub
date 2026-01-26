@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Plus, Trash2, Copy, Ruler, ChevronDown, ChevronRight, Settings2, ChevronsUpDown } from "lucide-react";
+import { Plus, Trash2, Copy, Ruler, ChevronDown, ChevronRight, Settings2, ChevronsUpDown, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -427,26 +427,55 @@ export function MultiAreaInput({
         </Button>
       </div>
 
-      {/* Shared thickness setting */}
-      <div className="pt-3 border-t space-y-3">
-        <div className="space-y-1.5">
-          <Label className="text-xs font-medium">
-            Thickness
-            <span className="text-muted-foreground ml-1 font-normal">— shared across all areas</span>
+      {/* Shared thickness setting - PROMINENT when empty */}
+      <div className={cn(
+        "pt-3 border-t space-y-3 transition-all",
+        !thickness && "bg-amber-500/10 border-amber-500/30 rounded-lg p-4 -mx-1 mt-4"
+      )}>
+        <div className={cn(
+          "space-y-3",
+          !thickness && "flex flex-col items-center text-center"
+        )}>
+          {!thickness && (
+            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+              <AlertCircle className="h-5 w-5" />
+              <span className="font-semibold text-sm">Slab Thickness Required</span>
+            </div>
+          )}
+          
+          <Label className={cn(
+            "font-medium",
+            !thickness ? "text-sm text-muted-foreground" : "text-xs"
+          )}>
+            {thickness ? (
+              <>Thickness <span className="text-muted-foreground font-normal">— shared across all areas</span></>
+            ) : (
+              "Enter the slab thickness from drawings"
+            )}
           </Label>
-          <div className="relative max-w-[200px]">
+          
+          <div className={cn("relative", !thickness && "w-48")}>
             <Input
               type="number"
               inputMode="numeric"
               value={thickness || ""}
               onChange={(e) =>
-                onThicknessChange(e.target.value === "" ? thicknessDefault : Number(e.target.value))
+                onThicknessChange(e.target.value === "" ? 0 : Number(e.target.value))
               }
               min={thicknessMin}
               step={5}
-              className="pr-10 h-8 text-sm"
+              placeholder={!thickness ? "e.g. 100" : undefined}
+              className={cn(
+                "pr-10 text-center transition-all",
+                !thickness 
+                  ? "h-14 text-xl border-2 border-amber-500/50 bg-background" 
+                  : "h-8 text-sm max-w-[200px]"
+              )}
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+            <span className={cn(
+              "absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground",
+              !thickness ? "text-base" : "text-[10px]"
+            )}>
               mm
             </span>
           </div>
