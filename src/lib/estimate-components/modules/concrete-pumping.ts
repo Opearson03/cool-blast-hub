@@ -51,24 +51,6 @@ export const concretePumpingModule: EstimateModule = {
       required: true,
     },
     {
-      id: 'pump_recommendation',
-      type: 'text',
-      label: 'Recommended Pump',
-      helpText: 'Based on calculated concrete volume',
-      derivedReadOnly: true,
-      deriveFrom: (scopeData) => {
-        const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
-        if (volume <= 0) return undefined;
-        const rec = getPumpRecommendation(volume);
-        // If user chose to pump, don't show "direct from chute" - recommend line pump as minimum
-        if (rec.type === 'DIRECT') {
-          return PUMP_RECOMMENDATIONS.linePump.label;
-        }
-        return rec.label || undefined;
-      },
-      showIf: (answers) => answers.pump_required === true,
-    },
-    {
       id: 'pump_visits',
       type: 'text', // Custom rendering in ModuleSection
       label: 'Pump Visits',
@@ -82,18 +64,7 @@ export const concretePumpingModule: EstimateModule = {
       defaultValue: 8,
       priceListKey: 'pumping.PUMP M3',
       unit: '/m³',
-      helpText: 'Applied to total volume including wastage',
-      showIf: (answers) => answers.pump_required === true,
-    },
-    {
-      id: 'wastage_percent',
-      type: 'number',
-      label: 'Wastage allowance',
-      defaultValue: 10,
-      min: 0,
-      max: 30,
-      unit: '%',
-      helpText: 'Should match concrete supply wastage',
+      helpText: 'Applied to total concrete volume',
       showIf: (answers) => answers.pump_required === true,
     },
   ],
@@ -211,16 +182,13 @@ export const concretePumpingModule: EstimateModule = {
     }
 
     if (volume > 0) {
-      // Apply wastage to match concrete supply
-      const wastagePercent = Number(answers.wastage_percent) || 10;
-      const volumeWithWastage = volume * (1 + wastagePercent / 100);
-      const roundedVolume = roundUpToM3(volumeWithWastage);
+      const roundedVolume = roundUpToM3(volume);
       const m3Rate = Number(answers.m3_rate) || getPrice(priceMap, 'pumping', 'PUMP M3', 8);
       const m3Cost = roundedVolume * m3Rate;
 
       lineItems.push({
         id: 'pump_per_m3',
-        description: `Pumping Charge (${roundedVolume} m³ incl. wastage)`,
+        description: `Pumping Charge (${roundedVolume} m³)`,
         quantity: roundedVolume,
         unit: 'm³',
         unitPrice: m3Rate,
