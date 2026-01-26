@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,8 +17,13 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { AccordionDoneBadge } from "./shared/AccordionDoneBadge";
-import { HelpCircle, Check } from "lucide-react";
+import { HelpCircle, Check, ChevronDown } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
@@ -31,6 +37,7 @@ import { FootingReinforcementInput } from "./FootingReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
 import { ExtraItemsInput } from "./ExtraItemsInput";
 import { formatCurrency } from "@/lib/format-currency";
+import { aggregateRaftReinforcementItems, AggregatedMaterial } from "./shared/aggregateMaterials";
 
 interface ModuleSectionProps {
   module: EstimateModule;
@@ -191,6 +198,93 @@ function QuestionInput({
         </Select>
       )}
     </div>
+  );
+}
+
+/**
+ * Component to render aggregated material breakdown
+ * Groups identical materials across beams/areas into single totals
+ */
+function AggregatedCostBreakdown({ lineItems }: { lineItems: CostLineItem[] }) {
+  const [expandedMaterials, setExpandedMaterials] = useState<Set<string>>(new Set());
+  const groups = aggregateRaftReinforcementItems(lineItems);
+
+  const toggleMaterial = (key: string) => {
+    setExpandedMaterials(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+  };
+
+  const renderMaterial = (material: AggregatedMaterial) => {
+    const hasMultipleItems = material.items.length > 1;
+    const isExpanded = expandedMaterials.has(material.key);
+
+    if (!hasMultipleItems) {
+      // Single item - just render it directly
+      return (
+        <div key={material.key} className="flex justify-between text-sm py-0.5">
+          <span className="text-muted-foreground">
+            {material.displayName}
+            {material.totalQuantity > 0 && material.unit && (
+              <span className="ml-1">({material.totalQuantity} {material.unit})</span>
+            )}
+          </span>
+          <span className="font-medium ml-2 shrink-0">{formatCurrency(material.totalCost)}</span>
+        </div>
+      );
+    }
+
+    // Multiple items - render collapsible with aggregated total
+    return (
+      <Collapsible key={material.key} open={isExpanded} onOpenChange={() => toggleMaterial(material.key)}>
+        <CollapsibleTrigger asChild>
+          <button className="flex justify-between text-sm py-0.5 w-full text-left hover:bg-muted/30 rounded px-1 -mx-1 transition-colors">
+            <span className="flex items-center gap-1 text-muted-foreground">
+              <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+              <span className="font-medium text-foreground">{material.displayName}</span>
+              <span>({material.totalQuantity} {material.unit})</span>
+            </span>
+            <span className="font-medium ml-2 shrink-0">{formatCurrency(material.totalCost)}</span>
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="pl-5 space-y-0.5 text-xs text-muted-foreground border-l border-muted ml-1.5 mt-1">
+            {material.items.map((item) => (
+              <div key={item.id} className="flex justify-between py-0.5">
+                <span>{item.description}</span>
+                <span className="ml-2">{formatCurrency(item.total)}</span>
+              </div>
+            ))}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
+  return (
+    <>
+      {groups.map((group) => (
+        <div key={group.title} className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {group.title}
+            </span>
+            <span className="text-xs font-medium text-muted-foreground">
+              {formatCurrency(group.totalCost)}
+            </span>
+          </div>
+          <div className="space-y-0.5 pl-2 border-l-2 border-muted">
+            {group.materials.map(renderMaterial)}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -475,65 +569,8 @@ export function ModuleSection({
                 <h4 className="text-sm font-medium mb-3 text-muted-foreground">Cost Breakdown</h4>
                 <div className="space-y-3">
                   {isRaftReoModule ? (
-                    // Grouped breakdown for raft reinforcement
-                    (() => {
-                      // Group line items by type
-                      const slabItems = lineItems.filter(item => 
-                        item.id.startsWith('mesh_') || item.id.startsWith('bar_')
-                      );
-                      const edgeBeamItems = lineItems.filter(item => 
-                        item.id.startsWith('edge_tm_') || item.id.startsWith('edge_ligs_')
-                      );
-                      const internalBeamItems = lineItems.filter(item => 
-                        item.id.startsWith('internal_tm_') || item.id.startsWith('internal_ligs_')
-                      );
-                      const accessoryItems = lineItems.filter(item => 
-                        ['bar_chairs', 'tie_wire', 'reo_delivery'].includes(item.id)
-                      );
-                      const otherItems = lineItems.filter(item => 
-                        !slabItems.includes(item) && 
-                        !edgeBeamItems.includes(item) && 
-                        !internalBeamItems.includes(item) &&
-                        !accessoryItems.includes(item)
-                      );
-
-                      const renderGroup = (title: string, items: CostLineItem[]) => {
-                        if (items.length === 0) return null;
-                        const groupTotal = items.reduce((sum, item) => sum + item.total, 0);
-                        return (
-                          <div key={title} className="space-y-1.5">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                {title}
-                              </span>
-                              <span className="text-xs font-medium text-muted-foreground">
-                                {formatCurrency(groupTotal)}
-                              </span>
-                            </div>
-                            <div className="space-y-1 pl-2 border-l-2 border-muted">
-                              {items.map((item) => (
-                                <div key={item.id} className="flex justify-between text-sm py-0.5">
-                                  <span className="text-muted-foreground">
-                                    {item.description}
-                                  </span>
-                                  <span className="font-medium ml-2 shrink-0">{formatCurrency(item.total)}</span>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        );
-                      };
-
-                      return (
-                        <>
-                          {renderGroup('Slab Areas', slabItems)}
-                          {renderGroup('Edge Beams', edgeBeamItems)}
-                          {renderGroup('Internal Beams', internalBeamItems)}
-                          {renderGroup('Accessories', accessoryItems)}
-                          {renderGroup('Other', otherItems)}
-                        </>
-                      );
-                    })()
+                    // Aggregated breakdown for raft reinforcement
+                    <AggregatedCostBreakdown lineItems={lineItems} />
                   ) : (
                     // Standard flat list for other modules
                     lineItems.map((item) => (
