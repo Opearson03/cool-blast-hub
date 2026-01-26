@@ -1,148 +1,206 @@
 
 
-## Update Driveway Scope: Remove Internal Beams and Rename Edge Beams to Edge Thickening
+## Driveway "Add Area" Prompt and Reinforcement Question Updates
 
 ### Overview
-Update the Driveway scope to:
-1. Remove "Internal Stiffening Beams" support entirely
-2. Rename "Edge Beams" to "Edge Thickening" throughout the UI
-3. Enable edge thickening markup at the takeoff stage (same flow as raft slab edge beams)
+Two changes are needed for the Driveway scope:
+1. **Add Area Markup Prompt**: Update the "Add Area" button in driveway to show the same markup prompt dialog (offering takeoff or manual entry) that other scopes like Piers and Footings use
+2. **Reinforcement Questions**: Replace the "Include Edge Beam Reinforcement" and "Include Internal Beam Reinforcement" questions with a single "Include Edge Thickening Reinforcement" question appropriate for driveways
 
 ### Current State
 
-**Driveway Scope Configuration:**
-- `supportsMultipleBeams: true` with label "Internal Stiffening Beams"
-- `supportsMultipleEdgeBeams: true` with label "Edge Beams"
-- Not included in `SLAB_WITH_BEAMS_SCOPES` array (takeoff doesn't support beam marking)
+**1. Add Area Issue:**
+- In `ModularCalculator.tsx:895`, the `MultiAreaInput` for driveways passes `onRequestMarkup` without the scope identifier
+- Other components (Piers, Footings, Linear sections) pass the scope ID: `onRequestMarkup={() => onRequestMarkup?.(scope.id)}`
+- The `MultiAreaInput` component already has `MarkupPromptDialog` support (lines 140-165), it just needs the proper callback
 
-**Takeoff Classification:**
-- `SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod']` - driveway is excluded
+**2. Reinforcement Questions Issue:**
+- The `reinforcement-raft` module currently has two questions:
+  - `edge_beam_reo` with label "Include Edge Beam Reinforcement" (section: "Edge Beams")
+  - `internal_beam_reo` with label "Include Internal Beam Reinforcement" (section: "Internal Beams")
+- For driveways, we don't have internal beams (already removed), so the internal beam question shouldn't appear
+- The edge beam question should be renamed to "Include Edge Thickening Reinforcement" for driveway context
+- The section label should also update to "Edge Thickening" for driveways
 
 ### Changes Required
 
-#### 1. Update `scopes.ts` - Driveway Scope
+#### 1. Update `ModularCalculator.tsx` - Fix Add Area Markup Callback
 
-**Remove internal beam support:**
-- Set `supportsMultipleBeams: false` (or remove the property)
-- Remove `beamsLabel` 
-- Remove internal beam questions from `hideStandardQuestions`
-
-**Update edge beam labelling:**
-- Change `edgeBeamsLabel` from `'Edge Beams'` to `'Edge Thickening'`
-
-**Update volume calculation:**
-- Remove internal beam volume calculation since it's no longer supported
-
-#### 2. Update `takeoff.ts` - Add Driveway to Beam Scopes
-
-Add `'driveway'` to the `SLAB_WITH_BEAMS_SCOPES` array to enable the slab + beam workflow during takeoff:
+Update the `onRequestMarkup` prop for `MultiAreaInput` to pass the scope identifier:
 
 ```typescript
-export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod', 'driveway'] as const;
+// Line 895: Change from:
+onRequestMarkup={onRequestMarkup}
+
+// To:
+onRequestMarkup={() => onRequestMarkup?.(scope.id)}
 ```
 
-#### 3. Update `SlabBeamMarkupDialog.tsx` - Driveway-Specific Labels
+#### 2. Update `reinforcement-raft.ts` - Scope-Aware Question Labels
 
-Add driveway-specific label handling:
-- When `scopeId === 'driveway'`, use "Edge Thickening" instead of "Edge Beam" in titles and labels
-- Skip internal beam options entirely for driveway (only show edge thickening flow)
+Add `scopeLabel` support to customize questions based on scope:
 
-**Key Label Changes:**
-| Current Label | Driveway Label |
-|---------------|----------------|
-| "Edge Beam Details" | "Edge Thickening Details" |
-| "Edge Beams Summary" | "Edge Thickening Summary" |
-| "Add Edge Beam" | "Add Edge Thickening" |
-| "Edge Beams (X)" | "Edge Thickening (X)" |
-| "Finish (No Internal)" | "Finish" (and skip internal beam step entirely) |
+**Option A - Use `showIf` to hide internal beam question for driveway:**
+- Add `showIf` condition to `internal_beam_reo` question to hide it when scope is driveway
 
-#### 4. Update `SlabBeamMarkingBar` - Driveway Labels
+**Option B - Add scope-aware label overrides:**
+- Add an optional `scopeLabels` property that allows per-scope label customization
 
-Update the floating bar component to show "Edge Thickening" instead of "Edge Beam" when marking driveways.
+Recommended approach: Use `showIf` condition and add `scopeLabel` function support:
+
+```typescript
+// Update edge_beam_reo question (lines 53-59)
+{
+  id: 'edge_beam_reo',
+  type: 'boolean',
+  label: 'Include Edge Beam Reinforcement',
+  // Add scope-aware label
+  getScopeLabel: (scopeId: string) => {
+    if (scopeId === 'driveway') return 'Include Edge Thickening Reinforcement';
+    return 'Include Edge Beam Reinforcement';
+  },
+  defaultValue: false,
+  sectionLabel: 'Edge Beams',
+  getScopeSectionLabel: (scopeId: string) => {
+    if (scopeId === 'driveway') return 'Edge Thickening';
+    return 'Edge Beams';
+  },
+},
+
+// Update internal_beam_reo question (lines 65-71)
+{
+  id: 'internal_beam_reo',
+  type: 'boolean',
+  label: 'Include Internal Beam Reinforcement',
+  defaultValue: false,
+  sectionLabel: 'Internal Beams',
+  // Hide for driveway scope (no internal beams)
+  showIf: (answers, scopeData) => scopeData?.scopeId !== 'driveway',
+},
+```
+
+#### 3. Update `types.ts` - Add Scope Label Functions to Question Interface
+
+Add optional scope-aware label properties to `ComponentQuestion`:
+
+```typescript
+interface ComponentQuestion {
+  // ... existing properties
+  getScopeLabel?: (scopeId: string) => string;
+  getScopeSectionLabel?: (scopeId: string) => string;
+}
+```
+
+#### 4. Update `ModuleSection.tsx` - Render Scope-Aware Labels
+
+Update the question rendering logic to use scope-aware labels when available:
+
+```typescript
+// In QuestionInput and section rendering, check for getScopeLabel
+const effectiveLabel = question.getScopeLabel 
+  ? question.getScopeLabel(scopeData?.scopeId || '') 
+  : question.label;
+
+const effectiveSectionLabel = question.getScopeSectionLabel
+  ? question.getScopeSectionLabel(scopeData?.scopeId || '')
+  : question.sectionLabel;
+```
+
+Also update the "Edge Beams" section label rendering for driveway:
+```typescript
+const isEdgeBeamsSection = isRaftReoModule && 
+  (currentSection === 'Edge Beams' || currentSection === 'Edge Thickening');
+```
+
+#### 5. Update `ModularCalculator.tsx` - Pass Scope ID to Module Sections
+
+Ensure `scopeData` includes the scope ID for question filtering:
+
+```typescript
+// When building scopeData for modules, include scopeId
+const scopeDataWithId = {
+  ...scopeData,
+  scopeId: scope.id,
+};
+```
 
 ### Files to Modify
 
-1. **`src/lib/estimate-components/scopes.ts`**
-   - Update `DRIVEWAY_SCOPE`: remove internal beam support, rename edge beam label
+1. **`src/components/estimates/calculators/ModularCalculator.tsx`**
+   - Update `MultiAreaInput` `onRequestMarkup` callback to pass scope ID
+   - Ensure scopeData passed to ModuleSection includes scope ID
 
-2. **`src/types/takeoff.ts`**
-   - Add `'driveway'` to `SLAB_WITH_BEAMS_SCOPES` array
+2. **`src/lib/estimate-components/types.ts`**
+   - Add `getScopeLabel` and `getScopeSectionLabel` optional properties to `ComponentQuestion`
 
-3. **`src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx`**
-   - Add `isDriveway` check similar to `isWafflePod`
-   - Update `getStepTitle()` and `getStepDescription()` for driveway
-   - Update button labels and section headers for driveway
-   - For driveway, skip straight to "Finish" after edge thickening (no internal beam option)
+3. **`src/lib/estimate-components/modules/reinforcement-raft.ts`**
+   - Add scope-aware labels to `edge_beam_reo` question
+   - Add `showIf` condition to `internal_beam_reo` to hide for driveway
 
-### Updated Driveway Scope Flow
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│                 DRIVEWAY TAKEOFF WORKFLOW                   │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  1. Mark Driveway Area (polygon/rectangle)                  │
-│         ↓                                                   │
-│  2. Name Driveway Dialog                                    │
-│     • Enter name (e.g., "Main Driveway")                    │
-│     • Shows area and perimeter                              │
-│     • Buttons: [Cancel] [Skip Thickening] [Add Edge Thick.] │
-│         ↓                                                   │
-│  3. Mark Edge Thickening (polyline)                         │
-│     • Draw thickened edge around perimeter                  │
-│         ↓                                                   │
-│  4. Edge Thickening Details Dialog                          │
-│     • Name type (e.g., "ET1")                               │
-│     • Width (mm) and Depth (mm)                             │
-│         ↓                                                   │
-│  5. Edge Thickening Summary                                 │
-│     • Shows all marked thickenings                          │
-│     • Buttons: [Add Edge Thickening] [Finish]               │
-│         ↓                                                   │
-│  (No internal beam step for driveway)                       │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+4. **`src/components/estimates/calculators/ModuleSection.tsx`**
+   - Update label rendering to use scope-aware labels
+   - Update section detection to recognize "Edge Thickening" as equivalent to "Edge Beams"
 
 ### Technical Details
 
-**Updated DRIVEWAY_SCOPE Configuration:**
+**Updated Question Configuration:**
 ```typescript
-export const DRIVEWAY_SCOPE: ScopeDefinition = {
-  id: 'driveway',
-  name: 'Driveway',
-  description: 'Concrete driveway installation',
-  icon: 'car',
-  supportsMultipleAreas: true,
-  areasLabel: 'Driveway Areas',
-  supportsMultipleBeams: false,  // ← REMOVED
-  supportsMultipleEdgeBeams: true,
-  edgeBeamsLabel: 'Edge Thickening',  // ← RENAMED
-  hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
-  // ... questions and modules remain the same
-};
+// reinforcement-raft.ts
+{
+  id: 'edge_beam_reo',
+  type: 'boolean',
+  label: 'Include Edge Beam Reinforcement',
+  getScopeLabel: (scopeId) => 
+    scopeId === 'driveway' ? 'Include Edge Thickening Reinforcement' : 'Include Edge Beam Reinforcement',
+  defaultValue: false,
+  sectionLabel: 'Edge Beams',
+  getScopeSectionLabel: (scopeId) => 
+    scopeId === 'driveway' ? 'Edge Thickening' : 'Edge Beams',
+},
+{
+  id: 'internal_beam_reo',
+  type: 'boolean',
+  label: 'Include Internal Beam Reinforcement',
+  defaultValue: false,
+  sectionLabel: 'Internal Beams',
+  showIf: (_answers, scopeData) => scopeData?.scopeId !== 'driveway',
+},
 ```
 
-**Dialog Label Logic:**
-```typescript
-const isWafflePod = scopeId === 'waffle_pod';
-const isDriveway = scopeId === 'driveway';
-
-const getEdgeBeamLabel = (singular: boolean = false) => {
-  if (isDriveway) {
-    return singular ? 'Edge Thickening' : 'Edge Thickening';
-  }
-  return singular ? 'Edge Beam' : 'Edge Beams';
-};
+**Driveway Reinforcement UI After Changes:**
+```text
+┌────────────────────────────────────────────────────┐
+│ Reinforcement Module                               │
+├────────────────────────────────────────────────────┤
+│                                                    │
+│ ── SLAB SURFACE ────────────────────────────────   │
+│ Mesh Lap Allowance: [12.5%]                        │
+│ [Per-area reinforcement inputs]                    │
+│                                                    │
+│ ── EDGE THICKENING ─────────────────────────────   │
+│ Include Edge Thickening Reinforcement: [Yes/No]   │
+│ [Per-edge-thickening reinforcement inputs]         │
+│                                                    │
+│ (Internal Beams section HIDDEN for driveway)       │
+│                                                    │
+│ ── OTHER ACCESSORIES ───────────────────────────   │
+│ Include Tie Wire: [Yes/No]                         │
+│                                                    │
+│ ── DELIVERY ────────────────────────────────────   │
+│ Reinforcement Delivery: [$150]                     │
+│                                                    │
+└────────────────────────────────────────────────────┘
 ```
 
 ### Testing Checklist
 
-- [ ] Driveway estimator no longer shows "Internal Stiffening Beams" section
-- [ ] Driveway estimator shows "Edge Thickening" instead of "Edge Beams"
-- [ ] Takeoff for driveway triggers slab + beam workflow
-- [ ] Takeoff dialogs show "Edge Thickening" labels for driveway
-- [ ] After marking edge thickening, "Finish" button saves without internal beam prompt
-- [ ] Edge thickening measurements flow correctly into scope answers
-- [ ] Volume calculations work correctly without internal beams
+- [ ] Clicking "Add Area" in driveway shows markup prompt dialog (takeoff or manual)
+- [ ] Selecting "Mark on Plans" navigates to takeoff step
+- [ ] Selecting "Enter manually" adds a new area inline
+- [ ] Reinforcement module shows "Edge Thickening" section label (not "Edge Beams")
+- [ ] Reinforcement question shows "Include Edge Thickening Reinforcement" (not "Include Edge Beam Reinforcement")
+- [ ] "Internal Beams" section is completely hidden for driveway scope
+- [ ] Raft slab still shows "Edge Beams" and "Internal Beams" labels correctly
+- [ ] Edge thickening reinforcement inputs appear when toggle is enabled
+- [ ] Calculations work correctly for edge thickening reinforcement
 
