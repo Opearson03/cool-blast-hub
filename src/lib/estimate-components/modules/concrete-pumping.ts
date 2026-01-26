@@ -1,4 +1,4 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, PumpVisit } from '../types';
 import { getPrice, PUMP_RECOMMENDATIONS, roundUpToM3 } from '../types';
 
 // Helper function to get pump recommendation based on volume
@@ -19,6 +19,23 @@ function getPumpRecommendation(volume: number): { type: string; label: string } 
   return { type: '56M BOOM', label: PUMP_RECOMMENDATIONS.multiple.label };
 }
 
+// Helper to get default pump visit from price map
+function getDefaultPumpVisit(priceMap: PriceMap, pumpType: string = 'LINE PUMP'): PumpVisit {
+  return {
+    id: `visit_${Date.now()}`,
+    pump_type: pumpType,
+    pump_rate: priceMap['pumping']?.[pumpType] ?? 180,
+    travel_hours: 1,
+    pump_hours_on_site: 4,
+    primer_count: 1,
+    primer_cost: priceMap['pumping']?.['PRIMER'] ?? 20,
+    offsite_washout: false,
+    washout_cost: priceMap['pumping']?.['PUMP WASH'] ?? 250,
+    additional_pumpy: true,
+    pumpy_rate: priceMap['pumping']?.['PUMP LAB'] ?? 95,
+  };
+}
+
 export const concretePumpingModule: EstimateModule = {
   id: 'concrete-pumping',
   name: 'Concrete Pumping',
@@ -32,17 +49,6 @@ export const concretePumpingModule: EstimateModule = {
       label: 'Do you require a concrete pump?',
       defaultValue: false,
       required: true,
-    },
-    {
-      id: 'number_of_visits',
-      type: 'number',
-      label: 'Number of pump visits',
-      defaultValue: 1,
-      min: 1,
-      max: 10,
-      step: 1,
-      helpText: 'For multi-pour projects requiring separate pump bookings',
-      showIf: (answers) => answers.pump_required === true,
     },
     {
       id: 'pump_recommendation',
@@ -63,126 +69,11 @@ export const concretePumpingModule: EstimateModule = {
       showIf: (answers) => answers.pump_required === true,
     },
     {
-      id: 'pump_type',
-      type: 'select',
-      label: 'What pump size?',
-      options: [
-        { value: 'LINE PUMP', label: 'Line Pump', priceKey: 'pumping.LINE PUMP' },
-        { value: '20M BOOM', label: '20M Boom Pump', priceKey: 'pumping.20M BOOM' },
-        { value: '32M BOOM', label: '32M Boom Pump', priceKey: 'pumping.32M BOOM' },
-        { value: '36M BOOM', label: '36M Boom Pump', priceKey: 'pumping.36M BOOM' },
-        { value: '38M BOOM', label: '38M Boom Pump', priceKey: 'pumping.38M BOOM' },
-        { value: '42M BOOM', label: '42M Boom Pump', priceKey: 'pumping.42M BOOM' },
-        { value: '48M BOOM', label: '48M Boom Pump', priceKey: 'pumping.48M BOOM' },
-        { value: '56M BOOM', label: '56M Boom Pump', priceKey: 'pumping.56M BOOM' },
-      ],
-      required: true,
-      helpText: 'Select based on site access and volume',
+      id: 'pump_visits',
+      type: 'text', // Custom rendering in ModuleSection
+      label: 'Pump Visits',
+      helpText: 'Configure details for each pump visit',
       showIf: (answers) => answers.pump_required === true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        // Only suggest if user hasn't already selected
-        if (moduleAnswers?.pump_type) return undefined;
-        const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
-        if (volume <= 0) return undefined;
-        const rec = getPumpRecommendation(volume);
-        // Don't auto-select direct chute option
-        if (rec.type === 'DIRECT' || rec.type === '') return undefined;
-        return rec.type;
-      },
-    },
-    {
-      id: 'pump_rate',
-      type: 'currency',
-      label: 'Pump hourly rate',
-      defaultValue: 180,
-      unit: '/hr',
-      helpText: 'Auto-fills from price list based on pump type',
-      showIf: (answers) => answers.pump_required === true,
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const pumpType = moduleAnswers.pump_type || 'LINE PUMP';
-        return priceMap['pumping']?.[pumpType];
-      },
-    },
-    {
-      id: 'standard_travel_sufficient',
-      type: 'boolean',
-      label: 'Is standard 1 hr travel sufficient?',
-      defaultValue: true,
-      helpText: 'Travel is charged at the pump hourly rate',
-      showIf: (answers) => answers.pump_required === true,
-    },
-    {
-      id: 'travel_hours',
-      type: 'number',
-      label: 'Travel hours required',
-      defaultValue: 2,
-      min: 0.5,
-      step: 0.5,
-      unit: 'hrs',
-      showIf: (answers) => answers.pump_required === true && answers.standard_travel_sufficient === false,
-      deriveFrom: () => 2, // Standard 2 hours travel
-    },
-    {
-      id: 'pump_hours_on_site',
-      type: 'number',
-      label: 'How many hours do you expect the pump to be on site?',
-      defaultValue: 4,
-      min: 1,
-      step: 0.5,
-      unit: 'hrs',
-      helpText: 'Minimum 4 hours for boom pumps',
-      showIf: (answers) => answers.pump_required === true,
-      deriveFrom: () => 4, // Standard 4 hours on site
-    },
-    {
-      id: 'primer_count',
-      type: 'number',
-      label: 'Primer charge (count)',
-      defaultValue: 1,
-      min: 0,
-      max: 5,
-      showIf: (answers) => answers.pump_required === true,
-      deriveFrom: () => 1, // Standard 1 primer
-    },
-    {
-      id: 'primer_cost',
-      type: 'currency',
-      label: 'Primer cost each',
-      defaultValue: 20,
-      priceListKey: 'pumping.PRIMER',
-      showIf: (answers) => answers.pump_required === true,
-    },
-    {
-      id: 'offsite_washout',
-      type: 'boolean',
-      label: 'Do you require offsite washout?',
-      defaultValue: false,
-      showIf: (answers) => answers.pump_required === true,
-    },
-    {
-      id: 'washout_cost',
-      type: 'currency',
-      label: 'Offsite washout cost',
-      defaultValue: 250,
-      priceListKey: 'pumping.PUMP WASH',
-      showIf: (answers) => answers.pump_required === true && answers.offsite_washout === true,
-    },
-    {
-      id: 'additional_pumpy',
-      type: 'boolean',
-      label: 'Will you need an additional man (pumpy)?',
-      defaultValue: true,
-      helpText: 'Charged same hours as pump hire',
-      showIf: (answers) => answers.pump_required === true,
-    },
-    {
-      id: 'pumpy_rate',
-      type: 'currency',
-      label: 'Additional man rate per hour',
-      defaultValue: 95,
-      priceListKey: 'pumping.PUMP LAB',
-      unit: '/hr',
-      showIf: (answers) => answers.pump_required === true && answers.additional_pumpy === true,
     },
     {
       id: 'm3_rate',
@@ -221,96 +112,91 @@ export const concretePumpingModule: EstimateModule = {
       };
     }
 
-    const pumpType = answers.pump_type || 'LINE PUMP';
-    const pumpRate = Number(answers.pump_rate) || getPrice(priceMap, 'pumping', pumpType, 180);
-    const numberOfVisits = Number(answers.number_of_visits) || 1;
-    
-    // Travel time (per visit)
-    const travelHoursPerVisit = answers.standard_travel_sufficient ? 1 : (Number(answers.travel_hours) || 2);
-    const totalTravelHours = travelHoursPerVisit * numberOfVisits;
-    const travelCost = totalTravelHours * pumpRate;
-    
-    const visitLabel = numberOfVisits > 1 ? `${numberOfVisits} visits × ` : '';
-    lineItems.push({
-      id: 'pump_travel',
-      description: `Pump Travel (${visitLabel}${travelHoursPerVisit} hr${travelHoursPerVisit > 1 ? 's' : ''})`,
-      quantity: totalTravelHours,
-      unit: 'hr',
-      unitPrice: pumpRate,
-      total: travelCost,
-      category: 'plant',
-    });
-    subtotal += travelCost;
-
-    // Pump hours on site (per visit)
-    const pumpHoursPerVisit = Number(answers.pump_hours_on_site) || 4;
-    const totalPumpHours = pumpHoursPerVisit * numberOfVisits;
-    const pumpHireCost = totalPumpHours * pumpRate;
-
-    lineItems.push({
-      id: 'pump_hire',
-      description: `${pumpType} Hire (${visitLabel}${pumpHoursPerVisit} hrs on site)`,
-      quantity: totalPumpHours,
-      unit: 'hr',
-      unitPrice: pumpRate,
-      total: pumpHireCost,
-      category: 'plant',
-    });
-    subtotal += pumpHireCost;
-
-    // Primer (per visit)
-    const primerCountPerVisit = Number(answers.primer_count) || 1;
-    const totalPrimerCount = primerCountPerVisit * numberOfVisits;
-    if (primerCountPerVisit > 0) {
-      const primerCost = Number(answers.primer_cost) || getPrice(priceMap, 'pumping', 'PRIMER', 20);
-      const totalPrimerCost = totalPrimerCount * primerCost;
-
-      lineItems.push({
-        id: 'primer',
-        description: `Primer Charge (${visitLabel}${primerCountPerVisit} primer${primerCountPerVisit > 1 ? 's' : ''})`,
-        quantity: totalPrimerCount,
-        unit: 'each',
-        unitPrice: primerCost,
-        total: totalPrimerCost,
-        category: 'materials',
-      });
-      subtotal += totalPrimerCost;
+    // Get pump visits array (or create default if empty)
+    let pumpVisits: PumpVisit[] = answers.pump_visits || [];
+    if (pumpVisits.length === 0) {
+      // Create default visit based on recommended pump type
+      const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
+      const rec = getPumpRecommendation(volume);
+      const defaultType = rec.type === 'DIRECT' || rec.type === '' ? 'LINE PUMP' : rec.type;
+      pumpVisits = [getDefaultPumpVisit(priceMap, defaultType)];
     }
 
-    // Offsite washout (per visit)
-    if (answers.offsite_washout) {
-      const washoutCostPerVisit = Number(answers.washout_cost) || getPrice(priceMap, 'pumping', 'PUMP WASH', 250);
-      const totalWashoutCost = washoutCostPerVisit * numberOfVisits;
-      
+    // Process each visit
+    pumpVisits.forEach((visit, visitIndex) => {
+      const visitLabel = pumpVisits.length > 1 ? `Visit ${visitIndex + 1}: ` : '';
+      const pumpLabel = visit.pump_type || 'Pump';
+
+      // Travel time
+      const travelCost = visit.travel_hours * visit.pump_rate;
       lineItems.push({
-        id: 'washout',
-        description: `Offsite Washout${numberOfVisits > 1 ? ` (×${numberOfVisits})` : ''}`,
-        quantity: numberOfVisits,
-        unit: 'each',
-        unitPrice: washoutCostPerVisit,
-        total: totalWashoutCost,
+        id: `pump_travel_${visitIndex}`,
+        description: `${visitLabel}${pumpLabel} Travel (${visit.travel_hours} hr${visit.travel_hours > 1 ? 's' : ''})`,
+        quantity: visit.travel_hours,
+        unit: 'hr',
+        unitPrice: visit.pump_rate,
+        total: Math.round(travelCost * 100) / 100,
         category: 'plant',
       });
-      subtotal += totalWashoutCost;
-    }
+      subtotal += travelCost;
 
-    // Additional man (pumpy) - per visit
-    if (answers.additional_pumpy) {
-      const pumpyRate = Number(answers.pumpy_rate) || getPrice(priceMap, 'pumping', 'PUMP LAB', 95);
-      const totalPumpyHours = totalPumpHours; // Same as total pump hours
-      const pumpyCost = totalPumpyHours * pumpyRate;
-
+      // Pump hours on site
+      const pumpHireCost = visit.pump_hours_on_site * visit.pump_rate;
       lineItems.push({
-        id: 'pumpy_labour',
-        description: `Additional Man / Pumpy (${visitLabel}${pumpHoursPerVisit} hrs)`,
-        quantity: totalPumpyHours,
+        id: `pump_hire_${visitIndex}`,
+        description: `${visitLabel}${pumpLabel} Hire (${visit.pump_hours_on_site} hrs on site)`,
+        quantity: visit.pump_hours_on_site,
         unit: 'hr',
-        unitPrice: pumpyRate,
-        total: pumpyCost,
-        category: 'labour',
+        unitPrice: visit.pump_rate,
+        total: Math.round(pumpHireCost * 100) / 100,
+        category: 'plant',
       });
-      subtotal += pumpyCost;
-    }
+      subtotal += pumpHireCost;
+
+      // Primer
+      if (visit.primer_count > 0) {
+        const primerCost = visit.primer_count * visit.primer_cost;
+        lineItems.push({
+          id: `primer_${visitIndex}`,
+          description: `${visitLabel}Primer Charge (${visit.primer_count} primer${visit.primer_count > 1 ? 's' : ''})`,
+          quantity: visit.primer_count,
+          unit: 'each',
+          unitPrice: visit.primer_cost,
+          total: Math.round(primerCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += primerCost;
+      }
+
+      // Offsite washout
+      if (visit.offsite_washout) {
+        lineItems.push({
+          id: `washout_${visitIndex}`,
+          description: `${visitLabel}Offsite Washout`,
+          quantity: 1,
+          unit: 'each',
+          unitPrice: visit.washout_cost,
+          total: Math.round(visit.washout_cost * 100) / 100,
+          category: 'plant',
+        });
+        subtotal += visit.washout_cost;
+      }
+
+      // Additional man (pumpy)
+      if (visit.additional_pumpy) {
+        const pumpyCost = visit.pump_hours_on_site * visit.pumpy_rate;
+        lineItems.push({
+          id: `pumpy_labour_${visitIndex}`,
+          description: `${visitLabel}Additional Man / Pumpy (${visit.pump_hours_on_site} hrs)`,
+          quantity: visit.pump_hours_on_site,
+          unit: 'hr',
+          unitPrice: visit.pumpy_rate,
+          total: Math.round(pumpyCost * 100) / 100,
+          category: 'labour',
+        });
+        subtotal += pumpyCost;
+      }
+    });
 
     // Per m³ charge - always applied when pumping is required
     let volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
@@ -370,11 +256,18 @@ export const concretePumpingModule: EstimateModule = {
     const errors: string[] = [];
 
     if (answers.pump_required) {
-      if (!answers.pump_type) {
-        errors.push('Please select a pump type');
-      }
-      if (!answers.pump_hours_on_site || answers.pump_hours_on_site < 1) {
-        errors.push('Please specify pump hours on site');
+      const pumpVisits: PumpVisit[] = answers.pump_visits || [];
+      if (pumpVisits.length === 0) {
+        errors.push('Please add at least one pump visit');
+      } else {
+        pumpVisits.forEach((visit, i) => {
+          if (!visit.pump_type) {
+            errors.push(`Visit ${i + 1}: Please select a pump type`);
+          }
+          if (!visit.pump_hours_on_site || visit.pump_hours_on_site < 1) {
+            errors.push(`Visit ${i + 1}: Please specify pump hours on site`);
+          }
+        });
       }
     }
 

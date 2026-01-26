@@ -1,4 +1,4 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, LabourPlacement } from '../types';
 import { getPrice } from '../types';
 
 export const labourPlaceModule: EstimateModule = {
@@ -9,45 +9,10 @@ export const labourPlaceModule: EstimateModule = {
 
   questions: [
     {
-      id: 'hourly_rate',
-      type: 'currency',
-      label: 'Hourly rate',
-      helpText: 'Rate per worker (incl. super, insurance, etc.)',
-      priceListKey: 'labour.LABOUR PLACE HR',
-      unit: '/hr',
-      required: true,
-      placeholder: 'Enter rate',
-    },
-    {
-      id: 'crew_size',
-      type: 'number',
-      label: 'Number of workers',
-      min: 1,
-      max: 20,
-      required: true,
-      placeholder: 'Enter crew size',
-    },
-    {
-      id: 'hours_per_day',
-      type: 'number',
-      label: 'Hours per day',
-      min: 0.5,
-      max: 24,
-      step: 0.5,
-      unit: 'hrs',
-      required: true,
-      placeholder: 'Enter hours',
-      defaultValue: 8,
-    },
-    {
-      id: 'number_of_days',
-      type: 'number',
-      label: 'Number of days',
-      min: 0.5,
-      step: 0.5,
-      unit: 'days',
-      required: true,
-      placeholder: 'Enter days',
+      id: 'placements',
+      type: 'text', // Custom rendering in ModuleSection
+      label: 'Placement Pours',
+      helpText: 'Configure labour for each concrete pour',
     },
   ],
 
@@ -55,13 +20,10 @@ export const labourPlaceModule: EstimateModule = {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
-    const hourlyRate = Number(answers.hourly_rate) || getPrice(priceMap, 'labour', 'LABOUR PLACE HR', 75);
-    const crewSize = Number(answers.crew_size) || 0;
-    const hoursPerDay = Number(answers.hours_per_day) || 8;
-    const numberOfDays = Number(answers.number_of_days) || 0;
-
-    // Don't calculate if no labour inputs provided
-    if (crewSize === 0 || numberOfDays === 0) {
+    // Get placements array
+    const placements: LabourPlacement[] = answers.placements || [];
+    
+    if (placements.length === 0) {
       return {
         moduleId: 'labour-place',
         moduleName: 'Labour - Place',
@@ -71,19 +33,31 @@ export const labourPlaceModule: EstimateModule = {
       };
     }
 
-    const totalHours = crewSize * hoursPerDay * numberOfDays;
-    const totalCost = totalHours * hourlyRate;
+    // Process each placement
+    placements.forEach((placement, index) => {
+      const hourlyRate = Number(placement.hourly_rate) || getPrice(priceMap, 'labour', 'LABOUR PLACE HR', 75);
+      const crewSize = Number(placement.crew_size) || 0;
+      const hours = Number(placement.hours) || 0;
 
-    lineItems.push({
-      id: 'labour_place',
-      description: `Labour - Place (${crewSize} workers × ${hoursPerDay} hrs/day × ${numberOfDays} days @ $${hourlyRate}/hr)`,
-      quantity: totalHours,
-      unit: 'hrs',
-      unitPrice: hourlyRate,
-      total: totalCost,
-      category: 'labour-place',
+      if (crewSize === 0 || hours === 0) return;
+
+      const totalHours = crewSize * hours;
+      const totalCost = totalHours * hourlyRate;
+
+      const pourName = placement.name || `Pour ${index + 1}`;
+      const label = placements.length > 1 ? `${pourName}: ` : '';
+
+      lineItems.push({
+        id: `labour_place_${index}`,
+        description: `${label}Labour - Place (${crewSize} workers × ${hours} hrs @ $${hourlyRate}/hr)`,
+        quantity: totalHours,
+        unit: 'hrs',
+        unitPrice: hourlyRate,
+        total: Math.round(totalCost * 100) / 100,
+        category: 'labour-place',
+      });
+      subtotal += totalCost;
     });
-    subtotal += totalCost;
 
     return {
       moduleId: 'labour-place',
@@ -101,18 +75,20 @@ export const labourPlaceModule: EstimateModule = {
   validate: (answers) => {
     const errors: string[] = [];
 
-    if (!answers.hourly_rate || answers.hourly_rate < 1) {
-      errors.push('Please specify the hourly rate');
-    }
-    if (!answers.crew_size || answers.crew_size < 1) {
-      errors.push('Please specify the number of workers');
-    }
-    if (!answers.hours_per_day || answers.hours_per_day < 0.5) {
-      errors.push('Please specify hours per day');
-    }
-    if (!answers.number_of_days || answers.number_of_days < 0.5) {
-      errors.push('Please specify number of days');
-    }
+    const placements: LabourPlacement[] = answers.placements || [];
+    
+    placements.forEach((placement, i) => {
+      const pourName = placement.name || `Pour ${i + 1}`;
+      if (!placement.hourly_rate || placement.hourly_rate < 1) {
+        errors.push(`${pourName}: Please specify the hourly rate`);
+      }
+      if (!placement.crew_size || placement.crew_size < 1) {
+        errors.push(`${pourName}: Please specify the number of workers`);
+      }
+      if (!placement.hours || placement.hours < 0.5) {
+        errors.push(`${pourName}: Please specify hours`);
+      }
+    });
 
     return { valid: errors.length === 0, errors };
   },
