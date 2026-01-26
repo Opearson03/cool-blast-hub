@@ -241,20 +241,22 @@ export function ModularCalculator({
 
       excavationVolume = scopeAnswers.footings.reduce((sum: number, f: any) => {
         const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
-        // For retaining wall footings, excavation width includes the toe
+        // For retaining wall footings, excavation width includes the toe if present
         const footingWidth = Number(f.width) || 0;
-        const toe = Number(f.toe) || 0;
-        const excavationWidthM = (footingWidth + toe) / 1000; // mm to m
+        const hasToe = f.has_toe === true;
+        const toeWidth = hasToe ? (Number(f.toe_width) || 0) : 0;
+        const excavationWidthM = (footingWidth + toeWidth) / 1000; // mm to m
         const depthM = (Number(f.depth) || 0) / 1000; // mm to m
         return sum + length * excavationWidthM * depthM;
       }, 0);
 
-      // Excavation area as total trench area (including toe)
+      // Excavation area as total trench area (including toe if present)
       excavationArea = scopeAnswers.footings.reduce((sum: number, f: any) => {
         const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
         const footingWidth = Number(f.width) || 0;
-        const toe = Number(f.toe) || 0;
-        const excavationWidthM = (footingWidth + toe) / 1000;
+        const hasToe = f.has_toe === true;
+        const toeWidth = hasToe ? (Number(f.toe_width) || 0) : 0;
+        const excavationWidthM = (footingWidth + toeWidth) / 1000;
         return sum + length * excavationWidthM;
       }, 0);
 
@@ -788,7 +790,9 @@ export function ModularCalculator({
         length: s._actualLength && s._actualLength > 0 ? s._actualLength : s.length,
         width: s.dimension1,
         depth: s.dimension2,
-        toe: s.toe, // Include toe for retaining wall footings excavation calculation
+        has_toe: s.has_toe,
+        toe_width: s.toe_width,
+        toe_depth: s.toe_depth,
         _fromTakeoff: s._fromTakeoff,
         _actualLength: s._actualLength,
       })),

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { LinearSection } from "@/lib/estimate-components/types";
 import { MarkupPromptDialog } from "./MarkupPromptDialog";
@@ -34,7 +35,9 @@ interface LinearTypeGroup {
   typeName: string;
   dimension1: number;
   dimension2: number;
-  toe?: number;
+  has_toe?: boolean;
+  toe_width?: number;
+  toe_depth?: number;
   segments: LinearSection[];
   totalLength: number;
   totalVolume: number;
@@ -66,8 +69,10 @@ function groupLinearByType(sections: LinearSection[], includeToe: boolean = fals
   
   sections.forEach(section => {
     const typeName = parseLinearTypeName(section.name);
-    // Group by typeName + dimensions (and toe for retaining wall footings)
-    const toeKey = includeToe ? `-${section.toe || 0}` : '';
+    // Group by typeName + dimensions (and toe settings for retaining wall footings)
+    const toeKey = includeToe 
+      ? `-${section.has_toe ? 1 : 0}-${section.toe_width || 0}-${section.toe_depth || 0}` 
+      : '';
     const key = `${typeName}-${section.dimension1}-${section.dimension2}${toeKey}`;
     
     const length = section._actualLength && section._actualLength > 0 
@@ -80,7 +85,9 @@ function groupLinearByType(sections: LinearSection[], includeToe: boolean = fals
         typeName,
         dimension1: section.dimension1 || 0,
         dimension2: section.dimension2 || 0,
-        toe: section.toe,
+        has_toe: section.has_toe,
+        toe_width: section.toe_width,
+        toe_depth: section.toe_depth,
         segments: [section],
         totalLength: length,
         totalVolume: volume,
@@ -142,11 +149,26 @@ export function MultiLinearTypeInput({
     });
   };
 
+  const matchesGroup = (section: LinearSection, group: LinearTypeGroup): boolean => {
+    const sectionType = parseLinearTypeName(section.name);
+    if (sectionType !== group.typeName) return false;
+    if (section.dimension1 !== group.dimension1) return false;
+    if (section.dimension2 !== group.dimension2) return false;
+    if (showToe) {
+      const sectionHasToe = section.has_toe ?? false;
+      const groupHasToe = group.has_toe ?? false;
+      if (sectionHasToe !== groupHasToe) return false;
+      if (sectionHasToe && groupHasToe) {
+        if (section.toe_width !== group.toe_width) return false;
+        if (section.toe_depth !== group.toe_depth) return false;
+      }
+    }
+    return true;
+  };
+
   const updateGroupDimensions = (group: LinearTypeGroup, field: 'dimension1' | 'dimension2', value: number) => {
     const updatedSections = sections.map(section => {
-      const sectionType = parseLinearTypeName(section.name);
-      const toeMatch = !showToe || section.toe === group.toe;
-      if (sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2 && toeMatch) {
+      if (matchesGroup(section, group)) {
         return { ...section, [field]: value };
       }
       return section;
@@ -154,12 +176,10 @@ export function MultiLinearTypeInput({
     onChange(updatedSections);
   };
 
-  const updateGroupToe = (group: LinearTypeGroup, value: number) => {
+  const updateGroupToe = (group: LinearTypeGroup, field: 'has_toe' | 'toe_width' | 'toe_depth', value: boolean | number) => {
     const updatedSections = sections.map(section => {
-      const sectionType = parseLinearTypeName(section.name);
-      const toeMatch = !showToe || section.toe === group.toe;
-      if (sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2 && toeMatch) {
-        return { ...section, toe: value };
+      if (matchesGroup(section, group)) {
+        return { ...section, [field]: value };
       }
       return section;
     });
@@ -172,9 +192,7 @@ export function MultiLinearTypeInput({
     const ratio = newTotalLength / group.totalLength;
     
     const updatedSections = sections.map(section => {
-      const sectionType = parseLinearTypeName(section.name);
-      const toeMatch = !showToe || section.toe === group.toe;
-      if (sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2 && toeMatch) {
+      if (matchesGroup(section, group)) {
         const currentLength = section._actualLength && section._actualLength > 0 
           ? section._actualLength 
           : (section.length || 0);
@@ -191,11 +209,7 @@ export function MultiLinearTypeInput({
   };
 
   const deleteGroup = (group: LinearTypeGroup) => {
-    const updatedSections = sections.filter(section => {
-      const sectionType = parseLinearTypeName(section.name);
-      const toeMatch = !showToe || section.toe === group.toe;
-      return !(sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2 && toeMatch);
-    });
+    const updatedSections = sections.filter(section => !matchesGroup(section, group));
     onChange(updatedSections);
   };
 
@@ -217,7 +231,7 @@ export function MultiLinearTypeInput({
       length: 0,
       dimension1: config.dimension1Default,
       dimension2: config.dimension2Default,
-      ...(showToe ? { toe: 300 } : {}), // Default toe of 300mm for retaining wall footings
+      ...(showToe ? { has_toe: false, toe_width: 300, toe_depth: 300 } : {}),
     };
     
     onChange([...sections, newSection]);
@@ -259,7 +273,11 @@ export function MultiLinearTypeInput({
       length: 0,
       dimension1: group.dimension1,
       dimension2: group.dimension2,
-      ...(showToe ? { toe: group.toe || 300 } : {}), // Inherit toe from group
+      ...(showToe ? { 
+        has_toe: group.has_toe ?? false, 
+        toe_width: group.toe_width ?? 300, 
+        toe_depth: group.toe_depth ?? 300 
+      } : {}),
     };
     
     onChange([...sections, newSection]);
@@ -377,10 +395,7 @@ export function MultiLinearTypeInput({
                 </div>
 
                 {/* Dimensions & Totals Grid */}
-                <div className={cn(
-                  "grid gap-3",
-                  showToe ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"
-                )}>
+                <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">{config.dimension1Label}</Label>
                     <div className="relative">
@@ -425,29 +440,6 @@ export function MultiLinearTypeInput({
                     </div>
                   </div>
 
-                  {showToe && (
-                    <div className="space-y-1">
-                      <Label className="text-xs text-muted-foreground">Toe</Label>
-                      <div className="relative">
-                        <Input
-                          type="number"
-                          inputMode="numeric"
-                          value={group.toe ?? 300}
-                          onChange={(e) =>
-                            updateGroupToe(group,
-                              e.target.value === "" ? 0 : Number(e.target.value)
-                            )
-                          }
-                          min={0}
-                          step={50}
-                          className="pr-12 h-11 sm:h-9"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                          mm
-                        </span>
-                      </div>
-                    </div>
-                  )}
 
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Total Length</Label>
@@ -482,6 +474,66 @@ export function MultiLinearTypeInput({
 
               {/* Expanded Segments */}
               <CollapsibleContent>
+                {/* Toe Section - only for retaining wall footings */}
+                {showToe && (
+                  <div className="border-t px-3 py-3 bg-muted/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-medium">Include Toe?</Label>
+                      <Switch
+                        checked={group.has_toe ?? false}
+                        onCheckedChange={(checked) => updateGroupToe(group, 'has_toe', checked)}
+                      />
+                    </div>
+                    {group.has_toe && (
+                      <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Toe Width</Label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              value={group.toe_width ?? 300}
+                              onChange={(e) =>
+                                updateGroupToe(group, 'toe_width',
+                                  e.target.value === "" ? 0 : Number(e.target.value)
+                                )
+                              }
+                              min={0}
+                              step={50}
+                              className="pr-12 h-11 sm:h-9"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                              mm
+                            </span>
+                          </div>
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs text-muted-foreground">Toe Depth</Label>
+                          <div className="relative">
+                            <Input
+                              type="number"
+                              inputMode="numeric"
+                              value={group.toe_depth ?? 300}
+                              onChange={(e) =>
+                                updateGroupToe(group, 'toe_depth',
+                                  e.target.value === "" ? 0 : Number(e.target.value)
+                                )
+                              }
+                              min={0}
+                              step={50}
+                              className="pr-12 h-11 sm:h-9"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                              mm
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Segments list */}
                 <div className="border-t px-3 py-2 bg-background/50">
                   <div className="space-y-2">
                     {group.segments.map((segment, idx) => {
