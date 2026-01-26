@@ -175,7 +175,7 @@ export function AreaReinforcementInput({
     if (hasChanges) {
       onChange(updatedAreas);
     }
-  }, [priceMap]); // Only run when priceMap changes
+  }, [priceMap, areas.length]); // Run when priceMap changes or new areas added
 
   if (areas.length === 0) {
     return (

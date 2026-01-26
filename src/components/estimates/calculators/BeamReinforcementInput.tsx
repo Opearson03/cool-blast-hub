@@ -352,7 +352,7 @@ export function BeamReinforcementInput({
     if (hasChanges) {
       onChange(updatedBeams);
     }
-  }, [priceMap]); // Only run when priceMap changes
+  }, [priceMap, beams.length]); // Run when priceMap changes or new beams added
 
   if (beams.length === 0) {
     return (
