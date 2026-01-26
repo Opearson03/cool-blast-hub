@@ -34,6 +34,7 @@ import { BeamReinforcementInput } from "./BeamReinforcementInput";
 import { AreaReinforcementInput } from "./AreaReinforcementInput";
 import { PierReinforcementInput } from "./PierReinforcementInput";
 import { FootingReinforcementInput } from "./FootingReinforcementInput";
+import { LinearSectionReinforcementInput } from "./LinearSectionReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
 import { ExtraItemsInput } from "./ExtraItemsInput";
 import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
@@ -400,10 +401,8 @@ export function ModuleSection({
                   const isSlabSurfaceSection = isRaftReoModule && currentSection === 'Slab Surface';
                   const isEdgeBeamsSection = isRaftReoModule && currentSection === 'Edge Beams';
                   const isInternalBeamsSection = isRaftReoModule && currentSection === 'Internal Beams';
-                  // Note: Pier reinforcement is rendered as a standalone section after flushSection
-                  const isFootingTmSection = isFootingReoModule && currentSection === 'Trench Mesh';
-                  const isFootingLigsSection = isFootingReoModule && currentSection === 'Ligatures';
-                  const isFootingStartersSection = isFootingReoModule && currentSection === 'Vertical Starters';
+                  // Footing reinforcement now uses LinearSectionReinforcementInput
+                  const isFootingReoSection = isFootingReoModule && currentSection === 'Footing Reinforcement';
                   
                   elements.push(
                     <div key={`section-${sectionKey}`} className="space-y-4">
@@ -477,21 +476,23 @@ export function ModuleSection({
                         </div>
                       )}
                       
-                      {/* Note: Pier reinforcement is now rendered as a standalone section after flushSection */}
-                      {/* Inline per-footing inputs for Footing reinforcement */}
-                      {(isFootingTmSection || isFootingLigsSection || isFootingStartersSection) && onScopeDataChange && footings.length > 0 && (answers.include_trench_mesh || answers.add_ligs || answers.add_vertical_bars) && (
+                      {/* Inline per-section inputs for Footing Reinforcement */}
+                      {isFootingReoSection && onScopeDataChange && footings.length > 0 && (
                         <div className="mt-4">
-                          <FootingReinforcementInput
-                            footings={footings}
-                            onChange={(newFootings) => {
+                          <LinearSectionReinforcementInput
+                            sections={footings as LinearSection[]}
+                            onChange={(newSections) => {
                               if (scopeData?.footings) {
-                                onScopeDataChange('footings', newFootings);
+                                onScopeDataChange('footings', newSections);
                               } else {
-                                onScopeDataChange('linearSections', newFootings);
+                                onScopeDataChange('linearSections', newSections);
                               }
                             }}
                             defaultReoType={answers.include_trench_mesh ? 'trench_mesh' : 'none'}
                             defaultTmType="L11TM4"
+                            defaultBarSize="N16"
+                            defaultBarSpacing="200"
+                            defaultBarConfig="bottom"
                             defaultAddLigs={answers.add_ligs || false}
                             defaultLigSize="R10"
                             defaultLigCentres={200}
@@ -499,6 +500,7 @@ export function ModuleSection({
                             defaultVerticalBarSize="N16"
                             defaultVerticalBarCentres={400}
                             label="Footing Sections"
+                            priceMap={priceMap}
                           />
                         </div>
                       )}
