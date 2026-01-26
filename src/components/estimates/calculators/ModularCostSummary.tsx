@@ -7,12 +7,14 @@ interface ModularCostSummaryProps {
   moduleCosts: ComponentCost[];
   marginPercent: number;
   scopeVolume?: number;
+  scopeArea?: number;
 }
 
 export function ModularCostSummary({
   moduleCosts,
   marginPercent,
   scopeVolume,
+  scopeArea,
 }: ModularCostSummaryProps) {
   // Calculate totals
   const subtotal = moduleCosts.reduce((sum, mc) => sum + mc.subtotal, 0);
@@ -161,12 +163,12 @@ export function ModularCostSummary({
           </div>
         </div>
 
-        {/* Per m³ rate if volume available */}
-        {scopeVolume !== undefined && scopeVolume > 0 && grandTotal > 0 && (
+        {/* Per m² rate if area available - industry standard for contractors */}
+        {scopeArea !== undefined && scopeArea > 0 && grandTotal > 0 && (
           <div className="pt-2 border-t">
             <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Rate per m³</span>
-              <span>{formatCurrency(grandTotal / scopeVolume)}</span>
+              <span>Rate per m²</span>
+              <span>{formatCurrency(grandTotal / scopeArea)}</span>
             </div>
           </div>
         )}

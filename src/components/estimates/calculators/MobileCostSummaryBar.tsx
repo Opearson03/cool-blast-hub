@@ -17,12 +17,14 @@ interface MobileCostSummaryBarProps {
   moduleCosts: ComponentCost[];
   marginPercent: number;
   scopeVolume?: number;
+  scopeArea?: number;
 }
 
 export function MobileCostSummaryBar({
   moduleCosts,
   marginPercent,
   scopeVolume,
+  scopeArea,
 }: MobileCostSummaryBarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -70,8 +72,9 @@ export function MobileCostSummaryBar({
     0
   );
 
-  const ratePerM3 = scopeVolume && scopeVolume > 0 && grandTotal > 0 
-    ? grandTotal / scopeVolume 
+  // Rate per m² - industry standard for contractors
+  const ratePerM2 = scopeArea && scopeArea > 0 && grandTotal > 0 
+    ? grandTotal / scopeArea 
     : null;
 
   return (
@@ -94,10 +97,10 @@ export function MobileCostSummaryBar({
             </div>
             
             <div className="flex items-center gap-4">
-              {ratePerM3 && (
+            {ratePerM2 && (
                 <div className="flex flex-col items-end">
                   <span className="text-xs text-muted-foreground">Rate</span>
-                  <span className="text-sm font-medium">{formatCurrency(ratePerM3)}/m³</span>
+                  <span className="text-sm font-medium">{formatCurrency(ratePerM2)}/m²</span>
                 </div>
               )}
               <Button variant="ghost" size="icon" className="h-10 w-10">
@@ -196,12 +199,12 @@ export function MobileCostSummaryBar({
             </div>
           </div>
 
-          {/* Per m³ rate if volume available */}
-          {ratePerM3 && (
+          {/* Per m² rate - industry standard for contractors */}
+          {ratePerM2 && (
             <div className="pt-3 border-t">
               <div className="flex justify-between text-sm text-muted-foreground">
-                <span>Rate per m³</span>
-                <span className="font-medium">{formatCurrency(ratePerM3)}</span>
+                <span>Rate per m²</span>
+                <span className="font-medium">{formatCurrency(ratePerM2)}</span>
               </div>
             </div>
           )}
