@@ -34,6 +34,17 @@ export const concretePumpingModule: EstimateModule = {
       required: true,
     },
     {
+      id: 'number_of_visits',
+      type: 'number',
+      label: 'Number of pump visits',
+      defaultValue: 1,
+      min: 1,
+      max: 10,
+      step: 1,
+      helpText: 'For multi-pour projects requiring separate pump bookings',
+      showIf: (answers) => answers.pump_required === true,
+    },
+    {
       id: 'pump_recommendation',
       type: 'text',
       label: 'Recommended Pump',
@@ -212,15 +223,18 @@ export const concretePumpingModule: EstimateModule = {
 
     const pumpType = answers.pump_type || 'LINE PUMP';
     const pumpRate = Number(answers.pump_rate) || getPrice(priceMap, 'pumping', pumpType, 180);
+    const numberOfVisits = Number(answers.number_of_visits) || 1;
     
-    // Travel time
-    const travelHours = answers.standard_travel_sufficient ? 1 : (Number(answers.travel_hours) || 2);
-    const travelCost = travelHours * pumpRate;
+    // Travel time (per visit)
+    const travelHoursPerVisit = answers.standard_travel_sufficient ? 1 : (Number(answers.travel_hours) || 2);
+    const totalTravelHours = travelHoursPerVisit * numberOfVisits;
+    const travelCost = totalTravelHours * pumpRate;
     
+    const visitLabel = numberOfVisits > 1 ? `${numberOfVisits} visits × ` : '';
     lineItems.push({
       id: 'pump_travel',
-      description: `Pump Travel (${travelHours} hr${travelHours > 1 ? 's' : ''})`,
-      quantity: travelHours,
+      description: `Pump Travel (${visitLabel}${travelHoursPerVisit} hr${travelHoursPerVisit > 1 ? 's' : ''})`,
+      quantity: totalTravelHours,
       unit: 'hr',
       unitPrice: pumpRate,
       total: travelCost,
@@ -228,14 +242,15 @@ export const concretePumpingModule: EstimateModule = {
     });
     subtotal += travelCost;
 
-    // Pump hours on site
-    const pumpHours = Number(answers.pump_hours_on_site) || 4;
-    const pumpHireCost = pumpHours * pumpRate;
+    // Pump hours on site (per visit)
+    const pumpHoursPerVisit = Number(answers.pump_hours_on_site) || 4;
+    const totalPumpHours = pumpHoursPerVisit * numberOfVisits;
+    const pumpHireCost = totalPumpHours * pumpRate;
 
     lineItems.push({
       id: 'pump_hire',
-      description: `${pumpType} Hire (${pumpHours} hrs on site)`,
-      quantity: pumpHours,
+      description: `${pumpType} Hire (${visitLabel}${pumpHoursPerVisit} hrs on site)`,
+      quantity: totalPumpHours,
       unit: 'hr',
       unitPrice: pumpRate,
       total: pumpHireCost,
@@ -243,16 +258,17 @@ export const concretePumpingModule: EstimateModule = {
     });
     subtotal += pumpHireCost;
 
-    // Primer
-    const primerCount = Number(answers.primer_count) || 1;
-    if (primerCount > 0) {
+    // Primer (per visit)
+    const primerCountPerVisit = Number(answers.primer_count) || 1;
+    const totalPrimerCount = primerCountPerVisit * numberOfVisits;
+    if (primerCountPerVisit > 0) {
       const primerCost = Number(answers.primer_cost) || getPrice(priceMap, 'pumping', 'PRIMER', 20);
-      const totalPrimerCost = primerCount * primerCost;
+      const totalPrimerCost = totalPrimerCount * primerCost;
 
       lineItems.push({
         id: 'primer',
-        description: `Primer Charge (×${primerCount})`,
-        quantity: primerCount,
+        description: `Primer Charge (${visitLabel}${primerCountPerVisit} primer${primerCountPerVisit > 1 ? 's' : ''})`,
+        quantity: totalPrimerCount,
         unit: 'each',
         unitPrice: primerCost,
         total: totalPrimerCost,
@@ -261,32 +277,33 @@ export const concretePumpingModule: EstimateModule = {
       subtotal += totalPrimerCost;
     }
 
-    // Offsite washout
+    // Offsite washout (per visit)
     if (answers.offsite_washout) {
-      const washoutCost = Number(answers.washout_cost) || getPrice(priceMap, 'pumping', 'PUMP WASH', 250);
+      const washoutCostPerVisit = Number(answers.washout_cost) || getPrice(priceMap, 'pumping', 'PUMP WASH', 250);
+      const totalWashoutCost = washoutCostPerVisit * numberOfVisits;
       
       lineItems.push({
         id: 'washout',
-        description: 'Offsite Washout',
-        quantity: 1,
+        description: `Offsite Washout${numberOfVisits > 1 ? ` (×${numberOfVisits})` : ''}`,
+        quantity: numberOfVisits,
         unit: 'each',
-        unitPrice: washoutCost,
-        total: washoutCost,
+        unitPrice: washoutCostPerVisit,
+        total: totalWashoutCost,
         category: 'plant',
       });
-      subtotal += washoutCost;
+      subtotal += totalWashoutCost;
     }
 
-    // Additional man (pumpy)
+    // Additional man (pumpy) - per visit
     if (answers.additional_pumpy) {
       const pumpyRate = Number(answers.pumpy_rate) || getPrice(priceMap, 'pumping', 'PUMP LAB', 95);
-      const pumpyHours = pumpHours; // Same as pump hours
-      const pumpyCost = pumpyHours * pumpyRate;
+      const totalPumpyHours = totalPumpHours; // Same as total pump hours
+      const pumpyCost = totalPumpyHours * pumpyRate;
 
       lineItems.push({
         id: 'pumpy_labour',
-        description: `Additional Man / Pumpy (${pumpyHours} hrs)`,
-        quantity: pumpyHours,
+        description: `Additional Man / Pumpy (${visitLabel}${pumpHoursPerVisit} hrs)`,
+        quantity: totalPumpyHours,
         unit: 'hr',
         unitPrice: pumpyRate,
         total: pumpyCost,

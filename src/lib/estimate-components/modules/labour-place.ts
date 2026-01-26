@@ -28,15 +28,26 @@ export const labourPlaceModule: EstimateModule = {
       placeholder: 'Enter crew size',
     },
     {
-      id: 'hours_per_man',
+      id: 'hours_per_day',
       type: 'number',
-      label: 'Hours per worker',
+      label: 'Hours per day',
       min: 0.5,
+      max: 24,
       step: 0.5,
       unit: 'hrs',
       required: true,
       placeholder: 'Enter hours',
-      helpText: 'e.g., 8 hrs = 1 day',
+      defaultValue: 8,
+    },
+    {
+      id: 'number_of_days',
+      type: 'number',
+      label: 'Number of days',
+      min: 0.5,
+      step: 0.5,
+      unit: 'days',
+      required: true,
+      placeholder: 'Enter days',
     },
   ],
 
@@ -46,10 +57,11 @@ export const labourPlaceModule: EstimateModule = {
 
     const hourlyRate = Number(answers.hourly_rate) || getPrice(priceMap, 'labour', 'LABOUR PLACE HR', 75);
     const crewSize = Number(answers.crew_size) || 0;
-    const hoursPerMan = Number(answers.hours_per_man) || 0;
+    const hoursPerDay = Number(answers.hours_per_day) || 8;
+    const numberOfDays = Number(answers.number_of_days) || 0;
 
     // Don't calculate if no labour inputs provided
-    if (crewSize === 0 || hoursPerMan === 0) {
+    if (crewSize === 0 || numberOfDays === 0) {
       return {
         moduleId: 'labour-place',
         moduleName: 'Labour - Place',
@@ -59,12 +71,12 @@ export const labourPlaceModule: EstimateModule = {
       };
     }
 
-    const totalHours = crewSize * hoursPerMan;
+    const totalHours = crewSize * hoursPerDay * numberOfDays;
     const totalCost = totalHours * hourlyRate;
 
     lineItems.push({
       id: 'labour_place',
-      description: `Labour - Place (${crewSize} workers × ${hoursPerMan} hrs @ $${hourlyRate}/hr)`,
+      description: `Labour - Place (${crewSize} workers × ${hoursPerDay} hrs/day × ${numberOfDays} days @ $${hourlyRate}/hr)`,
       quantity: totalHours,
       unit: 'hrs',
       unitPrice: hourlyRate,
@@ -95,8 +107,11 @@ export const labourPlaceModule: EstimateModule = {
     if (!answers.crew_size || answers.crew_size < 1) {
       errors.push('Please specify the number of workers');
     }
-    if (!answers.hours_per_man || answers.hours_per_man < 0.5) {
-      errors.push('Please specify hours per worker');
+    if (!answers.hours_per_day || answers.hours_per_day < 0.5) {
+      errors.push('Please specify hours per day');
+    }
+    if (!answers.number_of_days || answers.number_of_days < 0.5) {
+      errors.push('Please specify number of days');
     }
 
     return { valid: errors.length === 0, errors };
