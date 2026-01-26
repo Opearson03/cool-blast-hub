@@ -45,42 +45,12 @@ export const reinforcementRaftModule: EstimateModule = {
       unit: '%',
       sectionLabel: 'Slab Surface',
     },
-
-    // ═══════════════════════════════════════════════════════════════
-    // SECTION 2: EDGE BEAMS (toggle only - per-beam config in UI)
-    // ═══════════════════════════════════════════════════════════════
-    {
-      id: 'edge_beam_reo',
-      type: 'boolean',
-      label: 'Include Edge Beam Reinforcement',
-      defaultValue: true,
-      sectionLabel: 'Edge Beams',
-      // Note: Per-beam TM type, ligatures etc are configured inline in the UI
-    },
-
-    // ═══════════════════════════════════════════════════════════════
-    // SECTION 3: INTERNAL BEAMS (toggle only - per-beam config in UI)
-    // ═══════════════════════════════════════════════════════════════
-    {
-      id: 'internal_beam_reo',
-      type: 'boolean',
-      label: 'Include Internal Beam Reinforcement',
-      defaultValue: true,
-      sectionLabel: 'Internal Beams',
-      // Note: Per-beam TM type, ligatures etc are configured inline in the UI
-    },
-
-    // ═══════════════════════════════════════════════════════════════
-    // SECTION 4: BAR CHAIRS
-    // ═══════════════════════════════════════════════════════════════
-    
-    // SLAB CHAIRS (600mm centres = ~4 chairs/m²)
+    // SLAB CHAIRS (600mm centres = ~4 chairs/m²) - Part of Slab Surface section
     {
       id: 'slab_chairs',
       type: 'boolean',
       label: 'Include Slab Chairs',
       defaultValue: true,
-      sectionLabel: 'Bar Chairs',
     },
     {
       id: 'slab_chair_type',
@@ -121,8 +91,18 @@ export const reinforcementRaftModule: EstimateModule = {
         return priceMap?.['consumables']?.[chairType];
       },
     },
-    
-    // EDGE BEAM CHAIRS (700mm centres = ~1.4 chairs/m)
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 2: EDGE BEAMS (toggle only - per-beam config in UI)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'edge_beam_reo',
+      type: 'boolean',
+      label: 'Include Edge Beam Reinforcement',
+      defaultValue: true,
+      sectionLabel: 'Edge Beams',
+    },
+    // EDGE BEAM CHAIRS (700mm centres = ~1.4 chairs/m) - Part of Edge Beams section
     {
       id: 'edge_beam_chairs',
       type: 'boolean',
@@ -150,8 +130,18 @@ export const reinforcementRaftModule: EstimateModule = {
       showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_chairs === true,
       deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TM CHAIRS'],
     },
-    
-    // INTERNAL BEAM CHAIRS (700mm centres = ~1.4 chairs/m)
+
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 3: INTERNAL BEAMS (toggle only - per-beam config in UI)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'internal_beam_reo',
+      type: 'boolean',
+      label: 'Include Internal Beam Reinforcement',
+      defaultValue: true,
+      sectionLabel: 'Internal Beams',
+    },
+    // INTERNAL BEAM CHAIRS (700mm centres = ~1.4 chairs/m) - Part of Internal Beams section
     {
       id: 'internal_beam_chairs',
       type: 'boolean',
@@ -181,7 +171,7 @@ export const reinforcementRaftModule: EstimateModule = {
     },
     
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 5: OTHER ACCESSORIES
+    // SECTION 4: OTHER ACCESSORIES
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'tie_wire',
@@ -210,7 +200,7 @@ export const reinforcementRaftModule: EstimateModule = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 6: DELIVERY
+    // SECTION 5: DELIVERY
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'reo_delivery',
