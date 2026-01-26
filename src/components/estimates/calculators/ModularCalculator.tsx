@@ -915,8 +915,8 @@ export function ModularCalculator({
           onChange={handleFootingsChange}
           widthLabel={scope.id === 'retaining_wall_footings' ? 'Footing Width' : 'Width'}
           depthLabel={scope.id === 'retaining_wall_footings' ? 'Footing Depth' : 'Depth'}
-          // Markup prompt support
-          onRequestMarkup={onRequestMarkup}
+          // Markup prompt support - pass scope identifier for navigation
+          onRequestMarkup={() => onRequestMarkup?.(scope.id)}
           hasPlans={hasPlans}
           skipMarkupPrompt={skipMarkupPrompt}
           onSkipMarkupPromptChange={onSkipMarkupPromptChange}
@@ -952,8 +952,8 @@ export function ModularCalculator({
             depth: 300,
           }]}
           onChange={handlePadGroupsChange}
-          // Markup prompt support
-          onRequestMarkup={onRequestMarkup}
+          // Markup prompt support - pass scope identifier for navigation
+          onRequestMarkup={() => onRequestMarkup?.(scope.id)}
           hasPlans={hasPlans}
           skipMarkupPrompt={skipMarkupPrompt}
           onSkipMarkupPromptChange={onSkipMarkupPromptChange}
