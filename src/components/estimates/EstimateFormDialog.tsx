@@ -1567,11 +1567,13 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
           currentStep === "takeoff" ? "max-w-[95vw] w-full" : "max-w-4xl"
         )}
         onEscapeKeyDown={(e) => {
-          // Prevent Escape from closing the estimate dialog during takeoff step
-          // The PlanTakeoffStep handles Escape internally for canceling markups
-          if (currentStep === "takeoff") {
-            e.preventDefault();
-          }
+          // Always prevent Escape from closing the estimate wizard
+          // Individual steps handle Escape internally (e.g., takeoff for canceling markups)
+          e.preventDefault();
+        }}
+        onPointerDownOutside={(e) => {
+          // Prevent clicking outside from closing the wizard
+          e.preventDefault();
         }}
       >
         <DialogHeader className="pb-2">
