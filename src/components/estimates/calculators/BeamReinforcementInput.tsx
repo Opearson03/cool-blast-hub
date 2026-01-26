@@ -869,6 +869,108 @@ export function BeamReinforcementInput({
                       )}
                     </div>
 
+                    {/* Bar Chairs Section */}
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">TM Chairs</Label>
+                        <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                          <Switch
+                            checked={group.segments[0]?.chairs_enabled ?? false}
+                            onCheckedChange={(val) => updateGroupReinforcement(group, { chairs_enabled: val })}
+                          />
+                          <span className={cn(
+                            "text-sm min-w-[3ch]",
+                            group.segments[0]?.chairs_enabled ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                            {group.segments[0]?.chairs_enabled ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {group.segments[0]?.chairs_enabled && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Chairs/m</Label>
+                            <Input
+                              type="number"
+                              step="0.1"
+                              min="1"
+                              max="5"
+                              value={group.segments[0]?.chairs_per_m ?? 1.4}
+                              onChange={(e) => updateGroupReinforcement(group, { chairs_per_m: Number(e.target.value) })}
+                              className="h-8 text-sm"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">$/25</Label>
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                              <Input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={group.segments[0]?.chair_price_per_bag ?? 12.50}
+                                onChange={(e) => updateGroupReinforcement(group, { chair_price_per_bag: Number(e.target.value) })}
+                                className="h-8 text-sm pl-6"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Layer Chairs - only when 2 TM layers */}
+                      {tmType !== 'none' && tmLayers > 1 && (
+                        <>
+                          <div className="flex items-center justify-between pt-2">
+                            <Label className="text-xs font-medium">Chairs Between Layers</Label>
+                            <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                              <Switch
+                                checked={group.segments[0]?.layer_chairs_enabled ?? false}
+                                onCheckedChange={(val) => updateGroupReinforcement(group, { layer_chairs_enabled: val })}
+                              />
+                              <span className={cn(
+                                "text-sm min-w-[3ch]",
+                                group.segments[0]?.layer_chairs_enabled ? "text-foreground" : "text-muted-foreground"
+                              )}>
+                                {group.segments[0]?.layer_chairs_enabled ? 'Yes' : 'No'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          {group.segments[0]?.layer_chairs_enabled && (
+                            <div className="grid grid-cols-2 gap-2">
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">Layer Chairs/m</Label>
+                                <Input
+                                  type="number"
+                                  step="0.1"
+                                  min="1"
+                                  max="5"
+                                  value={group.segments[0]?.layer_chairs_per_m ?? 1}
+                                  onChange={(e) => updateGroupReinforcement(group, { layer_chairs_per_m: Number(e.target.value) })}
+                                  className="h-8 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <Label className="text-[10px] text-muted-foreground">$/25</Label>
+                                <div className="relative">
+                                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={group.segments[0]?.layer_chair_price ?? 12.50}
+                                    onChange={(e) => updateGroupReinforcement(group, { layer_chair_price: Number(e.target.value) })}
+                                    className="h-8 text-sm pl-6"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+
                     {/* Summary Footer */}
                     <div className="pt-2 border-t">
                       <p className="text-xs text-muted-foreground">

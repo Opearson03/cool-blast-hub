@@ -45,52 +45,7 @@ export const reinforcementRaftModule: EstimateModule = {
       unit: '%',
       sectionLabel: 'Slab Surface',
     },
-    // SLAB CHAIRS (600mm centres = ~4 chairs/m²) - Part of Slab Surface section
-    {
-      id: 'slab_chairs',
-      type: 'boolean',
-      label: 'Include Slab Chairs',
-      defaultValue: false,
-    },
-    {
-      id: 'slab_chair_type',
-      type: 'select',
-      label: 'Slab Chair Size',
-      options: [
-        { value: '2540C', label: '25-40mm' },
-        { value: '5065C', label: '50-65mm' },
-        { value: '7590C', label: '75-90mm' },
-        { value: '100120C', label: '100-120mm' },
-        { value: '125150C', label: '125-150mm' },
-      ],
-      defaultValue: '7590C',
-      showIf: (answers) => answers.slab_chairs === true,
-      deriveFrom: (scopeData) => {
-        const thickness = Number(scopeData?.thickness) || 300;
-        return getChairTypeFromThickness(thickness);
-      },
-    },
-    {
-      id: 'slab_chairs_per_m2',
-      type: 'number',
-      label: 'Slab Chairs/m²',
-      defaultValue: 4,
-      min: 1,
-      max: 10,
-      helpText: '600mm centres = ~4 chairs/m²',
-      showIf: (answers) => answers.slab_chairs === true,
-    },
-    {
-      id: 'slab_chair_price_per_100',
-      type: 'currency',
-      label: 'Price/100',
-      defaultValue: 35,
-      showIf: (answers) => answers.slab_chairs === true,
-      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const chairType = moduleAnswers.slab_chair_type || '7590C';
-        return priceMap?.['consumables']?.[chairType];
-      },
-    },
+    // Note: Slab chairs are now configured per-area inside AreaReinforcementInput
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 2: EDGE BEAMS (toggle only - per-beam config in UI)
@@ -102,34 +57,7 @@ export const reinforcementRaftModule: EstimateModule = {
       defaultValue: false,
       sectionLabel: 'Edge Beams',
     },
-    // EDGE BEAM CHAIRS (700mm centres = ~1.4 chairs/m) - Part of Edge Beams section
-    {
-      id: 'edge_beam_chairs',
-      type: 'boolean',
-      label: 'Include Edge Beam Chairs',
-      defaultValue: false,
-      showIf: (answers) => answers.edge_beam_reo === true,
-    },
-    {
-      id: 'edge_beam_chairs_per_m',
-      type: 'number',
-      label: 'Edge Beam Chairs/m',
-      defaultValue: 1.4,
-      min: 1,
-      max: 5,
-      step: 0.1,
-      helpText: '700mm centres = ~1.4 chairs/m',
-      showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_chairs === true,
-    },
-    {
-      id: 'edge_beam_chair_price_per_25',
-      type: 'currency',
-      label: 'TM Chair Price/25',
-      defaultValue: 12.50,
-      unit: '/bag',
-      showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_chairs === true,
-      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TMCHAIR'],
-    },
+    // Note: Edge beam chairs are now configured per-beam inside BeamReinforcementInput
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 3: INTERNAL BEAMS (toggle only - per-beam config in UI)
@@ -141,34 +69,7 @@ export const reinforcementRaftModule: EstimateModule = {
       defaultValue: false,
       sectionLabel: 'Internal Beams',
     },
-    // INTERNAL BEAM CHAIRS (700mm centres = ~1.4 chairs/m) - Part of Internal Beams section
-    {
-      id: 'internal_beam_chairs',
-      type: 'boolean',
-      label: 'Include Internal Beam Chairs',
-      defaultValue: false,
-      showIf: (answers) => answers.internal_beam_reo === true,
-    },
-    {
-      id: 'internal_beam_chairs_per_m',
-      type: 'number',
-      label: 'Internal Beam Chairs/m',
-      defaultValue: 1.4,
-      min: 1,
-      max: 5,
-      step: 0.1,
-      helpText: '700mm centres = ~1.4 chairs/m',
-      showIf: (answers) => answers.internal_beam_reo === true && answers.internal_beam_chairs === true,
-    },
-    {
-      id: 'internal_beam_chair_price_per_25',
-      type: 'currency',
-      label: 'TM Chair Price/25',
-      defaultValue: 12.50,
-      unit: '/bag',
-      showIf: (answers) => answers.internal_beam_reo === true && answers.internal_beam_chairs === true,
-      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TMCHAIR'],
-    },
+    // Note: Internal beam chairs are now configured per-beam inside BeamReinforcementInput
     
     // ═══════════════════════════════════════════════════════════════
     // SECTION 4: OTHER ACCESSORIES
@@ -346,32 +247,69 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // SLAB CHAIRS (600mm centres = ~4 chairs/m²)
+    // SLAB CHAIRS (per-area configuration)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.slab_chairs && hasAnySlabReo) {
-      const chairType = answers.slab_chair_type || getChairTypeFromThickness(Number(scopeData?.thickness) || 300);
-      const chairsPerM2 = Number(answers.slab_chairs_per_m2) || 4;
-      const bagPrice = Number(answers.slab_chair_price_per_100) || getPrice(priceMap, 'consumables', chairType, 35);
+    if (areas.length > 0) {
+      // Group chair requirements by type for aggregation
+      const chairsByType: Record<string, { count: number; price: number }> = {};
+      let layerChairsTotal = 0;
+      let layerChairPrice = 35;
       
-      const effectiveArea = areas.length > 0 
-        ? areas.reduce((sum, a) => {
-            const reoType = a.reo_type || defaultSlabReoType;
-            if (reoType === 'none' || reoType === 'fiber') return sum;
-            return sum + (a._actualArea || (Number(a.length) || 0) * (Number(a.width) || 0));
-          }, 0)
-        : totalArea;
+      areas.forEach((area) => {
+        const reoType = area.reo_type || defaultSlabReoType;
+        if (reoType === 'none' || reoType === 'fiber') return;
+        if (!area.chairs_enabled) return;
+        
+        const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
+        if (areaValue <= 0) return;
+        
+        const chairType = area.chair_type || '7590C';
+        const chairsPerM2 = area.chairs_per_m2 ?? 4;
+        const chairPrice = area.chair_price_per_bag ?? getPrice(priceMap, 'consumables', chairType, 35);
+        
+        const totalChairs = Math.ceil(areaValue * chairsPerM2);
+        
+        if (!chairsByType[chairType]) {
+          chairsByType[chairType] = { count: 0, price: chairPrice };
+        }
+        chairsByType[chairType].count += totalChairs;
+        
+        // Layer chairs (between mesh layers)
+        if (area.layer_chairs_enabled && (area.mesh_layers ?? 1) > 1) {
+          const layerChairsPerM2 = area.layer_chairs_per_m2 ?? 2;
+          layerChairsTotal += Math.ceil(areaValue * layerChairsPerM2);
+          layerChairPrice = area.layer_chair_price ?? 35;
+        }
+      });
       
-      if (effectiveArea > 0) {
-        const totalChairs = Math.ceil(effectiveArea * chairsPerM2);
-        const bags = Math.ceil(totalChairs / 100);
-        const cost = bags * bagPrice;
-
+      // Generate line items for each chair type
+      Object.entries(chairsByType).forEach(([chairType, { count, price }]) => {
+        const bags = Math.ceil(count / 100);
+        const cost = bags * price;
+        
         lineItems.push({
-          id: 'slab_bar_chairs',
+          id: `slab_chairs_${chairType}`,
           description: `Slab Bar Chairs ${CHAIR_LABELS[chairType] || chairType} (${bags} × 100)`,
           quantity: bags,
           unit: 'bags',
-          unitPrice: bagPrice,
+          unitPrice: price,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      });
+      
+      // Layer chairs between mesh layers
+      if (layerChairsTotal > 0) {
+        const bags = Math.ceil(layerChairsTotal / 100);
+        const cost = bags * layerChairPrice;
+        
+        lineItems.push({
+          id: 'slab_layer_chairs',
+          description: `Mesh Layer Spacer Chairs (${bags} × 100)`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: layerChairPrice,
           total: Math.round(cost * 100) / 100,
           category: 'materials',
         });
@@ -380,24 +318,57 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // EDGE BEAM CHAIRS (700mm centres = ~1.4 chairs/m)
+    // EDGE BEAM CHAIRS (per-beam configuration)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.edge_beam_chairs && answers.edge_beam_reo && edgeBeams.length > 0) {
-      const chairsPerM = Number(answers.edge_beam_chairs_per_m) || 1.4;
-      const bagPrice = Number(answers.edge_beam_chair_price_per_25) || getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
+    if (answers.edge_beam_reo && edgeBeams.length > 0) {
+      let totalChairs = 0;
+      let totalLayerChairs = 0;
+      let chairPrice = 12.50;
+      let layerChairPrice = 12.50;
       
-      const totalEdgeLength = edgeBeams.reduce((sum, b) => sum + (Number(b.length) || 0), 0);
-      const totalChairs = Math.ceil(totalEdgeLength * chairsPerM);
-      const bags = Math.ceil(totalChairs / 25);
-      const cost = bags * bagPrice;
-
-      if (cost > 0) {
+      edgeBeams.forEach((beam) => {
+        if (!beam.chairs_enabled) return;
+        const length = Number(beam.length) || 0;
+        if (length <= 0) return;
+        
+        const chairsPerM = beam.chairs_per_m ?? 1.4;
+        chairPrice = beam.chair_price_per_bag ?? getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
+        totalChairs += Math.ceil(length * chairsPerM);
+        
+        // Layer chairs (between TM layers)
+        if (beam.layer_chairs_enabled && (beam.tm_layers ?? 1) > 1) {
+          const layerChairsPerM = beam.layer_chairs_per_m ?? 1;
+          layerChairPrice = beam.layer_chair_price ?? 12.50;
+          totalLayerChairs += Math.ceil(length * layerChairsPerM);
+        }
+      });
+      
+      if (totalChairs > 0) {
+        const bags = Math.ceil(totalChairs / 25);
+        const cost = bags * chairPrice;
+        
         lineItems.push({
           id: 'edge_beam_chairs',
           description: `Edge Beam TM Chairs (${bags} × 25)`,
           quantity: bags,
           unit: 'bags',
-          unitPrice: bagPrice,
+          unitPrice: chairPrice,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
+      
+      if (totalLayerChairs > 0) {
+        const bags = Math.ceil(totalLayerChairs / 25);
+        const cost = bags * layerChairPrice;
+        
+        lineItems.push({
+          id: 'edge_beam_layer_chairs',
+          description: `Edge Beam TM Layer Chairs (${bags} × 25)`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: layerChairPrice,
           total: Math.round(cost * 100) / 100,
           category: 'materials',
         });
@@ -406,24 +377,57 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // INTERNAL BEAM CHAIRS (700mm centres = ~1.4 chairs/m)
+    // INTERNAL BEAM CHAIRS (per-beam configuration)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.internal_beam_chairs && answers.internal_beam_reo && internalBeams.length > 0) {
-      const chairsPerM = Number(answers.internal_beam_chairs_per_m) || 1.4;
-      const bagPrice = Number(answers.internal_beam_chair_price_per_25) || getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
+    if (answers.internal_beam_reo && internalBeams.length > 0) {
+      let totalChairs = 0;
+      let totalLayerChairs = 0;
+      let chairPrice = 12.50;
+      let layerChairPrice = 12.50;
       
-      const totalInternalLength = internalBeams.reduce((sum, b) => sum + (Number(b.length) || 0), 0);
-      const totalChairs = Math.ceil(totalInternalLength * chairsPerM);
-      const bags = Math.ceil(totalChairs / 25);
-      const cost = bags * bagPrice;
-
-      if (cost > 0) {
+      internalBeams.forEach((beam) => {
+        if (!beam.chairs_enabled) return;
+        const length = Number(beam.length) || 0;
+        if (length <= 0) return;
+        
+        const chairsPerM = beam.chairs_per_m ?? 1.4;
+        chairPrice = beam.chair_price_per_bag ?? getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
+        totalChairs += Math.ceil(length * chairsPerM);
+        
+        // Layer chairs (between TM layers)
+        if (beam.layer_chairs_enabled && (beam.tm_layers ?? 1) > 1) {
+          const layerChairsPerM = beam.layer_chairs_per_m ?? 1;
+          layerChairPrice = beam.layer_chair_price ?? 12.50;
+          totalLayerChairs += Math.ceil(length * layerChairsPerM);
+        }
+      });
+      
+      if (totalChairs > 0) {
+        const bags = Math.ceil(totalChairs / 25);
+        const cost = bags * chairPrice;
+        
         lineItems.push({
           id: 'internal_beam_chairs',
           description: `Internal Beam TM Chairs (${bags} × 25)`,
           quantity: bags,
           unit: 'bags',
-          unitPrice: bagPrice,
+          unitPrice: chairPrice,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
+      
+      if (totalLayerChairs > 0) {
+        const bags = Math.ceil(totalLayerChairs / 25);
+        const cost = bags * layerChairPrice;
+        
+        lineItems.push({
+          id: 'internal_beam_layer_chairs',
+          description: `Internal Beam TM Layer Chairs (${bags} × 25)`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: layerChairPrice,
           total: Math.round(cost * 100) / 100,
           category: 'materials',
         });
