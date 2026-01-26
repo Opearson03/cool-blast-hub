@@ -37,286 +37,6 @@ export const reinforcementPadModule: EstimateModule = {
   icon: 'Grid3X3',
 
   questions: [
-    // ============ BOTTOM REINFORCEMENT ============
-    {
-      id: 'has_bottom_reo',
-      type: 'boolean',
-      label: 'Include Bottom Reinforcement?',
-      defaultValue: false,
-    },
-    
-    // Bottom Bar A (spans Length direction)
-    {
-      id: 'bottom_a_size',
-      type: 'select',
-      label: 'Bottom Bar A Size',
-      options: [
-        { value: 'N12', label: 'N12 (12mm)' },
-        { value: 'N16', label: 'N16 (16mm)' },
-        { value: 'N20', label: 'N20 (20mm)' },
-        { value: 'N24', label: 'N24 (24mm)' },
-        { value: 'N28', label: 'N28 (28mm)' },
-        { value: 'N32', label: 'N32 (32mm)' },
-      ],
-      defaultValue: 'N16',
-      showIf: (answers) => answers.has_bottom_reo === true,
-    },
-    {
-      id: 'bottom_a_centres',
-      type: 'number',
-      label: 'Bottom Bar A Centres',
-      defaultValue: 200,
-      unit: 'mm',
-      min: 100,
-      max: 600,
-      helpText: 'Bars span length direction, spaced across width',
-      showIf: (answers) => answers.has_bottom_reo === true,
-    },
-    {
-      id: 'calculated_bottom_a',
-      type: 'text',
-      label: 'Calculated Bottom A',
-      derivedReadOnly: true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        const numPads = Number(scopeData.total_num_pads) || 1;
-        const padLength = Number(scopeData.total_length) || 2400;
-        const padWidth = Number(scopeData.total_width) || 2400;
-        const padDepth = Number(scopeData.total_depth) || 300;
-        const centres = Number(moduleAnswers.bottom_a_centres) || 200;
-        const barSize = moduleAnswers.bottom_a_size || 'N16';
-        
-        // Bar count: spaced across width
-        const barCountPerPad = calculateBarCount(padWidth, centres);
-        const totalBars = barCountPerPad * numPads;
-        
-        // Bar length: spans length + cranks
-        const { totalLength, crankPerSide } = calculateBarLengthWithCrank(padLength, padDepth);
-        
-        const crankNote = crankPerSide > 0 ? ` (inc. ${crankPerSide}mm crank each end)` : '';
-        return `${totalBars} × ${barSize} @ ${totalLength}mm${crankNote}`;
-      },
-      showIf: (answers) => answers.has_bottom_reo === true,
-    },
-    
-    // Bottom Bar B (spans Width direction)
-    {
-      id: 'bottom_b_size',
-      type: 'select',
-      label: 'Bottom Bar B Size',
-      options: [
-        { value: 'N12', label: 'N12 (12mm)' },
-        { value: 'N16', label: 'N16 (16mm)' },
-        { value: 'N20', label: 'N20 (20mm)' },
-        { value: 'N24', label: 'N24 (24mm)' },
-        { value: 'N28', label: 'N28 (28mm)' },
-        { value: 'N32', label: 'N32 (32mm)' },
-      ],
-      defaultValue: 'N16',
-      showIf: (answers) => answers.has_bottom_reo === true,
-    },
-    {
-      id: 'bottom_b_centres',
-      type: 'number',
-      label: 'Bottom Bar B Centres',
-      defaultValue: 200,
-      unit: 'mm',
-      min: 100,
-      max: 600,
-      helpText: 'Bars span width direction, spaced across length',
-      showIf: (answers) => answers.has_bottom_reo === true,
-    },
-    {
-      id: 'calculated_bottom_b',
-      type: 'text',
-      label: 'Calculated Bottom B',
-      derivedReadOnly: true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        const numPads = Number(scopeData.total_num_pads) || 1;
-        const padLength = Number(scopeData.total_length) || 2400;
-        const padWidth = Number(scopeData.total_width) || 2400;
-        const padDepth = Number(scopeData.total_depth) || 300;
-        const centres = Number(moduleAnswers.bottom_b_centres) || 200;
-        const barSize = moduleAnswers.bottom_b_size || 'N16';
-        
-        // Bar count: spaced across length
-        const barCountPerPad = calculateBarCount(padLength, centres);
-        const totalBars = barCountPerPad * numPads;
-        
-        // Bar length: spans width + cranks
-        const { totalLength, crankPerSide } = calculateBarLengthWithCrank(padWidth, padDepth);
-        
-        const crankNote = crankPerSide > 0 ? ` (inc. ${crankPerSide}mm crank each end)` : '';
-        return `${totalBars} × ${barSize} @ ${totalLength}mm${crankNote}`;
-      },
-      showIf: (answers) => answers.has_bottom_reo === true,
-    },
-    
-    // ============ TOP REINFORCEMENT ============
-    {
-      id: 'has_top_reo',
-      type: 'boolean',
-      label: 'Include Top Reinforcement?',
-      defaultValue: false,
-      helpText: 'For deeper footings requiring top mat',
-    },
-    
-    // Top Bar A
-    {
-      id: 'top_a_size',
-      type: 'select',
-      label: 'Top Bar A Size',
-      options: [
-        { value: 'N12', label: 'N12 (12mm)' },
-        { value: 'N16', label: 'N16 (16mm)' },
-        { value: 'N20', label: 'N20 (20mm)' },
-        { value: 'N24', label: 'N24 (24mm)' },
-        { value: 'N28', label: 'N28 (28mm)' },
-        { value: 'N32', label: 'N32 (32mm)' },
-      ],
-      defaultValue: 'N16',
-      showIf: (answers) => answers.has_top_reo === true,
-    },
-    {
-      id: 'top_a_centres',
-      type: 'number',
-      label: 'Top Bar A Centres',
-      defaultValue: 200,
-      unit: 'mm',
-      min: 100,
-      max: 600,
-      showIf: (answers) => answers.has_top_reo === true,
-    },
-    {
-      id: 'calculated_top_a',
-      type: 'text',
-      label: 'Calculated Top A',
-      derivedReadOnly: true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        const numPads = Number(scopeData.total_num_pads) || 1;
-        const padLength = Number(scopeData.total_length) || 2400;
-        const padWidth = Number(scopeData.total_width) || 2400;
-        const padDepth = Number(scopeData.total_depth) || 300;
-        const centres = Number(moduleAnswers.top_a_centres) || 200;
-        const barSize = moduleAnswers.top_a_size || 'N16';
-        
-        const barCountPerPad = calculateBarCount(padWidth, centres);
-        const totalBars = barCountPerPad * numPads;
-        const { totalLength, crankPerSide } = calculateBarLengthWithCrank(padLength, padDepth);
-        
-        const crankNote = crankPerSide > 0 ? ` (inc. ${crankPerSide}mm crank each end)` : '';
-        return `${totalBars} × ${barSize} @ ${totalLength}mm${crankNote}`;
-      },
-      showIf: (answers) => answers.has_top_reo === true,
-    },
-    
-    // Top Bar B
-    {
-      id: 'top_b_size',
-      type: 'select',
-      label: 'Top Bar B Size',
-      options: [
-        { value: 'N12', label: 'N12 (12mm)' },
-        { value: 'N16', label: 'N16 (16mm)' },
-        { value: 'N20', label: 'N20 (20mm)' },
-        { value: 'N24', label: 'N24 (24mm)' },
-        { value: 'N28', label: 'N28 (28mm)' },
-        { value: 'N32', label: 'N32 (32mm)' },
-      ],
-      defaultValue: 'N16',
-      showIf: (answers) => answers.has_top_reo === true,
-    },
-    {
-      id: 'top_b_centres',
-      type: 'number',
-      label: 'Top Bar B Centres',
-      defaultValue: 200,
-      unit: 'mm',
-      min: 100,
-      max: 600,
-      showIf: (answers) => answers.has_top_reo === true,
-    },
-    {
-      id: 'calculated_top_b',
-      type: 'text',
-      label: 'Calculated Top B',
-      derivedReadOnly: true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        const numPads = Number(scopeData.total_num_pads) || 1;
-        const padLength = Number(scopeData.total_length) || 2400;
-        const padWidth = Number(scopeData.total_width) || 2400;
-        const padDepth = Number(scopeData.total_depth) || 300;
-        const centres = Number(moduleAnswers.top_b_centres) || 200;
-        const barSize = moduleAnswers.top_b_size || 'N16';
-        
-        const barCountPerPad = calculateBarCount(padLength, centres);
-        const totalBars = barCountPerPad * numPads;
-        const { totalLength, crankPerSide } = calculateBarLengthWithCrank(padWidth, padDepth);
-        
-        const crankNote = crankPerSide > 0 ? ` (inc. ${crankPerSide}mm crank each end)` : '';
-        return `${totalBars} × ${barSize} @ ${totalLength}mm${crankNote}`;
-      },
-      showIf: (answers) => answers.has_top_reo === true,
-    },
-    
-    // ============ ADDITIONAL HORIZONTAL BARS ============
-    {
-      id: 'has_additional_horizontal',
-      type: 'boolean',
-      label: 'Add Additional Horizontal Bars?',
-      defaultValue: false,
-      helpText: 'For extra bars in the horizontal face (as per structural drawing)',
-    },
-    {
-      id: 'additional_h_count',
-      type: 'number',
-      label: 'Number of Additional Bars per Pad',
-      defaultValue: 2,
-      min: 1,
-      max: 20,
-      showIf: (answers) => answers.has_additional_horizontal === true,
-    },
-    {
-      id: 'additional_h_size',
-      type: 'select',
-      label: 'Additional Bar Size',
-      options: [
-        { value: 'N12', label: 'N12 (12mm)' },
-        { value: 'N16', label: 'N16 (16mm)' },
-        { value: 'N20', label: 'N20 (20mm)' },
-        { value: 'N24', label: 'N24 (24mm)' },
-      ],
-      defaultValue: 'N16',
-      showIf: (answers) => answers.has_additional_horizontal === true,
-    },
-    {
-      id: 'additional_h_length',
-      type: 'number',
-      label: 'Additional Bar Length (mm)',
-      unit: 'mm',
-      min: 100,
-      deriveFrom: (scopeData) => {
-        // Default to pad length minus cover
-        const padLength = Number(scopeData.total_length) || 2400;
-        return padLength - 100;
-      },
-      showIf: (answers) => answers.has_additional_horizontal === true,
-    },
-    {
-      id: 'calculated_additional_h',
-      type: 'text',
-      label: 'Calculated Additional Bars',
-      derivedReadOnly: true,
-      deriveFrom: (scopeData, moduleAnswers) => {
-        const numPads = Number(scopeData.total_num_pads) || 1;
-        const barsPerPad = Number(moduleAnswers.additional_h_count) || 2;
-        const barSize = moduleAnswers.additional_h_size || 'N16';
-        const barLength = Number(moduleAnswers.additional_h_length) || 2300;
-        const totalBars = barsPerPad * numPads;
-        return `${totalBars} × ${barSize} @ ${barLength}mm`;
-      },
-      showIf: (answers) => answers.has_additional_horizontal === true,
-    },
-    
     // ============ PRICING ============
     {
       id: 'rebar_type',
@@ -336,36 +56,8 @@ export const reinforcementPadModule: EstimateModule = {
       unit: '/tonne',
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
         const isCutBend = moduleAnswers.rebar_type === 'cut_bend';
-        const barSize = moduleAnswers.bottom_a_size || 'N16';
-        const priceKey = isCutBend ? `${barSize} CUT BEND` : `${barSize} STOCK`;
+        const priceKey = isCutBend ? 'N16 CUT BEND' : 'N16 STOCK';
         return priceMap?.['rebar']?.[priceKey];
-      },
-    },
-    {
-      id: 'bar_chairs',
-      type: 'boolean',
-      label: 'Include Bar Chairs?',
-      defaultValue: false,
-    },
-    {
-      id: 'chairs_per_sqm',
-      type: 'number',
-      label: 'Chairs per m²',
-      defaultValue: 4,
-      min: 1,
-      max: 10,
-      showIf: (answers) => answers.bar_chairs === true,
-    },
-    {
-      id: 'chair_price_per_100',
-      type: 'currency',
-      label: 'Chair Price per 100',
-      defaultValue: 45,
-      unit: '/100',
-      showIf: (answers) => answers.bar_chairs === true,
-      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
-        // Default to 75-90mm chairs, can be overridden by user
-        return priceMap?.['consumables']?.['7590C'];
       },
     },
     {
@@ -404,18 +96,6 @@ export const reinforcementPadModule: EstimateModule = {
       return (lengthMm / 1000) * weightPerM * count;
     };
     
-    // Default values from module answers
-    const defaultHasBottomReo = answers.has_bottom_reo ?? true;
-    const defaultBottomASize = answers.bottom_a_size || 'N16';
-    const defaultBottomACentres = Number(answers.bottom_a_centres) || 200;
-    const defaultBottomBSize = answers.bottom_b_size || 'N16';
-    const defaultBottomBCentres = Number(answers.bottom_b_centres) || 200;
-    const defaultHasTopReo = answers.has_top_reo ?? false;
-    const defaultTopASize = answers.top_a_size || 'N16';
-    const defaultTopACentres = Number(answers.top_a_centres) || 200;
-    const defaultTopBSize = answers.top_b_size || 'N16';
-    const defaultTopBCentres = Number(answers.top_b_centres) || 200;
-    
     // Process pad groups (or fallback to legacy single calculation)
     const groupsToProcess = padGroups.length > 0 
       ? padGroups 
@@ -435,17 +115,22 @@ export const reinforcementPadModule: EstimateModule = {
       const padWidth = Number(group.width) || 2400;
       const padDepth = Number(group.depth) || 300;
       
-      // Get group-specific or default values
-      const hasBottomReo = group.has_bottom_reo ?? defaultHasBottomReo;
-      const bottomASize = group.bottom_a_size || defaultBottomASize;
-      const bottomACentres = group.bottom_a_centres ?? defaultBottomACentres;
-      const bottomBSize = group.bottom_b_size || defaultBottomBSize;
-      const bottomBCentres = group.bottom_b_centres ?? defaultBottomBCentres;
-      const hasTopReo = group.has_top_reo ?? defaultHasTopReo;
-      const topASize = group.top_a_size || defaultTopASize;
-      const topACentres = group.top_a_centres ?? defaultTopACentres;
-      const topBSize = group.top_b_size || defaultTopBSize;
-      const topBCentres = group.top_b_centres ?? defaultTopBCentres;
+      // Get group-specific values (all reinforcement is now per-group)
+      const hasBottomReo = group.has_bottom_reo ?? false;
+      const bottomASize = group.bottom_a_size || 'N16';
+      const bottomACentres = group.bottom_a_centres ?? 200;
+      const bottomBSize = group.bottom_b_size || 'N16';
+      const bottomBCentres = group.bottom_b_centres ?? 200;
+      const hasTopReo = group.has_top_reo ?? false;
+      const topASize = group.top_a_size || 'N16';
+      const topACentres = group.top_a_centres ?? 200;
+      const topBSize = group.top_b_size || 'N16';
+      const topBCentres = group.top_b_centres ?? 200;
+      
+      // Bar Chairs (per-group)
+      const chairsEnabled = group.chairs_enabled ?? false;
+      const chairsPerSqm = group.chairs_per_sqm ?? 4;
+      const chairPricePer100 = group.chair_price_per_100 ?? 45;
       
       // Bottom Reinforcement
       if (hasBottomReo) {
@@ -528,60 +213,25 @@ export const reinforcementPadModule: EstimateModule = {
           category: 'materials',
         });
       }
+      
+      // Bar chairs (per-group)
+      if (chairsEnabled) {
+        const padAreaSqm = (padLength / 1000) * (padWidth / 1000) * numPads;
+        const totalChairs = Math.ceil(padAreaSqm * chairsPerSqm);
+        const chairCost = (totalChairs / 100) * chairPricePer100;
+        totalCost += chairCost;
+        
+        lineItems.push({
+          id: `reo-pad-${itemIdx++}`,
+          description: `${groupName} - Bar Chairs: ${totalChairs} chairs`,
+          quantity: totalChairs,
+          unit: 'ea',
+          unitPrice: chairPricePer100 / 100,
+          total: chairCost,
+          category: 'materials',
+        });
+      }
     });
-    
-    // Additional Horizontal Bars (global setting, applied across all pads)
-    const totalPads = padGroups.length > 0 
-      ? padGroups.reduce((sum, g) => sum + (g.quantity || 1), 0)
-      : legacyNumPads;
-    const avgPadLength = padGroups.length > 0
-      ? padGroups.reduce((sum, g) => sum + (g.length || 2400) * (g.quantity || 1), 0) / totalPads
-      : legacyPadLength;
-    const avgPadWidth = padGroups.length > 0
-      ? padGroups.reduce((sum, g) => sum + (g.width || 2400) * (g.quantity || 1), 0) / totalPads
-      : legacyPadWidth;
-    
-    // Additional Horizontal Bars
-    if (answers.has_additional_horizontal) {
-      const addHSize = answers.additional_h_size || 'N16';
-      const addHCount = Number(answers.additional_h_count) || 2;
-      const addHLength = Number(answers.additional_h_length) || (avgPadLength - 100);
-      const addHTotalBars = addHCount * totalPads;
-      const addHWeightKg = getBarWeight(addHSize, addHLength, addHTotalBars);
-      totalWeightKg += addHWeightKg;
-      const addHCost = (addHWeightKg / 1000) * pricePerTonne;
-      totalCost += addHCost;
-      
-      lineItems.push({
-        id: `reo-pad-${itemIdx++}`,
-        description: `Additional Horizontal: ${addHTotalBars} × ${addHSize} @ ${addHLength}mm`,
-        quantity: addHWeightKg,
-        unit: 'kg',
-        unitPrice: pricePerTonne / 1000,
-        total: addHCost,
-        category: 'materials',
-      });
-    }
-    
-    // Bar chairs
-    if (answers.bar_chairs) {
-      const padAreaSqm = (avgPadLength / 1000) * (avgPadWidth / 1000) * totalPads;
-      const chairsPerSqm = Number(answers.chairs_per_sqm) || 4;
-      const totalChairs = Math.ceil(padAreaSqm * chairsPerSqm);
-      const chairPrice = Number(answers.chair_price_per_100) || 45;
-      const chairCost = (totalChairs / 100) * chairPrice;
-      totalCost += chairCost;
-      
-      lineItems.push({
-        id: `reo-pad-${itemIdx++}`,
-        description: `Bar Chairs: ${totalChairs} chairs`,
-        quantity: totalChairs,
-        unit: 'ea',
-        unitPrice: chairPrice / 100,
-        total: chairCost,
-        category: 'materials',
-      });
-    }
     
     // Delivery
     const delivery = Number(answers.reo_delivery) || 150;
@@ -613,16 +263,19 @@ export const reinforcementPadModule: EstimateModule = {
       });
     }
     
-    // Get exclusions
+    // Get exclusions based on all groups
     const exclusions: ExclusionItem[] = [];
-    if (!answers.has_bottom_reo && !answers.has_top_reo) {
+    const hasAnyReo = groupsToProcess.some(g => g.has_bottom_reo || g.has_top_reo);
+    const hasAnyChairs = groupsToProcess.some(g => g.chairs_enabled);
+    
+    if (!hasAnyReo) {
       exclusions.push({
         id: 'no-reinforcement',
         text: 'Steel reinforcement not included',
         moduleId: 'reinforcement-pad',
       });
     }
-    if (!answers.bar_chairs) {
+    if (!hasAnyChairs) {
       exclusions.push({
         id: 'no-chairs',
         text: 'Bar chairs/spacers not included',
@@ -641,8 +294,13 @@ export const reinforcementPadModule: EstimateModule = {
 
   getExclusions: (answers: Record<string, any>, scopeData?: Record<string, any>): ExclusionItem[] => {
     const exclusions: ExclusionItem[] = [];
+    const padGroups = (scopeData?.padGroups || []) as PadFootingGroup[];
     
-    if (!answers.has_bottom_reo && !answers.has_top_reo) {
+    // Check if any group has reinforcement
+    const hasAnyReo = padGroups.some(g => g.has_bottom_reo || g.has_top_reo);
+    const hasAnyChairs = padGroups.some(g => g.chairs_enabled);
+    
+    if (!hasAnyReo && padGroups.length > 0) {
       exclusions.push({
         id: 'no-reinforcement',
         text: 'Steel reinforcement not included',
@@ -650,7 +308,7 @@ export const reinforcementPadModule: EstimateModule = {
       });
     }
     
-    if (!answers.bar_chairs) {
+    if (!hasAnyChairs && padGroups.length > 0) {
       exclusions.push({
         id: 'no-chairs',
         text: 'Bar chairs/spacers not included',
@@ -662,26 +320,7 @@ export const reinforcementPadModule: EstimateModule = {
   },
 
   validate: (answers: Record<string, any>): { valid: boolean; errors: string[] } => {
-    const errors: string[] = [];
-    
-    if (answers.has_bottom_reo) {
-      if (!answers.bottom_a_centres || answers.bottom_a_centres <= 0) {
-        errors.push('Bottom Bar A centres is required');
-      }
-      if (!answers.bottom_b_centres || answers.bottom_b_centres <= 0) {
-        errors.push('Bottom Bar B centres is required');
-      }
-    }
-    
-    if (answers.has_top_reo) {
-      if (!answers.top_a_centres || answers.top_a_centres <= 0) {
-        errors.push('Top Bar A centres is required');
-      }
-      if (!answers.top_b_centres || answers.top_b_centres <= 0) {
-        errors.push('Top Bar B centres is required');
-      }
-    }
-    
-    return { valid: errors.length === 0, errors };
+    // Validation is now per-group, no global validation needed
+    return { valid: true, errors: [] };
   },
 };

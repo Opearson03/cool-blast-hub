@@ -277,6 +277,11 @@ export interface PadFootingGroup {
   top_a_centres?: number;
   top_b_size?: string;
   top_b_centres?: number;
+  
+  // Bar Chairs
+  chairs_enabled?: boolean;
+  chairs_per_sqm?: number;
+  chair_price_per_100?: number;
 }
 
 /**

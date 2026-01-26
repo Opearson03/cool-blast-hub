@@ -569,16 +569,7 @@ export function ModuleSection({
                     <PadFootingGroupReinforcementInput
                       padGroups={padGroups}
                       onChange={(newPadGroups) => onScopeDataChange('padGroups', newPadGroups)}
-                      defaultHasBottomReo={answers.has_bottom_reo ?? true}
-                      defaultBottomASize={answers.bottom_a_size || 'N16'}
-                      defaultBottomACentres={answers.bottom_a_centres ?? 200}
-                      defaultBottomBSize={answers.bottom_b_size || 'N16'}
-                      defaultBottomBCentres={answers.bottom_b_centres ?? 200}
-                      defaultHasTopReo={answers.has_top_reo ?? false}
-                      defaultTopASize={answers.top_a_size || 'N16'}
-                      defaultTopACentres={answers.top_a_centres ?? 200}
-                      defaultTopBSize={answers.top_b_size || 'N16'}
-                      defaultTopBCentres={answers.top_b_centres ?? 200}
+                      priceMap={priceMap}
                       label="Pad Footing Groups"
                     />
                   </div>

@@ -1,4 +1,4 @@
-import { PadFootingGroup } from "@/lib/estimate-components/types";
+import { PadFootingGroup, PriceMap } from "@/lib/estimate-components/types";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -17,7 +17,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Settings2, Square, ChevronsUpDown } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 const BAR_SIZE_OPTIONS = [
@@ -32,35 +32,37 @@ const BAR_SIZE_OPTIONS = [
 interface PadFootingGroupReinforcementInputProps {
   padGroups: PadFootingGroup[];
   onChange: (padGroups: PadFootingGroup[]) => void;
-  defaultHasBottomReo: boolean;
-  defaultBottomASize: string;
-  defaultBottomACentres: number;
-  defaultBottomBSize: string;
-  defaultBottomBCentres: number;
-  defaultHasTopReo: boolean;
-  defaultTopASize: string;
-  defaultTopACentres: number;
-  defaultTopBSize: string;
-  defaultTopBCentres: number;
+  priceMap?: PriceMap;
   label: string;
 }
 
 export function PadFootingGroupReinforcementInput({
   padGroups,
   onChange,
-  defaultHasBottomReo,
-  defaultBottomASize,
-  defaultBottomACentres,
-  defaultBottomBSize,
-  defaultBottomBCentres,
-  defaultHasTopReo,
-  defaultTopASize,
-  defaultTopACentres,
-  defaultTopBSize,
-  defaultTopBCentres,
+  priceMap,
   label,
 }: PadFootingGroupReinforcementInputProps) {
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+
+  // Auto-populate chair price from price map when groups load
+  useEffect(() => {
+    if (!priceMap) return;
+    
+    const defaultChairPrice = priceMap['consumables']?.['7590C'] ?? 45;
+    let hasUpdates = false;
+    
+    const updatedGroups = padGroups.map(group => {
+      if (group.chair_price_per_100 === undefined) {
+        hasUpdates = true;
+        return { ...group, chair_price_per_100: defaultChairPrice };
+      }
+      return group;
+    });
+    
+    if (hasUpdates) {
+      onChange(updatedGroups);
+    }
+  }, [priceMap, padGroups.length]);
 
   const toggleGroup = (groupId: string) => {
     setOpenGroups(prev => {
@@ -94,26 +96,26 @@ export function PadFootingGroupReinforcementInput({
     let totalPads = 0;
     let withBottomReoCount = 0;
     let withTopReoCount = 0;
+    let withChairsCount = 0;
     let customCount = 0;
 
     padGroups.forEach(group => {
       const padCount = group.quantity || 1;
       totalPads += padCount;
       
-      const hasBottomReo = group.has_bottom_reo ?? defaultHasBottomReo;
-      const hasTopReo = group.has_top_reo ?? defaultHasTopReo;
-      
-      if (hasBottomReo) withBottomReoCount += padCount;
-      if (hasTopReo) withTopReoCount += padCount;
+      if (group.has_bottom_reo) withBottomReoCount += padCount;
+      if (group.has_top_reo) withTopReoCount += padCount;
+      if (group.chairs_enabled) withChairsCount += padCount;
       
       if (group.has_bottom_reo !== undefined || group.bottom_a_size !== undefined ||
-          group.has_top_reo !== undefined || group.top_a_size !== undefined) {
+          group.has_top_reo !== undefined || group.top_a_size !== undefined ||
+          group.chairs_enabled !== undefined) {
         customCount++;
       }
     });
 
-    return { totalPads, withBottomReoCount, withTopReoCount, customCount, totalGroups: padGroups.length };
-  }, [padGroups, defaultHasBottomReo, defaultHasTopReo]);
+    return { totalPads, withBottomReoCount, withTopReoCount, withChairsCount, customCount, totalGroups: padGroups.length };
+  }, [padGroups]);
 
   if (padGroups.length === 0) {
     return (
@@ -147,6 +149,12 @@ export function PadFootingGroupReinforcementInput({
               <span>{summary.withTopReoCount} with top</span>
             </>
           )}
+          {summary.withChairsCount > 0 && (
+            <>
+              <span className="text-border">•</span>
+              <span>{summary.withChairsCount} with chairs</span>
+            </>
+          )}
           {summary.customCount > 0 && (
             <>
               <span className="text-border">•</span>
@@ -171,24 +179,28 @@ export function PadFootingGroupReinforcementInput({
           const isOpen = openGroups.has(group.id);
           const padCount = group.quantity || 1;
           
-          // Get effective values (group override or defaults)
-          const hasBottomReo = group.has_bottom_reo ?? defaultHasBottomReo;
-          const bottomASize = group.bottom_a_size || defaultBottomASize;
-          const bottomACentres = group.bottom_a_centres ?? defaultBottomACentres;
-          const bottomBSize = group.bottom_b_size || defaultBottomBSize;
-          const bottomBCentres = group.bottom_b_centres ?? defaultBottomBCentres;
-          const hasTopReo = group.has_top_reo ?? defaultHasTopReo;
-          const topASize = group.top_a_size || defaultTopASize;
-          const topACentres = group.top_a_centres ?? defaultTopACentres;
-          const topBSize = group.top_b_size || defaultTopBSize;
-          const topBCentres = group.top_b_centres ?? defaultTopBCentres;
+          // Get effective values (all from group directly)
+          const hasBottomReo = group.has_bottom_reo ?? false;
+          const bottomASize = group.bottom_a_size || 'N16';
+          const bottomACentres = group.bottom_a_centres ?? 200;
+          const bottomBSize = group.bottom_b_size || 'N16';
+          const bottomBCentres = group.bottom_b_centres ?? 200;
+          const hasTopReo = group.has_top_reo ?? false;
+          const topASize = group.top_a_size || 'N16';
+          const topACentres = group.top_a_centres ?? 200;
+          const topBSize = group.top_b_size || 'N16';
+          const topBCentres = group.top_b_centres ?? 200;
+          const chairsEnabled = group.chairs_enabled ?? false;
+          const chairsPerSqm = group.chairs_per_sqm ?? 4;
+          const chairPricePer100 = group.chair_price_per_100 ?? 45;
           
           const hasCustomSettings = 
             group.has_bottom_reo !== undefined || 
             group.bottom_a_size !== undefined ||
             group.bottom_a_centres !== undefined ||
             group.has_top_reo !== undefined ||
-            group.top_a_size !== undefined;
+            group.top_a_size !== undefined ||
+            group.chairs_enabled !== undefined;
 
           return (
             <Collapsible key={group.id} open={isOpen} onOpenChange={() => toggleGroup(group.id)}>
@@ -224,6 +236,11 @@ export function PadFootingGroupReinforcementInput({
                       {hasTopReo && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-accent text-accent-foreground">
                           Top
+                        </span>
+                      )}
+                      {chairsEnabled && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-accent/50 text-accent-foreground">
+                          Chairs
                         </span>
                       )}
                       {hasCustomSettings && (
@@ -421,6 +438,58 @@ export function PadFootingGroupReinforcementInput({
                               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                                 mm
                               </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bar Chairs Section */}
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Bar Chairs</Label>
+                        <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                          <Switch
+                            checked={chairsEnabled}
+                            onCheckedChange={(val) => updateGroup(groupIndex, { chairs_enabled: val })}
+                          />
+                          <span className={cn(
+                            "text-sm min-w-[3ch]",
+                            chairsEnabled ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                            {chairsEnabled ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {chairsEnabled && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Chairs per m²</Label>
+                            <Input
+                              type="number"
+                              value={chairsPerSqm}
+                              onChange={(e) => updateGroup(groupIndex, { chairs_per_sqm: Number(e.target.value) })}
+                              className="h-8 text-sm"
+                              min={1}
+                              max={10}
+                              step={1}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Price per 100</Label>
+                            <div className="relative">
+                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                                $
+                              </span>
+                              <Input
+                                type="number"
+                                value={chairPricePer100}
+                                onChange={(e) => updateGroup(groupIndex, { chair_price_per_100: Number(e.target.value) })}
+                                className="h-8 text-sm pl-6"
+                                min={0}
+                                step={1}
+                              />
                             </div>
                           </div>
                         </div>
