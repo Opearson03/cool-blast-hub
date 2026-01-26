@@ -199,8 +199,9 @@ export const reinforcementSlabModule: EstimateModule = {
       defaultValue: 4,
       min: 1,
       max: 10,
+      helpText: '600mm centres = ~4 chairs/m²',
       showIf: (answers) => (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && answers.bar_chairs === true,
-      deriveFrom: () => 4, // Standard 4 chairs per m²
+      deriveFrom: () => 4, // Standard 4 chairs per m² (600mm centres)
     },
     {
       id: 'chair_price_per_100',
@@ -456,10 +457,12 @@ export const reinforcementSlabModule: EstimateModule = {
       id: 'edge_tm_chairs_per_m',
       type: 'number',
       label: 'TM Chairs per Linear Metre',
-      defaultValue: 2,
+      defaultValue: 1.4,
       min: 1,
       max: 5,
-      deriveFrom: () => 2,
+      step: 0.1,
+      helpText: '700mm centres = ~1.4 chairs/m',
+      deriveFrom: () => 1.4,
       showIf: (answers, scopeData) => 
         (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
         scopeData?.hasThickening === true && 

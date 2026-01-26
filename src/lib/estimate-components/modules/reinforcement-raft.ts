@@ -71,19 +71,21 @@ export const reinforcementRaftModule: EstimateModule = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 4: ACCESSORIES
+    // SECTION 4: BAR CHAIRS
     // ═══════════════════════════════════════════════════════════════
+    
+    // SLAB CHAIRS (600mm centres = ~4 chairs/m²)
     {
-      id: 'bar_chairs',
+      id: 'slab_chairs',
       type: 'boolean',
-      label: 'Include Bar Chairs',
+      label: 'Include Slab Chairs',
       defaultValue: true,
-      sectionLabel: 'Accessories',
+      sectionLabel: 'Bar Chairs',
     },
     {
-      id: 'chair_type',
+      id: 'slab_chair_type',
       type: 'select',
-      label: 'Chair Size',
+      label: 'Slab Chair Size',
       options: [
         { value: '2540C', label: '25-40mm' },
         { value: '5065C', label: '50-65mm' },
@@ -92,37 +94,101 @@ export const reinforcementRaftModule: EstimateModule = {
         { value: '125150C', label: '125-150mm' },
       ],
       defaultValue: '7590C',
-      showIf: (answers) => answers.bar_chairs === true,
+      showIf: (answers) => answers.slab_chairs === true,
       deriveFrom: (scopeData) => {
         const thickness = Number(scopeData?.thickness) || 300;
         return getChairTypeFromThickness(thickness);
       },
     },
     {
-      id: 'chairs_per_m2',
+      id: 'slab_chairs_per_m2',
       type: 'number',
-      label: 'Chairs/m²',
+      label: 'Slab Chairs/m²',
       defaultValue: 4,
       min: 1,
       max: 10,
-      showIf: (answers) => answers.bar_chairs === true,
+      helpText: '600mm centres = ~4 chairs/m²',
+      showIf: (answers) => answers.slab_chairs === true,
     },
     {
-      id: 'chair_price_per_100',
+      id: 'slab_chair_price_per_100',
       type: 'currency',
       label: 'Price/100',
       defaultValue: 35,
-      showIf: (answers) => answers.bar_chairs === true,
+      showIf: (answers) => answers.slab_chairs === true,
       deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
-        const chairType = moduleAnswers.chair_type || '7590C';
+        const chairType = moduleAnswers.slab_chair_type || '7590C';
         return priceMap?.['consumables']?.[chairType];
       },
     },
+    
+    // EDGE BEAM CHAIRS (700mm centres = ~1.4 chairs/m)
+    {
+      id: 'edge_beam_chairs',
+      type: 'boolean',
+      label: 'Include Edge Beam Chairs',
+      defaultValue: true,
+      showIf: (answers) => answers.edge_beam_reo === true,
+    },
+    {
+      id: 'edge_beam_chairs_per_m',
+      type: 'number',
+      label: 'Edge Beam Chairs/m',
+      defaultValue: 1.4,
+      min: 1,
+      max: 5,
+      step: 0.1,
+      helpText: '700mm centres = ~1.4 chairs/m',
+      showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_chairs === true,
+    },
+    {
+      id: 'edge_beam_chair_price_per_25',
+      type: 'currency',
+      label: 'TM Chair Price/25',
+      defaultValue: 12.50,
+      unit: '/bag',
+      showIf: (answers) => answers.edge_beam_reo === true && answers.edge_beam_chairs === true,
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TM CHAIRS'],
+    },
+    
+    // INTERNAL BEAM CHAIRS (700mm centres = ~1.4 chairs/m)
+    {
+      id: 'internal_beam_chairs',
+      type: 'boolean',
+      label: 'Include Internal Beam Chairs',
+      defaultValue: true,
+      showIf: (answers) => answers.internal_beam_reo === true,
+    },
+    {
+      id: 'internal_beam_chairs_per_m',
+      type: 'number',
+      label: 'Internal Beam Chairs/m',
+      defaultValue: 1.4,
+      min: 1,
+      max: 5,
+      step: 0.1,
+      helpText: '700mm centres = ~1.4 chairs/m',
+      showIf: (answers) => answers.internal_beam_reo === true && answers.internal_beam_chairs === true,
+    },
+    {
+      id: 'internal_beam_chair_price_per_25',
+      type: 'currency',
+      label: 'TM Chair Price/25',
+      defaultValue: 12.50,
+      unit: '/bag',
+      showIf: (answers) => answers.internal_beam_reo === true && answers.internal_beam_chairs === true,
+      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => priceMap?.['consumables']?.['TM CHAIRS'],
+    },
+    
+    // ═══════════════════════════════════════════════════════════════
+    // SECTION 5: OTHER ACCESSORIES
+    // ═══════════════════════════════════════════════════════════════
     {
       id: 'tie_wire',
       type: 'boolean',
       label: 'Include Tie Wire',
       defaultValue: true,
+      sectionLabel: 'Other Accessories',
     },
     {
       id: 'tie_wire_coils',
@@ -144,7 +210,7 @@ export const reinforcementRaftModule: EstimateModule = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // SECTION 5: DELIVERY
+    // SECTION 6: DELIVERY
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'reo_delivery',
@@ -290,12 +356,12 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ACCESSORIES
+    // SLAB CHAIRS (600mm centres = ~4 chairs/m²)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.bar_chairs && hasAnySlabReo) {
-      const chairType = answers.chair_type || getChairTypeFromThickness(Number(scopeData?.thickness) || 300);
-      const chairsPerM2 = Number(answers.chairs_per_m2) || 4;
-      const bagPrice = Number(answers.chair_price_per_100) || getPrice(priceMap, 'consumables', chairType, 35);
+    if (answers.slab_chairs && hasAnySlabReo) {
+      const chairType = answers.slab_chair_type || getChairTypeFromThickness(Number(scopeData?.thickness) || 300);
+      const chairsPerM2 = Number(answers.slab_chairs_per_m2) || 4;
+      const bagPrice = Number(answers.slab_chair_price_per_100) || getPrice(priceMap, 'consumables', chairType, 35);
       
       const effectiveArea = areas.length > 0 
         ? areas.reduce((sum, a) => {
@@ -311,8 +377,8 @@ export const reinforcementRaftModule: EstimateModule = {
         const cost = bags * bagPrice;
 
         lineItems.push({
-          id: 'bar_chairs',
-          description: `Bar Chairs ${CHAIR_LABELS[chairType] || chairType} (${bags} × 100)`,
+          id: 'slab_bar_chairs',
+          description: `Slab Bar Chairs ${CHAIR_LABELS[chairType] || chairType} (${bags} × 100)`,
           quantity: bags,
           unit: 'bags',
           unitPrice: bagPrice,
@@ -323,6 +389,61 @@ export const reinforcementRaftModule: EstimateModule = {
       }
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // EDGE BEAM CHAIRS (700mm centres = ~1.4 chairs/m)
+    // ═══════════════════════════════════════════════════════════════
+    if (answers.edge_beam_chairs && answers.edge_beam_reo && edgeBeams.length > 0) {
+      const chairsPerM = Number(answers.edge_beam_chairs_per_m) || 1.4;
+      const bagPrice = Number(answers.edge_beam_chair_price_per_25) || getPrice(priceMap, 'consumables', 'TM CHAIRS', 12.50);
+      
+      const totalEdgeLength = edgeBeams.reduce((sum, b) => sum + (Number(b.length) || 0), 0);
+      const totalChairs = Math.ceil(totalEdgeLength * chairsPerM);
+      const bags = Math.ceil(totalChairs / 25);
+      const cost = bags * bagPrice;
+
+      if (cost > 0) {
+        lineItems.push({
+          id: 'edge_beam_chairs',
+          description: `Edge Beam TM Chairs (${bags} × 25)`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: bagPrice,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // INTERNAL BEAM CHAIRS (700mm centres = ~1.4 chairs/m)
+    // ═══════════════════════════════════════════════════════════════
+    if (answers.internal_beam_chairs && answers.internal_beam_reo && internalBeams.length > 0) {
+      const chairsPerM = Number(answers.internal_beam_chairs_per_m) || 1.4;
+      const bagPrice = Number(answers.internal_beam_chair_price_per_25) || getPrice(priceMap, 'consumables', 'TM CHAIRS', 12.50);
+      
+      const totalInternalLength = internalBeams.reduce((sum, b) => sum + (Number(b.length) || 0), 0);
+      const totalChairs = Math.ceil(totalInternalLength * chairsPerM);
+      const bags = Math.ceil(totalChairs / 25);
+      const cost = bags * bagPrice;
+
+      if (cost > 0) {
+        lineItems.push({
+          id: 'internal_beam_chairs',
+          description: `Internal Beam TM Chairs (${bags} × 25)`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: bagPrice,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // OTHER ACCESSORIES
+    // ═══════════════════════════════════════════════════════════════
     if (answers.tie_wire && hasAnySlabReo) {
       const coils = Number(answers.tie_wire_coils) || 2;
       const pricePerCoil = Number(answers.tie_wire_price) || getPrice(priceMap, 'consumables', 'TIE WIRE', 15);
