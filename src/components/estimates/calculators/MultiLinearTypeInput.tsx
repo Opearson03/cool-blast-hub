@@ -34,6 +34,7 @@ interface LinearTypeGroup {
   typeName: string;
   dimension1: number;
   dimension2: number;
+  toe?: number;
   segments: LinearSection[];
   totalLength: number;
   totalVolume: number;
@@ -60,13 +61,14 @@ function parseLinearTypeName(name: string): string {
   return name.split('-')[0].trim();
 }
 
-function groupLinearByType(sections: LinearSection[]): LinearTypeGroup[] {
+function groupLinearByType(sections: LinearSection[], includeToe: boolean = false): LinearTypeGroup[] {
   const groupMap = new Map<string, LinearTypeGroup>();
   
   sections.forEach(section => {
     const typeName = parseLinearTypeName(section.name);
-    // Group by typeName + dimensions to handle same type with different dims
-    const key = `${typeName}-${section.dimension1}-${section.dimension2}`;
+    // Group by typeName + dimensions (and toe for retaining wall footings)
+    const toeKey = includeToe ? `-${section.toe || 0}` : '';
+    const key = `${typeName}-${section.dimension1}-${section.dimension2}${toeKey}`;
     
     const length = section._actualLength && section._actualLength > 0 
       ? section._actualLength 
@@ -78,6 +80,7 @@ function groupLinearByType(sections: LinearSection[]): LinearTypeGroup[] {
         typeName,
         dimension1: section.dimension1 || 0,
         dimension2: section.dimension2 || 0,
+        toe: section.toe,
         segments: [section],
         totalLength: length,
         totalVolume: volume,
@@ -118,8 +121,10 @@ export function MultiLinearTypeInput({
     dimension1Default: 300,
     dimension2Default: 300,
   };
-
-  const groups = useMemo(() => groupLinearByType(sections), [sections]);
+  
+  const showToe = scopeId === 'retaining_wall_footings';
+  
+  const groups = useMemo(() => groupLinearByType(sections, showToe), [sections, showToe]);
 
   // Calculate grand totals
   const grandTotalLength = groups.reduce((sum, g) => sum + g.totalLength, 0);
@@ -140,8 +145,21 @@ export function MultiLinearTypeInput({
   const updateGroupDimensions = (group: LinearTypeGroup, field: 'dimension1' | 'dimension2', value: number) => {
     const updatedSections = sections.map(section => {
       const sectionType = parseLinearTypeName(section.name);
-      if (sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2) {
+      const toeMatch = !showToe || section.toe === group.toe;
+      if (sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2 && toeMatch) {
         return { ...section, [field]: value };
+      }
+      return section;
+    });
+    onChange(updatedSections);
+  };
+
+  const updateGroupToe = (group: LinearTypeGroup, value: number) => {
+    const updatedSections = sections.map(section => {
+      const sectionType = parseLinearTypeName(section.name);
+      const toeMatch = !showToe || section.toe === group.toe;
+      if (sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2 && toeMatch) {
+        return { ...section, toe: value };
       }
       return section;
     });
@@ -155,7 +173,8 @@ export function MultiLinearTypeInput({
     
     const updatedSections = sections.map(section => {
       const sectionType = parseLinearTypeName(section.name);
-      if (sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2) {
+      const toeMatch = !showToe || section.toe === group.toe;
+      if (sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2 && toeMatch) {
         const currentLength = section._actualLength && section._actualLength > 0 
           ? section._actualLength 
           : (section.length || 0);
@@ -174,7 +193,8 @@ export function MultiLinearTypeInput({
   const deleteGroup = (group: LinearTypeGroup) => {
     const updatedSections = sections.filter(section => {
       const sectionType = parseLinearTypeName(section.name);
-      return !(sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2);
+      const toeMatch = !showToe || section.toe === group.toe;
+      return !(sectionType === group.typeName && section.dimension1 === group.dimension1 && section.dimension2 === group.dimension2 && toeMatch);
     });
     onChange(updatedSections);
   };
@@ -197,6 +217,7 @@ export function MultiLinearTypeInput({
       length: 0,
       dimension1: config.dimension1Default,
       dimension2: config.dimension2Default,
+      ...(showToe ? { toe: 300 } : {}), // Default toe of 300mm for retaining wall footings
     };
     
     onChange([...sections, newSection]);
@@ -238,6 +259,7 @@ export function MultiLinearTypeInput({
       length: 0,
       dimension1: group.dimension1,
       dimension2: group.dimension2,
+      ...(showToe ? { toe: group.toe || 300 } : {}), // Inherit toe from group
     };
     
     onChange([...sections, newSection]);
@@ -355,7 +377,10 @@ export function MultiLinearTypeInput({
                 </div>
 
                 {/* Dimensions & Totals Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className={cn(
+                  "grid gap-3",
+                  showToe ? "grid-cols-2 sm:grid-cols-5" : "grid-cols-2 sm:grid-cols-4"
+                )}>
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">{config.dimension1Label}</Label>
                     <div className="relative">
@@ -399,6 +424,30 @@ export function MultiLinearTypeInput({
                       </span>
                     </div>
                   </div>
+
+                  {showToe && (
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Toe</Label>
+                      <div className="relative">
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          value={group.toe ?? 300}
+                          onChange={(e) =>
+                            updateGroupToe(group,
+                              e.target.value === "" ? 0 : Number(e.target.value)
+                            )
+                          }
+                          min={0}
+                          step={50}
+                          className="pr-12 h-11 sm:h-9"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                          mm
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Total Length</Label>
