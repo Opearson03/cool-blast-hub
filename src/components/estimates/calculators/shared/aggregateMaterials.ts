@@ -7,6 +7,7 @@ export interface AggregatedMaterial {
   totalQuantity: number;
   unit: string;
   totalCost: number;
+  unitPrice: number | null; // Average unit price when items have consistent pricing
 }
 
 interface AggregatedGroup {
@@ -94,14 +95,22 @@ function aggregateItems(items: CostLineItem[]): AggregatedMaterial[] {
     grouped[key].push(item);
   });
   
-  return Object.entries(grouped).map(([key, groupItems]) => ({
-    key,
-    displayName: getMaterialDisplayName(key, groupItems),
-    items: groupItems,
-    totalQuantity: groupItems.reduce((sum, i) => sum + i.quantity, 0),
-    unit: groupItems[0]?.unit || '',
-    totalCost: groupItems.reduce((sum, i) => sum + i.total, 0),
-  }));
+  return Object.entries(grouped).map(([key, groupItems]) => {
+    // Get unit price - use first item's unitPrice if all items have the same price
+    const firstUnitPrice = groupItems[0]?.unitPrice;
+    const allSamePrice = groupItems.every(i => i.unitPrice === firstUnitPrice);
+    const unitPrice = allSamePrice && firstUnitPrice !== undefined ? firstUnitPrice : null;
+    
+    return {
+      key,
+      displayName: getMaterialDisplayName(key, groupItems),
+      items: groupItems,
+      totalQuantity: groupItems.reduce((sum, i) => sum + i.quantity, 0),
+      unit: groupItems[0]?.unit || '',
+      totalCost: groupItems.reduce((sum, i) => sum + i.total, 0),
+      unitPrice,
+    };
+  });
 }
 
 /**

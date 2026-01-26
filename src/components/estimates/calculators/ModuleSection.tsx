@@ -226,13 +226,16 @@ function AggregatedCostBreakdown({ lineItems }: { lineItems: CostLineItem[] }) {
     const isExpanded = expandedMaterials.has(material.key);
 
     if (!hasMultipleItems) {
-      // Single item - just render it directly
+      // Single item - just render it directly with unit price
+      const unitPriceText = material.unitPrice !== null && material.totalQuantity > 0
+        ? ` @ ${formatCurrency(material.unitPrice)}/${material.unit.replace(/s$/, '')}`
+        : '';
       return (
         <div key={material.key} className="flex justify-between text-sm py-0.5">
           <span className="text-muted-foreground">
             {material.displayName}
             {material.totalQuantity > 0 && material.unit && (
-              <span className="ml-1">({material.totalQuantity} {material.unit})</span>
+              <span className="ml-1">({material.totalQuantity} {material.unit}{unitPriceText})</span>
             )}
           </span>
           <span className="font-medium ml-2 shrink-0">{formatCurrency(material.totalCost)}</span>
@@ -240,7 +243,10 @@ function AggregatedCostBreakdown({ lineItems }: { lineItems: CostLineItem[] }) {
       );
     }
 
-    // Multiple items - render collapsible with aggregated total
+    // Multiple items - render collapsible with aggregated total and unit price
+    const unitPriceText = material.unitPrice !== null && material.totalQuantity > 0
+      ? ` @ ${formatCurrency(material.unitPrice)}/${material.unit.replace(/s$/, '')}`
+      : '';
     return (
       <Collapsible key={material.key} open={isExpanded} onOpenChange={() => toggleMaterial(material.key)}>
         <CollapsibleTrigger asChild>
@@ -248,7 +254,7 @@ function AggregatedCostBreakdown({ lineItems }: { lineItems: CostLineItem[] }) {
             <span className="flex items-center gap-1 text-muted-foreground">
               <ChevronDown className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
               <span className="font-medium text-foreground">{material.displayName}</span>
-              <span>({material.totalQuantity} {material.unit})</span>
+              <span>({material.totalQuantity} {material.unit}{unitPriceText})</span>
             </span>
             <span className="font-medium ml-2 shrink-0">{formatCurrency(material.totalCost)}</span>
           </button>
