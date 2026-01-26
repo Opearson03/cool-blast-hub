@@ -530,12 +530,11 @@ export function BeamReinforcementInput({
                                 type="number"
                                 step="0.01"
                                 min="0"
-                                value={group.tm_price ?? getTmPrice(tmType, priceMap) ?? ''}
+                                value={group.tm_price !== undefined ? group.tm_price : (getTmPrice(tmType, priceMap) ?? '')}
                                 onChange={(e) => updateGroupReinforcement(group, { 
                                   tm_price: e.target.value ? Number(e.target.value) : undefined 
                                 })}
                                 className="h-8 text-sm pl-6"
-                                placeholder={String(getTmPrice(tmType, priceMap) ?? '')}
                               />
                             </div>
                           </div>
@@ -548,12 +547,11 @@ export function BeamReinforcementInput({
                                   type="number"
                                   step="0.01"
                                   min="0"
-                                  value={group.tm_price_top ?? getTmPrice(group.tm_type_top || tmType, priceMap) ?? ''}
+                                  value={group.tm_price_top !== undefined ? group.tm_price_top : (getTmPrice(group.tm_type_top || tmType, priceMap) ?? '')}
                                   onChange={(e) => updateGroupReinforcement(group, { 
                                     tm_price_top: e.target.value ? Number(e.target.value) : undefined 
                                   })}
                                   className="h-8 text-sm pl-6"
-                                  placeholder={String(getTmPrice(group.tm_type_top || tmType, priceMap) ?? '')}
                                 />
                               </div>
                             </div>
