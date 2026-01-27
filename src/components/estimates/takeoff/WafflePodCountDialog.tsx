@@ -211,21 +211,21 @@ export function WafflePodCountDialog({
                 Cancel
               </Button>
               <Button 
-                variant="secondary" 
                 onClick={onSaveAnd4Way}
                 disabled={podCount === 0}
                 className="w-full sm:w-auto"
               >
-                <Plus className="h-4 w-4 mr-1 text-purple-500" />
+                <Plus className="h-4 w-4 mr-1" />
                 Save & Count 4-Way
               </Button>
               <Button 
+                variant="secondary"
                 onClick={onSavePodCount}
                 disabled={podCount === 0}
                 className="w-full sm:w-auto"
               >
                 <Check className="h-4 w-4 mr-1" />
-                Save
+                Save Only
               </Button>
             </>
           )}
@@ -237,18 +237,18 @@ export function WafflePodCountDialog({
                 Skip
               </Button>
               <Button 
-                variant="secondary" 
                 onClick={onSaveAnd2Way}
                 className="w-full sm:w-auto"
               >
                 Save & Count 2-Way
               </Button>
               <Button 
+                variant="secondary"
                 onClick={onSave4WayCount}
                 className="w-full sm:w-auto"
               >
                 <Check className="h-4 w-4 mr-1" />
-                Save
+                Save Only
               </Button>
             </>
           )}
