@@ -196,5 +196,7 @@ const SCOPE_COLORS = [
 ];
 
 export function getScopeColor(index: number): string {
-  return SCOPE_COLORS[index % SCOPE_COLORS.length];
+  // Handle negative indices (scope not found in selectedScopes)
+  const safeIndex = index < 0 ? 0 : index;
+  return SCOPE_COLORS[safeIndex % SCOPE_COLORS.length];
 }
