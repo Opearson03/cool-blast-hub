@@ -56,17 +56,25 @@ export const reinforcementRaftModule: EstimateModule = {
       label: 'Include Edge Beam Reinforcement',
       defaultValue: false,
       sectionLabel: 'Edge Beams',
-      // Scope-aware labels for driveway (uses "Edge Thickening" instead of "Edge Beams")
-      getScopeLabel: (scopeId: string) => 
-        scopeId === 'driveway' ? 'Include Edge Thickening Reinforcement' : 'Include Edge Beam Reinforcement',
-      getScopeSectionLabel: (scopeId: string) => 
-        scopeId === 'driveway' ? 'Edge Thickening' : 'Edge Beams',
+      // Scope-aware labels for driveway, crossovers, paths_surrounds (uses "Edge Thickening" instead of "Edge Beams")
+      getScopeLabel: (scopeId: string) => {
+        const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds'];
+        return edgeThickeningScopes.includes(scopeId) 
+          ? 'Include Edge Thickening Reinforcement' 
+          : 'Include Edge Beam Reinforcement';
+      },
+      getScopeSectionLabel: (scopeId: string) => {
+        const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds'];
+        return edgeThickeningScopes.includes(scopeId) 
+          ? 'Edge Thickening' 
+          : 'Edge Beams';
+      },
     },
     // Note: Edge beam chairs are now configured per-beam inside BeamReinforcementInput
 
     // ═══════════════════════════════════════════════════════════════
     // SECTION 3: INTERNAL BEAMS (toggle only - per-beam config in UI)
-    // Hidden for driveway scope (no internal beams)
+    // Hidden for driveway, crossovers, paths_surrounds scopes (no internal beams)
     // ═══════════════════════════════════════════════════════════════
     {
       id: 'internal_beam_reo',
@@ -74,9 +82,11 @@ export const reinforcementRaftModule: EstimateModule = {
       label: 'Include Internal Beam Reinforcement',
       defaultValue: false,
       sectionLabel: 'Internal Beams',
-      // Hide for driveway scope (no internal beams)
-      showIf: (_answers: Record<string, any>, scopeData?: Record<string, any>) => 
-        scopeData?.scopeId !== 'driveway',
+      // Hide for driveway, crossovers, paths_surrounds scopes (no internal beams)
+      showIf: (_answers: Record<string, any>, scopeData?: Record<string, any>) => {
+        const noInternalBeamScopes = ['driveway', 'crossovers', 'paths_surrounds'];
+        return !noInternalBeamScopes.includes(scopeData?.scopeId || '');
+      },
     },
     // Note: Internal beam chairs are now configured per-beam inside BeamReinforcementInput
     
