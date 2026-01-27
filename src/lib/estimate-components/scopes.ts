@@ -480,13 +480,13 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       defaultValue: 0,
       helpText: 'Count of 2-way edge spacers',
     },
-    // Pod rails (auto-calculated for 100mm+ slabs)
+    // Pod rails (visible toggle with auto-select for 100mm+ slabs)
     {
       id: 'pod_rails_required',
       type: 'boolean',
       label: 'Pod Rails Required',
       defaultValue: false,
-      helpText: 'Auto-enabled for 100mm slabs (2 rails per pod)',
+      helpText: 'Required for slabs ≥100mm thick (2 rails per pod, packs of 20)',
     },
     {
       id: 'pod_rail_packs',
@@ -494,7 +494,8 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       label: 'Pod Rail Packs',
       min: 0,
       defaultValue: 0,
-      helpText: 'Packs of 20 pod rails',
+      helpText: 'Auto-calculated: 2 rails per pod, 20 per pack',
+      showIf: (answers) => answers.pod_rails_required === true,
     },
     // Edge and internal beam fields (hidden, managed by multi-beam inputs)
     {
