@@ -1,205 +1,108 @@
 
-
-## Update Slab on Ground to Match Driveway Scope (Without Plumbing)
+## Replace Waffle Pod Scope with Raft Slab Architecture
 
 ### Overview
-Replace the current `STANDARD_SLAB_SCOPE` definition with a copy of the Driveway scope configuration, removing only the `plumbing` module. This will give Slab on Ground:
-1. Edge thickening support with multi-type markup
-2. The same takeoff flow as driveway (area marking + edge thickening)
-3. The unified `reinforcement-raft` module with scope-aware labeling
-4. Driveway-specific modules (Connections & Joints, Control Joints) but NOT plumbing
+Delete the existing `WAFFLE_POD_SCOPE` definition and replace it with an exact copy of `RAFT_SLAB_SCOPE`, only changing:
+- `id`: `'raft_slab'` → `'waffle_pod'`
+- `name`: `'Raft Slab'` → `'Waffle Pod'`
+- `description`: Updated for waffle pod context
+- `areasLabel`: `'Raft Slab Areas'` → `'Waffle Pod Areas'`
+- `defaultExclusions`: Updated module IDs to reference `waffle_pod`
+
+The new Waffle Pod will have:
+- Multi-area support with edge beams and internal stiffening beams
+- The `reinforcement-raft` module (unified reinforcement)
+- Same takeoff workflow as Raft Slab
+- Same volume calculation logic as Raft Slab
+
+### Current Waffle Pod vs New Waffle Pod
+
+| Feature | Current | New (Raft Slab Copy) |
+|---------|---------|---------------------|
+| Multiple Areas | ✅ | ✅ |
+| Edge Beams | ❌ (basic) | ✅ (multi-type markup) |
+| Internal Beams | ❌ (single field) | ✅ (multi-type markup) |
+| Reinforcement Module | `reinforcement-slab` + `reinforcement-footing` | `reinforcement-raft` |
+| Pod-specific fields | ✅ (pod_count, pod_size, etc.) | ❌ (removed) |
+| Volume Calculation | Pod void subtraction | Standard slab + beams |
 
 ### Files to Modify
 
 1. **`src/lib/estimate-components/scopes.ts`**
-   - Replace `STANDARD_SLAB_SCOPE` with Driveway-style configuration (minus plumbing module)
-
-2. **`src/types/takeoff.ts`**
-   - Add `'standard_slab'` to `SLAB_WITH_BEAMS_SCOPES` array
-
-3. **`src/lib/estimate-components/modules/reinforcement-raft.ts`**
-   - Update `getScopeLabel` and `getScopeSectionLabel` functions to include `standard_slab`
-   - Update `showIf` for internal beams to hide for standard_slab
-
-4. **`src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx`**
-   - Add `'standard_slab'` to `edgeThickeningScopes` array
+   - Delete current `WAFFLE_POD_SCOPE` (lines 381-556)
+   - Replace with exact copy of `RAFT_SLAB_SCOPE` with updated identifiers
 
 ### Technical Details
 
-#### Updated STANDARD_SLAB_SCOPE
+#### New WAFFLE_POD_SCOPE Definition
 
 ```typescript
-export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
-  id: 'standard_slab',
-  name: 'Slab on Ground',
-  description: 'Ground-bearing concrete slab on ground',
-  icon: 'square',
+export const WAFFLE_POD_SCOPE: ScopeDefinition = {
+  id: 'waffle_pod',
+  name: 'Waffle Pod',
+  description: 'Waffle pod slab system',
+  icon: 'grid3x3',
   supportsMultipleAreas: true,
-  areasLabel: 'Slab Areas',
+  areasLabel: 'Waffle Pod Areas',
+  supportsMultipleBeams: true,
+  beamsLabel: 'Internal Stiffening Beams',
   supportsMultipleEdgeBeams: true,
-  edgeBeamsLabel: 'Edge Thickening',
-  hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
+  edgeBeamsLabel: 'Edge Beams',
+  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
-    {
-      id: 'area',
-      type: 'number',
-      label: 'Total Area (m²)',
-      required: true,
-      min: 1,
-      unit: 'm²',
-    },
-    {
-      id: 'perimeter',
-      type: 'number',
-      label: 'Total Perimeter (m)',
-      required: true,
-      min: 1,
-      unit: 'm',
-    },
-    {
-      id: 'thickness',
-      type: 'number',
-      label: 'Slab Thickness (mm)',
-      required: true,
-      requiresUserInput: true,
-      min: 75,
-      unit: 'mm',
-      placeholder: 'Enter thickness',
-      helpText: 'Thickness of the main slab',
-    },
-    // Edge Thickening Questions
-    {
-      id: 'edge_beam_depth',
-      type: 'number',
-      label: 'Edge Thickening Depth (mm)',
-      required: false,
-      min: 200,
-      defaultValue: 300,
-      unit: 'mm',
-      helpText: 'Total depth of thickened edge',
-    },
-    {
-      id: 'edge_beam_width',
-      type: 'number',
-      label: 'Edge Thickening Width (mm)',
-      required: false,
-      min: 200,
-      defaultValue: 300,
-      unit: 'mm',
-      helpText: 'Width of thickened edge',
-    },
-    {
-      id: 'edge_beam_length',
-      type: 'number',
-      label: 'Total Edge Thickening Length (m)',
-      required: false,
-      min: 0,
-      unit: 'm',
-      helpText: 'Total continuous length of edge thickening (defaults to perimeter if not specified)',
-    },
+    // EXACT COPY of Raft Slab questions
+    { id: 'area', ... },
+    { id: 'perimeter', ... },
+    { id: 'thickness', ... },
+    { id: 'edge_beam_depth', ... },
+    { id: 'edge_beam_width', ... },
+    { id: 'edge_beam_length', ... },
+    { id: 'internal_beams_length', ... },
+    { id: 'internal_beam_width', ... },
+    { id: 'internal_beam_depth', ... },
   ],
   moduleIds: [
     'excavation',
     'base-preparation',
     'formwork',
-    'reinforcement-raft',
-    'connections-joints',
-    // NO 'plumbing' module for Slab on Ground
+    'reinforcement-raft',  // Unified reinforcement module
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
     'labour-place',
     'surface-finishing',
-    'joints-control',
     'cleanup',
     'sundries',
     'extra-items',
   ],
   calculateVolume: (answers) => {
-    const area = Number(answers.area) || 0;
-    const thicknessM = (Number(answers.thickness) || 100) / 1000;
-    const perimeter = Number(answers.perimeter) || 0;
-    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
-    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
-    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-
-    // Main slab volume
-    const slabVolume = area * thicknessM;
-
-    // Edge thickening volume (extra depth beyond slab thickness)
-    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-    const edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
-
-    return safeVolume(slabVolume + edgeThickeningVolume);
+    // EXACT COPY of Raft Slab volume calculation
   },
   defaultExclusions: [
-    { id: 'engineering', text: 'Engineering design and certification', moduleId: 'standard_slab' },
-    { id: 'permits', text: 'Council permits and approvals', moduleId: 'standard_slab' },
+    { id: 'engineering', text: 'Engineering design and certification', moduleId: 'waffle_pod' },
+    { id: 'permits', text: 'Council permits and approvals', moduleId: 'waffle_pod' },
+    { id: 'termite', text: 'Termite treatment and barriers', moduleId: 'waffle_pod' },
   ],
 };
 ```
 
-#### Updated Takeoff Types
+### Removed Fields (No Longer Needed)
+- `pod_count` - Number of pods
+- `pod_size` - Pod module size (1090mm, etc.)
+- `pod_thickness` - Pod thickness (225mm, etc.)
+- `top_slab_thickness` - Thickness over pods
+- `rib_width` - Width of concrete ribs
+- `calculateExcavationVolume` - Waffle-specific excavation calculation
 
-```typescript
-// src/types/takeoff.ts
-export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'standard_slab'] as const;
-```
-
-#### Updated Reinforcement Module Labels
-
-```typescript
-// src/lib/estimate-components/modules/reinforcement-raft.ts
-const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds', 'standard_slab'];
-
-getScopeLabel: (scopeId) => 
-  edgeThickeningScopes.includes(scopeId) 
-    ? 'Include Edge Thickening Reinforcement' 
-    : 'Include Edge Beam Reinforcement',
-
-getScopeSectionLabel: (scopeId) => 
-  edgeThickeningScopes.includes(scopeId) 
-    ? 'Edge Thickening' 
-    : 'Edge Beams',
-
-// Also update showIf for internal_beam_reo to hide for standard_slab
-showIf: (_answers, scopeData) => {
-  const noInternalBeamScopes = ['driveway', 'crossovers', 'paths_surrounds', 'standard_slab'];
-  return !noInternalBeamScopes.includes(scopeData?.scopeId || '');
-},
-```
-
-#### Updated Takeoff Dialog Labels
-
-```typescript
-// src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx
-const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds', 'standard_slab'];
-const isEdgeThickeningScope = edgeThickeningScopes.includes(scopeId || '');
-```
-
-### Comparison: Driveway vs Slab on Ground
-
-| Feature | Driveway | Slab on Ground |
-|---------|----------|----------------|
-| Multiple Areas | ✅ | ✅ |
-| Edge Thickening | ✅ | ✅ |
-| Internal Beams | ❌ | ❌ |
-| Plumbing Module | ✅ | ❌ |
-| Reinforcement Module | reinforcement-raft | reinforcement-raft |
-| Takeoff Flow | Area + Edge Thickening | Area + Edge Thickening |
-
-### Module Flow (Slab on Ground)
+### Module Flow (New Waffle Pod)
 
 ```text
 excavation → base-preparation → formwork → reinforcement-raft →
-connections-joints → labour-prep → concrete-supply →
-concrete-pumping → labour-place → surface-finishing → joints-control →
-cleanup → sundries → extra-items
+labour-prep → concrete-supply → concrete-pumping → labour-place →
+surface-finishing → cleanup → sundries → extra-items
 ```
 
-Note: `plumbing` module is intentionally excluded from this flow.
-
-### Takeoff Workflow (Slab on Ground)
+### Takeoff Workflow (New Waffle Pod)
 
 ```text
 1. Mark Slab Area (polygon/rectangle)
@@ -207,26 +110,26 @@ Note: `plumbing` module is intentionally excluded from this flow.
 2. Name Area Dialog
    • Enter name (e.g., "Main Slab")
    • Shows area and perimeter
-   • [Cancel] [Skip Thickening] [Add Edge Thickening]
+   • [Cancel] [Skip Beams] [Add Edge Beam]
       ↓
-3. Mark Edge Thickening (polyline) - Optional
+3. Mark Edge Beams (polyline) - Optional
       ↓
-4. Edge Thickening Details
-   • Name type (e.g., "ET1")
+4. Edge Beam Details
+   • Name type (e.g., "EB1")
    • Width (mm) and Depth (mm)
       ↓
-5. Summary with [Add Edge Thickening] [Finish]
+5. Add Internal Beams (optional)
+      ↓
+6. Summary with [Add More Beams] [Finish]
 ```
 
 ### Testing Checklist
 
-- [ ] Slab on Ground shows "Edge Thickening" option in estimator
-- [ ] Slab on Ground takeoff triggers slab + beam workflow
-- [ ] Slab on Ground uses "Edge Thickening" labels (not "Edge Beams")
-- [ ] Slab on Ground "Add Area" shows markup prompt dialog
-- [ ] Reinforcement module shows "Edge Thickening" section for Slab on Ground
-- [ ] Internal beams section hidden for Slab on Ground
-- [ ] Plumbing module does NOT appear in Slab on Ground
-- [ ] Volume calculations include edge thickening for Slab on Ground
-- [ ] Driveway still includes plumbing module (unchanged)
-
+- [ ] Waffle Pod shows "Internal Stiffening Beams" option in estimator
+- [ ] Waffle Pod shows "Edge Beams" option in estimator
+- [ ] Waffle Pod takeoff triggers slab + beam workflow
+- [ ] Waffle Pod uses `reinforcement-raft` module
+- [ ] Pod-specific fields (pod_count, pod_size, etc.) are removed
+- [ ] Volume calculation works correctly for slab + beams
+- [ ] "Add Area" shows markup prompt dialog
+- [ ] Raft Slab still works correctly (unchanged)
