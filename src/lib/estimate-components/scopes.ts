@@ -642,6 +642,8 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
   areasLabel: 'Driveway Areas',
   supportsMultipleEdgeBeams: true,
   edgeBeamsLabel: 'Edge Thickening',
+  supportsMultipleBeams: true,
+  beamsLabel: 'Internal Thickening',
   // Hide edge thickening fields from standard rendering - they're managed by MultiEdgeBeamInput
   hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [

@@ -193,12 +193,13 @@ export function SlabBeamMarkupDialog({
 
   const isWafflePod = scopeId === 'waffle_pod';
   const isStandardSlab = scopeId === 'standard_slab';
+  const isDriveway = scopeId === 'driveway';
   // Scopes that use "Edge Thickening" terminology (driveway, crossovers, paths_surrounds, standard_slab)
   const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds', 'standard_slab'];
   const isEdgeThickeningScope = edgeThickeningScopes.includes(scopeId || '');
-  // Scopes that DON'T support internal beams (standard_slab supports internal thickening)
-  const noInternalBeamScopes = ['driveway', 'crossovers', 'paths_surrounds'];
-  const isDriveway = noInternalBeamScopes.includes(scopeId || '');
+  // Scopes that DON'T support internal beams (crossovers, paths_surrounds only)
+  const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
+  const hideInternalBeams = noInternalBeamScopes.includes(scopeId || '');
   
   // Helper to get edge beam label (uses "Edge Thickening" for driveway/crossovers/paths_surrounds/standard_slab)
   const getEdgeLabel = (plural: boolean = true) => {
@@ -206,9 +207,9 @@ export function SlabBeamMarkupDialog({
     return plural ? 'Edge Beams' : 'Edge Beam';
   };
   
-  // Helper to get internal beam label (uses "Internal Thickening" for standard_slab)
+  // Helper to get internal beam label (uses "Internal Thickening" for standard_slab and driveway)
   const getInternalLabel = (plural: boolean = true) => {
-    if (isStandardSlab) return 'Internal Thickening';
+    if (isStandardSlab || isDriveway) return 'Internal Thickening';
     return plural ? 'Internal Beams' : 'Internal Beam';
   };
 
@@ -804,8 +805,8 @@ export function SlabBeamMarkupDialog({
                 </div>
               )}
 
-              {/* Only show internal beam option for non-driveway scopes */}
-              {!isDriveway && (
+              {/* Only show internal beam option for scopes that support it */}
+              {!hideInternalBeams && (
                 <>
                   <Separator />
 
