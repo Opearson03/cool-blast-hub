@@ -432,6 +432,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
   const estimateIdForTakeoff = draftEstimateId || editEstimate?.id || null;
   const { 
     isLoading: takeoffLoading,
+    hasFiles: hasUploadedPlans,
     getAreaForScope, 
     getPerimeterForScope, 
     hasMarkupForScope,
@@ -1490,7 +1491,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
             }
           })();
         }}
-        hasPlans={hasMarkup}
+        hasPlans={hasUploadedPlans}
       />
     );
   };
