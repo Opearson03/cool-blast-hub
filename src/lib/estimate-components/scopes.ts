@@ -371,12 +371,7 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
 
 /**
  * Waffle Pod Scope Definition
- * 
- * Concrete Volume = (total area × top slab) + (rib area × pod thickness) + edge/internal beams
- *                 = (area × topSlab) + ((area - podVoids) × podThickness) + beams
- *                 = (area × totalThickness) - (podCount × podSize² × podThickness) + beams
- * 
- * Excavation Volume = total area × total depth (for box cut)
+ * Now uses the same architecture as Raft Slab with edge beams and internal stiffening beams
  */
 export const WAFFLE_POD_SCOPE: ScopeDefinition = {
   id: 'waffle_pod',
@@ -385,6 +380,12 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
   icon: 'grid3x3',
   supportsMultipleAreas: true,
   areasLabel: 'Waffle Pod Areas',
+  supportsMultipleBeams: true,
+  beamsLabel: 'Internal Stiffening Beams',
+  supportsMultipleEdgeBeams: true,
+  edgeBeamsLabel: 'Edge Beams',
+  // Hide beam fields from standard rendering - they're managed by MultiBeamInput
+  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
     {
       id: 'area',
@@ -403,72 +404,25 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       unit: 'm',
     },
     {
-      id: 'pod_count',
+      id: 'thickness',
       type: 'number',
-      label: 'Number of Pods',
-      required: true,
-      min: 1,
-      helpText: 'Count from engineering drawings or estimate from area',
-    },
-    {
-      id: 'pod_size',
-      type: 'select',
-      label: 'Pod Module Size',
-      required: false,
-      options: [
-        { value: '1090', label: '1090mm × 1090mm (Standard)' },
-        { value: '1110', label: '1110mm × 1110mm' },
-        { value: '1050', label: '1050mm × 1050mm' },
-      ],
-      defaultValue: '1090',
-      helpText: 'Standard waffle pod module dimensions',
-    },
-    {
-      id: 'pod_thickness',
-      type: 'select',
-      label: 'Pod Thickness',
-      required: true,
-      options: [
-        { value: '225', label: '225mm' },
-        { value: '275', label: '275mm' },
-        { value: '325', label: '325mm' },
-        { value: '375', label: '375mm' },
-      ],
-      defaultValue: '225',
-      helpText: 'Height/depth of the waffle pods',
-    },
-    {
-      id: 'top_slab_thickness',
-      type: 'number',
-      label: 'Top Slab Thickness (mm)',
+      label: 'Slab Thickness (mm)',
       required: true,
       requiresUserInput: true,
-      min: 50,
-      max: 200,
+      min: 100,
       unit: 'mm',
       placeholder: 'Enter thickness',
-      helpText: 'Concrete topping over waffle pods (typically 85mm)',
-    },
-    {
-      id: 'rib_width',
-      type: 'number',
-      label: 'Rib Width (mm)',
-      required: false,
-      min: 90,
-      max: 200,
-      defaultValue: 110,
-      unit: 'mm',
-      helpText: 'Width of concrete ribs between pods',
+      helpText: 'Thickness of the main slab portion',
     },
     {
       id: 'edge_beam_depth',
       type: 'number',
       label: 'Edge Beam Depth (mm)',
-      required: false,
+      required: true,
       min: 200,
-      defaultValue: 350,
+      defaultValue: 450,
       unit: 'mm',
-      helpText: 'Depth of perimeter edge beam',
+      helpText: 'Total depth of thickened edge',
     },
     {
       id: 'edge_beam_width',
@@ -476,27 +430,56 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       label: 'Edge Beam Width (mm)',
       required: false,
       min: 200,
-      defaultValue: 350,
+      defaultValue: 450,
       unit: 'mm',
-      helpText: 'Width of perimeter edge beam',
+      helpText: 'Width of thickened edge (typically 450mm)',
     },
+    {
+      id: 'edge_beam_length',
+      type: 'number',
+      label: 'Total Edge Beam Length (m)',
+      required: false,
+      min: 0,
+      unit: 'm',
+      helpText: 'Total continuous length of edge beams (defaults to perimeter if not specified)',
+    },
+    // These fields are derived from multi-beam input
     {
       id: 'internal_beams_length',
       type: 'number',
-      label: 'Internal Beam Length (m)',
+      label: 'Total Internal Beam Length (m)',
       required: false,
       min: 0,
       defaultValue: 0,
       unit: 'm',
-      helpText: 'Total length of internal stiffening beams (for block starts, etc.)',
+      helpText: 'Derived from beam configurations',
+    },
+    {
+      id: 'internal_beam_width',
+      type: 'number',
+      label: 'Internal Beam Width (mm)',
+      required: false,
+      min: 200,
+      defaultValue: 300,
+      unit: 'mm',
+      helpText: 'Weighted average from beam configurations',
+    },
+    {
+      id: 'internal_beam_depth',
+      type: 'number',
+      label: 'Internal Beam Depth (mm)',
+      required: false,
+      min: 200,
+      defaultValue: 400,
+      unit: 'mm',
+      helpText: 'Weighted average from beam configurations',
     },
   ],
   moduleIds: [
     'excavation',
     'base-preparation',
     'formwork',
-    'reinforcement-slab',
-    'reinforcement-footing',  // For edge/internal beam reinforcement (trench mesh, bars, verticals)
+    'reinforcement-raft',  // Consolidated reinforcement for slab, edge beams, and internal beams
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
@@ -508,49 +491,47 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
-    const podCount = Number(answers.pod_count) || 0;
-    const podSizeMM = Number(answers.pod_size) || 1090;
-    const podSizeM = podSizeMM / 1000;
+    const thicknessM = (Number(answers.thickness) || 300) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
-    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 350) / 1000;
-    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 350) / 1000;
+    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 450) / 1000;
+    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 450) / 1000;
+
+    // Main slab volume
+    const slabVolume = area * thicknessM;
+
+    // Edge beam extra volume (depth below slab thickness)
+    // Use edge_beam_length if explicitly provided, otherwise fall back to perimeter
+    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+    const edgeBeamVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+
+    // Internal beams volume - if we have beam configs, calculate from those
+    const beams = answers.beams || [];
+    let internalBeamVolume = 0;
     
-    // Get pod and top slab thicknesses
-    const podThicknessMM = Number(answers.pod_thickness) || 225;
-    const podThicknessM = podThicknessMM / 1000;
-    const topSlabThicknessMM = Number(answers.top_slab_thickness) || 85;
-    const topSlabThicknessM = topSlabThicknessMM / 1000;
-    const totalThicknessM = podThicknessM + topSlabThicknessM;
+    if (beams.length > 0) {
+      internalBeamVolume = beams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 300) / 1000;
+        const depthM = (Number(beam.depth) || 400) / 1000;
+        const extraDepth = Math.max(0, depthM - thicknessM);
+        return sum + lengthM * widthM * extraDepth;
+      }, 0);
+    } else {
+      // Fallback to legacy single-value fields
+      const internalLength = Number(answers.internal_beams_length) || 0;
+      const internalWidthM = (Number(answers.internal_beam_width) || 300) / 1000;
+      const internalDepthM = (Number(answers.internal_beam_depth) || 400) / 1000;
+      const internalExtraDepth = Math.max(0, internalDepthM - thicknessM);
+      internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
+    }
 
-    // Calculate concrete volume using the formula:
-    // Concrete = (total area × total depth) - (volume of pods)
-    // Volume of pods = pod count × pod size² × pod thickness
-    const grossVolume = area * totalThicknessM;
-    const podVoidVolume = podCount * podSizeM * podSizeM * podThicknessM;
-    const slabConcreteVolume = Math.max(0, grossVolume - podVoidVolume);
-
-    // Edge beam extra volume (depth below slab)
-    const edgeExtraDepth = Math.max(0, edgeBeamDepthM - totalThicknessM);
-    const edgeBeamVolume = perimeter * edgeBeamWidthM * edgeExtraDepth;
-    
-    // Internal beams volume (for block starts etc.)
-    const internalBeamLength = Number(answers.internal_beams_length) || 0;
-    const internalBeamVolume = internalBeamLength * edgeBeamWidthM * edgeExtraDepth;
-
-    return safeVolume(slabConcreteVolume + edgeBeamVolume + internalBeamVolume);
-  },
-  // Calculate excavation volume for waffle pod (total area × total depth for box cut)
-  calculateExcavationVolume: (answers) => {
-    const area = Number(answers.area) || 0;
-    const podThicknessMM = Number(answers.pod_thickness) || 225;
-    const topSlabThicknessMM = Number(answers.top_slab_thickness) || 85;
-    const totalThicknessM = (podThicknessMM + topSlabThicknessMM) / 1000;
-    return safeVolume(area * totalThicknessM);
+    return safeVolume(slabVolume + edgeBeamVolume + internalBeamVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'waffle_pod' },
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'waffle_pod' },
-    { id: 'site_prep', text: 'Site preparation and leveling', moduleId: 'waffle_pod' },
+    { id: 'termite', text: 'Termite treatment and barriers', moduleId: 'waffle_pod' },
     { id: 'pods', text: 'Supply of waffle pods (by others)', moduleId: 'waffle_pod' },
   ],
 };
