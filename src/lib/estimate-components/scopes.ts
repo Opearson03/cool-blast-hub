@@ -403,17 +403,63 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       min: 1,
       unit: 'm',
     },
+    // Pod-specific configuration fields
     {
-      id: 'thickness',
-      type: 'number',
-      label: 'Slab Thickness (mm)',
+      id: 'pod_size',
+      type: 'select',
+      label: 'Pod Module Size',
       required: true,
-      requiresUserInput: true,
-      min: 100,
-      unit: 'mm',
-      placeholder: 'Enter thickness',
-      helpText: 'Thickness of the main slab portion',
+      options: [
+        { value: '1050', label: '1050 × 1050 mm' },
+        { value: '1090', label: '1090 × 1090 mm' },
+        { value: '1110', label: '1110 × 1110 mm' },
+      ],
+      defaultValue: '1090',
+      helpText: 'Standard EPS pod dimensions',
     },
+    {
+      id: 'pod_thickness',
+      type: 'select',
+      label: 'Pod Thickness',
+      required: true,
+      options: [
+        { value: '225', label: '225mm' },
+        { value: '275', label: '275mm' },
+        { value: '325', label: '325mm' },
+        { value: '375', label: '375mm' },
+      ],
+      defaultValue: '225',
+      helpText: 'Height of EPS pods',
+    },
+    {
+      id: 'top_slab_thickness',
+      type: 'number',
+      label: 'Top Slab Thickness (mm)',
+      required: true,
+      min: 50,
+      defaultValue: 85,
+      unit: 'mm',
+      helpText: 'Concrete topping above pods',
+    },
+    {
+      id: 'rib_width',
+      type: 'number',
+      label: 'Rib Width (mm)',
+      required: false,
+      min: 100,
+      defaultValue: 110,
+      unit: 'mm',
+      helpText: 'Width of concrete ribs between pods',
+    },
+    {
+      id: 'pod_count',
+      type: 'number',
+      label: 'Number of Pods',
+      required: true,
+      min: 1,
+      helpText: 'Auto-calculated from area, can be overridden',
+    },
+    // Edge and internal beam fields (hidden, managed by multi-beam inputs)
     {
       id: 'edge_beam_depth',
       type: 'number',
@@ -443,7 +489,6 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       unit: 'm',
       helpText: 'Total continuous length of edge beams (defaults to perimeter if not specified)',
     },
-    // These fields are derived from multi-beam input
     {
       id: 'internal_beams_length',
       type: 'number',
@@ -491,18 +536,29 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
-    const thicknessM = (Number(answers.thickness) || 300) / 1000;
+    const podSizeM = (Number(answers.pod_size) || 1090) / 1000;
+    const podThicknessM = (Number(answers.pod_thickness) || 225) / 1000;
+    const topSlabM = (Number(answers.top_slab_thickness) || 85) / 1000;
+    const podCount = Number(answers.pod_count) || 0;
     const perimeter = Number(answers.perimeter) || 0;
     const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 450) / 1000;
     const edgeBeamWidthM = (Number(answers.edge_beam_width) || 450) / 1000;
 
-    // Main slab volume
-    const slabVolume = area * thicknessM;
+    // Total slab thickness (pods + topping)
+    const totalThicknessM = podThicknessM + topSlabM;
 
-    // Edge beam extra volume (depth below slab thickness)
-    // Use edge_beam_length if explicitly provided, otherwise fall back to perimeter
+    // Gross volume (before void subtraction)
+    const grossVolume = area * totalThicknessM;
+
+    // Pod void volume
+    const podVoidVolume = podCount * (podSizeM * podSizeM * podThicknessM);
+
+    // Net slab volume (ribs + topping)
+    const slabVolume = grossVolume - podVoidVolume;
+
+    // Edge beam extra volume (depth below total slab thickness)
     const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - totalThicknessM);
     const edgeBeamVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
 
     // Internal beams volume - if we have beam configs, calculate from those
@@ -514,7 +570,7 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
         const lengthM = Number(beam.length) || 0;
         const widthM = (Number(beam.width) || 300) / 1000;
         const depthM = (Number(beam.depth) || 400) / 1000;
-        const extraDepth = Math.max(0, depthM - thicknessM);
+        const extraDepth = Math.max(0, depthM - totalThicknessM);
         return sum + lengthM * widthM * extraDepth;
       }, 0);
     } else {
@@ -522,7 +578,7 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       const internalLength = Number(answers.internal_beams_length) || 0;
       const internalWidthM = (Number(answers.internal_beam_width) || 300) / 1000;
       const internalDepthM = (Number(answers.internal_beam_depth) || 400) / 1000;
-      const internalExtraDepth = Math.max(0, internalDepthM - thicknessM);
+      const internalExtraDepth = Math.max(0, internalDepthM - totalThicknessM);
       internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
     }
 

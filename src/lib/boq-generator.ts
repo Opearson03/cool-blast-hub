@@ -1434,12 +1434,27 @@ export function generateBOQFromEstimate(
       }
     }
 
-    if (scopeKey === "waffle_pod" && scopeAnswers.area) {
-      // Add waffle pods quantity
-      const area = scopeAnswers.area;
-      const podArea = 1.04; // ~1m² per pod
-      const podCount = Math.ceil(area / podArea);
-      addItem("formwork", "Waffle Pods", podCount, "units");
+    if (scopeKey === "waffle_pod") {
+      // Add waffle pods quantity - use pod_count from scope answers if available
+      const area = scopeAnswers.area || 0;
+      const podSize = Number(scopeAnswers.pod_size) || 1090;
+      const ribWidth = Number(scopeAnswers.rib_width) || 110;
+      const moduleSize = (podSize + ribWidth) / 1000; // Convert to metres
+      
+      // Use explicit pod_count if provided, otherwise calculate from area
+      const podCount = scopeAnswers.pod_count 
+        ? Number(scopeAnswers.pod_count)
+        : Math.ceil(area / (moduleSize * moduleSize));
+      
+      if (podCount > 0) {
+        const podThickness = Number(scopeAnswers.pod_thickness) || 225;
+        addItem(
+          "formwork", 
+          `Waffle Pods (${podSize}×${podSize}×${podThickness}mm)`, 
+          podCount, 
+          "units"
+        );
+      }
     }
   }
 
