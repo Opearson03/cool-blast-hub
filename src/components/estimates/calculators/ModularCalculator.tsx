@@ -1197,6 +1197,11 @@ export function ModularCalculator({
                   }}
                   priceMap={priceMap}
                   isStandaloneScope={isStandaloneScope}
+                  // Markup prompt support
+                  onRequestMarkup={() => onRequestMarkup?.(scope.id)}
+                  hasPlans={hasPlans}
+                  skipMarkupPrompt={skipMarkupPrompt}
+                  onSkipMarkupPromptChange={onSkipMarkupPromptChange}
                 />
               );
             }
@@ -1264,6 +1269,11 @@ function DemolitionModuleSection({
   onMarkDone,
   priceMap,
   isStandaloneScope = false,
+  // Markup prompt support
+  onRequestMarkup,
+  hasPlans = false,
+  skipMarkupPrompt = false,
+  onSkipMarkupPromptChange,
 }: {
   module: EstimateModule;
   answers: Record<string, any>;
@@ -1276,6 +1286,11 @@ function DemolitionModuleSection({
   onMarkDone: () => void;
   priceMap: PriceMap;
   isStandaloneScope?: boolean;
+  // Markup prompt support
+  onRequestMarkup?: () => void;
+  hasPlans?: boolean;
+  skipMarkupPrompt?: boolean;
+  onSkipMarkupPromptChange?: (skip: boolean) => void;
 }) {
   // Import CostLineItem for display
   // Use centralized formatCurrency - imported at top of file
@@ -1390,6 +1405,11 @@ function DemolitionModuleSection({
               onDemoHoursChange={(hours) => onAnswerChange('demo_hours', hours)}
               demoLabourRate={answers.demo_labour_rate || getPrice('labour', 'LABOUR HR', 75)}
               onDemoLabourRateChange={(rate) => onAnswerChange('demo_labour_rate', rate)}
+              // Markup prompt support
+              onRequestMarkup={onRequestMarkup}
+              hasPlans={hasPlans}
+              skipMarkupPrompt={skipMarkupPrompt}
+              onSkipMarkupPromptChange={onSkipMarkupPromptChange}
             />
           )}
 
