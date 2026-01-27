@@ -624,7 +624,8 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
 
 /**
  * Crossovers Scope Definition
- * Supports multiple measurement areas
+ * Supports multiple measurement areas with edge thickening
+ * (Uses same architecture as Driveway scope)
  */
 export const CROSSOVERS_SCOPE: ScopeDefinition = {
   id: 'crossovers',
@@ -633,6 +634,10 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
   icon: 'move-horizontal',
   supportsMultipleAreas: true,
   areasLabel: 'Crossover Areas',
+  supportsMultipleEdgeBeams: true,
+  edgeBeamsLabel: 'Edge Thickening',
+  // Hide edge thickening fields from standard rendering - they're managed by MultiEdgeBeamInput
+  hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
     {
       id: 'area',
@@ -653,31 +658,79 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     {
       id: 'thickness',
       type: 'number',
-      label: 'Thickness (mm)',
+      label: 'Crossover Thickness (mm)',
       required: true,
       requiresUserInput: true,
       min: 100,
       unit: 'mm',
       placeholder: 'Enter thickness',
+      helpText: 'Thickness of the main crossover slab',
+    },
+    // Edge Thickening Questions
+    {
+      id: 'edge_beam_depth',
+      type: 'number',
+      label: 'Edge Thickening Depth (mm)',
+      required: false,
+      min: 200,
+      defaultValue: 300,
+      unit: 'mm',
+      helpText: 'Total depth of thickened edge',
+    },
+    {
+      id: 'edge_beam_width',
+      type: 'number',
+      label: 'Edge Thickening Width (mm)',
+      required: false,
+      min: 200,
+      defaultValue: 300,
+      unit: 'mm',
+      helpText: 'Width of thickened edge',
+    },
+    {
+      id: 'edge_beam_length',
+      type: 'number',
+      label: 'Total Edge Thickening Length (m)',
+      required: false,
+      min: 0,
+      unit: 'm',
+      helpText: 'Total continuous length of edge thickening (defaults to perimeter if not specified)',
     },
   ],
   moduleIds: [
     'excavation',
+    'base-preparation',
     'formwork',
-    'reinforcement-slab',
+    'reinforcement-raft',      // Consolidated reinforcement for slab, edge beams, and internal beams
+    'connections-joints',      // Same as driveway
+    'plumbing',                // Same as driveway
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
     'labour-place',
     'surface-finishing',
+    'joints-control',          // Same as driveway
     'cleanup',
     'sundries',
     'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
-    const thicknessM = (Number(answers.thickness) || 0) / 1000;
-    return safeVolume(area * thicknessM);
+    const thicknessM = (Number(answers.thickness) || 100) / 1000;
+    const perimeter = Number(answers.perimeter) || 0;
+    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
+    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
+
+    // Main slab volume
+    const slabVolume = area * thicknessM;
+
+    // Edge thickening extra volume (depth below slab thickness)
+    // Use edge_beam_length if explicitly provided, otherwise fall back to perimeter
+    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+    const edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+
+    return safeVolume(slabVolume + edgeThickeningVolume);
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and crossover applications', moduleId: 'crossovers' },
@@ -687,7 +740,8 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
 
 /**
  * Paths & Surrounds Scope Definition
- * Supports multiple measurement areas
+ * Supports multiple measurement areas with edge thickening
+ * (Uses same architecture as Driveway scope)
  */
 export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
   id: 'paths_surrounds',
@@ -696,6 +750,10 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
   icon: 'footprints',
   supportsMultipleAreas: true,
   areasLabel: 'Path & Surround Areas',
+  supportsMultipleEdgeBeams: true,
+  edgeBeamsLabel: 'Edge Thickening',
+  // Hide edge thickening fields from standard rendering - they're managed by MultiEdgeBeamInput
+  hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
     {
       id: 'area',
@@ -716,78 +774,79 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
     {
       id: 'thickness',
       type: 'number',
-      label: 'Thickness (mm)',
+      label: 'Path/Surround Thickness (mm)',
       required: true,
       requiresUserInput: true,
       min: 50,
       unit: 'mm',
       placeholder: 'Enter thickness',
+      helpText: 'Thickness of the main slab',
     },
-    // Thickening/edge beam questions (same as driveways)
+    // Edge Thickening Questions
     {
-      id: 'hasThickening',
-      type: 'boolean',
-      label: 'Has Thickening/Edge Beams',
-      required: false,
-      defaultValue: false,
-    },
-    {
-      id: 'thickeningDepth',
+      id: 'edge_beam_depth',
       type: 'number',
-      label: 'Thickening Depth (mm)',
+      label: 'Edge Thickening Depth (mm)',
       required: false,
-      min: 100,
+      min: 200,
       defaultValue: 300,
       unit: 'mm',
+      helpText: 'Total depth of thickened edge',
     },
     {
-      id: 'thickeningWidth',
+      id: 'edge_beam_width',
       type: 'number',
-      label: 'Thickening Width (mm)',
+      label: 'Edge Thickening Width (mm)',
       required: false,
-      min: 100,
+      min: 200,
       defaultValue: 300,
       unit: 'mm',
+      helpText: 'Width of thickened edge',
+    },
+    {
+      id: 'edge_beam_length',
+      type: 'number',
+      label: 'Total Edge Thickening Length (m)',
+      required: false,
+      min: 0,
+      unit: 'm',
+      helpText: 'Total continuous length of edge thickening (defaults to perimeter if not specified)',
     },
   ],
   moduleIds: [
     'excavation',
     'base-preparation',
     'formwork',
-    'reinforcement-slab',
-    'reinforcement-footing',  // For thickening reinforcement (trench mesh, bars, verticals)
-    'connections-joints',
-    'plumbing',
+    'reinforcement-raft',      // Consolidated reinforcement for slab, edge beams, and internal beams
+    'connections-joints',      // Same as driveway
+    'plumbing',                // Same as driveway
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
     'labour-place',
     'surface-finishing',
-    'joints-control',
+    'joints-control',          // Same as driveway
     'cleanup',
     'sundries',
     'extra-items',
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
-    const thicknessM = (Number(answers.thickness) || 0) / 1000;
+    const thicknessM = (Number(answers.thickness) || 100) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
-    
-    // Base slab volume
-    let volume = area * thicknessM;
-    
-    // Add thickening/edge beam volume if enabled
-    if (answers.hasThickening) {
-      const thickeningDepthM = (Number(answers.thickeningDepth) || 300) / 1000;
-      const thickeningWidthM = (Number(answers.thickeningWidth) || 300) / 1000;
-      // Edge beam volume = perimeter × width × (depth - slab thickness)
-      // Only add the extra depth below the slab
-      const extraDepth = Math.max(0, thickeningDepthM - thicknessM);
-      const thickeningVolume = perimeter * thickeningWidthM * extraDepth;
-      volume += thickeningVolume;
-    }
-    
-    return safeVolume(volume);
+    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
+    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
+
+    // Main slab volume
+    const slabVolume = area * thicknessM;
+
+    // Edge thickening extra volume (depth below slab thickness)
+    // Use edge_beam_length if explicitly provided, otherwise fall back to perimeter
+    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+    const edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+
+    return safeVolume(slabVolume + edgeThickeningVolume);
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'paths_surrounds' },

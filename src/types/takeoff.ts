@@ -79,7 +79,7 @@ export const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerb
 export const AREA_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'suspended_slab'] as const;
 
 // Scopes that support sub-element marking (beams over slabs)
-export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod', 'driveway'] as const;
+export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds'] as const;
 export type SlabWithBeamsScope = typeof SLAB_WITH_BEAMS_SCOPES[number];
 
 export function isSlabWithBeamsScope(scopeId: string): scopeId is SlabWithBeamsScope {

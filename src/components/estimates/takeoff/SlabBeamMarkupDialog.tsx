@@ -168,11 +168,14 @@ export function SlabBeamMarkupDialog({
   const [localTopThickness, setLocalTopThickness] = useState(wafflePodTopThickness);
 
   const isWafflePod = scopeId === 'waffle_pod';
-  const isDriveway = scopeId === 'driveway';
+  // Scopes that use "Edge Thickening" terminology (driveway, crossovers, paths_surrounds)
+  const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds'];
+  const isEdgeThickeningScope = edgeThickeningScopes.includes(scopeId || '');
+  const isDriveway = isEdgeThickeningScope; // Backwards compatibility for existing code
   
-  // Helper to get edge beam label (uses "Edge Thickening" for driveway)
+  // Helper to get edge beam label (uses "Edge Thickening" for driveway/crossovers/paths_surrounds)
   const getEdgeLabel = (plural: boolean = true) => {
-    if (isDriveway) return 'Edge Thickening';
+    if (isEdgeThickeningScope) return 'Edge Thickening';
     return plural ? 'Edge Beams' : 'Edge Beam';
   };
 
