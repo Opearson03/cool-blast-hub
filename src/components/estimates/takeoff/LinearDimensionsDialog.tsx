@@ -486,11 +486,11 @@ export function LinearDimensionsDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-shrink-0 flex flex-col gap-2 pt-2 border-t">
+        <DialogFooter className="flex-shrink-0 !flex-col gap-2 pt-2 border-t">
           <Button 
             onClick={handleConfirm} 
             disabled={lengthMeters === 0 || isSaving}
-            className="w-full"
+            className="w-full min-w-0"
           >
             {isSaving ? 'Saving...' : `Save ${getScopeTitle()}`}
           </Button>
@@ -499,7 +499,7 @@ export function LinearDimensionsDialog({
               variant="secondary" 
               onClick={handleConfirmAndAddAnother} 
               disabled={lengthMeters === 0 || isSaving}
-              className="gap-1 w-full"
+              className="gap-1 w-full min-w-0"
             >
               <Plus className="h-4 w-4" />
               Save & Add More
@@ -509,7 +509,7 @@ export function LinearDimensionsDialog({
             variant="outline" 
             onClick={() => onOpenChange(false)} 
             disabled={isSaving}
-            className="w-full"
+            className="w-full min-w-0"
           >
             Cancel
           </Button>
