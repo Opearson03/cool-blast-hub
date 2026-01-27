@@ -1455,6 +1455,41 @@ export function generateBOQFromEstimate(
           "units"
         );
       }
+
+      // 4-Way Spacers
+      const spacer4WayCount = Number(scopeAnswers.spacer_4way_count) || 0;
+      if (spacer4WayCount > 0) {
+        addItem(
+          "formwork",
+          "4-Way Waffle Pod Spacers",
+          spacer4WayCount,
+          "units"
+        );
+      }
+
+      // 2-Way Spacers
+      const spacer2WayCount = Number(scopeAnswers.spacer_2way_count) || 0;
+      if (spacer2WayCount > 0) {
+        addItem(
+          "formwork",
+          "2-Way Waffle Pod Spacers",
+          spacer2WayCount,
+          "units"
+        );
+      }
+
+      // Pod Rails (for 100mm+ slabs)
+      const podRailPacks = Number(scopeAnswers.pod_rail_packs) || 0;
+      if (podRailPacks > 0) {
+        addItem(
+          "formwork",
+          "Pod Rail Spacers (40mm × 550mm)",
+          podRailPacks,
+          "packs of 20",
+          undefined,
+          "2 rails per pod"
+        );
+      }
     }
   }
 

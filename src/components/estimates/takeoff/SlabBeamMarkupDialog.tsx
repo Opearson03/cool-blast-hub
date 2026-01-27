@@ -20,10 +20,13 @@ interface BeamType {
 
 export type SlabWorkflowStep = 
   | 'name'
-  | 'mark_edge_beam'      // Drawing a single edge beam
-  | 'edge_beam_details'   // Name + dimensions for single edge beam
-  | 'edge_beams_complete' // Summary of edge beams, option to add more or move to internal
-  | 'mark_internal_beam'  // Drawing a single internal beam
+  | 'count_pods'           // Counting waffle pods
+  | 'count_4way'           // Counting 4-way spacers
+  | 'count_2way'           // Counting 2-way spacers
+  | 'mark_edge_beam'       // Drawing a single edge beam
+  | 'edge_beam_details'    // Name + dimensions for single edge beam
+  | 'edge_beams_complete'  // Summary of edge beams, option to add more or move to internal
+  | 'mark_internal_beam'   // Drawing a single internal beam
   | 'internal_beam_details' // Name + dimensions for single internal beam
   | 'internal_beams_complete' // Summary, option to add more or finish
   | 'complete';
@@ -50,6 +53,10 @@ export interface PendingSlabData {
   wafflePodThickness?: number;
   wafflePodTopThickness?: number;
   wafflePodRibWidth?: number;
+  // Waffle pod counting data
+  wafflePodCount?: number;
+  spacer4WayCount?: number;
+  spacer2WayCount?: number;
 }
 
 // Waffle pod module size options (dimensions in mm)
@@ -268,7 +275,8 @@ export function SlabBeamMarkupDialog({
         setInternalBeamTypeMode('new');
         setSelectedInternalBeamTypeKey(null);
         setBeamName(nextNewInternalTypeName);
-        setBeamWidth(300);
+        // Waffle pod uses 110mm default internal beam width
+        setBeamWidth(isWafflePod ? 110 : 300);
         setBeamDepth(400);
       }
     }
@@ -318,7 +326,8 @@ export function SlabBeamMarkupDialog({
     if (mode === 'new') {
       setSelectedInternalBeamTypeKey(null);
       setBeamName(nextNewInternalTypeName);
-      setBeamWidth(300);
+      // Waffle pod uses 110mm default internal beam width
+      setBeamWidth(isWafflePod ? 110 : 300);
       setBeamDepth(400);
     } else if (mode === 'existing' && existingInternalBeamTypes.length > 0) {
       const firstType = existingInternalBeamTypes[0];

@@ -541,6 +541,37 @@ export function ModularCalculator({
     notifyStateChange();
   }, [notifyStateChange]);
 
+  // Auto-calculate pod rails when top_slab_thickness or pod_count changes for waffle pod
+  useEffect(() => {
+    if (scope.id !== 'waffle_pod') return;
+    
+    const topSlabThickness = Number(scopeAnswers.top_slab_thickness) || 85;
+    const podCount = Number(scopeAnswers.pod_count) || 0;
+    
+    if (topSlabThickness >= 100 && podCount > 0) {
+      const railsNeeded = podCount * 2;
+      const packsNeeded = Math.ceil(railsNeeded / 20);
+      
+      // Only update if values differ
+      if (scopeAnswers.pod_rails_required !== true || scopeAnswers.pod_rail_packs !== packsNeeded) {
+        setScopeAnswers(prev => ({
+          ...prev,
+          pod_rails_required: true,
+          pod_rail_packs: packsNeeded,
+        }));
+      }
+    } else {
+      // Clear pod rails if not needed
+      if (scopeAnswers.pod_rails_required === true) {
+        setScopeAnswers(prev => ({
+          ...prev,
+          pod_rails_required: false,
+          pod_rail_packs: 0,
+        }));
+      }
+    }
+  }, [scope.id, scopeAnswers.top_slab_thickness, scopeAnswers.pod_count]);
+
   // Handlers
   const handleScopeAnswerChange = (questionId: string, value: any) => {
     setScopeAnswers((prev) => ({ ...prev, [questionId]: value }));
@@ -588,6 +619,19 @@ export function ModularCalculator({
         // Only auto-update if pod_count hasn't been manually set or is 0
         if (!prev.pod_count || prev.pod_count === 0) {
           updates.pod_count = estimatedPodCount;
+        }
+        
+        // Auto-calculate pod rails for 100mm+ slabs
+        const topSlabThickness = Number(prev.top_slab_thickness) || 85;
+        const currentPodCount = updates.pod_count || Number(prev.pod_count) || 0;
+        if (topSlabThickness >= 100 && currentPodCount > 0) {
+          const railsNeeded = currentPodCount * 2;
+          const packsNeeded = Math.ceil(railsNeeded / 20);
+          updates.pod_rails_required = true;
+          updates.pod_rail_packs = packsNeeded;
+        } else {
+          updates.pod_rails_required = false;
+          updates.pod_rail_packs = 0;
         }
       }
       
