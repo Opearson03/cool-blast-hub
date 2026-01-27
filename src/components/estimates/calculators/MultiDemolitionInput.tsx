@@ -127,7 +127,6 @@ export function MultiDemolitionInput({
   onDemoLabourRateChange,
   // Markup prompt support
   onRequestMarkup,
-  hasPlans = false,
   skipMarkupPrompt = false,
   onSkipMarkupPromptChange,
 }: MultiDemolitionInputProps) {
@@ -164,7 +163,10 @@ export function MultiDemolitionInput({
   };
 
   const handleAddClick = () => {
-    if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
+    // Show the markup prompt whenever the takeoff/markup flow is available.
+    // (Even if no files are uploaded yet, the user can choose "Mark on plans"
+    // and then upload/select plans in the takeoff step.)
+    if (onRequestMarkup && !skipMarkupPrompt) {
       setPendingAreaName(newAreaName);
       setShowMarkupPrompt(true);
     } else {
