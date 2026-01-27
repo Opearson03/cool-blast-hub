@@ -1749,9 +1749,13 @@ export type Database = {
           parent_markup_id: string | null
           perimeter_m: number | null
           pier_quantity: number | null
+          pod_count: number | null
+          pod_thickness_mm: number | null
           points: Json
           scope_id: string
           shape_type: string
+          spacer_2way_count: number | null
+          spacer_4way_count: number | null
           takeoff_id: string
           toe_mm: number | null
           width_mm: number | null
@@ -1772,9 +1776,13 @@ export type Database = {
           parent_markup_id?: string | null
           perimeter_m?: number | null
           pier_quantity?: number | null
+          pod_count?: number | null
+          pod_thickness_mm?: number | null
           points?: Json
           scope_id: string
           shape_type: string
+          spacer_2way_count?: number | null
+          spacer_4way_count?: number | null
           takeoff_id: string
           toe_mm?: number | null
           width_mm?: number | null
@@ -1795,9 +1803,13 @@ export type Database = {
           parent_markup_id?: string | null
           perimeter_m?: number | null
           pier_quantity?: number | null
+          pod_count?: number | null
+          pod_thickness_mm?: number | null
           points?: Json
           scope_id?: string
           shape_type?: string
+          spacer_2way_count?: number | null
+          spacer_4way_count?: number | null
           takeoff_id?: string
           toe_mm?: number | null
           width_mm?: number | null

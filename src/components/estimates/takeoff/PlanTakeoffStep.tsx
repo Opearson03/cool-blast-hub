@@ -675,6 +675,14 @@ export function PlanTakeoffStep({
     
     // Only create slab if not already saved
     if (!slabId) {
+      // Prepare waffle pod data if this is a waffle pod scope with counting complete
+      const wafflePodData = (activeScope === 'waffle_pod' && wafflePodCountingComplete) ? {
+        podCount: pendingSlabData.wafflePodCount || 0,
+        podThickness: pendingSlabData.wafflePodThickness || Number(wafflePodDepth) || 225,
+        spacer4WayCount: pendingSlabData.spacer4WayCount || 0,
+        spacer2WayCount: pendingSlabData.spacer2WayCount || 0,
+      } : undefined;
+      
       const slabMarkup = await addSlabWithBeams(
         currentFileId,
         activeScope,
@@ -686,7 +694,8 @@ export function PlanTakeoffStep({
         null,
         null,
         color,
-        currentPage
+        currentPage,
+        wafflePodData
       );
       slabId = slabMarkup?.id || null;
       setSlabSavedId(slabId);
@@ -731,7 +740,7 @@ export function PlanTakeoffStep({
     }
     
     resetSlabWorkflow();
-  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, addBeamToSlab, currentPage, slabSavedId]);
+  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, addBeamToSlab, currentPage, slabSavedId, wafflePodCountingComplete, wafflePodDepth]);
 
   // Handler: Cancel slab workflow
   const handleCancelSlabWorkflow = useCallback(() => {

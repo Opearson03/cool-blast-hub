@@ -1235,8 +1235,12 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
               ...(hasInternalBeams && { internal_beam_depth: Math.round(internalBeamAvgDepth) }),
             };
             
-            // For waffle pod scope, also estimate pod count from area
+            // For waffle pod scope, use actual counted values if available, otherwise estimate
             if (scope === 'waffle_pod') {
+              // Get the first area which contains waffle pod counting data from takeoff
+              const firstArea = raftSlabAreas[0];
+              
+              // Calculate total area for estimation fallback
               const totalArea = areasFromTakeoff.reduce((sum, a) => sum + (a._actualArea || 0), 0);
               // Standard pod size is 1090mm × 1090mm with ~110mm ribs
               // Effective grid is ~1200mm × 1200mm per pod = 1.44m² per pod
@@ -1246,13 +1250,22 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
               const effectiveGridM = podSizeM + ribWidth; // ~1.2m
               const estimatedPodCount = Math.ceil(totalArea / (effectiveGridM * effectiveGridM));
               
+              // Use actual counted values from takeoff if available, otherwise use estimates
+              const podCount = firstArea?.podCount ?? estimatedPodCount;
+              const podThickness = firstArea?.podThicknessMm ?? 225;
+              const spacer4WayCount = firstArea?.spacer4WayCount ?? 0;
+              const spacer2WayCount = firstArea?.spacer2WayCount ?? 0;
+              
               initialScopeAnswers = {
                 ...initialScopeAnswers,
-                // Provide estimated pod count (user should verify from drawings)
-                pod_count: estimatedPodCount,
-                // Set default waffle pod dimensions (can be overridden)
+                // Use actual counted pod count if available from takeoff
+                pod_count: podCount,
+                // Spacer counts from takeoff
+                spacer_4way_count: spacer4WayCount,
+                spacer_2way_count: spacer2WayCount,
+                // Set waffle pod dimensions (use takeoff value or defaults)
                 pod_size: '1090',
-                pod_thickness: 225, // Default 225mm pod
+                pod_thickness: podThickness,
                 top_slab_thickness: 85, // Default 85mm top
               };
             }

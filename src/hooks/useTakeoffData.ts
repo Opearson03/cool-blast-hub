@@ -37,7 +37,7 @@ interface UseTakeoffDataReturn {
   addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases', name?: string) => Promise<TakeoffMarkup | null>;
   addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string, toeMm?: number) => Promise<TakeoffMarkup | null>;
-  addSlabWithBeams: (fileId: string, scopeId: string, slabData: { points: TakeoffPoint[]; shapeType: 'polygon' | 'rectangle'; name: string }, edgeBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, internalBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
+  addSlabWithBeams: (fileId: string, scopeId: string, slabData: { points: TakeoffPoint[]; shapeType: 'polygon' | 'rectangle'; name: string }, edgeBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, internalBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, color: string, pageNumber: number, wafflePodData?: { podCount: number; podThickness: number; spacer4WayCount: number; spacer2WayCount: number }) => Promise<TakeoffMarkup | null>;
   addBeamToSlab: (parentMarkupId: string, fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, depthMm: number, color: string, pageNumber: number, name: string, beamType: 'edge_beam' | 'internal_beam') => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
   updateBeamMarkup: (markupId: string, data: { name?: string; width_mm?: number; height_mm?: number }) => Promise<void>;
@@ -1007,7 +1007,13 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       totalLength: number;
     } | null,
     color: string,
-    pageNumber: number
+    pageNumber: number,
+    wafflePodData?: {
+      podCount: number;
+      podThickness: number;
+      spacer4WayCount: number;
+      spacer2WayCount: number;
+    }
   ): Promise<TakeoffMarkup | null> => {
     if (!takeoff) return null;
 
@@ -1042,7 +1048,12 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           perimeter_m: perimeter,
           page_number: pageNumber,
           name: slabData.name,
-          markup_type: 'primary'
+          markup_type: 'primary',
+          // Waffle pod counting data
+          pod_count: wafflePodData?.podCount ?? null,
+          pod_thickness_mm: wafflePodData?.podThickness ?? null,
+          spacer_4way_count: wafflePodData?.spacer4WayCount ?? null,
+          spacer_2way_count: wafflePodData?.spacer2WayCount ?? null,
         })
         .select()
         .single();
