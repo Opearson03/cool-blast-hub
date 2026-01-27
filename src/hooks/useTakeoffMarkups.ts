@@ -131,6 +131,7 @@ export interface RaftSlabAreaFromTakeoff {
 interface UseTakeoffMarkupsReturn {
   markups: ScopeAreaData[];
   isLoading: boolean;
+  hasFiles: boolean;
   getAreaForScope: (scopeId: string) => number | null;
   getPerimeterForScope: (scopeId: string) => number | null;
   hasMarkupForScope: (scopeId: string) => boolean;
@@ -151,12 +152,14 @@ interface UseTakeoffMarkupsReturn {
 
 export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsReturn {
   const [markups, setMarkups] = useState<ScopeAreaData[]>([]);
+  const [hasFiles, setHasFiles] = useState(false);
   // Initialize loading to true if we have an estimateId to prevent race conditions
   const [isLoading, setIsLoading] = useState(!!estimateId);
 
   const fetchMarkups = useCallback(async () => {
     if (!estimateId) {
       setMarkups([]);
+      setHasFiles(false);
       return;
     }
 
@@ -173,8 +176,18 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
 
       if (!takeoffData) {
         setMarkups([]);
+        setHasFiles(false);
         return;
       }
+
+      // Check if any files have been uploaded to this takeoff
+      const { count: filesCount, error: filesError } = await supabase
+        .from('takeoff_files')
+        .select('id', { count: 'exact', head: true })
+        .eq('takeoff_id', takeoffData.id);
+
+      if (filesError) throw filesError;
+      setHasFiles((filesCount || 0) > 0);
 
       // Then get the markups for this takeoff - include all fields for linear/pad elements and beam relationships
       const { data: markupsData, error: markupsError } = await supabase
@@ -556,6 +569,7 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
   return {
     markups,
     isLoading,
+    hasFiles,
     getAreaForScope,
     getPerimeterForScope,
     hasMarkupForScope,
