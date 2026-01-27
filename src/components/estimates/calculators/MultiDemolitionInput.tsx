@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { MarkupPromptDialog } from "./MarkupPromptDialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 export interface DemolitionArea {
   id: string;
@@ -60,6 +62,11 @@ interface MultiDemolitionInputProps {
   onDemoHoursChange?: (hours: number) => void;
   demoLabourRate?: number;
   onDemoLabourRateChange?: (rate: number) => void;
+  // Markup prompt support
+  onRequestMarkup?: () => void;
+  hasPlans?: boolean;
+  skipMarkupPrompt?: boolean;
+  onSkipMarkupPromptChange?: (skip: boolean) => void;
 }
 
 const CONCRETE_DENSITY = 2.4; // tonnes per m³
@@ -118,8 +125,16 @@ export function MultiDemolitionInput({
   onDemoHoursChange,
   demoLabourRate = 75,
   onDemoLabourRateChange,
+  // Markup prompt support
+  onRequestMarkup,
+  hasPlans = false,
+  skipMarkupPrompt = false,
+  onSkipMarkupPromptChange,
 }: MultiDemolitionInputProps) {
   const [newAreaName, setNewAreaName] = useState("");
+  const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
+  const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
+  const [pendingAreaName, setPendingAreaName] = useState("");
 
   // Calculate totals
   const totalVolume = areas.reduce((sum, area) => {
@@ -131,9 +146,9 @@ export function MultiDemolitionInput({
 
   const totalWeight = totalVolume * CONCRETE_DENSITY;
 
-  const addArea = () => {
+  const addArea = (nameOverride?: string) => {
     const areaNumber = areas.length + 1;
-    const name = newAreaName.trim() || `Demo Area ${areaNumber}`;
+    const name = nameOverride || newAreaName.trim() || `Demo Area ${areaNumber}`;
     onChange([
       ...areas,
       {
@@ -145,6 +160,32 @@ export function MultiDemolitionInput({
       },
     ]);
     setNewAreaName("");
+    setPendingAreaName("");
+  };
+
+  const handleAddClick = () => {
+    if (hasPlans && onRequestMarkup && !skipMarkupPrompt) {
+      setPendingAreaName(newAreaName);
+      setShowMarkupPrompt(true);
+    } else {
+      addArea();
+    }
+  };
+
+  const handleMarkOnPlans = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    onRequestMarkup?.();
+  };
+
+  const handleEnterManually = () => {
+    if (dontAskAgain) {
+      onSkipMarkupPromptChange?.(true);
+    }
+    setShowMarkupPrompt(false);
+    addArea(pendingAreaName);
   };
 
   const removeArea = (id: string) => {
@@ -332,14 +373,14 @@ export function MultiDemolitionInput({
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
-                addArea();
+                handleAddClick();
               }
             }}
           />
           <Button
             type="button"
             variant="outline"
-            onClick={addArea}
+            onClick={handleAddClick}
             className="shrink-0 h-11 sm:h-9"
           >
             <Plus className="h-4 w-4 mr-1" />
@@ -837,6 +878,16 @@ export function MultiDemolitionInput({
           </div>
         )}
       </CardContent>
+
+      <MarkupPromptDialog
+        open={showMarkupPrompt}
+        onOpenChange={setShowMarkupPrompt}
+        itemType="demolition area"
+        onMarkOnPlans={handleMarkOnPlans}
+        onEnterManually={handleEnterManually}
+        dontAskAgain={dontAskAgain}
+        onDontAskAgainChange={setDontAskAgain}
+      />
     </Card>
   );
 }
