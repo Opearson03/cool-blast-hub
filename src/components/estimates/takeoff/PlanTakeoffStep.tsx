@@ -1014,6 +1014,12 @@ export function PlanTakeoffStep({
 
   // Handler for "Done" button when marking piers/bollards/pads
   const handleDoneMarkingPiers = useCallback(() => {
+    // Don't open pier dialog if we're in waffle pod counting mode
+    if (isWafflePodCounting) {
+      handleDoneCountingWafflePods();
+      return;
+    }
+    
     if (pierPoints.length > 0) {
       if (isBollardScope) {
         setShowBollardDimensions(true);
@@ -1023,7 +1029,7 @@ export function PlanTakeoffStep({
         setShowPierDimensions(true);
       }
     }
-  }, [pierPoints.length, isBollardScope, isPadScope]);
+  }, [pierPoints.length, isBollardScope, isPadScope, isWafflePodCounting, handleDoneCountingWafflePods]);
 
   // Handler for completing polyline drawing - called when user clicks "Done" on polyline toolbar
   const handleDoneMarkingPolyline = useCallback(() => {
