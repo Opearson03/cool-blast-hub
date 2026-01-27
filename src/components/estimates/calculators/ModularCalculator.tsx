@@ -883,14 +883,8 @@ export function ModularCalculator({
           onThicknessChange={(val) => handleScopeAnswerChange('thickness', val)}
           thicknessDefault={0}
           thicknessMin={scope.questions.find(q => q.id === 'thickness')?.min || 50}
-          // Thickening/edge beam support (for driveway and paths scopes)
-          showThickeningOption={scope.id === 'driveway' || scope.id === 'paths_surrounds'}
-          hasThickening={scopeAnswers.hasThickening || false}
-          onThickeningChange={(val) => handleScopeAnswerChange('hasThickening', val)}
-          thickeningDepth={scopeAnswers.thickeningDepth || 300}
-          onThickeningDepthChange={(val) => handleScopeAnswerChange('thickeningDepth', val)}
-          thickeningWidth={scopeAnswers.thickeningWidth || 300}
-          onThickeningWidthChange={(val) => handleScopeAnswerChange('thickeningWidth', val)}
+          // Legacy thickening option - REMOVED: now handled by reinforcement-raft module with per-type markup
+          showThickeningOption={false}
           // Markup prompt support - pass scope identifier for navigation
           onRequestMarkup={() => onRequestMarkup?.(scope.id)}
           hasPlans={hasPlans}
