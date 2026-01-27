@@ -280,7 +280,7 @@ export function SlabBeamMarkupDialog({
         setBeamDepth(400);
       }
     }
-  }, [step, savedEdgeBeams.length, savedInternalBeams.length, existingEdgeBeamTypes, existingInternalBeamTypes, nextNewEdgeTypeName, nextNewInternalTypeName]);
+  }, [step, savedEdgeBeams.length, savedInternalBeams.length, existingEdgeBeamTypes, existingInternalBeamTypes, nextNewEdgeTypeName, nextNewInternalTypeName, isWafflePod]);
 
   // Handle edge beam type selection change
   const handleEdgeBeamTypeSelect = (key: string) => {
@@ -342,9 +342,16 @@ export function SlabBeamMarkupDialog({
     setLocalRibWidth(wafflePodRibWidth);
   }, [wafflePodSize, wafflePodThickness, wafflePodTopThickness, wafflePodRibWidth]);
 
-  const handleWafflePodSave = () => {
+  // Save waffle pod dimensions and skip beams (used when user chooses to skip)
+  const handleWafflePodSkipBeams = () => {
     onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
     onSkipAllBeams();
+  };
+
+  // Save waffle pod dimensions and proceed to edge beams
+  const handleWafflePodStartEdgeBeams = () => {
+    onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
+    onStartEdgeBeams();
   };
 
   const handleSaveBeam = () => {
@@ -390,7 +397,7 @@ export function SlabBeamMarkupDialog({
 
   const getStepDescription = () => {
     if (isWafflePod && step === 'name') {
-      return 'Give this waffle pod slab a name and select the pod dimensions.';
+      return 'Give this waffle pod slab a name, select pod dimensions, then add beams if needed.';
     }
     if (isDriveway && step === 'name') {
       return 'Give this driveway a descriptive name, then add edge thickening if needed.';
@@ -952,31 +959,20 @@ export function SlabBeamMarkupDialog({
         {/* Fixed footer with responsive buttons */}
         <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap sm:justify-end shrink-0 pt-4 border-t">
           {/* Step: Name */}
-          {step === 'name' && isWafflePod && (
-            <>
-              <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
-                Cancel
-              </Button>
-              <Button onClick={handleWafflePodSave} className="w-full sm:w-auto gap-1">
-                <Check className="h-4 w-4" />
-                Save Waffle Pod
-              </Button>
-            </>
-          )}
-          {step === 'name' && !isWafflePod && (
+          {step === 'name' && (
             <>
               <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
                 Cancel
               </Button>
               <Button 
                 variant="secondary" 
-                onClick={onSkipAllBeams}
+                onClick={isWafflePod ? handleWafflePodSkipBeams : onSkipAllBeams}
                 className="w-full sm:w-auto gap-1"
               >
                 <SkipForward className="h-4 w-4" />
                 {isDriveway ? 'Skip Thickening' : 'Skip Beams'}
               </Button>
-              <Button onClick={onStartEdgeBeams} className="w-full sm:w-auto gap-1">
+              <Button onClick={isWafflePod ? handleWafflePodStartEdgeBeams : onStartEdgeBeams} className="w-full sm:w-auto gap-1">
                 {isDriveway ? 'Add Edge Thickening' : 'Add Edge Beam'}
                 <ArrowRight className="h-4 w-4" />
               </Button>
