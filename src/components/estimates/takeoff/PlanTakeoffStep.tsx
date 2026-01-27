@@ -675,8 +675,8 @@ export function PlanTakeoffStep({
     
     // Only create slab if not already saved
     if (!slabId) {
-      // Prepare waffle pod data if this is a waffle pod scope with counting complete
-      const wafflePodData = (activeScope === 'waffle_pod' && wafflePodCountingComplete) ? {
+      // Prepare waffle pod data if this is a waffle pod scope (always include data, even if counting was skipped)
+      const wafflePodData = (activeScope === 'waffle_pod') ? {
         podCount: pendingSlabData.wafflePodCount || 0,
         podThickness: pendingSlabData.wafflePodThickness || Number(wafflePodDepth) || 225,
         spacer4WayCount: pendingSlabData.spacer4WayCount || 0,
@@ -780,10 +780,13 @@ export function PlanTakeoffStep({
   
   // Handler: Save pod count and optionally continue to 4-way spacers
   const handleSavePodCount = useCallback(() => {
+    // Use pierPoints (active points) if available, otherwise fallback to wafflePodPoints
+    const currentPodCount = pierPoints.length > 0 ? pierPoints.length : wafflePodPoints.length;
+    
     // Store the count in pending slab data
     setPendingSlabData(prev => prev ? {
       ...prev,
-      wafflePodCount: wafflePodPoints.length,
+      wafflePodCount: currentPodCount,
       wafflePodThickness: Number(wafflePodDepth),
     } : null);
     
@@ -799,7 +802,7 @@ export function PlanTakeoffStep({
     // Return to the slab dialog to add beams
     setSlabWorkflowStep('name');
     setShowSlabBeamDialog(true);
-  }, [wafflePodPoints.length, wafflePodDepth]);
+  }, [pierPoints.length, wafflePodPoints.length, wafflePodDepth]);
   
   // Handler: Save pod count and start 4-way counting
   const handleSavePodCountAnd4Way = useCallback(() => {

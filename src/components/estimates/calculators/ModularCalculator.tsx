@@ -605,6 +605,19 @@ export function ModularCalculator({
 
   // Handlers
   const handleScopeAnswerChange = (questionId: string, value: any) => {
+    // Handle pod_rails_required toggle - recalculate packs when manually enabled
+    if (questionId === 'pod_rails_required' && value === true && scope.id === 'waffle_pod') {
+      const podCount = Number(scopeAnswers.pod_count) || 0;
+      if (podCount > 0) {
+        const packsNeeded = Math.ceil((podCount * 2) / 20);
+        setScopeAnswers((prev) => ({
+          ...prev,
+          pod_rails_required: true,
+          pod_rail_packs: packsNeeded,
+        }));
+        return;
+      }
+    }
     setScopeAnswers((prev) => ({ ...prev, [questionId]: value }));
   };
 
