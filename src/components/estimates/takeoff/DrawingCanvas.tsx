@@ -814,7 +814,11 @@ export function DrawingCanvas({
   const renderMarkups = () => {
     return markups.map((markup) => {
       const isSelected = markup.id === selectedMarkupId;
-      const fillOpacity = isSelected ? 0.4 : 0.25;
+      // Use much lower opacity for waffle pod slabs so user can see pods underneath
+      const isWafflePodMarkup = markup.scope_id === 'waffle_pod';
+      const fillOpacity = isWafflePodMarkup 
+        ? (isSelected ? 0.15 : 0.08)
+        : (isSelected ? 0.4 : 0.25);
       const strokeWidth = isSelected ? 3 : 2;
 
       if (markup.shape_type === 'polygon') {
