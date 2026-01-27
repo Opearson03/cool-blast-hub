@@ -1,25 +1,21 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, LinearSection } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, LinearSection, HorizontalBarConfig, VerticalBarConfig } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
 
 /**
  * Footing Reinforcement Module (Unified)
  * 
- * Supports per-section reinforcement configuration:
- * - Each linear section (strip footing, retaining wall) can have different TM/bar settings
- * - Follows the same architecture as reinforcement-raft for consistency
+ * Aligned with raft slab edge beam reinforcement pattern:
+ * - TM Type with None option + 1-2 layers
+ * - Ligatures toggle with size + centres
+ * - Horizontal bars array (add/remove rows)
+ * - Vertical bars array (add/remove rows)
  */
 
 // Default values for footing reinforcement
 const DEFAULT_TM_TYPE = 'L11TM4';
-const DEFAULT_BAR_SIZE = 'N16';
-const DEFAULT_BAR_SPACING = '200';
-const DEFAULT_BAR_CONFIG = 'bottom';
 const DEFAULT_LIG_SIZE = 'R10';
 const DEFAULT_LIG_CENTRES = 200;
-const DEFAULT_VERTICAL_BAR_SIZE = 'N16';
-const DEFAULT_VERTICAL_BAR_CENTRES = 400;
 const DEFAULT_LAP_ALLOWANCE = 12.5;
-const LAP_ALLOWANCE = 1.125;
 
 export const reinforcementFootingModule: EstimateModule = {
   id: 'reinforcement-footing',
@@ -92,15 +88,21 @@ export const reinforcementFootingModule: EstimateModule = {
     const sections: LinearSection[] = scopeData?.linearSections || scopeData?.footings || [];
     const lapPercent = 1 + (Number(answers.rebar_lap_allowance) || DEFAULT_LAP_ALLOWANCE) / 100;
 
-    // Check if any section has reinforcement
-    const hasAnyReo = sections.length > 0 
+    // Check if any section has TM enabled (tm_type not 'none')
+    const hasAnyTm = sections.length > 0 
       ? sections.some(s => {
-          const reoType = s.reo_type || 'none';
-          return reoType !== 'none';
+          const tmType = s.tm_type || DEFAULT_TM_TYPE;
+          return tmType !== 'none';
         })
       : false;
 
-    if (!hasAnyReo) {
+    // Check for horizontal or vertical bars
+    const hasAnyHBars = sections.some(s => s.horizontal_bars && s.horizontal_bars.length > 0);
+    const hasAnyVBars = sections.some(s => s.vertical_bars && s.vertical_bars.length > 0);
+    const hasAnyLigs = sections.some(s => s.add_ligs);
+    const hasAnyChairs = sections.some(s => s.chairs_enabled);
+
+    if (!hasAnyTm && !hasAnyHBars && !hasAnyVBars && !hasAnyLigs) {
       return {
         moduleId: 'reinforcement-footing',
         moduleName: 'Reinforcement',
@@ -111,92 +113,53 @@ export const reinforcementFootingModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // TRENCH MESH & BAR REINFORCEMENT (per section)
+    // TRENCH MESH (per section, matching edge beam pattern)
     // ═══════════════════════════════════════════════════════════════
     if (sections.length > 0) {
       sections.forEach((section) => {
         const length = section._actualLength || section.length;
         if (length <= 0) return;
 
-        const reoType = section.reo_type || 'none';
-        if (reoType === 'none') return;
+        const tmType = section.tm_type || DEFAULT_TM_TYPE;
+        if (tmType === 'none') return;
 
-        const showTm = reoType === 'trench_mesh' || reoType === 'both';
-        const showBar = reoType === 'bar' || reoType === 'both';
+        const tmLayers = Number(section.tm_layers) || 1;
+        const tmTypeTop = section.tm_type_top || tmType;
+        const tmLengthWithLap = length * lapPercent;
+        const tmSheetsPerLayer = Math.ceil(tmLengthWithLap / 6);
         
-        // Trench Mesh
-        if (showTm) {
-          const tmType = section.tm_type || DEFAULT_TM_TYPE;
-          if (tmType !== 'none') {
-            const tmLayers = Number(section.tm_layers) || 1;
-            const tmTypeTop = section.tm_type_top || tmType;
-            const tmLengthWithLap = length * lapPercent;
-            const tmSheetsPerLayer = Math.ceil(tmLengthWithLap / 6);
-            
-            // Bottom layer (always present)
-            const tmPriceBottom = section.tm_price ?? getPrice(priceMap, 'trench_mesh', tmType, 108);
-            const bottomCost = tmSheetsPerLayer * tmPriceBottom;
-            
-            lineItems.push({
-              id: `tm_${section.id}_bottom`,
-              description: tmLayers > 1 
-                ? `${section.name} – ${tmType} (${tmSheetsPerLayer} sheets) – Bottom`
-                : `${section.name} – ${tmType} (${tmSheetsPerLayer} sheets)`,
-              quantity: tmSheetsPerLayer,
-              unit: 'sheets',
-              unitPrice: tmPriceBottom,
-              total: Math.round(bottomCost * 100) / 100,
-              category: 'materials',
-            });
-            subtotal += bottomCost;
-            
-            // Top layer (only if 2 layers)
-            if (tmLayers > 1) {
-              const tmPriceTop = section.tm_price_top ?? getPrice(priceMap, 'trench_mesh', tmTypeTop, 108);
-              const topCost = tmSheetsPerLayer * tmPriceTop;
-              
-              lineItems.push({
-                id: `tm_${section.id}_top`,
-                description: `${section.name} – ${tmTypeTop} (${tmSheetsPerLayer} sheets) – Top`,
-                quantity: tmSheetsPerLayer,
-                unit: 'sheets',
-                unitPrice: tmPriceTop,
-                total: Math.round(topCost * 100) / 100,
-                category: 'materials',
-              });
-              subtotal += topCost;
-            }
-          }
-        }
-
-        // Bar Reinforcement
-        if (showBar) {
-          const barSize = section.bar_size || DEFAULT_BAR_SIZE;
-          const spacing = Number(section.bar_spacing || DEFAULT_BAR_SPACING);
-          const barConfig = section.bar_config || DEFAULT_BAR_CONFIG;
-          const layers = barConfig === 'top_bottom' ? 2 : 1;
+        // Bottom layer (always present)
+        const tmPriceBottom = section.tm_price ?? getPrice(priceMap, 'trench_mesh', tmType, 108);
+        const bottomCost = tmSheetsPerLayer * tmPriceBottom;
+        
+        lineItems.push({
+          id: `tm_${section.id}_bottom`,
+          description: tmLayers > 1 
+            ? `${section.name} – ${tmType} (${tmSheetsPerLayer} sheets) – Bottom`
+            : `${section.name} – ${tmType} (${tmSheetsPerLayer} sheets)`,
+          quantity: tmSheetsPerLayer,
+          unit: 'sheets',
+          unitPrice: tmPriceBottom,
+          total: Math.round(bottomCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += bottomCost;
+        
+        // Top layer (only if 2 layers)
+        if (tmLayers > 1) {
+          const tmPriceTop = section.tm_price_top ?? getPrice(priceMap, 'trench_mesh', tmTypeTop, 108);
+          const topCost = tmSheetsPerLayer * tmPriceTop;
           
-          const pricePerTonne = getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
-          const weightPerMetre = REBAR_WEIGHTS[barSize] || 1.58;
-          
-          // Calculate number of bars based on section width (dimension1)
-          const sectionWidth = section.dimension1 / 1000; // convert mm to m
-          const barsPerMetre = 1000 / spacing;
-          const barsAcross = Math.ceil(sectionWidth * barsPerMetre);
-          const totalBarLength = barsAcross * length * layers * lapPercent;
-          const totalWeight = totalBarLength * weightPerMetre;
-          const barCost = (totalWeight / 1000) * pricePerTonne;
-
           lineItems.push({
-            id: `bar_${section.id}`,
-            description: `${section.name} – ${barSize} @ ${spacing}mm (${layers}L, ${Math.round(totalWeight)}kg)`,
-            quantity: Math.round(totalWeight),
-            unit: 'kg',
-            unitPrice: pricePerTonne / 1000,
-            total: Math.round(barCost * 100) / 100,
+            id: `tm_${section.id}_top`,
+            description: `${section.name} – ${tmTypeTop} (${tmSheetsPerLayer} sheets) – Top`,
+            quantity: tmSheetsPerLayer,
+            unit: 'sheets',
+            unitPrice: tmPriceTop,
+            total: Math.round(topCost * 100) / 100,
             category: 'materials',
           });
-          subtotal += barCost;
+          subtotal += topCost;
         }
       });
     }
@@ -204,7 +167,7 @@ export const reinforcementFootingModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     // TM CHAIRS (per-section configuration)
     // ═══════════════════════════════════════════════════════════════
-    if (sections.length > 0) {
+    if (sections.length > 0 && hasAnyChairs) {
       let totalChairs = 0;
       let totalLayerChairs = 0;
       let chairPrice = 12.50;
@@ -314,51 +277,97 @@ export const reinforcementFootingModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // VERTICAL STARTERS (per section)
+    // HORIZONTAL REINFORCEMENT (per section, array-based)
     // ═══════════════════════════════════════════════════════════════
     if (sections.length > 0) {
-      // Aggregate starters by bar size
-      const startersBySize: Record<string, { count: number; weight: number }> = {};
+      // Aggregate horizontal bars by size and position
+      const hBarsByKey: Record<string, { totalLength: number; count: number }> = {};
       
       sections.forEach((section) => {
-        const addVertical = section.add_vertical_bars ?? false;
-        if (!addVertical) return;
+        const hBars = section.horizontal_bars || [];
+        if (hBars.length === 0) return;
         
         const length = section._actualLength || section.length;
         if (length <= 0) return;
         
-        const barSize = section.vertical_bar_size || DEFAULT_VERTICAL_BAR_SIZE;
-        const barCentres = section.vertical_bar_centres ?? DEFAULT_VERTICAL_BAR_CENTRES;
-        const barCount = Math.ceil((length * 1000) / barCentres);
-        
-        // Default starter length: 1200mm
-        const barLength = 1.2;
-        const totalBarLength = barCount * barLength * lapPercent;
+        hBars.forEach((bar: HorizontalBarConfig) => {
+          const key = `${bar.bar_size}_${bar.position}`;
+          const barLength = length * (bar.quantity || 1) * lapPercent;
+          
+          if (!hBarsByKey[key]) {
+            hBarsByKey[key] = { totalLength: 0, count: 0 };
+          }
+          hBarsByKey[key].totalLength += barLength;
+          hBarsByKey[key].count += bar.quantity || 1;
+        });
+      });
+      
+      // Generate line items for each bar size/position
+      Object.entries(hBarsByKey).forEach(([key, { totalLength, count }]) => {
+        const [barSize, position] = key.split('_');
         const weightPerMetre = REBAR_WEIGHTS[barSize] || 1.58;
-        const totalWeight = totalBarLength * weightPerMetre;
+        const totalWeight = totalLength * weightPerMetre;
+        const pricePerTonne = getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
+        const cost = (totalWeight / 1000) * pricePerTonne;
         
-        if (!startersBySize[barSize]) {
-          startersBySize[barSize] = { count: 0, weight: 0 };
-        }
-        startersBySize[barSize].count += barCount;
-        startersBySize[barSize].weight += totalWeight;
+        lineItems.push({
+          id: `hbar_${key}`,
+          description: `Horizontal ${barSize} ${position} (${Math.round(totalWeight)}kg)`,
+          quantity: Math.round(totalWeight),
+          unit: 'kg',
+          unitPrice: pricePerTonne / 1000,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      });
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // VERTICAL REINFORCEMENT (per section, array-based)
+    // ═══════════════════════════════════════════════════════════════
+    if (sections.length > 0) {
+      // Aggregate vertical bars by size
+      const vBarsBySize: Record<string, { count: number; weight: number }> = {};
+      
+      sections.forEach((section) => {
+        const vBars = section.vertical_bars || [];
+        if (vBars.length === 0) return;
+        
+        const length = section._actualLength || section.length;
+        if (length <= 0) return;
+        
+        vBars.forEach((bar: VerticalBarConfig) => {
+          const barSize = bar.bar_size || 'N16';
+          const centres = bar.centres || 400;
+          const barLength = (bar.length || 1200) / 1000; // mm to m
+          const barCount = Math.ceil((length * 1000) / centres);
+          const weightPerMetre = REBAR_WEIGHTS[barSize] || 1.58;
+          const totalWeight = barCount * barLength * weightPerMetre * lapPercent;
+          
+          if (!vBarsBySize[barSize]) {
+            vBarsBySize[barSize] = { count: 0, weight: 0 };
+          }
+          vBarsBySize[barSize].count += barCount;
+          vBarsBySize[barSize].weight += totalWeight;
+        });
       });
       
       // Generate line items for each bar size
-      Object.entries(startersBySize).forEach(([barSize, { count, weight }]) => {
+      Object.entries(vBarsBySize).forEach(([barSize, { count, weight }]) => {
         const pricePerTonne = getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
-        const starterCost = (weight / 1000) * pricePerTonne;
+        const cost = (weight / 1000) * pricePerTonne;
         
         lineItems.push({
-          id: `starters_${barSize}`,
-          description: `Vertical Starters ${barSize} (${count} × 1200mm, ${Math.round(weight)}kg)`,
+          id: `vbar_${barSize}`,
+          description: `Vertical Starters ${barSize} (${count} pcs, ${Math.round(weight)}kg)`,
           quantity: count,
           unit: 'pcs',
-          unitPrice: Math.round((starterCost / count) * 100) / 100,
-          total: Math.round(starterCost * 100) / 100,
+          unitPrice: Math.round((cost / count) * 100) / 100,
+          total: Math.round(cost * 100) / 100,
           category: 'materials',
         });
-        subtotal += starterCost;
+        subtotal += cost;
       });
     }
 
@@ -412,30 +421,23 @@ export const reinforcementFootingModule: EstimateModule = {
     const exclusions: ExclusionItem[] = [];
     const sections: LinearSection[] = scopeData?.linearSections || scopeData?.footings || [];
     
-    // Default settings from module answers
-    const defaultReoType = answers.include_trench_mesh ? 'trench_mesh' : 'none';
-    const defaultAddLigs = answers.add_ligs ?? false;
-    const defaultAddVerticalBars = answers.add_vertical_bars ?? false;
+    // Check which sections have TM, bars, etc.
+    const sectionsWithNoTm = sections.filter(s => (s.tm_type || 'none') === 'none');
+    const anyTmEnabled = sections.some(s => (s.tm_type || 'none') !== 'none');
+    const anyLigsEnabled = sections.some(s => s.add_ligs);
+    const anyHBarsEnabled = sections.some(s => s.horizontal_bars && s.horizontal_bars.length > 0);
+    const anyVBarsEnabled = sections.some(s => s.vertical_bars && s.vertical_bars.length > 0);
 
-    // Check if any section has reinforcement
-    const sectionsWithNoReo = sections.filter(s => (s.reo_type || defaultReoType) === 'none');
-    const anyTmEnabled = sections.some(s => {
-      const reoType = s.reo_type || defaultReoType;
-      return reoType === 'trench_mesh' || reoType === 'both';
-    }) || answers.include_trench_mesh;
-    const anyLigsEnabled = sections.some(s => s.add_ligs ?? defaultAddLigs) || defaultAddLigs;
-    const anyStartersEnabled = sections.some(s => s.add_vertical_bars ?? defaultAddVerticalBars) || defaultAddVerticalBars;
-
-    if (!anyTmEnabled && !anyLigsEnabled && !anyStartersEnabled) {
+    if (!anyTmEnabled && !anyHBarsEnabled && !anyVBarsEnabled && !anyLigsEnabled) {
       exclusions.push({
         id: 'no_reinforcement',
         text: 'Steel reinforcement is not included in this quote.',
         moduleId: 'reinforcement-footing',
       });
-    } else if (sectionsWithNoReo.length > 0 && sectionsWithNoReo.length < sections.length) {
+    } else if (sectionsWithNoTm.length > 0 && sectionsWithNoTm.length < sections.length) {
       exclusions.push({
-        id: 'partial_no_reo',
-        text: `Steel reinforcement excluded for: ${sectionsWithNoReo.map(s => s.name).join(', ')}.`,
+        id: 'partial_no_tm',
+        text: `Trench mesh excluded for: ${sectionsWithNoTm.map(s => s.name).join(', ')}.`,
         moduleId: 'reinforcement-footing',
       });
     }
@@ -448,9 +450,9 @@ export const reinforcementFootingModule: EstimateModule = {
       });
     }
 
-    if (!anyStartersEnabled && sections.length > 0) {
+    if (!anyVBarsEnabled && sections.length > 0) {
       exclusions.push({
-        id: 'no_starters',
+        id: 'no_vertical_bars',
         text: 'Vertical starter bars are not included.',
         moduleId: 'reinforcement-footing',
       });

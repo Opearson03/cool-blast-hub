@@ -310,15 +310,43 @@ export interface FootingConfig {
   /** Actual measured length from takeoff (more accurate) */
   _actualLength?: number;
   
-  // Per-footing reinforcement overrides
+  // For compatibility with LinearSection (allows unified type handling)
+  dimension1?: number;  // mm (width)
+  dimension2?: number;  // mm (depth)
+  
+  // Per-footing reinforcement overrides (matching BeamConfig pattern)
   reo_type?: 'none' | 'trench_mesh' | 'bar' | 'both';
+  
+  // Trench mesh settings
   tm_type?: string;
+  tm_layers?: number;  // 1 or 2 - number of trench mesh layers
+  tm_type_top?: string;  // Top layer TM type (when tm_layers > 1)
+  tm_price?: number;     // Price override per sheet (from price list, editable)
+  tm_price_top?: number; // Price override for top layer (when tm_layers > 1)
+  
+  // Ligatures
   add_ligs?: boolean;
   lig_size?: string;
   lig_centres?: number;
+  
+  // Horizontal reinforcement (additional bars along footing length)
+  horizontal_bars?: HorizontalBarConfig[];
+  
+  // Vertical reinforcement (starter bars projecting from footing)
+  vertical_bars?: VerticalBarConfig[];
+  
+  // Legacy vertical bars toggle (backwards compat)
   add_vertical_bars?: boolean;
   vertical_bar_size?: string;
   vertical_bar_centres?: number;
+  
+  // Per-footing bar chair settings
+  chairs_enabled?: boolean;
+  chairs_per_m?: number;         // chairs per linear metre
+  chair_price_per_bag?: number;  // price per 25
+  layer_chairs_enabled?: boolean; // chairs between TM layers
+  layer_chairs_per_m?: number;    // layer chairs per m
+  layer_chair_price?: number;     // price per 25 for layer chairs
 }
 
 /**
@@ -361,7 +389,13 @@ export interface LinearSection {
   lig_size?: string;
   lig_centres?: number;
   
-  // Vertical starters
+  // Horizontal reinforcement (additional bars along section length)
+  horizontal_bars?: HorizontalBarConfig[];
+  
+  // Vertical reinforcement (starter bars projecting from section)
+  vertical_bars?: VerticalBarConfig[];
+  
+  // Legacy vertical starters (backwards compat)
   add_vertical_bars?: boolean;
   vertical_bar_size?: string;
   vertical_bar_centres?: number;
