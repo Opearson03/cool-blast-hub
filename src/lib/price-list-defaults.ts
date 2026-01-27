@@ -223,6 +223,7 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'materials', item_code: 'ROADBASE 20MM', item_name: 'Road Base 20mm (Class 2)', unit: '/m3', default_price: 55 },
   { category: 'materials', item_code: 'ROADBASE 40MM', item_name: 'Road Base 40mm (Class 3)', unit: '/m3', default_price: 50 },
   { category: 'materials', item_code: 'DISPOSAL', item_name: 'Waste Disposal / Tip Cost', unit: '/item', default_price: 100 },
+  { category: 'materials', item_code: 'RETARDER_DRUM', item_name: 'Exposed Aggregate Retarder (20L Drum)', unit: '/drum', default_price: 150 },
 
   // Delivery
   { category: 'rebar', item_code: 'REO DELIVERY', item_name: 'Reinforcement Delivery Charge', unit: '/item', default_price: 150 },
