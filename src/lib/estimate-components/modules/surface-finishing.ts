@@ -107,33 +107,31 @@ export const surfaceFinishingModule: EstimateModule = {
     },
 
     // ═══════════════════════════════════════════════════════════════
-    // EXPOSED AGGREGATE
+    // EXPOSED AGGREGATE - Drum-based (no separate labour)
     // ═══════════════════════════════════════════════════════════════
     {
-      id: 'exposed_retarder_rate',
+      id: 'exposed_retarder_drum_price',
       type: 'currency',
-      label: 'Retarder rate (per m²)',
-      defaultValue: 8,
-      priceListKey: 'materials.RETARDER',
+      label: 'Retarder price per drum',
+      helpText: '20L drum covers ~80m²',
+      defaultValue: 150,
+      priceListKey: 'materials.RETARDER_DRUM',
       showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
     },
     {
-      id: 'exposed_wash_labour_hours',
+      id: 'exposed_retarder_drums_required',
       type: 'number',
-      label: 'Wash-off labour hours',
-      defaultValue: 2,
-      min: 0,
-      unit: 'hrs',
-      showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
-    },
-    {
-      id: 'exposed_wash_crew_size',
-      type: 'number',
-      label: 'Wash-off crew size',
-      defaultValue: 2,
+      label: 'Drums required',
+      helpText: 'Auto-calculated: 80m² per drum',
       min: 1,
-      unit: 'men',
+      unit: 'drums',
       showIf: (answers) => answers.finish_required === true && answers.finish_type === 'exposed_aggregate',
+      deriveFrom: (scopeData, moduleAnswers) => {
+        const area = Number(moduleAnswers?.finish_area) || Number(scopeData.area) || 0;
+        const coveragePerDrum = 80; // 80m² per drum
+        return Math.ceil(area / coveragePerDrum) || 1;
+      },
+      derivedReadOnly: false,
     },
 
     // ═══════════════════════════════════════════════════════════════
@@ -352,38 +350,26 @@ export const surfaceFinishingModule: EstimateModule = {
     // FINISH TYPE CALCULATIONS
     // ═══════════════════════════════════════════════════════════════
 
-    // EXPOSED AGGREGATE
+    // EXPOSED AGGREGATE - Drum-based
     if (answers.finish_type === 'exposed_aggregate') {
-      const retarderRate = Number(answers.exposed_retarder_rate) || 
-        getPrice(priceMap, 'materials', 'RETARDER', 8);
-      const retarderCost = area * retarderRate;
+      const drumPrice = Number(answers.exposed_retarder_drum_price) || 
+        getPrice(priceMap, 'materials', 'RETARDER_DRUM', 150);
+      const drumsNeeded = Number(answers.exposed_retarder_drums_required) || 
+        Math.ceil(area / 80) || 1;
+      const retarderCost = drumsNeeded * drumPrice;
 
       lineItems.push({
         id: 'exposed_retarder',
-        description: `Exposed Aggregate Retarder (${area}m² @ $${retarderRate}/m²)`,
-        quantity: area,
-        unit: 'm²',
-        unitPrice: retarderRate,
+        description: `Exposed Aggregate Retarder (${drumsNeeded} drums for ${area}m² @ 80m²/drum)`,
+        quantity: drumsNeeded,
+        unit: 'drums',
+        unitPrice: drumPrice,
         total: retarderCost,
         category: 'materials',
       });
       subtotal += retarderCost;
 
-      // Wash-off labour
-      const washHours = Number(answers.exposed_wash_labour_hours) || 2;
-      const washCrew = Number(answers.exposed_wash_crew_size) || 2;
-      const washLabour = washHours * washCrew * labourRate;
-
-      lineItems.push({
-        id: 'exposed_wash_labour',
-        description: `Exposed Aggregate Wash-off Labour (${washCrew} men × ${washHours} hrs)`,
-        quantity: washHours * washCrew,
-        unit: 'hrs',
-        unitPrice: labourRate,
-        total: washLabour,
-        category: 'labour',
-      });
-      subtotal += washLabour;
+      // NO wash-off labour - included in pour labour
     }
 
     // STENCILLED - Roll-based + Colour bags (no labour)
