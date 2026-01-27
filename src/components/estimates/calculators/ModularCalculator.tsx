@@ -1260,6 +1260,7 @@ export function ModularCalculator({
                 scopeData={scopeData}
                 onScopeDataChange={handleModuleScopeDataChange}
                 priceMap={priceMap}
+                scopeId={scope.id}
               />
             );
           })}

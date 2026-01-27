@@ -72,6 +72,8 @@ interface AreaReinforcementInputProps {
   defaultBarLayers: string;
   label: string;
   priceMap?: PriceMap;
+  scopeId?: string;
+  podRailsRequired?: boolean;
 }
 
 export function AreaReinforcementInput({
@@ -84,6 +86,8 @@ export function AreaReinforcementInput({
   defaultBarLayers,
   label,
   priceMap,
+  scopeId,
+  podRailsRequired = false,
 }: AreaReinforcementInputProps) {
   const [openAreas, setOpenAreas] = useState<Set<string>>(new Set());
 
@@ -509,7 +513,16 @@ export function AreaReinforcementInput({
                           )}
                         </div>
 
-                        {/* Bar Chairs Section */}
+                        {/* Bar Chairs Section - hidden for waffle pods when pod rails are required */}
+                        {scopeId === 'waffle_pod' && podRailsRequired ? (
+                          <div className="pt-3 border-t">
+                            <div className="flex items-center gap-2 py-2 px-3 bg-muted/50 rounded-md border border-muted">
+                              <span className="text-xs text-muted-foreground italic">
+                                Pod Rails are used instead of bar chairs for this waffle pod configuration.
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
                         <div className="pt-3 border-t space-y-3">
                           <div className="flex items-center justify-between">
                             <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
@@ -632,7 +645,7 @@ export function AreaReinforcementInput({
                             </>
                           )}
                         </div>
-
+                        )}
                         {/* Summary Footer */}
                         <div className="pt-2 border-t">
                           <p className="text-xs text-muted-foreground">

@@ -56,6 +56,7 @@ interface ModuleSectionProps {
   scopeData?: Record<string, any>;
   onScopeDataChange?: (key: string, value: any) => void;
   priceMap?: Record<string, Record<string, number>>;
+  scopeId?: string;
 }
 
 function QuestionInput({
@@ -312,6 +313,7 @@ export function ModuleSection({
   scopeData,
   onScopeDataChange,
   priceMap,
+  scopeId,
 }: ModuleSectionProps) {
   // State for add custom item dialog
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
@@ -456,6 +458,8 @@ export function ModuleSection({
                             defaultBarLayers="2"
                             label="Slab Areas"
                             priceMap={priceMap}
+                            scopeId={scopeId}
+                            podRailsRequired={scopeId === 'waffle_pod' && Number(answers.top_slab_thickness || 0) >= 100}
                           />
                         </div>
                       )}

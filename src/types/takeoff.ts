@@ -47,6 +47,11 @@ export interface TakeoffMarkup {
   // Parent-child relationship for slab beams
   parent_markup_id?: string | null;
   markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening';
+  // Waffle pod counting data
+  pod_count?: number | null;
+  pod_thickness_mm?: number | null;
+  spacer_4way_count?: number | null;
+  spacer_2way_count?: number | null;
 }
 
 export interface EstimateTakeoff {

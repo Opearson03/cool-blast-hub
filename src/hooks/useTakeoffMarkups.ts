@@ -20,6 +20,11 @@ interface ScopeAreaData {
   // Parent-child relationship for slab beams
   parent_markup_id?: string | null;
   markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | null;
+  // Waffle pod counting data
+  pod_count?: number | null;
+  pod_thickness_mm?: number | null;
+  spacer_4way_count?: number | null;
+  spacer_2way_count?: number | null;
 }
 
 export interface PierTakeoffData {
@@ -125,6 +130,11 @@ export interface RaftSlabAreaFromTakeoff {
     width: number;  // mm
     depth: number;  // mm
   } | null;
+  // Waffle pod counting data
+  podCount?: number;
+  podThicknessMm?: number;
+  spacer4WayCount?: number;
+  spacer2WayCount?: number;
   _fromTakeoff: true;
 }
 
@@ -189,10 +199,10 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
       if (filesError) throw filesError;
       setHasFiles((filesCount || 0) > 0);
 
-      // Then get the markups for this takeoff - include all fields for linear/pad elements and beam relationships
+      // Then get the markups for this takeoff - include all fields for linear/pad elements, beam relationships, and waffle pod counts
       const { data: markupsData, error: markupsError } = await supabase
         .from('takeoff_markups')
-        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m, toe_mm, parent_markup_id, markup_type')
+        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m, toe_mm, parent_markup_id, markup_type, pod_count, pod_thickness_mm, spacer_4way_count, spacer_2way_count')
         .eq('takeoff_id', takeoffData.id)
         .order('created_at', { ascending: true });
 
@@ -214,6 +224,10 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         toe_mm: m.toe_mm,
         parent_markup_id: m.parent_markup_id,
         markup_type: m.markup_type as ScopeAreaData['markup_type'],
+        pod_count: m.pod_count,
+        pod_thickness_mm: m.pod_thickness_mm,
+        spacer_4way_count: m.spacer_4way_count,
+        spacer_2way_count: m.spacer_2way_count,
       })));
     } catch (error) {
       console.error('Error fetching takeoff markups:', error);
@@ -561,6 +575,11 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         internalBeams,
         edgeBeam,
         internalBeamsSummary,
+        // Waffle pod counting data
+        podCount: primary.pod_count ?? undefined,
+        podThicknessMm: primary.pod_thickness_mm ?? undefined,
+        spacer4WayCount: primary.spacer_4way_count ?? undefined,
+        spacer2WayCount: primary.spacer_2way_count ?? undefined,
         _fromTakeoff: true as const,
       };
     });
