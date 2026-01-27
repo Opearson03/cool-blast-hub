@@ -459,6 +459,41 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       min: 1,
       helpText: 'Auto-calculated from area, can be overridden',
     },
+    // Spacer counts (from takeoff counting tool)
+    {
+      id: 'spacer_4way_count',
+      type: 'number',
+      label: '4-Way Spacers',
+      required: false,
+      min: 0,
+      defaultValue: 0,
+      helpText: 'Count of 4-way intersection spacers',
+    },
+    {
+      id: 'spacer_2way_count',
+      type: 'number',
+      label: '2-Way Spacers',
+      required: false,
+      min: 0,
+      defaultValue: 0,
+      helpText: 'Count of 2-way edge spacers',
+    },
+    // Pod rails (auto-calculated for 100mm+ slabs)
+    {
+      id: 'pod_rails_required',
+      type: 'boolean',
+      label: 'Pod Rails Required',
+      defaultValue: false,
+      helpText: 'Auto-enabled for 100mm slabs (2 rails per pod)',
+    },
+    {
+      id: 'pod_rail_packs',
+      type: 'number',
+      label: 'Pod Rail Packs',
+      min: 0,
+      defaultValue: 0,
+      helpText: 'Packs of 20 pod rails',
+    },
     // Edge and internal beam fields (hidden, managed by multi-beam inputs)
     {
       id: 'edge_beam_depth',

@@ -78,6 +78,14 @@ export const POINT_SCOPES = ['piers', 'bollards', 'pit_bases', 'pad_footings'] a
 export const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls'] as const;
 export const AREA_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'suspended_slab'] as const;
 
+// Waffle Pod specific point scopes for counting pods and spacers
+export const WAFFLE_POD_POINT_SCOPES = ['waffle_pods_count', 'spacers_4way', 'spacers_2way'] as const;
+export type WafflePodPointScope = typeof WAFFLE_POD_POINT_SCOPES[number];
+
+export function isWafflePodPointScope(scopeId: string): scopeId is WafflePodPointScope {
+  return WAFFLE_POD_POINT_SCOPES.includes(scopeId as WafflePodPointScope);
+}
+
 // Scopes that support sub-element marking (beams over slabs)
 export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'standard_slab'] as const;
 export type SlabWithBeamsScope = typeof SLAB_WITH_BEAMS_SCOPES[number];

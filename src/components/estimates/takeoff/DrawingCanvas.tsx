@@ -348,15 +348,91 @@ export function DrawingCanvas({
   const renderPierPoints = () => {
     if (tool !== 'point' || pierPoints.length === 0) return null;
 
-    // Use squares for pad footings/pit bases, circles for piers/bollards
+    // Determine shape based on scope type
     const isPadOrPit = activeScope === 'pad_footings' || activeScope === 'pit_bases';
+    const isWafflePodCount = activeScope === 'waffle_pods_count';
+    const is4WaySpacer = activeScope === 'spacers_4way';
+    const is2WaySpacer = activeScope === 'spacers_2way';
     const size = 12;
 
     return (
       <Group>
         {pierPoints.map((point, index) => (
           <Group key={index}>
-            {isPadOrPit ? (
+            {/* Waffle pod: gridded square icon */}
+            {isWafflePodCount && (
+              <>
+                <Rect
+                  x={point.x - size}
+                  y={point.y - size}
+                  width={size * 2}
+                  height={size * 2}
+                  fill={activeScopeColor}
+                  stroke="#fff"
+                  strokeWidth={2}
+                  opacity={0.9}
+                />
+                {/* Grid lines inside square */}
+                <Line
+                  points={[point.x, point.y - size, point.x, point.y + size]}
+                  stroke="#fff"
+                  strokeWidth={1}
+                  opacity={0.5}
+                />
+                <Line
+                  points={[point.x - size, point.y, point.x + size, point.y]}
+                  stroke="#fff"
+                  strokeWidth={1}
+                  opacity={0.5}
+                />
+              </>
+            )}
+
+            {/* 4-Way spacer: cross/plus icon */}
+            {is4WaySpacer && (
+              <>
+                <Circle
+                  x={point.x}
+                  y={point.y}
+                  radius={size}
+                  fill={activeScopeColor}
+                  stroke="#fff"
+                  strokeWidth={2}
+                  opacity={0.9}
+                />
+                {/* Plus/cross inside circle */}
+                <Line
+                  points={[point.x - size * 0.6, point.y, point.x + size * 0.6, point.y]}
+                  stroke="#fff"
+                  strokeWidth={2}
+                />
+                <Line
+                  points={[point.x, point.y - size * 0.6, point.x, point.y + size * 0.6]}
+                  stroke="#fff"
+                  strokeWidth={2}
+                />
+              </>
+            )}
+
+            {/* 2-Way spacer: horizontal bar icon */}
+            {is2WaySpacer && (
+              <>
+                <Rect
+                  x={point.x - size}
+                  y={point.y - size * 0.4}
+                  width={size * 2}
+                  height={size * 0.8}
+                  fill={activeScopeColor}
+                  stroke="#fff"
+                  strokeWidth={2}
+                  opacity={0.9}
+                  cornerRadius={2}
+                />
+              </>
+            )}
+
+            {/* Pad footings/pit bases: square */}
+            {isPadOrPit && (
               <Rect
                 x={point.x - size}
                 y={point.y - size}
@@ -367,7 +443,10 @@ export function DrawingCanvas({
                 strokeWidth={2}
                 opacity={0.9}
               />
-            ) : (
+            )}
+
+            {/* Default: circle for piers/bollards */}
+            {!isPadOrPit && !isWafflePodCount && !is4WaySpacer && !is2WaySpacer && (
               <Circle
                 x={point.x}
                 y={point.y}
@@ -378,6 +457,8 @@ export function DrawingCanvas({
                 opacity={0.9}
               />
             )}
+
+            {/* Number label */}
             <Text
               x={point.x}
               y={point.y}
