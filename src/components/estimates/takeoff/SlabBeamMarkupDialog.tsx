@@ -49,6 +49,7 @@ export interface PendingSlabData {
   wafflePodSize?: string;
   wafflePodThickness?: number;
   wafflePodTopThickness?: number;
+  wafflePodRibWidth?: number;
 }
 
 // Waffle pod module size options (dimensions in mm)
@@ -100,7 +101,8 @@ interface SlabBeamMarkupDialogProps {
   wafflePodSize?: string;
   wafflePodThickness?: number;
   wafflePodTopThickness?: number;
-  onWafflePodDimensionsChange?: (size: string, podThickness: number, topThickness: number) => void;
+  wafflePodRibWidth?: number;
+  onWafflePodDimensionsChange?: (size: string, podThickness: number, topThickness: number, ribWidth: number) => void;
   
   // Actions for slab naming step
   onStartEdgeBeams: () => void;
@@ -138,6 +140,7 @@ export function SlabBeamMarkupDialog({
   wafflePodSize = '1090x1090',
   wafflePodThickness = 225,
   wafflePodTopThickness = 85,
+  wafflePodRibWidth = 110,
   onWafflePodDimensionsChange,
   onStartEdgeBeams,
   onSkipAllBeams,
@@ -166,6 +169,7 @@ export function SlabBeamMarkupDialog({
   const [localPodSize, setLocalPodSize] = useState(wafflePodSize);
   const [localPodThickness, setLocalPodThickness] = useState(wafflePodThickness);
   const [localTopThickness, setLocalTopThickness] = useState(wafflePodTopThickness);
+  const [localRibWidth, setLocalRibWidth] = useState(wafflePodRibWidth);
 
   const isWafflePod = scopeId === 'waffle_pod';
   // Scopes that use "Edge Thickening" terminology (driveway, crossovers, paths_surrounds, standard_slab)
@@ -326,10 +330,11 @@ export function SlabBeamMarkupDialog({
     setLocalPodSize(wafflePodSize);
     setLocalPodThickness(wafflePodThickness);
     setLocalTopThickness(wafflePodTopThickness);
-  }, [wafflePodSize, wafflePodThickness, wafflePodTopThickness]);
+    setLocalRibWidth(wafflePodRibWidth);
+  }, [wafflePodSize, wafflePodThickness, wafflePodTopThickness, wafflePodRibWidth]);
 
   const handleWafflePodSave = () => {
-    onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness);
+    onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
     onSkipAllBeams();
   };
 
@@ -493,6 +498,22 @@ export function SlabBeamMarkupDialog({
                       />
                       <p className="text-xs text-muted-foreground">
                         Concrete topping over waffle pods
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="rib-width" className="text-sm font-medium">Rib Width (mm)</Label>
+                      <Input
+                        id="rib-width"
+                        type="number"
+                        value={localRibWidth}
+                        onChange={(e) => setLocalRibWidth(Number(e.target.value))}
+                        min={100}
+                        max={200}
+                        placeholder="110"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Width of concrete ribs between pods
                       </p>
                     </div>
 

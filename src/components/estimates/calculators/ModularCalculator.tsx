@@ -570,12 +570,29 @@ export function ModularCalculator({
       return sum;
     }, 0);
     
-    setScopeAnswers((prev) => ({
-      ...prev,
-      areas,
-      area: totalArea,
-      perimeter: totalPerimeter,
-    }));
+    setScopeAnswers((prev) => {
+      const updates: Record<string, any> = {
+        ...prev,
+        areas,
+        area: totalArea,
+        perimeter: totalPerimeter,
+      };
+      
+      // Auto-calculate pod count for waffle pod scope
+      if (scope.id === 'waffle_pod' && totalArea > 0) {
+        const podSize = Number(prev.pod_size) || 1090;
+        const ribWidth = Number(prev.rib_width) || 110;
+        const moduleSize = (podSize + ribWidth) / 1000; // Convert mm to m
+        const estimatedPodCount = Math.ceil(totalArea / (moduleSize * moduleSize));
+        
+        // Only auto-update if pod_count hasn't been manually set or is 0
+        if (!prev.pod_count || prev.pod_count === 0) {
+          updates.pod_count = estimatedPodCount;
+        }
+      }
+      
+      return updates;
+    });
   };
 
   // Handler for multi-pier changes (legacy flat structure)

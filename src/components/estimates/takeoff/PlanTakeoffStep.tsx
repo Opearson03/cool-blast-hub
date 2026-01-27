@@ -1624,8 +1624,9 @@ export function PlanTakeoffStep({
         wafflePodSize={pendingSlabData?.wafflePodSize || '1090x1090'}
         wafflePodThickness={pendingSlabData?.wafflePodThickness || 225}
         wafflePodTopThickness={pendingSlabData?.wafflePodTopThickness || 85}
-        onWafflePodDimensionsChange={(size, podThickness, topThickness) =>
-          setPendingSlabData(prev => prev ? { ...prev, wafflePodSize: size, wafflePodThickness: podThickness, wafflePodTopThickness: topThickness } : null)
+        wafflePodRibWidth={pendingSlabData?.wafflePodRibWidth || 110}
+        onWafflePodDimensionsChange={(size, podThickness, topThickness, ribWidth) =>
+          setPendingSlabData(prev => prev ? { ...prev, wafflePodSize: size, wafflePodThickness: podThickness, wafflePodTopThickness: topThickness, wafflePodRibWidth: ribWidth } : null)
         }
         onStartEdgeBeams={handleStartEdgeBeams}
         onSkipAllBeams={handleSkipAllBeams}
