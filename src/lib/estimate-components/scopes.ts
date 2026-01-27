@@ -93,6 +93,7 @@ export const PIERS_SCOPE: ScopeDefinition = {
 
 /**
  * Slab on Ground Scope Definition
+ * Uses driveway-style architecture with edge thickening support (no plumbing module)
  */
 export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   id: 'standard_slab',
@@ -101,11 +102,14 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   icon: 'square',
   supportsMultipleAreas: true,
   areasLabel: 'Slab Areas',
+  supportsMultipleEdgeBeams: true,
+  edgeBeamsLabel: 'Edge Thickening',
+  hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
     {
       id: 'area',
       type: 'number',
-      label: 'Slab Area (m²)',
+      label: 'Total Area (m²)',
       required: true,
       min: 1,
       unit: 'm²',
@@ -113,7 +117,7 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
     {
       id: 'perimeter',
       type: 'number',
-      label: 'Perimeter (m)',
+      label: 'Total Perimeter (m)',
       required: true,
       min: 1,
       unit: 'm',
@@ -124,17 +128,49 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
       label: 'Slab Thickness (mm)',
       required: true,
       requiresUserInput: true,
-      min: 50,
+      min: 75,
       unit: 'mm',
       placeholder: 'Enter thickness',
+      helpText: 'Thickness of the main slab',
+    },
+    // Edge Thickening Questions
+    {
+      id: 'edge_beam_depth',
+      type: 'number',
+      label: 'Edge Thickening Depth (mm)',
+      required: false,
+      min: 200,
+      defaultValue: 300,
+      unit: 'mm',
+      helpText: 'Total depth of thickened edge',
+    },
+    {
+      id: 'edge_beam_width',
+      type: 'number',
+      label: 'Edge Thickening Width (mm)',
+      required: false,
+      min: 200,
+      defaultValue: 300,
+      unit: 'mm',
+      helpText: 'Width of thickened edge',
+    },
+    {
+      id: 'edge_beam_length',
+      type: 'number',
+      label: 'Total Edge Thickening Length (m)',
+      required: false,
+      min: 0,
+      unit: 'm',
+      helpText: 'Total continuous length of edge thickening (defaults to perimeter if not specified)',
     },
   ],
   moduleIds: [
     'excavation',
     'base-preparation',
     'formwork',
-    'reinforcement-slab',
+    'reinforcement-raft',
     'connections-joints',
+    // NO 'plumbing' module for Slab on Ground
     'labour-prep',
     'concrete-supply',
     'concrete-pumping',
@@ -147,8 +183,20 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
-    const thicknessM = (Number(answers.thickness) || 0) / 1000;
-    return safeVolume(area * thicknessM);
+    const thicknessM = (Number(answers.thickness) || 100) / 1000;
+    const perimeter = Number(answers.perimeter) || 0;
+    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
+    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
+    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+
+    // Main slab volume
+    const slabVolume = area * thicknessM;
+
+    // Edge thickening volume (extra depth beyond slab thickness)
+    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+    const edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+
+    return safeVolume(slabVolume + edgeThickeningVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'standard_slab' },
