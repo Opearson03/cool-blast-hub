@@ -1,135 +1,180 @@
 
-## Replace Waffle Pod Scope with Raft Slab Architecture
+
+## Waffle Pod Scope Enhancement Plan
 
 ### Overview
-Delete the existing `WAFFLE_POD_SCOPE` definition and replace it with an exact copy of `RAFT_SLAB_SCOPE`, only changing:
-- `id`: `'raft_slab'` → `'waffle_pod'`
-- `name`: `'Raft Slab'` → `'Waffle Pod'`
-- `description`: Updated for waffle pod context
-- `areasLabel`: `'Raft Slab Areas'` → `'Waffle Pod Areas'`
-- `defaultExclusions`: Updated module IDs to reference `waffle_pod`
+The Waffle Pod scope now has the Raft Slab foundation but needs pod-specific features that differentiate waffle pod construction from standard raft slabs. Waffle pods use EPS (expanded polystyrene) foam blocks placed in a grid pattern to create voids, reducing concrete volume and weight while maintaining structural integrity.
 
-The new Waffle Pod will have:
-- Multi-area support with edge beams and internal stiffening beams
-- The `reinforcement-raft` module (unified reinforcement)
-- Same takeoff workflow as Raft Slab
-- Same volume calculation logic as Raft Slab
+### Features to Add
 
-### Current Waffle Pod vs New Waffle Pod
+#### 1. Pod Configuration Questions
+Add the following fields to capture pod-specific dimensions:
 
-| Feature | Current | New (Raft Slab Copy) |
-|---------|---------|---------------------|
-| Multiple Areas | ✅ | ✅ |
-| Edge Beams | ❌ (basic) | ✅ (multi-type markup) |
-| Internal Beams | ❌ (single field) | ✅ (multi-type markup) |
-| Reinforcement Module | `reinforcement-slab` + `reinforcement-footing` | `reinforcement-raft` |
-| Pod-specific fields | ✅ (pod_count, pod_size, etc.) | ❌ (removed) |
-| Volume Calculation | Pod void subtraction | Standard slab + beams |
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `pod_size` | Select | 1090×1090 | Pod module dimensions (1050, 1090, 1110mm options) |
+| `pod_thickness` | Select | 225mm | Pod height (225, 275, 325, 375mm options) |
+| `top_slab_thickness` | Number | 85mm | Concrete topping thickness above pods |
+| `rib_width` | Number | 110mm | Width of concrete ribs between pods |
+| `pod_count` | Number | Auto-calculated | Number of pods (can be overridden) |
+
+#### 2. Automated Pod Count Estimation
+When area is entered (either manually or from takeoff), automatically estimate pod count:
+```
+Pod Count = Area ÷ (Pod Size + Rib Width)²
+Example: 100m² ÷ (1.09 + 0.11)² = 100 ÷ 1.44 = ~70 pods
+```
+
+#### 3. Volume Calculation Update
+Modify `calculateVolume` to subtract pod voids:
+```
+Concrete Volume = (Area × Total Thickness) - (Pod Count × Pod Size² × Pod Thickness) + Beams
+Where: Total Thickness = Pod Thickness + Top Slab Thickness
+```
+
+#### 4. Excavation Calculation
+Waffle pods use "box cut" excavation (flat excavation to total depth):
+```
+Excavation Volume = Area × (Pod Thickness + Top Slab Thickness)
+```
+
+#### 5. BOQ Integration
+Add waffle pods as a formwork material line item:
+- Quantity: Pod Count
+- Unit: "units" or "pods"
+- Category: Formwork
+
+#### 6. Default Exclusion
+Keep the existing exclusion (already present):
+- "Supply of waffle pods (by others)"
 
 ### Files to Modify
 
 1. **`src/lib/estimate-components/scopes.ts`**
-   - Delete current `WAFFLE_POD_SCOPE` (lines 381-556)
-   - Replace with exact copy of `RAFT_SLAB_SCOPE` with updated identifiers
+   - Add pod-specific questions to WAFFLE_POD_SCOPE
+   - Update `calculateVolume` for void subtraction
+   - Add `calculateExcavationVolume` for box cut logic
+
+2. **`src/components/estimates/calculators/ModularCalculator.tsx`**
+   - Add pod count auto-estimation when area is set
+   - Update excavation volume derivation for waffle pod scope
+
+3. **`src/lib/boq-generator.ts`**
+   - Ensure pod count is added to BOQ as formwork line item
+
+4. **`supabase/functions/submit-signature/index.ts`**
+   - Ensure pod count is included in signed quote BOQ
+
+5. **`src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx`**
+   - Add pod configuration fields to waffle pod area dialog
+   - Use existing constants: `WAFFLE_POD_MODULE_SIZES`, `WAFFLE_POD_THICKNESSES`
 
 ### Technical Details
 
-#### New WAFFLE_POD_SCOPE Definition
-
+#### Updated Questions Array
 ```typescript
-export const WAFFLE_POD_SCOPE: ScopeDefinition = {
-  id: 'waffle_pod',
-  name: 'Waffle Pod',
-  description: 'Waffle pod slab system',
-  icon: 'grid3x3',
-  supportsMultipleAreas: true,
-  areasLabel: 'Waffle Pod Areas',
-  supportsMultipleBeams: true,
-  beamsLabel: 'Internal Stiffening Beams',
-  supportsMultipleEdgeBeams: true,
-  edgeBeamsLabel: 'Edge Beams',
-  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
-  questions: [
-    // EXACT COPY of Raft Slab questions
-    { id: 'area', ... },
-    { id: 'perimeter', ... },
-    { id: 'thickness', ... },
-    { id: 'edge_beam_depth', ... },
-    { id: 'edge_beam_width', ... },
-    { id: 'edge_beam_length', ... },
-    { id: 'internal_beams_length', ... },
-    { id: 'internal_beam_width', ... },
-    { id: 'internal_beam_depth', ... },
-  ],
-  moduleIds: [
-    'excavation',
-    'base-preparation',
-    'formwork',
-    'reinforcement-raft',  // Unified reinforcement module
-    'labour-prep',
-    'concrete-supply',
-    'concrete-pumping',
-    'labour-place',
-    'surface-finishing',
-    'cleanup',
-    'sundries',
-    'extra-items',
-  ],
-  calculateVolume: (answers) => {
-    // EXACT COPY of Raft Slab volume calculation
+questions: [
+  // ... existing area, perimeter, beam questions ...
+  {
+    id: 'pod_size',
+    type: 'select',
+    label: 'Pod Module Size',
+    required: true,
+    options: [
+      { value: '1050', label: '1050 × 1050 mm' },
+      { value: '1090', label: '1090 × 1090 mm' },
+      { value: '1110', label: '1110 × 1110 mm' },
+    ],
+    defaultValue: '1090',
+    helpText: 'Standard EPS pod dimensions',
   },
-  defaultExclusions: [
-    { id: 'engineering', text: 'Engineering design and certification', moduleId: 'waffle_pod' },
-    { id: 'permits', text: 'Council permits and approvals', moduleId: 'waffle_pod' },
-    { id: 'termite', text: 'Termite treatment and barriers', moduleId: 'waffle_pod' },
-  ],
-};
+  {
+    id: 'pod_thickness',
+    type: 'select',
+    label: 'Pod Thickness',
+    required: true,
+    options: [
+      { value: '225', label: '225mm' },
+      { value: '275', label: '275mm' },
+      { value: '325', label: '325mm' },
+      { value: '375', label: '375mm' },
+    ],
+    defaultValue: '225',
+    helpText: 'Height of EPS pods',
+  },
+  {
+    id: 'top_slab_thickness',
+    type: 'number',
+    label: 'Top Slab Thickness (mm)',
+    required: true,
+    min: 50,
+    defaultValue: 85,
+    unit: 'mm',
+    helpText: 'Concrete topping above pods',
+  },
+  {
+    id: 'rib_width',
+    type: 'number',
+    label: 'Rib Width (mm)',
+    required: false,
+    min: 100,
+    defaultValue: 110,
+    unit: 'mm',
+    helpText: 'Width of concrete ribs between pods',
+  },
+  {
+    id: 'pod_count',
+    type: 'number',
+    label: 'Number of Pods',
+    required: true,
+    min: 1,
+    helpText: 'Auto-calculated from area, can be overridden',
+  },
+]
 ```
 
-### Removed Fields (No Longer Needed)
-- `pod_count` - Number of pods
-- `pod_size` - Pod module size (1090mm, etc.)
-- `pod_thickness` - Pod thickness (225mm, etc.)
-- `top_slab_thickness` - Thickness over pods
-- `rib_width` - Width of concrete ribs
-- `calculateExcavationVolume` - Waffle-specific excavation calculation
-
-### Module Flow (New Waffle Pod)
-
-```text
-excavation → base-preparation → formwork → reinforcement-raft →
-labour-prep → concrete-supply → concrete-pumping → labour-place →
-surface-finishing → cleanup → sundries → extra-items
+#### Updated Volume Calculation
+```typescript
+calculateVolume: (answers) => {
+  const area = Number(answers.area) || 0;
+  const podSizeM = (Number(answers.pod_size) || 1090) / 1000;
+  const podThicknessM = (Number(answers.pod_thickness) || 225) / 1000;
+  const topSlabM = (Number(answers.top_slab_thickness) || 85) / 1000;
+  const podCount = Number(answers.pod_count) || 0;
+  
+  // Total slab thickness (pods + topping)
+  const totalThicknessM = podThicknessM + topSlabM;
+  
+  // Gross volume (before void subtraction)
+  const grossVolume = area * totalThicknessM;
+  
+  // Pod void volume
+  const podVoidVolume = podCount * (podSizeM * podSizeM * podThicknessM);
+  
+  // Net slab volume (ribs + topping)
+  const slabVolume = grossVolume - podVoidVolume;
+  
+  // Add beam volumes (edge + internal)
+  // ... existing beam logic ...
+  
+  return safeVolume(slabVolume + edgeBeamVolume + internalBeamVolume);
+}
 ```
 
-### Takeoff Workflow (New Waffle Pod)
-
-```text
-1. Mark Slab Area (polygon/rectangle)
-      ↓
-2. Name Area Dialog
-   • Enter name (e.g., "Main Slab")
-   • Shows area and perimeter
-   • [Cancel] [Skip Beams] [Add Edge Beam]
-      ↓
-3. Mark Edge Beams (polyline) - Optional
-      ↓
-4. Edge Beam Details
-   • Name type (e.g., "EB1")
-   • Width (mm) and Depth (mm)
-      ↓
-5. Add Internal Beams (optional)
-      ↓
-6. Summary with [Add More Beams] [Finish]
-```
+### UI Considerations
+- Pod fields should appear in a dedicated "Pod Configuration" section
+- Pod count should auto-update when area changes (with manual override)
+- The "thickness" field should be renamed to clarify it refers to the main slab, or replaced with the pod-specific fields
 
 ### Testing Checklist
+- [ ] Pod size dropdown shows 3 options (1050, 1090, 1110mm)
+- [ ] Pod thickness dropdown shows 4 options (225-375mm)
+- [ ] Top slab thickness defaults to 85mm
+- [ ] Rib width defaults to 110mm
+- [ ] Pod count auto-calculates from area
+- [ ] Pod count can be manually overridden
+- [ ] Volume calculation subtracts pod voids
+- [ ] Excavation uses box cut method (full area × total depth)
+- [ ] BOQ includes "Waffle Pods" line item with correct count
+- [ ] Exclusion "Supply of waffle pods (by others)" appears by default
 
-- [ ] Waffle Pod shows "Internal Stiffening Beams" option in estimator
-- [ ] Waffle Pod shows "Edge Beams" option in estimator
-- [ ] Waffle Pod takeoff triggers slab + beam workflow
-- [ ] Waffle Pod uses `reinforcement-raft` module
-- [ ] Pod-specific fields (pod_count, pod_size, etc.) are removed
-- [ ] Volume calculation works correctly for slab + beams
-- [ ] "Add Area" shows markup prompt dialog
-- [ ] Raft Slab still works correctly (unchanged)
