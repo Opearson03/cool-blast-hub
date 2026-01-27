@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tag, ArrowRight, Check, SkipForward, Minus, Plus, Layers } from 'lucide-react';
+import { Tag, ArrowRight, Check, SkipForward, Minus, Plus, Layers, Grid3X3 } from 'lucide-react';
 import { EDGE_BEAM_COLOR, INTERNAL_BEAM_COLOR } from './DrawingCanvas';
 
 // Interface for beam types (groups of beams with same dimensions)
@@ -111,6 +111,9 @@ interface SlabBeamMarkupDialogProps {
   wafflePodRibWidth?: number;
   onWafflePodDimensionsChange?: (size: string, podThickness: number, topThickness: number, ribWidth: number) => void;
   
+  // Action for waffle pod counting (triggered from name step)
+  onStartCountingPods?: () => void;
+  
   // Actions for slab naming step
   onStartEdgeBeams: () => void;
   onSkipAllBeams: () => void;
@@ -149,6 +152,7 @@ export function SlabBeamMarkupDialog({
   wafflePodTopThickness = 85,
   wafflePodRibWidth = 110,
   onWafflePodDimensionsChange,
+  onStartCountingPods,
   onStartEdgeBeams,
   onSkipAllBeams,
   onSaveBeam,
@@ -964,18 +968,44 @@ export function SlabBeamMarkupDialog({
               <Button variant="outline" onClick={onCancel} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button 
-                variant="secondary" 
-                onClick={isWafflePod ? handleWafflePodSkipBeams : onSkipAllBeams}
-                className="w-full sm:w-auto gap-1"
-              >
-                <SkipForward className="h-4 w-4" />
-                {isDriveway ? 'Skip Thickening' : 'Skip Beams'}
-              </Button>
-              <Button onClick={isWafflePod ? handleWafflePodStartEdgeBeams : onStartEdgeBeams} className="w-full sm:w-auto gap-1">
-                {isDriveway ? 'Add Edge Thickening' : 'Add Edge Beam'}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
+              {isWafflePod ? (
+                // Waffle Pod flow: Count Pods is the primary action
+                <>
+                  <Button 
+                    variant="secondary" 
+                    onClick={handleWafflePodSkipBeams}
+                    className="w-full sm:w-auto gap-1"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                    Skip All
+                  </Button>
+                  <Button onClick={() => {
+                    // Save dimensions before starting pod counting
+                    onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
+                    onStartCountingPods?.();
+                  }} className="w-full sm:w-auto gap-1">
+                    <Grid3X3 className="h-4 w-4" />
+                    Count Pods
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </>
+              ) : (
+                // Standard slab/driveway flow
+                <>
+                  <Button 
+                    variant="secondary" 
+                    onClick={onSkipAllBeams}
+                    className="w-full sm:w-auto gap-1"
+                  >
+                    <SkipForward className="h-4 w-4" />
+                    {isDriveway ? 'Skip Thickening' : 'Skip Beams'}
+                  </Button>
+                  <Button onClick={onStartEdgeBeams} className="w-full sm:w-auto gap-1">
+                    {isDriveway ? 'Add Edge Thickening' : 'Add Edge Beam'}
+                    <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </>
+              )}
             </>
           )}
 
