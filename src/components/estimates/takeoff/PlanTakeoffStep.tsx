@@ -1476,6 +1476,7 @@ export function PlanTakeoffStep({
             ? handleCancelAddingBeamToSlab 
             : handleCancelSlabWorkflow
         }
+        scopeId={activeScope || undefined}
       />
 
       {/* Main content - plan takes full space, scopes float on left */}
