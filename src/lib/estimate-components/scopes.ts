@@ -104,7 +104,9 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   areasLabel: 'Slab Areas',
   supportsMultipleEdgeBeams: true,
   edgeBeamsLabel: 'Edge Thickening',
-  hideStandardQuestions: ['edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
+  supportsMultipleBeams: true,
+  beamsLabel: 'Internal Thickening',
+  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
   questions: [
     {
       id: 'area',

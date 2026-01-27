@@ -64,6 +64,7 @@ interface TakeoffToolbarProps {
   discreteBeamCount?: number; // For internal beams: number of discrete beams marked
   onDoneMarkingBeams?: () => void;
   onCancelBeamMarking?: () => void;
+  scopeId?: string; // For scope-aware labeling (internal thickening vs internal beam)
 }
 
 export function TakeoffToolbar({
@@ -101,6 +102,7 @@ export function TakeoffToolbar({
   discreteBeamCount,
   onDoneMarkingBeams,
   onCancelBeamMarking,
+  scopeId,
 }: TakeoffToolbarProps) {
   const tools: { type: ToolbarToolType; icon: React.ReactNode; label: string }[] = [
     { type: 'select', icon: <MousePointer2 className="h-4 w-4" />, label: 'Select' },
@@ -210,7 +212,16 @@ export function TakeoffToolbar({
 
   // If in beam marking mode (edge/internal beams for slabs), show beam-specific UI
   if (isBeamMarkingMode) {
-    const beamTypeLabel = beamType === 'edge' ? 'Edge' : 'Internal';
+    // Determine label based on scope and beam type
+    const getBeamTypeLabel = () => {
+      if (beamType === 'edge') {
+        const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds', 'standard_slab'];
+        return edgeThickeningScopes.includes(scopeId || '') ? 'Edge Thickening' : 'Edge Beam';
+      } else {
+        return scopeId === 'standard_slab' ? 'Internal Thickening' : 'Internal Beam';
+      }
+    };
+    const beamTypeLabel = getBeamTypeLabel();
     const isInternalBeam = beamType === 'internal';
     const hasDiscreteBeams = isInternalBeam && discreteBeamCount !== undefined && discreteBeamCount > 0;
     const showDoneButton = isInternalBeam ? hasDiscreteBeams : beamPointCount >= 2;
@@ -220,7 +231,7 @@ export function TakeoffToolbar({
         <div className="flex items-center gap-2 flex-1">
           <Minus className="h-5 w-5 text-orange-500 shrink-0" />
           <span className="text-sm font-medium">
-            {isInternalBeam ? 'Tap 2 points per beam' : `Marking ${beamTypeLabel} Beams`}
+            {isInternalBeam ? 'Tap 2 points per beam' : `Marking ${beamTypeLabel}`}
           </span>
           <Badge variant="secondary" className="text-xs">
             {beamSlabName}
