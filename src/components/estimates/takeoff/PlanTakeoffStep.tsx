@@ -18,9 +18,10 @@ import { LinearDimensionsDialog, type ExistingLinearSegment, type PolylineSegmen
 import { MarkupNameDialog } from './MarkupNameDialog';
 import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData, type BeamData } from './SlabBeamMarkupDialog';
 import { EditBeamDialog } from './EditBeamDialog';
-import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea, calculatePolygonPerimeter, calculateRectanglePerimeter, SLAB_WITH_BEAMS_SCOPES } from '@/types/takeoff';
+import { WafflePodCountDialog } from './WafflePodCountDialog';
+import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea, calculatePolygonPerimeter, calculateRectanglePerimeter, SLAB_WITH_BEAMS_SCOPES, isWafflePodPointScope } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
-import type { DrawingTool, TakeoffPoint, TakeoffMarkup } from '@/types/takeoff';
+import type { DrawingTool, TakeoffPoint, TakeoffMarkup, WafflePodPointScope } from '@/types/takeoff';
 
 interface PlanTakeoffStepProps {
   estimateId: string | null;
@@ -140,10 +141,20 @@ export function PlanTakeoffStep({
     depth: number;
   } | null>(null);
   
+  // ============= WAFFLE POD COUNTING STATE =============
+  const [wafflePodCountingActive, setWafflePodCountingActive] = useState(false);
+  const [wafflePodCountStep, setWafflePodCountStep] = useState<'count_pods' | 'count_4way' | 'count_2way' | 'complete'>('count_pods');
+  const [showWafflePodCountDialog, setShowWafflePodCountDialog] = useState(false);
+  const [wafflePodPoints, setWafflePodPoints] = useState<TakeoffPoint[]>([]);
+  const [spacer4WayPoints, setSpacer4WayPoints] = useState<TakeoffPoint[]>([]);
+  const [spacer2WayPoints, setSpacer2WayPoints] = useState<TakeoffPoint[]>([]);
+  const [wafflePodDepth, setWafflePodDepth] = useState<string>('225');
+  
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
   const isSlabBeamMarking = slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beam' || slabWorkflowStep === 'mark_internal_beam');
   const isAddingBeamToExistingSlab = addingBeamToSlabId !== null && activeTool === 'polyline';
-  const isScopePanelCollapsed = (isActivelyMarking || isSlabBeamMarking || isAddingBeamToExistingSlab) && !scopePanelManuallyExpanded;
+  const isWafflePodCounting = wafflePodCountingActive && activeTool === 'point';
+  const isScopePanelCollapsed = (isActivelyMarking || isSlabBeamMarking || isAddingBeamToExistingSlab || isWafflePodCounting) && !scopePanelManuallyExpanded;
 
   const currentFile = files.find(f => f.id === currentFileId);
   const currentPage = takeoff?.current_page || 1;
@@ -739,7 +750,170 @@ export function PlanTakeoffStep({
     setActiveScope(null);
   };
 
-  // ============= ADD BEAM TO EXISTING SLAB HANDLERS =============
+  // ============= WAFFLE POD COUNTING HANDLERS =============
+  
+  // Handler: Start counting waffle pods (triggered from SlabBeamMarkupDialog)
+  const handleStartCountingPods = useCallback(() => {
+    setShowSlabBeamDialog(false);
+    setWafflePodCountingActive(true);
+    setWafflePodCountStep('count_pods');
+    setWafflePodPoints([]);
+    setSpacer4WayPoints([]);
+    setSpacer2WayPoints([]);
+    setActiveScope('waffle_pods_count');
+    setPierPoints([]); // Use pierPoints for point-based counting
+    setActiveTool('point');
+  }, []);
+  
+  // Handler: Save pod count and optionally continue to 4-way spacers
+  const handleSavePodCount = useCallback(() => {
+    // Store the count in pending slab data
+    setPendingSlabData(prev => prev ? {
+      ...prev,
+      wafflePodCount: wafflePodPoints.length,
+      wafflePodThickness: Number(wafflePodDepth),
+    } : null);
+    
+    // Reset counting and proceed to edge beams
+    setWafflePodCountingActive(false);
+    setShowWafflePodCountDialog(false);
+    setPierPoints([]);
+    setWafflePodPoints([]);
+    setActiveScope('waffle_pod');
+    setActiveTool('select');
+    
+    // Return to the slab dialog to add beams
+    setSlabWorkflowStep('name');
+    setShowSlabBeamDialog(true);
+  }, [wafflePodPoints.length, wafflePodDepth]);
+  
+  // Handler: Save pod count and start 4-way counting
+  const handleSavePodCountAnd4Way = useCallback(() => {
+    // Save pod points
+    setWafflePodPoints([...pierPoints]);
+    setPendingSlabData(prev => prev ? {
+      ...prev,
+      wafflePodCount: pierPoints.length,
+      wafflePodThickness: Number(wafflePodDepth),
+    } : null);
+    
+    // Switch to 4-way spacer counting
+    setShowWafflePodCountDialog(false);
+    setWafflePodCountStep('count_4way');
+    setActiveScope('spacers_4way');
+    setPierPoints([]);
+    setActiveTool('point');
+  }, [pierPoints, wafflePodDepth]);
+  
+  // Handler: Save 4-way count
+  const handleSave4WayCount = useCallback(() => {
+    setSpacer4WayPoints([...pierPoints]);
+    setPendingSlabData(prev => prev ? {
+      ...prev,
+      spacer4WayCount: pierPoints.length,
+    } : null);
+    
+    // Finish counting and return to beam workflow
+    setWafflePodCountingActive(false);
+    setShowWafflePodCountDialog(false);
+    setPierPoints([]);
+    setActiveScope('waffle_pod');
+    setActiveTool('select');
+    
+    // Return to the slab dialog to add beams
+    setSlabWorkflowStep('name');
+    setShowSlabBeamDialog(true);
+  }, [pierPoints]);
+  
+  // Handler: Save 4-way count and start 2-way counting
+  const handleSave4WayCountAnd2Way = useCallback(() => {
+    setSpacer4WayPoints([...pierPoints]);
+    setPendingSlabData(prev => prev ? {
+      ...prev,
+      spacer4WayCount: pierPoints.length,
+    } : null);
+    
+    // Switch to 2-way spacer counting
+    setShowWafflePodCountDialog(false);
+    setWafflePodCountStep('count_2way');
+    setActiveScope('spacers_2way');
+    setPierPoints([]);
+    setActiveTool('point');
+  }, [pierPoints]);
+  
+  // Handler: Save 2-way count and finish
+  const handleSave2WayCount = useCallback(() => {
+    setSpacer2WayPoints([...pierPoints]);
+    setPendingSlabData(prev => prev ? {
+      ...prev,
+      spacer2WayCount: pierPoints.length,
+    } : null);
+    
+    // Finish counting and return to beam workflow
+    setWafflePodCountingActive(false);
+    setShowWafflePodCountDialog(false);
+    setPierPoints([]);
+    setActiveScope('waffle_pod');
+    setActiveTool('select');
+    
+    // Return to the slab dialog to add beams
+    setSlabWorkflowStep('name');
+    setShowSlabBeamDialog(true);
+  }, [pierPoints]);
+  
+  // Handler: Skip 4-way counting
+  const handleSkip4Way = useCallback(() => {
+    // Skip directly to 2-way counting
+    setShowWafflePodCountDialog(false);
+    setWafflePodCountStep('count_2way');
+    setActiveScope('spacers_2way');
+    setPierPoints([]);
+    setActiveTool('point');
+  }, []);
+  
+  // Handler: Skip 2-way counting
+  const handleSkip2Way = useCallback(() => {
+    // Finish counting and return to beam workflow
+    setWafflePodCountingActive(false);
+    setShowWafflePodCountDialog(false);
+    setPierPoints([]);
+    setActiveScope('waffle_pod');
+    setActiveTool('select');
+    
+    // Return to the slab dialog to add beams
+    setSlabWorkflowStep('name');
+    setShowSlabBeamDialog(true);
+  }, []);
+  
+  // Handler: Cancel waffle pod counting
+  const handleCancelWafflePodCounting = useCallback(() => {
+    setWafflePodCountingActive(false);
+    setShowWafflePodCountDialog(false);
+    setWafflePodCountStep('count_pods');
+    setWafflePodPoints([]);
+    setSpacer4WayPoints([]);
+    setSpacer2WayPoints([]);
+    setPierPoints([]);
+    setActiveScope('waffle_pod');
+    setActiveTool('select');
+    
+    // Return to the slab dialog
+    setSlabWorkflowStep('name');
+    setShowSlabBeamDialog(true);
+  }, []);
+  
+  // Show waffle pod count dialog when user finishes marking points
+  const handleDoneCountingWafflePods = useCallback(() => {
+    // Save current pier points to the appropriate array based on step
+    if (wafflePodCountStep === 'count_pods') {
+      setWafflePodPoints([...pierPoints]);
+    } else if (wafflePodCountStep === 'count_4way') {
+      setSpacer4WayPoints([...pierPoints]);
+    } else if (wafflePodCountStep === 'count_2way') {
+      setSpacer2WayPoints([...pierPoints]);
+    }
+    setShowWafflePodCountDialog(true);
+  }, [pierPoints, wafflePodCountStep]);
   
   // Handler: Start adding a beam to an existing slab
   const handleAddBeamToExistingSlab = useCallback((slabMarkupId: string, beamType: 'edge_beam' | 'internal_beam') => {
@@ -1245,10 +1419,14 @@ export function PlanTakeoffStep({
         currentFileId={currentFileId}
         onFileChange={setCurrentFile}
         currentPage={currentPage}
-        isPointMode={activeTool === 'point' && isPointScope}
+        isPointMode={activeTool === 'point' && (isPointScope || isWafflePodCounting)}
         pointCount={pierPoints.length}
-        pointLabel={activeScope === 'bollards' ? 'bollard' : activeScope === 'pad_footings' ? 'pad footing' : activeScope === 'pit_bases' ? 'pit base' : 'pier'}
-        onDoneMarkingPoints={handleDoneMarkingPiers}
+        pointLabel={
+          isWafflePodCounting 
+            ? (wafflePodCountStep === 'count_pods' ? 'waffle pod' : wafflePodCountStep === 'count_4way' ? '4-way spacer' : '2-way spacer')
+            : activeScope === 'bollards' ? 'bollard' : activeScope === 'pad_footings' ? 'pad footing' : activeScope === 'pit_bases' ? 'pit base' : 'pier'
+        }
+        onDoneMarkingPoints={isWafflePodCounting ? handleDoneCountingWafflePods : handleDoneMarkingPiers}
         isPolylineMode={activeTool === 'polyline' && isLinearScope && !isSlabBeamMarking}
         polylineLength={currentScale ? calculatePolylineLength(polylinePoints, currentScale) : 0}
         polylineSegmentCount={polylinePoints.length > 1 ? polylinePoints.length - 1 : 0}
@@ -1628,6 +1806,7 @@ export function PlanTakeoffStep({
         onWafflePodDimensionsChange={(size, podThickness, topThickness, ribWidth) =>
           setPendingSlabData(prev => prev ? { ...prev, wafflePodSize: size, wafflePodThickness: podThickness, wafflePodTopThickness: topThickness, wafflePodRibWidth: ribWidth } : null)
         }
+        onStartCountingPods={handleStartCountingPods}
         onStartEdgeBeams={handleStartEdgeBeams}
         onSkipAllBeams={handleSkipAllBeams}
         onSaveBeam={handleSaveBeam}
@@ -1666,6 +1845,28 @@ export function PlanTakeoffStep({
         mode="add"
         slabName={markups.find(m => m.id === addingBeamToSlabId)?.name || 'Slab'}
         existingBeams={existingBeamsForAddDialog}
+      />
+
+      {/* Waffle Pod Count Dialog */}
+      <WafflePodCountDialog
+        open={showWafflePodCountDialog}
+        onOpenChange={setShowWafflePodCountDialog}
+        step={wafflePodCountStep}
+        podCount={wafflePodCountStep === 'count_pods' ? pierPoints.length : wafflePodPoints.length}
+        podDepth={wafflePodDepth}
+        onPodDepthChange={setWafflePodDepth}
+        spacer4WayCount={wafflePodCountStep === 'count_4way' ? pierPoints.length : spacer4WayPoints.length}
+        spacer2WayCount={wafflePodCountStep === 'count_2way' ? pierPoints.length : spacer2WayPoints.length}
+        topSlabThickness={pendingSlabData?.wafflePodTopThickness || 85}
+        onSavePodCount={handleSavePodCount}
+        onSaveAnd4Way={handleSavePodCountAnd4Way}
+        onSave4WayCount={handleSave4WayCount}
+        onSaveAnd2Way={handleSave4WayCountAnd2Way}
+        onSave2WayCount={handleSave2WayCount}
+        onSkip4Way={handleSkip4Way}
+        onSkip2Way={handleSkip2Way}
+        onComplete={() => setShowWafflePodCountDialog(false)}
+        onCancel={handleCancelWafflePodCounting}
       />
     </div>
   );

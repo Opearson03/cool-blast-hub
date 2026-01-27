@@ -951,6 +951,8 @@ export function ModularCalculator({
           hasPlans={hasPlans}
           skipMarkupPrompt={skipMarkupPrompt}
           onSkipMarkupPromptChange={onSkipMarkupPromptChange}
+          // Pass scopeId to customize behavior (e.g., hide slab thickness warning for waffle pods)
+          scopeId={scope.id}
         />
       )}
 

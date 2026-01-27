@@ -1,4 +1,4 @@
-# Waffle Pod Takeoff Counting Tools - COMPLETED
+# Waffle Pod Takeoff Counting Tools - FULLY COMPLETED
 
 ## Implemented Features
 
@@ -23,6 +23,10 @@
 7. **Internal Beam Defaults** (`src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx`)
    - Waffle pod internal beams default to 110mm width
 
-## Next Steps (Not Yet Implemented)
-- Full takeoff workflow integration in PlanTakeoffStep.tsx for counting steps
-- TakeoffToolbar counting mode with count badge
+8. **Full Takeoff Workflow** (`src/components/estimates/takeoff/PlanTakeoffStep.tsx`)
+   - Count Pods button in SlabBeamMarkupDialog for waffle pods
+   - Point tool counting workflow: pods → 4-way spacers → 2-way spacers → beams
+   - Toolbar integration with counting mode and done button
+
+9. **Removed Slab Thickness Warning** (`src/components/estimates/calculators/MultiAreaInput.tsx`)
+   - Waffle pods no longer show "Slab Thickness Required" message (uses pod thickness instead)

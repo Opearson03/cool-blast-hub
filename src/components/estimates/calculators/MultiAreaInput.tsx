@@ -41,6 +41,8 @@ interface MultiAreaInputProps {
   hasPlans?: boolean;
   skipMarkupPrompt?: boolean;
   onSkipMarkupPromptChange?: (skip: boolean) => void;
+  // Scope identifier - used to customize behavior per scope
+  scopeId?: string;
 }
 
 export function MultiAreaInput({
@@ -62,7 +64,11 @@ export function MultiAreaInput({
   hasPlans = false,
   skipMarkupPrompt = false,
   onSkipMarkupPromptChange,
+  scopeId,
 }: MultiAreaInputProps) {
+  // Waffle pods use pod thickness, not slab thickness, so don't show the warning
+  const isWafflePod = scopeId === 'waffle_pod';
+  const showThicknessWarning = !thickness && !isWafflePod;
   const [newAreaName, setNewAreaName] = useState("");
   const [showMarkupPrompt, setShowMarkupPrompt] = useState(false);
   const [dontAskAgain, setDontAskAgain] = useState(skipMarkupPrompt);
@@ -427,60 +433,62 @@ export function MultiAreaInput({
         </Button>
       </div>
 
-      {/* Shared thickness setting - PROMINENT when empty */}
-      <div className={cn(
-        "pt-4 border-t transition-all",
-        !thickness && "bg-amber-500/10 border border-amber-500/30 rounded-lg p-6 -mx-1 mt-4"
-      )}>
+      {/* Shared thickness setting - PROMINENT when empty (hidden for waffle pods which use pod thickness) */}
+      {!isWafflePod && (
         <div className={cn(
-          "space-y-4",
-          !thickness && "flex flex-col items-center text-center"
+          "pt-4 border-t transition-all",
+          showThicknessWarning && "bg-amber-500/10 border border-amber-500/30 rounded-lg p-6 -mx-1 mt-4"
         )}>
-          {!thickness && (
-            <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
-              <AlertCircle className="h-6 w-6" />
-              <span className="font-semibold text-base">Slab Thickness Required</span>
-            </div>
-          )}
-          
-          <Label className={cn(
-            "font-medium block",
-            !thickness ? "text-base text-muted-foreground" : "text-xs"
+          <div className={cn(
+            "space-y-4",
+            showThicknessWarning && "flex flex-col items-center text-center"
           )}>
-            {thickness ? (
-              <>Thickness <span className="text-muted-foreground font-normal">— shared across all areas</span></>
-            ) : (
-              "Enter the slab thickness from your drawings"
+            {showThicknessWarning && (
+              <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400">
+                <AlertCircle className="h-6 w-6" />
+                <span className="font-semibold text-base">Slab Thickness Required</span>
+              </div>
             )}
-          </Label>
-          
-          <div className={cn("relative", !thickness ? "w-64" : "max-w-[200px]")}>
-            <Input
-              type="number"
-              inputMode="numeric"
-              value={thickness || ""}
-              onChange={(e) =>
-                onThicknessChange(e.target.value === "" ? 0 : Number(e.target.value))
-              }
-              min={thicknessMin}
-              step={5}
-              placeholder={!thickness ? "e.g. 100" : undefined}
-              className={cn(
-                "pr-12 text-center transition-all",
-                !thickness 
-                  ? "h-16 text-2xl font-medium border-2 border-amber-500/50 bg-background" 
-                  : "h-8 text-sm"
-              )}
-            />
-            <span className={cn(
-              "absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground",
-              !thickness ? "text-lg" : "text-[10px]"
+            
+            <Label className={cn(
+              "font-medium block",
+              showThicknessWarning ? "text-base text-muted-foreground" : "text-xs"
             )}>
-              mm
-            </span>
+              {thickness ? (
+                <>Thickness <span className="text-muted-foreground font-normal">— shared across all areas</span></>
+              ) : (
+                "Enter the slab thickness from your drawings"
+              )}
+            </Label>
+            
+            <div className={cn("relative", showThicknessWarning ? "w-64" : "max-w-[200px]")}>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={thickness || ""}
+                onChange={(e) =>
+                  onThicknessChange(e.target.value === "" ? 0 : Number(e.target.value))
+                }
+                min={thicknessMin}
+                step={5}
+                placeholder={showThicknessWarning ? "e.g. 100" : undefined}
+                className={cn(
+                  "pr-12 text-center transition-all",
+                  showThicknessWarning 
+                    ? "h-16 text-2xl font-medium border-2 border-amber-500/50 bg-background" 
+                    : "h-8 text-sm"
+                )}
+              />
+              <span className={cn(
+                "absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground",
+                showThicknessWarning ? "text-lg" : "text-[10px]"
+              )}>
+                mm
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Thickening / Edge Beams option */}
       {showThickeningOption && (
