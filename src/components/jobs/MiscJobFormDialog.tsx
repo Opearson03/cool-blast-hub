@@ -19,7 +19,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useBusinessSubbies, PastSubbie } from "@/hooks/useBusinessSubbies";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Command,
   CommandEmpty,
@@ -201,12 +200,12 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>Quick Add - Misc Job</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="flex-1 overflow-hidden flex flex-col">
-          <ScrollArea className="flex-1 pr-4">
+        <form onSubmit={handleSubmit} className="flex-1 min-h-0 flex flex-col overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-y-auto pr-2">
             <div className="space-y-4 pb-4">
               <div className="space-y-2">
                 <Label htmlFor="name">Name *</Label>
@@ -386,8 +385,7 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
                 )}
               </div>
             </div>
-          </ScrollArea>
-
+          </div>
           <div className="flex gap-2 pt-4 border-t">
             <Button
               type="button"
