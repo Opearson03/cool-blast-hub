@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -26,6 +26,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Pencil, Trash2, Loader2 } from "lucide-react";
 import { JobFormDialog } from "@/components/jobs/JobFormDialog";
+import { JobStartupWizard } from "@/components/jobs/JobStartupWizard";
 import { JobOverviewTab } from "@/components/jobs/tabs/JobOverviewTab";
 import { JobPoursTab } from "@/components/jobs/tabs/JobPoursTab";
 import { JobITPsTab } from "@/components/jobs/tabs/JobITPsTab";
@@ -59,6 +60,7 @@ export default function AdminJobDetail() {
   const navigate = useNavigate();
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isStartupOpen, setIsStartupOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -119,6 +121,13 @@ export default function AdminJobDetail() {
     },
   });
 
+  // Auto-open startup wizard for new jobs
+  useEffect(() => {
+    if (job && job.startup_completed === false) {
+      setIsStartupOpen(true);
+    }
+  }, [job?.id, job?.startup_completed]);
+
   if (isLoading) {
     return (
       <AdminLayout>
@@ -165,6 +174,11 @@ export default function AdminJobDetail() {
                 <span className="text-sm text-muted-foreground font-mono">
                   {job.job_number}
                 </span>
+                {job.startup_completed === false && (
+                  <Badge className="bg-primary/20 text-primary border-primary/30">
+                    New Job
+                  </Badge>
+                )}
                 {(job as any).job_type === "misc" && (
                   <Badge variant="outline" className="bg-purple-500/20 text-purple-600 border-purple-500/30">
                     Misc
@@ -310,6 +324,23 @@ export default function AdminJobDetail() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Job Startup Wizard */}
+      <JobStartupWizard
+        open={isStartupOpen}
+        onOpenChange={setIsStartupOpen}
+        job={{
+          id: job.id,
+          name: job.name,
+          job_number: job.job_number,
+          site_address: job.site_address,
+          builder_client: job.builder_client,
+          source_estimate_id: job.source_estimate_id,
+        }}
+        onComplete={() => {
+          queryClient.invalidateQueries({ queryKey: ["job", id] });
+        }}
+      />
     </AdminLayout>
   );
 }
