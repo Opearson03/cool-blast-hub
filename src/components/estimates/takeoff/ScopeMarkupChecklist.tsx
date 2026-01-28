@@ -177,31 +177,32 @@ export function ScopeMarkupChecklist({
   }
 
   return (
-    <Card className="border-2 border-primary/20 bg-card/95 backdrop-blur shadow-lg w-72 max-h-[calc(100vh-200px)] flex flex-col">
+    <Card className="border border-primary/20 bg-card/95 backdrop-blur shadow-md w-56 max-h-[calc(100vh-200px)] flex flex-col">
       {/* Collapsible header */}
       <CardHeader 
-        className="pb-2 cursor-pointer hover:bg-muted/50 transition-colors shrink-0"
+        className="p-2 cursor-pointer hover:bg-muted/50 transition-colors shrink-0"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <CardTitle className="text-sm font-semibold">Scope Areas</CardTitle>
+          <div className="flex items-center gap-1.5">
+            <Layers className="h-3.5 w-3.5 text-primary" />
+            <CardTitle className="text-xs font-semibold">Scopes</CardTitle>
             <Badge 
               variant={completedCount === scopes.length ? "default" : "secondary"} 
-              className="text-xs font-medium"
+              className="text-[10px] px-1.5 h-4 font-medium"
             >
               {completedCount}/{scopes.length}
             </Badge>
           </div>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
+            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </Button>
         </div>
       </CardHeader>
       
       {/* Scope list - vertical stack */}
       <CardContent className={cn(
-        "pt-0 pb-3 overflow-y-auto flex-1",
+        "pt-0 px-2 pb-2 overflow-y-auto flex-1",
         !isExpanded && "hidden"
       )}>
         <div className="space-y-2">
