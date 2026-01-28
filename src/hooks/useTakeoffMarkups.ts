@@ -16,7 +16,9 @@ interface ScopeAreaData {
   width_mm?: number | null;
   height_mm?: number | null;
   length_m?: number | null;
-  toe_mm?: number | null;
+  toe_mm?: number | null; // Deprecated
+  toe_width_mm?: number | null;
+  toe_depth_mm?: number | null;
   // Parent-child relationship for slab beams
   parent_markup_id?: string | null;
   markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | null;
@@ -90,7 +92,8 @@ export interface FootingConfigFromTakeoff {
   length: number;
   width: number;
   depth: number;
-  toe?: number;
+  toe_width?: number;
+  toe_depth?: number;
   _fromTakeoff: true;
   _actualLength: number;
 }
@@ -202,7 +205,7 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
       // Then get the markups for this takeoff - include all fields for linear/pad elements, beam relationships, and waffle pod counts
       const { data: markupsData, error: markupsError } = await supabase
         .from('takeoff_markups')
-        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m, toe_mm, parent_markup_id, markup_type, pod_count, pod_thickness_mm, spacer_4way_count, spacer_2way_count')
+        .select('id, scope_id, name, area_sqm, perimeter_m, shape_type, diameter_mm, depth_mm, pier_quantity, width_mm, height_mm, length_m, toe_mm, toe_width_mm, toe_depth_mm, parent_markup_id, markup_type, pod_count, pod_thickness_mm, spacer_4way_count, spacer_2way_count')
         .eq('takeoff_id', takeoffData.id)
         .order('created_at', { ascending: true });
 
@@ -222,6 +225,8 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
         height_mm: m.height_mm,
         length_m: m.length_m ? Number(m.length_m) : null,
         toe_mm: m.toe_mm,
+        toe_width_mm: m.toe_width_mm,
+        toe_depth_mm: m.toe_depth_mm,
         parent_markup_id: m.parent_markup_id,
         markup_type: m.markup_type as ScopeAreaData['markup_type'],
         pod_count: m.pod_count,
@@ -493,7 +498,8 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
       length: m.length_m || 0,
       width: m.width_mm || 450,
       depth: m.height_mm || 300,
-      toe: m.toe_mm || undefined,
+      toe_width: m.toe_width_mm || undefined,
+      toe_depth: m.toe_depth_mm || undefined,
       _fromTakeoff: true as const,
       _actualLength: m.length_m || 0,
     }));
