@@ -130,13 +130,16 @@ function datesMatch(extractedDate: string | null, pourDate: string | null, windo
 }
 
 // Find the best matching job and pour for extracted data
+// SIMPLIFIED LOGIC: Only auto-assign when there's exactly ONE job match AND a pour date match
+// Everything else goes to 'pending' for manual assignment
 async function findBestMatch(
   supabase: any,
   businessId: string,
   extractedAddress: string | null,
   extractedDate: string | null
 ): Promise<{ matchStatus: MatchStatus; matchedJobId: string | null; matchedPourId: string | null; matchConfidence: number }> {
-  if (!extractedAddress) {
+  if (!extractedAddress || !extractedDate) {
+    console.log('Missing address or date - cannot auto-match');
     return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
   }
 
@@ -152,56 +155,58 @@ async function findBestMatch(
     return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
   }
 
-  // Find the best matching job by address
-  let bestJob: Job | null = null;
-  let bestConfidence = 0;
+  // Find ALL jobs that match above the threshold
+  const matchingJobs: { job: Job; confidence: number }[] = [];
 
   for (const job of jobs as Job[]) {
     const confidence = matchAddresses(extractedAddress, job.site_address);
     console.log(`Address match: "${extractedAddress}" vs "${job.site_address}" = ${confidence}%`);
     
-    if (confidence > bestConfidence && confidence >= 70) {
-      bestConfidence = confidence;
-      bestJob = job;
+    if (confidence >= 70) {
+      matchingJobs.push({ job, confidence });
     }
   }
 
-  if (!bestJob) {
+  if (matchingJobs.length === 0) {
     console.log('No job address matched above 70% threshold');
     return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
   }
 
-  console.log(`Best job match: ${bestJob.name} (${bestJob.id}) with ${bestConfidence}% confidence`);
+  if (matchingJobs.length > 1) {
+    console.log(`Multiple jobs matched (${matchingJobs.length}) - marking as pending for manual assignment`);
+    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
+  }
 
-  // Job matched - now try to match the date to a pour
-  if (extractedDate) {
-    const { data: pours, error: poursError } = await supabase
-      .from('job_pours')
-      .select('id, pour_date')
-      .eq('job_id', bestJob.id);
+  // Exactly ONE job matched - now try to match the date to a pour
+  const { job: matchedJob, confidence: matchConfidence } = matchingJobs[0];
+  console.log(`Single job match: ${matchedJob.name} (${matchedJob.id}) with ${matchConfidence}% confidence`);
 
-    if (!poursError && pours && pours.length > 0) {
-      for (const pour of pours as Pour[]) {
-        if (datesMatch(extractedDate, pour.pour_date)) {
-          console.log(`Pour date matched: ${pour.pour_date}`);
-          return {
-            matchStatus: 'auto_matched',
-            matchedJobId: bestJob.id,
-            matchedPourId: pour.id,
-            matchConfidence: bestConfidence
-          };
-        }
-      }
+  const { data: pours, error: poursError } = await supabase
+    .from('job_pours')
+    .select('id, pour_date')
+    .eq('job_id', matchedJob.id);
+
+  if (poursError || !pours || pours.length === 0) {
+    console.log('No pours found for matched job - marking as pending');
+    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
+  }
+
+  // Find matching pour by date
+  for (const pour of pours as Pour[]) {
+    if (datesMatch(extractedDate, pour.pour_date)) {
+      console.log(`Pour date matched: ${pour.pour_date} - auto-assigning`);
+      return {
+        matchStatus: 'auto_matched',
+        matchedJobId: matchedJob.id,
+        matchedPourId: pour.id,
+        matchConfidence: matchConfidence
+      };
     }
   }
 
-  // Only job matched, not pour
-  return {
-    matchStatus: 'job_matched',
-    matchedJobId: bestJob.id,
-    matchedPourId: null,
-    matchConfidence: bestConfidence
-  };
+  // Job matched but no pour date match - mark as pending
+  console.log('Job matched but no pour date match - marking as pending');
+  return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
 }
 
 serve(async (req) => {
