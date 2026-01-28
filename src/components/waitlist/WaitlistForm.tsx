@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Turnstile } from "@/components/ui/Turnstile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Loader2, CheckCircle, Copy, Mail, MessageCircle, Share2, Rocket, Zap, Crown, Gift, TrendingUp } from "lucide-react";
@@ -33,6 +34,7 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
   const [userReferralCode, setUserReferralCode] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [waitlistStatus, setWaitlistStatus] = useState<WaitlistStatus | null>(null);
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   
   // Friend invite state
   const [friendEmail, setFriendEmail] = useState("");
@@ -67,9 +69,26 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
       return;
     }
 
+    if (!turnstileToken) {
+      toast.error("Please complete the CAPTCHA verification");
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
+      // Verify the CAPTCHA token first
+      const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-turnstile', {
+        body: { token: turnstileToken },
+      });
+
+      if (verifyError || !verifyData?.success) {
+        toast.error("CAPTCHA verification failed. Please try again.");
+        setTurnstileToken(null);
+        setIsSubmitting(false);
+        return;
+      }
+
       const normalizedEmail = email.toLowerCase().trim();
       
       // Check if email already exists
@@ -430,12 +449,22 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
           className="bg-background/50 border-border"
         />
       </div>
+
+      <div className="flex justify-center">
+        <Turnstile
+          onVerify={(token) => setTurnstileToken(token)}
+          onExpire={() => setTurnstileToken(null)}
+          onError={() => setTurnstileToken(null)}
+          theme="dark"
+          size="normal"
+        />
+      </div>
       
       <Button 
         type="submit" 
         className="w-full touch-target" 
         size="lg"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !turnstileToken}
       >
         {isSubmitting ? (
           <>
