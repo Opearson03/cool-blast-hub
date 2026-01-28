@@ -1,82 +1,219 @@
 
 
-# Plan: Delivery Docket Ingestion & Document Folders
-
-## Status: ✅ IMPLEMENTED
+# Plan: Smart Auto-Assignment for Emailed Documents
 
 ## Overview
 
-Extended the email ingestion system to handle delivery dockets (from concrete suppliers) and added folder-based organization to the Job Documents tab.
+Implement intelligent auto-assignment of emailed test results and delivery dockets by matching extracted address/date data against jobs and pours. Add a dashboard widget for unassigned documents.
 
-## Implementation Summary
+## Assignment Logic
 
-### 1. Database Changes ✅
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        AUTO-ASSIGNMENT FLOW                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│  Email received → AI extracts: address + date                               │
+│                          ↓                                                  │
+│  ┌─────────────────────────────────────────────────────────────────────┐   │
+│  │ MATCH LOGIC:                                                         │   │
+│  │                                                                      │   │
+│  │ 1. Address + Date match?                                            │   │
+│  │    → Auto-assign to Job + Pour (status: 'auto_matched')             │   │
+│  │                                                                      │   │
+│  │ 2. Address only match?                                              │   │
+│  │    → Pre-link to Job, show in Job's Test Results tab as             │   │
+│  │      "Unassigned to Pour" (status: 'job_matched')                   │   │
+│  │                                                                      │   │
+│  │ 3. No match?                                                        │   │
+│  │    → Show in Dashboard "Assign Dockets" widget                      │   │
+│  │      (status: 'pending')                                            │   │
+│  └─────────────────────────────────────────────────────────────────────┘   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-- Added `subfolder` column to `documents` table (default: 'general')
-- Created `pending_documents` table for delivery docket review workflow
-- Added proper RLS policies for business-level access control
-- Created indexes for efficient querying
+## Database Changes
 
-### 2. Edge Function Updates ✅
+### Update `pending_test_results` and `pending_documents` tables
 
-Modified `receive-test-email` to:
-- Detect document type from subject/filename using keyword matching
-- Route delivery dockets to `pending_documents` table
-- Route test results to `pending_test_results` table (existing behavior)
-- Organize storage by document type (dockets/ vs tests/)
+Add columns to track matching status:
 
-### 3. Document Folders UI ✅
+```sql
+-- Add status options for better tracking
+-- Current: 'pending', 'approved', 'rejected'
+-- New: 'pending' (no match), 'job_matched' (address matched), 
+--      'auto_matched' (address+date matched), 'approved', 'rejected'
 
-Updated `JobDocumentsTab.tsx` with:
-- Folder tabs: All, Dockets, Plans, Quotes, Photos, Other
-- Document counts per folder
-- Folder selection dialog when uploading
-- Subfolder badge on document cards
+ALTER TABLE pending_test_results 
+  ADD COLUMN match_status TEXT DEFAULT 'pending',
+  ADD COLUMN matched_job_id UUID REFERENCES jobs(id),
+  ADD COLUMN matched_pour_id UUID REFERENCES job_pours(id),
+  ADD COLUMN match_confidence NUMERIC;
 
-### 4. Pending Documents Review ✅
+ALTER TABLE pending_documents 
+  ADD COLUMN match_status TEXT DEFAULT 'pending',
+  ADD COLUMN matched_job_id UUID REFERENCES jobs(id),
+  ADD COLUMN matched_pour_id UUID REFERENCES job_pours(id),
+  ADD COLUMN match_confidence NUMERIC;
+```
 
-Created `PendingDocumentsSheet.tsx` for admins to:
-- View incoming delivery dockets
-- See AI-extracted data (docket #, m³, supplier, date, mix code)
-- Select Job and Pour to assign
-- Choose destination folder
-- Approve → moves to documents table
+### Update AI extraction prompts
 
----
+Modify `scan-test-document` to extract addresses:
 
-## Files Modified
+For **Test Results**:
+- Add `site_address` to extracted fields
+- Continue extracting `pour_date`
 
-| File | Changes |
-|------|---------|
-| SQL Migration | Added `subfolder` column, `pending_documents` table with RLS |
-| `supabase/functions/receive-test-email/index.ts` | Document type detection and routing |
-| `src/components/jobs/tabs/JobDocumentsTab.tsx` | Folder tabs, upload with folder selection |
-| `src/components/jobs/PendingDocumentsSheet.tsx` | New review component for delivery dockets |
+For **Delivery Dockets**:
+- Already extracts `site_address` and `delivery_date`
 
----
+## Edge Function Changes
 
-## Keyword Detection Logic
+### Update `receive-test-email`
 
-**Delivery Dockets** (triggers routing to pending_documents):
-- docket, delivery, cartage, truck, load, batch, dispatch, concrete delivery
+After AI extraction, attempt auto-matching:
 
-**Test Results** (triggers routing to pending_test_results):
-- test, lab, result, mpa, strength, cylinder, slump, 7 day, 28 day, compressive
+```text
+1. Extract site_address from document
+2. Fuzzy match against all jobs for this business:
+   - Normalize addresses (lowercase, remove punctuation)
+   - Check if extracted address contains job address or vice versa
+   - Calculate match confidence (0-100%)
 
----
+3. If address matches (confidence > 70%):
+   - Set matched_job_id
+   - Try to match date against job's pours:
+     - Compare extracted date to pour_date within ±2 days
+   - If pour matches:
+     - Set matched_pour_id
+     - Set match_status = 'auto_matched'
+   - Else:
+     - Set match_status = 'job_matched'
 
-## User Flow
+4. If no address match:
+   - Set match_status = 'pending'
+```
 
-### Receiving a Delivery Docket:
-1. Supplier emails PDF to `alias@pourhub.au`
-2. Edge function detects "delivery docket" from keywords
-3. PDF uploaded, pending_documents record created
-4. Admin opens PendingDocumentsSheet, reviews extracted data
-5. Admin selects Job, Pour, and folder → Approve
-6. Document appears in Job's Documents tab under chosen folder
+## Frontend Changes
 
-### Manual Upload:
-1. Admin clicks Upload in Documents tab
-2. Selects file(s)
-3. Dialog prompts for folder selection
-4. Document saved with chosen subfolder
+### 1. Dashboard Widget: "Assign Dockets"
+
+Add new widget to `AdminDashboard.tsx`:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  📬 Assign Dockets                                              │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  ┌─────────────────────────────────┐  ┌──────────────────────┐ │
+│  │ 🧪 Test Results                 │  │ 🚚 Delivery Dockets  │ │
+│  │        3 unassigned             │  │      2 unassigned    │ │
+│  └─────────────────────────────────┘  └──────────────────────┘ │
+│                                                                 │
+│  Recent:                                                        │
+│  ┌────────────────────────────────────────────────────────────┐│
+│  │ 📄 Test Report - CT-1234         28 Jan 2026    [Assign]  ││
+│  │ 📄 Delivery Docket #56789        28 Jan 2026    [Assign]  ││
+│  └────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+Clicking a document opens the assignment sheet.
+
+### 2. Update `JobTestResultsTab.tsx`
+
+Show job-matched (but pour-unassigned) test results:
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  ⚠️ Unassigned to Pour (2)                                     │
+├─────────────────────────────────────────────────────────────────┤
+│  These test results match this job but haven't been linked     │
+│  to a specific pour.                                            │
+│                                                                 │
+│  ┌────────────────────────────────────────────────────────────┐│
+│  │ 🧪 CT-1234 - 28 Day      Target: 32 MPa   [Assign Pour]   ││
+│  └────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 3. Update `JobDocumentsTab.tsx`
+
+Show job-matched delivery dockets awaiting pour assignment:
+
+Similar section for documents that matched the job but need pour assignment.
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| SQL Migration | Add match columns to pending tables |
+| `supabase/functions/scan-test-document/index.ts` | Extract site_address for test results |
+| `supabase/functions/receive-test-email/index.ts` | Add auto-matching logic after extraction |
+| `src/pages/admin/AdminDashboard.tsx` | Add "Assign Dockets" widget |
+| `src/components/dashboard/UnassignedDocketsWidget.tsx` | New widget component |
+| `src/components/jobs/tabs/JobTestResultsTab.tsx` | Show job-matched pending results |
+| `src/components/jobs/tabs/JobDocumentsTab.tsx` | Show job-matched pending dockets |
+| `src/components/jobs/PendingTestResultsSheet.tsx` | Update to handle job-matched items |
+| `src/components/jobs/PendingDocumentsSheet.tsx` | Update to handle job-matched items |
+
+## Address Matching Algorithm
+
+```typescript
+function normalizeAddress(addr: string): string {
+  return addr
+    .toLowerCase()
+    .replace(/[.,#]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/street|st\b/gi, 'st')
+    .replace(/road|rd\b/gi, 'rd')
+    .replace(/avenue|ave\b/gi, 'ave')
+    .replace(/drive|dr\b/gi, 'dr')
+    .trim();
+}
+
+function matchAddresses(extracted: string, jobAddress: string): number {
+  const a = normalizeAddress(extracted);
+  const b = normalizeAddress(jobAddress);
+  
+  // Exact match
+  if (a === b) return 100;
+  
+  // One contains the other
+  if (a.includes(b) || b.includes(a)) return 85;
+  
+  // Word overlap calculation
+  const aWords = a.split(' ').filter(w => w.length > 2);
+  const bWords = b.split(' ').filter(w => w.length > 2);
+  const overlap = aWords.filter(w => bWords.includes(w)).length;
+  const score = (overlap / Math.max(aWords.length, bWords.length)) * 100;
+  
+  return score;
+}
+```
+
+## User Experience
+
+### Scenario 1: Full Auto-Match
+1. Lab emails test result for "123 Smith Street"
+2. AI extracts address + pour date (28 Jan 2026)
+3. System matches to Job #PH-2601-0015 at "123 Smith St" 
+4. System matches date to "Slab Pour 1" scheduled 28 Jan
+5. Document appears directly in Job's Test Results tab
+6. Badge shows "Auto-matched" - user can verify/edit
+
+### Scenario 2: Job Match Only
+1. Supplier emails docket for "45 Jones Road"
+2. AI extracts address but date doesn't match any pour
+3. System matches to Job #PH-2601-0020 at "45 Jones Rd"
+4. Document appears in that Job's Test Results tab
+5. Section shows "Unassigned to Pour" with button to assign
+
+### Scenario 3: No Match
+1. Email arrives with unclear/no address
+2. System can't match to any job
+3. Document appears in Dashboard "Assign Dockets" widget
+4. User clicks to open, manually selects job/pour
+
