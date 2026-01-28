@@ -431,17 +431,19 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId }: S
               </div>
             ) : (
               <div className="flex-1 min-h-0 flex flex-col space-y-3">
-                {/* Back button and job name */}
+                {/* Back button and job name - only show back button if no preselected job */}
                 <div className="flex items-center gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleBackToJobs}
-                    className="h-8 px-2"
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-1" />
-                    Jobs
-                  </Button>
+                  {!preselectedJobId && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleBackToJobs}
+                      className="h-8 px-2"
+                    >
+                      <ChevronLeft className="h-4 w-4 mr-1" />
+                      Jobs
+                    </Button>
+                  )}
                   <span className="font-medium truncate">{selectedJob.name}</span>
                 </div>
 
