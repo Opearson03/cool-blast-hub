@@ -1,219 +1,189 @@
 
+# Plan: Batch Sub-Trade Invites with Single Response Link
 
-# Plan: Smart Auto-Assignment for Emailed Documents
+## The Problem
 
-## Overview
+Currently, when inviting a subbie to multiple pours:
+1. **Multiple SMS/emails** are sent (one per pour)
+2. Each SMS contains a **separate link** for each pour
+3. The subbie has to respond to each invite individually
+4. This is confusing for the subbie and wastes SMS credits
 
-Implement intelligent auto-assignment of emailed test results and delivery dockets by matching extracted address/date data against jobs and pours. Add a dashboard widget for unassigned documents.
+## The Solution
 
-## Assignment Logic
+Send **ONE SMS/email** with a **single link** that shows ALL the pours they've been invited to, allowing them to accept/decline each pour from a single page.
+
+## Architecture Changes
+
+### New Concept: "Invite Batch"
+
+Group multiple pour invites under a single batch ID and token:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                        AUTO-ASSIGNMENT FLOW                                 │
+│                     CURRENT vs PROPOSED                                     │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  Email received → AI extracts: address + date                               │
-│                          ↓                                                  │
-│  ┌─────────────────────────────────────────────────────────────────────┐   │
-│  │ MATCH LOGIC:                                                         │   │
-│  │                                                                      │   │
-│  │ 1. Address + Date match?                                            │   │
-│  │    → Auto-assign to Job + Pour (status: 'auto_matched')             │   │
-│  │                                                                      │   │
-│  │ 2. Address only match?                                              │   │
-│  │    → Pre-link to Job, show in Job's Test Results tab as             │   │
-│  │      "Unassigned to Pour" (status: 'job_matched')                   │   │
-│  │                                                                      │   │
-│  │ 3. No match?                                                        │   │
-│  │    → Show in Dashboard "Assign Dockets" widget                      │   │
-│  │      (status: 'pending')                                            │   │
-│  └─────────────────────────────────────────────────────────────────────┘   │
+│  CURRENT (per-pour invites):                                               │
+│  ┌──────────────────┐  ┌──────────────────┐  ┌──────────────────┐          │
+│  │ Invite A         │  │ Invite B         │  │ Invite C         │          │
+│  │ token_hash: abc  │  │ token_hash: def  │  │ token_hash: ghi  │          │
+│  │ pour_id: 1       │  │ pour_id: 2       │  │ pour_id: 3       │          │
+│  │ → SMS #1         │  │ → SMS #2         │  │ → SMS #3         │          │
+│  └──────────────────┘  └──────────────────┘  └──────────────────┘          │
+│                                                                             │
+│  PROPOSED (batch invites):                                                  │
+│  ┌──────────────────────────────────────────────────────────────────┐      │
+│  │ Invite Batch (batch_id: xyz)                                     │      │
+│  │ batch_token_hash: abc123 → ONE SMS                               │      │
+│  │ ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                │      │
+│  │ │ Invite A    │  │ Invite B    │  │ Invite C    │                │      │
+│  │ │ pour_id: 1  │  │ pour_id: 2  │  │ pour_id: 3  │                │      │
+│  │ │ status: ?   │  │ status: ?   │  │ status: ?   │                │      │
+│  │ └─────────────┘  └─────────────┘  └─────────────┘                │      │
+│  └──────────────────────────────────────────────────────────────────┘      │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## Database Changes
+### Database Changes
 
-### Update `pending_test_results` and `pending_documents` tables
-
-Add columns to track matching status:
+Add new columns to `external_invites`:
 
 ```sql
--- Add status options for better tracking
--- Current: 'pending', 'approved', 'rejected'
--- New: 'pending' (no match), 'job_matched' (address matched), 
---      'auto_matched' (address+date matched), 'approved', 'rejected'
+ALTER TABLE external_invites
+  ADD COLUMN batch_id UUID DEFAULT NULL,
+  ADD COLUMN batch_token_hash TEXT DEFAULT NULL;
 
-ALTER TABLE pending_test_results 
-  ADD COLUMN match_status TEXT DEFAULT 'pending',
-  ADD COLUMN matched_job_id UUID REFERENCES jobs(id),
-  ADD COLUMN matched_pour_id UUID REFERENCES job_pours(id),
-  ADD COLUMN match_confidence NUMERIC;
-
-ALTER TABLE pending_documents 
-  ADD COLUMN match_status TEXT DEFAULT 'pending',
-  ADD COLUMN matched_job_id UUID REFERENCES jobs(id),
-  ADD COLUMN matched_pour_id UUID REFERENCES job_pours(id),
-  ADD COLUMN match_confidence NUMERIC;
+CREATE INDEX idx_external_invites_batch_id ON external_invites(batch_id);
+CREATE INDEX idx_external_invites_batch_token_hash ON external_invites(batch_token_hash);
 ```
 
-### Update AI extraction prompts
+- `batch_id`: Groups invites that should share a single link
+- `batch_token_hash`: The hashed token used for the batch link (all invites in batch share this)
 
-Modify `scan-test-document` to extract addresses:
+### API Changes
 
-For **Test Results**:
-- Add `site_address` to extracted fields
-- Continue extracting `pour_date`
+**1. New Edge Function: `send-batch-subtrade-invite`**
 
-For **Delivery Dockets**:
-- Already extracts `site_address` and `delivery_date`
-
-## Edge Function Changes
-
-### Update `receive-test-email`
-
-After AI extraction, attempt auto-matching:
-
-```text
-1. Extract site_address from document
-2. Fuzzy match against all jobs for this business:
-   - Normalize addresses (lowercase, remove punctuation)
-   - Check if extracted address contains job address or vice versa
-   - Calculate match confidence (0-100%)
-
-3. If address matches (confidence > 70%):
-   - Set matched_job_id
-   - Try to match date against job's pours:
-     - Compare extracted date to pour_date within ±2 days
-   - If pour matches:
-     - Set matched_pour_id
-     - Set match_status = 'auto_matched'
-   - Else:
-     - Set match_status = 'job_matched'
-
-4. If no address match:
-   - Set match_status = 'pending'
-```
-
-## Frontend Changes
-
-### 1. Dashboard Widget: "Assign Dockets"
-
-Add new widget to `AdminDashboard.tsx`:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  📬 Assign Dockets                                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  ┌─────────────────────────────────┐  ┌──────────────────────┐ │
-│  │ 🧪 Test Results                 │  │ 🚚 Delivery Dockets  │ │
-│  │        3 unassigned             │  │      2 unassigned    │ │
-│  └─────────────────────────────────┘  └──────────────────────┘ │
-│                                                                 │
-│  Recent:                                                        │
-│  ┌────────────────────────────────────────────────────────────┐│
-│  │ 📄 Test Report - CT-1234         28 Jan 2026    [Assign]  ││
-│  │ 📄 Delivery Docket #56789        28 Jan 2026    [Assign]  ││
-│  └────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-```
-
-Clicking a document opens the assignment sheet.
-
-### 2. Update `JobTestResultsTab.tsx`
-
-Show job-matched (but pour-unassigned) test results:
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  ⚠️ Unassigned to Pour (2)                                     │
-├─────────────────────────────────────────────────────────────────┤
-│  These test results match this job but haven't been linked     │
-│  to a specific pour.                                            │
-│                                                                 │
-│  ┌────────────────────────────────────────────────────────────┐│
-│  │ 🧪 CT-1234 - 28 Day      Target: 32 MPa   [Assign Pour]   ││
-│  └────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 3. Update `JobDocumentsTab.tsx`
-
-Show job-matched delivery dockets awaiting pour assignment:
-
-Similar section for documents that matched the job but need pour assignment.
-
-## Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| SQL Migration | Add match columns to pending tables |
-| `supabase/functions/scan-test-document/index.ts` | Extract site_address for test results |
-| `supabase/functions/receive-test-email/index.ts` | Add auto-matching logic after extraction |
-| `src/pages/admin/AdminDashboard.tsx` | Add "Assign Dockets" widget |
-| `src/components/dashboard/UnassignedDocketsWidget.tsx` | New widget component |
-| `src/components/jobs/tabs/JobTestResultsTab.tsx` | Show job-matched pending results |
-| `src/components/jobs/tabs/JobDocumentsTab.tsx` | Show job-matched pending dockets |
-| `src/components/jobs/PendingTestResultsSheet.tsx` | Update to handle job-matched items |
-| `src/components/jobs/PendingDocumentsSheet.tsx` | Update to handle job-matched items |
-
-## Address Matching Algorithm
+Accepts multiple pour IDs and creates invites with a shared batch:
 
 ```typescript
-function normalizeAddress(addr: string): string {
-  return addr
-    .toLowerCase()
-    .replace(/[.,#]/g, '')
-    .replace(/\s+/g, ' ')
-    .replace(/street|st\b/gi, 'st')
-    .replace(/road|rd\b/gi, 'rd')
-    .replace(/avenue|ave\b/gi, 'ave')
-    .replace(/drive|dr\b/gi, 'dr')
-    .trim();
+// Request body
+{
+  job_pour_ids: string[],        // Array of pour IDs
+  recipient_name: string,
+  role: string,
+  recipient_phone?: string,
+  recipient_email?: string,
+  notes?: string
 }
 
-function matchAddresses(extracted: string, jobAddress: string): number {
-  const a = normalizeAddress(extracted);
-  const b = normalizeAddress(jobAddress);
-  
-  // Exact match
-  if (a === b) return 100;
-  
-  // One contains the other
-  if (a.includes(b) || b.includes(a)) return 85;
-  
-  // Word overlap calculation
-  const aWords = a.split(' ').filter(w => w.length > 2);
-  const bWords = b.split(' ').filter(w => w.length > 2);
-  const overlap = aWords.filter(w => bWords.includes(w)).length;
-  const score = (overlap / Math.max(aWords.length, bWords.length)) * 100;
-  
-  return score;
+// Response
+{
+  success: true,
+  batch_id: "uuid",
+  invite_count: 3,
+  sent_via: "sms",
+  ...
 }
 ```
 
-## User Experience
+**2. Update Edge Function: `validate-subtrade-token`**
 
-### Scenario 1: Full Auto-Match
-1. Lab emails test result for "123 Smith Street"
-2. AI extracts address + pour date (28 Jan 2026)
-3. System matches to Job #PH-2601-0015 at "123 Smith St" 
-4. System matches date to "Slab Pour 1" scheduled 28 Jan
-5. Document appears directly in Job's Test Results tab
-6. Badge shows "Auto-matched" - user can verify/edit
+- Check for `batch_token_hash` in addition to individual `token_hash`
+- Return ALL invites in the batch when batch token is used
 
-### Scenario 2: Job Match Only
-1. Supplier emails docket for "45 Jones Road"
-2. AI extracts address but date doesn't match any pour
-3. System matches to Job #PH-2601-0020 at "45 Jones Rd"
-4. Document appears in that Job's Test Results tab
-5. Section shows "Unassigned to Pour" with button to assign
+**3. Update Edge Function: `respond-subtrade-invite`**
 
-### Scenario 3: No Match
-1. Email arrives with unclear/no address
-2. System can't match to any job
-3. Document appears in Dashboard "Assign Dockets" widget
-4. User clicks to open, manually selects job/pour
+- Accept `invite_id` + `response` for each pour (or all at once)
+- Support responding to individual pours within a batch
 
+### Frontend Changes
+
+**1. Update `SubbieSelectionStep.tsx`**
+
+- Instead of calling `send-subtrade-invite` in a loop, call new `send-batch-subtrade-invite` once
+
+**2. Update `RespondInvite.tsx` Page**
+
+Show ALL pours in the batch with individual accept/decline for each:
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│  [LOGO] JEFCON PTY LTD                                      │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  Hi John, you've been invited to work on 3 pours           │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 📅 Monday, 3 Feb - Garage Slab                      │   │
+│  │ 📍 11B Cobbans Close                                │   │
+│  │ 🔧 Role: Pump Operator                              │   │
+│  │                          [Decline] [Accept ✓]       │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 📅 Wednesday, 5 Feb - Driveway                      │   │
+│  │ 📍 11B Cobbans Close                                │   │
+│  │ 🔧 Role: Pump Operator                              │   │
+│  │                          [Decline] [Accept ✓]       │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│  ┌─────────────────────────────────────────────────────┐   │
+│  │ 📅 Friday, 7 Feb - Footpath                         │   │
+│  │ 📍 11B Cobbans Close                                │   │
+│  │ 🔧 Role: Pump Operator                              │   │
+│  │                          [Decline] [Accept ✓]       │   │
+│  └─────────────────────────────────────────────────────┘   │
+│                                                             │
+│            [Submit All Responses]                           │
+│                                                             │
+│  ─────────────────────────────────────────────────────────  │
+│                    Powered by PourHub                       │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### SMS Message Update
+
+Instead of:
+> "You're invited to work as Pump Operator on a pour Monday, 3 February."
+
+New format:
+> "JEFCON: You're invited to 3 pours as Pump Operator (Feb 3, 5, 7). View & respond: pourhub.com.au/i/abc123"
+
+### Backwards Compatibility
+
+- Existing single-pour invites continue to work (no `batch_id`)
+- The response page detects batch vs single and renders accordingly
+- Old invite links remain valid
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| **Database Migration** | Add `batch_id` and `batch_token_hash` columns |
+| `supabase/functions/send-batch-subtrade-invite/index.ts` | **NEW** - Create batch invites with single token |
+| `supabase/functions/validate-subtrade-token/index.ts` | Support batch token lookup |
+| `supabase/functions/respond-subtrade-invite/index.ts` | Handle batch responses |
+| `src/pages/public/RespondInvite.tsx` | Multi-pour response UI |
+| `src/components/jobs/wizard/SubbieSelectionStep.tsx` | Use batch invite endpoint |
+| `src/components/jobs/PourSubbieStep.tsx` | Use batch invite endpoint |
+| `src/hooks/useSubTradeInvites.ts` | Add `useSendBatchSubTradeInvite` hook |
+
+## Technical Details
+
+### Batch Creation Flow
+
+1. Frontend calls `send-batch-subtrade-invite` with multiple pour IDs
+2. Edge function generates ONE token and hashes it
+3. Creates N invite records, all sharing the same `batch_id` and `batch_token_hash`
+4. Sends ONE SMS/email with the batch link
+
+### Response Flow
+
+1. Subbie clicks link → `validate-subtrade-token` detects batch
+2. Returns array of invites with pour details
+3. Subbie accepts/declines each pour individually
+4. Clicks "Submit" → `respond-subtrade-invite` updates all at once
+5. Business receives ONE notification summarizing all responses
