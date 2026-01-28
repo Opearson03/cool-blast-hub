@@ -130,3 +130,6 @@ verify_jwt = false
 
 [functions.notify-subtrade-reschedule]
 verify_jwt = false
+
+[functions.receive-test-email]
+verify_jwt = false

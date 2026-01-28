@@ -68,6 +68,7 @@ export type Database = {
           created_at: string | null
           email: string | null
           id: string
+          inbound_email_alias: string | null
           logo_url: string | null
           name: string
           onboarding_completed: boolean | null
@@ -88,6 +89,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          inbound_email_alias?: string | null
           logo_url?: string | null
           name: string
           onboarding_completed?: boolean | null
@@ -108,6 +110,7 @@ export type Database = {
           created_at?: string | null
           email?: string | null
           id?: string
+          inbound_email_alias?: string | null
           logo_url?: string | null
           name?: string
           onboarding_completed?: boolean | null
@@ -1437,6 +1440,82 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_test_results: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          business_id: string
+          created_at: string
+          extracted_data: Json | null
+          from_email: string
+          id: string
+          lab_report_url: string | null
+          linked_job_id: string | null
+          linked_pour_id: string | null
+          received_at: string
+          rejection_reason: string | null
+          status: Database["public"]["Enums"]["pending_test_status"]
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id: string
+          created_at?: string
+          extracted_data?: Json | null
+          from_email: string
+          id?: string
+          lab_report_url?: string | null
+          linked_job_id?: string | null
+          linked_pour_id?: string | null
+          received_at?: string
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["pending_test_status"]
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id?: string
+          created_at?: string
+          extracted_data?: Json | null
+          from_email?: string
+          id?: string
+          lab_report_url?: string | null
+          linked_job_id?: string | null
+          linked_pour_id?: string | null
+          received_at?: string
+          rejection_reason?: string | null
+          status?: Database["public"]["Enums"]["pending_test_status"]
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_test_results_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_test_results_linked_job_id_fkey"
+            columns: ["linked_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_test_results_linked_pour_id_fkey"
+            columns: ["linked_pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pour_employees: {
         Row: {
           created_at: string
@@ -2357,6 +2436,7 @@ export type Database = {
       job_status: "scheduled" | "in_progress" | "completed" | "cancelled"
       job_type: "retail" | "industrial"
       leave_status: "pending" | "approved" | "rejected"
+      pending_test_status: "pending" | "approved" | "rejected"
       service_type: "industrial" | "automotive" | "restoration" | "other"
       test_type:
         | "7_day"
@@ -2520,6 +2600,7 @@ export const Constants = {
       job_status: ["scheduled", "in_progress", "completed", "cancelled"],
       job_type: ["retail", "industrial"],
       leave_status: ["pending", "approved", "rejected"],
+      pending_test_status: ["pending", "approved", "rejected"],
       service_type: ["industrial", "automotive", "restoration", "other"],
       test_type: [
         "7_day",
