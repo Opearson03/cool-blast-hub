@@ -1,144 +1,174 @@
 
 
-# Plan: Automated Test Result Email Ingestion
+# Plan: Test Result Email Section Improvements
 
 ## Overview
 
-Enable concrete testing labs to email test results directly to a unique business email address (e.g., `mullinsconcrete@pourhub.au`), which automatically uploads the PDF, scans it with AI, and creates a pending test result for review.
+Make three improvements to the Test Result Email section in Admin Settings:
+1. Change placeholder example from "mullinsconcrete" to "democrete"
+2. Auto-generate unique email aliases based on business name during signup/creation
+3. Make the section collapsible, default closed, with read-only "copy email" interaction
 
-## How It Works
+## Changes
+
+### 1. Update Placeholder Text
+
+**File: `src/components/settings/TestResultEmailSection.tsx`**
+
+Change the input placeholder from:
+```
+placeholder="e.g., mullinsconcrete"
+```
+to:
+```
+placeholder="e.g., pourhub"
+```
+
+### 2. Auto-Generate Unique Email Aliases
+
+When a business is created, automatically generate a unique email alias based on their business name. If the alias is already taken, append a number (e.g., `smithconcrete`, `smithconcrete2`, `smithconcrete3`).
+
+**Database Function:**
+Create a helper function `generate_unique_email_alias(business_name TEXT)` that:
+- Converts business name to lowercase
+- Removes special characters and spaces (or converts to underscores)
+- Truncates to 30 characters max
+- Checks if alias exists, appends incrementing numbers if needed
+- Returns the unique alias
+
+**Trigger on Business Creation:**
+Create a trigger that automatically sets `inbound_email_alias` when a new business is inserted (if null).
 
 ```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                           EMAIL INGESTION FLOW                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│  1. Lab sends email to: mullinsconcrete@pourhub.au                         │
-│                            ↓                                                │
-│  2. Resend receives email → triggers webhook → edge function               │
-│                            ↓                                                │
-│  3. Edge function:                                                          │
-│     • Validates the "to" address matches a business                         │
-│     • Downloads PDF attachment(s)                                           │
-│     • Uploads to storage bucket                                             │
-│     • Calls scan-test-document to extract data                             │
-│     • Creates pending_test_results record                                   │
-│                            ↓                                                │
-│  4. Business admin reviews & approves pending results                       │
-│     • Links to correct job/pour                                             │
-│     • Confirms or edits extracted data                                      │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+Business Name: "Smith Concreting Pty Ltd"
+    ↓ normalize
+Generated: "smithconcretingptyltd"
+    ↓ check uniqueness
+Final: "smithconcretingptyltd" (or "smithconcretingptyltd2" if taken)
 ```
 
-## Database Changes
+### 3. Make Section Collapsible with Copy-Only Interaction
 
-### New Column: `businesses.inbound_email_alias`
-Stores the unique email prefix for each business (e.g., `mullinsconcrete`).
+**File: `src/components/settings/TestResultEmailSection.tsx`**
+
+Restructure the component to:
+- Wrap in `Collapsible` component (default closed)
+- Remove the edit functionality (no more alias editing by users)
+- Show only the email address and copy button when expanded
+- If no alias exists, auto-generate one on first expand or show a "generating..." state
+
+**New UI Structure:**
+```text
+┌────────────────────────────────────────────────────┐
+│ [▶] Test Result Email                              │  ← Collapsed by default
+└────────────────────────────────────────────────────┘
+
+When expanded:
+┌────────────────────────────────────────────────────┐
+│ [▼] Test Result Email                              │
+│                                                    │
+│  Share this email with your testing lab...         │
+│                                                    │
+│  ┌────────────────────────────────────────────┐   │
+│  │ democrete@pourhub.au             [Copy]    │   │
+│  └────────────────────────────────────────────┘   │
+│                                                    │
+│  ⓘ Auto-processes PDF attachments                 │
+│                                                    │
+│  How it works:                                     │
+│  1. Share your email address with your lab        │
+│  2. Lab sends test results (PDF) to your email    │
+│  3. AI automatically extracts test data           │
+│  4. Review and approve results to link to jobs    │
+└────────────────────────────────────────────────────┘
+```
+
+## Technical Details
+
+### SQL Migration
 
 ```sql
-ALTER TABLE businesses 
-ADD COLUMN inbound_email_alias TEXT UNIQUE;
+-- Function to generate unique email alias from business name
+CREATE OR REPLACE FUNCTION generate_unique_email_alias(business_name TEXT)
+RETURNS TEXT AS $$
+DECLARE
+  base_alias TEXT;
+  test_alias TEXT;
+  counter INTEGER := 1;
+BEGIN
+  -- Normalize: lowercase, remove special chars, keep alphanumeric/underscore
+  base_alias := regexp_replace(
+    lower(business_name), 
+    '[^a-z0-9]', 
+    '', 
+    'g'
+  );
+  
+  -- Truncate to 27 chars to leave room for counter suffix
+  base_alias := left(base_alias, 27);
+  
+  -- Ensure minimum length
+  IF length(base_alias) < 3 THEN
+    base_alias := base_alias || 'biz';
+  END IF;
+  
+  test_alias := base_alias;
+  
+  -- Check for uniqueness, append counter if needed
+  WHILE EXISTS (
+    SELECT 1 FROM businesses WHERE inbound_email_alias = test_alias
+  ) LOOP
+    counter := counter + 1;
+    test_alias := base_alias || counter::TEXT;
+  END LOOP;
+  
+  RETURN test_alias;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to auto-generate alias on business creation
+CREATE OR REPLACE FUNCTION set_inbound_email_alias()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.inbound_email_alias IS NULL THEN
+    NEW.inbound_email_alias := generate_unique_email_alias(NEW.name);
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_set_inbound_email_alias
+  BEFORE INSERT ON businesses
+  FOR EACH ROW
+  EXECUTE FUNCTION set_inbound_email_alias();
+
+-- Backfill existing businesses without aliases
+UPDATE businesses 
+SET inbound_email_alias = generate_unique_email_alias(name)
+WHERE inbound_email_alias IS NULL;
 ```
 
-### New Table: `pending_test_results`
-Holds auto-ingested test results awaiting approval and job linking.
+### Component Changes
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid | Primary key |
-| `business_id` | uuid | FK to businesses |
-| `from_email` | text | Sender's email address |
-| `subject` | text | Email subject line |
-| `received_at` | timestamptz | When email was received |
-| `lab_report_url` | text | Storage URL for uploaded PDF |
-| `extracted_data` | jsonb | AI-extracted fields (test_id, mpa, dates, etc.) |
-| `status` | enum | `pending`, `approved`, `rejected` |
-| `approved_by` | uuid | Who approved it |
-| `linked_job_id` | uuid | FK to jobs (set on approval) |
-| `linked_pour_id` | uuid | FK to job_pours (optional) |
-| `created_at` | timestamptz | Record creation time |
+**File: `src/components/settings/TestResultEmailSection.tsx`**
 
-## New Edge Function: `receive-test-email`
+- Remove `isEditing`, `newAlias`, and `updateAliasMutation` state/logic
+- Add `isOpen` state for collapsible (default `false`)
+- Keep only `handleCopy` functionality
+- Wrap in `Collapsible` from Radix UI
+- Show chevron icon that rotates on expand
 
-Webhook endpoint for Resend inbound emails:
+## Files to Modify
 
-1. **Parse incoming webhook** from Resend (`email.received` event)
-2. **Extract recipient address** (the `to` field)
-3. **Lookup business** by matching the email alias
-4. **Download PDF attachment(s)** using Resend's attachment API
-5. **Upload to `test-documents` bucket**
-6. **Call `scan-test-document`** to extract data via AI
-7. **Insert into `pending_test_results`** with extracted data
-8. **Optionally notify business admin** via email/push
+| File | Changes |
+|------|---------|
+| `src/components/settings/TestResultEmailSection.tsx` | Complete rewrite: collapsible, read-only, updated placeholder |
+| SQL Migration | Add alias generation function, trigger, and backfill |
 
-## Frontend Changes
+## User Experience
 
-### Settings Page Updates
-- New section: "Test Result Email Address"
-- Display the business's unique email: `{alias}@pourhub.au`
-- Allow admin to customize the alias (with validation)
-- Copy button for easy sharing with labs
-
-### New Component: Pending Test Results Review
-- List of pending test results awaiting approval
-- Each item shows:
-  - Received date/time
-  - Sender email
-  - AI-extracted preview (test ID, MPa, date)
-  - PDF preview/download link
-- Actions:
-  - **Approve**: Select job/pour, confirm data, creates `concrete_tests` record
-  - **Reject**: Discard with optional reason
-
-### Integration Points
-- Badge on Job Test Results tab showing pending count
-- Notification when new results arrive
-- Quick-link from pending result to job selection
-
-## Infrastructure Requirements
-
-### Resend Configuration (Manual Setup)
-The business owner needs to:
-1. Configure a custom domain in Resend for receiving (e.g., `pourhub.au`)
-2. Add a webhook pointing to the edge function URL
-3. Select `email.received` event type
-
-### New Secret Required
-- `RESEND_WEBHOOK_SECRET`: For verifying webhook signatures
-
-## Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| SQL Migration | Add `inbound_email_alias` column, create `pending_test_results` table |
-| `supabase/functions/receive-test-email/index.ts` | New webhook handler |
-| `supabase/config.toml` | Add function config |
-| `src/pages/admin/AdminSettings.tsx` | Add email alias display/edit section |
-| `src/components/jobs/PendingTestResultsSheet.tsx` | New review component |
-| `src/components/jobs/tabs/JobTestResultsTab.tsx` | Add pending count badge |
-
-## Security Considerations
-
-1. **Webhook signature verification** - Validate Resend webhook signatures
-2. **Email alias uniqueness** - Prevent collisions between businesses
-3. **RLS policies** - Ensure businesses only see their own pending results
-4. **File validation** - Only accept PDF attachments under 10MB
-5. **Rate limiting** - Consider limits to prevent abuse
-
-## User Flow Example
-
-1. **Setup** (one-time):
-   - Admin goes to Settings → sees their email: `mullinsconcrete@pourhub.au`
-   - Shares this email with their concrete testing lab
-
-2. **Lab sends results**:
-   - Lab emails test report PDF to `mullinsconcrete@pourhub.au`
-   - System automatically processes and extracts data
-
-3. **Admin reviews**:
-   - Sees notification "1 pending test result"
-   - Opens pending results, sees AI-extracted data
-   - Selects correct job/pour, clicks "Approve"
-   - Result appears in job's Test Results tab
+1. **New businesses**: Automatically get an email alias generated from their name
+2. **Existing businesses without alias**: Get one auto-assigned via backfill
+3. **Settings page**: Section is collapsed by default - click to expand and copy email
+4. **No manual editing**: Reduces complexity; aliases are system-managed for uniqueness
 
