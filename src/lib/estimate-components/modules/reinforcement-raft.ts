@@ -371,7 +371,8 @@ export const reinforcementRaftModule: EstimateModule = {
       
       // Slab Mesh for waffle pod: Area ÷ 12.5 = qty of sheets (12.5m² coverage per sheet with wastage)
       // This is an industry-standard formula for waffle pod slab mesh
-      if (totalArea > 0 && areas.length === 0) {
+      // Note: For waffle pod, we calculate mesh here (not per-area) since the mesh sits on top of the pod grid
+      if (totalArea > 0) {
         const waffleMeshSheets = Math.ceil(totalArea / 12.5);
         const meshType = 'SL82';
         const meshPrice = getPrice(priceMap, 'mesh', meshType, 95);
