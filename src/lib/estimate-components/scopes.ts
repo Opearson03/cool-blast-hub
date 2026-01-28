@@ -601,53 +601,61 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
   ],
   calculateVolume: (answers) => {
     const area = Number(answers.area) || 0;
-    const podSizeM = (Number(answers.pod_size) || 1090) / 1000;
     const podThicknessM = (Number(answers.pod_thickness) || 225) / 1000;
     const topSlabM = (Number(answers.top_slab_thickness) || 85) / 1000;
-    const podCount = Number(answers.pod_count) || 0;
     const perimeter = Number(answers.perimeter) || 0;
-    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 450) / 1000;
-    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 450) / 1000;
-
-    // Total slab thickness (pods + topping)
-    const totalThicknessM = podThicknessM + topSlabM;
-
-    // Gross volume (before void subtraction)
-    const grossVolume = area * totalThicknessM;
-
-    // Pod void volume
-    const podVoidVolume = podCount * (podSizeM * podSizeM * podThicknessM);
-
-    // Net slab volume (ribs + topping)
-    const slabVolume = grossVolume - podVoidVolume;
-
-    // Edge beam extra volume (depth below total slab thickness)
-    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - totalThicknessM);
-    const edgeBeamVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
-
-    // Internal beams volume - if we have beam configs, calculate from those
-    const beams = answers.beams || [];
-    let internalBeamVolume = 0;
     
-    if (beams.length > 0) {
-      internalBeamVolume = beams.reduce((sum: number, beam: any) => {
-        const lengthM = Number(beam.length) || 0;
-        const widthM = (Number(beam.width) || 300) / 1000;
-        const depthM = (Number(beam.depth) || 400) / 1000;
-        const extraDepth = Math.max(0, depthM - totalThicknessM);
-        return sum + lengthM * widthM * extraDepth;
-      }, 0);
+    // Total slab height in mm for divisor lookup
+    const totalHeightMm = (podThicknessM + topSlabM) * 1000;
+    const totalHeightM = podThicknessM + topSlabM;
+    
+    // Edge beam length (defaults to perimeter if not specified)
+    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+    
+    // Industry divisor lookup based on total slab height
+    // Standard values: 260mm→8.35, 310mm→7.80, 385mm→6.93, 460mm→6.30, 610mm→5.00
+    const divisorTable = [
+      { height: 260, divisor: 8.35 },
+      { height: 310, divisor: 7.80 },
+      { height: 385, divisor: 6.93 },
+      { height: 460, divisor: 6.30 },
+      { height: 610, divisor: 5.00 },
+    ];
+    
+    // Find appropriate divisor with interpolation for in-between values
+    let divisor = 8.35; // Default for heights ≤ 260mm
+    
+    if (totalHeightMm >= 610) {
+      divisor = 5.00;
+    } else if (totalHeightMm <= 260) {
+      divisor = 8.35;
     } else {
-      // Fallback to legacy single-value fields
-      const internalLength = Number(answers.internal_beams_length) || 0;
-      const internalWidthM = (Number(answers.internal_beam_width) || 300) / 1000;
-      const internalDepthM = (Number(answers.internal_beam_depth) || 400) / 1000;
-      const internalExtraDepth = Math.max(0, internalDepthM - totalThicknessM);
-      internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
+      // Linear interpolation between known points
+      for (let i = 0; i < divisorTable.length - 1; i++) {
+        const lower = divisorTable[i];
+        const upper = divisorTable[i + 1];
+        if (totalHeightMm >= lower.height && totalHeightMm <= upper.height) {
+          const ratio = (totalHeightMm - lower.height) / (upper.height - lower.height);
+          divisor = lower.divisor - ratio * (lower.divisor - upper.divisor);
+          break;
+        }
+      }
     }
-
-    return safeVolume(slabVolume + edgeBeamVolume + internalBeamVolume);
+    
+    // Step 1: Slab body volume using industry divisor
+    const slabBodyVolume = area / divisor;
+    
+    // Step 2: Edge beam volume (industry formula)
+    // Part A: Length × 0.15m × 0.15m (150mm × 150mm base contribution)
+    const edgeBeamPartA = edgeBeamLength * 0.15 * 0.15;
+    // Part B: Length × TotalHeight × 0.05m (50mm additional width)
+    const edgeBeamPartB = edgeBeamLength * totalHeightM * 0.05;
+    const edgeBeamVolume = edgeBeamPartA + edgeBeamPartB;
+    
+    // Base volume (wastage applied in concrete-supply module at 10%)
+    const baseVolume = slabBodyVolume + edgeBeamVolume;
+    
+    return safeVolume(baseVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'waffle_pod' },
