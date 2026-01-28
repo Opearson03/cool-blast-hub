@@ -43,6 +43,11 @@ function formatPhoneE164(phone: string): string {
   return `+61${digits}`;
 }
 
+// Normalize phone number for comparison (remove all non-digits)
+function normalizePhone(phone: string): string {
+  return phone.replace(/\D/g, "");
+}
+
 const handler = async (req: Request): Promise<Response> => {
   console.log("send-subtrade-invite: Received request");
 
@@ -139,15 +144,94 @@ const handler = async (req: Request): Promise<Response> => {
       });
     }
 
+    // === DUPLICATE INVITE CHECK ===
+    // Check for existing active invite with same name or phone for this pour
+    const { data: existingInvites, error: duplicateError } = await supabase
+      .from("external_invites")
+      .select("id, recipient_name, recipient_phone, status")
+      .eq("job_pour_id", body.job_pour_id)
+      .eq("invite_type", "sub_trade")
+      .in("status", ["drafted", "sent", "viewed", "accepted"]);
+
+    if (duplicateError) {
+      console.error("Error checking duplicates:", duplicateError);
+    } else if (existingInvites && existingInvites.length > 0) {
+      const normalizedInputPhone = body.recipient_phone ? normalizePhone(body.recipient_phone) : null;
+      const inputNameLower = body.recipient_name.toLowerCase().trim();
+
+      for (const existing of existingInvites) {
+        const existingNameLower = existing.recipient_name.toLowerCase().trim();
+        const existingPhoneNormalized = existing.recipient_phone ? normalizePhone(existing.recipient_phone) : null;
+
+        // Check name match (case-insensitive)
+        if (existingNameLower === inputNameLower) {
+          console.log("Duplicate found by name:", existing.recipient_name);
+          return new Response(
+            JSON.stringify({
+              error: `${existing.recipient_name} already has an active invite for this pour`,
+              code: "DUPLICATE_INVITE",
+            }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        // Check phone match (normalized)
+        if (normalizedInputPhone && existingPhoneNormalized && normalizedInputPhone === existingPhoneNormalized) {
+          console.log("Duplicate found by phone:", existing.recipient_name);
+          return new Response(
+            JSON.stringify({
+              error: `This phone number already has an active invite for this pour (${existing.recipient_name})`,
+              code: "DUPLICATE_INVITE",
+            }),
+            { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
+    // === SMS RATE LIMIT CHECK (50/day per business) ===
+    let smsRateLimitExceeded = false;
+    if (body.recipient_phone) {
+      // Get start of today in UTC (we count from midnight UTC)
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+      const todayIso = today.toISOString();
+
+      const { count, error: countError } = await supabase
+        .from("external_invites")
+        .select("id", { count: "exact", head: true })
+        .eq("business_id", business.id)
+        .eq("sms_delivery_status", "sent")
+        .gte("sent_at", todayIso);
+
+      if (countError) {
+        console.error("Error checking SMS rate limit:", countError);
+      } else if (count !== null && count >= 50) {
+        console.log(`SMS rate limit exceeded for business ${business.id}: ${count}/50`);
+        smsRateLimitExceeded = true;
+
+        // If they only provided phone (no email), block the request
+        if (!body.recipient_email) {
+          return new Response(
+            JSON.stringify({
+              error: "Daily SMS limit reached (50/day). Please provide an email address or try again tomorrow.",
+              code: "SMS_RATE_LIMIT",
+            }),
+            { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+      }
+    }
+
     // Generate secure token
     const rawToken = generateToken();
     const tokenHash = await hashToken(rawToken);
 
-    // Determine send method
+    // Determine send method (adjusted if rate limited)
     let sentVia: "sms" | "email" | "both" = "email";
-    if (body.recipient_phone && body.recipient_email) {
+    if (body.recipient_phone && body.recipient_email && !smsRateLimitExceeded) {
       sentVia = "both";
-    } else if (body.recipient_phone) {
+    } else if (body.recipient_phone && !smsRateLimitExceeded) {
       sentVia = "sms";
     }
 
@@ -196,8 +280,16 @@ const handler = async (req: Request): Promise<Response> => {
         })
       : "TBA";
 
-    // Send SMS if phone provided
-    if (body.recipient_phone) {
+    // Delivery tracking variables
+    let smsDeliveryStatus: string | null = null;
+    let smsMessageSid: string | null = null;
+    let smsErrorMessage: string | null = null;
+    let emailDeliveryStatus: string | null = null;
+    let emailMessageId: string | null = null;
+    let emailErrorMessage: string | null = null;
+
+    // Send SMS if phone provided and not rate limited
+    if (body.recipient_phone && !smsRateLimitExceeded) {
       const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
       const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
       const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
@@ -226,15 +318,25 @@ const handler = async (req: Request): Promise<Response> => {
           if (!smsResponse.ok) {
             const smsError = await smsResponse.text();
             console.error("Twilio SMS failed:", smsError);
+            smsDeliveryStatus = "failed";
+            smsErrorMessage = smsError.substring(0, 500);
           } else {
+            const smsResult = await smsResponse.json();
             console.log("SMS sent successfully to", formattedPhone);
+            smsDeliveryStatus = "sent";
+            smsMessageSid = smsResult.sid || null;
           }
-        } catch (smsErr) {
+        } catch (smsErr: any) {
           console.error("SMS sending error:", smsErr);
+          smsDeliveryStatus = "failed";
+          smsErrorMessage = smsErr.message || "Unknown error";
         }
       } else {
         console.warn("Twilio credentials not configured, skipping SMS");
       }
+    } else if (smsRateLimitExceeded && body.recipient_phone) {
+      smsDeliveryStatus = "rate_limited";
+      smsErrorMessage = "Daily SMS limit (50) exceeded";
     }
 
     // Send email if email provided
@@ -318,15 +420,38 @@ const handler = async (req: Request): Promise<Response> => {
 
           if (emailResponse.error) {
             console.error("Email send failed:", emailResponse.error);
+            emailDeliveryStatus = "failed";
+            emailErrorMessage = emailResponse.error.message || "Email delivery failed";
           } else {
             console.log("Email sent successfully to", body.recipient_email);
+            emailDeliveryStatus = "sent";
+            emailMessageId = emailResponse.data?.id || null;
           }
-        } catch (emailErr) {
+        } catch (emailErr: any) {
           console.error("Email sending error:", emailErr);
+          emailDeliveryStatus = "failed";
+          emailErrorMessage = emailErr.message || "Unknown error";
         }
       } else {
         console.warn("RESEND_API_KEY not configured, skipping email");
       }
+    }
+
+    // Update invite with delivery status
+    const { error: updateError } = await supabase
+      .from("external_invites")
+      .update({
+        sms_delivery_status: smsDeliveryStatus,
+        sms_message_sid: smsMessageSid,
+        sms_error_message: smsErrorMessage,
+        email_delivery_status: emailDeliveryStatus,
+        email_message_id: emailMessageId,
+        email_error_message: emailErrorMessage,
+      })
+      .eq("id", invite.id);
+
+    if (updateError) {
+      console.error("Failed to update delivery status:", updateError);
     }
 
     // Log audit event
@@ -336,19 +461,31 @@ const handler = async (req: Request): Promise<Response> => {
       metadata: {
         sent_via: sentVia,
         sent_by: user.id,
+        sms_status: smsDeliveryStatus,
+        email_status: emailDeliveryStatus,
       },
     });
 
     console.log("Invite process completed successfully");
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        invite_id: invite.id,
-        sent_via: sentVia,
-      }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Build response with delivery info
+    const response: any = {
+      success: true,
+      invite_id: invite.id,
+      sent_via: sentVia,
+      sms_status: smsDeliveryStatus,
+      email_status: emailDeliveryStatus,
+    };
+
+    // Add warnings if rate limited
+    if (smsRateLimitExceeded) {
+      response.warning = "SMS daily limit reached. Email was sent instead.";
+    }
+
+    return new Response(JSON.stringify(response), {
+      status: 200,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (error) {
     console.error("Unexpected error:", error);
     return new Response(JSON.stringify({ error: "Internal server error" }), {

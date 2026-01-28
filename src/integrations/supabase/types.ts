@@ -688,6 +688,9 @@ export type Database = {
           business_id: string
           created_at: string
           created_by: string | null
+          email_delivery_status: string | null
+          email_error_message: string | null
+          email_message_id: string | null
           id: string
           invite_type: string
           job_id: string
@@ -700,6 +703,9 @@ export type Database = {
           role: string
           sent_at: string | null
           sent_via: string | null
+          sms_delivery_status: string | null
+          sms_error_message: string | null
+          sms_message_sid: string | null
           status: string
           token_expires_at: string
           token_hash: string
@@ -710,6 +716,9 @@ export type Database = {
           business_id: string
           created_at?: string
           created_by?: string | null
+          email_delivery_status?: string | null
+          email_error_message?: string | null
+          email_message_id?: string | null
           id?: string
           invite_type?: string
           job_id: string
@@ -722,6 +731,9 @@ export type Database = {
           role: string
           sent_at?: string | null
           sent_via?: string | null
+          sms_delivery_status?: string | null
+          sms_error_message?: string | null
+          sms_message_sid?: string | null
           status?: string
           token_expires_at?: string
           token_hash: string
@@ -732,6 +744,9 @@ export type Database = {
           business_id?: string
           created_at?: string
           created_by?: string | null
+          email_delivery_status?: string | null
+          email_error_message?: string | null
+          email_message_id?: string | null
           id?: string
           invite_type?: string
           job_id?: string
@@ -744,6 +759,9 @@ export type Database = {
           role?: string
           sent_at?: string | null
           sent_via?: string | null
+          sms_delivery_status?: string | null
+          sms_error_message?: string | null
+          sms_message_sid?: string | null
           status?: string
           token_expires_at?: string
           token_hash?: string

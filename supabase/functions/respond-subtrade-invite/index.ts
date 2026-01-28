@@ -17,6 +17,14 @@ async function hashToken(token: string): Promise<string> {
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+// Format phone number to E.164 for AU
+function formatPhoneE164(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("61")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+61${digits.slice(1)}`;
+  return `+61${digits}`;
+}
+
 // Generate .ics calendar file content
 function generateICS(
   pourName: string,
@@ -100,6 +108,7 @@ const handler = async (req: Request): Promise<Response> => {
         role,
         recipient_name,
         recipient_email,
+        recipient_phone,
         notes,
         token_expires_at,
         business_id,
@@ -188,8 +197,179 @@ const handler = async (req: Request): Promise<Response> => {
     const job = pour?.jobs as any;
     const business = job?.businesses as any;
 
-    // Send notification email to business
+    // Format date for messages
+    const pourDateFormatted = pour?.pour_date
+      ? new Date(pour.pour_date).toLocaleDateString("en-AU", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })
+      : "TBA";
+
+    // === SEND CONFIRMATION TO SUBBIE ===
+    const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+    const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+    const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+    // Send confirmation SMS to subbie
+    if (invite.recipient_phone && twilioAccountSid && twilioAuthToken && twilioPhoneNumber) {
+      try {
+        const formattedPhone = formatPhoneE164(invite.recipient_phone);
+        let confirmationSms: string;
+
+        if (response === "accepted") {
+          confirmationSms = `Confirmed! You're booked for ${pourDateFormatted} with ${business?.name || "the business"}.\nRole: ${invite.role}\nSite: ${job?.site_address || "TBA"}`;
+        } else {
+          confirmationSms = `Thanks for letting us know. ${business?.name || "We"}'ll keep you in mind for future work.`;
+        }
+
+        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+        const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+
+        const smsResponse = await fetch(twilioUrl, {
+          method: "POST",
+          headers: {
+            Authorization: `Basic ${twilioAuth}`,
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+          body: new URLSearchParams({
+            To: formattedPhone,
+            From: twilioPhoneNumber,
+            Body: confirmationSms,
+          }),
+        });
+
+        if (!smsResponse.ok) {
+          const smsError = await smsResponse.text();
+          console.error("Confirmation SMS failed:", smsError);
+        } else {
+          console.log("Confirmation SMS sent to subbie:", formattedPhone);
+        }
+      } catch (smsErr) {
+        console.error("Confirmation SMS error:", smsErr);
+      }
+    }
+
+    // Send confirmation email to subbie
+    if (invite.recipient_email && resendApiKey) {
+      try {
+        const resend = new Resend(resendApiKey);
+
+        const statusEmoji = response === "accepted" ? "✅" : "❌";
+        const statusText = response === "accepted" ? "Booking Confirmed" : "Response Recorded";
+        const headerColor = response === "accepted" ? "#10b981" : "#6b7280";
+
+        let confirmationEmailHtml: string;
+
+        if (response === "accepted") {
+          confirmationEmailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+          <tr>
+            <td style="background-color: ${headerColor}; padding: 24px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 20px;">${statusEmoji} ${statusText}</h1>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 24px;">
+              <p style="color: #1f2937; margin: 0 0 16px 0; font-size: 16px;">
+                Hi ${invite.recipient_name},
+              </p>
+              <p style="color: #6b7280; margin: 0 0 24px 0; font-size: 16px;">
+                You're confirmed to work with <strong>${business?.name}</strong>. Here are your job details:
+              </p>
+              
+              <table width="100%" style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                <tr><td style="padding: 8px 0; color: #6b7280;">📅 Date:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pourDateFormatted}</td></tr>
+                ${pour?.scheduled_time ? `<tr><td style="padding: 8px 0; color: #6b7280;">⏰ Time:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pour.scheduled_time.slice(0, 5)}</td></tr>` : ""}
+                <tr><td style="padding: 8px 0; color: #6b7280;">📍 Site:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${job?.site_address}</td></tr>
+                <tr><td style="padding: 8px 0; color: #6b7280;">🔧 Role:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${invite.role}</td></tr>
+              </table>
+              
+              <p style="color: #6b7280; margin: 0; font-size: 14px;">
+                If you have any questions, please contact ${business?.name} directly.
+              </p>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">Powered by PourHub</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+        } else {
+          confirmationEmailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+</head>
+<body style="margin: 0; padding: 20px; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
+    <tr>
+      <td style="background-color: ${headerColor}; padding: 20px; text-align: center;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 18px;">Response Recorded</h1>
+      </td>
+    </tr>
+    <tr>
+      <td style="padding: 24px;">
+        <p style="color: #1f2937; margin: 0 0 16px 0;">Hi ${invite.recipient_name},</p>
+        <p style="color: #6b7280; margin: 0 0 16px 0;">
+          Thanks for letting us know you can't make it. ${business?.name} will keep you in mind for future work.
+        </p>
+        <p style="color: #6b7280; margin: 0;">Best regards,<br>${business?.name}</p>
+      </td>
+    </tr>
+    <tr>
+      <td style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
+        <p style="margin: 0; color: #9ca3af; font-size: 12px;">Powered by PourHub</p>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+        }
+
+        await resend.emails.send({
+          from: `PourHub <Hello@contact.pourhub.au>`,
+          to: [invite.recipient_email],
+          subject: `${statusEmoji} ${statusText} - ${pour?.pour_name || "Work Invite"}`,
+          html: confirmationEmailHtml,
+        });
+
+        console.log("Confirmation email sent to subbie:", invite.recipient_email);
+      } catch (emailErr) {
+        console.error("Confirmation email error:", emailErr);
+      }
+    }
+
+    // Log confirmation sent event
+    await supabase.from("external_invite_events").insert({
+      external_invite_id: invite.id,
+      event_type: "confirmation_sent",
+      metadata: {
+        response,
+        sms_sent: !!invite.recipient_phone,
+        email_sent: !!invite.recipient_email,
+      },
+    });
+
+    // === SEND NOTIFICATION TO BUSINESS ===
     if (resendApiKey && business?.email) {
       try {
         const resend = new Resend(resendApiKey);
@@ -197,7 +377,7 @@ const handler = async (req: Request): Promise<Response> => {
         const statusEmoji = response === "accepted" ? "✅" : "❌";
         const statusText = response === "accepted" ? "ACCEPTED" : "DECLINED";
 
-        const emailHtml = `
+        const businessEmailHtml = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -218,7 +398,7 @@ const handler = async (req: Request): Promise<Response> => {
         <table style="background-color: #f9fafb; border-radius: 8px; padding: 16px; width: 100%;">
           <tr><td style="padding: 8px 0; color: #6b7280;">Pour:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pour?.pour_name}</td></tr>
           <tr><td style="padding: 8px 0; color: #6b7280;">Role:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${invite.role}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;">Date:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pour?.pour_date ? new Date(pour.pour_date).toLocaleDateString("en-AU", { weekday: "long", day: "numeric", month: "long" }) : "TBA"}</td></tr>
+          <tr><td style="padding: 8px 0; color: #6b7280;">Date:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pourDateFormatted}</td></tr>
           <tr><td style="padding: 8px 0; color: #6b7280;">Site:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${job?.site_address}</td></tr>
         </table>
       </td>
@@ -236,7 +416,7 @@ const handler = async (req: Request): Promise<Response> => {
           from: `PourHub <Hello@contact.pourhub.au>`,
           to: [business.email],
           subject: `${statusEmoji} ${invite.recipient_name} ${response} - ${invite.role} for ${pour?.pour_name}`,
-          html: emailHtml,
+          html: businessEmailHtml,
         });
 
         console.log("Notification email sent to business");

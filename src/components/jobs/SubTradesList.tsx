@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useSubTradeInvites, useRevokeSubTradeInvite, SubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { SubTradeStatusBadge } from "./SubTradeStatusBadge";
 import { SubTradeInviteDialog } from "./SubTradeInviteDialog";
+import { DeliveryStatusIndicator } from "./DeliveryStatusIndicator";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronDown, Plus, UserPlus, X, Phone, Mail, Clock } from "lucide-react";
+import { ChevronDown, Plus, UserPlus, X, Clock, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -43,6 +44,9 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
   const confirmedCount = invites.filter((i) => i.status === "accepted").length;
   const pendingCount = invites.filter((i) => ["sent", "viewed"].includes(i.status)).length;
   const totalActive = invites.filter((i) => !["revoked", "expired", "declined"].includes(i.status)).length;
+  const deliveryIssues = invites.filter(
+    (i) => i.sms_delivery_status === "failed" || i.email_delivery_status === "failed"
+  ).length;
 
   const handleRevoke = () => {
     if (!revokeInvite) return;
@@ -84,6 +88,12 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
                     {confirmedCount}/{totalActive} confirmed
                   </Badge>
                 )}
+                {deliveryIssues > 0 && (
+                  <Badge variant="outline" className="text-xs px-1.5 py-0 text-yellow-600 border-yellow-500/30">
+                    <AlertTriangle className="h-3 w-3 mr-0.5" />
+                    {deliveryIssues}
+                  </Badge>
+                )}
               </span>
               <ChevronDown
                 className={cn(
@@ -119,16 +129,13 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                        {invite.recipient_phone && (
-                          <span className="flex items-center gap-0.5">
-                            <Phone className="h-3 w-3" />
-                          </span>
-                        )}
-                        {invite.recipient_email && (
-                          <span className="flex items-center gap-0.5">
-                            <Mail className="h-3 w-3" />
-                          </span>
-                        )}
+                        {/* Show delivery status indicators */}
+                        <DeliveryStatusIndicator
+                          smsStatus={invite.sms_delivery_status}
+                          emailStatus={invite.email_delivery_status}
+                          smsError={invite.sms_error_message}
+                          emailError={invite.email_error_message}
+                        />
                         {invite.sent_at && (
                           <span className="flex items-center gap-0.5">
                             <Clock className="h-3 w-3" />

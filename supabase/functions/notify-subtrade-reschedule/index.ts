@@ -164,6 +164,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     let smsSent = 0;
     let emailsSent = 0;
+    let smsFailed = 0;
+    let emailsFailed = 0;
     let errors: string[] = [];
 
     const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
@@ -172,6 +174,13 @@ const handler = async (req: Request): Promise<Response> => {
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
 
     for (const invite of invites) {
+      let smsDeliveryStatus: string | null = null;
+      let smsMessageSid: string | null = null;
+      let smsErrorMessage: string | null = null;
+      let emailDeliveryStatus: string | null = null;
+      let emailMessageId: string | null = null;
+      let emailErrorMessage: string | null = null;
+
       // Update status if cancelling
       if (body.action === "cancel") {
         const { error: updateError } = await supabase
@@ -217,13 +226,22 @@ const handler = async (req: Request): Promise<Response> => {
           if (!smsResponse.ok) {
             const smsError = await smsResponse.text();
             console.error("Twilio SMS failed:", smsError);
+            smsDeliveryStatus = "failed";
+            smsErrorMessage = smsError.substring(0, 500);
+            smsFailed++;
             errors.push(`SMS failed for ${invite.recipient_name}`);
           } else {
+            const smsResult = await smsResponse.json();
             console.log("SMS sent to", formattedPhone);
+            smsDeliveryStatus = "sent";
+            smsMessageSid = smsResult.sid || null;
             smsSent++;
           }
-        } catch (smsErr) {
+        } catch (smsErr: any) {
           console.error("SMS error:", smsErr);
+          smsDeliveryStatus = "failed";
+          smsErrorMessage = smsErr.message || "Unknown error";
+          smsFailed++;
           errors.push(`SMS error for ${invite.recipient_name}`);
         }
       }
@@ -368,15 +386,39 @@ const handler = async (req: Request): Promise<Response> => {
 
           if (emailResponse.error) {
             console.error("Email failed:", emailResponse.error);
+            emailDeliveryStatus = "failed";
+            emailErrorMessage = emailResponse.error.message || "Email delivery failed";
+            emailsFailed++;
             errors.push(`Email failed for ${invite.recipient_name}`);
           } else {
             console.log("Email sent to", invite.recipient_email);
+            emailDeliveryStatus = "sent";
+            emailMessageId = emailResponse.data?.id || null;
             emailsSent++;
           }
-        } catch (emailErr) {
+        } catch (emailErr: any) {
           console.error("Email error:", emailErr);
+          emailDeliveryStatus = "failed";
+          emailErrorMessage = emailErr.message || "Unknown error";
+          emailsFailed++;
           errors.push(`Email error for ${invite.recipient_name}`);
         }
+      }
+
+      // Update invite with delivery status (for reschedule, update tracking; for cancel, status already revoked)
+      if (body.action === "reschedule") {
+        await supabase
+          .from("external_invites")
+          .update({
+            sms_delivery_status: smsDeliveryStatus || invite.sms_delivery_status,
+            sms_message_sid: smsMessageSid || invite.sms_message_sid,
+            sms_error_message: smsErrorMessage,
+            email_delivery_status: emailDeliveryStatus || invite.email_delivery_status,
+            email_message_id: emailMessageId || invite.email_message_id,
+            email_error_message: emailErrorMessage,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", invite.id);
       }
 
       // Log audit event
@@ -389,6 +431,8 @@ const handler = async (req: Request): Promise<Response> => {
           old_date: body.old_date,
           new_date: body.new_date,
           action: body.action,
+          sms_status: smsDeliveryStatus,
+          email_status: emailDeliveryStatus,
         },
       });
     }
@@ -400,7 +444,9 @@ const handler = async (req: Request): Promise<Response> => {
         success: true,
         notifications_sent: smsSent + emailsSent,
         sms_sent: smsSent,
+        sms_failed: smsFailed,
         emails_sent: emailsSent,
+        emails_failed: emailsFailed,
         invites_processed: invites.length,
         errors: errors.length > 0 ? errors : undefined,
       }),
