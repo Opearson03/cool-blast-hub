@@ -1,156 +1,169 @@
 
-# Plan: Apply Waffle Pod Industry Calculations Throughout the Estimator
+
+# Plan: Implement Industry-Standard Waffle Pod Concrete Volume Calculation
 
 ## Overview
-This plan will implement the industry-standard waffle pod formulas you provided across multiple parts of the estimate system - from the takeoff dialog, through the calculator modules, to the BOQ generation.
+This plan replaces the current geometric volumetric calculation for Waffle Pod slabs with the industry-standard empirical formula. This change is **scoped exclusively to the Waffle Pod scope** and will not affect any other slab types.
 
-## Formulas to Implement
+## Current vs. Proposed Calculation
 
-### Accessory Calculations (Already Partially Implemented)
-| Item | Formula | Current Status |
-|------|---------|----------------|
-| Waffle Pods | Area ÷ 1.51 | Done in takeoff dialog |
-| 4-Way Spacers | Pods × 1.40 | Done in takeoff dialog |
-| 2-Way Spacers | 4-Way Spacers ÷ 3 | Done in takeoff dialog |
-| Trench Mesh Chairs | Perimeter Beam Length ÷ 1.2 | Not implemented |
-| Bar Chairs (25/40) | Pods × 3 | Not implemented |
+### Current Implementation (Geometric)
+```
+Volume = (Area × TotalThickness) - (PodCount × PodSize² × PodThickness) + EdgeBeamVolume + InternalBeamVolume
+```
+- Uses volumetric geometry to calculate concrete required
 
-### Reinforcement Calculations (New)
-| Item | Formula |
-|------|---------|
-| Y-Bar (Rib Reinforcement) | (Pods × 2.3) ÷ 5.5 = qty of 6m lengths |
-| Trench Mesh / Y-Bar (Edge Beams) | Edge Beam Length ÷ 5.5 = qty of 6m sheets/lengths |
-| Slab Mesh | Area ÷ 12.5 = qty of sheets |
+### Proposed Implementation (Industry Empirical)
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ WAFFLE POD CONCRETE VOLUME FORMULA                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ Step 1: Slab Body Volume                                                    │
+│   → Lookup divisor based on total slab height:                              │
+│      260mm → 8.35                                                           │
+│      310mm → 7.80                                                           │
+│      385mm → 6.93                                                           │
+│      460mm → 6.30                                                           │
+│      610mm → 5.00                                                           │
+│   → slabBodyVolume = Area ÷ divisor                                         │
+│                                                                             │
+│ Step 2: Edge Beam Volume                                                    │
+│   → Part A: edgeBeamLength × 0.15 × 0.15                                    │
+│   → Part B: edgeBeamLength × totalHeightM × 0.05                            │
+│   → edgeBeamVolume = Part A + Part B                                        │
+│                                                                             │
+│ Step 3: Base Volume                                                         │
+│   → baseVolume = slabBodyVolume + edgeBeamVolume                            │
+│   → Wastage (10%) applied separately in concrete-supply module              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
 
-### Concrete Calculations (New)
-These replace the current volumetric calculation with industry empirical rates:
+## Industry Height-to-Divisor Mapping
 
-| Slab Height | Divisor (m³ per m²) |
-|-------------|---------------------|
-| 260mm | 8.35 |
-| 310mm | 7.80 |
-| 385mm | 6.93 |
-| 460mm | 6.30 |
-| 610mm | 5.00 |
+| Pod Thickness | Top Slab | Total Height | Divisor |
+|--------------|----------|--------------|---------|
+| 225mm        | 35mm     | 260mm        | 8.35    |
+| 225mm        | 85mm     | 310mm        | 7.80    |
+| 275mm        | 110mm    | 385mm        | 6.93    |
+| 325mm        | 135mm    | 460mm        | 6.30    |
+| 375mm        | 235mm    | 610mm        | 5.00    |
 
-**Formula**: (Area ÷ divisor) + (Edge Beam Length × 0.15m × 0.15m) + (Edge Beam Length × Total Height × 0.05m) + 3% wastage
+For heights between these values, the formula will use linear interpolation to calculate the appropriate divisor.
 
 ---
 
-## Technical Implementation
+## Technical Changes
 
-### 1. Update Takeoff Dialog: Add Trench Mesh Chairs
-**File**: `src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx`
+### File: `src/lib/estimate-components/scopes.ts`
 
-Add a new auto-calculated field for trench mesh chairs based on perimeter:
-```
-Trench Mesh Chairs = Perimeter ÷ 1.2
-```
+**Replace the `calculateVolume` function in `WAFFLE_POD_SCOPE`**:
 
-This will be displayed in the "Accessories (Auto-calculated)" section alongside pods and spacers.
-
-### 2. Update Waffle Pod Scope: Add Bar Chairs Calculation
-**File**: `src/lib/estimate-components/scopes.ts`
-
-Add a new question for waffle pod bar chairs:
 ```typescript
-{
-  id: 'waffle_bar_chairs_count',
-  type: 'number',
-  label: 'Bar Chairs (25/40)',
-  helpText: 'Auto-calculated: Pods × 3',
-}
+calculateVolume: (answers) => {
+  const area = Number(answers.area) || 0;
+  const podThicknessM = (Number(answers.pod_thickness) || 225) / 1000;
+  const topSlabM = (Number(answers.top_slab_thickness) || 85) / 1000;
+  const perimeter = Number(answers.perimeter) || 0;
+  
+  // Total slab height in mm for divisor lookup
+  const totalHeightMm = (podThicknessM + topSlabM) * 1000;
+  const totalHeightM = podThicknessM + topSlabM;
+  
+  // Edge beam length (defaults to perimeter if not specified)
+  const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+  
+  // Industry divisor lookup based on total slab height
+  const divisorTable = [
+    { height: 260, divisor: 8.35 },
+    { height: 310, divisor: 7.80 },
+    { height: 385, divisor: 6.93 },
+    { height: 460, divisor: 6.30 },
+    { height: 610, divisor: 5.00 },
+  ];
+  
+  // Find appropriate divisor with interpolation
+  let divisor = 8.35; // Default for heights ≤ 260mm
+  
+  if (totalHeightMm >= 610) {
+    divisor = 5.00;
+  } else if (totalHeightMm <= 260) {
+    divisor = 8.35;
+  } else {
+    // Linear interpolation between known points
+    for (let i = 0; i < divisorTable.length - 1; i++) {
+      const lower = divisorTable[i];
+      const upper = divisorTable[i + 1];
+      if (totalHeightMm >= lower.height && totalHeightMm <= upper.height) {
+        const ratio = (totalHeightMm - lower.height) / (upper.height - lower.height);
+        divisor = lower.divisor - ratio * (lower.divisor - upper.divisor);
+        break;
+      }
+    }
+  }
+  
+  // Step 1: Slab body volume using industry divisor
+  const slabBodyVolume = area / divisor;
+  
+  // Step 2: Edge beam volume (industry formula)
+  // Part A: Length × 0.15m × 0.15m (150mm × 150mm base contribution)
+  const edgeBeamPartA = edgeBeamLength * 0.15 * 0.15;
+  // Part B: Length × TotalHeight × 0.05m (50mm additional width)
+  const edgeBeamPartB = edgeBeamLength * totalHeightM * 0.05;
+  const edgeBeamVolume = edgeBeamPartA + edgeBeamPartB;
+  
+  // Base volume (wastage applied in concrete-supply module at 10%)
+  const baseVolume = slabBodyVolume + edgeBeamVolume;
+  
+  return safeVolume(baseVolume);
+},
 ```
-
-### 3. Create Waffle Pod Concrete Volume Calculation
-**File**: `src/lib/estimate-components/scopes.ts`
-
-Update `WAFFLE_POD_SCOPE.calculateVolume` to use the industry empirical rates:
-- Map pod thickness to total slab height (pod thickness + top slab thickness)
-- Use the corresponding divisor from the lookup table
-- Add edge beam contribution: Length × 0.15m × 0.15m + Length × Height × 0.05m
-- Apply 3% wastage
-
-### 4. Update Reinforcement Module for Waffle Pod
-**File**: `src/lib/estimate-components/modules/reinforcement-raft.ts`
-
-Add waffle-pod-specific calculations when `scopeId === 'waffle_pod'`:
-
-**Slab Mesh Calculation**:
-```typescript
-const meshSheets = Math.ceil(area / 12.5);
-```
-
-**Y-Bar (Rib Reinforcement)**:
-```typescript
-const yBarLengths = Math.ceil((podCount * 2.3) / 5.5);
-```
-
-**Trench Mesh Chairs (Edge Beams)**:
-```typescript
-const tmChairs = Math.ceil(edgeBeamLength / 1.2);
-```
-
-**Bar Chairs (Slab)**:
-```typescript
-const barChairs = podCount * 3;
-```
-
-### 5. Update ModularCalculator Auto-Calculations
-**File**: `src/components/estimates/calculators/ModularCalculator.tsx`
-
-Extend the existing `useEffect` for waffle pod to also auto-calculate:
-- `waffle_bar_chairs_count` = podCount × 3
-- `waffle_tm_chairs_count` = perimeterLength ÷ 1.2
-
-### 6. Update BOQ Generator
-**File**: `src/lib/boq-generator.ts`
-
-Add waffle pod specific line items:
-- Bar Chairs (25/40): `podCount × 3` units
-- Trench Mesh Chairs: `perimeter ÷ 1.2` units
-- Rib Y-Bar: `(pods × 2.3) ÷ 5.5` × 6m lengths
-- Slab Mesh: `area ÷ 12.5` sheets
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx` | Add trench mesh chairs auto-calculation display |
-| `src/lib/estimate-components/scopes.ts` | Add bar chairs and TM chairs fields to waffle pod scope; update volume calculation |
-| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Add waffle-pod-specific reinforcement calculations |
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Extend auto-calculation useEffect for new fields |
-| `src/lib/boq-generator.ts` | Add waffle pod specific BOQ line items |
+| File | Change |
+|------|--------|
+| `src/lib/estimate-components/scopes.ts` | Replace `calculateVolume` in `WAFFLE_POD_SCOPE` with industry empirical formula |
+
+**Note**: No changes to `concrete-supply.ts` - wastage remains at 10% for all scopes including waffle pod.
 
 ---
 
-## User Experience
+## Calculation Example
 
-1. **Takeoff Phase**: User marks waffle pod area, dialog shows auto-calculated:
-   - Waffle Pods (Area ÷ 1.51)
-   - 4-Way Spacers (Pods × 1.40)
-   - 2-Way Spacers (4-Way ÷ 3)
-   - Trench Mesh Chairs (Perimeter ÷ 1.2) **NEW**
+For a 100m² waffle pod slab with:
+- Pod thickness: 225mm
+- Top slab: 85mm → Total height: 310mm
+- Perimeter (edge beam length): 40m
 
-2. **Calculator Phase**: Auto-populated values appear in scope answers:
-   - Bar Chairs (Pods × 3) **NEW**
-   - All accessory counts carried forward from takeoff
-
-3. **Reinforcement Module**: Waffle-pod-specific calculations:
-   - Mesh: Area ÷ 12.5 sheets
-   - Rib Y-Bar: (Pods × 2.3) ÷ 5.5 lengths
-
-4. **Concrete Supply**: Uses industry empirical rates based on total slab height
-
-5. **BOQ Generation**: All materials listed with correct quantities
+**Industry Formula**:
+```
+Slab body = 100 ÷ 7.80 = 12.82 m³
+Edge beam = (40 × 0.15 × 0.15) + (40 × 0.310 × 0.05)
+          = 0.9 + 0.62 = 1.52 m³
+Base volume = 12.82 + 1.52 = 14.34 m³
++ wastage 10% = 15.77 m³
+```
 
 ---
 
-## Notes
+## Scope of Change
 
-- All calculated values remain editable so users can override if needed
-- The new formulas are specific to waffle pod scope and won't affect other slab types
-- Industry rates are more accurate than pure volumetric calculations as they account for typical waste and construction factors
-- The 3% wastage for concrete matches industry standard allowances
+- **Only affects**: Waffle Pod (`waffle_pod`) scope
+- **Does NOT affect**: Raft Slab, Driveway, Slab on Ground, Crossovers, Paths, or any other scope
+- **Wastage**: Remains at 10% for all scopes (no change)
+
+---
+
+## Testing Checklist
+
+After implementation, verify:
+1. Create a waffle pod estimate with 100m² area, 310mm total height (225mm pod + 85mm top)
+2. Confirm volume calculation matches industry formula (~14.3 m³ before wastage)
+3. Verify wastage shows as 10% in concrete supply module
+4. Check that other slab types still calculate volume using their existing formulas
+5. Confirm BOQ generates correct concrete quantities
+
