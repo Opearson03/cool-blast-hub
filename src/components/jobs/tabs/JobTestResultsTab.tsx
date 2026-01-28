@@ -22,11 +22,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { FlaskConical, Plus, CheckCircle, XCircle, AlertTriangle, Pencil, Trash2, FileText, Calendar } from "lucide-react";
+import { FlaskConical, Plus, CheckCircle, XCircle, AlertTriangle, Pencil, Trash2, FileText, Calendar, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { TestResultFormDialog } from "@/components/jobs/TestResultFormDialog";
+import { PendingTestResultsSheet } from "@/components/jobs/PendingTestResultsSheet";
 import type { Tables } from "@/integrations/supabase/types";
+import { useBusinessData } from "@/hooks/useBusinessData";
 
 type ConcreteTest = Tables<"concrete_tests">;
 
@@ -47,7 +49,9 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [editTest, setEditTest] = useState<ConcreteTest | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [pendingSheetOpen, setPendingSheetOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { businessId } = useBusinessData();
 
   const { data: tests = [], isLoading } = useQuery({
     queryKey: ["concrete-tests", jobId],
@@ -72,6 +76,22 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
       if (error) throw error;
       return data;
     },
+  });
+
+  // Fetch pending test results count
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ["pending-test-results-count", businessId],
+    queryFn: async () => {
+      if (!businessId) return 0;
+      const { count, error } = await supabase
+        .from("pending_test_results")
+        .select("*", { count: "exact", head: true })
+        .eq("business_id", businessId)
+        .eq("status", "pending");
+      if (error) throw error;
+      return count || 0;
+    },
+    enabled: !!businessId,
   });
 
   const deleteMutation = useMutation({
@@ -133,12 +153,31 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center gap-2">
         <h3 className="font-semibold">Concrete Test Results</h3>
-        <Button size="sm" onClick={() => setFormOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Test
-        </Button>
+        <div className="flex items-center gap-2">
+          {businessId && pendingCount > 0 && (
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setPendingSheetOpen(true)}
+              className="relative"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Pending
+              <Badge 
+                variant="destructive" 
+                className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs"
+              >
+                {pendingCount}
+              </Badge>
+            </Button>
+          )}
+          <Button size="sm" onClick={() => setFormOpen(true)}>
+            <Plus className="w-4 h-4 mr-2" />
+            Add Test
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -367,6 +406,15 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {businessId && (
+        <PendingTestResultsSheet
+          open={pendingSheetOpen}
+          onOpenChange={setPendingSheetOpen}
+          businessId={businessId}
+          preselectedJobId={jobId}
+        />
+      )}
     </div>
   );
 }

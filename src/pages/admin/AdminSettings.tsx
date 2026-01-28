@@ -15,6 +15,7 @@ import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PriceListSection } from "@/components/settings/PriceListSection";
+import { TestResultEmailSection } from "@/components/settings/TestResultEmailSection";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -786,6 +787,14 @@ export default function AdminSettings() {
               )}
             </CardContent>
           </Card>
+
+          {/* Test Result Email */}
+          {business && (
+            <TestResultEmailSection 
+              businessId={business.id} 
+              currentAlias={(business as any).inbound_email_alias || null}
+            />
+          )}
 
           {/* My Price List - Collapsible */}
           <Collapsible defaultOpen={false}>
