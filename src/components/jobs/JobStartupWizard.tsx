@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { format } from "date-fns";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 import { 
   Loader2, 
   ChevronRight, 
@@ -27,7 +35,9 @@ import {
   Trash2,
   Plus,
   Package,
-  Users
+  Users,
+  CalendarIcon,
+  AlertCircle
 } from "lucide-react";
 import { PourFormDialog } from "./PourFormDialog";
 import { SubTradeInviteDialog } from "./SubTradeInviteDialog";
@@ -63,6 +73,7 @@ interface Pour {
   mpa_strength: string | null;
   slump: string | null;
   status: string | null;
+  pour_date: string | null;
 }
 
 export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobStartupWizardProps) {
@@ -77,6 +88,8 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
   const [isAddPourOpen, setIsAddPourOpen] = useState(false);
   const [isInviteSubbieOpen, setIsInviteSubbieOpen] = useState(false);
   const [selectedPourId, setSelectedPourId] = useState<string | null>(null);
+  const [pourDates, setPourDates] = useState<Record<string, Date | null>>({});
+  const [showDateWarning, setShowDateWarning] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -125,6 +138,19 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
     enabled: open,
   });
 
+  // Initialize pour dates from fetched pours
+  useEffect(() => {
+    if (pours.length > 0) {
+      const dates: Record<string, Date | null> = {};
+      pours.forEach((pour) => {
+        if (pour.pour_date) {
+          dates[pour.id] = new Date(pour.pour_date);
+        }
+      });
+      setPourDates((prev) => ({ ...dates, ...prev }));
+    }
+  }, [pours]);
+
   // Delete pour mutation
   const deletePourMutation = useMutation({
     mutationFn: async (pourId: string) => {
@@ -134,12 +160,40 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
         .eq("id", pourId);
       if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, pourId) => {
       refetchPours();
+      // Remove from local state
+      setPourDates((prev) => {
+        const updated = { ...prev };
+        delete updated[pourId];
+        return updated;
+      });
       toast({ title: "Pour deleted" });
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  // Save pour dates mutation
+  const savePourDatesMutation = useMutation({
+    mutationFn: async () => {
+      const updates = pours.map((pour) => {
+        const date = pourDates[pour.id];
+        return supabase
+          .from("job_pours")
+          .update({ pour_date: date ? format(date, "yyyy-MM-dd") : null })
+          .eq("id", pour.id);
+      });
+      const results = await Promise.all(updates);
+      const error = results.find((r) => r.error)?.error;
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      refetchPours();
+    },
+    onError: (error) => {
+      toast({ title: "Error saving dates", description: error.message, variant: "destructive" });
     },
   });
 
@@ -181,7 +235,21 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
 
   const currentStepIndex = steps.findIndex((s) => s.key === currentStep);
 
-  const goNext = () => {
+  // Check if all pours have dates
+  const allPoursHaveDates = pours.length === 0 || pours.every((pour) => pourDates[pour.id]);
+
+  const goNext = async () => {
+    // Validate dates when leaving pours step
+    if (currentStep === "pours" && pours.length > 0) {
+      if (!allPoursHaveDates) {
+        setShowDateWarning(true);
+        return;
+      }
+      // Save pour dates before moving on
+      await savePourDatesMutation.mutateAsync();
+    }
+    
+    setShowDateWarning(false);
     if (currentStepIndex < steps.length - 1) {
       setCurrentStep(steps[currentStepIndex + 1].key);
     } else {
@@ -190,6 +258,7 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
   };
 
   const goBack = () => {
+    setShowDateWarning(false);
     if (currentStepIndex > 0) {
       setCurrentStep(steps[currentStepIndex - 1].key);
     }
@@ -348,13 +417,20 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-sm text-muted-foreground">
-                    Review auto-generated pours from the quote. Add, edit or remove as needed.
+                    Review pours and assign a date to each one.
                   </p>
                   <Button size="sm" variant="outline" onClick={() => setIsAddPourOpen(true)}>
                     <Plus className="w-4 h-4 mr-1" />
                     Add Pour
                   </Button>
                 </div>
+
+                {showDateWarning && (
+                  <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 text-destructive text-sm">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    <span>Please assign a date to all pours before continuing.</span>
+                  </div>
+                )}
 
                 {loadingPours ? (
                   <div className="flex items-center justify-center py-8">
@@ -372,29 +448,73 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
                   </Card>
                 ) : (
                   <div className="space-y-2">
-                    {pours.map((pour) => (
-                      <Card key={pour.id} className="overflow-hidden">
-                        <CardContent className="p-3 flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{pour.pour_name}</p>
-                            <div className="flex gap-3 text-xs text-muted-foreground mt-1">
-                              {pour.estimated_m3 && <span>{pour.estimated_m3}m³</span>}
-                              {pour.mpa_strength && <span>N{pour.mpa_strength}</span>}
-                              {pour.slump && <span>Slump: {pour.slump}</span>}
+                    {pours.map((pour) => {
+                      const selectedDate = pourDates[pour.id];
+                      const hasDate = !!selectedDate;
+                      
+                      return (
+                        <Card key={pour.id} className={cn(
+                          "overflow-hidden transition-colors",
+                          !hasDate && showDateWarning && "border-destructive"
+                        )}>
+                          <CardContent className="p-3 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="font-medium">{pour.pour_name}</p>
+                                <div className="flex gap-3 text-xs text-muted-foreground mt-1">
+                                  {pour.estimated_m3 && <span>{pour.estimated_m3}m³</span>}
+                                  {pour.mpa_strength && <span>N{pour.mpa_strength}</span>}
+                                  {pour.slump && <span>Slump: {pour.slump}</span>}
+                                </div>
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-destructive hover:text-destructive"
+                                onClick={() => deletePourMutation.mutate(pour.id)}
+                                disabled={deletePourMutation.isPending}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
                             </div>
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => deletePourMutation.mutate(pour.id)}
-                            disabled={deletePourMutation.isPending}
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
+                            
+                            <div className="flex items-center gap-2">
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className={cn(
+                                      "w-full justify-start text-left font-normal",
+                                      !hasDate && "text-muted-foreground",
+                                      !hasDate && showDateWarning && "border-destructive text-destructive"
+                                    )}
+                                  >
+                                    <CalendarIcon className="w-4 h-4 mr-2" />
+                                    {hasDate ? format(selectedDate, "EEE, d MMM yyyy") : "Select pour date"}
+                                  </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0 z-[200]" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={selectedDate || undefined}
+                                    onSelect={(date) => {
+                                      setPourDates((prev) => ({
+                                        ...prev,
+                                        [pour.id]: date || null,
+                                      }));
+                                      setShowDateWarning(false);
+                                    }}
+                                    initialFocus
+                                    className="p-3 pointer-events-auto"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -459,10 +579,10 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
 
             <Button
               onClick={goNext}
-              disabled={completeStartupMutation.isPending}
+              disabled={completeStartupMutation.isPending || savePourDatesMutation.isPending}
               className="touch-target"
             >
-              {completeStartupMutation.isPending && (
+              {(completeStartupMutation.isPending || savePourDatesMutation.isPending) && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
               {currentStepIndex === steps.length - 1 ? (
@@ -499,7 +619,7 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
           jobId={job.id}
           pourId={selectedPourId}
           pourName={pours.find(p => p.id === selectedPourId)?.pour_name || "Pour"}
-          pourDate={null}
+          pourDate={pourDates[selectedPourId] ? format(pourDates[selectedPourId]!, "yyyy-MM-dd") : null}
         />
       )}
     </>
