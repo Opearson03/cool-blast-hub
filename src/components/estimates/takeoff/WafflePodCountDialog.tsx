@@ -100,7 +100,7 @@ export function WafflePodCountDialog({
   const getStepTitle = () => {
     switch (step) {
       case 'count_pods':
-        return 'Waffle Pod Count';
+        return 'Pods and Accessories';
       case 'count_4way':
         return '4-Way Spacers';
       case 'count_2way':
@@ -108,7 +108,7 @@ export function WafflePodCountDialog({
       case 'complete':
         return 'Count Complete';
       default:
-        return 'Waffle Pod Count';
+        return 'Pods and Accessories';
     }
   };
 
@@ -274,21 +274,11 @@ export function WafflePodCountDialog({
                 Cancel
               </Button>
               <Button 
-                variant="secondary"
-                onClick={onSavePodCount}
+                onClick={onComplete}
                 disabled={effectivePodCount === 0}
                 className="w-full sm:w-auto"
               >
-                <Check className="h-4 w-4 mr-1" />
-                Save Only
-              </Button>
-              <Button 
-                onClick={onSaveAnd4Way}
-                disabled={effectivePodCount === 0}
-                className="w-full sm:w-auto"
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Save & Count 4-Way
+                Next
               </Button>
             </>
           )}
