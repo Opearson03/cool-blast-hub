@@ -526,11 +526,11 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
                 !newSubbie.name.trim() ||
                 !newSubbie.role ||
                 newSubbiePourIds.length === 0 ||
-                sendInvite.isPending
+                sendBatchInvite.isPending
               }
               className="w-full sm:w-auto"
             >
-              {sendInvite.isPending ? (
+              {sendBatchInvite.isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <UserPlus className="w-4 h-4 mr-2" />
