@@ -81,15 +81,27 @@ export function PendingTestResultsSheet({
 
   // Fetch pending test results
   const { data: pendingResults = [], isLoading } = useQuery({
-    queryKey: ["pending-test-results", businessId],
+    queryKey: ["pending-test-results", businessId, preselectedJobId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("pending_test_results")
         .select("*")
         .eq("business_id", businessId)
         .eq("status", "pending")
         .order("received_at", { ascending: false });
       
+      // If preselectedJobId is provided, also include job-matched results for this job
+      if (preselectedJobId) {
+        query = supabase
+          .from("pending_test_results")
+          .select("*")
+          .eq("business_id", businessId)
+          .eq("status", "pending")
+          .or(`match_status.eq.pending,matched_job_id.eq.${preselectedJobId}`)
+          .order("received_at", { ascending: false });
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as PendingTestResult[];
     },

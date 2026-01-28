@@ -94,6 +94,23 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
     enabled: !!businessId,
   });
 
+  // Fetch job-matched pending test results (match_status = 'job_matched' for this job)
+  const { data: jobMatchedResults = [] } = useQuery({
+    queryKey: ["job-matched-test-results", jobId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pending_test_results")
+        .select("id, subject, from_email, received_at, extracted_data, match_status, match_confidence, lab_report_url")
+        .eq("matched_job_id", jobId)
+        .eq("status", "pending")
+        .in("match_status", ["job_matched", "auto_matched"])
+        .order("received_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!jobId,
+  });
+
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("concrete_tests").delete().eq("id", id);
@@ -179,6 +196,58 @@ export function JobTestResultsTab({ jobId }: JobTestResultsTabProps) {
           </Button>
         </div>
       </div>
+
+      {/* Job-matched pending results awaiting pour assignment */}
+      {jobMatchedResults.length > 0 && (
+        <Card className="border-warning/50 bg-warning/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="w-4 h-4 text-warning" />
+              <span className="font-medium text-sm">Unassigned to Pour ({jobMatchedResults.length})</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              These test results matched this job's address but need to be assigned to a specific pour.
+            </p>
+            <div className="space-y-2">
+              {jobMatchedResults.slice(0, 3).map((result) => {
+                const extracted = result.extracted_data as any;
+                return (
+                  <div 
+                    key={result.id}
+                    className="flex items-center justify-between p-2 rounded-md bg-background border cursor-pointer hover:bg-muted/50"
+                    onClick={() => setPendingSheetOpen(true)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <FlaskConical className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">
+                        {extracted?.test_id || result.subject || "Test Result"}
+                      </span>
+                      {result.match_status === 'auto_matched' && (
+                        <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
+                          Auto-matched
+                        </Badge>
+                      )}
+                    </div>
+                    <Button size="sm" variant="outline">
+                      Assign Pour
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            {jobMatchedResults.length > 3 && (
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="mt-2 p-0 h-auto"
+                onClick={() => setPendingSheetOpen(true)}
+              >
+                View all {jobMatchedResults.length} pending results
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-3 gap-4">

@@ -1427,6 +1427,8 @@ export type Database = {
           id: string
           linked_job_id: string | null
           linked_pour_id: string | null
+          match_confidence: number | null
+          match_status: string | null
           received_at: string
           rejection_reason: string | null
           status: string
@@ -1446,6 +1448,8 @@ export type Database = {
           id?: string
           linked_job_id?: string | null
           linked_pour_id?: string | null
+          match_confidence?: number | null
+          match_status?: string | null
           received_at?: string
           rejection_reason?: string | null
           status?: string
@@ -1465,6 +1469,8 @@ export type Database = {
           id?: string
           linked_job_id?: string | null
           linked_pour_id?: string | null
+          match_confidence?: number | null
+          match_status?: string | null
           received_at?: string
           rejection_reason?: string | null
           status?: string
@@ -1537,6 +1543,10 @@ export type Database = {
           lab_report_url: string | null
           linked_job_id: string | null
           linked_pour_id: string | null
+          match_confidence: number | null
+          match_status: string | null
+          matched_job_id: string | null
+          matched_pour_id: string | null
           received_at: string
           rejection_reason: string | null
           status: Database["public"]["Enums"]["pending_test_status"]
@@ -1554,6 +1564,10 @@ export type Database = {
           lab_report_url?: string | null
           linked_job_id?: string | null
           linked_pour_id?: string | null
+          match_confidence?: number | null
+          match_status?: string | null
+          matched_job_id?: string | null
+          matched_pour_id?: string | null
           received_at?: string
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["pending_test_status"]
@@ -1571,6 +1585,10 @@ export type Database = {
           lab_report_url?: string | null
           linked_job_id?: string | null
           linked_pour_id?: string | null
+          match_confidence?: number | null
+          match_status?: string | null
+          matched_job_id?: string | null
+          matched_pour_id?: string | null
           received_at?: string
           rejection_reason?: string | null
           status?: Database["public"]["Enums"]["pending_test_status"]
@@ -1595,6 +1613,20 @@ export type Database = {
           {
             foreignKeyName: "pending_test_results_linked_pour_id_fkey"
             columns: ["linked_pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_test_results_matched_job_id_fkey"
+            columns: ["matched_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_test_results_matched_pour_id_fkey"
+            columns: ["matched_pour_id"]
             isOneToOne: false
             referencedRelation: "job_pours"
             referencedColumns: ["id"]

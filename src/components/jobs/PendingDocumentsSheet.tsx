@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -90,20 +90,44 @@ export function PendingDocumentsSheet({
 
   // Fetch pending documents
   const { data: pendingDocs = [], isLoading } = useQuery({
-    queryKey: ["pending-documents", businessId],
+    queryKey: ["pending-documents", businessId, preselectedJobId],
     queryFn: async () => {
-      const { data, error } = await supabase
+      let query = supabase
         .from("pending_documents")
         .select("*")
         .eq("business_id", businessId)
         .eq("status", "pending")
         .order("received_at", { ascending: false });
       
+      if (preselectedJobId) {
+        query = supabase
+          .from("pending_documents")
+          .select("*")
+          .eq("business_id", businessId)
+          .eq("status", "pending")
+          .or(`match_status.eq.pending,linked_job_id.eq.${preselectedJobId}`)
+          .order("received_at", { ascending: false });
+      }
+      
+      const { data, error } = await query;
       if (error) throw error;
       return data as PendingDocument[];
     },
     enabled: open
   });
+
+  // Update selectedJobId when a pre-matched document is selected
+  useEffect(() => {
+    if (selectedDocId) {
+      const doc = pendingDocs.find(d => d.id === selectedDocId);
+      if (doc?.linked_job_id && !selectedJobId) {
+        setSelectedJobId(doc.linked_job_id);
+      }
+      if (doc?.linked_pour_id && !selectedPourId) {
+        setSelectedPourId(doc.linked_pour_id);
+      }
+    }
+  }, [selectedDocId, pendingDocs]);
 
   // Fetch jobs for linking
   const { data: jobs = [] } = useQuery({
