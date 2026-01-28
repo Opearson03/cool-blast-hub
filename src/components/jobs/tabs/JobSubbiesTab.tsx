@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, Phone, Mail } from "lucide-react";
+import { Users, Phone, Mail, ChevronRight } from "lucide-react";
 import { SubTradeStatusBadge } from "@/components/jobs/SubTradeStatusBadge";
+import { SubbieDetailSheet } from "@/components/jobs/SubbieDetailSheet";
 import type { SubTradeInvite } from "@/hooks/useSubTradeInvites";
 
 interface JobSubbiesTabProps {
@@ -19,6 +21,8 @@ interface SubbieDirectory {
 }
 
 export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
+  const [selectedSubbie, setSelectedSubbie] = useState<SubbieDirectory | null>(null);
+
   // Fetch all invites for this job
   const { data: invites = [], isLoading } = useQuery({
     queryKey: ["sub-trade-invites-job", jobId],
@@ -85,49 +89,57 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
   }
 
   return (
-    <div className="space-y-2">
-      {subbies.map((subbie, index) => (
-        <Card key={index}>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-medium truncate">{subbie.recipient_name}</span>
-                  <span className="text-sm text-muted-foreground">({subbie.role})</span>
+    <>
+      <div className="space-y-2">
+        {subbies.map((subbie, index) => (
+          <Card
+            key={index}
+            className="cursor-pointer hover:bg-muted/50 transition-colors"
+            onClick={() => setSelectedSubbie(subbie)}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium truncate">{subbie.recipient_name}</span>
+                    <span className="text-sm text-muted-foreground">({subbie.role})</span>
+                  </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    {subbie.recipient_phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3.5 w-3.5" />
+                        <span>{subbie.recipient_phone}</span>
+                      </span>
+                    )}
+                    {subbie.recipient_email && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="h-3.5 w-3.5" />
+                        <span className="truncate max-w-[200px]">{subbie.recipient_email}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                  {subbie.recipient_phone && (
-                    <a 
-                      href={`tel:${subbie.recipient_phone}`} 
-                      className="flex items-center gap-1 hover:text-foreground"
-                    >
-                      <Phone className="h-3.5 w-3.5" />
-                      <span>{subbie.recipient_phone}</span>
-                    </a>
+                <div className="flex items-center gap-2">
+                  {subbie.inviteCount > 1 && (
+                    <span className="text-xs text-muted-foreground">
+                      {subbie.inviteCount} pours
+                    </span>
                   )}
-                  {subbie.recipient_email && (
-                    <a 
-                      href={`mailto:${subbie.recipient_email}`} 
-                      className="flex items-center gap-1 hover:text-foreground"
-                    >
-                      <Mail className="h-3.5 w-3.5" />
-                      <span className="truncate max-w-[200px]">{subbie.recipient_email}</span>
-                    </a>
-                  )}
+                  <SubTradeStatusBadge status={subbie.latestStatus} />
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                {subbie.inviteCount > 1 && (
-                  <span className="text-xs text-muted-foreground">
-                    {subbie.inviteCount} pours
-                  </span>
-                )}
-                <SubTradeStatusBadge status={subbie.latestStatus} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      <SubbieDetailSheet
+        open={!!selectedSubbie}
+        onOpenChange={(open) => !open && setSelectedSubbie(null)}
+        jobId={jobId}
+        subbie={selectedSubbie}
+      />
+    </>
   );
 }
