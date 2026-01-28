@@ -283,6 +283,7 @@ export type Database = {
           file_url: string
           id: string
           reference_id: string | null
+          subfolder: string | null
           uploaded_by: string | null
         }
         Insert: {
@@ -294,6 +295,7 @@ export type Database = {
           file_url: string
           id?: string
           reference_id?: string | null
+          subfolder?: string | null
           uploaded_by?: string | null
         }
         Update: {
@@ -305,6 +307,7 @@ export type Database = {
           file_url?: string
           id?: string
           reference_id?: string | null
+          subfolder?: string | null
           uploaded_by?: string | null
         }
         Relationships: [
@@ -1406,6 +1409,88 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pending_documents: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          business_id: string
+          created_at: string
+          document_type: string
+          extracted_data: Json | null
+          file_name: string
+          file_url: string
+          from_email: string
+          id: string
+          linked_job_id: string | null
+          linked_pour_id: string | null
+          received_at: string
+          rejection_reason: string | null
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id: string
+          created_at?: string
+          document_type?: string
+          extracted_data?: Json | null
+          file_name: string
+          file_url: string
+          from_email: string
+          id?: string
+          linked_job_id?: string | null
+          linked_pour_id?: string | null
+          received_at?: string
+          rejection_reason?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          business_id?: string
+          created_at?: string
+          document_type?: string
+          extracted_data?: Json | null
+          file_name?: string
+          file_url?: string
+          from_email?: string
+          id?: string
+          linked_job_id?: string | null
+          linked_pour_id?: string | null
+          received_at?: string
+          rejection_reason?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_documents_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_documents_linked_job_id_fkey"
+            columns: ["linked_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_documents_linked_pour_id_fkey"
+            columns: ["linked_pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
             referencedColumns: ["id"]
           },
         ]

@@ -9,22 +9,47 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { FileText, Plus, Image, File, Download, Loader2, Trash2, X, ExternalLink } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, Plus, Image, File, Download, Loader2, Trash2, ExternalLink, FolderOpen } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 
-type Document = Tables<"documents">;
+type Document = Tables<"documents"> & { subfolder?: string };
 
 interface JobDocumentsTabProps {
   jobId: string;
   businessId: string;
 }
 
+const FOLDER_TABS = [
+  { value: 'all', label: 'All' },
+  { value: 'delivery_dockets', label: 'Dockets' },
+  { value: 'plans', label: 'Plans' },
+  { value: 'quotes_retentions', label: 'Quotes' },
+  { value: 'site_photos', label: 'Photos' },
+  { value: 'general', label: 'Other' },
+] as const;
+
+const SUBFOLDER_OPTIONS = [
+  { value: 'delivery_dockets', label: 'Delivery Dockets' },
+  { value: 'plans', label: 'Plans' },
+  { value: 'quotes_retentions', label: 'Quotes & Retentions' },
+  { value: 'site_photos', label: 'Site Photos' },
+  { value: 'general', label: 'Other' },
+] as const;
+
 function getFileIcon(fileType: string | null) {
   if (!fileType) return <File className="w-8 h-8" />;
-  if (fileType.startsWith("image/")) return <Image className="w-8 h-8 text-blue-500" />;
-  if (fileType === "application/pdf") return <FileText className="w-8 h-8 text-red-500" />;
+  if (fileType.startsWith("image/")) return <Image className="w-8 h-8 text-primary" />;
+  if (fileType === "application/pdf") return <FileText className="w-8 h-8 text-destructive" />;
   return <File className="w-8 h-8" />;
 }
 
@@ -38,6 +63,10 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<Document | null>(null);
+  const [activeFolder, setActiveFolder] = useState<string>('all');
+  const [uploadSubfolder, setUploadSubfolder] = useState<string>('general');
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["job-documents", jobId],
@@ -53,8 +82,23 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
     },
   });
 
+  // Filter documents based on active folder
+  const filteredDocuments = activeFolder === 'all' 
+    ? documents 
+    : documents.filter(doc => (doc.subfolder || 'general') === activeFolder);
+
+  // Count documents per folder
+  const folderCounts = FOLDER_TABS.reduce((acc, tab) => {
+    if (tab.value === 'all') {
+      acc[tab.value] = documents.length;
+    } else {
+      acc[tab.value] = documents.filter(doc => (doc.subfolder || 'general') === tab.value).length;
+    }
+    return acc;
+  }, {} as Record<string, number>);
+
   const uploadMutation = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, subfolder }: { file: File; subfolder: string }) => {
       const fileName = `${jobId}/${Date.now()}-${file.name}`;
       
       const { error: uploadError } = await supabase.storage
@@ -74,13 +118,13 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
         file_url: urlData.publicUrl,
         category: "job",
         reference_id: jobId,
+        subfolder: subfolder,
       });
 
       if (insertError) throw insertError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["job-documents", jobId] });
-      toast.success("Document uploaded");
     },
     onError: (error) => {
       console.error("Upload error:", error);
@@ -108,24 +152,41 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
     },
   });
 
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files?.length) return;
 
+    const validFiles: File[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error(`${file.name} is too large (max 20MB)`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length > 0) {
+      setPendingFiles(validFiles);
+      setShowUploadDialog(true);
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleConfirmUpload = async () => {
     setUploading(true);
     try {
-      for (const file of Array.from(files)) {
-        if (file.size > 20 * 1024 * 1024) {
-          toast.error(`${file.name} is too large (max 20MB)`);
-          continue;
-        }
-        await uploadMutation.mutateAsync(file);
+      for (const file of pendingFiles) {
+        await uploadMutation.mutateAsync({ file, subfolder: uploadSubfolder });
       }
+      toast.success(`${pendingFiles.length} file(s) uploaded to ${SUBFOLDER_OPTIONS.find(o => o.value === uploadSubfolder)?.label}`);
     } finally {
       setUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      setShowUploadDialog(false);
+      setPendingFiles([]);
+      setUploadSubfolder('general');
     }
   };
 
@@ -137,7 +198,6 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
     if (isPreviewable(doc.file_type)) {
       setPreviewDoc(doc);
     } else {
-      // Non-previewable files just download
       handleDownload(doc);
     }
   };
@@ -170,13 +230,35 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
         />
       </div>
 
-      {documents.length === 0 ? (
+      {/* Folder tabs */}
+      <Tabs value={activeFolder} onValueChange={setActiveFolder}>
+        <TabsList className="w-full flex flex-wrap h-auto gap-1 p-1">
+          {FOLDER_TABS.map(tab => (
+            <TabsTrigger 
+              key={tab.value} 
+              value={tab.value}
+              className="text-xs px-2 py-1.5"
+            >
+              {tab.label}
+              {folderCounts[tab.value] > 0 && (
+                <span className="ml-1 text-muted-foreground">({folderCounts[tab.value]})</span>
+              )}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      {filteredDocuments.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
-            <FileText className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">No Documents Yet</h3>
+            <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="font-semibold mb-2">
+              {activeFolder === 'all' ? 'No Documents Yet' : `No ${FOLDER_TABS.find(t => t.value === activeFolder)?.label}`}
+            </h3>
             <p className="text-muted-foreground mb-4">
-              Upload photos and documents for this job
+              {activeFolder === 'all' 
+                ? 'Upload photos and documents for this job'
+                : 'No documents in this folder yet'}
             </p>
             <Button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
               <Plus className="w-4 h-4 mr-2" />
@@ -186,7 +268,7 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
         </Card>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {documents.map((doc) => (
+          {filteredDocuments.map((doc) => (
             <Card 
               key={doc.id} 
               className="hover:border-primary/50 transition-colors cursor-pointer group"
@@ -202,6 +284,11 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
                     <p className="text-xs text-muted-foreground">
                       {format(new Date(doc.created_at!), "d MMM yyyy")}
                     </p>
+                    {doc.subfolder && doc.subfolder !== 'general' && (
+                      <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded mt-1 inline-block">
+                        {SUBFOLDER_OPTIONS.find(o => o.value === doc.subfolder)?.label || doc.subfolder}
+                      </span>
+                    )}
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -233,6 +320,51 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
           ))}
         </div>
       )}
+
+      {/* Upload folder selection dialog */}
+      <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FolderOpen className="w-5 h-5" />
+              Choose Folder
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Select which folder to save {pendingFiles.length} file(s) to:
+            </p>
+            <Select value={uploadSubfolder} onValueChange={setUploadSubfolder}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SUBFOLDER_OPTIONS.map(opt => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => {
+                setShowUploadDialog(false);
+                setPendingFiles([]);
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleConfirmUpload} disabled={uploading}>
+                {uploading ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Upload
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Preview Dialog */}
       <Dialog open={!!previewDoc} onOpenChange={(open) => !open && setPreviewDoc(null)}>

@@ -26,6 +26,33 @@ interface ResendEmailEvent {
   };
 }
 
+type DocumentType = 'test_result' | 'delivery_docket' | 'unknown';
+
+// Keywords for document type detection
+const TEST_RESULT_KEYWORDS = ['test', 'lab', 'result', 'mpa', 'strength', 'cylinder', 'slump', '7 day', '28 day', '7-day', '28-day', 'compressive'];
+const DELIVERY_DOCKET_KEYWORDS = ['docket', 'delivery', 'cartage', 'truck', 'load', 'batch', 'dispatch', 'concrete delivery'];
+
+function detectDocumentType(subject: string, filename: string, fromEmail: string): DocumentType {
+  const searchText = `${subject} ${filename} ${fromEmail}`.toLowerCase();
+  
+  // Check for delivery docket keywords first (more specific)
+  for (const keyword of DELIVERY_DOCKET_KEYWORDS) {
+    if (searchText.includes(keyword)) {
+      return 'delivery_docket';
+    }
+  }
+  
+  // Check for test result keywords
+  for (const keyword of TEST_RESULT_KEYWORDS) {
+    if (searchText.includes(keyword)) {
+      return 'test_result';
+    }
+  }
+  
+  // Default to test result if PDF attached (legacy behavior)
+  return 'test_result';
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -137,6 +164,10 @@ serve(async (req) => {
       try {
         console.log('Processing attachment:', attachment.filename);
 
+        // Detect document type based on subject, filename, and sender
+        const documentType = detectDocumentType(subject || '', attachment.filename, from);
+        console.log('Detected document type:', documentType);
+
         // Decode base64 content
         const pdfContent = Uint8Array.from(atob(attachment.content), c => c.charCodeAt(0));
         
@@ -149,7 +180,8 @@ serve(async (req) => {
         // Generate unique filename
         const timestamp = Date.now();
         const safeFilename = attachment.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const storagePath = `${business.id}/inbound/${timestamp}_${safeFilename}`;
+        const folderPrefix = documentType === 'delivery_docket' ? 'dockets' : 'tests';
+        const storagePath = `${business.id}/inbound/${folderPrefix}/${timestamp}_${safeFilename}`;
 
         // Upload to storage
         const { error: uploadError } = await supabase.storage
@@ -169,61 +201,126 @@ serve(async (req) => {
           .from('test-documents')
           .getPublicUrl(storagePath);
 
-        const labReportUrl = urlData.publicUrl;
-        console.log('Uploaded to:', labReportUrl);
+        const fileUrl = urlData.publicUrl;
+        console.log('Uploaded to:', fileUrl);
 
-        // Call scan-test-document to extract data
-        let extractedData = {};
-        try {
-          const scanResponse = await fetch(`${supabaseUrl}/functions/v1/scan-test-document`, {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${supabaseServiceKey}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ pdfUrl: labReportUrl })
+        if (documentType === 'delivery_docket') {
+          // Process as delivery docket
+          let extractedData = {};
+          
+          // Try to extract docket data using scan-test-document (reuse for now)
+          try {
+            const scanResponse = await fetch(`${supabaseUrl}/functions/v1/scan-test-document`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ 
+                pdfUrl: fileUrl,
+                documentType: 'delivery_docket'
+              })
+            });
+
+            if (scanResponse.ok) {
+              const scanResult = await scanResponse.json();
+              if (scanResult.success && scanResult.data) {
+                extractedData = scanResult.data;
+                console.log('Extracted docket data:', extractedData);
+              }
+            } else {
+              console.warn('Scan failed:', await scanResponse.text());
+            }
+          } catch (scanError) {
+            console.error('Error calling scan-test-document:', scanError);
+          }
+
+          // Create pending document record
+          const { data: pendingDoc, error: insertError } = await supabase
+            .from('pending_documents')
+            .insert({
+              business_id: business.id,
+              from_email: from,
+              subject: subject || '(No subject)',
+              received_at: new Date().toISOString(),
+              file_url: fileUrl,
+              file_name: attachment.filename,
+              extracted_data: extractedData,
+              document_type: 'delivery_docket',
+              status: 'pending'
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Failed to insert pending document:', insertError);
+            continue;
+          }
+
+          results.push({
+            filename: attachment.filename,
+            id: pendingDoc.id,
+            type: 'delivery_docket',
+            success: true
           });
 
-          if (scanResponse.ok) {
-            const scanResult = await scanResponse.json();
-            if (scanResult.success && scanResult.data) {
-              extractedData = scanResult.data;
-              console.log('Extracted data:', extractedData);
+          console.log('Created pending document:', pendingDoc.id);
+
+        } else {
+          // Process as test result (existing behavior)
+          let extractedData = {};
+          try {
+            const scanResponse = await fetch(`${supabaseUrl}/functions/v1/scan-test-document`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ pdfUrl: fileUrl })
+            });
+
+            if (scanResponse.ok) {
+              const scanResult = await scanResponse.json();
+              if (scanResult.success && scanResult.data) {
+                extractedData = scanResult.data;
+                console.log('Extracted data:', extractedData);
+              }
+            } else {
+              console.warn('Scan failed:', await scanResponse.text());
             }
-          } else {
-            console.warn('Scan failed:', await scanResponse.text());
+          } catch (scanError) {
+            console.error('Error calling scan-test-document:', scanError);
           }
-        } catch (scanError) {
-          console.error('Error calling scan-test-document:', scanError);
+
+          // Create pending test result record
+          const { data: pendingResult, error: insertError } = await supabase
+            .from('pending_test_results')
+            .insert({
+              business_id: business.id,
+              from_email: from,
+              subject: subject || '(No subject)',
+              received_at: new Date().toISOString(),
+              lab_report_url: fileUrl,
+              extracted_data: extractedData,
+              status: 'pending'
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Failed to insert pending result:', insertError);
+            continue;
+          }
+
+          results.push({
+            filename: attachment.filename,
+            id: pendingResult.id,
+            type: 'test_result',
+            success: true
+          });
+
+          console.log('Created pending test result:', pendingResult.id);
         }
-
-        // Create pending test result record
-        const { data: pendingResult, error: insertError } = await supabase
-          .from('pending_test_results')
-          .insert({
-            business_id: business.id,
-            from_email: from,
-            subject: subject || '(No subject)',
-            received_at: new Date().toISOString(),
-            lab_report_url: labReportUrl,
-            extracted_data: extractedData,
-            status: 'pending'
-          })
-          .select()
-          .single();
-
-        if (insertError) {
-          console.error('Failed to insert pending result:', insertError);
-          continue;
-        }
-
-        results.push({
-          filename: attachment.filename,
-          id: pendingResult.id,
-          success: true
-        });
-
-        console.log('Created pending test result:', pendingResult.id);
 
       } catch (attError) {
         console.error('Error processing attachment:', attachment.filename, attError);
