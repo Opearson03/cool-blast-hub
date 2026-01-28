@@ -26,7 +26,20 @@ interface ResendEmailEvent {
   };
 }
 
+interface Job {
+  id: string;
+  site_address: string;
+  name: string;
+}
+
+interface Pour {
+  id: string;
+  job_id: string;
+  pour_date: string | null;
+}
+
 type DocumentType = 'test_result' | 'delivery_docket' | 'unknown';
+type MatchStatus = 'pending' | 'job_matched' | 'auto_matched';
 
 // Keywords for document type detection
 const TEST_RESULT_KEYWORDS = ['test', 'lab', 'result', 'mpa', 'strength', 'cylinder', 'slump', '7 day', '28 day', '7-day', '28-day', 'compressive'];
@@ -51,6 +64,144 @@ function detectDocumentType(subject: string, filename: string, fromEmail: string
   
   // Default to test result if PDF attached (legacy behavior)
   return 'test_result';
+}
+
+// Normalize address for fuzzy matching
+function normalizeAddress(addr: string): string {
+  if (!addr) return '';
+  return addr
+    .toLowerCase()
+    .replace(/[.,#]/g, '')
+    .replace(/\s+/g, ' ')
+    .replace(/\bstreet\b/gi, 'st')
+    .replace(/\bst\b/gi, 'st')
+    .replace(/\broad\b/gi, 'rd')
+    .replace(/\brd\b/gi, 'rd')
+    .replace(/\bavenue\b/gi, 'ave')
+    .replace(/\bave\b/gi, 'ave')
+    .replace(/\bdrive\b/gi, 'dr')
+    .replace(/\bdr\b/gi, 'dr')
+    .replace(/\bcourt\b/gi, 'ct')
+    .replace(/\bct\b/gi, 'ct')
+    .replace(/\bplace\b/gi, 'pl')
+    .replace(/\bpl\b/gi, 'pl')
+    .replace(/\blane\b/gi, 'ln')
+    .replace(/\bln\b/gi, 'ln')
+    .trim();
+}
+
+// Calculate match confidence between two addresses
+function matchAddresses(extracted: string, jobAddress: string): number {
+  const a = normalizeAddress(extracted);
+  const b = normalizeAddress(jobAddress);
+  
+  if (!a || !b) return 0;
+  
+  // Exact match
+  if (a === b) return 100;
+  
+  // One contains the other
+  if (a.includes(b) || b.includes(a)) return 85;
+  
+  // Word overlap calculation
+  const aWords = a.split(' ').filter(w => w.length > 2);
+  const bWords = b.split(' ').filter(w => w.length > 2);
+  const overlap = aWords.filter(w => bWords.includes(w)).length;
+  
+  if (overlap === 0) return 0;
+  
+  const score = (overlap / Math.max(aWords.length, bWords.length)) * 100;
+  return Math.round(score);
+}
+
+// Check if two dates are within a day window
+function datesMatch(extractedDate: string | null, pourDate: string | null, windowDays: number = 2): boolean {
+  if (!extractedDate || !pourDate) return false;
+  
+  try {
+    const d1 = new Date(extractedDate);
+    const d2 = new Date(pourDate);
+    const diffMs = Math.abs(d1.getTime() - d2.getTime());
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return diffDays <= windowDays;
+  } catch {
+    return false;
+  }
+}
+
+// Find the best matching job and pour for extracted data
+async function findBestMatch(
+  supabase: any,
+  businessId: string,
+  extractedAddress: string | null,
+  extractedDate: string | null
+): Promise<{ matchStatus: MatchStatus; matchedJobId: string | null; matchedPourId: string | null; matchConfidence: number }> {
+  if (!extractedAddress) {
+    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
+  }
+
+  // Fetch all active jobs for this business
+  const { data: jobs, error: jobsError } = await supabase
+    .from('jobs')
+    .select('id, site_address, name')
+    .eq('business_id', businessId)
+    .in('status', ['not_started', 'in_progress']);
+
+  if (jobsError || !jobs || jobs.length === 0) {
+    console.log('No active jobs found for matching');
+    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
+  }
+
+  // Find the best matching job by address
+  let bestJob: Job | null = null;
+  let bestConfidence = 0;
+
+  for (const job of jobs as Job[]) {
+    const confidence = matchAddresses(extractedAddress, job.site_address);
+    console.log(`Address match: "${extractedAddress}" vs "${job.site_address}" = ${confidence}%`);
+    
+    if (confidence > bestConfidence && confidence >= 70) {
+      bestConfidence = confidence;
+      bestJob = job;
+    }
+  }
+
+  if (!bestJob) {
+    console.log('No job address matched above 70% threshold');
+    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
+  }
+
+  console.log(`Best job match: ${bestJob.name} (${bestJob.id}) with ${bestConfidence}% confidence`);
+
+  // Job matched - now try to match the date to a pour
+  if (extractedDate) {
+    const { data: pours, error: poursError } = await supabase
+      .from('job_pours')
+      .select('id, pour_date')
+      .eq('job_id', bestJob.id);
+
+    if (!poursError && pours && pours.length > 0) {
+      for (const pour of pours as Pour[]) {
+        if (datesMatch(extractedDate, pour.pour_date)) {
+          console.log(`Pour date matched: ${pour.pour_date}`);
+          return {
+            matchStatus: 'auto_matched',
+            matchedJobId: bestJob.id,
+            matchedPourId: pour.id,
+            matchConfidence: bestConfidence
+          };
+        }
+      }
+    }
+  }
+
+  // Only job matched, not pour
+  return {
+    matchStatus: 'job_matched',
+    matchedJobId: bestJob.id,
+    matchedPourId: null,
+    matchConfidence: bestConfidence
+  };
 }
 
 serve(async (req) => {
@@ -143,7 +294,8 @@ serve(async (req) => {
           subject: subject || '(No subject)',
           received_at: new Date().toISOString(),
           extracted_data: { note: 'No PDF attachment found in email' },
-          status: 'pending'
+          status: 'pending',
+          match_status: 'pending'
         });
 
       if (insertError) {
@@ -206,9 +358,9 @@ serve(async (req) => {
 
         if (documentType === 'delivery_docket') {
           // Process as delivery docket
-          let extractedData = {};
+          let extractedData: any = {};
           
-          // Try to extract docket data using scan-test-document (reuse for now)
+          // Try to extract docket data using scan-test-document
           try {
             const scanResponse = await fetch(`${supabaseUrl}/functions/v1/scan-test-document`, {
               method: 'POST',
@@ -235,6 +387,16 @@ serve(async (req) => {
             console.error('Error calling scan-test-document:', scanError);
           }
 
+          // Try to auto-match to a job and pour
+          const matchResult = await findBestMatch(
+            supabase,
+            business.id,
+            extractedData.site_address || null,
+            extractedData.delivery_date || null
+          );
+
+          console.log('Match result for docket:', matchResult);
+
           // Create pending document record
           const { data: pendingDoc, error: insertError } = await supabase
             .from('pending_documents')
@@ -247,7 +409,11 @@ serve(async (req) => {
               file_name: attachment.filename,
               extracted_data: extractedData,
               document_type: 'delivery_docket',
-              status: 'pending'
+              status: 'pending',
+              match_status: matchResult.matchStatus,
+              linked_job_id: matchResult.matchedJobId,
+              linked_pour_id: matchResult.matchedPourId,
+              match_confidence: matchResult.matchConfidence
             })
             .select()
             .single();
@@ -261,14 +427,15 @@ serve(async (req) => {
             filename: attachment.filename,
             id: pendingDoc.id,
             type: 'delivery_docket',
+            matchStatus: matchResult.matchStatus,
             success: true
           });
 
-          console.log('Created pending document:', pendingDoc.id);
+          console.log('Created pending document:', pendingDoc.id, 'match_status:', matchResult.matchStatus);
 
         } else {
-          // Process as test result (existing behavior)
-          let extractedData = {};
+          // Process as test result
+          let extractedData: any = {};
           try {
             const scanResponse = await fetch(`${supabaseUrl}/functions/v1/scan-test-document`, {
               method: 'POST',
@@ -292,6 +459,16 @@ serve(async (req) => {
             console.error('Error calling scan-test-document:', scanError);
           }
 
+          // Try to auto-match to a job and pour
+          const matchResult = await findBestMatch(
+            supabase,
+            business.id,
+            extractedData.site_address || null,
+            extractedData.pour_date || extractedData.test_date || null
+          );
+
+          console.log('Match result for test:', matchResult);
+
           // Create pending test result record
           const { data: pendingResult, error: insertError } = await supabase
             .from('pending_test_results')
@@ -302,7 +479,11 @@ serve(async (req) => {
               received_at: new Date().toISOString(),
               lab_report_url: fileUrl,
               extracted_data: extractedData,
-              status: 'pending'
+              status: 'pending',
+              match_status: matchResult.matchStatus,
+              matched_job_id: matchResult.matchedJobId,
+              matched_pour_id: matchResult.matchedPourId,
+              match_confidence: matchResult.matchConfidence
             })
             .select()
             .single();
@@ -316,10 +497,11 @@ serve(async (req) => {
             filename: attachment.filename,
             id: pendingResult.id,
             type: 'test_result',
+            matchStatus: matchResult.matchStatus,
             success: true
           });
 
-          console.log('Created pending test result:', pendingResult.id);
+          console.log('Created pending test result:', pendingResult.id, 'match_status:', matchResult.matchStatus);
         }
 
       } catch (attError) {

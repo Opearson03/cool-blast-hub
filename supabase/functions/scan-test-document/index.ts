@@ -12,7 +12,7 @@ serve(async (req) => {
   }
 
   try {
-    const { pdfUrl } = await req.json();
+    const { pdfUrl, documentType } = await req.json();
 
     if (!pdfUrl) {
       return new Response(
@@ -30,7 +30,7 @@ serve(async (req) => {
       );
     }
 
-    console.log('Scanning PDF:', pdfUrl);
+    console.log('Scanning PDF:', pdfUrl, 'Type:', documentType || 'test_result');
 
     // Fetch the PDF file
     const pdfResponse = await fetch(pdfUrl);
@@ -50,6 +50,54 @@ serve(async (req) => {
     }
     const pdfBase64 = btoa(binary);
 
+    // Choose system prompt based on document type
+    const isDeliveryDocket = documentType === 'delivery_docket';
+    
+    const systemPrompt = isDeliveryDocket
+      ? `You are a concrete delivery docket analyzer. Extract ALL available information from concrete delivery dockets.
+
+Extract these fields:
+- docket_number: The delivery docket number or reference (e.g., "D-123456", "DEL001")
+- delivery_date: The date of delivery (format: YYYY-MM-DD)
+- delivery_time: The time of delivery if available (format: HH:MM)
+- supplier: The concrete supplier company name (e.g., "Boral", "Holcim", "Hanson")
+- volume_m3: The volume of concrete delivered in cubic meters (just the number)
+- mix_code: The concrete mix code/grade (e.g., "N32/20/80", "S40")
+- slump: The slump value if specified (just the number in mm)
+- truck_rego: The truck registration number if visible
+- driver_name: The driver's name if visible
+- site_address: The delivery site address - VERY IMPORTANT for matching to jobs
+- batch_plant: The batch plant or depot name if visible
+- notes: Any relevant notes, special instructions, or observations
+
+Return ONLY valid JSON in this exact format:
+{"docket_number": "string or null", "delivery_date": "string or null", "delivery_time": "string or null", "supplier": "string or null", "volume_m3": number or null, "mix_code": "string or null", "slump": number or null, "truck_rego": "string or null", "driver_name": "string or null", "site_address": "string or null", "batch_plant": "string or null", "notes": "string or null"}
+
+If you cannot find a value, use null. Do not include any text outside the JSON object.`
+      : `You are a concrete test report analyzer. Extract ALL available information from concrete test lab reports.
+
+Extract these fields:
+- test_id: The test/sample ID or reference number (e.g., "CT-001", "S123456")
+- test_type: The type of test. Must be one of: "7_day", "14_day", "28_day", "slump", "cylinder", "air", "other". Determine based on curing days mentioned (7 day = "7_day", 14 day = "14_day", 28 day = "28_day"), or test type (slump test = "slump", cylinder test = "cylinder", air content = "air")
+- pour_date: The date concrete was poured/cast (format: YYYY-MM-DD)
+- test_date: The date the test was conducted (format: YYYY-MM-DD)
+- supplier: The testing laboratory or concrete supplier name
+- target_mpa: The target/specified compressive strength in MPa (just the number)
+- actual_mpa: The actual/achieved compressive strength in MPa (just the number)
+- sample_count: Number of samples/specimens tested (just the number)
+- site_address: The site/project address where concrete was placed - VERY IMPORTANT for matching to jobs
+- project_name: The project or job name if mentioned
+- notes: Any relevant notes, comments, or observations from the report
+
+Return ONLY valid JSON in this exact format:
+{"test_id": "string or null", "test_type": "string or null", "pour_date": "string or null", "test_date": "string or null", "supplier": "string or null", "target_mpa": number or null, "actual_mpa": number or null, "sample_count": number or null, "site_address": "string or null", "project_name": "string or null", "notes": "string or null"}
+
+If you cannot find a value, use null. Do not include any text outside the JSON object.`;
+
+    const userPrompt = isDeliveryDocket
+      ? 'Please analyze this concrete delivery docket PDF and extract all available information including docket number, delivery date/time, supplier, volume, mix code, truck details, and most importantly the site/delivery address.'
+      : 'Please analyze this concrete test report PDF and extract all available information including test ID, test type, dates, supplier, strength values, sample count, and most importantly the site/project address.';
+
     // Use Gemini to analyze the PDF
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
@@ -62,30 +110,14 @@ serve(async (req) => {
         messages: [
           {
             role: 'system',
-            content: `You are a concrete test report analyzer. Extract ALL available information from concrete test lab reports.
-
-Extract these fields:
-- test_id: The test/sample ID or reference number (e.g., "CT-001", "S123456")
-- test_type: The type of test. Must be one of: "7_day", "14_day", "28_day", "slump", "cylinder", "air", "other". Determine based on curing days mentioned (7 day = "7_day", 14 day = "14_day", 28 day = "28_day"), or test type (slump test = "slump", cylinder test = "cylinder", air content = "air")
-- pour_date: The date concrete was poured/cast (format: YYYY-MM-DD)
-- test_date: The date the test was conducted (format: YYYY-MM-DD)
-- supplier: The testing laboratory or concrete supplier name
-- target_mpa: The target/specified compressive strength in MPa (just the number)
-- actual_mpa: The actual/achieved compressive strength in MPa (just the number)
-- sample_count: Number of samples/specimens tested (just the number)
-- notes: Any relevant notes, comments, or observations from the report
-
-Return ONLY valid JSON in this exact format:
-{"test_id": "string or null", "test_type": "string or null", "pour_date": "string or null", "test_date": "string or null", "supplier": "string or null", "target_mpa": number or null, "actual_mpa": number or null, "sample_count": number or null, "notes": "string or null"}
-
-If you cannot find a value, use null. Do not include any text outside the JSON object.`
+            content: systemPrompt
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Please analyze this concrete test report PDF and extract all available information including test ID, test type, dates, supplier, strength values, sample count, and any notes.'
+                text: userPrompt
               },
               {
                 type: 'image_url',
@@ -110,23 +142,42 @@ If you cannot find a value, use null. Do not include any text outside the JSON o
     
     console.log('AI response:', content);
 
-    // Parse the JSON response
-    let extractedData = { 
-      test_id: null, 
-      test_type: null, 
-      pour_date: null, 
-      test_date: null, 
-      supplier: null, 
-      target_mpa: null, 
-      actual_mpa: null, 
-      sample_count: null, 
-      notes: null 
-    };
+    // Parse the JSON response with appropriate defaults
+    const defaultData = isDeliveryDocket
+      ? { 
+          docket_number: null, 
+          delivery_date: null, 
+          delivery_time: null, 
+          supplier: null, 
+          volume_m3: null, 
+          mix_code: null, 
+          slump: null, 
+          truck_rego: null,
+          driver_name: null,
+          site_address: null,
+          batch_plant: null,
+          notes: null 
+        }
+      : { 
+          test_id: null, 
+          test_type: null, 
+          pour_date: null, 
+          test_date: null, 
+          supplier: null, 
+          target_mpa: null, 
+          actual_mpa: null, 
+          sample_count: null,
+          site_address: null,
+          project_name: null,
+          notes: null 
+        };
+
+    let extractedData = { ...defaultData };
     try {
       // Try to extract JSON from the response
       const jsonMatch = content.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        extractedData = { ...extractedData, ...JSON.parse(jsonMatch[0]) };
+        extractedData = { ...defaultData, ...JSON.parse(jsonMatch[0]) };
       }
     } catch (parseError) {
       console.error('Failed to parse AI response:', parseError);

@@ -1,12 +1,14 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Calendar, AlertTriangle } from "lucide-react";
+import { Briefcase, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget";
 import { SubbieContactListWidget } from "@/components/dashboard/SubbieContactListWidget";
+import { UnassignedDocketsWidget } from "@/components/dashboard/UnassignedDocketsWidget";
+
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
@@ -102,6 +104,7 @@ export default function AdminDashboard() {
 
         {businessId && (
           <>
+            <UnassignedDocketsWidget businessId={businessId} />
             <DailyScheduleWidget businessId={businessId} />
             <SubbieContactListWidget />
           </>

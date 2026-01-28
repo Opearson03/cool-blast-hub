@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -17,10 +18,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, Image, File, Download, Loader2, Trash2, ExternalLink, FolderOpen } from "lucide-react";
+import { FileText, Plus, Image, File, Download, Loader2, Trash2, ExternalLink, FolderOpen, Truck, AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
+import { PendingDocumentsSheet } from "@/components/jobs/PendingDocumentsSheet";
 
 type Document = Tables<"documents"> & { subfolder?: string };
 
@@ -67,6 +69,7 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
   const [uploadSubfolder, setUploadSubfolder] = useState<string>('general');
   const [showUploadDialog, setShowUploadDialog] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [pendingDocsSheetOpen, setPendingDocsSheetOpen] = useState(false);
 
   const { data: documents = [], isLoading } = useQuery({
     queryKey: ["job-documents", jobId],
@@ -80,6 +83,23 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
       if (error) throw error;
       return data as Document[];
     },
+  });
+
+  // Fetch job-matched pending documents (delivery dockets matched to this job)
+  const { data: jobMatchedDockets = [] } = useQuery({
+    queryKey: ["job-matched-documents", jobId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pending_documents")
+        .select("id, subject, from_email, received_at, extracted_data, match_status, match_confidence, file_url, file_name")
+        .eq("linked_job_id", jobId)
+        .eq("status", "pending")
+        .in("match_status", ["job_matched", "auto_matched"])
+        .order("received_at", { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!jobId,
   });
 
   // Filter documents based on active folder
@@ -229,6 +249,58 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
           className="hidden"
         />
       </div>
+
+      {/* Job-matched pending dockets awaiting pour assignment */}
+      {jobMatchedDockets.length > 0 && (
+        <Card className="border-warning/50 bg-warning/5">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <AlertTriangle className="w-4 h-4 text-warning" />
+              <span className="font-medium text-sm">Incoming Delivery Dockets ({jobMatchedDockets.length})</span>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              These delivery dockets matched this job's address and need to be reviewed and filed.
+            </p>
+            <div className="space-y-2">
+              {jobMatchedDockets.slice(0, 3).map((doc) => {
+                const extracted = doc.extracted_data as any;
+                return (
+                  <div 
+                    key={doc.id}
+                    className="flex items-center justify-between p-2 rounded-md bg-background border cursor-pointer hover:bg-muted/50"
+                    onClick={() => setPendingDocsSheetOpen(true)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Truck className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">
+                        {extracted?.docket_number || doc.file_name || "Delivery Docket"}
+                      </span>
+                      {doc.match_status === 'auto_matched' && (
+                        <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
+                          Auto-matched
+                        </Badge>
+                      )}
+                    </div>
+                    <Button size="sm" variant="outline">
+                      Review
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+            {jobMatchedDockets.length > 3 && (
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="mt-2 p-0 h-auto"
+                onClick={() => setPendingDocsSheetOpen(true)}
+              >
+                View all {jobMatchedDockets.length} pending dockets
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* Folder tabs */}
       <Tabs value={activeFolder} onValueChange={setActiveFolder}>
@@ -408,6 +480,14 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Pending documents sheet */}
+      <PendingDocumentsSheet
+        open={pendingDocsSheetOpen}
+        onOpenChange={setPendingDocsSheetOpen}
+        businessId={businessId}
+        preselectedJobId={jobId}
+      />
     </div>
   );
 }
