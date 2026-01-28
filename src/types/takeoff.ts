@@ -43,7 +43,9 @@ export interface TakeoffMarkup {
   width_mm?: number | null;
   height_mm?: number | null;
   length_m?: number | null;
-  toe_mm?: number | null;
+  toe_mm?: number | null; // Deprecated - use toe_width_mm and toe_depth_mm
+  toe_width_mm?: number | null;
+  toe_depth_mm?: number | null;
   // Parent-child relationship for slab beams
   parent_markup_id?: string | null;
   markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening';

@@ -47,8 +47,8 @@ interface LinearDimensionsDialogProps {
   segments?: PolylineSegment[];
   scopeType: string;
   defaultName?: string;
-  onConfirm: (name: string, width: number, height: number, toe?: number) => Promise<void>;
-  onConfirmAndAddAnother?: (name: string, width: number, height: number, toe?: number) => Promise<void>;
+  onConfirm: (name: string, width: number, height: number, toeWidth?: number, toeDepth?: number) => Promise<void>;
+  onConfirmAndAddAnother?: (name: string, width: number, height: number, toeWidth?: number, toeDepth?: number) => Promise<void>;
   /** Existing segments for type selection (add to existing type) */
   existingSegments?: ExistingLinearSegment[];
   /** Pre-selected type when adding to existing type from sidebar */
@@ -61,12 +61,13 @@ const SCOPE_LABELS: Record<string, {
   widthDefault: number; 
   heightDefault: number;
   showToe?: boolean;
-  toeDefault?: number;
+  toeWidthDefault?: number;
+  toeDepthDefault?: number;
 }> = {
   strip_footings: { widthLabel: 'Footing Width', heightLabel: 'Footing Depth', widthDefault: 450, heightDefault: 300 },
-  retaining_wall_footings: { widthLabel: 'Footing Width', heightLabel: 'Footing Depth', widthDefault: 600, heightDefault: 400, showToe: true, toeDefault: 300 },
+  retaining_wall_footings: { widthLabel: 'Footing Width', heightLabel: 'Footing Depth', widthDefault: 600, heightDefault: 400, showToe: true, toeWidthDefault: 300, toeDepthDefault: 300 },
   kerbs_channels: { widthLabel: 'Kerb Width', heightLabel: 'Kerb Height', widthDefault: 300, heightDefault: 450 },
-  retaining_walls: { widthLabel: 'Wall Thickness', heightLabel: 'Wall Height', widthDefault: 200, heightDefault: 1200, showToe: true, toeDefault: 300 },
+  retaining_walls: { widthLabel: 'Wall Thickness', heightLabel: 'Wall Height', widthDefault: 200, heightDefault: 1200, showToe: true, toeWidthDefault: 300, toeDepthDefault: 300 },
 };
 
 export function LinearDimensionsDialog({
@@ -117,7 +118,8 @@ export function LinearDimensionsDialog({
   const [name, setName] = useState('');
   const [width, setWidth] = useState(labels.widthDefault);
   const [height, setHeight] = useState(labels.heightDefault);
-  const [toe, setToe] = useState(labels.toeDefault || 0);
+  const [toeWidth, setToeWidth] = useState(labels.toeWidthDefault || 0);
+  const [toeDepth, setToeDepth] = useState(labels.toeDepthDefault || 0);
   const [isSaving, setIsSaving] = useState(false);
 
   // Get selected existing type
@@ -173,7 +175,8 @@ export function LinearDimensionsDialog({
         setWidth(labels.widthDefault);
         setHeight(labels.heightDefault);
       }
-      setToe(labels.toeDefault || 0);
+      setToeWidth(labels.toeWidthDefault || 0);
+      setToeDepth(labels.toeDepthDefault || 0);
     }
   }, [open, preselectedType, hasExistingTypes, existingTypes, newTypeDefaultName, labels]);
 
@@ -201,7 +204,13 @@ export function LinearDimensionsDialog({
     
     setIsSaving(true);
     try {
-      await onConfirm(segmentName, width, height, labels.showToe ? toe : undefined);
+      await onConfirm(
+        segmentName, 
+        width, 
+        height, 
+        labels.showToe ? toeWidth : undefined, 
+        labels.showToe ? toeDepth : undefined
+      );
       onOpenChange(false);
     } finally {
       setIsSaving(false);
@@ -215,7 +224,13 @@ export function LinearDimensionsDialog({
     
     setIsSaving(true);
     try {
-      await onConfirmAndAddAnother?.(segmentName, width, height, labels.showToe ? toe : undefined);
+      await onConfirmAndAddAnother?.(
+        segmentName, 
+        width, 
+        height, 
+        labels.showToe ? toeWidth : undefined, 
+        labels.showToe ? toeDepth : undefined
+      );
       // Close dialog to return to drawing mode for next segment
       onOpenChange(false);
     } finally {
@@ -433,28 +448,51 @@ export function LinearDimensionsDialog({
               )}
             </div>
 
-            {/* Toe input - only for retaining wall scopes */}
+            {/* Toe inputs - only for retaining wall scopes */}
             {labels.showToe && (
-              <div className="space-y-2">
-                <Label htmlFor="toe">Toe Length</Label>
-                <div className="relative">
-                  <Input
-                    id="toe"
-                    type="number"
-                    value={toe}
-                    onChange={(e) => setToe(Number(e.target.value) || 0)}
-                    min={0}
-                    max={1000}
-                    step={50}
-                    className="pr-12"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                    mm
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Distance footing extends beyond wall face (0 if no toe)
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Toe Dimensions</Label>
+                <p className="text-xs text-muted-foreground -mt-1">
+                  Distance footing extends beyond wall face (set to 0 if no toe)
                 </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="toeWidth" className="text-xs text-muted-foreground">Toe Width</Label>
+                    <div className="relative">
+                      <Input
+                        id="toeWidth"
+                        type="number"
+                        value={toeWidth}
+                        onChange={(e) => setToeWidth(Number(e.target.value) || 0)}
+                        min={0}
+                        max={2000}
+                        step={50}
+                        className="pr-12"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        mm
+                      </span>
+                    </div>
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="toeDepth" className="text-xs text-muted-foreground">Toe Depth</Label>
+                    <div className="relative">
+                      <Input
+                        id="toeDepth"
+                        type="number"
+                        value={toeDepth}
+                        onChange={(e) => setToeDepth(Number(e.target.value) || 0)}
+                        min={0}
+                        max={2000}
+                        step={50}
+                        className="pr-12"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                        mm
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
@@ -469,10 +507,10 @@ export function LinearDimensionsDialog({
               <span className="text-muted-foreground">Cross-section:</span>
               <span className="font-medium">{width}mm × {height}mm</span>
             </div>
-            {labels.showToe && toe > 0 && (
+            {labels.showToe && (toeWidth > 0 || toeDepth > 0) && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Toe:</span>
-                <span className="font-medium">{toe}mm</span>
+                <span className="font-medium">{toeWidth}mm × {toeDepth}mm</span>
               </div>
             )}
             <div className="flex justify-between text-sm">

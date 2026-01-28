@@ -2103,7 +2103,9 @@ export type Database = {
           spacer_2way_count: number | null
           spacer_4way_count: number | null
           takeoff_id: string
+          toe_depth_mm: number | null
           toe_mm: number | null
+          toe_width_mm: number | null
           width_mm: number | null
         }
         Insert: {
@@ -2130,7 +2132,9 @@ export type Database = {
           spacer_2way_count?: number | null
           spacer_4way_count?: number | null
           takeoff_id: string
+          toe_depth_mm?: number | null
           toe_mm?: number | null
+          toe_width_mm?: number | null
           width_mm?: number | null
         }
         Update: {
@@ -2157,7 +2161,9 @@ export type Database = {
           spacer_2way_count?: number | null
           spacer_4way_count?: number | null
           takeoff_id?: string
+          toe_depth_mm?: number | null
           toe_mm?: number | null
+          toe_width_mm?: number | null
           width_mm?: number | null
         }
         Relationships: [

@@ -1394,6 +1394,10 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
                 length: roundTo10mm(rawLen),
                 dimension1: Number(f.width) || 0,
                 dimension2: Number(f.depth) || 0,
+                // Toe dimensions for retaining wall footings
+                has_toe: (f.toe_width && f.toe_width > 0) || (f.toe_depth && f.toe_depth > 0),
+                toe_width: Number(f.toe_width) || 0,
+                toe_depth: Number(f.toe_depth) || 0,
                 _fromTakeoff: true,
                 _actualLength: roundTo10mm(rawActual),
               };
