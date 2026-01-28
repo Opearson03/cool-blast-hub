@@ -1490,6 +1490,67 @@ export function generateBOQFromEstimate(
           "2 rails per pod"
         );
       }
+
+      // ═══════════════════════════════════════════════════════════════
+      // WAFFLE POD SPECIFIC REINFORCEMENT ITEMS
+      // ═══════════════════════════════════════════════════════════════
+      
+      // TM Chairs (perimeter ÷ 1.2)
+      const tmChairsCount = Number(scopeAnswers.tm_chairs_count) || 0;
+      if (tmChairsCount > 0) {
+        const bags = Math.ceil(tmChairsCount / 25);
+        addItem(
+          "reinforcement",
+          "Perimeter TM Chairs",
+          bags,
+          "bags of 25",
+          undefined,
+          `${tmChairsCount} chairs total`
+        );
+      }
+
+      // Bar Chairs 25/40 (pods × 3)
+      const barChairsCount = Number(scopeAnswers.bar_chairs_count) || 0;
+      if (barChairsCount > 0) {
+        const bags = Math.ceil(barChairsCount / 100);
+        addItem(
+          "reinforcement",
+          "Bar Chairs 25-40mm",
+          bags,
+          "bags of 100",
+          undefined,
+          `${barChairsCount} chairs total`
+        );
+      }
+
+      // Rib Y-Bar: (pods × 2.3) ÷ 5.5 = qty of 6m lengths
+      // (reuse podCount already calculated above)
+      if (podCount > 0) {
+        const yBarLengths = Math.ceil((podCount * 2.3) / 5.5);
+        if (yBarLengths > 0) {
+          addItem(
+            "reinforcement",
+            "Rib Y-Bar N12",
+            yBarLengths,
+            "× 6m lengths",
+            undefined,
+            "Rib reinforcement"
+          );
+        }
+      }
+
+      // Slab Mesh: area ÷ 12.5 = qty of sheets
+      if (area > 0) {
+        const meshSheets = Math.ceil(area / 12.5);
+        addItem(
+          "reinforcement",
+          "Slab Mesh SL82",
+          meshSheets,
+          "sheets",
+          undefined,
+          `${area.toFixed(1)}m² coverage`
+        );
+      }
     }
   }
 

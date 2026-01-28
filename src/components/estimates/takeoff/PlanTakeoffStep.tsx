@@ -1661,6 +1661,8 @@ export function PlanTakeoffStep({
             wafflePodCount: counts.podCount,
             spacer4WayCount: counts.spacer4Way,
             spacer2WayCount: counts.spacer2Way,
+            tmChairsCount: counts.tmChairs,
+            barChairsCount: counts.barChairs,
           } : null);
         }}
         onStartEdgeBeams={handleStartEdgeBeams}
