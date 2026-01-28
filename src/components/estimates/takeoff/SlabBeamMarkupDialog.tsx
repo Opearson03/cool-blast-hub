@@ -436,7 +436,7 @@ export function SlabBeamMarkupDialog({
 
   const getStepTitle = () => {
     if (isWafflePod && step === 'name') {
-      return 'Name This Waffle Pod';
+      return 'Pods and Accessories';
     }
     if (isDriveway && step === 'name') {
       return 'Name This Driveway';
@@ -1048,7 +1048,7 @@ export function SlabBeamMarkupDialog({
                     </Button>
                   </>
                 ) : (
-                  // Before counting: show count pods action
+                  // Show Next button to proceed to beams
                   <>
                     <Button 
                       variant="secondary" 
@@ -1058,13 +1058,8 @@ export function SlabBeamMarkupDialog({
                       <SkipForward className="h-4 w-4" />
                       Skip All
                     </Button>
-                    <Button onClick={() => {
-                      // Save dimensions before starting pod counting
-                      onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
-                      onStartCountingPods?.();
-                    }} className="w-full sm:w-auto gap-1">
-                      <Grid3X3 className="h-4 w-4" />
-                      Count Pods
+                    <Button onClick={handleWafflePodStartEdgeBeams} className="w-full sm:w-auto gap-1">
+                      Next
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </>
