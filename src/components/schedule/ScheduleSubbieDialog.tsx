@@ -383,52 +383,60 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId }: S
 
             {/* Job selection / Pour selection */}
             {!selectedJob ? (
-              <div className="flex-1 min-h-0 flex flex-col">
-                <Command className="border rounded-lg flex-1 flex flex-col">
-                  <CommandInput
-                    placeholder="Search jobs..."
-                    value={jobSearch}
-                    onValueChange={setJobSearch}
-                  />
-                  <CommandList className="flex-1 max-h-[300px]">
-                    <CommandEmpty>No jobs found.</CommandEmpty>
-                    <CommandGroup heading="Active Jobs">
-                      {filteredJobs.map((job) => (
-                        <CommandItem
-                          key={job.id}
-                          value={job.id}
-                          onSelect={() => handleJobSelect(job)}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex flex-col gap-0.5 flex-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{job.name}</span>
-                              {job.job_type === "misc" && (
-                                <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-purple-500/20 text-purple-600 border-purple-500/30">
-                                  Misc
-                                </Badge>
-                              )}
+              // Show loading state when preselectedJobId is provided but job not yet loaded
+              preselectedJobId ? (
+                <div className="flex-1 flex items-center justify-center py-8">
+                  <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-sm text-muted-foreground">Loading job...</span>
+                </div>
+              ) : (
+                <div className="flex-1 min-h-0 flex flex-col">
+                  <Command className="border rounded-lg flex-1 flex flex-col">
+                    <CommandInput
+                      placeholder="Search jobs..."
+                      value={jobSearch}
+                      onValueChange={setJobSearch}
+                    />
+                    <CommandList className="flex-1 max-h-[300px]">
+                      <CommandEmpty>No jobs found.</CommandEmpty>
+                      <CommandGroup heading="Active Jobs">
+                        {filteredJobs.map((job) => (
+                          <CommandItem
+                            key={job.id}
+                            value={job.id}
+                            onSelect={() => handleJobSelect(job)}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex flex-col gap-0.5 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium">{job.name}</span>
+                                {job.job_type === "misc" && (
+                                  <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-purple-500/20 text-purple-600 border-purple-500/30">
+                                    Misc
+                                  </Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                <MapPin className="h-3 w-3" />
+                                {job.site_address?.split(",")[0]}
+                                {job.job_number && ` • ${job.job_number}`}
+                                {job.job_type === "misc" && job.scheduled_date && (
+                                  <>
+                                    {" • "}
+                                    <Calendar className="h-3 w-3" />
+                                    {format(new Date(job.scheduled_date), "d MMM")}
+                                  </>
+                                )}
+                              </span>
                             </div>
-                            <span className="text-xs text-muted-foreground flex items-center gap-1">
-                              <MapPin className="h-3 w-3" />
-                              {job.site_address?.split(",")[0]}
-                              {job.job_number && ` • ${job.job_number}`}
-                              {job.job_type === "misc" && job.scheduled_date && (
-                                <>
-                                  {" • "}
-                                  <Calendar className="h-3 w-3" />
-                                  {format(new Date(job.scheduled_date), "d MMM")}
-                                </>
-                              )}
-                            </span>
-                          </div>
-                          <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </CommandList>
-                </Command>
-              </div>
+                            <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </div>
+              )
             ) : (
               <div className="flex-1 min-h-0 flex flex-col space-y-3">
                 {/* Back button and job name - only show back button if no preselected job */}
