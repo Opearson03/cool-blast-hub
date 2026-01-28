@@ -2322,6 +2322,10 @@ export type Database = {
       calculate_queue_position: { Args: { _user_id: string }; Returns: number }
       check_employee_limit: { Args: { _business_id: string }; Returns: Json }
       check_invite_email: { Args: { _email: string }; Returns: boolean }
+      generate_unique_email_alias: {
+        Args: { business_name: string }
+        Returns: string
+      }
       get_all_users_for_staff: {
         Args: never
         Returns: {
