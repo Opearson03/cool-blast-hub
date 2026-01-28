@@ -1,396 +1,161 @@
 
 
-# Sub-Trade Referral & Scheduling System - Implementation Plan
+# Subbie Invitation Flow Gap Analysis & Enhancement Plan
 
 ## Executive Summary
 
-This plan implements an External Invite System that allows PourHub businesses to invite subcontractors (pump operators, diggers, testers, finishers) to specific pours via SMS/email. Invites use secure token-based access (no login required), following the existing patterns from quote/variation signing flows.
+The subcontractor (subbie) invitation system is well-integrated across multiple touchpoints, but several opportunities exist to improve visibility, reduce friction, and encourage more invitations. This plan addresses the identified gaps with targeted enhancements.
 
 ---
 
-## Phase 1: Database Schema
+## Current Integration Coverage
 
-### New Tables
+The subbie invitation flow is currently available from:
 
-#### 1. `external_invites` (Core invite tracking)
-
-```sql
-CREATE TABLE public.external_invites (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-  job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-  job_pour_id UUID NOT NULL REFERENCES job_pours(id) ON DELETE CASCADE,
-  
-  -- Invite details
-  invite_type TEXT NOT NULL DEFAULT 'sub_trade',
-  role TEXT NOT NULL,
-  recipient_name TEXT NOT NULL,
-  recipient_phone TEXT,
-  recipient_email TEXT,
-  notes TEXT,
-  
-  -- Status tracking
-  status TEXT NOT NULL DEFAULT 'drafted' 
-    CHECK (status IN ('drafted','sent','viewed','accepted','declined','revoked','expired')),
-  
-  -- Token security (stored hashed)
-  token_hash TEXT NOT NULL UNIQUE,
-  token_expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '14 days'),
-  
-  -- Delivery tracking
-  sent_via TEXT CHECK (sent_via IN ('sms','email','both')),
-  sent_at TIMESTAMPTZ,
-  viewed_at TIMESTAMPTZ,
-  responded_at TIMESTAMPTZ,
-  
-  -- Audit
-  created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  CONSTRAINT require_contact CHECK (recipient_phone IS NOT NULL OR recipient_email IS NOT NULL)
-);
-```
-
-#### 2. `external_invite_events` (Audit trail)
-
-```sql
-CREATE TABLE public.external_invite_events (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  external_invite_id UUID NOT NULL REFERENCES external_invites(id) ON DELETE CASCADE,
-  event_type TEXT NOT NULL,
-  event_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  metadata JSONB DEFAULT '{}'
-);
-```
-
-### RLS Policies
-
-```sql
--- Business users can manage their own invites
-CREATE POLICY "Users can manage invites for their business"
-  ON external_invites FOR ALL
-  USING (business_id = get_user_business_id(auth.uid()))
-  WITH CHECK (business_id = get_user_business_id(auth.uid()));
-
--- Audit events follow parent invite access
-CREATE POLICY "Users can view events for their invites"
-  ON external_invite_events FOR SELECT
-  USING (external_invite_id IN (
-    SELECT id FROM external_invites WHERE business_id = get_user_business_id(auth.uid())
-  ));
-```
-
-### Indexes
-
-```sql
-CREATE INDEX idx_external_invites_business ON external_invites(business_id);
-CREATE INDEX idx_external_invites_pour ON external_invites(job_pour_id);
-CREATE INDEX idx_external_invites_token ON external_invites(token_hash);
-CREATE INDEX idx_external_invites_status ON external_invites(status);
-```
+1. **Pour Creation Wizard** - Step 2 prompts for subbie selection
+2. **Schedule Page "Add to Schedule" Menu** - "Schedule a Subbie" option
+3. **Pour Detail Sheets** (both Job and Schedule views) - Expandable sub-trades section
+4. **Job Subbies Directory** - Invite existing subbies to more pours
+5. **Quick Add Misc Job** - Subbie allocation during creation
 
 ---
 
-## Phase 2: Edge Functions
+## Identified Gaps & Proposed Solutions
 
-### 1. `send-subtrade-invite` (Create & send invite)
+### Gap 1: Dashboard Lacks Subbie Status
 
-**Location**: `supabase/functions/send-subtrade-invite/index.ts`
+**Problem:** The Daily Schedule Widget shows today's pours but doesn't indicate whether subbies have confirmed. Users must navigate to each pour to check.
 
-**Flow**:
-1. Validate input (recipient name, role, contact method)
-2. Generate secure random token (32 bytes, base64url)
-3. Hash token with SHA-256 for storage
-4. Insert invite record with hashed token
-5. Send SMS via Twilio and/or email via Resend
-6. Log event to audit trail
-7. Return success with invite ID
+**Solution:** Add subbie confirmation badges to each pour card in the `DailyScheduleWidget`.
 
-**Token Security**:
-```typescript
-const rawToken = crypto.getRandomValues(new Uint8Array(32));
-const tokenString = base64url.encode(rawToken);
-const tokenHash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(tokenString));
-```
+**Technical Approach:**
+- Modify `DailyScheduleWidget.tsx` to fetch sub-trade invites for today's pours
+- Display a small badge showing confirmed/total subbies (e.g., "2/3 confirmed")
+- Use existing `useSubTradeStats` hook pattern
 
-**SMS Template** (Twilio):
-```
-{BusinessName}: You're invited to work as {Role} on a pour {Date}.
-View & respond: https://pourhub.com.au/i/{token}
-```
-
-**Email Template** (Resend):
-- Subject: `{BusinessName} - Work Invite for {Date}`
-- Body: Business name, pour date/time, site address, role, notes, CTA button
-
-**Required Secret**: `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER`
-
-### 2. `validate-subtrade-token` (Public token validation)
-
-**Location**: `supabase/functions/validate-subtrade-token/index.ts`
-
-**Flow**:
-1. Hash incoming token
-2. Lookup invite by token_hash
-3. Validate: not expired, not revoked, not already responded
-4. Mark as "viewed" if first access
-5. Return pour details (date, time, address, role, notes, business name)
-
-**Security**: Only exposes necessary data - no internal IDs in response.
-
-### 3. `respond-subtrade-invite` (Accept/Decline)
-
-**Location**: `supabase/functions/respond-subtrade-invite/index.ts`
-
-**Flow**:
-1. Validate token (same as above)
-2. Update invite status to accepted/declined
-3. Set responded_at timestamp
-4. Log event to audit trail
-5. Notify business (in-app notification + optional email)
-6. Return success with optional .ics calendar data
+**User Benefit:** At-a-glance visibility of confirmation status for today's work.
 
 ---
 
-## Phase 3: Frontend Components
+### Gap 2: Job Overview Tab Missing Subbie Summary
 
-### 1. Sub-Trade Invite Dialog
+**Problem:** The Job Overview tab shows job details but no aggregate subbie information. Users must navigate to the Pours or Subbies tab.
 
-**Location**: `src/components/jobs/SubTradeInviteDialog.tsx`
+**Solution:** Add a "Sub-Trades" summary card to `JobOverviewTab.tsx` showing:
+- Total unique subbies across all pours
+- Overall confirmation rate
+- Quick link to Subbies tab or action to invite
 
-```text
-┌─────────────────────────────────────────────────┐
-│ Invite Sub-Trade                          [X]   │
-├─────────────────────────────────────────────────┤
-│ For: Slab Pour 1 - 14 March 2025               │
-├─────────────────────────────────────────────────┤
-│ Recipient Name *          [________________]    │
-│                                                 │
-│ Role *                    [Pump Operator  ▼]    │
-│   Options: Pump, Digger/Excavation,             │
-│            Testing, Finisher, Other             │
-│                                                 │
-│ Phone Number              [________________]    │
-│   (For SMS invite)                              │
-│                                                 │
-│ Email Address             [________________]    │
-│   (For email invite)                            │
-│                                                 │
-│ Notes (optional)          [________________]    │
-│   Access instructions, timing, etc.             │
-├─────────────────────────────────────────────────┤
-│              [Preview]    [Send Invite]         │
-└─────────────────────────────────────────────────┘
-```
-
-**Validation**:
-- Name required
-- Role required
-- At least one contact method required
-- Phone in E.164 format (+61...)
-
-### 2. Sub-Trade Status Badge Component
-
-**Location**: `src/components/jobs/SubTradeStatusBadge.tsx`
-
-Visual indicator showing invite status:
-- 🟡 Invited (sent, awaiting response)
-- 🟢 Confirmed (accepted)
-- 🔴 Declined
-- ⚪ Not invited
-
-### 3. Pour Sub-Trades Section
-
-**Location**: Update `src/components/jobs/tabs/JobPoursTab.tsx`
-
-Add collapsible section to each pour card:
-
-```text
-┌─────────────────────────────────────────────────┐
-│ Slab Pour 1          Scheduled    [Edit] [Del] │
-│ Thu 14 Mar @ 06:30   80m³   Hanson              │
-├─────────────────────────────────────────────────┤
-│ ▼ Sub-Trades (2/3 confirmed)                    │
-│                                                 │
-│   🟢 Mike's Pumping - Pump         Confirmed   │
-│   🟢 Digger Dave - Excavation      Confirmed   │
-│   🟡 Test Labs Inc - Testing       Invited     │
-│                                                 │
-│   [+ Invite Sub-Trade]                          │
-└─────────────────────────────────────────────────┘
-```
-
-### 4. Public Invite Response Page
-
-**Location**: `src/pages/public/RespondInvite.tsx`
-**Route**: `/i/:token`
-
-```text
-┌─────────────────────────────────────────────────┐
-│        [XYZ Concreting Logo]                    │
-│                                                 │
-│   You've been invited to work on a pour         │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│   📅 Thursday, 14 March 2025                    │
-│   ⏰ 6:30 AM                                    │
-│   📍 123 Builder St, Suburb NSW 2000            │
-│   🔧 Role: Pump Operator                        │
-│                                                 │
-│   Notes from XYZ Concreting:                    │
-│   "Access via rear gate, be there 15min early"  │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│   [✓ Accept]              [✗ Decline]           │
-│                                                 │
-└─────────────────────────────────────────────────┘
-```
-
-**After Response**:
-```text
-┌─────────────────────────────────────────────────┐
-│         ✓ Thanks!                               │
-│                                                 │
-│   XYZ Concreting has been notified.             │
-│                                                 │
-│   [📅 Add to Calendar]                          │
-│                                                 │
-│   ────────────────────────────                  │
-│   Powered by PourHub                            │
-└─────────────────────────────────────────────────┘
-```
+**Technical Approach:**
+- Fetch `external_invites` for the job
+- Display aggregated stats in a compact card
+- Include an "Invite Sub-Trade" action button
 
 ---
 
-## Phase 4: Schedule Integration
+### Gap 3: Pour Cards Lack Quick-Add Button
 
-### Update Schedule Views
+**Problem:** Pour cards in `JobPoursTab` show a subbie count badge but no quick action to add one. Users must open the detail sheet.
 
-**Files to modify**:
-- `src/pages/admin/AdminSchedule.tsx`
-- `src/components/schedule/PourDetailSheet.tsx`
+**Solution:** Add a small "+" button next to the subbie badge on each pour card.
 
-**Changes**:
-1. Query external_invites when fetching pours
-2. Show confirmation badges on calendar tooltips
-3. Add sub-trade section to pour detail sheet
-
-**Visual indicator on calendar**:
-```text
-┌─────────────────────────────────────────────────┐
-│ Slab Pour 1 @ 123 Builder St                    │
-│ 🟢🟢🟡 3 sub-trades (2 confirmed)               │
-└─────────────────────────────────────────────────┘
-```
+**Technical Approach:**
+- Modify `PourSubbiesBadge` component to accept an `onClick` prop
+- Add a small `Plus` icon button that opens `SubTradeInviteDialog` directly
+- Prevent click propagation to avoid opening the detail sheet
 
 ---
 
-## Phase 5: Notifications
+### Gap 4: No Post-Scheduling Subbie Prompt
 
-### In-App Notification on Response
+**Problem:** When a pour is scheduled (dragged to a date or date set), users aren't prompted to invite subbies.
 
-When a sub-trade accepts/declines, create notification for business users:
-- Type: `subtrade_response`
-- Message: "{Name} has {accepted/declined} the {Role} invite for {Pour Name}"
+**Solution:** After updating a pour's date, show a toast notification with an action to invite subbies.
 
-### Optional Email to Business
-
-If business has email notifications enabled, send summary email on response.
-
----
-
-## File Structure Summary
-
-### New Files
-
-```text
-src/
-├── components/
-│   └── jobs/
-│       ├── SubTradeInviteDialog.tsx
-│       ├── SubTradeStatusBadge.tsx
-│       └── SubTradesList.tsx
-├── pages/
-│   └── public/
-│       └── RespondInvite.tsx
-└── hooks/
-    └── useSubTradeInvites.ts
-
-supabase/
-└── functions/
-    ├── send-subtrade-invite/
-    │   └── index.ts
-    ├── validate-subtrade-token/
-    │   └── index.ts
-    └── respond-subtrade-invite/
-        └── index.ts
-```
-
-### Modified Files
-
-```text
-src/
-├── App.tsx                        (add /i/:token route)
-├── components/
-│   ├── jobs/
-│   │   └── tabs/JobPoursTab.tsx  (add sub-trades section)
-│   └── schedule/
-│       └── PourDetailSheet.tsx    (add sub-trades display)
-└── pages/
-    └── admin/
-        └── AdminSchedule.tsx      (add confirmation badges)
-
-supabase/
-└── config.toml                    (add new function configs)
-```
+**Technical Approach:**
+- Modify the `updatePourDate` mutation in `AdminSchedule.tsx`
+- On success, check if the pour has any subbies
+- If none, show a toast with "Invite Sub-Trades" action that opens the detail sheet
 
 ---
 
-## Required Secrets
+### Gap 5: Misc Jobs Missing Subbies Tab
 
-| Secret | Purpose |
-|--------|---------|
-| `TWILIO_ACCOUNT_SID` | Twilio account identifier |
-| `TWILIO_AUTH_TOKEN` | Twilio API authentication |
-| `TWILIO_PHONE_NUMBER` | Twilio sender phone number |
+**Problem:** The `AdminJobDetail` page hides the "Subbies" tab for misc jobs, but misc jobs now support subbie invitations.
 
-**Note**: `RESEND_API_KEY` already exists for email delivery.
+**Solution:** Show the Subbies tab for misc jobs.
 
----
-
-## Implementation Order
-
-1. **Database** - Create tables, RLS policies, indexes
-2. **Edge Functions** - send-subtrade-invite, validate-subtrade-token, respond-subtrade-invite
-3. **Public Page** - RespondInvite.tsx with token validation
-4. **Internal UI** - SubTradeInviteDialog, SubTradesList, status badges
-5. **Integration** - Update JobPoursTab, PourDetailSheet, AdminSchedule
-6. **Notifications** - In-app + optional email on response
+**Technical Approach:**
+- Modify the conditional rendering in `AdminJobDetail.tsx`
+- Remove `job_type !== "misc"` check for the Subbies tab
+- Keep other concrete-specific tabs (Pours, Test Results) hidden for misc
 
 ---
 
-## Security Considerations
+### Gap 6: Empty State in Subbies Tab is Passive
 
-1. **Token Storage**: Tokens are SHA-256 hashed before storage - raw token never persisted
-2. **Token Expiry**: 14-day default, configurable per invite
-3. **Rate Limiting**: Implement per-business daily invite limit (suggested: 50/day)
-4. **Data Exposure**: Public page only shows: date, time, address, role, notes, business name
-5. **Revocation**: Revoking an invite immediately invalidates the token
-6. **No PII Leakage**: Internal IDs never exposed in URLs or responses
+**Problem:** The empty state says "Subbies invited to pours will appear here" but offers no direct action.
+
+**Solution:** Add a prominent "Invite Your First Subbie" button that opens the subbie selection flow.
+
+**Technical Approach:**
+- Modify `JobSubbiesTab.tsx` empty state
+- Add button that opens a pour-selection dialog (or the first pour if only one exists)
+- Use existing `ScheduleSubbieDialog` pattern for job/pour selection
 
 ---
 
-## Future Extensibility
+### Gap 7: Estimate-to-Job Conversion Misses Subbie Prompt
 
-The `invite_type` field supports future invite types:
-- `builder_approval` - Builder sign-offs
-- `supplier_confirmation` - Material confirmations
-- `crew_confirmation` - Internal crew confirmations
+**Problem:** When converting an accepted estimate to a job with pre-defined pours, there's no prompt to invite subbies.
 
-Each type would add:
-- New value in `invite_type` CHECK constraint
-- New validation logic in token validation function
-- New public page variant
+**Solution:** After job creation from estimate, show a follow-up prompt to invite subbies to the created pours.
+
+**Technical Approach:**
+- Modify `AdminJobs.tsx` to detect when creating from estimate
+- After job + pours creation, show a dialog or toast prompting subbie invites
+- Link to the Subbies tab or open the invite dialog for the first pour
+
+---
+
+## Implementation Priority
+
+| Priority | Gap | Effort | Impact |
+|----------|-----|--------|--------|
+| **High** | Dashboard subbie status | Medium | High visibility, daily use |
+| **High** | Misc jobs Subbies tab | Low | Quick fix, consistency |
+| **Medium** | Pour cards quick-add | Low | Reduces friction |
+| **Medium** | Job Overview summary | Medium | Improves awareness |
+| **Medium** | Empty state improvement | Low | Better onboarding |
+| **Low** | Post-scheduling prompt | Low | Nice nudge |
+| **Low** | Estimate conversion prompt | Medium | Edge case |
+
+---
+
+## Technical Considerations
+
+### Shared Components to Leverage
+- `useBusinessSubbies` hook - for past subbie search
+- `useSendSubTradeInvite` hook - for invite mutation
+- `SubTradeInviteDialog` - existing invitation form
+- `SubTradeStatusBadge` - status visualization
+
+### Database Queries
+All enhancements use the existing `external_invites` table with RLS policies already in place. No schema changes required.
+
+### Performance
+- Dashboard enhancement should use a single query for all today's pours' invites
+- Use React Query's query batching to minimize network requests
+
+---
+
+## Summary
+
+The subbie invitation system has strong foundation but can be improved by:
+1. **Increasing visibility** - Show status in dashboard and job overview
+2. **Reducing friction** - Add quick-add buttons to pour cards
+3. **Ensuring consistency** - Show Subbies tab for misc jobs
+4. **Guiding users** - Improve empty states and add contextual prompts
+
+These enhancements will encourage more subbie invitations by making the feature more discoverable and accessible throughout the workflow.
 
