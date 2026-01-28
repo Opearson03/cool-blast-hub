@@ -15,9 +15,28 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Search, Users, Phone, Mail, Loader2, UserPlus, Check } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Search, Users, Phone, Mail, Loader2, UserPlus, Check, Plus } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+
+const SUBBIE_ROLES = [
+  "Pump Operator",
+  "Concrete Tester",
+  "Finisher",
+  "Labourer",
+  "Formworker",
+  "Steel Fixer",
+  "Excavator Operator",
+  "Bobcat Operator",
+  "Other",
+];
 
 interface Pour {
   id: string;
@@ -39,6 +58,14 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
   const [selectedPourIds, setSelectedPourIds] = useState<string[]>([]);
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [invitedSubbies, setInvitedSubbies] = useState<Set<string>>(new Set());
+  const [isAddNewDialogOpen, setIsAddNewDialogOpen] = useState(false);
+  const [newSubbie, setNewSubbie] = useState({
+    name: "",
+    phone: "",
+    email: "",
+    role: "",
+  });
+  const [newSubbiePourIds, setNewSubbiePourIds] = useState<string[]>([]);
 
   const { data: subbies = [], isLoading } = useBusinessSubbies();
   const sendInvite = useSendSubTradeInvite();
@@ -107,6 +134,49 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
       setIsInviteDialogOpen(false);
       setSelectedSubbie(null);
       setSelectedPourIds([]);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send invites");
+    }
+  };
+
+  const handleOpenAddNew = () => {
+    setNewSubbie({ name: "", phone: "", email: "", role: "" });
+    setNewSubbiePourIds([]);
+    setIsAddNewDialogOpen(true);
+  };
+
+  const toggleNewSubbiePourSelection = (pourId: string) => {
+    setNewSubbiePourIds((prev) =>
+      prev.includes(pourId) ? prev.filter((id) => id !== pourId) : [...prev, pourId]
+    );
+  };
+
+  const handleInviteNewSubbie = async () => {
+    if (!newSubbie.name.trim() || !newSubbie.role || newSubbiePourIds.length === 0) return;
+
+    try {
+      for (const pourId of newSubbiePourIds) {
+        await sendInvite.mutateAsync({
+          job_pour_id: pourId,
+          recipient_name: newSubbie.name.trim(),
+          role: newSubbie.role,
+          recipient_phone: newSubbie.phone.trim() || undefined,
+          recipient_email: newSubbie.email.trim() || undefined,
+        });
+      }
+
+      setInvitedSubbies((prev) => {
+        const updated = new Set(prev);
+        updated.add(`${newSubbie.name.trim()}-${newSubbie.role}`);
+        return updated;
+      });
+
+      toast.success(
+        `Invited ${newSubbie.name} to ${newSubbiePourIds.length} pour${newSubbiePourIds.length > 1 ? "s" : ""}`
+      );
+      setIsAddNewDialogOpen(false);
+      setNewSubbie({ name: "", phone: "", email: "", role: "" });
+      setNewSubbiePourIds([]);
     } catch (error: any) {
       toast.error(error.message || "Failed to send invites");
     }
@@ -184,8 +254,18 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
         />
       </div>
 
+      {/* Add New Button */}
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={handleOpenAddNew}
+      >
+        <Plus className="w-4 h-4 mr-2" />
+        Add New Sub-Contractor
+      </Button>
+
       {/* Subbie List by Trade */}
-      <div className="space-y-4 max-h-[40vh] overflow-y-auto">
+      <div className="space-y-4 max-h-[35vh] overflow-y-auto">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin" />
@@ -200,7 +280,7 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
                   : "No previous sub-contractors found."}
               </p>
               <p className="text-xs mt-2">
-                Sub-contractors will appear here once you've invited them to jobs.
+                Use the button above to add a new sub-contractor.
               </p>
             </CardContent>
           </Card>
@@ -261,7 +341,7 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
         )}
       </div>
 
-      {/* Pour Selection Dialog */}
+      {/* Pour Selection Dialog (existing subbie) */}
       <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -271,7 +351,7 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-3 py-4">
+          <div className="space-y-3 py-4 max-h-[40vh] overflow-y-auto">
             {pours.map((pour) => {
               const date = pourDates[pour.id];
               return (
@@ -325,6 +405,140 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
                 <UserPlus className="w-4 h-4 mr-2" />
               )}
               Invite to {selectedPourIds.length} pour{selectedPourIds.length !== 1 ? "s" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add New Sub-Contractor Dialog */}
+      <Dialog open={isAddNewDialogOpen} onOpenChange={setIsAddNewDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add New Sub-Contractor</DialogTitle>
+            <DialogDescription>
+              Enter the sub-contractor's details and select which pours to invite them to.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-4 max-h-[50vh] overflow-y-auto">
+            {/* Subbie Details */}
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label htmlFor="new-subbie-name">Name *</Label>
+                <Input
+                  id="new-subbie-name"
+                  placeholder="e.g. John Smith"
+                  value={newSubbie.name}
+                  onChange={(e) => setNewSubbie((prev) => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-subbie-role">Trade / Role *</Label>
+                <Select
+                  value={newSubbie.role}
+                  onValueChange={(value) => setNewSubbie((prev) => ({ ...prev, role: value }))}
+                >
+                  <SelectTrigger id="new-subbie-role">
+                    <SelectValue placeholder="Select a trade..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SUBBIE_ROLES.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-subbie-phone">Phone</Label>
+                <Input
+                  id="new-subbie-phone"
+                  type="tel"
+                  placeholder="e.g. 0412 345 678"
+                  value={newSubbie.phone}
+                  onChange={(e) => setNewSubbie((prev) => ({ ...prev, phone: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-subbie-email">Email</Label>
+                <Input
+                  id="new-subbie-email"
+                  type="email"
+                  placeholder="e.g. john@example.com"
+                  value={newSubbie.email}
+                  onChange={(e) => setNewSubbie((prev) => ({ ...prev, email: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            {/* Pour Selection */}
+            <div className="space-y-2 pt-2 border-t">
+              <Label>Invite to Pours *</Label>
+              <div className="space-y-2">
+                {pours.map((pour) => {
+                  const date = pourDates[pour.id];
+                  return (
+                    <div
+                      key={pour.id}
+                      className="flex items-center space-x-3 p-3 rounded-lg border cursor-pointer hover:bg-accent/50 transition-colors"
+                      onClick={() => toggleNewSubbiePourSelection(pour.id)}
+                    >
+                      <Checkbox
+                        id={`new-pour-${pour.id}`}
+                        checked={newSubbiePourIds.includes(pour.id)}
+                        onCheckedChange={() => toggleNewSubbiePourSelection(pour.id)}
+                      />
+                      <Label
+                        htmlFor={`new-pour-${pour.id}`}
+                        className="flex-1 cursor-pointer"
+                      >
+                        <span className="font-medium">{pour.pour_name}</span>
+                        {date && (
+                          <span className="text-muted-foreground text-sm ml-2">
+                            — {format(date, "EEE, d MMM")}
+                          </span>
+                        )}
+                        {pour.estimated_m3 && (
+                          <span className="text-muted-foreground text-sm ml-2">
+                            ({pour.estimated_m3}m³)
+                          </span>
+                        )}
+                      </Label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsAddNewDialogOpen(false)}
+              className="w-full sm:w-auto"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleInviteNewSubbie}
+              disabled={
+                !newSubbie.name.trim() ||
+                !newSubbie.role ||
+                newSubbiePourIds.length === 0 ||
+                sendInvite.isPending
+              }
+              className="w-full sm:w-auto"
+            >
+              {sendInvite.isPending ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <UserPlus className="w-4 h-4 mr-2" />
+              )}
+              Add & Invite to {newSubbiePourIds.length} pour{newSubbiePourIds.length !== 1 ? "s" : ""}
             </Button>
           </DialogFooter>
         </DialogContent>
