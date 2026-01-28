@@ -1,9 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Users, Calendar, MapPin } from "lucide-react";
-import { format } from "date-fns";
+import { Users, Phone, Mail } from "lucide-react";
 import { SubTradeStatusBadge } from "@/components/jobs/SubTradeStatusBadge";
 import type { SubTradeInvite } from "@/hooks/useSubTradeInvites";
 
@@ -11,16 +9,18 @@ interface JobSubbiesTabProps {
   jobId: string;
 }
 
-interface PourWithJob {
-  id: string;
-  pour_name: string;
-  pour_date: string | null;
-  scheduled_time: string | null;
+interface SubbieDirectory {
+  recipient_name: string;
+  recipient_phone: string | null;
+  recipient_email: string | null;
+  role: string;
+  latestStatus: SubTradeInvite["status"];
+  inviteCount: number;
 }
 
 export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
   // Fetch all invites for this job
-  const { data: invites = [], isLoading: loadingInvites } = useQuery({
+  const { data: invites = [], isLoading } = useQuery({
     queryKey: ["sub-trade-invites-job", jobId],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -34,45 +34,50 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
     },
   });
 
-  // Fetch pours for this job to show context
-  const { data: pours = [] } = useQuery({
-    queryKey: ["job-pours", jobId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("job_pours")
-        .select("id, pour_name, pour_date, scheduled_time")
-        .eq("job_id", jobId)
-        .order("pour_date", { ascending: true });
-      if (error) throw error;
-      return data as PourWithJob[];
-    },
-  });
-
-  if (loadingInvites) {
+  if (isLoading) {
     return (
       <div className="text-center py-8 text-muted-foreground">Loading subbies...</div>
     );
   }
 
-  // Group invites by pour
-  const invitesByPour = pours.map((pour) => ({
-    pour,
-    invites: invites.filter((inv) => inv.job_pour_id === pour.id),
-  }));
+  // Deduplicate subbies by name + role, keeping latest status and contact info
+  const subbieMap = new Map<string, SubbieDirectory>();
+  
+  for (const invite of invites) {
+    const key = `${invite.recipient_name.toLowerCase().trim()}-${invite.role.toLowerCase().trim()}`;
+    const existing = subbieMap.get(key);
+    
+    if (!existing) {
+      subbieMap.set(key, {
+        recipient_name: invite.recipient_name,
+        recipient_phone: invite.recipient_phone,
+        recipient_email: invite.recipient_email,
+        role: invite.role,
+        latestStatus: invite.status as SubTradeInvite["status"],
+        inviteCount: 1,
+      });
+    } else {
+      existing.inviteCount += 1;
+      // Update contact info if missing
+      if (!existing.recipient_phone && invite.recipient_phone) {
+        existing.recipient_phone = invite.recipient_phone;
+      }
+      if (!existing.recipient_email && invite.recipient_email) {
+        existing.recipient_email = invite.recipient_email;
+      }
+    }
+  }
 
-  const totalInvites = invites.length;
-  const confirmedCount = invites.filter((i) => i.status === "accepted").length;
-  const pendingCount = invites.filter((i) => ["sent", "viewed"].includes(i.status)).length;
-  const declinedCount = invites.filter((i) => i.status === "declined").length;
+  const subbies = Array.from(subbieMap.values());
 
-  if (totalInvites === 0) {
+  if (subbies.length === 0) {
     return (
       <Card>
         <CardContent className="py-12 text-center">
           <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">No Subbies Invited</h3>
+          <h3 className="font-semibold mb-2">No Subbies Yet</h3>
           <p className="text-muted-foreground">
-            Go to the Pours tab to invite subcontractors to specific pours
+            Subbies invited to pours on this job will appear here
           </p>
         </CardContent>
       </Card>
@@ -80,75 +85,49 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Summary Stats */}
-      <div className="grid grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold">{totalInvites}</div>
-            <p className="text-xs text-muted-foreground">Total Invited</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-success">{confirmedCount}</div>
-            <p className="text-xs text-muted-foreground">Confirmed</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-warning">{pendingCount}</div>
-            <p className="text-xs text-muted-foreground">Pending</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4 text-center">
-            <div className="text-2xl font-bold text-destructive">{declinedCount}</div>
-            <p className="text-xs text-muted-foreground">Declined</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Invites by Pour */}
-      <div className="space-y-3">
-        {invitesByPour.map(({ pour, invites: pourInvites }) => {
-          if (pourInvites.length === 0) return null;
-          
-          return (
-            <Card key={pour.id}>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3 pb-2 border-b">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium">{pour.pour_name}</span>
-                  {pour.pour_date && (
-                    <span className="text-sm text-muted-foreground">
-                      — {format(new Date(pour.pour_date), "EEE, d MMM")}
-                      {pour.scheduled_time && ` @ ${pour.scheduled_time.slice(0, 5)}`}
-                    </span>
+    <div className="space-y-2">
+      {subbies.map((subbie, index) => (
+        <Card key={index}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium truncate">{subbie.recipient_name}</span>
+                  <span className="text-sm text-muted-foreground">({subbie.role})</span>
+                </div>
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                  {subbie.recipient_phone && (
+                    <a 
+                      href={`tel:${subbie.recipient_phone}`} 
+                      className="flex items-center gap-1 hover:text-foreground"
+                    >
+                      <Phone className="h-3.5 w-3.5" />
+                      <span>{subbie.recipient_phone}</span>
+                    </a>
+                  )}
+                  {subbie.recipient_email && (
+                    <a 
+                      href={`mailto:${subbie.recipient_email}`} 
+                      className="flex items-center gap-1 hover:text-foreground"
+                    >
+                      <Mail className="h-3.5 w-3.5" />
+                      <span className="truncate max-w-[200px]">{subbie.recipient_email}</span>
+                    </a>
                   )}
                 </div>
-                
-                <div className="space-y-2">
-                  {pourInvites.map((invite) => (
-                    <div
-                      key={invite.id}
-                      className="flex items-center justify-between py-2 px-3 bg-muted/30 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div>
-                          <div className="font-medium text-sm">{invite.recipient_name}</div>
-                          <div className="text-xs text-muted-foreground">{invite.role}</div>
-                        </div>
-                      </div>
-                      <SubTradeStatusBadge status={invite.status as any} />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {subbie.inviteCount > 1 && (
+                  <span className="text-xs text-muted-foreground">
+                    {subbie.inviteCount} pours
+                  </span>
+                )}
+                <SubTradeStatusBadge status={subbie.latestStatus} />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
