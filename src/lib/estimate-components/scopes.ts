@@ -652,8 +652,31 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     const edgeBeamPartB = edgeBeamLength * totalHeightM * 0.05;
     const edgeBeamVolume = edgeBeamPartA + edgeBeamPartB;
     
+    // Step 3: Internal beam volume (geometric calculation)
+    // Internal beams occupy full depth in the void space between pods
+    const beams = answers.beams || [];
+    let internalBeamVolume = 0;
+    
+    if (Array.isArray(beams) && beams.length > 0) {
+      // Calculate from beam configurations array (from takeoff or multi-beam input)
+      internalBeamVolume = beams.reduce((sum: number, beam: any) => {
+        // Only count internal beams (not edge beams)
+        if (beam.type === 'edge_beam' || beam.markup_type === 'edge_beam') return sum;
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 110) / 1000; // Default 110mm for waffle pod
+        const depthM = (Number(beam.depth) || totalHeightMm) / 1000; // Default to total slab height
+        return sum + lengthM * widthM * depthM;
+      }, 0);
+    } else {
+      // Fallback to legacy single-value fields
+      const internalLength = Number(answers.internal_beams_length) || 0;
+      const internalWidthM = (Number(answers.internal_beam_width) || 110) / 1000;
+      const internalDepthM = (Number(answers.internal_beam_depth) || totalHeightMm) / 1000;
+      internalBeamVolume = internalLength * internalWidthM * internalDepthM;
+    }
+    
     // Base volume (wastage applied in concrete-supply module at 10%)
-    const baseVolume = slabBodyVolume + edgeBeamVolume;
+    const baseVolume = slabBodyVolume + edgeBeamVolume + internalBeamVolume;
     
     return safeVolume(baseVolume);
   },
