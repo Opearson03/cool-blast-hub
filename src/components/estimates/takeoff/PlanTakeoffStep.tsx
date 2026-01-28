@@ -787,11 +787,21 @@ export function PlanTakeoffStep({
       ? manualPodCount 
       : (pierPoints.length > 0 ? pierPoints.length : wafflePodPoints.length);
     
-    // Store the count in pending slab data
+    // Auto-calculate spacer counts from pod count using grid-based heuristic
+    // Assuming near-square layout: rows ≈ cols ≈ √podCount
+    const gridSize = Math.sqrt(currentPodCount);
+    const rows = Math.round(gridSize);
+    const cols = Math.ceil(currentPodCount / Math.max(rows, 1));
+    const auto4Way = Math.max(0, (rows - 1) * (cols - 1));
+    const auto2Way = Math.max(0, 2 * (rows + cols - 2));
+    
+    // Store the count in pending slab data with auto-calculated spacers
     setPendingSlabData(prev => prev ? {
       ...prev,
       wafflePodCount: currentPodCount,
       wafflePodThickness: Number(wafflePodDepth),
+      spacer4WayCount: auto4Way,
+      spacer2WayCount: auto2Way,
     } : null);
     
     // Mark counting as complete and proceed to beam workflow
