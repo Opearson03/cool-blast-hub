@@ -150,6 +150,7 @@ export function PlanTakeoffStep({
   const [spacer2WayPoints, setSpacer2WayPoints] = useState<TakeoffPoint[]>([]);
   const [wafflePodDepth, setWafflePodDepth] = useState<string>('225');
   const [wafflePodCountingComplete, setWafflePodCountingComplete] = useState(false);
+  const [manualPodCount, setManualPodCount] = useState<number | null>(null);
   
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
   const isSlabBeamMarking = slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beam' || slabWorkflowStep === 'mark_internal_beam');
@@ -780,8 +781,10 @@ export function PlanTakeoffStep({
   
   // Handler: Save pod count and optionally continue to 4-way spacers
   const handleSavePodCount = useCallback(() => {
-    // Use pierPoints (active points) if available, otherwise fallback to wafflePodPoints
-    const currentPodCount = pierPoints.length > 0 ? pierPoints.length : wafflePodPoints.length;
+    // Use manual count if set, otherwise use pierPoints count, finally fallback to wafflePodPoints
+    const currentPodCount = manualPodCount !== null 
+      ? manualPodCount 
+      : (pierPoints.length > 0 ? pierPoints.length : wafflePodPoints.length);
     
     // Store the count in pending slab data
     setPendingSlabData(prev => prev ? {
@@ -796,23 +799,32 @@ export function PlanTakeoffStep({
     setShowWafflePodCountDialog(false);
     setPierPoints([]);
     setWafflePodPoints([]);
+    setManualPodCount(null);
     setActiveScope('waffle_pod');
     setActiveTool('select');
     
     // Return to the slab dialog to add beams
     setSlabWorkflowStep('name');
     setShowSlabBeamDialog(true);
-  }, [pierPoints.length, wafflePodPoints.length, wafflePodDepth]);
+  }, [pierPoints.length, wafflePodPoints.length, wafflePodDepth, manualPodCount]);
   
   // Handler: Save pod count and start 4-way counting
   const handleSavePodCountAnd4Way = useCallback(() => {
+    // Use manual count if set, otherwise use pierPoints count
+    const currentPodCount = manualPodCount !== null 
+      ? manualPodCount 
+      : pierPoints.length;
+    
     // Save pod points
     setWafflePodPoints([...pierPoints]);
     setPendingSlabData(prev => prev ? {
       ...prev,
-      wafflePodCount: pierPoints.length,
+      wafflePodCount: currentPodCount,
       wafflePodThickness: Number(wafflePodDepth),
     } : null);
+    
+    // Reset manual count
+    setManualPodCount(null);
     
     // Switch to 4-way spacer counting
     setShowWafflePodCountDialog(false);
@@ -820,7 +832,12 @@ export function PlanTakeoffStep({
     setActiveScope('spacers_4way');
     setPierPoints([]);
     setActiveTool('point');
-  }, [pierPoints, wafflePodDepth]);
+  }, [pierPoints, wafflePodDepth, manualPodCount]);
+  
+  // Handler: Manual pod count change from dialog
+  const handleManualPodCountChange = useCallback((count: number) => {
+    setManualPodCount(count);
+  }, []);
   
   // Handler: Save 4-way count
   const handleSave4WayCount = useCallback(() => {
@@ -914,6 +931,7 @@ export function PlanTakeoffStep({
     setSpacer4WayPoints([]);
     setSpacer2WayPoints([]);
     setPierPoints([]);
+    setManualPodCount(null);
     setActiveScope('waffle_pod');
     setActiveTool('select');
     
@@ -1883,12 +1901,13 @@ export function PlanTakeoffStep({
         open={showWafflePodCountDialog}
         onOpenChange={setShowWafflePodCountDialog}
         step={wafflePodCountStep}
-        podCount={wafflePodCountStep === 'count_pods' ? pierPoints.length : wafflePodPoints.length}
+        podCount={manualPodCount !== null ? manualPodCount : (wafflePodCountStep === 'count_pods' ? pierPoints.length : wafflePodPoints.length)}
         podDepth={wafflePodDepth}
         onPodDepthChange={setWafflePodDepth}
         spacer4WayCount={wafflePodCountStep === 'count_4way' ? pierPoints.length : spacer4WayPoints.length}
         spacer2WayCount={wafflePodCountStep === 'count_2way' ? pierPoints.length : spacer2WayPoints.length}
         topSlabThickness={pendingSlabData?.wafflePodTopThickness || 85}
+        onManualPodCountChange={handleManualPodCountChange}
         onSavePodCount={handleSavePodCount}
         onSaveAnd4Way={handleSavePodCountAnd4Way}
         onSave4WayCount={handleSave4WayCount}
