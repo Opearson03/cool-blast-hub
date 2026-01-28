@@ -29,10 +29,11 @@ interface SubTradesListProps {
   pourId: string;
   pourName: string;
   pourDate: string | null;
+  expanded?: boolean;
 }
 
-export function SubTradesList({ jobId, pourId, pourName, pourDate }: SubTradesListProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = false }: SubTradesListProps) {
+  const [isOpen, setIsOpen] = useState(expanded);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
   const [revokeInvite, setRevokeInvite] = useState<SubTradeInvite | null>(null);
 
