@@ -651,6 +651,129 @@ export type Database = {
           },
         ]
       }
+      external_invite_events: {
+        Row: {
+          event_at: string
+          event_type: string
+          external_invite_id: string
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          event_at?: string
+          event_type: string
+          external_invite_id: string
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          event_at?: string
+          event_type?: string
+          external_invite_id?: string
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_invite_events_external_invite_id_fkey"
+            columns: ["external_invite_id"]
+            isOneToOne: false
+            referencedRelation: "external_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      external_invites: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          invite_type: string
+          job_id: string
+          job_pour_id: string
+          notes: string | null
+          recipient_email: string | null
+          recipient_name: string
+          recipient_phone: string | null
+          responded_at: string | null
+          role: string
+          sent_at: string | null
+          sent_via: string | null
+          status: string
+          token_expires_at: string
+          token_hash: string
+          updated_at: string
+          viewed_at: string | null
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invite_type?: string
+          job_id: string
+          job_pour_id: string
+          notes?: string | null
+          recipient_email?: string | null
+          recipient_name: string
+          recipient_phone?: string | null
+          responded_at?: string | null
+          role: string
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: string
+          token_expires_at?: string
+          token_hash: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invite_type?: string
+          job_id?: string
+          job_pour_id?: string
+          notes?: string | null
+          recipient_email?: string | null
+          recipient_name?: string
+          recipient_phone?: string | null
+          responded_at?: string | null
+          role?: string
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: string
+          token_expires_at?: string
+          token_hash?: string
+          updated_at?: string
+          viewed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "external_invites_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_invites_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "external_invites_job_pour_id_fkey"
+            columns: ["job_pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_posts: {
         Row: {
           author_id: string
