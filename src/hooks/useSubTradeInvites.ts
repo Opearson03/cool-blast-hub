@@ -19,6 +19,13 @@ export interface SubTradeInvite {
   viewed_at: string | null;
   responded_at: string | null;
   created_at: string;
+  // Delivery tracking fields
+  sms_delivery_status: "sent" | "failed" | "rate_limited" | null;
+  sms_message_sid: string | null;
+  sms_error_message: string | null;
+  email_delivery_status: "sent" | "failed" | null;
+  email_message_id: string | null;
+  email_error_message: string | null;
 }
 
 export function useSubTradeInvites(jobPourId: string | undefined) {
@@ -74,7 +81,11 @@ export function useSendSubTradeInvite() {
       });
 
       if (error) throw error;
-      if (result.error) throw new Error(result.error);
+      if (result.error) {
+        const err = new Error(result.error) as any;
+        err.code = result.code;
+        throw err;
+      }
       return result;
     },
     onSuccess: (_, variables) => {
@@ -104,20 +115,62 @@ export function useRevokeSubTradeInvite() {
   });
 }
 
+export function useResendSubTradeNotification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ inviteId, jobPourId }: { inviteId: string; jobPourId: string }) => {
+      // Re-invoke the send function to resend notifications
+      // This requires fetching invite details first
+      const { data: invite, error: fetchError } = await supabase
+        .from("external_invites")
+        .select("*")
+        .eq("id", inviteId)
+        .single();
+
+      if (fetchError || !invite) throw new Error("Invite not found");
+
+      const { data: result, error } = await supabase.functions.invoke("send-subtrade-invite", {
+        body: {
+          job_pour_id: invite.job_pour_id,
+          recipient_name: invite.recipient_name,
+          role: invite.role,
+          recipient_phone: invite.recipient_phone,
+          recipient_email: invite.recipient_email,
+          notes: invite.notes,
+          resend_invite_id: inviteId,
+        },
+      });
+
+      if (error) throw error;
+      if (result.error) throw new Error(result.error);
+      return { jobPourId, result };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["sub-trade-invites", result.jobPourId] });
+      queryClient.invalidateQueries({ queryKey: ["sub-trade-invites-job"] });
+    },
+  });
+}
+
 // Aggregated invite stats for a pour
 export function useSubTradeStats(invites: SubTradeInvite[] | undefined) {
   if (!invites || invites.length === 0) {
-    return { total: 0, confirmed: 0, pending: 0, declined: 0 };
+    return { total: 0, confirmed: 0, pending: 0, declined: 0, deliveryIssues: 0 };
   }
 
   const confirmed = invites.filter((i) => i.status === "accepted").length;
   const declined = invites.filter((i) => i.status === "declined").length;
   const pending = invites.filter((i) => ["sent", "viewed"].includes(i.status)).length;
+  const deliveryIssues = invites.filter(
+    (i) => i.sms_delivery_status === "failed" || i.email_delivery_status === "failed"
+  ).length;
 
   return {
     total: invites.length,
     confirmed,
     pending,
     declined,
+    deliveryIssues,
   };
 }
