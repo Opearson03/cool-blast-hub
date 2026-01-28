@@ -691,6 +691,8 @@ export type Database = {
       }
       external_invites: {
         Row: {
+          batch_id: string | null
+          batch_token_hash: string | null
           business_id: string
           created_at: string
           created_by: string | null
@@ -719,6 +721,8 @@ export type Database = {
           viewed_at: string | null
         }
         Insert: {
+          batch_id?: string | null
+          batch_token_hash?: string | null
           business_id: string
           created_at?: string
           created_by?: string | null
@@ -747,6 +751,8 @@ export type Database = {
           viewed_at?: string | null
         }
         Update: {
+          batch_id?: string | null
+          batch_token_hash?: string | null
           business_id?: string
           created_at?: string
           created_by?: string | null

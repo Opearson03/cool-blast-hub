@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { useBusinessSubbies, PastSubbie } from "@/hooks/useBusinessSubbies";
-import { useSendSubTradeInvite } from "@/hooks/useSubTradeInvites";
+import { useSendBatchSubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,7 +68,7 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
   const [newSubbiePourIds, setNewSubbiePourIds] = useState<string[]>([]);
 
   const { data: subbies = [], isLoading } = useBusinessSubbies();
-  const sendInvite = useSendSubTradeInvite();
+  const sendBatchInvite = useSendBatchSubTradeInvite();
 
   // Group subbies by trade/role
   const subbiesByTrade = useMemo(() => {
@@ -110,16 +110,14 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
     if (!selectedSubbie || selectedPourIds.length === 0) return;
 
     try {
-      // Send invites for each selected pour
-      for (const pourId of selectedPourIds) {
-        await sendInvite.mutateAsync({
-          job_pour_id: pourId,
-          recipient_name: selectedSubbie.recipient_name,
-          role: selectedSubbie.role,
-          recipient_phone: selectedSubbie.recipient_phone || undefined,
-          recipient_email: selectedSubbie.recipient_email || undefined,
-        });
-      }
+      // Send batch invite for all selected pours at once
+      await sendBatchInvite.mutateAsync({
+        job_pour_ids: selectedPourIds,
+        recipient_name: selectedSubbie.recipient_name,
+        role: selectedSubbie.role,
+        recipient_phone: selectedSubbie.recipient_phone || undefined,
+        recipient_email: selectedSubbie.recipient_email || undefined,
+      });
 
       // Mark as invited
       setInvitedSubbies((prev) => {
@@ -155,15 +153,14 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
     if (!newSubbie.name.trim() || !newSubbie.role || newSubbiePourIds.length === 0) return;
 
     try {
-      for (const pourId of newSubbiePourIds) {
-        await sendInvite.mutateAsync({
-          job_pour_id: pourId,
-          recipient_name: newSubbie.name.trim(),
-          role: newSubbie.role,
-          recipient_phone: newSubbie.phone.trim() || undefined,
-          recipient_email: newSubbie.email.trim() || undefined,
-        });
-      }
+      // Send batch invite for new subbie
+      await sendBatchInvite.mutateAsync({
+        job_pour_ids: newSubbiePourIds,
+        recipient_name: newSubbie.name.trim(),
+        role: newSubbie.role,
+        recipient_phone: newSubbie.phone.trim() || undefined,
+        recipient_email: newSubbie.email.trim() || undefined,
+      });
 
       setInvitedSubbies((prev) => {
         const updated = new Set(prev);
@@ -396,10 +393,10 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
             </Button>
             <Button
               onClick={handleInviteSubbie}
-              disabled={selectedPourIds.length === 0 || sendInvite.isPending}
+              disabled={selectedPourIds.length === 0 || sendBatchInvite.isPending}
               className="w-full sm:w-auto"
             >
-              {sendInvite.isPending ? (
+              {sendBatchInvite.isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <UserPlus className="w-4 h-4 mr-2" />

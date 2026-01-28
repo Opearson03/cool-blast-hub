@@ -75,10 +75,25 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { token, response } = await req.json();
+    const body = await req.json();
+    const { token, response, responses } = body;
 
-    if (!token || !response) {
-      return new Response(JSON.stringify({ error: "Token and response required" }), {
+    // Validate input - either single response or batch responses
+    if (!token) {
+      return new Response(JSON.stringify({ error: "Token required" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Handle batch responses (array of {invite_id, response})
+    if (responses && Array.isArray(responses)) {
+      return await handleBatchResponses(token, responses);
+    }
+
+    // Handle single response (backwards compatible)
+    if (!response) {
+      return new Response(JSON.stringify({ error: "Response required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -206,157 +221,9 @@ const handler = async (req: Request): Promise<Response> => {
         })
       : "TBA";
 
-    // === SEND CONFIRMATION TO SUBBIE ===
-    const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
-    const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
-    const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
-    const resendApiKey = Deno.env.get("RESEND_API_KEY");
-
-    // Send confirmation SMS to subbie
-    if (invite.recipient_phone && twilioAccountSid && twilioAuthToken && twilioPhoneNumber) {
-      try {
-        const formattedPhone = formatPhoneE164(invite.recipient_phone);
-        let confirmationSms: string;
-
-        if (response === "accepted") {
-          confirmationSms = `Confirmed! You're booked for ${pourDateFormatted} with ${business?.name || "the business"}.\nRole: ${invite.role}\nSite: ${job?.site_address || "TBA"}`;
-        } else {
-          confirmationSms = `Thanks for letting us know. ${business?.name || "We"}'ll keep you in mind for future work.`;
-        }
-
-        const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
-        const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
-
-        const smsResponse = await fetch(twilioUrl, {
-          method: "POST",
-          headers: {
-            Authorization: `Basic ${twilioAuth}`,
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: new URLSearchParams({
-            To: formattedPhone,
-            From: twilioPhoneNumber,
-            Body: confirmationSms,
-          }),
-        });
-
-        if (!smsResponse.ok) {
-          const smsError = await smsResponse.text();
-          console.error("Confirmation SMS failed:", smsError);
-        } else {
-          console.log("Confirmation SMS sent to subbie:", formattedPhone);
-        }
-      } catch (smsErr) {
-        console.error("Confirmation SMS error:", smsErr);
-      }
-    }
-
-    // Send confirmation email to subbie
-    if (invite.recipient_email && resendApiKey) {
-      try {
-        const resend = new Resend(resendApiKey);
-
-        const statusEmoji = response === "accepted" ? "✅" : "❌";
-        const statusText = response === "accepted" ? "Booking Confirmed" : "Response Recorded";
-        const headerColor = response === "accepted" ? "#10b981" : "#6b7280";
-
-        let confirmationEmailHtml: string;
-
-        if (response === "accepted") {
-          confirmationEmailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-</head>
-<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
-    <tr>
-      <td align="center">
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
-          <tr>
-            <td style="background-color: ${headerColor}; padding: 24px; text-align: center;">
-              <h1 style="color: #ffffff; margin: 0; font-size: 20px;">${statusEmoji} ${statusText}</h1>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 32px 24px;">
-              <p style="color: #1f2937; margin: 0 0 16px 0; font-size: 16px;">
-                Hi ${invite.recipient_name},
-              </p>
-              <p style="color: #6b7280; margin: 0 0 24px 0; font-size: 16px;">
-                You're confirmed to work with <strong>${business?.name}</strong>. Here are your job details:
-              </p>
-              
-              <table width="100%" style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
-                <tr><td style="padding: 8px 0; color: #6b7280;">📅 Date:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pourDateFormatted}</td></tr>
-                ${pour?.scheduled_time ? `<tr><td style="padding: 8px 0; color: #6b7280;">⏰ Time:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pour.scheduled_time.slice(0, 5)}</td></tr>` : ""}
-                <tr><td style="padding: 8px 0; color: #6b7280;">📍 Site:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${job?.site_address}</td></tr>
-                <tr><td style="padding: 8px 0; color: #6b7280;">🔧 Role:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${invite.role}</td></tr>
-              </table>
-              
-              <p style="color: #6b7280; margin: 0; font-size: 14px;">
-                If you have any questions, please contact ${business?.name} directly.
-              </p>
-            </td>
-          </tr>
-          <tr>
-            <td style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
-              <p style="margin: 0; color: #9ca3af; font-size: 12px;">Powered by PourHub</p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-        } else {
-          confirmationEmailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-</head>
-<body style="margin: 0; padding: 20px; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
-    <tr>
-      <td style="background-color: ${headerColor}; padding: 20px; text-align: center;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 18px;">Response Recorded</h1>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 24px;">
-        <p style="color: #1f2937; margin: 0 0 16px 0;">Hi ${invite.recipient_name},</p>
-        <p style="color: #6b7280; margin: 0 0 16px 0;">
-          Thanks for letting us know you can't make it. ${business?.name} will keep you in mind for future work.
-        </p>
-        <p style="color: #6b7280; margin: 0;">Best regards,<br>${business?.name}</p>
-      </td>
-    </tr>
-    <tr>
-      <td style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
-        <p style="margin: 0; color: #9ca3af; font-size: 12px;">Powered by PourHub</p>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-        }
-
-        await resend.emails.send({
-          from: `PourHub <Hello@contact.pourhub.au>`,
-          to: [invite.recipient_email],
-          subject: `${statusEmoji} ${statusText} - ${pour?.pour_name || "Work Invite"}`,
-          html: confirmationEmailHtml,
-        });
-
-        console.log("Confirmation email sent to subbie:", invite.recipient_email);
-      } catch (emailErr) {
-        console.error("Confirmation email error:", emailErr);
-      }
-    }
+    // Send notifications
+    await sendSubbieConfirmation(invite, response, pourDateFormatted, business, pour, job);
+    await sendBusinessNotification(invite, response, pourDateFormatted, business, pour, job);
 
     // Log confirmation sent event
     await supabase.from("external_invite_events").insert({
@@ -368,62 +235,6 @@ const handler = async (req: Request): Promise<Response> => {
         email_sent: !!invite.recipient_email,
       },
     });
-
-    // === SEND NOTIFICATION TO BUSINESS ===
-    if (resendApiKey && business?.email) {
-      try {
-        const resend = new Resend(resendApiKey);
-
-        const statusEmoji = response === "accepted" ? "✅" : "❌";
-        const statusText = response === "accepted" ? "ACCEPTED" : "DECLINED";
-
-        const businessEmailHtml = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-</head>
-<body style="margin: 0; padding: 20px; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 8px; overflow: hidden;">
-    <tr>
-      <td style="background-color: ${response === "accepted" ? "#10b981" : "#ef4444"}; padding: 20px; text-align: center;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 20px;">${statusEmoji} Sub-Trade ${statusText}</h1>
-      </td>
-    </tr>
-    <tr>
-      <td style="padding: 24px;">
-        <p style="margin: 0 0 16px 0; color: #1f2937; font-size: 16px;">
-          <strong>${invite.recipient_name}</strong> has <strong>${response}</strong> the invite for:
-        </p>
-        <table style="background-color: #f9fafb; border-radius: 8px; padding: 16px; width: 100%;">
-          <tr><td style="padding: 8px 0; color: #6b7280;">Pour:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pour?.pour_name}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;">Role:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${invite.role}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;">Date:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${pourDateFormatted}</td></tr>
-          <tr><td style="padding: 8px 0; color: #6b7280;">Site:</td><td style="padding: 8px 0; color: #1f2937; font-weight: 600;">${job?.site_address}</td></tr>
-        </table>
-      </td>
-    </tr>
-    <tr>
-      <td style="background-color: #f9fafb; padding: 16px; text-align: center; border-top: 1px solid #e5e7eb;">
-        <p style="margin: 0; color: #9ca3af; font-size: 12px;">Powered by PourHub</p>
-      </td>
-    </tr>
-  </table>
-</body>
-</html>`;
-
-        await resend.emails.send({
-          from: `PourHub <Hello@contact.pourhub.au>`,
-          to: [business.email],
-          subject: `${statusEmoji} ${invite.recipient_name} ${response} - ${invite.role} for ${pour?.pour_name}`,
-          html: businessEmailHtml,
-        });
-
-        console.log("Notification email sent to business");
-      } catch (emailErr) {
-        console.error("Failed to send notification email:", emailErr);
-      }
-    }
 
     // Generate ICS file if accepted
     let icsData: string | null = null;
@@ -457,5 +268,396 @@ const handler = async (req: Request): Promise<Response> => {
     });
   }
 };
+
+// Handle batch responses
+async function handleBatchResponses(
+  token: string,
+  responses: Array<{ invite_id: string; response: "accepted" | "declined" }>
+): Promise<Response> {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+  const tokenHash = await hashToken(token);
+
+  // Validate all responses
+  for (const resp of responses) {
+    if (resp.response !== "accepted" && resp.response !== "declined") {
+      return new Response(
+        JSON.stringify({ error: "Each response must be 'accepted' or 'declined'" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+  }
+
+  // Find all invites in this batch
+  const { data: batchInvites, error: batchError } = await supabase
+    .from("external_invites")
+    .select(`
+      id,
+      status,
+      role,
+      recipient_name,
+      recipient_email,
+      recipient_phone,
+      notes,
+      token_expires_at,
+      business_id,
+      batch_id,
+      job_pour_id,
+      job_pours (
+        id,
+        pour_name,
+        pour_date,
+        scheduled_time,
+        job_id,
+        jobs (
+          id,
+          name,
+          site_address,
+          business_id,
+          businesses (
+            id,
+            name,
+            email,
+            logo_url
+          )
+        )
+      )
+    `)
+    .eq("batch_token_hash", tokenHash);
+
+  if (batchError || !batchInvites || batchInvites.length === 0) {
+    return new Response(JSON.stringify({ error: "Invalid or expired invite link" }), {
+      status: 404,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Validate expiration
+  const firstInvite = batchInvites[0];
+  if (new Date(firstInvite.token_expires_at) < new Date()) {
+    return new Response(JSON.stringify({ error: "This invite link has expired" }), {
+      status: 410,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const inviteMap = new Map(batchInvites.map(inv => [inv.id, inv]));
+  const results: Array<{ invite_id: string; success: boolean; response: string }> = [];
+  const acceptedInvites: any[] = [];
+  const declinedInvites: any[] = [];
+
+  // Process each response
+  for (const resp of responses) {
+    const invite = inviteMap.get(resp.invite_id);
+    if (!invite) {
+      results.push({ invite_id: resp.invite_id, success: false, response: "not_found" });
+      continue;
+    }
+
+    // Skip if already responded or revoked
+    if (invite.status === "accepted" || invite.status === "declined" || invite.status === "revoked") {
+      results.push({ invite_id: resp.invite_id, success: false, response: `already_${invite.status}` });
+      continue;
+    }
+
+    // Update invite
+    const { error: updateError } = await supabase
+      .from("external_invites")
+      .update({
+        status: resp.response,
+        responded_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", resp.invite_id);
+
+    if (updateError) {
+      results.push({ invite_id: resp.invite_id, success: false, response: "update_failed" });
+      continue;
+    }
+
+    // Log audit event
+    await supabase.from("external_invite_events").insert({
+      external_invite_id: resp.invite_id,
+      event_type: resp.response,
+      metadata: { responded_at: new Date().toISOString(), batch: true },
+    });
+
+    results.push({ invite_id: resp.invite_id, success: true, response: resp.response });
+
+    if (resp.response === "accepted") {
+      acceptedInvites.push(invite);
+    } else {
+      declinedInvites.push(invite);
+    }
+  }
+
+  // Send consolidated notifications
+  const firstPour = firstInvite.job_pours as any;
+  const job = firstPour?.jobs as any;
+  const business = job?.businesses as any;
+
+  // Send confirmation to subbie
+  await sendBatchConfirmation(firstInvite, acceptedInvites, declinedInvites, business);
+
+  // Send notification to business
+  await sendBatchBusinessNotification(firstInvite, acceptedInvites, declinedInvites, business);
+
+  // Generate ICS data for accepted pours
+  const icsDataList: string[] = [];
+  for (const invite of acceptedInvites) {
+    const pour = invite.job_pours as any;
+    const inviteJob = pour?.jobs as any;
+    if (pour?.pour_date) {
+      icsDataList.push(
+        generateICS(
+          pour.pour_name,
+          pour.pour_date,
+          pour.scheduled_time,
+          inviteJob?.site_address || "",
+          business?.name || "",
+          invite.role
+        )
+      );
+    }
+  }
+
+  console.log("Batch responses recorded:", results);
+
+  return new Response(
+    JSON.stringify({
+      success: true,
+      results,
+      accepted_count: acceptedInvites.length,
+      declined_count: declinedInvites.length,
+      business_name: business?.name || "",
+      ics_data: icsDataList.length === 1 ? icsDataList[0] : null,
+      ics_data_list: icsDataList.length > 1 ? icsDataList : null,
+    }),
+    { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+// Send confirmation to subbie for single invite
+async function sendSubbieConfirmation(
+  invite: any,
+  response: string,
+  pourDateFormatted: string,
+  business: any,
+  pour: any,
+  job: any
+) {
+  const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+  const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+  // Send SMS
+  if (invite.recipient_phone && twilioAccountSid && twilioAuthToken && twilioPhoneNumber) {
+    try {
+      const formattedPhone = formatPhoneE164(invite.recipient_phone);
+      let confirmationSms: string;
+
+      if (response === "accepted") {
+        confirmationSms = `Confirmed! You're booked for ${pourDateFormatted} with ${business?.name || "the business"}.\nRole: ${invite.role}\nSite: ${job?.site_address || "TBA"}`;
+      } else {
+        confirmationSms = `Thanks for letting us know. ${business?.name || "We"}'ll keep you in mind for future work.`;
+      }
+
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+      const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+
+      await fetch(twilioUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${twilioAuth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          To: formattedPhone,
+          From: twilioPhoneNumber,
+          Body: confirmationSms,
+        }),
+      });
+    } catch (err) {
+      console.error("SMS error:", err);
+    }
+  }
+
+  // Send email (simplified - full HTML in original)
+  if (invite.recipient_email && resendApiKey) {
+    try {
+      const resend = new Resend(resendApiKey);
+      const statusEmoji = response === "accepted" ? "✅" : "❌";
+      const statusText = response === "accepted" ? "Booking Confirmed" : "Response Recorded";
+
+      await resend.emails.send({
+        from: `PourHub <Hello@contact.pourhub.au>`,
+        to: [invite.recipient_email],
+        subject: `${statusEmoji} ${statusText} - ${pour?.pour_name || "Work Invite"}`,
+        html: `<p>Hi ${invite.recipient_name}, your response has been recorded. ${business?.name} has been notified.</p>`,
+      });
+    } catch (err) {
+      console.error("Email error:", err);
+    }
+  }
+}
+
+// Send notification to business for single invite
+async function sendBusinessNotification(
+  invite: any,
+  response: string,
+  pourDateFormatted: string,
+  business: any,
+  pour: any,
+  job: any
+) {
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+  if (resendApiKey && business?.email) {
+    try {
+      const resend = new Resend(resendApiKey);
+      const statusEmoji = response === "accepted" ? "✅" : "❌";
+      const statusText = response === "accepted" ? "ACCEPTED" : "DECLINED";
+
+      await resend.emails.send({
+        from: `PourHub <Hello@contact.pourhub.au>`,
+        to: [business.email],
+        subject: `${statusEmoji} ${invite.recipient_name} ${response} - ${invite.role} for ${pour?.pour_name}`,
+        html: `<p><strong>${invite.recipient_name}</strong> has <strong>${response}</strong> the invite for ${pour?.pour_name} on ${pourDateFormatted}.</p>`,
+      });
+    } catch (err) {
+      console.error("Business notification error:", err);
+    }
+  }
+}
+
+// Send batch confirmation to subbie
+async function sendBatchConfirmation(
+  firstInvite: any,
+  acceptedInvites: any[],
+  declinedInvites: any[],
+  business: any
+) {
+  const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+  const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+  const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+  const acceptedCount = acceptedInvites.length;
+  const declinedCount = declinedInvites.length;
+
+  if (acceptedCount === 0 && declinedCount === 0) return;
+
+  // Send SMS
+  if (firstInvite.recipient_phone && twilioAccountSid && twilioAuthToken && twilioPhoneNumber) {
+    try {
+      const formattedPhone = formatPhoneE164(firstInvite.recipient_phone);
+      let smsMessage: string;
+
+      if (acceptedCount > 0 && declinedCount === 0) {
+        smsMessage = `Confirmed! You're booked for ${acceptedCount} pour${acceptedCount > 1 ? "s" : ""} with ${business?.name || "the business"}.`;
+      } else if (declinedCount > 0 && acceptedCount === 0) {
+        smsMessage = `Thanks for letting us know. ${business?.name || "We"}'ll keep you in mind for future work.`;
+      } else {
+        smsMessage = `Thanks! You've accepted ${acceptedCount} pour${acceptedCount > 1 ? "s" : ""} and declined ${declinedCount}. ${business?.name} has been notified.`;
+      }
+
+      const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+      const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+
+      await fetch(twilioUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Basic ${twilioAuth}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          To: formattedPhone,
+          From: twilioPhoneNumber,
+          Body: smsMessage,
+        }),
+      });
+    } catch (err) {
+      console.error("Batch SMS error:", err);
+    }
+  }
+
+  // Send email
+  if (firstInvite.recipient_email && resendApiKey) {
+    try {
+      const resend = new Resend(resendApiKey);
+
+      let subject: string;
+      if (acceptedCount > 0 && declinedCount === 0) {
+        subject = `✅ Confirmed - ${acceptedCount} pour${acceptedCount > 1 ? "s" : ""} with ${business?.name}`;
+      } else if (declinedCount > 0 && acceptedCount === 0) {
+        subject = `Response Recorded - ${business?.name}`;
+      } else {
+        subject = `✅ ${acceptedCount} accepted, ❌ ${declinedCount} declined - ${business?.name}`;
+      }
+
+      await resend.emails.send({
+        from: `PourHub <Hello@contact.pourhub.au>`,
+        to: [firstInvite.recipient_email],
+        subject,
+        html: `<p>Hi ${firstInvite.recipient_name}, your responses have been recorded. ${business?.name} has been notified.</p>`,
+      });
+    } catch (err) {
+      console.error("Batch email error:", err);
+    }
+  }
+}
+
+// Send batch notification to business
+async function sendBatchBusinessNotification(
+  firstInvite: any,
+  acceptedInvites: any[],
+  declinedInvites: any[],
+  business: any
+) {
+  const resendApiKey = Deno.env.get("RESEND_API_KEY");
+
+  if (!resendApiKey || !business?.email) return;
+
+  const acceptedCount = acceptedInvites.length;
+  const declinedCount = declinedInvites.length;
+
+  if (acceptedCount === 0 && declinedCount === 0) return;
+
+  try {
+    const resend = new Resend(resendApiKey);
+
+    const acceptedPours = acceptedInvites.map(inv => (inv.job_pours as any)?.pour_name).join(", ");
+    const declinedPours = declinedInvites.map(inv => (inv.job_pours as any)?.pour_name).join(", ");
+
+    let subject: string;
+    if (acceptedCount > 0 && declinedCount === 0) {
+      subject = `✅ ${firstInvite.recipient_name} accepted ${acceptedCount} pour${acceptedCount > 1 ? "s" : ""}`;
+    } else if (declinedCount > 0 && acceptedCount === 0) {
+      subject = `❌ ${firstInvite.recipient_name} declined ${declinedCount} pour${declinedCount > 1 ? "s" : ""}`;
+    } else {
+      subject = `${firstInvite.recipient_name} responded - ${acceptedCount} accepted, ${declinedCount} declined`;
+    }
+
+    let htmlContent = `<p><strong>${firstInvite.recipient_name}</strong> (${firstInvite.role}) has responded:</p>`;
+    if (acceptedCount > 0) {
+      htmlContent += `<p>✅ <strong>Accepted:</strong> ${acceptedPours}</p>`;
+    }
+    if (declinedCount > 0) {
+      htmlContent += `<p>❌ <strong>Declined:</strong> ${declinedPours}</p>`;
+    }
+
+    await resend.emails.send({
+      from: `PourHub <Hello@contact.pourhub.au>`,
+      to: [business.email],
+      subject,
+      html: htmlContent,
+    });
+  } catch (err) {
+    console.error("Batch business notification error:", err);
+  }
+}
 
 serve(handler);
