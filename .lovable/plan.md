@@ -1,174 +1,178 @@
 
 
-# Plan: Test Result Email Section Improvements
+# Plan: Delivery Docket Ingestion & Document Folders
 
 ## Overview
 
-Make three improvements to the Test Result Email section in Admin Settings:
-1. Change placeholder example from "mullinsconcrete" to "democrete"
-2. Auto-generate unique email aliases based on business name during signup/creation
-3. Make the section collapsible, default closed, with read-only "copy email" interaction
+Extend the email ingestion system to handle delivery dockets (from concrete suppliers) and add a folder-based organization to the Job Documents tab.
 
-## Changes
+## Current System Explanation
 
-### 1. Update Placeholder Text
-
-**File: `src/components/settings/TestResultEmailSection.tsx`**
-
-Change the input placeholder from:
-```
-placeholder="e.g., mullinsconcrete"
-```
-to:
-```
-placeholder="e.g., pourhub"
-```
-
-### 2. Auto-Generate Unique Email Aliases
-
-When a business is created, automatically generate a unique email alias based on their business name. If the alias is already taken, append a number (e.g., `smithconcrete`, `smithconcrete2`, `smithconcrete3`).
-
-**Database Function:**
-Create a helper function `generate_unique_email_alias(business_name TEXT)` that:
-- Converts business name to lowercase
-- Removes special characters and spaces (or converts to underscores)
-- Truncates to 30 characters max
-- Checks if alias exists, appends incrementing numbers if needed
-- Returns the unique alias
-
-**Trigger on Business Creation:**
-Create a trigger that automatically sets `inbound_email_alias` when a new business is inserted (if null).
+### How the system identifies which user receives a test docket:
 
 ```text
-Business Name: "Smith Concreting Pty Ltd"
-    ↓ normalize
-Generated: "smithconcretingptyltd"
-    ↓ check uniqueness
-Final: "smithconcretingptyltd" (or "smithconcretingptyltd2" if taken)
+┌──────────────────────────────────────────────────────────────────────────┐
+│                    EMAIL ROUTING FLOW                                    │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  1. Lab sends email to: democrete@pourhub.au                            │
+│                          ↓                                               │
+│  2. Resend webhook fires → Edge function receives payload                │
+│                          ↓                                               │
+│  3. Extract alias from "to" address:                                     │
+│     "democrete@pourhub.au" → alias = "democrete"                        │
+│                          ↓                                               │
+│  4. Database lookup:                                                     │
+│     SELECT * FROM businesses WHERE inbound_email_alias = 'democrete'    │
+│                          ↓                                               │
+│  5. Found: Demo Concrete business (ID: abc-123)                          │
+│     → All documents are now linked to this business_id                  │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 3. Make Section Collapsible with Copy-Only Interaction
+### How does the system know which pour to assign it to?
 
-**File: `src/components/settings/TestResultEmailSection.tsx`**
+Currently, this is a **manual approval step**:
+1. PDF is uploaded and AI extracts data (test ID, MPa values, dates, supplier)
+2. Business admin reviews the pending result
+3. Admin manually selects the correct **Job** and **Pour** from dropdowns
+4. Upon approval, the test result is linked and moved to `concrete_tests`
 
-Restructure the component to:
-- Wrap in `Collapsible` component (default closed)
-- Remove the edit functionality (no more alias editing by users)
-- Show only the email address and copy button when expanded
-- If no alias exists, auto-generate one on first expand or show a "generating..." state
+This is intentional because labs rarely include structured job identifiers that would allow automatic matching.
 
-**New UI Structure:**
-```text
-┌────────────────────────────────────────────────────┐
-│ [▶] Test Result Email                              │  ← Collapsed by default
-└────────────────────────────────────────────────────┘
+---
 
-When expanded:
-┌────────────────────────────────────────────────────┐
-│ [▼] Test Result Email                              │
-│                                                    │
-│  Share this email with your testing lab...         │
-│                                                    │
-│  ┌────────────────────────────────────────────┐   │
-│  │ democrete@pourhub.au             [Copy]    │   │
-│  └────────────────────────────────────────────┘   │
-│                                                    │
-│  ⓘ Auto-processes PDF attachments                 │
-│                                                    │
-│  How it works:                                     │
-│  1. Share your email address with your lab        │
-│  2. Lab sends test results (PDF) to your email    │
-│  3. AI automatically extracts test data           │
-│  4. Review and approve results to link to jobs    │
-└────────────────────────────────────────────────────┘
-```
+## Changes for Delivery Dockets & Document Folders
 
-## Technical Details
+### 1. Database Changes
 
-### SQL Migration
-
+**Add `subfolder` column to `documents` table:**
 ```sql
--- Function to generate unique email alias from business name
-CREATE OR REPLACE FUNCTION generate_unique_email_alias(business_name TEXT)
-RETURNS TEXT AS $$
-DECLARE
-  base_alias TEXT;
-  test_alias TEXT;
-  counter INTEGER := 1;
-BEGIN
-  -- Normalize: lowercase, remove special chars, keep alphanumeric/underscore
-  base_alias := regexp_replace(
-    lower(business_name), 
-    '[^a-z0-9]', 
-    '', 
-    'g'
-  );
-  
-  -- Truncate to 27 chars to leave room for counter suffix
-  base_alias := left(base_alias, 27);
-  
-  -- Ensure minimum length
-  IF length(base_alias) < 3 THEN
-    base_alias := base_alias || 'biz';
-  END IF;
-  
-  test_alias := base_alias;
-  
-  -- Check for uniqueness, append counter if needed
-  WHILE EXISTS (
-    SELECT 1 FROM businesses WHERE inbound_email_alias = test_alias
-  ) LOOP
-    counter := counter + 1;
-    test_alias := base_alias || counter::TEXT;
-  END LOOP;
-  
-  RETURN test_alias;
-END;
-$$ LANGUAGE plpgsql;
-
--- Trigger to auto-generate alias on business creation
-CREATE OR REPLACE FUNCTION set_inbound_email_alias()
-RETURNS TRIGGER AS $$
-BEGIN
-  IF NEW.inbound_email_alias IS NULL THEN
-    NEW.inbound_email_alias := generate_unique_email_alias(NEW.name);
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trigger_set_inbound_email_alias
-  BEFORE INSERT ON businesses
-  FOR EACH ROW
-  EXECUTE FUNCTION set_inbound_email_alias();
-
--- Backfill existing businesses without aliases
-UPDATE businesses 
-SET inbound_email_alias = generate_unique_email_alias(name)
-WHERE inbound_email_alias IS NULL;
+ALTER TABLE documents 
+ADD COLUMN subfolder TEXT DEFAULT 'general';
 ```
 
-### Component Changes
+This allows categorizing documents within a job into folders like:
+- `delivery_dockets`
+- `plans`
+- `quotes_retentions`
+- `site_photos`
+- `general`
 
-**File: `src/components/settings/TestResultEmailSection.tsx`**
+**Create `pending_documents` table for delivery docket review:**
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `business_id` | uuid | FK to businesses |
+| `from_email` | text | Sender's email |
+| `subject` | text | Email subject |
+| `received_at` | timestamptz | When received |
+| `file_url` | text | Storage URL for PDF |
+| `file_name` | text | Original filename |
+| `extracted_data` | jsonb | AI-extracted fields (docket #, m³, supplier, date) |
+| `document_type` | text | 'delivery_docket', 'invoice', etc. |
+| `status` | text | pending, approved, rejected |
+| `linked_job_id` | uuid | Set on approval |
+| `linked_pour_id` | uuid | Optional pour link |
 
-- Remove `isEditing`, `newAlias`, and `updateAliasMutation` state/logic
-- Add `isOpen` state for collapsible (default `false`)
-- Keep only `handleCopy` functionality
-- Wrap in `Collapsible` from Radix UI
-- Show chevron icon that rotates on expand
+### 2. Update Edge Function
 
-## Files to Modify
+Modify `receive-test-email` to:
+1. Detect document type from email subject/sender/filename:
+   - Keywords like "docket", "delivery", "cartage" → delivery docket
+   - Keywords like "test", "lab", "results" → test result
+2. Route to appropriate table (`pending_test_results` or `pending_documents`)
+3. Use appropriate AI extraction for each type
 
-| File | Changes |
-|------|---------|
-| `src/components/settings/TestResultEmailSection.tsx` | Complete rewrite: collapsible, read-only, updated placeholder |
-| SQL Migration | Add alias generation function, trigger, and backfill |
+**Detection Logic:**
+```text
+Subject: "Delivery Docket #12345 - 123 Smith St"
+        → Type: delivery_docket
+        → Extract: docket_number, volume_m3, supplier, delivery_date
 
-## User Experience
+Subject: "Test Results - Project ABC - 28 Day"
+        → Type: test_result
+        → Extract: test_id, mpa_values, test_date, pour_date
+```
 
-1. **New businesses**: Automatically get an email alias generated from their name
-2. **Existing businesses without alias**: Get one auto-assigned via backfill
-3. **Settings page**: Section is collapsed by default - click to expand and copy email
-4. **No manual editing**: Reduces complexity; aliases are system-managed for uniqueness
+### 3. Document Folders UI
+
+**Update `JobDocumentsTab.tsx` to show folder tabs:**
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  Documents & Photos                              [+ Upload]     │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌──────────────┬─────────────┬─────────────────┬──────────┐   │
+│  │ All (12)     │ Dockets (5) │ Plans (3)       │ Other(4) │   │
+│  └──────────────┴─────────────┴─────────────────┴──────────┘   │
+│                                                                 │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
+│  │ 📄           │  │ 📄           │  │ 📄           │          │
+│  │ Docket-001   │  │ Docket-002   │  │ Site Plan    │          │
+│  │ 28 Jan 2026  │  │ 28 Jan 2026  │  │ 15 Jan 2026  │          │
+│  └──────────────┘  └──────────────┘  └──────────────┘          │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Folder Categories:**
+- **All** - Shows all documents
+- **Delivery Dockets** - `subfolder = 'delivery_dockets'`
+- **Plans** - `subfolder = 'plans'`
+- **Quotes & Retentions** - `subfolder = 'quotes_retentions'`
+- **Site Photos** - `subfolder = 'site_photos'`
+- **Other** - `subfolder = 'general'`
+
+### 4. Pending Documents Review
+
+Create a new `PendingDocumentsSheet` component (similar to `PendingTestResultsSheet`) where admins can:
+1. See incoming delivery dockets
+2. View AI-extracted data (docket #, m³, supplier, date)
+3. Select which Job and Pour to assign
+4. Choose the subfolder
+5. Approve → moves to `documents` table with correct job/pour/subfolder
+
+### 5. AI Extraction for Delivery Dockets
+
+Use the existing `scan-test-document` function pattern to extract:
+- **Docket Number** (e.g., "D-123456")
+- **Delivery Date/Time**
+- **Volume** (m³)
+- **Supplier Name** (Boral, Holcim, etc.)
+- **Mix Code** (N32/20/80)
+- **Truck Rego**
+- **Site Address** (for smart job matching)
+
+---
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| SQL Migration | Add `subfolder` to documents, create `pending_documents` table |
+| `supabase/functions/receive-test-email/index.ts` | Add document type detection and routing |
+| `src/components/jobs/tabs/JobDocumentsTab.tsx` | Add folder tabs/filtering UI |
+| `src/components/jobs/PendingDocumentsSheet.tsx` | New review component for delivery dockets |
+| `supabase/functions/scan-delivery-docket/index.ts` | Optional: dedicated AI extraction for dockets |
+
+---
+
+## User Flow
+
+### Receiving a Delivery Docket:
+
+1. Concrete supplier emails delivery docket PDF to `democrete@pourhub.au`
+2. System detects "delivery docket" from keywords
+3. Uploads PDF, extracts data (docket #, m³, supplier)
+4. Creates pending document record
+5. Admin sees notification "1 pending delivery docket"
+6. Admin reviews, selects Job/Pour, approves
+7. Document appears in Job's Documents tab → "Delivery Dockets" folder
+
+### Uploading Manually:
+
+1. Admin clicks "Upload" in Documents tab
+2. Selects file and folder category
+3. Document is saved to the chosen folder
 
