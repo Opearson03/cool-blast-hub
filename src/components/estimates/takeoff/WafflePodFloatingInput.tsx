@@ -3,7 +3,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Grid3X3, Check, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -87,26 +87,22 @@ export function WafflePodFloatingInput({
 
   return (
     <Card className="border border-primary/20 bg-card/95 backdrop-blur shadow-md w-56 flex flex-col">
-      {/* Collapsible header - matches ScopeMarkupChecklist */}
-      <CardHeader 
-        className="p-2 cursor-pointer hover:bg-muted/50 transition-colors shrink-0"
+      {/* Collapsible header - matches ScopeMarkupChecklist exactly */}
+      <div 
+        className="flex items-center justify-between p-2 cursor-pointer hover:bg-muted/50 transition-colors shrink-0"
         onClick={() => setIsExpanded(!isExpanded)}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <Grid3X3 className="h-3.5 w-3.5 text-primary" />
-            <CardTitle className="text-xs font-semibold">Pods</CardTitle>
-            {effectiveCount > 0 && (
-              <Badge variant="default" className="text-[10px] px-1.5 h-4 font-medium">
-                {effectiveCount}
-              </Badge>
-            )}
-          </div>
-          <Button variant="ghost" size="sm" className="h-5 w-5 p-0">
-            {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-          </Button>
+        <div className="flex items-center gap-1.5">
+          <Grid3X3 className="h-3.5 w-3.5 text-primary" />
+          <span className="text-xs font-semibold">Pods</span>
+          {effectiveCount > 0 && (
+            <Badge variant="default" className="text-[10px] px-1.5 h-4 font-medium">
+              {effectiveCount}
+            </Badge>
+          )}
         </div>
-      </CardHeader>
+        {isExpanded ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+      </div>
       
       {/* Content - matches ScopeMarkupChecklist spacing */}
       <CardContent className={cn(
