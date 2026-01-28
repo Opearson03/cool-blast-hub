@@ -2,177 +2,81 @@
 
 # Plan: Delivery Docket Ingestion & Document Folders
 
+## Status: ✅ IMPLEMENTED
+
 ## Overview
 
-Extend the email ingestion system to handle delivery dockets (from concrete suppliers) and add a folder-based organization to the Job Documents tab.
+Extended the email ingestion system to handle delivery dockets (from concrete suppliers) and added folder-based organization to the Job Documents tab.
 
-## Current System Explanation
+## Implementation Summary
 
-### How the system identifies which user receives a test docket:
+### 1. Database Changes ✅
 
-```text
-┌──────────────────────────────────────────────────────────────────────────┐
-│                    EMAIL ROUTING FLOW                                    │
-├──────────────────────────────────────────────────────────────────────────┤
-│                                                                          │
-│  1. Lab sends email to: democrete@pourhub.au                            │
-│                          ↓                                               │
-│  2. Resend webhook fires → Edge function receives payload                │
-│                          ↓                                               │
-│  3. Extract alias from "to" address:                                     │
-│     "democrete@pourhub.au" → alias = "democrete"                        │
-│                          ↓                                               │
-│  4. Database lookup:                                                     │
-│     SELECT * FROM businesses WHERE inbound_email_alias = 'democrete'    │
-│                          ↓                                               │
-│  5. Found: Demo Concrete business (ID: abc-123)                          │
-│     → All documents are now linked to this business_id                  │
-│                                                                          │
-└──────────────────────────────────────────────────────────────────────────┘
-```
+- Added `subfolder` column to `documents` table (default: 'general')
+- Created `pending_documents` table for delivery docket review workflow
+- Added proper RLS policies for business-level access control
+- Created indexes for efficient querying
 
-### How does the system know which pour to assign it to?
+### 2. Edge Function Updates ✅
 
-Currently, this is a **manual approval step**:
-1. PDF is uploaded and AI extracts data (test ID, MPa values, dates, supplier)
-2. Business admin reviews the pending result
-3. Admin manually selects the correct **Job** and **Pour** from dropdowns
-4. Upon approval, the test result is linked and moved to `concrete_tests`
+Modified `receive-test-email` to:
+- Detect document type from subject/filename using keyword matching
+- Route delivery dockets to `pending_documents` table
+- Route test results to `pending_test_results` table (existing behavior)
+- Organize storage by document type (dockets/ vs tests/)
 
-This is intentional because labs rarely include structured job identifiers that would allow automatic matching.
+### 3. Document Folders UI ✅
 
----
+Updated `JobDocumentsTab.tsx` with:
+- Folder tabs: All, Dockets, Plans, Quotes, Photos, Other
+- Document counts per folder
+- Folder selection dialog when uploading
+- Subfolder badge on document cards
 
-## Changes for Delivery Dockets & Document Folders
+### 4. Pending Documents Review ✅
 
-### 1. Database Changes
-
-**Add `subfolder` column to `documents` table:**
-```sql
-ALTER TABLE documents 
-ADD COLUMN subfolder TEXT DEFAULT 'general';
-```
-
-This allows categorizing documents within a job into folders like:
-- `delivery_dockets`
-- `plans`
-- `quotes_retentions`
-- `site_photos`
-- `general`
-
-**Create `pending_documents` table for delivery docket review:**
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid | Primary key |
-| `business_id` | uuid | FK to businesses |
-| `from_email` | text | Sender's email |
-| `subject` | text | Email subject |
-| `received_at` | timestamptz | When received |
-| `file_url` | text | Storage URL for PDF |
-| `file_name` | text | Original filename |
-| `extracted_data` | jsonb | AI-extracted fields (docket #, m³, supplier, date) |
-| `document_type` | text | 'delivery_docket', 'invoice', etc. |
-| `status` | text | pending, approved, rejected |
-| `linked_job_id` | uuid | Set on approval |
-| `linked_pour_id` | uuid | Optional pour link |
-
-### 2. Update Edge Function
-
-Modify `receive-test-email` to:
-1. Detect document type from email subject/sender/filename:
-   - Keywords like "docket", "delivery", "cartage" → delivery docket
-   - Keywords like "test", "lab", "results" → test result
-2. Route to appropriate table (`pending_test_results` or `pending_documents`)
-3. Use appropriate AI extraction for each type
-
-**Detection Logic:**
-```text
-Subject: "Delivery Docket #12345 - 123 Smith St"
-        → Type: delivery_docket
-        → Extract: docket_number, volume_m3, supplier, delivery_date
-
-Subject: "Test Results - Project ABC - 28 Day"
-        → Type: test_result
-        → Extract: test_id, mpa_values, test_date, pour_date
-```
-
-### 3. Document Folders UI
-
-**Update `JobDocumentsTab.tsx` to show folder tabs:**
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  Documents & Photos                              [+ Upload]     │
-├─────────────────────────────────────────────────────────────────┤
-│  ┌──────────────┬─────────────┬─────────────────┬──────────┐   │
-│  │ All (12)     │ Dockets (5) │ Plans (3)       │ Other(4) │   │
-│  └──────────────┴─────────────┴─────────────────┴──────────┘   │
-│                                                                 │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐          │
-│  │ 📄           │  │ 📄           │  │ 📄           │          │
-│  │ Docket-001   │  │ Docket-002   │  │ Site Plan    │          │
-│  │ 28 Jan 2026  │  │ 28 Jan 2026  │  │ 15 Jan 2026  │          │
-│  └──────────────┘  └──────────────┘  └──────────────┘          │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Folder Categories:**
-- **All** - Shows all documents
-- **Delivery Dockets** - `subfolder = 'delivery_dockets'`
-- **Plans** - `subfolder = 'plans'`
-- **Quotes & Retentions** - `subfolder = 'quotes_retentions'`
-- **Site Photos** - `subfolder = 'site_photos'`
-- **Other** - `subfolder = 'general'`
-
-### 4. Pending Documents Review
-
-Create a new `PendingDocumentsSheet` component (similar to `PendingTestResultsSheet`) where admins can:
-1. See incoming delivery dockets
-2. View AI-extracted data (docket #, m³, supplier, date)
-3. Select which Job and Pour to assign
-4. Choose the subfolder
-5. Approve → moves to `documents` table with correct job/pour/subfolder
-
-### 5. AI Extraction for Delivery Dockets
-
-Use the existing `scan-test-document` function pattern to extract:
-- **Docket Number** (e.g., "D-123456")
-- **Delivery Date/Time**
-- **Volume** (m³)
-- **Supplier Name** (Boral, Holcim, etc.)
-- **Mix Code** (N32/20/80)
-- **Truck Rego**
-- **Site Address** (for smart job matching)
+Created `PendingDocumentsSheet.tsx` for admins to:
+- View incoming delivery dockets
+- See AI-extracted data (docket #, m³, supplier, date, mix code)
+- Select Job and Pour to assign
+- Choose destination folder
+- Approve → moves to documents table
 
 ---
 
-## Files to Create/Modify
+## Files Modified
 
-| File | Action |
-|------|--------|
-| SQL Migration | Add `subfolder` to documents, create `pending_documents` table |
-| `supabase/functions/receive-test-email/index.ts` | Add document type detection and routing |
-| `src/components/jobs/tabs/JobDocumentsTab.tsx` | Add folder tabs/filtering UI |
+| File | Changes |
+|------|---------|
+| SQL Migration | Added `subfolder` column, `pending_documents` table with RLS |
+| `supabase/functions/receive-test-email/index.ts` | Document type detection and routing |
+| `src/components/jobs/tabs/JobDocumentsTab.tsx` | Folder tabs, upload with folder selection |
 | `src/components/jobs/PendingDocumentsSheet.tsx` | New review component for delivery dockets |
-| `supabase/functions/scan-delivery-docket/index.ts` | Optional: dedicated AI extraction for dockets |
+
+---
+
+## Keyword Detection Logic
+
+**Delivery Dockets** (triggers routing to pending_documents):
+- docket, delivery, cartage, truck, load, batch, dispatch, concrete delivery
+
+**Test Results** (triggers routing to pending_test_results):
+- test, lab, result, mpa, strength, cylinder, slump, 7 day, 28 day, compressive
 
 ---
 
 ## User Flow
 
 ### Receiving a Delivery Docket:
+1. Supplier emails PDF to `alias@pourhub.au`
+2. Edge function detects "delivery docket" from keywords
+3. PDF uploaded, pending_documents record created
+4. Admin opens PendingDocumentsSheet, reviews extracted data
+5. Admin selects Job, Pour, and folder → Approve
+6. Document appears in Job's Documents tab under chosen folder
 
-1. Concrete supplier emails delivery docket PDF to `democrete@pourhub.au`
-2. System detects "delivery docket" from keywords
-3. Uploads PDF, extracts data (docket #, m³, supplier)
-4. Creates pending document record
-5. Admin sees notification "1 pending delivery docket"
-6. Admin reviews, selects Job/Pour, approves
-7. Document appears in Job's Documents tab → "Delivery Dockets" folder
-
-### Uploading Manually:
-
-1. Admin clicks "Upload" in Documents tab
-2. Selects file and folder category
-3. Document is saved to the chosen folder
-
+### Manual Upload:
+1. Admin clicks Upload in Documents tab
+2. Selects file(s)
+3. Dialog prompts for folder selection
+4. Document saved with chosen subfolder
