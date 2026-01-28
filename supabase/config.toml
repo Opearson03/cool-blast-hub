@@ -127,3 +127,6 @@ verify_jwt = false
 
 [functions.respond-subtrade-invite]
 verify_jwt = false
+
+[functions.notify-subtrade-reschedule]
+verify_jwt = false
