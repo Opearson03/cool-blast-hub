@@ -174,7 +174,7 @@ export function SlabBeamMarkupDialog({
   // New: callback to update accessory counts from auto-calculation
   onAccessoryCountsChange,
 }: SlabBeamMarkupDialogProps & { 
-  onAccessoryCountsChange?: (counts: { podCount: number; spacer4Way: number; spacer2Way: number }) => void 
+  onAccessoryCountsChange?: (counts: { podCount: number; spacer4Way: number; spacer2Way: number; tmChairs: number; barChairs: number }) => void 
 }) {
   // Local state for beam details
   const [beamName, setBeamName] = useState('');
@@ -183,6 +183,8 @@ export function SlabBeamMarkupDialog({
   const [localPodCount, setLocalPodCount] = useState(0);
   const [localSpacer4Way, setLocalSpacer4Way] = useState(0);
   const [localSpacer2Way, setLocalSpacer2Way] = useState(0);
+  const [localTmChairs, setLocalTmChairs] = useState(0);
+  const [localBarChairs, setLocalBarChairs] = useState(0);
   const [beamWidth, setBeamWidth] = useState(450);
   const [beamDepth, setBeamDepth] = useState(450);
   
@@ -374,34 +376,40 @@ export function SlabBeamMarkupDialog({
     setLocalRibWidth(wafflePodRibWidth);
   }, [wafflePodSize, wafflePodThickness, wafflePodTopThickness, wafflePodRibWidth]);
 
-  // Auto-calculate waffle pod accessory counts when area changes
+  // Auto-calculate waffle pod accessory counts when area/perimeter changes
   useEffect(() => {
     if (isWafflePod && slabArea > 0 && step === 'name') {
       // Formulas from user:
       // Pods = Area / 1.51
       // 4-way spacers = Pods × 1.40
       // 2-way spacers = 4-way spacers / 3
+      // Trench Mesh Chairs = Perimeter / 1.2
+      // Bar Chairs (25/40) = Pods × 3
       const calculatedPods = Math.round(slabArea / 1.51);
       const calculated4Way = Math.round(calculatedPods * 1.40);
       const calculated2Way = Math.round(calculated4Way / 3);
+      const calculatedTmChairs = Math.round(slabPerimeter / 1.2);
+      const calculatedBarChairs = calculatedPods * 3;
       
       setLocalPodCount(calculatedPods);
       setLocalSpacer4Way(calculated4Way);
       setLocalSpacer2Way(calculated2Way);
+      setLocalTmChairs(calculatedTmChairs);
+      setLocalBarChairs(calculatedBarChairs);
     }
-  }, [isWafflePod, slabArea, step]);
+  }, [isWafflePod, slabArea, slabPerimeter, step]);
 
   // Save waffle pod dimensions and skip beams (used when user chooses to skip)
   const handleWafflePodSkipBeams = () => {
     onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
-    onAccessoryCountsChange?.({ podCount: localPodCount, spacer4Way: localSpacer4Way, spacer2Way: localSpacer2Way });
+    onAccessoryCountsChange?.({ podCount: localPodCount, spacer4Way: localSpacer4Way, spacer2Way: localSpacer2Way, tmChairs: localTmChairs, barChairs: localBarChairs });
     onSkipAllBeams();
   };
 
   // Save waffle pod dimensions and proceed to edge beams
   const handleWafflePodStartEdgeBeams = () => {
     onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
-    onAccessoryCountsChange?.({ podCount: localPodCount, spacer4Way: localSpacer4Way, spacer2Way: localSpacer2Way });
+    onAccessoryCountsChange?.({ podCount: localPodCount, spacer4Way: localSpacer4Way, spacer2Way: localSpacer2Way, tmChairs: localTmChairs, barChairs: localBarChairs });
     onStartEdgeBeams();
   };
 
@@ -568,6 +576,32 @@ export function SlabBeamMarkupDialog({
                           onChange={(e) => setLocalSpacer2Way(Number(e.target.value) || 0)}
                           className="h-9 text-center font-medium"
                         />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <div className="space-y-1.5 p-2 bg-background rounded-md">
+                        <Label htmlFor="tm-chairs" className="text-xs font-medium">TM Chairs</Label>
+                        <Input
+                          id="tm-chairs"
+                          type="number"
+                          min={0}
+                          value={localTmChairs}
+                          onChange={(e) => setLocalTmChairs(Number(e.target.value) || 0)}
+                          className="h-9 text-center font-medium"
+                        />
+                        <p className="text-[10px] text-muted-foreground text-center">Perimeter ÷ 1.2</p>
+                      </div>
+                      <div className="space-y-1.5 p-2 bg-background rounded-md">
+                        <Label htmlFor="bar-chairs" className="text-xs font-medium">Bar Chairs (25/40)</Label>
+                        <Input
+                          id="bar-chairs"
+                          type="number"
+                          min={0}
+                          value={localBarChairs}
+                          onChange={(e) => setLocalBarChairs(Number(e.target.value) || 0)}
+                          className="h-9 text-center font-medium"
+                        />
+                        <p className="text-[10px] text-muted-foreground text-center">Pods × 3</p>
                       </div>
                     </div>
                   </div>

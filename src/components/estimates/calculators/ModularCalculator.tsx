@@ -572,12 +572,13 @@ export function ModularCalculator({
     notifyStateChange();
   }, [notifyStateChange]);
 
-  // Auto-calculate pod rails and spacers when top_slab_thickness or pod_count changes for waffle pod
+  // Auto-calculate pod rails, spacers, bar chairs, and TM chairs for waffle pod
   useEffect(() => {
     if (scope.id !== 'waffle_pod') return;
     
     const topSlabThickness = Number(scopeAnswers.top_slab_thickness) || 85;
     const podCount = Number(scopeAnswers.pod_count) || 0;
+    const perimeter = Number(scopeAnswers.perimeter) || 0;
     
     // Calculate updates
     const updates: Record<string, any> = {};
@@ -623,6 +624,20 @@ export function ModularCalculator({
           updates.spacer_2way_count = estimated2Way;
         }
       }
+      
+      // Auto-calculate bar chairs: pods × 3
+      const calculatedBarChairs = podCount * 3;
+      if (!scopeAnswers.bar_chairs_count || scopeAnswers.bar_chairs_count !== calculatedBarChairs) {
+        updates.bar_chairs_count = calculatedBarChairs;
+      }
+    }
+    
+    // Auto-calculate TM chairs: perimeter ÷ 1.2
+    if (perimeter > 0) {
+      const calculatedTmChairs = Math.round(perimeter / 1.2);
+      if (!scopeAnswers.tm_chairs_count || scopeAnswers.tm_chairs_count !== calculatedTmChairs) {
+        updates.tm_chairs_count = calculatedTmChairs;
+      }
     }
     
     // Only update if there are changes
@@ -632,7 +647,7 @@ export function ModularCalculator({
         ...updates,
       }));
     }
-  }, [scope.id, scopeAnswers.top_slab_thickness, scopeAnswers.pod_count]);
+  }, [scope.id, scopeAnswers.top_slab_thickness, scopeAnswers.pod_count, scopeAnswers.perimeter]);
 
   // Handlers
   const handleScopeAnswerChange = (questionId: string, value: any) => {

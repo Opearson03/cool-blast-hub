@@ -497,6 +497,26 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       helpText: 'Auto-calculated: 2 rails per pod, 20 per pack',
       showIf: (answers) => answers.pod_rails_required === true,
     },
+    // Trench mesh chairs (perimeter ÷ 1.2)
+    {
+      id: 'tm_chairs_count',
+      type: 'number',
+      label: 'TM Chairs',
+      required: false,
+      min: 0,
+      defaultValue: 0,
+      helpText: 'Auto-calculated: Perimeter ÷ 1.2',
+    },
+    // Bar chairs (pods × 3)
+    {
+      id: 'bar_chairs_count',
+      type: 'number',
+      label: 'Bar Chairs (25/40)',
+      required: false,
+      min: 0,
+      defaultValue: 0,
+      helpText: 'Auto-calculated: Pods × 3',
+    },
     // Edge and internal beam fields (hidden, managed by multi-beam inputs)
     {
       id: 'edge_beam_depth',

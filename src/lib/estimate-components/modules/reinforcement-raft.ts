@@ -337,6 +337,96 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
+    // WAFFLE POD SPECIFIC REINFORCEMENT
+    // Y-Bar for ribs: (Pods × 2.3) ÷ 5.5 = qty of 6m lengths
+    // Slab Mesh: Area ÷ 12.5 = qty of sheets
+    // ═══════════════════════════════════════════════════════════════
+    const isWafflePod = scopeData?.scopeId === 'waffle_pod';
+    if (isWafflePod) {
+      const podCount = Number(scopeData?.pod_count) || 0;
+      const tmChairsCount = Number(scopeData?.tm_chairs_count) || 0;
+      const barChairsCount = Number(scopeData?.bar_chairs_count) || 0;
+      
+      // Y-Bar for rib reinforcement: (Pods × 2.3) ÷ 5.5 = qty of 6m lengths
+      if (podCount > 0) {
+        const yBarLengths = Math.ceil((podCount * 2.3) / 5.5);
+        const yBarPrice = getPrice(priceMap, 'rebar', 'N12 CB', 2100);
+        // Each 6m length of N12 is ~5.3kg
+        const yBarWeight = yBarLengths * 6 * (REBAR_WEIGHTS['N12'] || 0.888);
+        const yBarCost = (yBarWeight / 1000) * yBarPrice;
+        
+        if (yBarLengths > 0) {
+          lineItems.push({
+            id: 'waffle_rib_ybar',
+            description: `Rib Y-Bar N12 (${yBarLengths} × 6m lengths)`,
+            quantity: yBarLengths,
+            unit: 'lengths',
+            unitPrice: Math.round((yBarCost / yBarLengths) * 100) / 100,
+            total: Math.round(yBarCost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += yBarCost;
+        }
+      }
+      
+      // Slab Mesh for waffle pod: Area ÷ 12.5 = qty of sheets (12.5m² coverage per sheet with wastage)
+      // This is an industry-standard formula for waffle pod slab mesh
+      if (totalArea > 0 && areas.length === 0) {
+        const waffleMeshSheets = Math.ceil(totalArea / 12.5);
+        const meshType = 'SL82';
+        const meshPrice = getPrice(priceMap, 'mesh', meshType, 95);
+        const meshCost = waffleMeshSheets * meshPrice;
+        
+        lineItems.push({
+          id: 'waffle_slab_mesh',
+          description: `Slab ${meshType} (${waffleMeshSheets} sheets)`,
+          quantity: waffleMeshSheets,
+          unit: 'sheets',
+          unitPrice: meshPrice,
+          total: Math.round(meshCost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += meshCost;
+      }
+      
+      // TM Chairs for perimeter beams (from takeoff: perimeter ÷ 1.2)
+      if (tmChairsCount > 0) {
+        const tmChairPrice = getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
+        const bags = Math.ceil(tmChairsCount / 25);
+        const cost = bags * tmChairPrice;
+        
+        lineItems.push({
+          id: 'waffle_tm_chairs',
+          description: `Perimeter TM Chairs (${bags} × 25)`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: tmChairPrice,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
+      
+      // Bar Chairs 25/40 for waffle pod (from takeoff: pods × 3)
+      if (barChairsCount > 0) {
+        const barChairPrice = getPrice(priceMap, 'consumables', '2540C', 35);
+        const bags = Math.ceil(barChairsCount / 100);
+        const cost = bags * barChairPrice;
+        
+        lineItems.push({
+          id: 'waffle_bar_chairs',
+          description: `Bar Chairs 25-40mm (${bags} × 100)`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: barChairPrice,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
+    }
+
+    // ═══════════════════════════════════════════════════════════════
     // EDGE BEAM CHAIRS (per-beam configuration)
     // ═══════════════════════════════════════════════════════════════
     if (answers.edge_beam_reo && edgeBeams.length > 0) {
