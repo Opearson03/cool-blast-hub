@@ -177,6 +177,8 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
         business_id: businessId,
         created_by: userData.user.id,
         source_estimate_id: initialData?.source_estimate_id || null,
+        // Mark as needing startup wizard if created from estimate
+        startup_completed: initialData?.source_estimate_id ? false : true,
       };
 
       if (editJob) {
