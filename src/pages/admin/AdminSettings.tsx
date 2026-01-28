@@ -6,16 +6,19 @@ import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { CardContent, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, Image, CreditCard, ExternalLink, Lock, ChevronDown, Palette, FileText, Eye, DollarSign, MessageSquare } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, CreditCard, ExternalLink, Lock, Palette, FileText, Eye, DollarSign, MessageSquare, Truck, Mail } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PriceListSection } from "@/components/settings/PriceListSection";
 import { TestResultEmailSection } from "@/components/settings/TestResultEmailSection";
+import { SettingsAccordionItem } from "@/components/settings/SettingsAccordionItem";
+import { SettingsGroup } from "@/components/settings/SettingsGroup";
+import { ChevronDown } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -27,6 +30,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { useSubscription } from "@/hooks/useSubscription";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -59,7 +63,6 @@ export default function AdminSettings() {
     queryFn: async () => {
       const { data: userData } = await supabase.auth.getUser();
       
-      // First check if user owns a business
       const { data: ownedBusiness } = await supabase
         .from("businesses")
         .select("*")
@@ -68,7 +71,6 @@ export default function AdminSettings() {
 
       if (ownedBusiness) return ownedBusiness as Business;
 
-      // Otherwise check their profile's business
       const { data: profile } = await supabase
         .from("profiles")
         .select("business_id")
@@ -114,7 +116,6 @@ export default function AdminSettings() {
       const fileExt = file.name.split(".").pop();
       const filePath = `${business.id}/logo.${fileExt}`;
 
-      // Delete old logo if exists
       if (logoUrl) {
         const oldPath = logoUrl.split("/").pop();
         if (oldPath) {
@@ -135,7 +136,6 @@ export default function AdminSettings() {
       const newLogoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
       setLogoUrl(newLogoUrl);
 
-      // Update business record
       await supabase
         .from("businesses")
         .update({ logo_url: newLogoUrl })
@@ -153,7 +153,6 @@ export default function AdminSettings() {
   const updateMutation = useMutation({
     mutationFn: async () => {
       if (!business) {
-        // Create new business
         const { data: userData } = await supabase.auth.getUser();
         const { data, error } = await supabase
           .from("businesses")
@@ -171,7 +170,6 @@ export default function AdminSettings() {
         
         if (error) throw error;
 
-        // Link business to profile
         await supabase
           .from("profiles")
           .update({ business_id: data.id })
@@ -179,7 +177,6 @@ export default function AdminSettings() {
 
         return data;
       } else {
-        // Update existing business
         const { error } = await supabase
           .from("businesses")
           .update({
@@ -265,653 +262,641 @@ export default function AdminSettings() {
     <AdminLayout>
       <div className="space-y-6 max-w-2xl">
         <div>
-          <h1 className="text-2xl font-bold">Business Settings</h1>
+          <h1 className="text-2xl font-bold">Settings</h1>
           <p className="text-muted-foreground">Manage your business information</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Subscription Status */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="w-5 h-5" />
-                Subscription
-              </CardTitle>
-              <CardDescription>Manage your PourHub subscription</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {subscription.isLoading ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : subscription.isSubscribed ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Plan:</span>
-                    <Badge variant="secondary" className="bg-primary/20 text-primary">
-                      {business?.subscription_exempt ? "Demo Account" : (subscription.tierConfig?.name || subscription.tier)}
-                    </Badge>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm text-muted-foreground">Employee Limit:</span>
-                    <span className="text-sm font-medium">
-                      {subscription.employeeLimit === 999 ? "Unlimited" : subscription.employeeLimit}
-                    </span>
-                  </div>
-                  {subscription.subscriptionEnd && !business?.subscription_exempt && (
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* ACCOUNT GROUP */}
+          <SettingsGroup title="Account">
+            {/* Subscription */}
+            <SettingsAccordionItem
+              value="subscription"
+              icon={CreditCard}
+              title="Subscription"
+              description="Manage your PourHub subscription"
+            >
+              <div className="space-y-4 pt-2">
+                {subscription.isLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                ) : subscription.isSubscribed ? (
+                  <div className="space-y-3">
                     <div className="flex items-center gap-2">
-                      <span className="text-sm text-muted-foreground">Renews:</span>
-                      <span className="text-sm">
-                        {new Date(subscription.subscriptionEnd).toLocaleDateString()}
+                      <span className="text-sm text-muted-foreground">Plan:</span>
+                      <Badge variant="secondary" className="bg-primary/20 text-primary">
+                        {business?.subscription_exempt ? "Demo Account" : (subscription.tierConfig?.name || subscription.tier)}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">Employee Limit:</span>
+                      <span className="text-sm font-medium">
+                        {subscription.employeeLimit === 999 ? "Unlimited" : subscription.employeeLimit}
                       </span>
                     </div>
-                  )}
-                  {business?.subscription_exempt ? (
-                    <p className="text-sm text-muted-foreground">
-                      This is a demo account. Subscription management is not available.
-                    </p>
-                  ) : (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => subscription.openCustomerPortal()}
-                      className="touch-target"
-                    >
-                      <ExternalLink className="w-4 h-4 mr-2" />
-                      Manage Subscription
-                    </Button>
-                  )}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">
-                    No active subscription found.
-                  </p>
-                  <Button
-                    type="button"
-                    variant="default"
-                    onClick={() => window.location.href = "/pricing"}
-                    className="touch-target"
-                  >
-                    View Plans
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Business Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                Business Details
-              </CardTitle>
-              <CardDescription>Your company information for documents and invoices</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="name">Business Name *</Label>
-                <Input
-                  id="name"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g., Smith Concreting Pty Ltd"
-                  className="touch-target"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="abn">ABN</Label>
-                <Input
-                  id="abn"
-                  value={abn}
-                  onChange={(e) => setAbn(e.target.value)}
-                  placeholder="e.g., 12 345 678 901"
-                  className="touch-target"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="address">Business Address</Label>
-                <Input
-                  id="address"
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                  placeholder="e.g., 123 Main St, Sydney NSW 2000"
-                  className="touch-target"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="phone">Phone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g., 0412 345 678"
-                    className="touch-target"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="e.g., admin@company.com"
-                    className="touch-target"
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Branding & Quote Templates */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="w-5 h-5" />
-                Branding & Quote Templates
-              </CardTitle>
-              <CardDescription>
-                Customize your logo, colors, and quote template style
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Logo Upload */}
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Business Logo</Label>
-                <div className="flex items-center gap-4">
-                  {logoUrl ? (
-                    <img
-                      src={logoUrl}
-                      alt="Business logo"
-                      className="h-20 w-20 object-contain border rounded-lg bg-white"
-                    />
-                  ) : (
-                    <div className="h-20 w-20 border rounded-lg bg-muted flex items-center justify-center">
-                      <Building2 className="w-8 h-8 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div>
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      className="hidden"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) handleLogoUpload(file);
-                      }}
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading || !business}
-                      className="touch-target"
-                    >
-                      {uploading ? (
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      ) : (
-                        <Upload className="w-4 h-4 mr-2" />
-                      )}
-                      {logoUrl ? "Change Logo" : "Upload Logo"}
-                    </Button>
-                    {!business && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Save business details first to upload logo
+                    {subscription.subscriptionEnd && !business?.subscription_exempt && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-muted-foreground">Renews:</span>
+                        <span className="text-sm">
+                          {new Date(subscription.subscriptionEnd).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
+                    {business?.subscription_exempt ? (
+                      <p className="text-sm text-muted-foreground">
+                        This is a demo account. Subscription management is not available.
                       </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Quote Template Selection */}
-              <div>
-                <Label className="text-sm font-medium mb-2 block">Quote Template</Label>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { id: "classic", name: "Classic", desc: "Traditional professional layout" },
-                    { id: "modern", name: "Modern", desc: "Clean, bold design" },
-                    { id: "minimal", name: "Minimal", desc: "Simple and elegant" },
-                  ].map((template) => (
-                    <button
-                      key={template.id}
-                      type="button"
-                      onClick={() => setQuoteTemplate(template.id)}
-                      className={`p-3 border rounded-lg text-left transition-all ${
-                        quoteTemplate === template.id
-                          ? "border-primary bg-primary/10 ring-2 ring-primary"
-                          : "border-border hover:border-primary/50"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 mb-1">
-                        <FileText className="w-4 h-4" />
-                        <span className="font-medium text-sm">{template.name}</span>
-                      </div>
-                      <p className="text-xs text-muted-foreground">{template.desc}</p>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Brand Colors */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="primaryColor" className="text-sm font-medium mb-2 block">
-                    Primary Color (Highlights)
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      id="primaryColor"
-                      value={quotePrimaryColor}
-                      onChange={(e) => setQuotePrimaryColor(e.target.value)}
-                      className="w-12 h-10 rounded border cursor-pointer"
-                    />
-                    <Input
-                      value={quotePrimaryColor}
-                      onChange={(e) => setQuotePrimaryColor(e.target.value)}
-                      placeholder="#f97316"
-                      className="font-mono text-sm"
-                    />
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="secondaryColor" className="text-sm font-medium mb-2 block">
-                    Secondary Color (Headers)
-                  </Label>
-                  <div className="flex items-center gap-2">
-                    <input
-                      type="color"
-                      id="secondaryColor"
-                      value={quoteSecondaryColor}
-                      onChange={(e) => setQuoteSecondaryColor(e.target.value)}
-                      className="w-12 h-10 rounded border cursor-pointer"
-                    />
-                    <Input
-                      value={quoteSecondaryColor}
-                      onChange={(e) => setQuoteSecondaryColor(e.target.value)}
-                      placeholder="#1f2937"
-                      className="font-mono text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <Separator />
-
-              {/* Font Selection */}
-              <div>
-                <Label htmlFor="quoteFont" className="text-sm font-medium mb-2 block">
-                  Quote Font
-                </Label>
-                <Select value={quoteFont} onValueChange={setQuoteFont}>
-                  <SelectTrigger className="w-full sm:w-64">
-                    <SelectValue placeholder="Select a font" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Arial">Arial (Default)</SelectItem>
-                    <SelectItem value="Helvetica">Helvetica</SelectItem>
-                    <SelectItem value="Georgia">Georgia</SelectItem>
-                    <SelectItem value="Times New Roman">Times New Roman</SelectItem>
-                    <SelectItem value="Verdana">Verdana</SelectItem>
-                    <SelectItem value="Trebuchet MS">Trebuchet MS</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <Separator />
-
-              {/* Live Preview */}
-              <div>
-                <Label className="text-sm font-medium mb-3 flex items-center gap-2">
-                  <Eye className="w-4 h-4" />
-                  Live Preview
-                </Label>
-                <div 
-                  className="border rounded-lg overflow-hidden bg-white"
-                  style={{ transform: "scale(1)", transformOrigin: "top left" }}
-                >
-                  <div 
-                    className="p-4"
-                    style={{ 
-                      fontFamily: `${quoteFont}, sans-serif`,
-                      fontSize: "10px",
-                      lineHeight: "1.4"
-                    }}
-                  >
-                    {quoteTemplate === "modern" ? (
-                      // Modern Template Preview
-                      <div>
-                        <div style={{ backgroundColor: quoteSecondaryColor, padding: "12px", marginBottom: "12px", borderRadius: "4px" }}>
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              {logoUrl ? (
-                                <img src={logoUrl} alt="Logo" className="h-6 w-6 object-contain bg-white rounded p-0.5" />
-                              ) : (
-                                <div className="h-6 w-6 bg-white/20 rounded flex items-center justify-center">
-                                  <Building2 className="w-3 h-3 text-white/60" />
-                                </div>
-                              )}
-                              <span className="text-white font-bold text-xs">{name || "Company Name"}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-white font-black text-sm">QUOTE</span>
-                              <p className="text-[8px]" style={{ color: quotePrimaryColor }}>#EST-001</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div style={{ borderBottom: `2px solid ${quotePrimaryColor}`, marginBottom: "8px", paddingBottom: "4px" }} className="flex justify-between text-[8px] text-gray-500">
-                          <span>📞 {phone || "0400 000 000"}</span>
-                          <span>Date: 10 Jan 2026</span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 mb-2">
-                          <div style={{ backgroundColor: "#f9fafb", padding: "6px", borderRadius: "4px", borderLeft: `2px solid ${quotePrimaryColor}` }}>
-                            <p className="text-[7px] uppercase font-bold" style={{ color: quotePrimaryColor }}>Client</p>
-                            <p className="font-bold text-gray-800">John Smith</p>
-                          </div>
-                          <div style={{ backgroundColor: "#f9fafb", padding: "6px", borderRadius: "4px", borderLeft: `2px solid ${quoteSecondaryColor}` }}>
-                            <p className="text-[7px] uppercase font-bold" style={{ color: quoteSecondaryColor }}>Site</p>
-                            <p className="text-gray-800">123 Example St</p>
-                          </div>
-                        </div>
-                        <div className="flex justify-end">
-                          <div style={{ backgroundColor: "#f9fafb", padding: "8px", borderRadius: "4px" }} className="w-1/2">
-                            <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                              <span>Subtotal</span><span>$4,545.45</span>
-                            </div>
-                            <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                              <span>GST</span><span>$454.55</span>
-                            </div>
-                            <div className="flex justify-between pt-1" style={{ borderTop: `1px solid ${quotePrimaryColor}` }}>
-                              <span className="font-bold text-gray-800">Total</span>
-                              <span className="font-black" style={{ color: quotePrimaryColor }}>$5,000.00</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    ) : quoteTemplate === "minimal" ? (
-                      // Minimal Template Preview
-                      <div className="px-2">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            {logoUrl ? (
-                              <img src={logoUrl} alt="Logo" className="h-5 object-contain mb-1" />
-                            ) : null}
-                            <p className="font-medium text-gray-800 text-[9px]">{name || "Company Name"}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[7px] uppercase tracking-widest text-gray-400">Quote</p>
-                            <p className="text-sm font-light" style={{ color: quotePrimaryColor }}>#EST-001</p>
-                          </div>
-                        </div>
-                        <div style={{ borderBottom: `1px solid ${quotePrimaryColor}` }} className="mb-3"></div>
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                          <div>
-                            <p className="text-[7px] uppercase tracking-wider text-gray-400 mb-1">To</p>
-                            <p className="font-medium text-gray-800">John Smith</p>
-                          </div>
-                          <div>
-                            <p className="text-[7px] uppercase tracking-wider text-gray-400 mb-1">Site</p>
-                            <p className="text-gray-800">123 Example St</p>
-                          </div>
-                        </div>
-                        <div className="flex justify-end">
-                          <div className="w-1/2">
-                            <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                              <span>Subtotal</span><span>$4,545.45</span>
-                            </div>
-                            <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                              <span>GST</span><span>$454.55</span>
-                            </div>
-                            <div className="flex justify-between pt-1" style={{ borderTop: `1px solid ${quotePrimaryColor}` }}>
-                              <span className="font-medium text-gray-800">Total</span>
-                              <span className="font-light text-sm" style={{ color: quotePrimaryColor }}>$5,000.00</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
                     ) : (
-                      // Classic Template Preview
-                      <div>
-                        <div className="flex items-start justify-between pb-2 mb-3" style={{ borderBottom: `2px solid ${quoteSecondaryColor}` }}>
-                          <div className="flex items-start gap-2">
-                            {logoUrl ? (
-                              <img src={logoUrl} alt="Logo" className="h-8 w-8 object-contain" />
-                            ) : (
-                              <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
-                                <Building2 className="w-4 h-4 text-gray-400" />
-                              </div>
-                            )}
-                            <div>
-                              <p className="font-bold text-gray-800 text-xs">{name || "Company Name"}</p>
-                              <p className="text-[8px] text-gray-500">{address || "123 Business St"}</p>
-                              <p className="text-[8px] text-gray-500">Ph: {phone || "0400 000 000"}</p>
-                            </div>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-800 text-sm">ESTIMATE</p>
-                            <p className="font-semibold" style={{ color: quotePrimaryColor }}>#EST-001</p>
-                            <p className="text-[8px] text-gray-500 mt-1">Date: 10 Jan 2026</p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4 mb-3">
-                          <div>
-                            <p className="text-[7px] uppercase font-semibold text-gray-400 mb-1">Bill To</p>
-                            <p className="font-semibold text-gray-800">John Smith</p>
-                            <p className="text-[8px] text-gray-500">john@example.com</p>
-                          </div>
-                          <div>
-                            <p className="text-[7px] uppercase font-semibold text-gray-400 mb-1">Site Address</p>
-                            <p className="text-gray-800">123 Example Street</p>
-                          </div>
-                        </div>
-                        <div className="flex justify-end">
-                          <div className="w-1/2" style={{ borderTop: `2px solid ${quoteSecondaryColor}`, paddingTop: "6px" }}>
-                            <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                              <span>Subtotal (ex GST)</span><span>$4,545.45</span>
-                            </div>
-                            <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                              <span>GST (10%)</span><span>$454.55</span>
-                            </div>
-                            <div className="flex justify-between pt-1" style={{ borderTop: "1px solid #d1d5db" }}>
-                              <span className="font-bold text-gray-800">Total (inc GST)</span>
-                              <span className="font-bold text-sm" style={{ color: quotePrimaryColor }}>$5,000.00</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => subscription.openCustomerPortal()}
+                        className="touch-target"
+                      >
+                        <ExternalLink className="w-4 h-4 mr-2" />
+                        Manage Subscription
+                      </Button>
                     )}
                   </div>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  This is a preview. Your actual quotes will include full details and line items.
-                </p>
+                ) : (
+                  <div className="space-y-3">
+                    <p className="text-sm text-muted-foreground">
+                      No active subscription found.
+                    </p>
+                    <Button
+                      type="button"
+                      variant="default"
+                      onClick={() => window.location.href = "/pricing"}
+                      className="touch-target"
+                    >
+                      View Plans
+                    </Button>
+                  </div>
+                )}
               </div>
-            </CardContent>
-          </Card>
+            </SettingsAccordionItem>
 
-
-          {/* Preferred Suppliers */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Preferred Suppliers</CardTitle>
-              <CardDescription>
-                Your go-to concrete and material suppliers for quick selection on jobs
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex gap-2">
-                <Input
-                  value={newSupplier}
-                  onChange={(e) => setNewSupplier(e.target.value)}
-                  placeholder="Add a supplier..."
+            {/* Account Security */}
+            <SettingsAccordionItem
+              value="security"
+              icon={Lock}
+              title="Account Security"
+              description="Change your password"
+            >
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label htmlFor="newPassword">New Password</Label>
+                  <Input
+                    id="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Enter new password"
+                    className="touch-target"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="touch-target"
+                  />
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleChangePassword}
+                  disabled={changingPassword || !newPassword || !confirmPassword}
                   className="touch-target"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addSupplier();
-                    }
-                  }}
-                />
-                <Button type="button" variant="outline" onClick={addSupplier} className="touch-target">
-                  <Plus className="w-4 h-4" />
+                >
+                  {changingPassword ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Lock className="w-4 h-4 mr-2" />
+                  )}
+                  Change Password
                 </Button>
               </div>
+            </SettingsAccordionItem>
+          </SettingsGroup>
 
-              {suppliers.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {suppliers.map((supplier) => (
-                    <Badge key={supplier} variant="secondary" className="gap-1 py-1 px-3">
-                      {supplier}
-                      <button
-                        type="button"
-                        onClick={() => removeSupplier(supplier)}
-                        className="ml-1 hover:text-destructive"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </Badge>
-                  ))}
+          {/* BUSINESS GROUP */}
+          <SettingsGroup title="Business">
+            {/* Business Details */}
+            <SettingsAccordionItem
+              value="business-details"
+              icon={Building2}
+              title="Business Details"
+              description="Your company information for documents and invoices"
+            >
+              <div className="space-y-4 pt-2">
+                <div>
+                  <Label htmlFor="name">Business Name *</Label>
+                  <Input
+                    id="name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g., Smith Concreting Pty Ltd"
+                    className="touch-target"
+                  />
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No suppliers added yet</p>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Test Result Email */}
-          {business && (
-            <TestResultEmailSection 
-              businessId={business.id} 
-              currentAlias={(business as any).inbound_email_alias || null}
-            />
-          )}
+                <div>
+                  <Label htmlFor="abn">ABN</Label>
+                  <Input
+                    id="abn"
+                    value={abn}
+                    onChange={(e) => setAbn(e.target.value)}
+                    placeholder="e.g., 12 345 678 901"
+                    className="touch-target"
+                  />
+                </div>
 
-          {/* My Price List - Collapsible */}
-          <Collapsible defaultOpen={false}>
-            <Card>
-              <CollapsibleTrigger asChild>
-                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <DollarSign className="w-5 h-5 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle>My Price List</CardTitle>
-                        <CardDescription>
-                          Set your custom prices for materials and labour
-                        </CardDescription>
-                      </div>
-                    </div>
-                    <ChevronDown className="w-5 h-5 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                <div>
+                  <Label htmlFor="address">Business Address</Label>
+                  <Input
+                    id="address"
+                    value={address}
+                    onChange={(e) => setAddress(e.target.value)}
+                    placeholder="e.g., 123 Main St, Sydney NSW 2000"
+                    className="touch-target"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="e.g., 0412 345 678"
+                      className="touch-target"
+                    />
                   </div>
-                </CardHeader>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <PriceListSection />
-              </CollapsibleContent>
-            </Card>
-          </Collapsible>
-
-          {/* Account Security */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="w-5 h-5" />
-                Account Security
-              </CardTitle>
-              <CardDescription>Change your password</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <Label htmlFor="newPassword">New Password</Label>
-                <Input
-                  id="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Enter new password"
-                  className="touch-target"
-                />
+                  <div>
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="e.g., admin@company.com"
+                      className="touch-target"
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Confirm new password"
-                  className="touch-target"
-                />
-              </div>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleChangePassword}
-                disabled={changingPassword || !newPassword || !confirmPassword}
-                className="touch-target"
-              >
-                {changingPassword ? (
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Lock className="w-4 h-4 mr-2" />
-                )}
-                Change Password
-              </Button>
-            </CardContent>
-          </Card>
+            </SettingsAccordionItem>
 
-          {/* Feedback */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
-                Feedback
-              </CardTitle>
-              <CardDescription>Help us improve PourHub</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground mb-4">
-                We'd love to hear your thoughts, suggestions, or any issues you've encountered.
-              </p>
-              <FeedbackDialog 
-                trigger={
-                  <Button variant="outline" className="touch-target">
-                    <MessageSquare className="w-4 h-4 mr-2" />
-                    Send Feedback
+            {/* Preferred Suppliers */}
+            <SettingsAccordionItem
+              value="suppliers"
+              icon={Truck}
+              title="Preferred Suppliers"
+              description="Your go-to concrete and material suppliers"
+            >
+              <div className="space-y-4 pt-2">
+                <div className="flex gap-2">
+                  <Input
+                    value={newSupplier}
+                    onChange={(e) => setNewSupplier(e.target.value)}
+                    placeholder="Add a supplier..."
+                    className="touch-target"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addSupplier();
+                      }
+                    }}
+                  />
+                  <Button type="button" variant="outline" onClick={addSupplier} className="touch-target">
+                    <Plus className="w-4 h-4" />
                   </Button>
-                }
-              />
-            </CardContent>
-          </Card>
+                </div>
 
-          {/* Legal */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Legal</CardTitle>
-              <CardDescription>Privacy policy and terms of service</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <Button variant="link" className="p-0 h-auto" asChild>
-                <Link to="/privacy">Privacy Policy</Link>
-              </Button>
-              <br />
-              <Button variant="link" className="p-0 h-auto" asChild>
-                <Link to="/terms">Terms and Conditions</Link>
-              </Button>
-            </CardContent>
-          </Card>
+                {suppliers.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {suppliers.map((supplier) => (
+                      <Badge key={supplier} variant="secondary" className="gap-1 py-1 px-3">
+                        {supplier}
+                        <button
+                          type="button"
+                          onClick={() => removeSupplier(supplier)}
+                          className="ml-1 hover:text-destructive"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No suppliers added yet</p>
+                )}
+              </div>
+            </SettingsAccordionItem>
+          </SettingsGroup>
+
+          {/* DOCUMENTS GROUP */}
+          <SettingsGroup title="Documents">
+            {/* Branding & Quote Templates */}
+            <SettingsAccordionItem
+              value="branding"
+              icon={Palette}
+              title="Branding & Quote Templates"
+              description="Customize your logo, colors, and quote template style"
+            >
+              <div className="space-y-6 pt-2">
+                {/* Logo Upload */}
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Business Logo</Label>
+                  <div className="flex items-center gap-4">
+                    {logoUrl ? (
+                      <img
+                        src={logoUrl}
+                        alt="Business logo"
+                        className="h-20 w-20 object-contain border rounded-lg bg-white"
+                      />
+                    ) : (
+                      <div className="h-20 w-20 border rounded-lg bg-muted flex items-center justify-center">
+                        <Building2 className="w-8 h-8 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        className="hidden"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) handleLogoUpload(file);
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={uploading || !business}
+                        className="touch-target"
+                      >
+                        {uploading ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 mr-2" />
+                        )}
+                        {logoUrl ? "Change Logo" : "Upload Logo"}
+                      </Button>
+                      {!business && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Save business details first to upload logo
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Quote Template Selection */}
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Quote Template</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {[
+                      { id: "classic", name: "Classic", desc: "Traditional professional layout" },
+                      { id: "modern", name: "Modern", desc: "Clean, bold design" },
+                      { id: "minimal", name: "Minimal", desc: "Simple and elegant" },
+                    ].map((template) => (
+                      <button
+                        key={template.id}
+                        type="button"
+                        onClick={() => setQuoteTemplate(template.id)}
+                        className={`p-3 border rounded-lg text-left transition-all ${
+                          quoteTemplate === template.id
+                            ? "border-primary bg-primary/10 ring-2 ring-primary"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-1">
+                          <FileText className="w-4 h-4" />
+                          <span className="font-medium text-sm">{template.name}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground">{template.desc}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Brand Colors */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="primaryColor" className="text-sm font-medium mb-2 block">
+                      Primary Color (Highlights)
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        id="primaryColor"
+                        value={quotePrimaryColor}
+                        onChange={(e) => setQuotePrimaryColor(e.target.value)}
+                        className="w-12 h-10 rounded border cursor-pointer"
+                      />
+                      <Input
+                        value={quotePrimaryColor}
+                        onChange={(e) => setQuotePrimaryColor(e.target.value)}
+                        placeholder="#f97316"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label htmlFor="secondaryColor" className="text-sm font-medium mb-2 block">
+                      Secondary Color (Headers)
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        id="secondaryColor"
+                        value={quoteSecondaryColor}
+                        onChange={(e) => setQuoteSecondaryColor(e.target.value)}
+                        className="w-12 h-10 rounded border cursor-pointer"
+                      />
+                      <Input
+                        value={quoteSecondaryColor}
+                        onChange={(e) => setQuoteSecondaryColor(e.target.value)}
+                        placeholder="#1f2937"
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <Separator />
+
+                {/* Font Selection */}
+                <div>
+                  <Label htmlFor="quoteFont" className="text-sm font-medium mb-2 block">
+                    Quote Font
+                  </Label>
+                  <Select value={quoteFont} onValueChange={setQuoteFont}>
+                    <SelectTrigger className="w-full sm:w-64">
+                      <SelectValue placeholder="Select a font" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Arial">Arial (Default)</SelectItem>
+                      <SelectItem value="Helvetica">Helvetica</SelectItem>
+                      <SelectItem value="Georgia">Georgia</SelectItem>
+                      <SelectItem value="Times New Roman">Times New Roman</SelectItem>
+                      <SelectItem value="Verdana">Verdana</SelectItem>
+                      <SelectItem value="Trebuchet MS">Trebuchet MS</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <Separator />
+
+                {/* Live Preview */}
+                <div>
+                  <Label className="text-sm font-medium mb-3 flex items-center gap-2">
+                    <Eye className="w-4 h-4" />
+                    Live Preview
+                  </Label>
+                  <div 
+                    className="border rounded-lg overflow-hidden bg-white"
+                    style={{ transform: "scale(1)", transformOrigin: "top left" }}
+                  >
+                    <div 
+                      className="p-4"
+                      style={{ 
+                        fontFamily: `${quoteFont}, sans-serif`,
+                        fontSize: "10px",
+                        lineHeight: "1.4"
+                      }}
+                    >
+                      {quoteTemplate === "modern" ? (
+                        <div>
+                          <div style={{ backgroundColor: quoteSecondaryColor, padding: "12px", marginBottom: "12px", borderRadius: "4px" }}>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                {logoUrl ? (
+                                  <img src={logoUrl} alt="Logo" className="h-6 w-6 object-contain bg-white rounded p-0.5" />
+                                ) : (
+                                  <div className="h-6 w-6 bg-white/20 rounded flex items-center justify-center">
+                                    <Building2 className="w-3 h-3 text-white/60" />
+                                  </div>
+                                )}
+                                <span className="text-white font-bold text-xs">{name || "Company Name"}</span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-white font-black text-sm">QUOTE</span>
+                                <p className="text-[8px]" style={{ color: quotePrimaryColor }}>#EST-001</p>
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ borderBottom: `2px solid ${quotePrimaryColor}`, marginBottom: "8px", paddingBottom: "4px" }} className="flex justify-between text-[8px] text-gray-500">
+                            <span>📞 {phone || "0400 000 000"}</span>
+                            <span>Date: 10 Jan 2026</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-2 mb-2">
+                            <div style={{ backgroundColor: "#f9fafb", padding: "6px", borderRadius: "4px", borderLeft: `2px solid ${quotePrimaryColor}` }}>
+                              <p className="text-[7px] uppercase font-bold" style={{ color: quotePrimaryColor }}>Client</p>
+                              <p className="font-bold text-gray-800">John Smith</p>
+                            </div>
+                            <div style={{ backgroundColor: "#f9fafb", padding: "6px", borderRadius: "4px", borderLeft: `2px solid ${quoteSecondaryColor}` }}>
+                              <p className="text-[7px] uppercase font-bold" style={{ color: quoteSecondaryColor }}>Site</p>
+                              <p className="text-gray-800">123 Example St</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-end">
+                            <div style={{ backgroundColor: "#f9fafb", padding: "8px", borderRadius: "4px" }} className="w-1/2">
+                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
+                                <span>Subtotal</span><span>$4,545.45</span>
+                              </div>
+                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
+                                <span>GST</span><span>$454.55</span>
+                              </div>
+                              <div className="flex justify-between pt-1" style={{ borderTop: `1px solid ${quotePrimaryColor}` }}>
+                                <span className="font-bold text-gray-800">Total</span>
+                                <span className="font-black" style={{ color: quotePrimaryColor }}>$5,000.00</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : quoteTemplate === "minimal" ? (
+                        <div className="px-2">
+                          <div className="flex justify-between items-start mb-4">
+                            <div>
+                              {logoUrl ? (
+                                <img src={logoUrl} alt="Logo" className="h-5 object-contain mb-1" />
+                              ) : null}
+                              <p className="font-medium text-gray-800 text-[9px]">{name || "Company Name"}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-[7px] uppercase tracking-widest text-gray-400">Quote</p>
+                              <p className="text-sm font-light" style={{ color: quotePrimaryColor }}>#EST-001</p>
+                            </div>
+                          </div>
+                          <div style={{ borderBottom: `1px solid ${quotePrimaryColor}` }} className="mb-3"></div>
+                          <div className="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                              <p className="text-[7px] uppercase tracking-wider text-gray-400 mb-1">To</p>
+                              <p className="font-medium text-gray-800">John Smith</p>
+                            </div>
+                            <div>
+                              <p className="text-[7px] uppercase tracking-wider text-gray-400 mb-1">Site</p>
+                              <p className="text-gray-800">123 Example St</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-end">
+                            <div className="w-1/2">
+                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
+                                <span>Subtotal</span><span>$4,545.45</span>
+                              </div>
+                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
+                                <span>GST</span><span>$454.55</span>
+                              </div>
+                              <div className="flex justify-between pt-1" style={{ borderTop: `1px solid ${quotePrimaryColor}` }}>
+                                <span className="font-medium text-gray-800">Total</span>
+                                <span className="font-light text-sm" style={{ color: quotePrimaryColor }}>$5,000.00</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div className="flex items-start justify-between pb-2 mb-3" style={{ borderBottom: `2px solid ${quoteSecondaryColor}` }}>
+                            <div className="flex items-start gap-2">
+                              {logoUrl ? (
+                                <img src={logoUrl} alt="Logo" className="h-8 w-8 object-contain" />
+                              ) : (
+                                <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
+                                  <Building2 className="w-4 h-4 text-gray-400" />
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-bold text-gray-800 text-xs">{name || "Company Name"}</p>
+                                <p className="text-[8px] text-gray-500">{address || "123 Business St"}</p>
+                                <p className="text-[8px] text-gray-500">Ph: {phone || "0400 000 000"}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-gray-800 text-sm">ESTIMATE</p>
+                              <p className="font-semibold" style={{ color: quotePrimaryColor }}>#EST-001</p>
+                              <p className="text-[8px] text-gray-500 mt-1">Date: 10 Jan 2026</p>
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4 mb-3">
+                            <div>
+                              <p className="text-[7px] uppercase font-semibold text-gray-400 mb-1">Bill To</p>
+                              <p className="font-semibold text-gray-800">John Smith</p>
+                              <p className="text-[8px] text-gray-500">john@example.com</p>
+                            </div>
+                            <div>
+                              <p className="text-[7px] uppercase font-semibold text-gray-400 mb-1">Site Address</p>
+                              <p className="text-gray-800">123 Example Street</p>
+                            </div>
+                          </div>
+                          <div className="flex justify-end">
+                            <div className="w-1/2" style={{ borderTop: `2px solid ${quoteSecondaryColor}`, paddingTop: "6px" }}>
+                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
+                                <span>Subtotal (ex GST)</span><span>$4,545.45</span>
+                              </div>
+                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
+                                <span>GST (10%)</span><span>$454.55</span>
+                              </div>
+                              <div className="flex justify-between pt-1" style={{ borderTop: "1px solid #d1d5db" }}>
+                                <span className="font-bold text-gray-800">Total (inc GST)</span>
+                                <span className="font-bold text-sm" style={{ color: quotePrimaryColor }}>$5,000.00</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    This is a preview. Your actual quotes will include full details and line items.
+                  </p>
+                </div>
+              </div>
+            </SettingsAccordionItem>
+
+            {/* My Price List */}
+            <SettingsAccordionItem
+              value="price-list"
+              icon={DollarSign}
+              title="My Price List"
+              description="Set your custom prices for materials and labour"
+            >
+              <div className="pt-2">
+                <PriceListSection />
+              </div>
+            </SettingsAccordionItem>
+
+            {/* Test Result Email */}
+            {business && (
+              <SettingsAccordionItem
+                value="test-email"
+                icon={Mail}
+                title="Test Result Email"
+                description="Share with your testing lab to auto-process results"
+              >
+                <TestResultEmailInline 
+                  businessId={business.id} 
+                  currentAlias={(business as any).inbound_email_alias || null}
+                />
+              </SettingsAccordionItem>
+            )}
+          </SettingsGroup>
+
+          {/* SUPPORT GROUP */}
+          <SettingsGroup title="Support">
+            {/* Feedback */}
+            <SettingsAccordionItem
+              value="feedback"
+              icon={MessageSquare}
+              title="Feedback"
+              description="Help us improve PourHub"
+            >
+              <div className="space-y-4 pt-2">
+                <p className="text-sm text-muted-foreground">
+                  We'd love to hear your thoughts, suggestions, or any issues you've encountered.
+                </p>
+                <FeedbackDialog 
+                  trigger={
+                    <Button variant="outline" className="touch-target">
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      Send Feedback
+                    </Button>
+                  }
+                />
+              </div>
+            </SettingsAccordionItem>
+
+            {/* Legal */}
+            <SettingsAccordionItem
+              value="legal"
+              icon={FileText}
+              title="Legal"
+              description="Privacy policy and terms of service"
+            >
+              <div className="space-y-2 pt-2">
+                <Button variant="link" className="p-0 h-auto" asChild>
+                  <Link to="/privacy">Privacy Policy</Link>
+                </Button>
+                <br />
+                <Button variant="link" className="p-0 h-auto" asChild>
+                  <Link to="/terms">Terms and Conditions</Link>
+                </Button>
+              </div>
+            </SettingsAccordionItem>
+          </SettingsGroup>
 
           <Separator />
 
@@ -928,7 +913,7 @@ export default function AdminSettings() {
             Save Settings
           </Button>
 
-          {/* Hidden Danger Zone - Collapsible at the very bottom */}
+          {/* Hidden Danger Zone */}
           {subscription.isSubscribed && !business?.subscription_exempt && (
             <div className="mt-16 pt-8">
               <Collapsible>
@@ -977,5 +962,76 @@ export default function AdminSettings() {
         </form>
       </div>
     </AdminLayout>
+  );
+}
+
+// Inline version of TestResultEmailSection without the Card wrapper
+function TestResultEmailInline({ businessId, currentAlias }: { businessId: string; currentAlias: string | null }) {
+  const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
+  
+  const emailAddress = currentAlias ? `${currentAlias}@pourhub.au` : null;
+
+  const handleCopy = async () => {
+    if (!emailAddress) return;
+    
+    try {
+      await navigator.clipboard.writeText(emailAddress);
+      setCopied(true);
+      toast({ title: "Email copied to clipboard" });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: "Failed to copy", variant: "destructive" });
+    }
+  };
+
+  return (
+    <div className="space-y-4 pt-2">
+      <CardDescription>
+        Share this email with your concrete testing lab. They can send test results directly to this address and they'll be automatically processed.
+      </CardDescription>
+
+      {emailAddress ? (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
+            <div className="flex-1 font-mono text-sm break-all">
+              {emailAddress}
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={handleCopy}
+              className="shrink-0"
+            >
+              {copied ? (
+                <span className="text-success">✓</span>
+              ) : (
+                <span>📋</span>
+              )}
+            </Button>
+          </div>
+          
+          <Badge variant="secondary" className="text-xs">
+            <Mail className="w-3 h-3 mr-1" />
+            Auto-processes PDF attachments
+          </Badge>
+        </div>
+      ) : (
+        <div className="p-3 bg-muted/50 rounded-lg text-sm text-muted-foreground">
+          Email address will be generated automatically.
+        </div>
+      )}
+
+      <div className="pt-2 border-t">
+        <h4 className="text-sm font-medium mb-2">How it works:</h4>
+        <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+          <li>Share your email address with your testing lab</li>
+          <li>Lab sends test results (PDF) to your email</li>
+          <li>AI automatically extracts test data from the PDF</li>
+          <li>Review and approve results to link them to jobs</li>
+        </ol>
+      </div>
+    </div>
   );
 }
