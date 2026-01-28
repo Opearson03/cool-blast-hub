@@ -40,7 +40,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { PourFormDialog } from "./PourFormDialog";
-import { SubTradeInviteDialog } from "./SubTradeInviteDialog";
+import { SubbieSelectionStep } from "./wizard/SubbieSelectionStep";
 
 interface JobStartupWizardProps {
   open: boolean;
@@ -86,8 +86,6 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
     siteAddress: job.site_address,
   });
   const [isAddPourOpen, setIsAddPourOpen] = useState(false);
-  const [isInviteSubbieOpen, setIsInviteSubbieOpen] = useState(false);
-  const [selectedPourId, setSelectedPourId] = useState<string | null>(null);
   const [pourDates, setPourDates] = useState<Record<string, Date | null>>({});
   const [showDateWarning, setShowDateWarning] = useState(false);
   
@@ -262,11 +260,6 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
     if (currentStepIndex > 0) {
       setCurrentStep(steps[currentStepIndex - 1].key);
     }
-  };
-
-  const handleInviteSubbie = (pourId: string) => {
-    setSelectedPourId(pourId);
-    setIsInviteSubbieOpen(true);
   };
 
   // Update customer info when estimate loads
@@ -521,43 +514,11 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
             )}
 
             {currentStep === "subbies" && (
-              <div className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Invite sub-contractors to your pours. You can also do this later from the job details.
-                </p>
-
-                {pours.length === 0 ? (
-                  <Card>
-                    <CardContent className="py-8 text-center text-muted-foreground">
-                      <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                      <p>Add pours first to invite sub-trades.</p>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <div className="space-y-2">
-                    {pours.map((pour) => (
-                      <Card key={pour.id}>
-                        <CardContent className="p-3 flex items-center justify-between">
-                          <div>
-                            <p className="font-medium">{pour.pour_name}</p>
-                            {pour.estimated_m3 && (
-                              <p className="text-xs text-muted-foreground">{pour.estimated_m3}m³</p>
-                            )}
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleInviteSubbie(pour.id)}
-                          >
-                            <Users className="w-4 h-4 mr-1" />
-                            Invite Subbie
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <SubbieSelectionStep
+                pours={pours}
+                pourDates={pourDates}
+                jobId={job.id}
+              />
             )}
           </div>
 
@@ -610,18 +571,6 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
         }}
         jobId={job.id}
       />
-
-      {/* Invite Sub-Trade Dialog */}
-      {selectedPourId && (
-        <SubTradeInviteDialog
-          open={isInviteSubbieOpen}
-          onOpenChange={setIsInviteSubbieOpen}
-          jobId={job.id}
-          pourId={selectedPourId}
-          pourName={pours.find(p => p.id === selectedPourId)?.pour_name || "Pour"}
-          pourDate={pourDates[selectedPourId] ? format(pourDates[selectedPourId]!, "yyyy-MM-dd") : null}
-        />
-      )}
     </>
   );
 }
