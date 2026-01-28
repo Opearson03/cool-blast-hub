@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -66,6 +66,8 @@ type Job = {
   name: string;
   site_address: string;
   job_number: string | null;
+  job_type?: string;
+  scheduled_date?: string | null;
 };
 
 type Pour = {
@@ -131,7 +133,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange }: ScheduleSubbieDialo
     },
   });
 
-  // Fetch jobs with scheduled/in-progress pours
+  // Fetch jobs with scheduled/in-progress pours (including misc jobs)
   const { data: jobs = [] } = useQuery({
     queryKey: ["jobs-with-pours-for-subbie"],
     queryFn: async () => {
@@ -148,20 +150,19 @@ export function ScheduleSubbieDialog({ open, onOpenChange }: ScheduleSubbieDialo
 
       const { data, error } = await supabase
         .from("jobs")
-        .select("id, name, site_address, job_number")
+        .select("id, name, site_address, job_number, job_type, scheduled_date")
         .eq("business_id", profile.business_id)
-        .neq("job_type", "misc")
         .in("status", ["scheduled", "in_progress"])
         .order("name");
 
       if (error) throw error;
-      return data as Job[];
+      return data as (Job & { job_type: string; scheduled_date: string | null })[];
     },
     enabled: open,
   });
 
-  // Fetch pours for selected job
-  const { data: pours = [] } = useQuery({
+  // Fetch pours for selected job (or create one for misc jobs)
+  const { data: pours = [], isLoading: isLoadingPours } = useQuery({
     queryKey: ["pours-for-job", selectedJob?.id],
     queryFn: async () => {
       if (!selectedJob) return [];
@@ -180,6 +181,35 @@ export function ScheduleSubbieDialog({ open, onOpenChange }: ScheduleSubbieDialo
       })) as Pour[];
     },
     enabled: !!selectedJob,
+  });
+
+  const queryClient = useQueryClient();
+
+  // Mutation to create a pour for misc jobs
+  const createMiscPour = useMutation({
+    mutationFn: async (job: Job) => {
+      const pourName = job.scheduled_date 
+        ? `Subbie Work - ${format(new Date(job.scheduled_date), "d MMM yyyy")}`
+        : "Subbie Work";
+
+      const { data, error } = await supabase
+        .from("job_pours")
+        .insert({
+          job_id: job.id,
+          pour_name: pourName,
+          pour_date: job.scheduled_date || null,
+          status: "scheduled",
+          visit_type: "misc",
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pours-for-job", selectedJob?.id] });
+    },
   });
 
   // Filter jobs by search
@@ -205,9 +235,23 @@ export function ScheduleSubbieDialog({ open, onOpenChange }: ScheduleSubbieDialo
     }
   }, [open, form]);
 
-  const handleJobSelect = (job: Job) => {
+  const handleJobSelect = async (job: Job) => {
     setSelectedJob(job);
     setJobSearch("");
+    
+    // For misc jobs, auto-create a pour if none exists
+    if (job.job_type === "misc") {
+      // Check if pour exists after query settles
+      const { data: existingPours } = await supabase
+        .from("job_pours")
+        .select("id")
+        .eq("job_id", job.id)
+        .in("status", ["scheduled", "in_progress"]);
+      
+      if (!existingPours || existingPours.length === 0) {
+        await createMiscPour.mutateAsync(job);
+      }
+    }
   };
 
   const handlePourToggle = (pour: Pour, checked: boolean) => {
@@ -345,12 +389,26 @@ export function ScheduleSubbieDialog({ open, onOpenChange }: ScheduleSubbieDialo
                           onSelect={() => handleJobSelect(job)}
                           className="cursor-pointer"
                         >
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium">{job.name}</span>
+                          <div className="flex flex-col gap-0.5 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-medium">{job.name}</span>
+                              {job.job_type === "misc" && (
+                                <Badge variant="secondary" className="text-xs px-1.5 py-0 bg-purple-500/20 text-purple-600 border-purple-500/30">
+                                  Misc
+                                </Badge>
+                              )}
+                            </div>
                             <span className="text-xs text-muted-foreground flex items-center gap-1">
                               <MapPin className="h-3 w-3" />
                               {job.site_address?.split(",")[0]}
                               {job.job_number && ` • ${job.job_number}`}
+                              {job.job_type === "misc" && job.scheduled_date && (
+                                <>
+                                  {" • "}
+                                  <Calendar className="h-3 w-3" />
+                                  {format(new Date(job.scheduled_date), "d MMM")}
+                                </>
+                              )}
                             </span>
                           </div>
                           <ChevronRight className="ml-auto h-4 w-4 text-muted-foreground" />
@@ -379,7 +437,14 @@ export function ScheduleSubbieDialog({ open, onOpenChange }: ScheduleSubbieDialo
                 {/* Pours list */}
                 <ScrollArea className="flex-1 border rounded-lg">
                   <div className="p-2 space-y-1">
-                    {pours.length === 0 ? (
+                    {isLoadingPours || createMiscPour.isPending ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                        <span className="ml-2 text-sm text-muted-foreground">
+                          {createMiscPour.isPending ? "Setting up..." : "Loading..."}
+                        </span>
+                      </div>
+                    ) : pours.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No scheduled pours for this job
                       </p>
