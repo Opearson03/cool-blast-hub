@@ -13,6 +13,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Droplets, Plus, Pencil, Trash2, Calendar, Clock, ChevronRight, Users } from "lucide-react";
+import { SubTradeInviteDialog } from "@/components/jobs/SubTradeInviteDialog";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PourFormDialog } from "@/components/jobs/PourFormDialog";
@@ -65,18 +66,34 @@ const statusLabels: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-function PourSubbiesBadge({ pourId }: { pourId: string }) {
+interface PourSubbiesBadgeProps {
+  pourId: string;
+  onAddClick?: (e: React.MouseEvent) => void;
+}
+
+function PourSubbiesBadge({ pourId, onAddClick }: PourSubbiesBadgeProps) {
   const { data: invites } = useSubTradeInvites(pourId);
   const stats = useSubTradeStats(invites);
   
-  if (stats.total === 0) return null;
-  
   return (
     <div className="flex items-center gap-1 text-xs text-muted-foreground">
-      <Users className="w-3 h-3" />
-      <span className={stats.confirmed === stats.total ? "text-success" : ""}>
-        {stats.confirmed}/{stats.total}
-      </span>
+      {stats.total > 0 ? (
+        <>
+          <Users className="w-3 h-3" />
+          <span className={stats.confirmed === stats.total ? "text-success" : ""}>
+            {stats.confirmed}/{stats.total}
+          </span>
+        </>
+      ) : null}
+      {onAddClick && (
+        <button
+          onClick={onAddClick}
+          className="ml-1 p-0.5 rounded hover:bg-primary/10 text-primary"
+          title="Add Subbie"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
+      )}
     </div>
   );
 }
@@ -87,6 +104,7 @@ export function JobPoursTab({ jobId, jobAddress }: JobPoursTabProps) {
   const [selectedPour, setSelectedPour] = useState<JobPour | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [subbieDialogPourId, setSubbieDialogPourId] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   const { data: pours = [], isLoading } = useQuery({
@@ -227,7 +245,13 @@ export function JobPoursTab({ jobId, jobAddress }: JobPoursTabProps) {
                   <span className="text-muted-foreground">
                     <span className="font-medium text-foreground">{pour.actual_m3 || pour.estimated_m3 || "—"}</span> m³
                   </span>
-                  <PourSubbiesBadge pourId={pour.id} />
+                  <PourSubbiesBadge 
+                    pourId={pour.id} 
+                    onAddClick={(e) => {
+                      e.stopPropagation();
+                      setSubbieDialogPourId(pour.id);
+                    }}
+                  />
                 </div>
               </div>
             </CardContent>
@@ -263,8 +287,14 @@ export function JobPoursTab({ jobId, jobAddress }: JobPoursTabProps) {
                 <TableCell>
                   {pour.actual_m3 || pour.estimated_m3 || "—"}
                 </TableCell>
-                <TableCell>
-                  <PourSubbiesBadge pourId={pour.id} />
+                <TableCell onClick={(e) => e.stopPropagation()}>
+                  <PourSubbiesBadge 
+                    pourId={pour.id}
+                    onAddClick={(e) => {
+                      e.stopPropagation();
+                      setSubbieDialogPourId(pour.id);
+                    }}
+                  />
                 </TableCell>
                 <TableCell>
                   <Badge className={statusColors[pour.status || "scheduled"]}>
@@ -337,6 +367,22 @@ export function JobPoursTab({ jobId, jobAddress }: JobPoursTabProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Subbie Invite Dialog */}
+      {subbieDialogPourId && (() => {
+        const targetPour = pours.find(p => p.id === subbieDialogPourId);
+        if (!targetPour) return null;
+        return (
+          <SubTradeInviteDialog
+            open={true}
+            onOpenChange={(open) => !open && setSubbieDialogPourId(null)}
+            pourId={targetPour.id}
+            jobId={jobId}
+            pourName={targetPour.pour_name}
+            pourDate={targetPour.pour_date}
+          />
+        );
+      })()}
     </div>
   );
 }

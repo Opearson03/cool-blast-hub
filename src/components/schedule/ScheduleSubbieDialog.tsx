@@ -59,6 +59,7 @@ import { format } from "date-fns";
 interface ScheduleSubbieDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedJobId?: string;
 }
 
 type Job = {
@@ -113,7 +114,7 @@ const formSchema = z
 
 type FormData = z.infer<typeof formSchema>;
 
-export function ScheduleSubbieDialog({ open, onOpenChange }: ScheduleSubbieDialogProps) {
+export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId }: ScheduleSubbieDialogProps) {
   const [step, setStep] = useState<"select" | "details">("select");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [selectedPours, setSelectedPours] = useState<SelectedPour[]>([]);
@@ -160,6 +161,16 @@ export function ScheduleSubbieDialog({ open, onOpenChange }: ScheduleSubbieDialo
     },
     enabled: open,
   });
+
+  // Preselect job when provided
+  useEffect(() => {
+    if (preselectedJobId && open && jobs.length > 0) {
+      const job = jobs.find(j => j.id === preselectedJobId);
+      if (job && !selectedJob) {
+        setSelectedJob(job);
+      }
+    }
+  }, [preselectedJobId, open, jobs, selectedJob]);
 
   // Fetch pours for selected job (or create one for misc jobs)
   const { data: pours = [], isLoading: isLoadingPours } = useQuery({

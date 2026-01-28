@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CalendarDays, Clock, MapPin, ChevronRight } from "lucide-react";
+import { CalendarDays, Clock, MapPin, ChevronRight, Users, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
 
@@ -18,6 +18,11 @@ interface Pour {
     site_address: string;
     job_number: string | null;
   } | null;
+}
+
+interface SubbieStats {
+  total: number;
+  confirmed: number;
 }
 
 const statusColors: Record<string, string> = {
@@ -43,6 +48,7 @@ interface DailyScheduleWidgetProps {
 
 export function DailyScheduleWidget({ businessId }: DailyScheduleWidgetProps) {
   const [pours, setPours] = useState<Pour[]>([]);
+  const [subbieStats, setSubbieStats] = useState<Record<string, SubbieStats>>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -67,6 +73,30 @@ export function DailyScheduleWidget({ businessId }: DailyScheduleWidgetProps) {
         console.error("Error fetching today's pours:", error);
       } else {
         setPours(data || []);
+        
+        // Fetch subbie stats for all pours in one query
+        if (data && data.length > 0) {
+          const pourIds = data.map(p => p.id);
+          const { data: invites } = await supabase
+            .from("external_invites")
+            .select("job_pour_id, status")
+            .in("job_pour_id", pourIds)
+            .eq("invite_type", "sub_trade");
+          
+          if (invites) {
+            const stats: Record<string, SubbieStats> = {};
+            for (const invite of invites) {
+              if (!stats[invite.job_pour_id]) {
+                stats[invite.job_pour_id] = { total: 0, confirmed: 0 };
+              }
+              stats[invite.job_pour_id].total++;
+              if (invite.status === "accepted") {
+                stats[invite.job_pour_id].confirmed++;
+              }
+            }
+            setSubbieStats(stats);
+          }
+        }
       }
       setLoading(false);
     };
@@ -134,6 +164,16 @@ export function DailyScheduleWidget({ businessId }: DailyScheduleWidgetProps) {
                       <span className="flex items-center gap-1 truncate">
                         <MapPin className="h-3 w-3 shrink-0" />
                         <span className="truncate">{pour.job.site_address}</span>
+                      </span>
+                    )}
+                    {subbieStats[pour.id] && subbieStats[pour.id].total > 0 && (
+                      <span className={`flex items-center gap-1 ${subbieStats[pour.id].confirmed === subbieStats[pour.id].total ? "text-green-500" : ""}`}>
+                        {subbieStats[pour.id].confirmed === subbieStats[pour.id].total ? (
+                          <CheckCircle2 className="h-3 w-3" />
+                        ) : (
+                          <Users className="h-3 w-3" />
+                        )}
+                        {subbieStats[pour.id].confirmed}/{subbieStats[pour.id].total}
                       </span>
                     )}
                   </div>
