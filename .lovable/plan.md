@@ -1,169 +1,144 @@
 
 
-# Plan: Add Internal Beam Volume to Waffle Pod Calculation
+# Plan: Automated Test Result Email Ingestion
 
 ## Overview
-This plan adds internal stiffening beam concrete volume to the Waffle Pod calculation using a geometric formula. The internal beams are separate from the empirical slab body calculation and are simply added to the total volume.
 
-## Current State
-The Waffle Pod `calculateVolume` function currently calculates:
-1. **Slab Body**: `Area / Divisor` (empirical formula)
-2. **Edge Beams**: `(Length × 0.15 × 0.15) + (Length × TotalHeight × 0.05)` (empirical formula)
+Enable concrete testing labs to email test results directly to a unique business email address (e.g., `mullinsconcrete@pourhub.au`), which automatically uploads the PDF, scans it with AI, and creates a pending test result for review.
 
-**Missing**: Internal stiffening beams are not included in the volume calculation, even though the data structure exists (`answers.beams` array and legacy `internal_beams_length`/`internal_beam_width`/`internal_beam_depth` fields).
-
-## Proposed Change
-Add internal beam volume using the same geometric approach used by Raft Slab:
+## How It Works
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│ INTERNAL BEAM VOLUME (Geometric)                                            │
+│                           EMAIL INGESTION FLOW                              │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│ For each beam in answers.beams array:                                       │
-│   → beamVolume = Length × Width × Depth                                     │
-│                                                                             │
-│ OR fallback to legacy single-value fields:                                  │
-│   → internalBeamVolume = internal_beams_length × width × depth              │
-│                                                                             │
-│ Total = slabBodyVolume + edgeBeamVolume + internalBeamVolume                │
+│  1. Lab sends email to: mullinsconcrete@pourhub.au                         │
+│                            ↓                                                │
+│  2. Resend receives email → triggers webhook → edge function               │
+│                            ↓                                                │
+│  3. Edge function:                                                          │
+│     • Validates the "to" address matches a business                         │
+│     • Downloads PDF attachment(s)                                           │
+│     • Uploads to storage bucket                                             │
+│     • Calls scan-test-document to extract data                             │
+│     • Creates pending_test_results record                                   │
+│                            ↓                                                │
+│  4. Business admin reviews & approves pending results                       │
+│     • Links to correct job/pour                                             │
+│     • Confirms or edits extracted data                                      │
 │                                                                             │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Note: Unlike Raft Slab which subtracts slab thickness from beam depth (since beams are embedded in the slab), Waffle Pod internal beams occupy the full depth because they sit in the void space between pods.
+## Database Changes
 
----
+### New Column: `businesses.inbound_email_alias`
+Stores the unique email prefix for each business (e.g., `mullinsconcrete`).
 
-## Technical Changes
-
-### File: `src/lib/estimate-components/scopes.ts`
-
-**Update the `calculateVolume` function in `WAFFLE_POD_SCOPE`** (lines 602-658):
-
-Add internal beam calculation after edge beam volume:
-
-```typescript
-calculateVolume: (answers) => {
-  const area = Number(answers.area) || 0;
-  const podThicknessM = (Number(answers.pod_thickness) || 225) / 1000;
-  const topSlabM = (Number(answers.top_slab_thickness) || 85) / 1000;
-  const perimeter = Number(answers.perimeter) || 0;
-  
-  // Total slab height in mm for divisor lookup
-  const totalHeightMm = (podThicknessM + topSlabM) * 1000;
-  const totalHeightM = podThicknessM + topSlabM;
-  
-  // Edge beam length (defaults to perimeter if not specified)
-  const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-  
-  // Industry divisor lookup based on total slab height
-  const divisorTable = [
-    { height: 260, divisor: 8.35 },
-    { height: 310, divisor: 7.80 },
-    { height: 385, divisor: 6.93 },
-    { height: 460, divisor: 6.30 },
-    { height: 610, divisor: 5.00 },
-  ];
-  
-  // Find appropriate divisor with interpolation
-  let divisor = 8.35;
-  
-  if (totalHeightMm >= 610) {
-    divisor = 5.00;
-  } else if (totalHeightMm <= 260) {
-    divisor = 8.35;
-  } else {
-    for (let i = 0; i < divisorTable.length - 1; i++) {
-      const lower = divisorTable[i];
-      const upper = divisorTable[i + 1];
-      if (totalHeightMm >= lower.height && totalHeightMm <= upper.height) {
-        const ratio = (totalHeightMm - lower.height) / (upper.height - lower.height);
-        divisor = lower.divisor - ratio * (lower.divisor - upper.divisor);
-        break;
-      }
-    }
-  }
-  
-  // Step 1: Slab body volume using industry divisor
-  const slabBodyVolume = area / divisor;
-  
-  // Step 2: Edge beam volume (industry formula)
-  const edgeBeamPartA = edgeBeamLength * 0.15 * 0.15;
-  const edgeBeamPartB = edgeBeamLength * totalHeightM * 0.05;
-  const edgeBeamVolume = edgeBeamPartA + edgeBeamPartB;
-  
-  // Step 3: Internal beam volume (geometric calculation)
-  // Internal beams occupy full depth in the void space between pods
-  const beams = answers.beams || [];
-  let internalBeamVolume = 0;
-  
-  if (beams.length > 0) {
-    // Calculate from beam configurations array
-    internalBeamVolume = beams.reduce((sum: number, beam: any) => {
-      const lengthM = Number(beam.length) || 0;
-      const widthM = (Number(beam.width) || 110) / 1000; // Default 110mm for waffle pod
-      const depthM = (Number(beam.depth) || totalHeightMm) / 1000; // Default to total slab height
-      return sum + lengthM * widthM * depthM;
-    }, 0);
-  } else {
-    // Fallback to legacy single-value fields
-    const internalLength = Number(answers.internal_beams_length) || 0;
-    const internalWidthM = (Number(answers.internal_beam_width) || 110) / 1000;
-    const internalDepthM = (Number(answers.internal_beam_depth) || totalHeightMm) / 1000;
-    internalBeamVolume = internalLength * internalWidthM * internalDepthM;
-  }
-  
-  // Base volume (wastage applied in concrete-supply module at 10%)
-  const baseVolume = slabBodyVolume + edgeBeamVolume + internalBeamVolume;
-  
-  return safeVolume(baseVolume);
-},
+```sql
+ALTER TABLE businesses 
+ADD COLUMN inbound_email_alias TEXT UNIQUE;
 ```
 
----
+### New Table: `pending_test_results`
+Holds auto-ingested test results awaiting approval and job linking.
 
-## Files to Modify
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | uuid | Primary key |
+| `business_id` | uuid | FK to businesses |
+| `from_email` | text | Sender's email address |
+| `subject` | text | Email subject line |
+| `received_at` | timestamptz | When email was received |
+| `lab_report_url` | text | Storage URL for uploaded PDF |
+| `extracted_data` | jsonb | AI-extracted fields (test_id, mpa, dates, etc.) |
+| `status` | enum | `pending`, `approved`, `rejected` |
+| `approved_by` | uuid | Who approved it |
+| `linked_job_id` | uuid | FK to jobs (set on approval) |
+| `linked_pour_id` | uuid | FK to job_pours (optional) |
+| `created_at` | timestamptz | Record creation time |
 
-| File | Change |
+## New Edge Function: `receive-test-email`
+
+Webhook endpoint for Resend inbound emails:
+
+1. **Parse incoming webhook** from Resend (`email.received` event)
+2. **Extract recipient address** (the `to` field)
+3. **Lookup business** by matching the email alias
+4. **Download PDF attachment(s)** using Resend's attachment API
+5. **Upload to `test-documents` bucket**
+6. **Call `scan-test-document`** to extract data via AI
+7. **Insert into `pending_test_results`** with extracted data
+8. **Optionally notify business admin** via email/push
+
+## Frontend Changes
+
+### Settings Page Updates
+- New section: "Test Result Email Address"
+- Display the business's unique email: `{alias}@pourhub.au`
+- Allow admin to customize the alias (with validation)
+- Copy button for easy sharing with labs
+
+### New Component: Pending Test Results Review
+- List of pending test results awaiting approval
+- Each item shows:
+  - Received date/time
+  - Sender email
+  - AI-extracted preview (test ID, MPa, date)
+  - PDF preview/download link
+- Actions:
+  - **Approve**: Select job/pour, confirm data, creates `concrete_tests` record
+  - **Reject**: Discard with optional reason
+
+### Integration Points
+- Badge on Job Test Results tab showing pending count
+- Notification when new results arrive
+- Quick-link from pending result to job selection
+
+## Infrastructure Requirements
+
+### Resend Configuration (Manual Setup)
+The business owner needs to:
+1. Configure a custom domain in Resend for receiving (e.g., `pourhub.au`)
+2. Add a webhook pointing to the edge function URL
+3. Select `email.received` event type
+
+### New Secret Required
+- `RESEND_WEBHOOK_SECRET`: For verifying webhook signatures
+
+## Files to Create/Modify
+
+| File | Action |
 |------|--------|
-| `src/lib/estimate-components/scopes.ts` | Add internal beam geometric volume calculation to `WAFFLE_POD_SCOPE.calculateVolume` |
+| SQL Migration | Add `inbound_email_alias` column, create `pending_test_results` table |
+| `supabase/functions/receive-test-email/index.ts` | New webhook handler |
+| `supabase/config.toml` | Add function config |
+| `src/pages/admin/AdminSettings.tsx` | Add email alias display/edit section |
+| `src/components/jobs/PendingTestResultsSheet.tsx` | New review component |
+| `src/components/jobs/tabs/JobTestResultsTab.tsx` | Add pending count badge |
 
----
+## Security Considerations
 
-## Key Differences from Raft Slab
+1. **Webhook signature verification** - Validate Resend webhook signatures
+2. **Email alias uniqueness** - Prevent collisions between businesses
+3. **RLS policies** - Ensure businesses only see their own pending results
+4. **File validation** - Only accept PDF attachments under 10MB
+5. **Rate limiting** - Consider limits to prevent abuse
 
-| Aspect | Raft Slab | Waffle Pod |
-|--------|-----------|------------|
-| Internal beam depth calculation | `depth - slabThickness` (beam embedded in slab) | Full `depth` (beam in void space) |
-| Default beam width | 300mm | 110mm (per waffle pod spec) |
-| Default beam depth | 400mm | Total slab height (pod + topping) |
+## User Flow Example
 
----
+1. **Setup** (one-time):
+   - Admin goes to Settings → sees their email: `mullinsconcrete@pourhub.au`
+   - Shares this email with their concrete testing lab
 
-## Calculation Example
+2. **Lab sends results**:
+   - Lab emails test report PDF to `mullinsconcrete@pourhub.au`
+   - System automatically processes and extracts data
 
-For a 100m² waffle pod slab with:
-- Pod thickness: 225mm, Top slab: 85mm → Total height: 310mm
-- Perimeter (edge beam length): 40m
-- Internal beams: 20m total @ 110mm wide × 310mm deep
-
-**Volume Breakdown**:
-```
-Slab body = 100 ÷ 7.80 = 12.82 m³
-Edge beam = (40 × 0.15 × 0.15) + (40 × 0.310 × 0.05) = 1.52 m³
-Internal beams = 20 × 0.11 × 0.31 = 0.68 m³
-Base volume = 12.82 + 1.52 + 0.68 = 15.02 m³
-+ wastage 10% = 16.52 m³
-```
-
----
-
-## Testing Checklist
-
-1. Create a waffle pod estimate with internal beams marked
-2. Verify concrete volume includes internal beam contribution
-3. Confirm internal beam volume uses geometric formula (Length × Width × Depth)
-4. Test with legacy fields (manual entry without beam array)
-5. Verify other slab types unchanged
+3. **Admin reviews**:
+   - Sees notification "1 pending test result"
+   - Opens pending results, sees AI-extracted data
+   - Selects correct job/pour, clicks "Approve"
+   - Result appears in job's Test Results tab
 
