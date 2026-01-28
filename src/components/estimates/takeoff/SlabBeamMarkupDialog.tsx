@@ -1059,7 +1059,7 @@ export function SlabBeamMarkupDialog({
                       Skip All
                     </Button>
                     <Button onClick={handleWafflePodStartEdgeBeams} className="w-full sm:w-auto gap-1">
-                      Next
+                      Mark edge beams
                       <ArrowRight className="h-4 w-4" />
                     </Button>
                   </>
