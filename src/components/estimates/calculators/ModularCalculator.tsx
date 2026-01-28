@@ -33,6 +33,7 @@ import { MultiLinearTypeInput } from "./MultiLinearTypeInput";
 import { MultiBeamInput } from "./MultiBeamInput";
 import { MultiBeamTypeInput } from "./MultiBeamTypeInput";
 import { MultiDemolitionInput } from "./MultiDemolitionInput";
+import { WafflePodConfigCard } from "./WafflePodConfigCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1043,6 +1044,23 @@ export function ModularCalculator({
           onSkipMarkupPromptChange={onSkipMarkupPromptChange}
           // Pass scopeId to customize behavior (e.g., hide slab thickness warning for waffle pods)
           scopeId={scope.id}
+        />
+      )}
+
+      {/* Waffle Pod Configuration - simplified card for pod specs and accessories */}
+      {scope.id === 'waffle_pod' && (
+        <WafflePodConfigCard
+          podSize={String(scopeAnswers.pod_size || '1090')}
+          podThickness={String(scopeAnswers.pod_thickness || '225')}
+          topSlabThickness={Number(scopeAnswers.top_slab_thickness) || 85}
+          ribWidth={Number(scopeAnswers.rib_width) || 110}
+          podCount={Number(scopeAnswers.pod_count) || 0}
+          spacer4WayCount={Number(scopeAnswers.spacer_4way_count) || 0}
+          spacer2WayCount={Number(scopeAnswers.spacer_2way_count) || 0}
+          tmChairsCount={Number(scopeAnswers.tm_chairs_count) || 0}
+          barChairsCount={Number(scopeAnswers.bar_chairs_count) || 0}
+          fromTakeoff={scopeAnswers._fromTakeoff}
+          onChange={handleScopeAnswerChange}
         />
       )}
 
