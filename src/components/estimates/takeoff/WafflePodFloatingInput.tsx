@@ -1,0 +1,192 @@
+import { useState, useEffect, useRef } from 'react';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Grid3X3, Check, RotateCcw } from 'lucide-react';
+import { cn } from '@/lib/utils';
+
+interface WafflePodFloatingInputProps {
+  /** Number of pods marked on plans (click-based) */
+  markedPodCount: number;
+  /** Manual count override (if user entered manually) */
+  manualPodCount: number | null;
+  /** Selected pod depth */
+  podDepth: string;
+  /** Callback when pod depth changes */
+  onPodDepthChange: (depth: string) => void;
+  /** Callback when user enters a manual count */
+  onManualCountChange: (count: number | null) => void;
+  /** Callback to clear marked points (when switching to manual) */
+  onClearMarkedPoints: () => void;
+  /** Callback when done counting */
+  onDone: () => void;
+  /** Callback to cancel counting */
+  onCancel: () => void;
+}
+
+const POD_THICKNESS_OPTIONS = [
+  { value: '225', label: '225mm' },
+  { value: '275', label: '275mm' },
+  { value: '325', label: '325mm' },
+  { value: '375', label: '375mm' },
+];
+
+export function WafflePodFloatingInput({
+  markedPodCount,
+  manualPodCount,
+  podDepth,
+  onPodDepthChange,
+  onManualCountChange,
+  onClearMarkedPoints,
+  onDone,
+  onCancel,
+}: WafflePodFloatingInputProps) {
+  const [inputValue, setInputValue] = useState<string>('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Determine if we're in manual mode (user has typed a value)
+  const isManualMode = manualPodCount !== null;
+  const effectiveCount = isManualMode ? manualPodCount : markedPodCount;
+  
+  // Sync input with manual count
+  useEffect(() => {
+    if (manualPodCount !== null) {
+      setInputValue(String(manualPodCount));
+    } else {
+      setInputValue('');
+    }
+  }, [manualPodCount]);
+  
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+    
+    const numValue = parseInt(value, 10);
+    if (!isNaN(numValue) && numValue > 0) {
+      // User entered a valid number - switch to manual mode
+      onManualCountChange(numValue);
+      // Clear the marked points since we're using manual count
+      if (markedPodCount > 0) {
+        onClearMarkedPoints();
+      }
+    } else if (value === '') {
+      // User cleared the input - go back to markup mode
+      onManualCountChange(null);
+    }
+  };
+  
+  const handleSwitchToMarkup = () => {
+    // Clear manual count to return to markup mode
+    setInputValue('');
+    onManualCountChange(null);
+  };
+
+  return (
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
+      <div className="bg-card/95 backdrop-blur border rounded-lg shadow-lg p-3 min-w-[320px]">
+        <div className="flex items-center gap-2 mb-3">
+          <Grid3X3 className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium">Waffle Pod Count</span>
+        </div>
+        
+        <div className="space-y-3">
+          {/* Pod count input/display */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <Label htmlFor="pod-count-input" className="text-xs text-muted-foreground mb-1 block">
+                {isManualMode ? 'Manual Count' : 'Enter count or mark on plans'}
+              </Label>
+              <Input
+                id="pod-count-input"
+                ref={inputRef}
+                type="number"
+                min="1"
+                value={inputValue}
+                onChange={handleInputChange}
+                placeholder={markedPodCount > 0 ? `${markedPodCount} marked` : 'Enter pod count...'}
+                className="h-9"
+              />
+            </div>
+            
+            {/* Show marked count badge when not in manual mode */}
+            {!isManualMode && markedPodCount > 0 && (
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] text-muted-foreground">Marked</span>
+                <Badge variant="secondary" className="text-base px-3">
+                  {markedPodCount}
+                </Badge>
+              </div>
+            )}
+            
+            {/* Show switch button when in manual mode */}
+            {isManualMode && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSwitchToMarkup}
+                className="h-9 px-2"
+                title="Switch to marking on plans"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          
+          {/* Pod depth selector */}
+          <div className="flex items-center gap-2">
+            <Label htmlFor="pod-depth-float" className="text-xs text-muted-foreground whitespace-nowrap">
+              Pod Thickness:
+            </Label>
+            <Select value={podDepth} onValueChange={onPodDepthChange}>
+              <SelectTrigger id="pod-depth-float" className="h-8 flex-1">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="z-[200]">
+                {POD_THICKNESS_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          {/* Helper text */}
+          <p className={cn(
+            "text-xs border-l-2 pl-2",
+            isManualMode 
+              ? "text-amber-600 dark:text-amber-400 border-amber-500/50" 
+              : "text-muted-foreground border-primary/30"
+          )}>
+            {isManualMode 
+              ? "Using manual count. Plan markups cleared." 
+              : "Tap pods on plan, or type count above to skip marking."}
+          </p>
+          
+          {/* Action buttons */}
+          <div className="flex gap-2 pt-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              onClick={onDone}
+              disabled={effectiveCount === 0}
+              className="flex-1"
+            >
+              <Check className="h-4 w-4 mr-1" />
+              Done ({effectiveCount})
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

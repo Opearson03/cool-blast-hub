@@ -19,6 +19,7 @@ import { MarkupNameDialog } from './MarkupNameDialog';
 import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData, type BeamData } from './SlabBeamMarkupDialog';
 import { EditBeamDialog } from './EditBeamDialog';
 import { WafflePodCountDialog } from './WafflePodCountDialog';
+import { WafflePodFloatingInput } from './WafflePodFloatingInput';
 import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea, calculatePolygonPerimeter, calculateRectanglePerimeter, SLAB_WITH_BEAMS_SCOPES, isWafflePodPointScope } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
 import type { DrawingTool, TakeoffPoint, TakeoffMarkup, WafflePodPointScope } from '@/types/takeoff';
@@ -839,6 +840,12 @@ export function PlanTakeoffStep({
     setManualPodCount(count);
   }, []);
   
+  // Handler: Clear marked pod points (when switching to manual entry)
+  const handleClearMarkedPodPoints = useCallback(() => {
+    setPierPoints([]);
+    setWafflePodPoints([]);
+  }, []);
+  
   // Handler: Save 4-way count
   const handleSave4WayCount = useCallback(() => {
     setSpacer4WayPoints([...pierPoints]);
@@ -1463,11 +1470,11 @@ export function PlanTakeoffStep({
         currentFileId={currentFileId}
         onFileChange={setCurrentFile}
         currentPage={currentPage}
-        isPointMode={activeTool === 'point' && (isPointScope || isWafflePodCounting)}
+        isPointMode={activeTool === 'point' && (isPointScope || (isWafflePodCounting && wafflePodCountStep !== 'count_pods'))}
         pointCount={pierPoints.length}
         pointLabel={
           isWafflePodCounting 
-            ? (wafflePodCountStep === 'count_pods' ? 'waffle pod' : wafflePodCountStep === 'count_4way' ? '4-way spacer' : '2-way spacer')
+            ? (wafflePodCountStep === 'count_4way' ? '4-way spacer' : '2-way spacer')
             : activeScope === 'bollards' ? 'bollard' : activeScope === 'pad_footings' ? 'pad footing' : activeScope === 'pit_bases' ? 'pit base' : 'pier'
         }
         onDoneMarkingPoints={isWafflePodCounting ? handleDoneCountingWafflePods : handleDoneMarkingPiers}
@@ -1607,6 +1614,20 @@ export function PlanTakeoffStep({
                 Cancel
               </Button>
             </div>
+          )}
+          
+          {/* Floating waffle pod count input - shown when actively counting pods */}
+          {wafflePodCountingActive && wafflePodCountStep === 'count_pods' && (
+            <WafflePodFloatingInput
+              markedPodCount={pierPoints.length}
+              manualPodCount={manualPodCount}
+              podDepth={wafflePodDepth}
+              onPodDepthChange={setWafflePodDepth}
+              onManualCountChange={(count) => setManualPodCount(count)}
+              onClearMarkedPoints={handleClearMarkedPodPoints}
+              onDone={handleSavePodCount}
+              onCancel={handleCancelWafflePodCounting}
+            />
           )}
 
           {/* Floating bottom popups removed - status info is shown in toolbar */}
