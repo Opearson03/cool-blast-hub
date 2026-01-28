@@ -33,6 +33,7 @@ import { JobSWMSTab } from "@/components/jobs/tabs/JobSWMSTab";
 import { JobTestResultsTab } from "@/components/jobs/tabs/JobTestResultsTab";
 import { JobDocumentsTab } from "@/components/jobs/tabs/JobDocumentsTab";
 import { JobEquipmentTab } from "@/components/jobs/tabs/JobEquipmentTab";
+import { JobSubbiesTab } from "@/components/jobs/tabs/JobSubbiesTab";
 import { JobVariationsTab } from "@/components/jobs/tabs/JobVariationsTab";
 import type { Tables } from "@/integrations/supabase/types";
 
@@ -221,6 +222,9 @@ export default function AdminJobDetail() {
                 <TabsTrigger value="pours" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   Pours
                 </TabsTrigger>
+                <TabsTrigger value="subbies" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+                  Subbies
+                </TabsTrigger>
                 <TabsTrigger value="tests" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   Test Results
                 </TabsTrigger>
@@ -241,7 +245,10 @@ export default function AdminJobDetail() {
             {(job as any).job_type !== "misc" && (
               <>
                 <TabsContent value="pours" className="m-0">
-                  <JobPoursTab jobId={job.id} />
+                  <JobPoursTab jobId={job.id} jobAddress={job.site_address} />
+                </TabsContent>
+                <TabsContent value="subbies" className="m-0">
+                  <JobSubbiesTab jobId={job.id} />
                 </TabsContent>
                 <TabsContent value="tests" className="m-0">
                   <JobTestResultsTab jobId={job.id} />
