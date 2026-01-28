@@ -133,3 +133,9 @@ verify_jwt = false
 
 [functions.receive-test-email]
 verify_jwt = false
+
+[functions.verify-turnstile]
+verify_jwt = false
+
+[functions.send-batch-subtrade-invite]
+verify_jwt = false
