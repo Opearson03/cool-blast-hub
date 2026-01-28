@@ -1071,7 +1071,9 @@ function generateBOQFromEstimateData(
       addItem("concrete", `N25 Concrete (${label})`, totalVolume, "m³");
     }
 
-    // WAFFLE POD
+    // ═══════════════════════════════════════════════════════════════
+    // WAFFLE POD SPECIFIC ITEMS
+    // ═══════════════════════════════════════════════════════════════
     if (scopeKey === "waffle_pod") {
       const area = scopeAnswers.area || 0;
       const podSize = Number(scopeAnswers.pod_size) || 1090;
@@ -1083,9 +1085,62 @@ function generateBOQFromEstimateData(
         ? Number(scopeAnswers.pod_count)
         : Math.ceil(area / (moduleSize * moduleSize));
       
-      if (podCount > 0) {
-        const podThickness = Number(scopeAnswers.pod_thickness) || 225;
+      const podThickness = Number(scopeAnswers.pod_thickness) || 225;
+      const podsSuppliedByConcreter = scopeAnswers.pods_supplied_by_concreter === true;
+      
+      // Pods and spacers (only if supplied by concreter)
+      if (podsSuppliedByConcreter && podCount > 0) {
         addItem("formwork", `Waffle Pods (${podSize}×${podSize}×${podThickness}mm)`, podCount, "units");
+        
+        // 4-Way Spacers
+        const spacer4WayCount = Number(scopeAnswers.spacer_4way_count) || 0;
+        if (spacer4WayCount > 0) {
+          addItem("formwork", "4-Way Waffle Pod Spacers", spacer4WayCount, "units");
+        }
+        
+        // 2-Way Spacers
+        const spacer2WayCount = Number(scopeAnswers.spacer_2way_count) || 0;
+        if (spacer2WayCount > 0) {
+          addItem("formwork", "2-Way Waffle Pod Spacers", spacer2WayCount, "units");
+        }
+      }
+      
+      // Pod Rails (for 100mm+ slabs) - always included if configured
+      const podRailPacks = Number(scopeAnswers.pod_rail_packs) || 0;
+      if (podRailPacks > 0) {
+        addItem("formwork", "Pod Rail Spacers (40mm × 550mm)", podRailPacks, "packs of 20", undefined, "2 rails per pod");
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      // WAFFLE POD REINFORCEMENT ITEMS
+      // ═══════════════════════════════════════════════════════════════
+      
+      // TM Chairs (perimeter ÷ 1.2)
+      const tmChairsCount = Number(scopeAnswers.tm_chairs_count) || 0;
+      if (tmChairsCount > 0) {
+        const bags = Math.ceil(tmChairsCount / 25);
+        addItem("reinforcement", "Perimeter TM Chairs", bags, "bags of 25", undefined, `${tmChairsCount} chairs total`);
+      }
+      
+      // Bar Chairs 25/40 (pods × 3)
+      const barChairsCount = Number(scopeAnswers.bar_chairs_count) || 0;
+      if (barChairsCount > 0) {
+        const bags = Math.ceil(barChairsCount / 100);
+        addItem("reinforcement", "Bar Chairs 25-40mm", bags, "bags of 100", undefined, `${barChairsCount} chairs total`);
+      }
+      
+      // Rib Y-Bar: (pods × 2.3) ÷ 5.5 = qty of 6m lengths
+      if (podCount > 0) {
+        const yBarLengths = Math.ceil((podCount * 2.3) / 5.5);
+        if (yBarLengths > 0) {
+          addItem("reinforcement", "Rib Y-Bar N12", yBarLengths, "× 6m lengths", undefined, "Rib reinforcement");
+        }
+      }
+      
+      // Slab Mesh: area ÷ 12.5 = qty of sheets
+      if (area > 0) {
+        const meshSheets = Math.ceil(area / 12.5);
+        addItem("reinforcement", "Slab Mesh SL82", meshSheets, "sheets", undefined, `${area.toFixed(1)}m² coverage`);
       }
     }
   }

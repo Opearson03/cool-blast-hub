@@ -392,6 +392,7 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     'pod_count', 'spacer_4way_count', 'spacer_2way_count',
     'tm_chairs_count', 'bar_chairs_count',
     'pod_rails_required', 'pod_rail_packs',
+    'pods_supplied_by_concreter', // Show in formwork module questions instead
     'internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 
     'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'
   ],
@@ -486,6 +487,14 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       min: 0,
       defaultValue: 0,
       helpText: 'Count of 2-way edge spacers',
+    },
+    // Supply question for pods and spacers
+    {
+      id: 'pods_supplied_by_concreter',
+      type: 'boolean',
+      label: 'Pods & Spacers Supplied by Concreter',
+      defaultValue: false,
+      helpText: 'Yes = included in quote. No = supply by others (exclusion).',
     },
     // Pod rails (visible toggle with auto-select for 100mm+ slabs)
     {

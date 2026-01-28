@@ -182,6 +182,7 @@ interface ModuleAnswers {
     stake_count?: number;
     stake_price?: number;
     sundry_fixings?: number;
+    pods_supplied_by_concreter?: boolean;
   };
   "connections-joints"?: {
     // Dowels
@@ -1446,36 +1447,40 @@ export function generateBOQFromEstimate(
         ? Number(scopeAnswers.pod_count)
         : Math.ceil(area / (moduleSize * moduleSize));
       
-      if (podCount > 0) {
-        const podThickness = Number(scopeAnswers.pod_thickness) || 225;
+      const podThickness = Number(scopeAnswers.pod_thickness) || 225;
+      const podsSuppliedByConcreter = scopeAnswers.pods_supplied_by_concreter === true || 
+        moduleAnswers["formwork"]?.pods_supplied_by_concreter === true;
+      
+      // Pods and spacers (only if supplied by concreter)
+      if (podsSuppliedByConcreter && podCount > 0) {
         addItem(
           "formwork", 
           `Waffle Pods (${podSize}×${podSize}×${podThickness}mm)`, 
           podCount, 
           "units"
         );
-      }
 
-      // 4-Way Spacers
-      const spacer4WayCount = Number(scopeAnswers.spacer_4way_count) || 0;
-      if (spacer4WayCount > 0) {
-        addItem(
-          "formwork",
-          "4-Way Waffle Pod Spacers",
-          spacer4WayCount,
-          "units"
-        );
-      }
+        // 4-Way Spacers
+        const spacer4WayCount = Number(scopeAnswers.spacer_4way_count) || 0;
+        if (spacer4WayCount > 0) {
+          addItem(
+            "formwork",
+            "4-Way Waffle Pod Spacers",
+            spacer4WayCount,
+            "units"
+          );
+        }
 
-      // 2-Way Spacers
-      const spacer2WayCount = Number(scopeAnswers.spacer_2way_count) || 0;
-      if (spacer2WayCount > 0) {
-        addItem(
-          "formwork",
-          "2-Way Waffle Pod Spacers",
-          spacer2WayCount,
-          "units"
-        );
+        // 2-Way Spacers
+        const spacer2WayCount = Number(scopeAnswers.spacer_2way_count) || 0;
+        if (spacer2WayCount > 0) {
+          addItem(
+            "formwork",
+            "2-Way Waffle Pod Spacers",
+            spacer2WayCount,
+            "units"
+          );
+        }
       }
 
       // Pod Rails (for 100mm+ slabs)
