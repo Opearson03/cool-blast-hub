@@ -1616,26 +1616,14 @@ export function PlanTakeoffStep({
             </div>
           )}
           
-          {/* Floating waffle pod count input - shown when actively counting pods */}
-          {wafflePodCountingActive && wafflePodCountStep === 'count_pods' && (
-            <WafflePodFloatingInput
-              markedPodCount={pierPoints.length}
-              manualPodCount={manualPodCount}
-              podDepth={wafflePodDepth}
-              onPodDepthChange={setWafflePodDepth}
-              onManualCountChange={(count) => setManualPodCount(count)}
-              onClearMarkedPoints={handleClearMarkedPodPoints}
-              onDone={handleSavePodCount}
-              onCancel={handleCancelWafflePodCounting}
-            />
-          )}
+          {/* Floating bottom popups removed - waffle pod input moved to sidebar */}
 
           {/* Floating bottom popups removed - status info is shown in toolbar */}
         </div>
 
         {/* Floating scope panel - positioned on left side */}
         <div className="absolute top-2 left-2 z-20 pointer-events-none">
-          <div className="pointer-events-auto">
+          <div className="pointer-events-auto space-y-2">
             <ScopeMarkupChecklist
               scopes={scopes}
               markups={markups}
@@ -1658,6 +1646,20 @@ export function PlanTakeoffStep({
               isCollapsed={isScopePanelCollapsed}
               onToggle={() => setScopePanelManuallyExpanded(!scopePanelManuallyExpanded)}
             />
+            
+            {/* Waffle pod count panel - shown below scopes when actively counting */}
+            {wafflePodCountingActive && wafflePodCountStep === 'count_pods' && (
+              <WafflePodFloatingInput
+                markedPodCount={pierPoints.length}
+                manualPodCount={manualPodCount}
+                podDepth={wafflePodDepth}
+                onPodDepthChange={setWafflePodDepth}
+                onManualCountChange={(count) => setManualPodCount(count)}
+                onClearMarkedPoints={handleClearMarkedPodPoints}
+                onDone={handleSavePodCount}
+                onCancel={handleCancelWafflePodCounting}
+              />
+            )}
           </div>
         </div>
       </div>

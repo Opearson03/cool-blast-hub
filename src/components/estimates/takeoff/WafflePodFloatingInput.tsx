@@ -3,8 +3,9 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Grid3X3, Check, RotateCcw } from 'lucide-react';
+import { Grid3X3, Check, RotateCcw, ChevronDown, ChevronUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface WafflePodFloatingInputProps {
@@ -44,6 +45,7 @@ export function WafflePodFloatingInput({
   onCancel,
 }: WafflePodFloatingInputProps) {
   const [inputValue, setInputValue] = useState<string>('');
+  const [isExpanded, setIsExpanded] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   
   // Determine if we're in manual mode (user has typed a value)
@@ -84,13 +86,33 @@ export function WafflePodFloatingInput({
   };
 
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30">
-      <div className="bg-card/95 backdrop-blur border rounded-lg shadow-lg p-3 min-w-[320px]">
-        <div className="flex items-center gap-2 mb-3">
-          <Grid3X3 className="h-4 w-4 text-primary" />
-          <span className="text-sm font-medium">Waffle Pod Count</span>
+    <Card className="border-2 border-primary/20 bg-card/95 backdrop-blur shadow-lg w-72 flex flex-col">
+      {/* Collapsible header - matches ScopeMarkupChecklist */}
+      <CardHeader 
+        className="pb-2 cursor-pointer hover:bg-muted/50 transition-colors shrink-0 py-3"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Grid3X3 className="h-4 w-4 text-primary" />
+            <CardTitle className="text-sm font-semibold">Waffle Pod Count</CardTitle>
+            {effectiveCount > 0 && (
+              <Badge variant="default" className="text-xs font-medium">
+                {effectiveCount}
+              </Badge>
+            )}
+          </div>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          </Button>
         </div>
-        
+      </CardHeader>
+      
+      {/* Content - matches ScopeMarkupChecklist spacing */}
+      <CardContent className={cn(
+        "pt-0 pb-3",
+        !isExpanded && "hidden"
+      )}>
         <div className="space-y-3">
           {/* Pod count input/display */}
           <div className="flex items-center gap-3">
@@ -162,7 +184,7 @@ export function WafflePodFloatingInput({
           )}>
             {isManualMode 
               ? "Using manual count. Plan markups cleared." 
-              : "Tap pods on plan, or type count above to skip marking."}
+              : "Tap pods on plan, or type count above."}
           </p>
           
           {/* Action buttons */}
@@ -171,7 +193,7 @@ export function WafflePodFloatingInput({
               variant="outline"
               size="sm"
               onClick={onCancel}
-              className="flex-1"
+              className="flex-1 h-8 text-xs"
             >
               Cancel
             </Button>
@@ -179,14 +201,14 @@ export function WafflePodFloatingInput({
               size="sm"
               onClick={onDone}
               disabled={effectiveCount === 0}
-              className="flex-1"
+              className="flex-1 h-8 text-xs"
             >
-              <Check className="h-4 w-4 mr-1" />
+              <Check className="h-3 w-3 mr-1" />
               Done ({effectiveCount})
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
