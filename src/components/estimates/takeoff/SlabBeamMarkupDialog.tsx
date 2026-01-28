@@ -171,9 +171,18 @@ export function SlabBeamMarkupDialog({
   onAddAnotherInternalBeam,
   onFinishAllBeams,
   onCancel,
-}: SlabBeamMarkupDialogProps) {
+  // New: callback to update accessory counts from auto-calculation
+  onAccessoryCountsChange,
+}: SlabBeamMarkupDialogProps & { 
+  onAccessoryCountsChange?: (counts: { podCount: number; spacer4Way: number; spacer2Way: number }) => void 
+}) {
   // Local state for beam details
   const [beamName, setBeamName] = useState('');
+  
+  // Local state for editable accessory counts (auto-calculated, user can override)
+  const [localPodCount, setLocalPodCount] = useState(0);
+  const [localSpacer4Way, setLocalSpacer4Way] = useState(0);
+  const [localSpacer2Way, setLocalSpacer2Way] = useState(0);
   const [beamWidth, setBeamWidth] = useState(450);
   const [beamDepth, setBeamDepth] = useState(450);
   
@@ -365,15 +374,34 @@ export function SlabBeamMarkupDialog({
     setLocalRibWidth(wafflePodRibWidth);
   }, [wafflePodSize, wafflePodThickness, wafflePodTopThickness, wafflePodRibWidth]);
 
+  // Auto-calculate waffle pod accessory counts when area changes
+  useEffect(() => {
+    if (isWafflePod && slabArea > 0 && step === 'name') {
+      // Formulas from user:
+      // Pods = Area / 1.51
+      // 4-way spacers = Pods × 1.40
+      // 2-way spacers = 4-way spacers / 3
+      const calculatedPods = Math.round(slabArea / 1.51);
+      const calculated4Way = Math.round(calculatedPods * 1.40);
+      const calculated2Way = Math.round(calculated4Way / 3);
+      
+      setLocalPodCount(calculatedPods);
+      setLocalSpacer4Way(calculated4Way);
+      setLocalSpacer2Way(calculated2Way);
+    }
+  }, [isWafflePod, slabArea, step]);
+
   // Save waffle pod dimensions and skip beams (used when user chooses to skip)
   const handleWafflePodSkipBeams = () => {
     onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
+    onAccessoryCountsChange?.({ podCount: localPodCount, spacer4Way: localSpacer4Way, spacer2Way: localSpacer2Way });
     onSkipAllBeams();
   };
 
   // Save waffle pod dimensions and proceed to edge beams
   const handleWafflePodStartEdgeBeams = () => {
     onWafflePodDimensionsChange?.(localPodSize, localPodThickness, localTopThickness, localRibWidth);
+    onAccessoryCountsChange?.({ podCount: localPodCount, spacer4Way: localSpacer4Way, spacer2Way: localSpacer2Way });
     onStartEdgeBeams();
   };
 
@@ -491,125 +519,147 @@ export function SlabBeamMarkupDialog({
               </div>
 
               {/* Waffle Pod specific options */}
-              {isWafflePod ? (
+              {isWafflePod && (
                 <>
                   <Separator />
-                  {wafflePodCountingComplete ? (
-                    // Show counts summary after counting is complete
-                    <div className="space-y-4">
-                      <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg">
-                        <p className="text-sm font-medium text-green-700 dark:text-green-400 mb-2">
-                          Counting Complete
-                        </p>
-                        <div className="space-y-1">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Waffle Pods:</span>
-                            <span className="font-medium">{wafflePodCount}</span>
-                          </div>
-                          {spacer4WayCount > 0 && (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">4-Way Spacers:</span>
-                              <span className="font-medium">{spacer4WayCount}</span>
-                            </div>
-                          )}
-                          {spacer2WayCount > 0 && (
-                            <div className="flex justify-between text-sm">
-                              <span className="text-muted-foreground">2-Way Spacers:</span>
-                              <span className="font-medium">{spacer2WayCount}</span>
-                            </div>
-                          )}
-                        </div>
+                  {/* Pod dimensions */}
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Pod Module Size</Label>
+                      <Select value={localPodSize} onValueChange={setLocalPodSize}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select pod size" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WAFFLE_POD_MODULE_SIZES.map(size => (
+                            <SelectItem key={size.value} value={size.value}>
+                              {size.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Pod Thickness</Label>
+                      <Select value={String(localPodThickness)} onValueChange={(v) => setLocalPodThickness(Number(v))}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select pod thickness" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {WAFFLE_POD_THICKNESSES.map(thickness => (
+                            <SelectItem key={thickness.value} value={thickness.value}>
+                              {thickness.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="top-thickness" className="text-sm font-medium">Top Slab Thickness (mm)</Label>
+                      <Input
+                        id="top-thickness"
+                        type="number"
+                        value={localTopThickness}
+                        onChange={(e) => setLocalTopThickness(Number(e.target.value))}
+                        min={50}
+                        max={200}
+                        placeholder="85"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Concrete topping over waffle pods
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="rib-width" className="text-sm font-medium">Rib Width (mm)</Label>
+                      <Input
+                        id="rib-width"
+                        type="number"
+                        value={localRibWidth}
+                        onChange={(e) => setLocalRibWidth(Number(e.target.value))}
+                        min={100}
+                        max={200}
+                        placeholder="110"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Width of concrete ribs between pods
+                      </p>
+                    </div>
+
+                    {/* Total thickness display */}
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Total Slab Thickness:</span>
+                        <span className="font-medium">{totalThickness}mm</span>
                       </div>
+                    </div>
+
+                    <Separator />
+
+                    {/* Auto-calculated accessory counts (editable) */}
+                    <div className="space-y-3">
+                      <Label className="text-sm font-medium flex items-center gap-2">
+                        <Grid3X3 className="h-4 w-4" />
+                        Accessories (Auto-calculated)
+                      </Label>
+                      <p className="text-xs text-muted-foreground">
+                        Quantities are estimated from slab area. Adjust if needed.
+                      </p>
                       
-                      {/* Beam options */}
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Beams (Optional)</Label>
-                        <p className="text-xs text-muted-foreground">
-                          Waffle pod slabs can have edge and internal beams. You can add them now or finish.
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    // Show configuration options before counting
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Pod Module Size</Label>
-                        <Select value={localPodSize} onValueChange={setLocalPodSize}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select pod size" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {WAFFLE_POD_MODULE_SIZES.map(size => (
-                              <SelectItem key={size.value} value={size.value}>
-                                {size.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label className="text-sm font-medium">Pod Thickness</Label>
-                        <Select value={String(localPodThickness)} onValueChange={(v) => setLocalPodThickness(Number(v))}>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select pod thickness" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {WAFFLE_POD_THICKNESSES.map(thickness => (
-                              <SelectItem key={thickness.value} value={thickness.value}>
-                                {thickness.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="top-thickness" className="text-sm font-medium">Top Slab Thickness (mm)</Label>
-                        <Input
-                          id="top-thickness"
-                          type="number"
-                          value={localTopThickness}
-                          onChange={(e) => setLocalTopThickness(Number(e.target.value))}
-                          min={50}
-                          max={200}
-                          placeholder="85"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Concrete topping over waffle pods
-                        </p>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="rib-width" className="text-sm font-medium">Rib Width (mm)</Label>
-                        <Input
-                          id="rib-width"
-                          type="number"
-                          value={localRibWidth}
-                          onChange={(e) => setLocalRibWidth(Number(e.target.value))}
-                          min={100}
-                          max={200}
-                          placeholder="110"
-                        />
-                        <p className="text-xs text-muted-foreground">
-                          Width of concrete ribs between pods
-                        </p>
-                      </div>
-
-                      {/* Total thickness display */}
-                      <div className="p-3 bg-primary/10 rounded-lg">
-                        <div className="flex justify-between text-sm">
-                          <span className="text-muted-foreground">Total Slab Thickness:</span>
-                          <span className="font-medium">{totalThickness}mm</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label htmlFor="pod-count" className="text-xs text-muted-foreground">Pods</Label>
+                          <Input
+                            id="pod-count"
+                            type="number"
+                            min={0}
+                            value={localPodCount}
+                            onChange={(e) => setLocalPodCount(Number(e.target.value) || 0)}
+                            className="h-8 text-center"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="spacer-4way" className="text-xs text-muted-foreground">4-Way</Label>
+                          <Input
+                            id="spacer-4way"
+                            type="number"
+                            min={0}
+                            value={localSpacer4Way}
+                            onChange={(e) => setLocalSpacer4Way(Number(e.target.value) || 0)}
+                            className="h-8 text-center"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor="spacer-2way" className="text-xs text-muted-foreground">2-Way</Label>
+                          <Input
+                            id="spacer-2way"
+                            type="number"
+                            min={0}
+                            value={localSpacer2Way}
+                            onChange={(e) => setLocalSpacer2Way(Number(e.target.value) || 0)}
+                            className="h-8 text-center"
+                          />
                         </div>
                       </div>
                     </div>
-                  )}
+
+                    {/* Beam options */}
+                    <div className="space-y-2">
+                      <Label className="text-sm font-medium">Beams (Optional)</Label>
+                      <p className="text-xs text-muted-foreground">
+                        Waffle pod slabs can have edge and internal beams. You can add them now or finish.
+                      </p>
+                    </div>
+                  </div>
                 </>
-              ) : (
+              )}
+
+              {/* Non-waffle pod: Edge beam/thickening options */}
+              {!isWafflePod && (
                 <>
                   <Separator />
-                  {/* Edge beam/thickening options */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">{getEdgeLabel()}</Label>
                     <p className="text-xs text-muted-foreground">
