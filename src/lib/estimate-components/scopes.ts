@@ -386,8 +386,15 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
   beamsLabel: 'Internal Stiffening Beams',
   supportsMultipleEdgeBeams: true,
   edgeBeamsLabel: 'Edge Beams',
-  // Hide beam fields from standard rendering - they're managed by MultiBeamInput
-  hideStandardQuestions: ['internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'],
+  // Hide all waffle pod specific questions - they're managed by WafflePodConfigCard
+  hideStandardQuestions: [
+    'pod_size', 'pod_thickness', 'top_slab_thickness', 'rib_width',
+    'pod_count', 'spacer_4way_count', 'spacer_2way_count',
+    'tm_chairs_count', 'bar_chairs_count',
+    'pod_rails_required', 'pod_rail_packs',
+    'internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 
+    'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'
+  ],
   questions: [
     {
       id: 'area',
