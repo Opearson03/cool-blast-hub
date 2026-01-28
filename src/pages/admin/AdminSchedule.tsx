@@ -18,6 +18,8 @@ import { QuickSiteVisitDialog } from "@/components/schedule/QuickSiteVisitDialog
 import { AddToScheduleMenu } from "@/components/schedule/AddToScheduleMenu";
 import { SchedulePourDialog } from "@/components/schedule/SchedulePourDialog";
 import { ScheduleSubbieDialog } from "@/components/schedule/ScheduleSubbieDialog";
+import { SubbieRescheduleDialog } from "@/components/schedule/SubbieRescheduleDialog";
+import { SubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { 
   format, 
   startOfWeek, 
@@ -114,6 +116,14 @@ export default function AdminSchedule() {
   const [siteVisitDialogOpen, setSiteVisitDialogOpen] = useState(false);
   const [pourDialogOpen, setPourDialogOpen] = useState(false);
   const [subbieDialogOpen, setSubbieDialogOpen] = useState(false);
+  const [rescheduleDialogOpen, setRescheduleDialogOpen] = useState(false);
+  const [pendingReschedule, setPendingReschedule] = useState<{
+    pourId: string;
+    pourName: string;
+    oldDate: string;
+    newDate: string;
+    invites: SubTradeInvite[];
+  } | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -391,7 +401,7 @@ export default function AdminSchedule() {
     }
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     setActivePour(null);
     setActiveEstimate(null);
     const { active, over } = event;
@@ -409,11 +419,92 @@ export default function AdminSchedule() {
             updateEstimateDate.mutate({ estimateId: data.estimate.id, field, newDate });
           }
         } else {
-          // It's a pour
-          updatePourDate.mutate({ pourId: activeId, newDate });
+          // It's a pour - check for existing invites
+          const pour = pours.find((p) => p.id === activeId);
+          if (!pour) return;
+
+          const oldDate = pour.pour_date;
+
+          // Check for active sub-trade invites
+          const { data: invites } = await supabase
+            .from("external_invites")
+            .select("*")
+            .eq("job_pour_id", activeId)
+            .eq("invite_type", "sub_trade")
+            .in("status", ["sent", "viewed", "accepted"]);
+
+          if (invites && invites.length > 0) {
+            // Show reschedule dialog
+            setPendingReschedule({
+              pourId: activeId,
+              pourName: pour.pour_name,
+              oldDate: oldDate || "",
+              newDate,
+              invites: invites as SubTradeInvite[],
+            });
+            setRescheduleDialogOpen(true);
+          } else {
+            // No invites, proceed with update directly
+            updatePourDate.mutate({ pourId: activeId, newDate });
+          }
         }
       }
     }
+  };
+
+  const handleRescheduleConfirm = async (action: "cancel" | "reschedule") => {
+    if (!pendingReschedule) return;
+
+    // Update the pour date first
+    const { error: updateError } = await supabase
+      .from("job_pours")
+      .update({ pour_date: pendingReschedule.newDate })
+      .eq("id", pendingReschedule.pourId);
+
+    if (updateError) {
+      toast({ title: "Failed to update pour date", variant: "destructive" });
+      return;
+    }
+
+    // Call the notification edge function
+    try {
+      const { error: notifyError } = await supabase.functions.invoke("notify-subtrade-reschedule", {
+        body: {
+          pour_id: pendingReschedule.pourId,
+          action,
+          old_date: pendingReschedule.oldDate,
+          new_date: pendingReschedule.newDate,
+        },
+      });
+
+      if (notifyError) {
+        console.error("Notification error:", notifyError);
+        toast({
+          title: "Pour rescheduled",
+          description: "Failed to notify some sub-trades",
+          variant: "destructive",
+        });
+      } else {
+        const actionText = action === "cancel" ? "cancelled" : "notified";
+        toast({
+          title: "Pour rescheduled",
+          description: `${pendingReschedule.invites.length} sub-trade(s) ${actionText}`,
+        });
+      }
+    } catch (err) {
+      console.error("Failed to notify:", err);
+      toast({ title: "Pour rescheduled", description: "Sub-trade notifications may have failed" });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
+    queryClient.invalidateQueries({ queryKey: ["sub-trade-invites"] });
+    setRescheduleDialogOpen(false);
+    setPendingReschedule(null);
+  };
+
+  const handleRescheduleCancel = () => {
+    // User cancelled - don't update the pour date
+    setPendingReschedule(null);
   };
 
   const handlePourClick = (pour: Pour) => {
@@ -710,6 +801,20 @@ export default function AdminSchedule() {
         open={subbieDialogOpen}
         onOpenChange={setSubbieDialogOpen}
       />
+
+      {/* Subbie Reschedule Dialog */}
+      {pendingReschedule && (
+        <SubbieRescheduleDialog
+          open={rescheduleDialogOpen}
+          onOpenChange={setRescheduleDialogOpen}
+          pourName={pendingReschedule.pourName}
+          oldDate={pendingReschedule.oldDate}
+          newDate={pendingReschedule.newDate}
+          invites={pendingReschedule.invites}
+          onConfirm={handleRescheduleConfirm}
+          onCancel={handleRescheduleCancel}
+        />
+      )}
     </AdminLayout>
   );
 }
