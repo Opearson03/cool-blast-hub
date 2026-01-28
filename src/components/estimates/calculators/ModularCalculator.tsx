@@ -572,34 +572,65 @@ export function ModularCalculator({
     notifyStateChange();
   }, [notifyStateChange]);
 
-  // Auto-calculate pod rails when top_slab_thickness or pod_count changes for waffle pod
+  // Auto-calculate pod rails and spacers when top_slab_thickness or pod_count changes for waffle pod
   useEffect(() => {
     if (scope.id !== 'waffle_pod') return;
     
     const topSlabThickness = Number(scopeAnswers.top_slab_thickness) || 85;
     const podCount = Number(scopeAnswers.pod_count) || 0;
     
+    // Calculate updates
+    const updates: Record<string, any> = {};
+    
+    // Auto-calculate pod rails for 100mm+ slabs
     if (topSlabThickness >= 100 && podCount > 0) {
       const railsNeeded = podCount * 2;
       const packsNeeded = Math.ceil(railsNeeded / 20);
       
-      // Only update if values differ
       if (scopeAnswers.pod_rails_required !== true || scopeAnswers.pod_rail_packs !== packsNeeded) {
-        setScopeAnswers(prev => ({
-          ...prev,
-          pod_rails_required: true,
-          pod_rail_packs: packsNeeded,
-        }));
+        updates.pod_rails_required = true;
+        updates.pod_rail_packs = packsNeeded;
       }
     } else {
-      // Clear pod rails if not needed
       if (scopeAnswers.pod_rails_required === true) {
-        setScopeAnswers(prev => ({
-          ...prev,
-          pod_rails_required: false,
-          pod_rail_packs: 0,
-        }));
+        updates.pod_rails_required = false;
+        updates.pod_rail_packs = 0;
       }
+    }
+    
+    // Auto-calculate spacers from pod count if they haven't been manually set from takeoff
+    // Use grid estimation: assume pods laid in approximate square grid
+    // For a grid of n×m pods: 4-way intersections ≈ (n-1)(m-1), 2-way edge spacers ≈ 2(n+m-2)
+    // Simplified: assume square grid where n ≈ √podCount
+    if (podCount > 0) {
+      const gridSize = Math.sqrt(podCount);
+      const rows = Math.round(gridSize);
+      const cols = Math.ceil(podCount / rows);
+      
+      // Only auto-fill if current values are 0 or null (not manually set from takeoff)
+      if (!scopeAnswers.spacer_4way_count || scopeAnswers.spacer_4way_count === 0) {
+        // 4-way spacers at internal intersections: (rows-1) * (cols-1)
+        const estimated4Way = Math.max(0, (rows - 1) * (cols - 1));
+        if (estimated4Way > 0) {
+          updates.spacer_4way_count = estimated4Way;
+        }
+      }
+      
+      if (!scopeAnswers.spacer_2way_count || scopeAnswers.spacer_2way_count === 0) {
+        // 2-way spacers at edges: 2*(rows + cols - 2)
+        const estimated2Way = Math.max(0, 2 * (rows + cols - 2));
+        if (estimated2Way > 0) {
+          updates.spacer_2way_count = estimated2Way;
+        }
+      }
+    }
+    
+    // Only update if there are changes
+    if (Object.keys(updates).length > 0) {
+      setScopeAnswers(prev => ({
+        ...prev,
+        ...updates,
+      }));
     }
   }, [scope.id, scopeAnswers.top_slab_thickness, scopeAnswers.pod_count]);
 

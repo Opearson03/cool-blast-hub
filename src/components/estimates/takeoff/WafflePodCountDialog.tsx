@@ -3,8 +3,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Grid3X3, Plus, SkipForward, Check } from 'lucide-react';
+import { Grid3X3, Plus, SkipForward, Check, Edit2 } from 'lucide-react';
 
 type WafflePodCountStep = 'count_pods' | 'count_4way' | 'count_2way' | 'complete';
 
@@ -21,6 +22,8 @@ interface WafflePodCountDialogProps {
   spacer2WayCount: number;
   // Top slab thickness (for pod rails calculation)
   topSlabThickness: number;
+  // Manual count override
+  onManualPodCountChange?: (count: number) => void;
   // Actions
   onSavePodCount: () => void;
   onSaveAnd4Way: () => void;
@@ -51,6 +54,7 @@ export function WafflePodCountDialog({
   spacer4WayCount,
   spacer2WayCount,
   topSlabThickness,
+  onManualPodCountChange,
   onSavePodCount,
   onSaveAnd4Way,
   onSave4WayCount,
@@ -61,10 +65,37 @@ export function WafflePodCountDialog({
   onComplete,
   onCancel,
 }: WafflePodCountDialogProps) {
+  const [isManualEntry, setIsManualEntry] = useState(false);
+  const [manualCount, setManualCount] = useState<string>('');
+  
+  // Sync manual count with actual pod count when dialog opens
+  useEffect(() => {
+    if (open && step === 'count_pods') {
+      setManualCount(podCount > 0 ? String(podCount) : '');
+    }
+  }, [open, step, podCount]);
+
   // Calculate pod rails (only needed for 100mm+ slabs)
   const podRailsRequired = topSlabThickness >= 100;
-  const podRailsNeeded = podRailsRequired ? podCount * 2 : 0;
+  const effectivePodCount = isManualEntry ? Number(manualCount) || 0 : podCount;
+  const podRailsNeeded = podRailsRequired ? effectivePodCount * 2 : 0;
   const podRailPacks = Math.ceil(podRailsNeeded / 20);
+
+  const handleManualCountChange = (value: string) => {
+    setManualCount(value);
+    const numValue = Number(value) || 0;
+    if (numValue > 0 && onManualPodCountChange) {
+      onManualPodCountChange(numValue);
+    }
+  };
+
+  const handleToggleManualEntry = () => {
+    if (!isManualEntry) {
+      // Switching to manual - pre-fill with current count
+      setManualCount(podCount > 0 ? String(podCount) : '');
+    }
+    setIsManualEntry(!isManualEntry);
+  };
 
   const getStepTitle = () => {
     switch (step) {
@@ -84,7 +115,9 @@ export function WafflePodCountDialog({
   const getStepDescription = () => {
     switch (step) {
       case 'count_pods':
-        return 'You have marked the waffle pod locations. Select the pod depth and save.';
+        return isManualEntry 
+          ? 'Enter the pod count manually if you know it from the plans.'
+          : 'Tap each pod location on the plans, or switch to manual entry.';
       case 'count_4way':
         return 'Tap each 4-way intersection where pods meet, then save or skip.';
       case 'count_2way':
@@ -118,13 +151,38 @@ export function WafflePodCountDialog({
           {/* Step: Count Pods */}
           {step === 'count_pods' && (
             <div className="space-y-4">
-              {/* Pod count badge */}
+              {/* Pod count display/entry */}
               <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-                <span className="text-sm text-muted-foreground">Pods Marked</span>
-                <Badge variant="secondary" className="text-lg px-3 py-1">
-                  {podCount}
-                </Badge>
+                <span className="text-sm text-muted-foreground">
+                  {isManualEntry ? 'Pod Count' : 'Pods Marked'}
+                </span>
+                {isManualEntry ? (
+                  <Input
+                    type="number"
+                    min="1"
+                    value={manualCount}
+                    onChange={(e) => handleManualCountChange(e.target.value)}
+                    className="w-24 h-8 text-right font-medium"
+                    placeholder="0"
+                    autoFocus
+                  />
+                ) : (
+                  <Badge variant="secondary" className="text-lg px-3 py-1">
+                    {podCount}
+                  </Badge>
+                )}
               </div>
+
+              {/* Toggle manual entry button */}
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleToggleManualEntry}
+                className="w-full"
+              >
+                <Edit2 className="h-4 w-4 mr-2" />
+                {isManualEntry ? 'Mark on Plans Instead' : 'Enter Count Manually'}
+              </Button>
 
               {/* Pod depth selection */}
               <div className="space-y-2">
@@ -144,7 +202,7 @@ export function WafflePodCountDialog({
               </div>
 
               {/* Pod rails info (if 100mm+ slab) */}
-              {podRailsRequired && podCount > 0 && (
+              {podRailsRequired && effectivePodCount > 0 && (
                 <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg space-y-1">
                   <p className="text-sm font-medium text-amber-700 dark:text-amber-400">
                     Pod Rails Required
@@ -162,6 +220,11 @@ export function WafflePodCountDialog({
                   </div>
                 </div>
               )}
+              
+              {/* Info about spacer auto-calculation */}
+              <p className="text-xs text-muted-foreground border-l-2 border-primary/30 pl-2">
+                💡 Spacers will be auto-estimated from pod count in the configure step. You can adjust them there or count manually in the next steps.
+              </p>
             </div>
           )}
 
@@ -213,7 +276,7 @@ export function WafflePodCountDialog({
               <Button 
                 variant="secondary"
                 onClick={onSavePodCount}
-                disabled={podCount === 0}
+                disabled={effectivePodCount === 0}
                 className="w-full sm:w-auto"
               >
                 <Check className="h-4 w-4 mr-1" />
@@ -221,7 +284,7 @@ export function WafflePodCountDialog({
               </Button>
               <Button 
                 onClick={onSaveAnd4Way}
-                disabled={podCount === 0}
+                disabled={effectivePodCount === 0}
                 className="w-full sm:w-auto"
               >
                 <Plus className="h-4 w-4 mr-1" />
