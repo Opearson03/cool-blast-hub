@@ -95,6 +95,40 @@ export function useSendSubTradeInvite() {
   });
 }
 
+export function useSendBatchSubTradeInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: {
+      job_pour_ids: string[];
+      recipient_name: string;
+      role: string;
+      recipient_phone?: string;
+      recipient_email?: string;
+      notes?: string;
+    }) => {
+      const { data: result, error } = await supabase.functions.invoke("send-batch-subtrade-invite", {
+        body: data,
+      });
+
+      if (error) throw error;
+      if (result.error) {
+        const err = new Error(result.error) as any;
+        err.code = result.code;
+        throw err;
+      }
+      return result;
+    },
+    onSuccess: (_, variables) => {
+      // Invalidate all related pour queries
+      for (const pourId of variables.job_pour_ids) {
+        queryClient.invalidateQueries({ queryKey: ["sub-trade-invites", pourId] });
+      }
+      queryClient.invalidateQueries({ queryKey: ["sub-trade-invites-job"] });
+    },
+  });
+}
+
 export function useRevokeSubTradeInvite() {
   const queryClient = useQueryClient();
 

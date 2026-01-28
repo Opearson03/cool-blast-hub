@@ -41,7 +41,140 @@ const handler = async (req: Request): Promise<Response> => {
     const tokenHash = await hashToken(token);
     console.log("Looking up invite by token hash");
 
-    // Find invite by token hash
+    // First try to find a batch of invites (check batch_token_hash)
+    const { data: batchInvites, error: batchError } = await supabase
+      .from("external_invites")
+      .select(`
+        id,
+        status,
+        role,
+        recipient_name,
+        notes,
+        token_expires_at,
+        responded_at,
+        viewed_at,
+        job_pour_id,
+        batch_id,
+        job_pours (
+          id,
+          pour_name,
+          pour_date,
+          scheduled_time,
+          job_id,
+          jobs (
+            id,
+            name,
+            site_address,
+            business_id,
+            businesses (
+              id,
+              name,
+              logo_url
+            )
+          )
+        )
+      `)
+      .eq("batch_token_hash", tokenHash)
+      .order("job_pours(pour_date)", { ascending: true });
+
+    // If we found batch invites, handle as batch
+    if (!batchError && batchInvites && batchInvites.length > 0) {
+      console.log(`Found batch with ${batchInvites.length} invites`);
+
+      // Check expiration on first invite (they all share the same expiry)
+      const firstInvite = batchInvites[0];
+      if (new Date(firstInvite.token_expires_at) < new Date()) {
+        console.log("Token expired");
+        return new Response(JSON.stringify({ error: "This invite link has expired" }), {
+          status: 410,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check if all are revoked
+      const allRevoked = batchInvites.every(inv => inv.status === "revoked");
+      if (allRevoked) {
+        console.log("All invites revoked");
+        return new Response(JSON.stringify({ error: "This invite has been cancelled" }), {
+          status: 410,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Check if all have been responded to
+      const allResponded = batchInvites.every(inv => inv.status === "accepted" || inv.status === "declined");
+      if (allResponded) {
+        console.log("All invites already responded");
+        return new Response(
+          JSON.stringify({
+            error: "You have already responded to all invites",
+            already_responded: true,
+            all_responded: true,
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      // Mark all as viewed if first access
+      const unviewedIds = batchInvites.filter(inv => !inv.viewed_at).map(inv => inv.id);
+      if (unviewedIds.length > 0) {
+        await supabase
+          .from("external_invites")
+          .update({ viewed_at: new Date().toISOString(), status: "viewed" })
+          .in("id", unviewedIds)
+          .in("status", ["drafted", "sent"]); // Only update if not already responded
+
+        // Log audit events
+        for (const inviteId of unviewedIds) {
+          await supabase.from("external_invite_events").insert({
+            external_invite_id: inviteId,
+            event_type: "viewed",
+            metadata: { batch: true },
+          });
+        }
+        console.log(`Marked ${unviewedIds.length} invites as viewed`);
+      }
+
+      const firstPour = firstInvite.job_pours as any;
+      const job = firstPour?.jobs as any;
+      const business = job?.businesses as any;
+
+      // Build array of invites for response
+      const invitesResponse = batchInvites.map(invite => {
+        const pour = invite.job_pours as any;
+        const inviteJob = pour?.jobs as any;
+        return {
+          invite_id: invite.id,
+          pour_name: pour?.pour_name || "Pour",
+          pour_date: pour?.pour_date || null,
+          scheduled_time: pour?.scheduled_time || null,
+          site_address: inviteJob?.site_address || "",
+          job_name: inviteJob?.name || "",
+          status: invite.status,
+          already_responded: invite.status === "accepted" || invite.status === "declined",
+        };
+      });
+
+      const response = {
+        valid: true,
+        is_batch: true,
+        batch_id: firstInvite.batch_id,
+        role: firstInvite.role,
+        notes: firstInvite.notes || null,
+        business_name: business?.name || "",
+        business_logo: business?.logo_url || null,
+        recipient_name: firstInvite.recipient_name,
+        invites: invitesResponse,
+      };
+
+      console.log("Batch token validated successfully");
+      return new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Fall back to single invite lookup (token_hash)
     const { data: invite, error: inviteError } = await supabase
       .from("external_invites")
       .select(`
@@ -136,9 +269,10 @@ const handler = async (req: Request): Promise<Response> => {
     const job = pour?.jobs as any;
     const business = job?.businesses as any;
 
-    // Return only necessary data (no internal IDs)
+    // Return single invite format (backwards compatible)
     const response = {
       valid: true,
+      is_batch: false,
       pour_name: pour?.pour_name || "Pour",
       pour_date: pour?.pour_date || null,
       scheduled_time: pour?.scheduled_time || null,
