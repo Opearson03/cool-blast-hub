@@ -222,14 +222,14 @@ export default function AdminJobDetail() {
                 <TabsTrigger value="pours" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   Pours
                 </TabsTrigger>
-                <TabsTrigger value="subbies" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  Subbies
-                </TabsTrigger>
                 <TabsTrigger value="tests" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   Test Results
                 </TabsTrigger>
               </>
             )}
+            <TabsTrigger value="subbies" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
+              Subbies
+            </TabsTrigger>
             <TabsTrigger value="variations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Variations
             </TabsTrigger>
@@ -240,21 +240,21 @@ export default function AdminJobDetail() {
 
           <div className="mt-6">
             <TabsContent value="overview" className="m-0">
-              <JobOverviewTab job={job} />
+              <JobOverviewTab job={job} onNavigateToSubbies={() => setActiveTab("subbies")} />
             </TabsContent>
             {(job as any).job_type !== "misc" && (
               <>
                 <TabsContent value="pours" className="m-0">
                   <JobPoursTab jobId={job.id} jobAddress={job.site_address} />
                 </TabsContent>
-                <TabsContent value="subbies" className="m-0">
-                  <JobSubbiesTab jobId={job.id} />
-                </TabsContent>
                 <TabsContent value="tests" className="m-0">
                   <JobTestResultsTab jobId={job.id} />
                 </TabsContent>
               </>
             )}
+            <TabsContent value="subbies" className="m-0">
+              <JobSubbiesTab jobId={job.id} />
+            </TabsContent>
             <TabsContent value="variations" className="m-0">
               <JobVariationsTab 
                 jobId={job.id} 

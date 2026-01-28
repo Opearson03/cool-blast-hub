@@ -226,10 +226,43 @@ export default function AdminSchedule() {
         .update({ pour_date: newDate })
         .eq("id", pourId);
       if (error) throw error;
+      return { pourId };
     },
-    onSuccess: () => {
+    onSuccess: async ({ pourId }) => {
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
-      toast({ title: "Pour rescheduled" });
+      
+      // Check if the pour has any subbies invited
+      const { data: invites } = await supabase
+        .from("external_invites")
+        .select("id")
+        .eq("job_pour_id", pourId)
+        .eq("invite_type", "sub_trade")
+        .limit(1);
+      
+      if (!invites || invites.length === 0) {
+        // No subbies - show prompt toast
+        toast({
+          title: "Pour rescheduled",
+          description: "Need sub-trades for this pour?",
+          action: (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                const pour = pours.find(p => p.id === pourId);
+                if (pour) {
+                  setSelectedPour(pour);
+                  setDetailSheetOpen(true);
+                }
+              }}
+            >
+              Add Subbie
+            </Button>
+          ),
+        });
+      } else {
+        toast({ title: "Pour rescheduled" });
+      }
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });

@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
-import { Users, Phone, Mail, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Users, Phone, Mail, ChevronRight, UserPlus } from "lucide-react";
 import { SubTradeStatusBadge } from "@/components/jobs/SubTradeStatusBadge";
 import { SubbieDetailSheet } from "@/components/jobs/SubbieDetailSheet";
+import { ScheduleSubbieDialog } from "@/components/schedule/ScheduleSubbieDialog";
 import type { SubTradeInvite } from "@/hooks/useSubTradeInvites";
 
 interface JobSubbiesTabProps {
@@ -22,6 +24,7 @@ interface SubbieDirectory {
 
 export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
   const [selectedSubbie, setSelectedSubbie] = useState<SubbieDirectory | null>(null);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
 
   // Fetch all invites for this job
   const { data: invites = [], isLoading } = useQuery({
@@ -76,15 +79,26 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
 
   if (subbies.length === 0) {
     return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-          <h3 className="font-semibold mb-2">No Subbies Yet</h3>
-          <p className="text-muted-foreground">
-            Subbies invited to pours on this job will appear here
-          </p>
-        </CardContent>
-      </Card>
+      <>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="font-semibold mb-2">No Subbies Yet</h3>
+            <p className="text-muted-foreground mb-4">
+              Invite sub-trades to help coordinate your job
+            </p>
+            <Button onClick={() => setInviteDialogOpen(true)}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Invite First Subbie
+            </Button>
+          </CardContent>
+        </Card>
+        <ScheduleSubbieDialog
+          open={inviteDialogOpen}
+          onOpenChange={setInviteDialogOpen}
+          preselectedJobId={jobId}
+        />
+      </>
     );
   }
 

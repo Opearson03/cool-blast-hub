@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail, Users, UserPlus, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { BOQCard } from "@/components/jobs/boq/BOQCard";
@@ -9,6 +10,7 @@ type Job = Tables<"jobs">;
 
 interface JobOverviewTabProps {
   job: Job;
+  onNavigateToSubbies?: () => void;
 }
 
 interface ScopeConcreteSpec {
@@ -123,7 +125,7 @@ function extractCustomerInfoFromEstimate(estimate: {
   };
 }
 
-export function JobOverviewTab({ job }: JobOverviewTabProps) {
+export function JobOverviewTab({ job, onNavigateToSubbies }: JobOverviewTabProps) {
   // Fetch source estimate if job was converted from a quote
   const { data: sourceEstimate } = useQuery({
     queryKey: ["source-estimate-full", job.source_estimate_id],
@@ -138,6 +140,34 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
       return data;
     },
     enabled: !!job.source_estimate_id,
+  });
+
+  // Fetch sub-trade invite stats for this job
+  const { data: subbieStats } = useQuery({
+    queryKey: ["job-subbie-stats", job.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("external_invites")
+        .select("id, status, recipient_name, role")
+        .eq("job_id", job.id)
+        .eq("invite_type", "sub_trade");
+      if (error) throw error;
+      
+      const uniqueSubbies = new Set<string>();
+      let confirmed = 0;
+      let total = 0;
+      
+      for (const invite of data || []) {
+        const key = `${invite.recipient_name.toLowerCase()}-${invite.role.toLowerCase()}`;
+        if (!uniqueSubbies.has(key)) {
+          uniqueSubbies.add(key);
+          total++;
+          if (invite.status === "accepted") confirmed++;
+        }
+      }
+      
+      return { total, confirmed, invites: data?.length || 0 };
+    },
   });
 
   const scopeSpecs = sourceEstimate
@@ -277,6 +307,59 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                 {job.job_notes}
               </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Sub-Trades Summary Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="w-5 h-5" />
+            Sub-Trades
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {subbieStats && subbieStats.total > 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`flex items-center gap-1.5 ${subbieStats.confirmed === subbieStats.total ? "text-green-500" : "text-muted-foreground"}`}>
+                    {subbieStats.confirmed === subbieStats.total ? (
+                      <CheckCircle2 className="w-4 h-4" />
+                    ) : (
+                      <Users className="w-4 h-4" />
+                    )}
+                    <span className="font-medium">
+                      {subbieStats.confirmed}/{subbieStats.total} confirmed
+                    </span>
+                  </div>
+                </div>
+                {onNavigateToSubbies && (
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={onNavigateToSubbies}
+                  >
+                    View All
+                  </Button>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {subbieStats.invites} total invitation{subbieStats.invites !== 1 ? "s" : ""} sent
+              </p>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <Users className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground mb-3">No sub-trades invited yet</p>
+              {onNavigateToSubbies && (
+                <Button variant="outline" size="sm" onClick={onNavigateToSubbies}>
+                  <UserPlus className="w-4 h-4 mr-2" />
+                  Invite Sub-Trade
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
