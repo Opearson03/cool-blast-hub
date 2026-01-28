@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget";
-
+import { SubbieContactListWidget } from "@/components/dashboard/SubbieContactListWidget";
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
@@ -101,7 +101,10 @@ export default function AdminDashboard() {
         </div>
 
         {businessId && (
-          <DailyScheduleWidget businessId={businessId} />
+          <>
+            <DailyScheduleWidget businessId={businessId} />
+            <SubbieContactListWidget />
+          </>
         )}
       </div>
     </AdminLayout>
