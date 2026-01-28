@@ -278,7 +278,7 @@ export function WafflePodCountDialog({
                 disabled={effectivePodCount === 0}
                 className="w-full sm:w-auto"
               >
-                Next
+                Mark edge beams
               </Button>
             </>
           )}
