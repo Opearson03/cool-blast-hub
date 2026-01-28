@@ -9,9 +9,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Clock, Building2, Calendar } from "lucide-react";
+import { MapPin, Clock, Building2, Calendar, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
+import { SubTradeStatusBadge, SubTradeStatusDot } from "@/components/jobs/SubTradeStatusBadge";
 
 type Pour = {
   id: string;
@@ -78,6 +79,22 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
         `)
         .eq("id", pour!.id)
         .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+
+  // Fetch sub-trade invites for this pour
+  const { data: invites = [] } = useQuery({
+    queryKey: ["sub-trade-invites", pour?.id],
+    enabled: !!pour?.id && open,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("external_invites")
+        .select("*")
+        .eq("job_pour_id", pour!.id)
+        .eq("invite_type", "sub_trade")
+        .order("created_at", { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -185,6 +202,31 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
                       <p>{details.concrete_supplier}</p>
                     </div>
                   )}
+                </div>
+              </div>
+            </>
+          )}
+
+          {/* Sub-Trades */}
+          {invites.length > 0 && (
+            <>
+              <Separator />
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium flex items-center gap-2">
+                  <UserPlus className="h-4 w-4" />
+                  Sub-Trades ({invites.filter((i: any) => i.status === "accepted").length}/{invites.length} confirmed)
+                </h4>
+                <div className="space-y-1.5">
+                  {invites.map((invite: any) => (
+                    <div key={invite.id} className="flex items-center justify-between text-sm">
+                      <span className="flex items-center gap-2">
+                        <SubTradeStatusDot status={invite.status} />
+                        <span>{invite.recipient_name}</span>
+                        <span className="text-muted-foreground">({invite.role})</span>
+                      </span>
+                      <SubTradeStatusBadge status={invite.status} className="text-xs" />
+                    </div>
+                  ))}
                 </div>
               </div>
             </>

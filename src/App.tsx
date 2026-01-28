@@ -32,6 +32,7 @@ import StaffAuth from "./pages/staff/StaffAuth";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import SignQuote from "./pages/public/SignQuote";
 import SignVariation from "./pages/public/SignVariation";
+import RespondInvite from "./pages/public/RespondInvite";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
@@ -96,6 +97,7 @@ const AppContent = () => {
       {/* Public Signing Routes - no auth required */}
       <Route path="/sign/quote/:token" element={<SignQuote />} />
       <Route path="/sign/variation/:token" element={<SignVariation />} />
+      <Route path="/i/:token" element={<RespondInvite />} />
       
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
