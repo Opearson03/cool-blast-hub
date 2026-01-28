@@ -41,6 +41,8 @@ type Job = {
   job_notes: string | null;
   job_type: string;
   created_at: string;
+  startup_completed: boolean | null;
+  source_estimate_id: string | null;
 };
 
 type Crew = {
@@ -162,7 +164,9 @@ export default function AdminJobs() {
   const JobCard = ({ job, showFinishButton = false }: { job: Job; showFinishButton?: boolean }) => (
     <Card
       key={job.id}
-      className="cursor-pointer hover:border-primary/50 transition-colors"
+      className={`cursor-pointer hover:border-primary/50 transition-colors ${
+        job.startup_completed === false ? "border-primary/50 bg-primary/5" : ""
+      }`}
       onClick={() => handleJobClick(job)}
     >
       <CardContent className="p-4">
@@ -172,6 +176,11 @@ export default function AdminJobs() {
               <span className="text-xs text-muted-foreground font-mono">
                 {job.job_number}
               </span>
+              {job.startup_completed === false && (
+                <Badge className="bg-primary/20 text-primary border-primary/30">
+                  New Job
+                </Badge>
+              )}
               {job.job_type === "misc" && (
                 <Badge variant="outline" className="bg-purple-500/20 text-purple-600 border-purple-500/30">
                   <Briefcase className="w-3 h-3 mr-1" />

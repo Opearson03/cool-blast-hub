@@ -1304,7 +1304,8 @@ serve(async (req: Request) => {
             ...jobData,
             business_id: estimate.business_id,
             job_type: 'retail',
-            status: 'scheduled'
+            status: 'scheduled',
+            startup_completed: false // Mark as new job needing startup wizard
           })
           .select('id')
           .single();
