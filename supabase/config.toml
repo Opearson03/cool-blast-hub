@@ -118,3 +118,12 @@ verify_jwt = false
 
 [functions.submit-signature]
 verify_jwt = false
+
+[functions.send-subtrade-invite]
+verify_jwt = false
+
+[functions.validate-subtrade-token]
+verify_jwt = false
+
+[functions.respond-subtrade-invite]
+verify_jwt = false

@@ -16,6 +16,7 @@ import { Droplets, Plus, Pencil, Trash2, Calendar, Clock } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { PourFormDialog } from "@/components/jobs/PourFormDialog";
+import { SubTradesList } from "@/components/jobs/SubTradesList";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -222,6 +223,14 @@ export function JobPoursTab({ jobId }: JobPoursTabProps) {
                   </Button>
                 </div>
               </div>
+              
+              {/* Sub-Trades Section */}
+              <SubTradesList
+                jobId={jobId}
+                pourId={pour.id}
+                pourName={pour.pour_name}
+                pourDate={pour.pour_date}
+              />
             </CardContent>
           </Card>
         ))}
