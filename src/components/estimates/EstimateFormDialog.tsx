@@ -1186,11 +1186,13 @@ const {
         
         if (raftSlabAreas.length > 0) {
           // Check if user hasn't already overridden with their own values
+          // Also merge takeoff if areas exist but are missing _actualArea (need fresh takeoff data)
           const hasUserData = initialScopeAnswers.areas?.some((a: any) => 
             (a.length > 0 || a.width > 0 || a._actualArea > 0) && a._fromTakeoff !== true
           );
+          const needsTakeoffMerge = !hasUserData || !initialScopeAnswers.areas?.some((a: any) => a._actualArea > 0);
           
-          if (!hasUserData) {
+          if (needsTakeoffMerge) {
             // Convert raft slab areas to MeasurementArea format
             const areasFromTakeoff = raftSlabAreas.map((slab) => {
               const side = Math.sqrt(slab.area);

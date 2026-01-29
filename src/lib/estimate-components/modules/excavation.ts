@@ -52,7 +52,8 @@ export const excavationModule: EstimateModule = {
       min: 0,
       helpText: 'Auto-fills from scope dimensions',
       deriveFrom: (scopeData) => {
-        return scopeData.area || undefined;
+        // Return the area value if it exists (even if 0), otherwise undefined to show empty field
+        return scopeData.area !== undefined && scopeData.area !== null ? scopeData.area : undefined;
       },
       showIf: (answers, scopeData) => {
         const scopeId = scopeData?.scopeId;
