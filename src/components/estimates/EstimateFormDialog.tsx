@@ -802,9 +802,9 @@ const {
                 if (existingState?.scopeAnswers) {
                   // For demolition, check if existing areas are just empty defaults
                   if (s === 'demolition') {
-                    const existingAreas = existingState.scopeAnswers.demolition_areas;
-                    const hasRealData = existingAreas?.some((a: any) => 
-                      (a.length > 0 || a.width > 0) && a._fromTakeoff !== true
+                    const existingAreas = (existingState.moduleAnswers as any)?.demolition?.demolition_areas;
+                    const hasRealData = Array.isArray(existingAreas) && existingAreas.some((a: any) =>
+                      (Number(a.length) > 0 || Number(a.width) > 0) && a._fromTakeoff !== true
                     );
                     if (!hasRealData) {
                       delete updated[s];
@@ -1171,6 +1171,7 @@ const {
     // Check if there's takeoff data for this scope and merge it into initial answers
     const hasMarkup = hasMarkupForScope(scope);
     let initialScopeAnswers = currentState?.scopeAnswers || {};
+    let initialModuleAnswers = currentState?.moduleAnswers || {};
     
     // Only pre-fill from takeoff if we have markup AND the user hasn't already entered data
     if (hasMarkup) {
@@ -1307,9 +1308,10 @@ const {
         
         if (demolitionAreas.length > 0) {
           // Check if user hasn't already overridden with their own values
-          const existingAreas = initialScopeAnswers.demolition_areas;
-          const hasUserData = existingAreas?.some((a: any) => 
-            ((a.length > 0 || a.width > 0) && a._fromTakeoff !== true)
+          // Demolition UI reads from moduleAnswers.demolition.demolition_areas
+          const existingAreas = (initialModuleAnswers as any)?.demolition?.demolition_areas;
+          const hasUserData = Array.isArray(existingAreas) && existingAreas.some((a: any) =>
+            ((Number(a.length) > 0 || Number(a.width) > 0) && a._fromTakeoff !== true)
           );
           
           if (!hasUserData) {
@@ -1327,8 +1329,15 @@ const {
             initialScopeAnswers = {
               ...initialScopeAnswers,
               _fromTakeoff: true,
-              demolition_required: true,
-              demolition_areas: areasFromTakeoff,
+            };
+
+            initialModuleAnswers = {
+              ...initialModuleAnswers,
+              demolition: {
+                ...((initialModuleAnswers as any).demolition || {}),
+                demolition_required: true,
+                demolition_areas: areasFromTakeoff,
+              },
             };
           }
         }
@@ -1542,7 +1551,7 @@ const {
         key={calculatorKey}
         scope={scopeDefinition}
         initialScopeAnswers={initialScopeAnswers}
-        initialModuleAnswers={currentState?.moduleAnswers}
+        initialModuleAnswers={initialModuleAnswers}
         initialCustomExclusions={currentState?.customExclusions}
         onStateChange={(state) => handleModularStateChange(scope, state)}
         onModuleDone={() => {
