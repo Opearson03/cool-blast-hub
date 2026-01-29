@@ -34,7 +34,7 @@ import { BeamReinforcementInput } from "./BeamReinforcementInput";
 import { AreaReinforcementInput } from "./AreaReinforcementInput";
 import { PierReinforcementInput } from "./PierReinforcementInput";
 import { FootingReinforcementInput } from "./FootingReinforcementInput";
-import { LinearSectionReinforcementInput } from "./LinearSectionReinforcementInput";
+import { FootingSectionReinforcementInput } from "./FootingSectionReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
 import { ExtraItemsInput } from "./ExtraItemsInput";
 import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
@@ -499,7 +499,7 @@ export function ModuleSection({
                       {/* Inline per-section inputs for Footing Reinforcement */}
                       {isFootingReoSection && onScopeDataChange && footings.length > 0 && (
                         <div className="mt-4">
-                          <LinearSectionReinforcementInput
+                          <FootingSectionReinforcementInput
                             sections={footings as LinearSection[]}
                             onChange={(newSections) => {
                               if (scopeData?.footings) {
@@ -508,17 +508,10 @@ export function ModuleSection({
                                 onScopeDataChange('linearSections', newSections);
                               }
                             }}
-                            defaultReoType={answers.include_trench_mesh ? 'trench_mesh' : 'none'}
                             defaultTmType="L11TM4"
-                            defaultBarSize="N16"
-                            defaultBarSpacing="200"
-                            defaultBarConfig="bottom"
                             defaultAddLigs={answers.add_ligs || false}
                             defaultLigSize="R10"
                             defaultLigCentres={200}
-                            defaultAddVerticalBars={answers.add_vertical_bars || false}
-                            defaultVerticalBarSize="N16"
-                            defaultVerticalBarCentres={400}
                             label="Footing Sections"
                             priceMap={priceMap}
                           />
