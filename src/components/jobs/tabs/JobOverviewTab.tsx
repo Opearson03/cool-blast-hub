@@ -1,9 +1,14 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail, Plus, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { BOQCard } from "@/components/jobs/boq/BOQCard";
@@ -201,7 +206,7 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
   const displayVolume = job.estimated_m3 ?? (totalEstimatedVolume > 0 ? totalEstimatedVolume : null);
 
   return (
-    <div className="grid gap-6 md:grid-cols-2">
+    <div className="grid gap-6">
       {/* Customer Info Card - auto-populated from quote */}
       {hasCustomerInfo && (
         <Card>
@@ -321,36 +326,60 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
             </div>
           </div>
 
-          {/* Scopes Checklist */}
+          {/* Scopes List */}
           <div className="pt-4 border-t">
-            <p className="text-sm font-medium mb-3">Scopes</p>
-            <div className="grid grid-cols-2 gap-2">
-              {ALL_SCOPES.map((scopeKey) => {
-                const isSelected = selectedScopes.includes(scopeKey);
-                const isFromEstimate = estimateScopes.includes(scopeKey);
-                
-                return (
-                  <div key={scopeKey} className="flex items-center gap-2">
-                    <Checkbox
-                      id={`scope-${scopeKey}`}
-                      checked={isSelected}
-                      onCheckedChange={(checked) => handleScopeToggle(scopeKey, checked as boolean)}
-                    />
-                    <Label 
-                      htmlFor={`scope-${scopeKey}`}
-                      className={`text-sm cursor-pointer ${isFromEstimate ? 'font-medium' : 'text-muted-foreground'}`}
-                    >
-                      {SCOPE_LABELS[scopeKey]}
-                    </Label>
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium">Scopes</p>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 px-2">
+                    <Plus className="w-4 h-4 mr-1" />
+                    Add
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-56 p-2" align="end">
+                  <div className="space-y-1">
+                    {ALL_SCOPES.filter(s => !selectedScopes.includes(s)).map((scopeKey) => (
+                      <Button
+                        key={scopeKey}
+                        variant="ghost"
+                        size="sm"
+                        className="w-full justify-start text-sm h-8"
+                        onClick={() => handleScopeToggle(scopeKey, true)}
+                      >
+                        {SCOPE_LABELS[scopeKey]}
+                      </Button>
+                    ))}
+                    {ALL_SCOPES.filter(s => !selectedScopes.includes(s)).length === 0 && (
+                      <p className="text-xs text-muted-foreground text-center py-2">All scopes added</p>
+                    )}
                   </div>
-                );
-              })}
+                </PopoverContent>
+              </Popover>
             </div>
-            {estimateScopes.length > 0 && (
-              <p className="text-xs text-muted-foreground mt-2">
-                Bold scopes are from the original quote
-              </p>
-            )}
+            <div className="flex flex-wrap gap-2">
+              {selectedScopes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No scopes selected</p>
+              ) : (
+                selectedScopes.map((scopeKey) => (
+                  <Badge
+                    key={scopeKey}
+                    variant="secondary"
+                    className="flex items-center gap-1 pr-1"
+                  >
+                    {SCOPE_LABELS[scopeKey]}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-destructive/20"
+                      onClick={() => handleScopeToggle(scopeKey, false)}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </Badge>
+                ))
+              )}
+            </div>
           </div>
 
           {job.job_notes && (
@@ -364,13 +393,11 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
         </CardContent>
       </Card>
 
-      {/* Job Calendar Widget - spans full width */}
+      {/* Job Calendar Widget */}
       <JobCalendarWidget jobId={job.id} businessId={job.business_id} />
 
-      {/* Bill of Quantities Card - spans full width */}
-      <div className="md:col-span-2">
-        <BOQCard jobId={job.id} jobName={job.name} jobNumber={job.job_number ?? undefined} />
-      </div>
+      {/* Bill of Quantities Card */}
+      <BOQCard jobId={job.id} jobName={job.name} jobNumber={job.job_number ?? undefined} />
     </div>
   );
 }
