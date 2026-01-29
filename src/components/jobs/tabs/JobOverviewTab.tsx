@@ -8,11 +8,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail, Plus, X } from "lucide-react";
+import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail, Plus, X, CalendarPlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { BOQCard } from "@/components/jobs/boq/BOQCard";
-import { JobCalendarWidget } from "@/components/jobs/calendar/JobCalendarWidget";
+import { AddJobDateDialog } from "@/components/jobs/calendar/AddJobDateDialog";
 import { useToast } from "@/hooks/use-toast";
 
 type Job = Tables<"jobs">;
@@ -124,6 +124,7 @@ function extractCustomerInfoFromEstimate(estimate: {
 export function JobOverviewTab({ job }: JobOverviewTabProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
 
   // Fetch source estimate if job was converted from a quote
   const { data: sourceEstimate } = useQuery({
@@ -207,6 +208,14 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
 
   return (
     <div className="grid gap-6">
+      {/* Schedule Event Button */}
+      <div className="flex justify-end">
+        <Button onClick={() => setIsScheduleDialogOpen(true)} variant="outline">
+          <CalendarPlus className="w-4 h-4 mr-2" />
+          Schedule Event
+        </Button>
+      </div>
+
       {/* Customer Info Card - auto-populated from quote */}
       {hasCustomerInfo && (
         <Card>
@@ -393,11 +402,17 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
         </CardContent>
       </Card>
 
-      {/* Job Calendar Widget */}
-      <JobCalendarWidget jobId={job.id} businessId={job.business_id} />
-
       {/* Bill of Quantities Card */}
       <BOQCard jobId={job.id} jobName={job.name} jobNumber={job.job_number ?? undefined} />
+
+      {/* Schedule Event Dialog */}
+      <AddJobDateDialog
+        open={isScheduleDialogOpen}
+        onOpenChange={setIsScheduleDialogOpen}
+        jobId={job.id}
+        businessId={job.business_id}
+        initialDate={null}
+      />
     </div>
   );
 }
