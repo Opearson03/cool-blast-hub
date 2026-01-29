@@ -9,7 +9,9 @@ const corsHeaders = {
 interface ResendAttachment {
   filename: string;
   content_type: string;
-  content: string; // base64 encoded
+  // NOTE: Resend's inbound webhook often does NOT include attachment bytes.
+  // In that case, we must fetch attachments via Resend's Receiving Attachments API.
+  content?: string | null; // base64 encoded (optional)
 }
 
 interface ResendEmailEvent {
@@ -24,6 +26,142 @@ interface ResendEmailEvent {
     html?: string;
     attachments?: ResendAttachment[];
   };
+}
+
+type ResolvedAttachment = {
+  filename: string;
+  content_type: string;
+  bytes: Uint8Array;
+  source: 'payload' | 'resend_download';
+};
+
+function isLikelyPdfAttachment(meta: { filename?: string; content_type?: string }): boolean {
+  const ct = meta.content_type?.toLowerCase() || '';
+  const fn = meta.filename?.toLowerCase() || '';
+  return ct.includes('pdf') || fn.endsWith('.pdf');
+}
+
+function base64ToUint8Array(base64: string): Uint8Array {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function resolvePdfAttachments(
+  event: ResendEmailEvent
+): Promise<ResolvedAttachment[]> {
+  const emailId = event.data?.email_id;
+  const raw = event.data?.attachments || [];
+
+  const pdfCandidates = raw.filter((a) => isLikelyPdfAttachment(a));
+  if (pdfCandidates.length === 0) return [];
+
+  const resolved: ResolvedAttachment[] = [];
+  const needsDownload: ResendAttachment[] = [];
+
+  for (const att of pdfCandidates) {
+    const hasContent = typeof att.content === 'string' && att.content.length > 0;
+    if (hasContent) {
+      try {
+        resolved.push({
+          filename: att.filename,
+          content_type: att.content_type,
+          bytes: base64ToUint8Array(att.content as string),
+          source: 'payload',
+        });
+      } catch (e) {
+        console.warn('Failed to decode attachment base64 from payload:', att.filename, e);
+        needsDownload.push(att);
+      }
+    } else {
+      needsDownload.push(att);
+    }
+  }
+
+  // If webhook didn't include bytes, fetch attachments from Resend using email_id.
+  if (needsDownload.length > 0) {
+    const resendKey = Deno.env.get('RESEND_API_KEY');
+    if (!resendKey) {
+      console.warn('RESEND_API_KEY not configured - cannot download inbound attachments');
+      return resolved;
+    }
+    if (!emailId) {
+      console.warn('Missing email_id in webhook payload - cannot download inbound attachments');
+      return resolved;
+    }
+
+    // Resend Receiving API: List attachments
+    // GET https://api.resend.com/emails/receiving/:email_id/attachments
+    const listResp = await fetch(
+      `https://api.resend.com/emails/receiving/${emailId}/attachments`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+
+    if (!listResp.ok) {
+      const body = await listResp.text();
+      console.error('Failed to list inbound attachments from Resend:', listResp.status, body);
+      return resolved;
+    }
+
+    const listJson = (await listResp.json()) as any;
+    const list = (Array.isArray(listJson?.data) ? listJson.data : []) as Array<{
+      filename: string;
+      content_type: string;
+      download_url: string;
+      size?: number;
+    }>;
+
+    const byFilename = new Map(list.map((a) => [a.filename, a]));
+
+    for (const att of needsDownload) {
+      const meta = byFilename.get(att.filename) || list.find((a) => isLikelyPdfAttachment(a));
+      if (!meta?.download_url) {
+        console.warn('No download_url found for attachment:', att.filename);
+        continue;
+      }
+
+      try {
+        console.log('Downloading inbound attachment from Resend:', {
+          filename: meta.filename,
+          content_type: meta.content_type,
+          size: meta.size,
+        });
+
+        const resp = await fetch(meta.download_url);
+        if (!resp.ok) {
+          console.error('Failed to download attachment:', meta.filename, resp.status);
+          // consume body
+          await resp.text();
+          continue;
+        }
+
+        const bytes = new Uint8Array(await resp.arrayBuffer());
+        resolved.push({
+          filename: meta.filename,
+          content_type: meta.content_type,
+          bytes,
+          source: 'resend_download',
+        });
+      } catch (e) {
+        console.error('Error downloading attachment:', att.filename, e);
+      }
+    }
+  }
+
+  // Deduplicate by filename (keep first)
+  const seen = new Set<string>();
+  return resolved.filter((a) => {
+    if (seen.has(a.filename)) return false;
+    seen.add(a.filename);
+    return true;
+  });
 }
 
 interface Job {
@@ -246,7 +384,7 @@ serve(async (req) => {
       );
     }
 
-    const { from, to, subject, attachments } = payload.data;
+    const { from, to, subject } = payload.data;
 
     // Extract the alias from the recipient email (e.g., "mullinsconcrete" from "mullinsconcrete@pourhub.au")
     const recipientEmail = to?.[0];
@@ -288,21 +426,23 @@ serve(async (req) => {
 
     console.log('Found business:', business.name, business.id);
 
-    // Filter for PDF attachments - more flexible content type matching
-    // Resend may send content_type as 'application/pdf', 'application/pdf;charset=utf-8', etc.
-    // Also check filename extension as fallback
-    const pdfAttachments = attachments?.filter(att => {
-      const isPdfContentType = att.content_type?.toLowerCase().includes('pdf');
-      const isPdfFilename = att.filename?.toLowerCase().endsWith('.pdf');
-      const hasContent = !!att.content && att.content.length > 0;
-      
-      console.log(`Checking attachment: ${att.filename}, content_type: ${att.content_type}, isPdfContentType: ${isPdfContentType}, isPdfFilename: ${isPdfFilename}, hasContent: ${hasContent}`);
-      
-      return (isPdfContentType || isPdfFilename) && hasContent;
-    }) || [];
+    const resolvedPdfAttachments = await resolvePdfAttachments(payload);
+    console.log('Resolved PDF attachments:', resolvedPdfAttachments.map(a => ({
+      filename: a.filename,
+      content_type: a.content_type,
+      bytesLength: a.bytes.length,
+      source: a.source,
+    })));
 
-    if (pdfAttachments.length === 0) {
-      console.log('No PDF attachments found after filtering. Raw attachments:', JSON.stringify(attachments?.map(a => ({ filename: a.filename, content_type: a.content_type, contentLength: a.content?.length || 0 }))));
+    if (resolvedPdfAttachments.length === 0) {
+      console.log(
+        'No PDF attachments could be resolved. Raw attachments:',
+        JSON.stringify((payload.data?.attachments || []).map(a => ({
+          filename: a.filename,
+          content_type: a.content_type,
+          contentLength: (a as any)?.content?.length || 0,
+        })))
+      );
       
       // Still create a pending result record even without PDF
       const { error: insertError } = await supabase
@@ -312,7 +452,7 @@ serve(async (req) => {
           from_email: from,
           subject: subject || '(No subject)',
           received_at: new Date().toISOString(),
-          extracted_data: { note: 'No PDF attachment found in email' },
+          extracted_data: { note: 'No PDF attachment could be retrieved from inbound email' },
           status: 'pending',
           match_status: 'pending'
         });
@@ -331,7 +471,7 @@ serve(async (req) => {
     // Process each PDF attachment
     const results = [];
     
-    for (const attachment of pdfAttachments) {
+    for (const attachment of resolvedPdfAttachments) {
       try {
         console.log('Processing attachment:', attachment.filename);
 
@@ -339,8 +479,7 @@ serve(async (req) => {
         const documentType = detectDocumentType(subject || '', attachment.filename, from);
         console.log('Detected document type:', documentType);
 
-        // Decode base64 content
-        const pdfContent = Uint8Array.from(atob(attachment.content), c => c.charCodeAt(0));
+        const pdfContent = attachment.bytes;
         
         // Check file size (max 10MB)
         if (pdfContent.length > 10 * 1024 * 1024) {
@@ -425,7 +564,7 @@ serve(async (req) => {
               subject: subject || '(No subject)',
               received_at: new Date().toISOString(),
               file_url: fileUrl,
-              file_name: attachment.filename,
+               file_name: attachment.filename,
               extracted_data: extractedData,
               document_type: 'delivery_docket',
               status: 'pending',
