@@ -147,36 +147,8 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
       placeholder: 'Enter thickness',
       helpText: 'Thickness of the main slab',
     },
-    // Edge Thickening Questions
-    {
-      id: 'edge_beam_depth',
-      type: 'number',
-      label: 'Edge Thickening Depth (mm)',
-      required: false,
-      min: 200,
-      defaultValue: 300,
-      unit: 'mm',
-      helpText: 'Total depth of thickened edge',
-    },
-    {
-      id: 'edge_beam_width',
-      type: 'number',
-      label: 'Edge Thickening Width (mm)',
-      required: false,
-      min: 200,
-      defaultValue: 300,
-      unit: 'mm',
-      helpText: 'Width of thickened edge',
-    },
-    {
-      id: 'edge_beam_length',
-      type: 'number',
-      label: 'Total Edge Thickening Length (m)',
-      required: false,
-      min: 0,
-      unit: 'm',
-      helpText: 'Total continuous length of edge thickening (defaults to perimeter if not specified)',
-    },
+    // Note: Edge thickening is managed via MultiBeamTypeInput component (supportsMultipleEdgeBeams: true)
+    // Legacy scalar fields removed to prevent duplicate UI
   ],
   moduleIds: [
     'excavation',
