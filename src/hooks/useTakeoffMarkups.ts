@@ -141,6 +141,19 @@ export interface RaftSlabAreaFromTakeoff {
   _fromTakeoff: true;
 }
 
+/**
+ * Demolition area data from takeoff
+ */
+export interface DemolitionAreaFromTakeoff {
+  id: string;
+  name: string;
+  length: number;  // metres (approximate from area)
+  width: number;   // metres (approximate from area)
+  thickness: number; // mm (default 100)
+  _actualArea: number; // actual measured area
+  _fromTakeoff: true;
+}
+
 interface UseTakeoffMarkupsReturn {
   markups: ScopeAreaData[];
   isLoading: boolean;
@@ -160,6 +173,8 @@ interface UseTakeoffMarkupsReturn {
   getFootingConfigsForScope: (scopeId: string) => FootingConfigFromTakeoff[];
   // Raft slab specific
   getRaftSlabAreasForScope: (scopeId: string) => RaftSlabAreaFromTakeoff[];
+  // Demolition specific
+  getDemolitionAreasForScope: (scopeId: string) => DemolitionAreaFromTakeoff[];
   refetch: () => Promise<void>;
 }
 
@@ -591,6 +606,38 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     });
   }, [markups]);
 
+  /**
+   * Get demolition area data from takeoff
+   * Converts polygon markups for demolition scope into DemolitionArea format
+   */
+  const getDemolitionAreasForScope = useCallback((scopeId: string): DemolitionAreaFromTakeoff[] => {
+    // Get polygon markups for demolition scope
+    const demoMarkups = markups.filter(
+      m => m.scope_id === scopeId && 
+           (m.shape_type === 'polygon' || m.shape_type === 'rectangle' || !m.shape_type)
+    );
+    
+    if (demoMarkups.length === 0) return [];
+    
+    return demoMarkups.map((m, index) => {
+      const area = m.area_sqm || 0;
+      // Calculate approximate square dimensions for display
+      const side = Math.sqrt(area);
+      // Default thickness of 100mm for demolition
+      const thickness = m.depth_mm || 100;
+      
+      return {
+        id: `takeoff-demo-${m.markup_id}`,
+        name: m.name || `Demo Area ${index + 1}`,
+        length: parseFloat(side.toFixed(2)),
+        width: parseFloat(side.toFixed(2)),
+        thickness,
+        _actualArea: area,
+        _fromTakeoff: true as const,
+      };
+    });
+  }, [markups]);
+
   return {
     markups,
     isLoading,
@@ -610,6 +657,8 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     getFootingConfigsForScope,
     // Raft slab specific
     getRaftSlabAreasForScope,
+    // Demolition specific
+    getDemolitionAreasForScope,
     refetch: fetchMarkups,
   };
 }
