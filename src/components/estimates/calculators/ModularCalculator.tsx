@@ -372,8 +372,13 @@ export function ModularCalculator({
     }
     // Slab-type scopes with edge beams and/or internal beams (Raft, Driveway, Standard Slab, Paths, Crossovers)
     // Calculate excavation volume for thickened edges and internal beams (below slab level)
+    // IMPORTANT: excavationArea stays as totalArea (for bulk excavation), detailed excavation uses beam volumes
     else if (scopeAnswers.edgeBeams || scopeAnswers.beams || scopeAnswers.edge_beam_depth) {
       const thicknessM = (Number(scopeAnswers.thickness) || 100) / 1000;
+      
+      // For slab scopes, excavationArea = totalArea (for bulk excavation / site cuts)
+      // Detailed excavation for beams is tracked in excavationVolume
+      excavationArea = totalArea;
       
       // Edge thickening excavation - calculate from edgeBeams array if available
       const edgeBeams = scopeAnswers.edgeBeams || [];
@@ -386,14 +391,7 @@ export function ModularCalculator({
           return sum + lengthM * widthM * extraDepth;
         }, 0);
         
-        // Calculate excavation area for edge beams
-        excavationArea = edgeBeams.reduce((sum: number, beam: any) => {
-          const lengthM = Number(beam.length) || 0;
-          const widthM = (Number(beam.width) || 300) / 1000;
-          return sum + lengthM * widthM;
-        }, 0);
-        
-        // Weighted average depth
+        // Weighted average depth from edge beams
         const totalLength = edgeBeams.reduce((sum: number, beam: any) => sum + (Number(beam.length) || 0), 0);
         if (totalLength > 0) {
           averageExcavationDepth = edgeBeams.reduce((sum: number, beam: any) => {
@@ -409,7 +407,6 @@ export function ModularCalculator({
         const edgeBeamDepthM = (Number(scopeAnswers.edge_beam_depth) || 300) / 1000;
         const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
         excavationVolume += edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
-        excavationArea = edgeBeamLength * edgeBeamWidthM;
         averageExcavationDepth = Number(scopeAnswers.edge_beam_depth) || 300;
       }
       
@@ -422,13 +419,6 @@ export function ModularCalculator({
           const depthM = (Number(beam.depth) || 300) / 1000;
           const extraDepth = Math.max(0, depthM - thicknessM);
           return sum + lengthM * widthM * extraDepth;
-        }, 0);
-        
-        // Add internal beam areas to excavation area
-        excavationArea += beams.reduce((sum: number, beam: any) => {
-          const lengthM = Number(beam.length) || 0;
-          const widthM = (Number(beam.width) || 300) / 1000;
-          return sum + lengthM * widthM;
         }, 0);
       }
     }
