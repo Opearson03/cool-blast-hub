@@ -65,7 +65,19 @@ export const PIERS_SCOPE: ScopeDefinition = {
     'extra-items',
   ],
   calculateVolume: (answers) => {
-    // If we have pier configs, calculate from those
+    // Check for pierGroups (new grouped architecture) first
+    const pierGroups = answers.pierGroups || [];
+    if (pierGroups.length > 0) {
+      const volume = pierGroups.reduce((sum: number, group: any) => {
+        const qty = Number(group.quantity) || 1;
+        const diamM = (Number(group.diameter) || 0) / 1000;
+        const depthM = (Number(group.depth) || 0) / 1000;
+        const radius = diamM / 2;
+        return sum + qty * Math.PI * radius * radius * depthM;
+      }, 0);
+      return safeVolume(volume);
+    }
+    // If we have pier configs (legacy format), calculate from those
     const piers = answers.piers || [];
     if (piers.length > 0) {
       const volume = piers.reduce((sum: number, pier: any) => {
