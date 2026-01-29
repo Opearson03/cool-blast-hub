@@ -430,7 +430,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
   
   // Get takeoff markups for this estimate to pre-fill scope answers
   const estimateIdForTakeoff = draftEstimateId || editEstimate?.id || null;
-  const { 
+const { 
     isLoading: takeoffLoading,
     hasFiles: hasUploadedPlans,
     getAreaForScope, 
@@ -448,6 +448,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
     getFootingConfigsForScope,
     // Raft slab specific
     getRaftSlabAreasForScope,
+    // Demolition specific
+    getDemolitionAreasForScope,
     refetch: refetchMarkups 
   } = useTakeoffMarkups(estimateIdForTakeoff);
   
@@ -1269,6 +1271,37 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
                 top_slab_thickness: 85, // Default 85mm top
               };
             }
+          }
+        }
+      } else if (scope === 'demolition') {
+        // Special handling for demolition scope - prefill demolition_areas
+        const demolitionAreas = getDemolitionAreasForScope(scope);
+        
+        if (demolitionAreas.length > 0) {
+          // Check if user hasn't already overridden with their own values
+          const existingAreas = initialScopeAnswers.demolition_areas;
+          const hasUserData = existingAreas?.some((a: any) => 
+            ((a.length > 0 || a.width > 0) && a._fromTakeoff !== true)
+          );
+          
+          if (!hasUserData) {
+            // Convert to demolition areas format
+            const areasFromTakeoff = demolitionAreas.map((area) => ({
+              id: area.id,
+              name: area.name,
+              length: area.length,
+              width: area.width,
+              thickness: area.thickness,
+              _fromTakeoff: true,
+              _actualArea: area._actualArea,
+            }));
+            
+            initialScopeAnswers = {
+              ...initialScopeAnswers,
+              _fromTakeoff: true,
+              demolition_required: true,
+              demolition_areas: areasFromTakeoff,
+            };
           }
         }
       } else if (scopeDefinition.supportsMultipleAreas && scopeMarkups.length > 0) {
