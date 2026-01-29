@@ -125,8 +125,16 @@ export function WafflePodConfigCard({
             <Input
               type="number"
               inputMode="numeric"
-              value={topSlabThickness || ''}
-              onChange={(e) => onChange('top_slab_thickness', Number(e.target.value) || 85)}
+              value={topSlabThickness === 0 ? '' : topSlabThickness}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange('top_slab_thickness', val === '' ? 0 : Number(val));
+              }}
+              onBlur={(e) => {
+                if (!e.target.value || Number(e.target.value) < 50) {
+                  onChange('top_slab_thickness', 85);
+                }
+              }}
               className="h-9"
               min={50}
               placeholder="85"
@@ -139,8 +147,16 @@ export function WafflePodConfigCard({
             <Input
               type="number"
               inputMode="numeric"
-              value={ribWidth || ''}
-              onChange={(e) => onChange('rib_width', Number(e.target.value) || 110)}
+              value={ribWidth === 0 ? '' : ribWidth}
+              onChange={(e) => {
+                const val = e.target.value;
+                onChange('rib_width', val === '' ? 0 : Number(val));
+              }}
+              onBlur={(e) => {
+                if (!e.target.value || Number(e.target.value) < 100) {
+                  onChange('rib_width', 110);
+                }
+              }}
               className="h-9"
               min={100}
               placeholder="110"
@@ -171,10 +187,14 @@ export function WafflePodConfigCard({
               <Input
                 type="number"
                 inputMode="numeric"
-                value={podCount || ''}
-                onChange={(e) => onChange('pod_count', Number(e.target.value) || 0)}
+                value={podCount === 0 ? '' : podCount}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange('pod_count', val === '' ? 0 : Number(val));
+                }}
                 className="h-9"
                 min={0}
+                placeholder="0"
               />
             </div>
 
@@ -184,10 +204,14 @@ export function WafflePodConfigCard({
               <Input
                 type="number"
                 inputMode="numeric"
-                value={spacer4WayCount || ''}
-                onChange={(e) => onChange('spacer_4way_count', Number(e.target.value) || 0)}
+                value={spacer4WayCount === 0 ? '' : spacer4WayCount}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange('spacer_4way_count', val === '' ? 0 : Number(val));
+                }}
                 className="h-9"
                 min={0}
+                placeholder="0"
               />
             </div>
 
@@ -197,10 +221,14 @@ export function WafflePodConfigCard({
               <Input
                 type="number"
                 inputMode="numeric"
-                value={spacer2WayCount || ''}
-                onChange={(e) => onChange('spacer_2way_count', Number(e.target.value) || 0)}
+                value={spacer2WayCount === 0 ? '' : spacer2WayCount}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange('spacer_2way_count', val === '' ? 0 : Number(val));
+                }}
                 className="h-9"
                 min={0}
+                placeholder="0"
               />
             </div>
 
@@ -210,10 +238,14 @@ export function WafflePodConfigCard({
               <Input
                 type="number"
                 inputMode="numeric"
-                value={tmChairsCount || ''}
-                onChange={(e) => onChange('tm_chairs_count', Number(e.target.value) || 0)}
+                value={tmChairsCount === 0 ? '' : tmChairsCount}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange('tm_chairs_count', val === '' ? 0 : Number(val));
+                }}
                 className="h-9"
                 min={0}
+                placeholder="0"
               />
             </div>
 
@@ -223,10 +255,14 @@ export function WafflePodConfigCard({
               <Input
                 type="number"
                 inputMode="numeric"
-                value={barChairsCount || ''}
-                onChange={(e) => onChange('bar_chairs_count', Number(e.target.value) || 0)}
+                value={barChairsCount === 0 ? '' : barChairsCount}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange('bar_chairs_count', val === '' ? 0 : Number(val));
+                }}
                 className="h-9"
                 min={0}
+                placeholder="0"
               />
             </div>
           </div>

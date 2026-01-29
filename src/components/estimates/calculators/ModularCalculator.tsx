@@ -122,8 +122,11 @@ export function ModularCalculator({
     initialModuleAnswers
   );
 
-  // Track which fields have been manually overridden by user
+  // Track which fields have been manually overridden by user (module-level)
   const [userOverrides, setUserOverrides] = useState<Record<string, Set<string>>>({});
+
+  // Track which scope-level fields have been manually overridden by user
+  const [scopeUserOverrides, setScopeUserOverrides] = useState<Set<string>>(new Set());
 
   // Custom exclusions
   const [customExclusions, setCustomExclusions] = useState<ExclusionItem[]>(
@@ -401,79 +404,81 @@ export function ModularCalculator({
   }, [derivedScopeAnswers, scopeVolume, scope.id]);
 
   // Apply derived values and auto-fill from price list when fields become visible
+  // Use functional update to avoid dependency on moduleAnswers (prevents infinite loops)
   useEffect(() => {
     if (priceListLoading || !priceListItems) return;
 
-    const newModuleAnswers = { ...moduleAnswers };
-    let hasChanges = false;
+    setModuleAnswers(prevModuleAnswers => {
+      const newModuleAnswers = { ...prevModuleAnswers };
+      let hasChanges = false;
 
-    modules.forEach((module) => {
-      const currentModuleAnswers = moduleAnswers[module.id] || {};
-      
-      module.questions.forEach((question) => {
-        // Check if user has manually overridden this field
-        const isOverridden = userOverrides[module.id]?.has(question.id);
+      modules.forEach((module) => {
+        const currentModuleAnswers = prevModuleAnswers[module.id] || {};
         
-        // Check if field is visible (using showIf)
-        const isVisible = !question.showIf || question.showIf(currentModuleAnswers, scopeData);
-        
-        if (!isOverridden && isVisible) {
-          // Handle deriveFrom values
-          if (question.deriveFrom) {
-            const derivedValue = question.deriveFrom(scopeData, currentModuleAnswers, priceMap);
-            
-            // Only update if derived value is defined and different from current
-            if (derivedValue !== undefined && derivedValue !== currentModuleAnswers[question.id]) {
-              if (!newModuleAnswers[module.id]) {
-                newModuleAnswers[module.id] = {};
-              }
-              newModuleAnswers[module.id] = {
-                ...newModuleAnswers[module.id],
-                [question.id]: derivedValue,
-              };
-              hasChanges = true;
-            }
-          }
+        module.questions.forEach((question) => {
+          // Check if user has manually overridden this field
+          const isOverridden = userOverrides[module.id]?.has(question.id);
           
-          // Handle priceListKey auto-fill when field becomes visible
-          if (question.priceListKey && currentModuleAnswers[question.id] === undefined) {
-            const [category, itemCode] = question.priceListKey.split('.');
-            const price = priceMap[category]?.[itemCode];
-            // Use price from price list, or fall back to defaultValue
-            const valueToUse = price !== undefined ? price : question.defaultValue;
-            if (valueToUse !== undefined) {
+          // Check if field is visible (using showIf)
+          const isVisible = !question.showIf || question.showIf(currentModuleAnswers, scopeData);
+          
+          if (!isOverridden && isVisible) {
+            // Handle deriveFrom values
+            if (question.deriveFrom) {
+              const derivedValue = question.deriveFrom(scopeData, currentModuleAnswers, priceMap);
+              
+              // Only update if derived value is defined and different from current
+              if (derivedValue !== undefined && derivedValue !== currentModuleAnswers[question.id]) {
+                if (!newModuleAnswers[module.id]) {
+                  newModuleAnswers[module.id] = {};
+                }
+                newModuleAnswers[module.id] = {
+                  ...newModuleAnswers[module.id],
+                  [question.id]: derivedValue,
+                };
+                hasChanges = true;
+              }
+            }
+            
+            // Handle priceListKey auto-fill when field becomes visible
+            if (question.priceListKey && currentModuleAnswers[question.id] === undefined) {
+              const [category, itemCode] = question.priceListKey.split('.');
+              const price = priceMap[category]?.[itemCode];
+              // Use price from price list, or fall back to defaultValue
+              const valueToUse = price !== undefined ? price : question.defaultValue;
+              if (valueToUse !== undefined) {
+                if (!newModuleAnswers[module.id]) {
+                  newModuleAnswers[module.id] = {};
+                }
+                newModuleAnswers[module.id] = {
+                  ...newModuleAnswers[module.id],
+                  [question.id]: valueToUse,
+                };
+                hasChanges = true;
+              }
+            }
+
+            // Handle defaultValue for fields without deriveFrom or priceListKey
+            if (!question.deriveFrom && !question.priceListKey && 
+                question.defaultValue !== undefined && 
+                currentModuleAnswers[question.id] === undefined) {
               if (!newModuleAnswers[module.id]) {
                 newModuleAnswers[module.id] = {};
               }
               newModuleAnswers[module.id] = {
                 ...newModuleAnswers[module.id],
-                [question.id]: valueToUse,
+                [question.id]: question.defaultValue,
               };
               hasChanges = true;
             }
           }
-
-          // Handle defaultValue for fields without deriveFrom or priceListKey
-          if (!question.deriveFrom && !question.priceListKey && 
-              question.defaultValue !== undefined && 
-              currentModuleAnswers[question.id] === undefined) {
-            if (!newModuleAnswers[module.id]) {
-              newModuleAnswers[module.id] = {};
-            }
-            newModuleAnswers[module.id] = {
-              ...newModuleAnswers[module.id],
-              [question.id]: question.defaultValue,
-            };
-            hasChanges = true;
-          }
-        }
+        });
       });
-    });
 
-    if (hasChanges) {
-      setModuleAnswers(newModuleAnswers);
-    }
-  }, [scopeData, priceMap, modules, priceListLoading, priceListItems, userOverrides, moduleAnswers]);
+      // Only return new object if there were changes, otherwise return previous to prevent re-render
+      return hasChanges ? newModuleAnswers : prevModuleAnswers;
+    });
+  }, [scopeData, priceMap, modules, priceListLoading, priceListItems, userOverrides]);
 
   // Calculate costs for each module (including custom items)
   const moduleCosts = useMemo<ComponentCost[]>(() => {
@@ -575,6 +580,7 @@ export function ModularCalculator({
   }, [notifyStateChange]);
 
   // Auto-calculate pod rails, spacers, bar chairs, and TM chairs for waffle pod
+  // Respects scopeUserOverrides to prevent overwriting manually edited fields
   useEffect(() => {
     if (scope.id !== 'waffle_pod') return;
     
@@ -585,23 +591,25 @@ export function ModularCalculator({
     // Calculate updates
     const updates: Record<string, any> = {};
     
-    // Auto-calculate pod rails for 100mm+ slabs
-    if (topSlabThickness >= 100 && podCount > 0) {
-      const railsNeeded = podCount * 2;
-      const packsNeeded = Math.ceil(railsNeeded / 20);
-      
-      if (scopeAnswers.pod_rails_required !== true || scopeAnswers.pod_rail_packs !== packsNeeded) {
-        updates.pod_rails_required = true;
-        updates.pod_rail_packs = packsNeeded;
-      }
-    } else {
-      if (scopeAnswers.pod_rails_required === true) {
-        updates.pod_rails_required = false;
-        updates.pod_rail_packs = 0;
+    // Auto-calculate pod rails for 100mm+ slabs (only if not manually overridden)
+    if (!scopeUserOverrides.has('pod_rails_required') && !scopeUserOverrides.has('pod_rail_packs')) {
+      if (topSlabThickness >= 100 && podCount > 0) {
+        const railsNeeded = podCount * 2;
+        const packsNeeded = Math.ceil(railsNeeded / 20);
+        
+        if (scopeAnswers.pod_rails_required !== true || scopeAnswers.pod_rail_packs !== packsNeeded) {
+          updates.pod_rails_required = true;
+          updates.pod_rail_packs = packsNeeded;
+        }
+      } else {
+        if (scopeAnswers.pod_rails_required === true) {
+          updates.pod_rails_required = false;
+          updates.pod_rail_packs = 0;
+        }
       }
     }
     
-    // Auto-calculate spacers from pod count if they haven't been manually set from takeoff
+    // Auto-calculate spacers from pod count if they haven't been manually overridden
     // Use grid estimation: assume pods laid in approximate square grid
     // For a grid of n×m pods: 4-way intersections ≈ (n-1)(m-1), 2-way edge spacers ≈ 2(n+m-2)
     // Simplified: assume square grid where n ≈ √podCount
@@ -610,32 +618,38 @@ export function ModularCalculator({
       const rows = Math.round(gridSize);
       const cols = Math.ceil(podCount / rows);
       
-      // Only auto-fill if current values are 0 or null (not manually set from takeoff)
-      if (!scopeAnswers.spacer_4way_count || scopeAnswers.spacer_4way_count === 0) {
-        // 4-way spacers at internal intersections: (rows-1) * (cols-1)
-        const estimated4Way = Math.max(0, (rows - 1) * (cols - 1));
-        if (estimated4Way > 0) {
-          updates.spacer_4way_count = estimated4Way;
+      // Only auto-fill if user hasn't manually edited the field
+      if (!scopeUserOverrides.has('spacer_4way_count')) {
+        if (!scopeAnswers.spacer_4way_count || scopeAnswers.spacer_4way_count === 0) {
+          // 4-way spacers at internal intersections: (rows-1) * (cols-1)
+          const estimated4Way = Math.max(0, (rows - 1) * (cols - 1));
+          if (estimated4Way > 0) {
+            updates.spacer_4way_count = estimated4Way;
+          }
         }
       }
       
-      if (!scopeAnswers.spacer_2way_count || scopeAnswers.spacer_2way_count === 0) {
-        // 2-way spacers at edges: 2*(rows + cols - 2)
-        const estimated2Way = Math.max(0, 2 * (rows + cols - 2));
-        if (estimated2Way > 0) {
-          updates.spacer_2way_count = estimated2Way;
+      if (!scopeUserOverrides.has('spacer_2way_count')) {
+        if (!scopeAnswers.spacer_2way_count || scopeAnswers.spacer_2way_count === 0) {
+          // 2-way spacers at edges: 2*(rows + cols - 2)
+          const estimated2Way = Math.max(0, 2 * (rows + cols - 2));
+          if (estimated2Way > 0) {
+            updates.spacer_2way_count = estimated2Way;
+          }
         }
       }
       
-      // Auto-calculate bar chairs: pods × 3
-      const calculatedBarChairs = podCount * 3;
-      if (!scopeAnswers.bar_chairs_count || scopeAnswers.bar_chairs_count !== calculatedBarChairs) {
-        updates.bar_chairs_count = calculatedBarChairs;
+      // Auto-calculate bar chairs: pods × 3 (only if not manually overridden)
+      if (!scopeUserOverrides.has('bar_chairs_count')) {
+        const calculatedBarChairs = podCount * 3;
+        if (!scopeAnswers.bar_chairs_count || scopeAnswers.bar_chairs_count !== calculatedBarChairs) {
+          updates.bar_chairs_count = calculatedBarChairs;
+        }
       }
     }
     
-    // Auto-calculate TM chairs: perimeter ÷ 1.2
-    if (perimeter > 0) {
+    // Auto-calculate TM chairs: perimeter ÷ 1.2 (only if not manually overridden)
+    if (perimeter > 0 && !scopeUserOverrides.has('tm_chairs_count')) {
       const calculatedTmChairs = Math.round(perimeter / 1.2);
       if (!scopeAnswers.tm_chairs_count || scopeAnswers.tm_chairs_count !== calculatedTmChairs) {
         updates.tm_chairs_count = calculatedTmChairs;
@@ -649,13 +663,24 @@ export function ModularCalculator({
         ...updates,
       }));
     }
-  }, [scope.id, scopeAnswers.top_slab_thickness, scopeAnswers.pod_count, scopeAnswers.perimeter]);
+  }, [scope.id, scopeAnswers.top_slab_thickness, scopeAnswers.pod_count, scopeAnswers.perimeter, scopeUserOverrides]);
 
-  // Handlers
-  const handleScopeAnswerChange = (questionId: string, value: any) => {
+  // Handlers - memoized to prevent unnecessary re-renders
+  const handleScopeAnswerChange = useCallback((questionId: string, value: any) => {
+    // Track user override for waffle pod accessory fields
+    const wafflePodAccessoryFields = [
+      'pod_count', 'bar_chairs_count', 'tm_chairs_count', 
+      'spacer_4way_count', 'spacer_2way_count', 'pod_rails_required', 'pod_rail_packs',
+      'top_slab_thickness', 'rib_width', 'pod_size', 'pod_thickness'
+    ];
+    if (wafflePodAccessoryFields.includes(questionId)) {
+      setScopeUserOverrides(prev => new Set([...prev, questionId]));
+    }
+    
     // Handle pod_rails_required toggle - recalculate packs when manually enabled
     if (questionId === 'pod_rails_required' && value === true && scope.id === 'waffle_pod') {
-      const podCount = Number(scopeAnswers.pod_count) || 0;
+      const currentScopeAnswers = scopeAnswers;
+      const podCount = Number(currentScopeAnswers.pod_count) || 0;
       if (podCount > 0) {
         const packsNeeded = Math.ceil((podCount * 2) / 20);
         setScopeAnswers((prev) => ({
@@ -667,7 +692,7 @@ export function ModularCalculator({
       }
     }
     setScopeAnswers((prev) => ({ ...prev, [questionId]: value }));
-  };
+  }, [scope.id, scopeAnswers]);
 
   // Handler for multi-area changes
   const handleAreasChange = (areas: MeasurementArea[]) => {
