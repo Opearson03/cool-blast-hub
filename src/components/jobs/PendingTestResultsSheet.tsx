@@ -26,7 +26,10 @@ import {
   ExternalLink,
   FlaskConical,
   Building2,
-  Eye
+  Eye,
+  Sparkles,
+  Target,
+  MapPin
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -36,6 +39,15 @@ interface PendingTestResultsSheetProps {
   onOpenChange: (open: boolean) => void;
   businessId: string;
   preselectedJobId?: string;
+}
+
+interface SuggestedMatch {
+  jobId: string;
+  jobName: string;
+  pourId?: string;
+  pourName?: string;
+  score: number;
+  reasons: string[];
 }
 
 interface PendingTestResult {
@@ -56,10 +68,20 @@ interface PendingTestResult {
     sample_count?: number | null;
     notes?: string | null;
     note?: string;
+    docket_number?: string | null;
+    batch_ticket?: string | null;
+    sample_ref?: string | null;
+    project_ref?: string | null;
+    job_number?: string | null;
+    site_address?: string | null;
+    project_name?: string | null;
+    suggested_matches?: SuggestedMatch[];
   };
   status: 'pending' | 'approved' | 'rejected';
   linked_job_id: string | null;
   linked_pour_id: string | null;
+  match_confidence?: number | null;
+  match_status?: string | null;
   created_at: string;
 }
 
@@ -67,11 +89,13 @@ interface Job {
   id: string;
   name: string;
   job_number: string | null;
+  site_address: string;
 }
 
 interface Pour {
   id: string;
   pour_name: string;
+  pour_date: string | null;
 }
 
 export function PendingTestResultsSheet({
@@ -116,13 +140,13 @@ export function PendingTestResultsSheet({
     enabled: open
   });
 
-  // Fetch jobs for linking
+  // Fetch jobs for linking (with site_address for suggested matches)
   const { data: jobs = [] } = useQuery({
     queryKey: ["jobs-for-linking", businessId],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("jobs")
-        .select("id, name, job_number")
+        .select("id, name, job_number, site_address")
         .eq("business_id", businessId)
         .order("created_at", { ascending: false });
       
@@ -132,7 +156,7 @@ export function PendingTestResultsSheet({
     enabled: open
   });
 
-  // Fetch pours for selected job
+  // Fetch pours for selected job (with pour_date for display)
   const { data: pours = [] } = useQuery({
     queryKey: ["pours-for-job", selectedJobId],
     queryFn: async () => {
@@ -140,7 +164,7 @@ export function PendingTestResultsSheet({
       
       const { data, error } = await supabase
         .from("job_pours")
-        .select("id, pour_name")
+        .select("id, pour_name, pour_date")
         .eq("job_id", selectedJobId);
       
       if (error) throw error;
@@ -148,6 +172,51 @@ export function PendingTestResultsSheet({
     },
     enabled: !!selectedJobId
   });
+
+  // Generate suggested matches based on extracted data
+  const getSuggestedMatches = (result: PendingTestResult): SuggestedMatch[] => {
+    const matches: SuggestedMatch[] = [];
+    const extracted = result.extracted_data;
+    
+    if (!extracted) return matches;
+    
+    for (const job of jobs) {
+      let score = 0;
+      const reasons: string[] = [];
+      
+      // Job number match
+      if (extracted.job_number && job.job_number) {
+        const jobNumNorm = job.job_number.toLowerCase().replace(/[^a-z0-9]/g, '');
+        const extractedNumNorm = extracted.job_number.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (jobNumNorm === extractedNumNorm || jobNumNorm.includes(extractedNumNorm)) {
+          score += 50;
+          reasons.push(`Job # matched: ${job.job_number}`);
+        }
+      }
+      
+      // Address match (simple word overlap)
+      if (extracted.site_address && job.site_address) {
+        const extractedWords = extracted.site_address.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const jobWords = job.site_address.toLowerCase().split(/\s+/).filter(w => w.length > 2);
+        const overlap = extractedWords.filter(w => jobWords.some(jw => jw.includes(w) || w.includes(jw))).length;
+        if (overlap >= 2) {
+          score += 30;
+          reasons.push('Address partially matched');
+        }
+      }
+      
+      if (score > 0) {
+        matches.push({
+          jobId: job.id,
+          jobName: job.name,
+          score,
+          reasons
+        });
+      }
+    }
+    
+    return matches.sort((a, b) => b.score - a.score).slice(0, 3);
+  };
 
   // Approve mutation
   const approveMutation = useMutation({
@@ -363,11 +432,82 @@ export function PendingTestResultsSheet({
                           <span className="text-muted-foreground">Supplier:</span>
                           <p className="font-medium">{selectedResult.extracted_data.supplier || "—"}</p>
                         </div>
+                        {selectedResult.extracted_data.docket_number && (
+                          <div>
+                            <span className="text-muted-foreground">Docket #:</span>
+                            <p className="font-medium">{selectedResult.extracted_data.docket_number}</p>
+                          </div>
+                        )}
+                        {selectedResult.extracted_data.site_address && (
+                          <div className="col-span-2">
+                            <span className="text-muted-foreground flex items-center gap-1">
+                              <MapPin className="w-3 h-3" />
+                              Site Address:
+                            </span>
+                            <p className="font-medium text-xs">{selectedResult.extracted_data.site_address}</p>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
 
                   <Separator />
+
+                  {/* Suggested Matches Section */}
+                  {(() => {
+                    const suggestions = getSuggestedMatches(selectedResult);
+                    if (suggestions.length === 0) return null;
+                    
+                    return (
+                      <>
+                        <div className="space-y-3">
+                          <h4 className="font-medium flex items-center gap-2 text-primary">
+                            <Sparkles className="w-4 h-4" />
+                            Suggested Matches
+                          </h4>
+                          
+                          <div className="space-y-2">
+                            {suggestions.map((match, idx) => (
+                              <button
+                                key={match.jobId}
+                                onClick={() => {
+                                  setSelectedJobId(match.jobId);
+                                  if (match.pourId) setSelectedPourId(match.pourId);
+                                }}
+                                className={`w-full text-left p-2 rounded-md border transition-colors ${
+                                  selectedJobId === match.jobId 
+                                    ? 'border-primary bg-primary/10' 
+                                    : 'border-border hover:bg-muted/50'
+                                }`}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="font-medium text-sm">{match.jobName}</span>
+                                  <Badge variant="secondary" className="text-xs">
+                                    <Target className="w-3 h-3 mr-1" />
+                                    {match.score}%
+                                  </Badge>
+                                </div>
+                                <div className="flex flex-wrap gap-1 mt-1">
+                                  {match.reasons.map((reason, i) => (
+                                    <span key={i} className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                                      {reason}
+                                    </span>
+                                  ))}
+                                </div>
+                                {match.pourName && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    → Pour: {match.pourName}
+                                  </p>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        
+                        <Separator />
+                      </>
+                    );
+                  })()}
 
                   <div className="space-y-3">
                     <h4 className="font-medium flex items-center gap-2">
