@@ -224,6 +224,40 @@ export function PendingTestResultsSheet({
       if (!selectedJobId) throw new Error("Please select a job");
 
       const extracted = result.extracted_data;
+      const testId = extracted.test_id || `AUTO-${Date.now()}`;
+      
+      // Check if this test_id + pour_id combination already exists
+      // This prevents duplicate entries from the same test result
+      const duplicateCheckQuery = supabase
+        .from("concrete_tests")
+        .select("id, test_id")
+        .eq("job_id", selectedJobId)
+        .eq("test_id", testId);
+      
+      // If pour is selected, check for that specific pour
+      if (selectedPourId) {
+        duplicateCheckQuery.eq("pour_id", selectedPourId);
+      }
+      
+      const { data: existingTests } = await duplicateCheckQuery;
+      
+      if (existingTests && existingTests.length > 0) {
+        // Test already exists - just mark this pending result as approved without creating duplicate
+        const { error: updateError } = await supabase
+          .from("pending_test_results")
+          .update({
+            status: "approved",
+            linked_job_id: selectedJobId,
+            linked_pour_id: selectedPourId,
+            approved_at: new Date().toISOString()
+          })
+          .eq("id", result.id);
+
+        if (updateError) throw updateError;
+        
+        // Return early - don't create duplicate concrete_tests entry
+        return { skippedDuplicate: true };
+      }
       
       // Determine test_type with proper type casting
       const testType = extracted.test_type as "7_day" | "28_day" | "slump" | "cylinder" | "air" | "other" || "other";
@@ -234,7 +268,7 @@ export function PendingTestResultsSheet({
         .insert([{
           job_id: selectedJobId,
           pour_id: selectedPourId || null,
-          test_id: extracted.test_id || `AUTO-${Date.now()}`,
+          test_id: testId,
           test_type: testType,
           pour_date: extracted.pour_date || null,
           test_date: extracted.test_date || null,
@@ -263,9 +297,15 @@ export function PendingTestResultsSheet({
         .eq("id", result.id);
 
       if (updateError) throw updateError;
+      
+      return { skippedDuplicate: false };
     },
-    onSuccess: () => {
-      toast.success("Test result approved and linked to job");
+    onSuccess: (data) => {
+      if (data?.skippedDuplicate) {
+        toast.success("Test result already exists - marked as approved");
+      } else {
+        toast.success("Test result approved and linked to job");
+      }
       queryClient.invalidateQueries({ queryKey: ["pending-test-results"] });
       queryClient.invalidateQueries({ queryKey: ["concrete-tests"] });
       setSelectedResultId(null);
