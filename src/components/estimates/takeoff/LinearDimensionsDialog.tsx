@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Switch } from '@/components/ui/switch';
 import { Ruler, Plus, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -47,8 +48,8 @@ interface LinearDimensionsDialogProps {
   segments?: PolylineSegment[];
   scopeType: string;
   defaultName?: string;
-  onConfirm: (name: string, width: number, height: number, toeWidth?: number, toeDepth?: number) => Promise<void>;
-  onConfirmAndAddAnother?: (name: string, width: number, height: number, toeWidth?: number, toeDepth?: number) => Promise<void>;
+  onConfirm: (name: string, width: number, height: number, hasToe?: boolean, toeWidth?: number, toeDepth?: number) => Promise<void>;
+  onConfirmAndAddAnother?: (name: string, width: number, height: number, hasToe?: boolean, toeWidth?: number, toeDepth?: number) => Promise<void>;
   /** Existing segments for type selection (add to existing type) */
   existingSegments?: ExistingLinearSegment[];
   /** Pre-selected type when adding to existing type from sidebar */
@@ -118,8 +119,9 @@ export function LinearDimensionsDialog({
   const [name, setName] = useState('');
   const [width, setWidth] = useState(labels.widthDefault);
   const [height, setHeight] = useState(labels.heightDefault);
-  const [toeWidth, setToeWidth] = useState(labels.toeWidthDefault || 0);
-  const [toeDepth, setToeDepth] = useState(labels.toeDepthDefault || 0);
+  const [hasToe, setHasToe] = useState(false);
+  const [toeWidth, setToeWidth] = useState(labels.toeWidthDefault || 300);
+  const [toeDepth, setToeDepth] = useState(labels.toeDepthDefault || 300);
   const [isSaving, setIsSaving] = useState(false);
 
   // Get selected existing type
@@ -175,8 +177,9 @@ export function LinearDimensionsDialog({
         setWidth(labels.widthDefault);
         setHeight(labels.heightDefault);
       }
-      setToeWidth(labels.toeWidthDefault || 0);
-      setToeDepth(labels.toeDepthDefault || 0);
+      setHasToe(false);
+      setToeWidth(labels.toeWidthDefault || 300);
+      setToeDepth(labels.toeDepthDefault || 300);
     }
   }, [open, preselectedType, hasExistingTypes, existingTypes, newTypeDefaultName, labels]);
 
@@ -208,8 +211,9 @@ export function LinearDimensionsDialog({
         segmentName, 
         width, 
         height, 
-        labels.showToe ? toeWidth : undefined, 
-        labels.showToe ? toeDepth : undefined
+        labels.showToe ? hasToe : undefined,
+        labels.showToe && hasToe ? toeWidth : undefined, 
+        labels.showToe && hasToe ? toeDepth : undefined
       );
       onOpenChange(false);
     } finally {
@@ -228,8 +232,9 @@ export function LinearDimensionsDialog({
         segmentName, 
         width, 
         height, 
-        labels.showToe ? toeWidth : undefined, 
-        labels.showToe ? toeDepth : undefined
+        labels.showToe ? hasToe : undefined,
+        labels.showToe && hasToe ? toeWidth : undefined, 
+        labels.showToe && hasToe ? toeDepth : undefined
       );
       // Close dialog to return to drawing mode for next segment
       onOpenChange(false);
@@ -450,49 +455,60 @@ export function LinearDimensionsDialog({
 
             {/* Toe inputs - only for retaining wall scopes */}
             {labels.showToe && (
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Toe Dimensions</Label>
-                <p className="text-xs text-muted-foreground -mt-1">
-                  Distance footing extends beyond wall face (set to 0 if no toe)
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="toeWidth" className="text-xs text-muted-foreground">Toe Width</Label>
-                    <div className="relative">
-                      <Input
-                        id="toeWidth"
-                        type="number"
-                        value={toeWidth}
-                        onChange={(e) => setToeWidth(Number(e.target.value) || 0)}
-                        min={0}
-                        max={2000}
-                        step={50}
-                        className="pr-12"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        mm
-                      </span>
-                    </div>
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Is there a toe?</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Footing extends beyond wall face
+                    </p>
                   </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="toeDepth" className="text-xs text-muted-foreground">Toe Depth</Label>
-                    <div className="relative">
-                      <Input
-                        id="toeDepth"
-                        type="number"
-                        value={toeDepth}
-                        onChange={(e) => setToeDepth(Number(e.target.value) || 0)}
-                        min={0}
-                        max={2000}
-                        step={50}
-                        className="pr-12"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        mm
-                      </span>
-                    </div>
-                  </div>
+                  <Switch
+                    checked={hasToe}
+                    onCheckedChange={setHasToe}
+                  />
                 </div>
+                
+                {hasToe && (
+                  <div className="grid grid-cols-2 gap-3 pt-2">
+                    <div className="space-y-1">
+                      <Label htmlFor="toeWidth" className="text-xs text-muted-foreground">Toe Width</Label>
+                      <div className="relative">
+                        <Input
+                          id="toeWidth"
+                          type="number"
+                          value={toeWidth}
+                          onChange={(e) => setToeWidth(Number(e.target.value) || 0)}
+                          min={0}
+                          max={2000}
+                          step={50}
+                          className="pr-12"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          mm
+                        </span>
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="toeDepth" className="text-xs text-muted-foreground">Toe Depth</Label>
+                      <div className="relative">
+                        <Input
+                          id="toeDepth"
+                          type="number"
+                          value={toeDepth}
+                          onChange={(e) => setToeDepth(Number(e.target.value) || 0)}
+                          min={0}
+                          max={2000}
+                          step={50}
+                          className="pr-12"
+                        />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          mm
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -507,7 +523,7 @@ export function LinearDimensionsDialog({
               <span className="text-muted-foreground">Cross-section:</span>
               <span className="font-medium">{width}mm × {height}mm</span>
             </div>
-            {labels.showToe && (toeWidth > 0 || toeDepth > 0) && (
+            {labels.showToe && hasToe && (
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Toe:</span>
                 <span className="font-medium">{toeWidth}mm × {toeDepth}mm</span>
