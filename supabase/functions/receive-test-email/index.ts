@@ -168,12 +168,36 @@ interface Job {
   id: string;
   site_address: string;
   name: string;
+  job_number: string | null;
+  mpa_strength: string | null;
 }
 
 interface Pour {
   id: string;
   job_id: string;
   pour_date: string | null;
+  pour_name: string;
+  mpa_strength: string | null;
+  docket_numbers: string[] | null;
+  batch_ticket_refs: string[] | null;
+}
+
+interface MatchResult {
+  matchStatus: MatchStatus;
+  matchedJobId: string | null;
+  matchedPourId: string | null;
+  matchConfidence: number;
+  matchReason?: string;
+  suggestedMatches?: SuggestedMatch[];
+}
+
+interface SuggestedMatch {
+  jobId: string;
+  jobName: string;
+  pourId?: string;
+  pourName?: string;
+  score: number;
+  reasons: string[];
 }
 
 type DocumentType = 'test_result' | 'delivery_docket' | 'unknown';
@@ -267,24 +291,72 @@ function datesMatch(extractedDate: string | null, pourDate: string | null, windo
   }
 }
 
-// Find the best matching job and pour for extracted data
-// SIMPLIFIED LOGIC: Only auto-assign when there's exactly ONE job match AND a pour date match
-// Everything else goes to 'pending' for manual assignment
-async function findBestMatch(
+// Multi-signal matching with weighted scoring
+// Scoring: docket_number=100, batch_ticket=80, job_number=50, address=40, date=30, mpa=20
+async function findBestMatchMultiSignal(
   supabase: any,
   businessId: string,
-  extractedAddress: string | null,
-  extractedDate: string | null
-): Promise<{ matchStatus: MatchStatus; matchedJobId: string | null; matchedPourId: string | null; matchConfidence: number }> {
-  if (!extractedAddress || !extractedDate) {
-    console.log('Missing address or date - cannot auto-match');
-    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
+  extractedData: {
+    docket_number?: string | null;
+    batch_ticket?: string | null;
+    site_address?: string | null;
+    pour_date?: string | null;
+    test_date?: string | null;
+    target_mpa?: number | null;
+    job_number?: string | null;
+    project_ref?: string | null;
+  }
+): Promise<MatchResult> {
+  const suggestedMatches: SuggestedMatch[] = [];
+  
+  // 1. Try docket number match first (definitive - 100 points)
+  if (extractedData.docket_number) {
+    console.log('Searching for docket number match:', extractedData.docket_number);
+    const { data: poursWithDocket } = await supabase
+      .from('job_pours')
+      .select('id, job_id, pour_name, jobs!inner(id, name, business_id)')
+      .contains('docket_numbers', [extractedData.docket_number])
+      .eq('jobs.business_id', businessId);
+
+    if (poursWithDocket && poursWithDocket.length > 0) {
+      const pour = poursWithDocket[0];
+      console.log('Docket number matched to pour:', pour.id);
+      return {
+        matchStatus: 'auto_matched',
+        matchedJobId: pour.job_id,
+        matchedPourId: pour.id,
+        matchConfidence: 100,
+        matchReason: `Docket number ${extractedData.docket_number} matched`
+      };
+    }
   }
 
-  // Fetch all active jobs for this business
+  // 2. Try batch ticket match (80 points)
+  if (extractedData.batch_ticket) {
+    console.log('Searching for batch ticket match:', extractedData.batch_ticket);
+    const { data: poursWithBatch } = await supabase
+      .from('job_pours')
+      .select('id, job_id, pour_name, jobs!inner(id, name, business_id)')
+      .contains('batch_ticket_refs', [extractedData.batch_ticket])
+      .eq('jobs.business_id', businessId);
+
+    if (poursWithBatch && poursWithBatch.length > 0) {
+      const pour = poursWithBatch[0];
+      console.log('Batch ticket matched to pour:', pour.id);
+      return {
+        matchStatus: 'auto_matched',
+        matchedJobId: pour.job_id,
+        matchedPourId: pour.id,
+        matchConfidence: 80,
+        matchReason: `Batch ticket ${extractedData.batch_ticket} matched`
+      };
+    }
+  }
+
+  // 3. Fetch all active jobs and their pours for weighted scoring
   const { data: jobs, error: jobsError } = await supabase
     .from('jobs')
-    .select('id, site_address, name')
+    .select('id, site_address, name, job_number, mpa_strength')
     .eq('business_id', businessId)
     .in('status', ['not_started', 'in_progress']);
 
@@ -293,58 +365,141 @@ async function findBestMatch(
     return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
   }
 
-  // Find ALL jobs that match above the threshold
-  const matchingJobs: { job: Job; confidence: number }[] = [];
+  const extractedDate = extractedData.pour_date || extractedData.test_date;
+  const jobScores: Map<string, { job: Job; score: number; reasons: string[]; bestPour?: Pour; pourScore: number }> = new Map();
 
   for (const job of jobs as Job[]) {
-    const confidence = matchAddresses(extractedAddress, job.site_address);
-    console.log(`Address match: "${extractedAddress}" vs "${job.site_address}" = ${confidence}%`);
-    
-    if (confidence >= 70) {
-      matchingJobs.push({ job, confidence });
+    let score = 0;
+    const reasons: string[] = [];
+
+    // Job number / project ref match (50 points)
+    if (extractedData.job_number && job.job_number) {
+      const jobNumNorm = job.job_number.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const extractedNumNorm = extractedData.job_number.toLowerCase().replace(/[^a-z0-9]/g, '');
+      if (jobNumNorm === extractedNumNorm || jobNumNorm.includes(extractedNumNorm) || extractedNumNorm.includes(jobNumNorm)) {
+        score += 50;
+        reasons.push(`Job number matched: ${job.job_number}`);
+      }
+    }
+
+    // Address match (up to 40 points)
+    if (extractedData.site_address) {
+      const addressScore = matchAddresses(extractedData.site_address, job.site_address);
+      if (addressScore >= 70) {
+        const points = Math.round(addressScore * 0.4); // Max 40 points
+        score += points;
+        reasons.push(`Address matched (${addressScore}%)`);
+      }
+    }
+
+    // MPA strength match (20 points)
+    if (extractedData.target_mpa && job.mpa_strength) {
+      const jobMpa = parseFloat(job.mpa_strength);
+      if (!isNaN(jobMpa) && Math.abs(jobMpa - extractedData.target_mpa) <= 2) {
+        score += 20;
+        reasons.push(`MPA strength matched: ${job.mpa_strength}`);
+      }
+    }
+
+    // Fetch pours for this job to check date matching
+    const { data: pours } = await supabase
+      .from('job_pours')
+      .select('id, pour_date, pour_name, mpa_strength, docket_numbers, batch_ticket_refs')
+      .eq('job_id', job.id);
+
+    let bestPour: Pour | undefined;
+    let pourScore = 0;
+
+    if (pours && pours.length > 0) {
+      for (const pour of pours as Pour[]) {
+        let thisScore = 0;
+        const pourReasons: string[] = [];
+
+        // Date match (30 points)
+        if (extractedDate && datesMatch(extractedDate, pour.pour_date)) {
+          thisScore += 30;
+          pourReasons.push(`Pour date matched: ${pour.pour_date}`);
+        }
+
+        // Pour-level MPA match (10 bonus points)
+        if (extractedData.target_mpa && pour.mpa_strength) {
+          const pourMpa = parseFloat(pour.mpa_strength);
+          if (!isNaN(pourMpa) && Math.abs(pourMpa - extractedData.target_mpa) <= 2) {
+            thisScore += 10;
+            pourReasons.push(`Pour MPA matched: ${pour.mpa_strength}`);
+          }
+        }
+
+        if (thisScore > pourScore) {
+          pourScore = thisScore;
+          bestPour = pour;
+          reasons.push(...pourReasons);
+        }
+      }
+    }
+
+    const totalScore = score + pourScore;
+    if (totalScore > 0) {
+      jobScores.set(job.id, { job, score: totalScore, reasons, bestPour, pourScore });
     }
   }
 
-  if (matchingJobs.length === 0) {
-    console.log('No job address matched above 70% threshold');
-    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
+  // Sort by score and get top matches
+  const sortedMatches = Array.from(jobScores.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 5);
+
+  // Build suggested matches for UI
+  for (const match of sortedMatches) {
+    suggestedMatches.push({
+      jobId: match.job.id,
+      jobName: match.job.name,
+      pourId: match.bestPour?.id,
+      pourName: match.bestPour?.pour_name,
+      score: match.score,
+      reasons: match.reasons
+    });
   }
 
-  if (matchingJobs.length > 1) {
-    console.log(`Multiple jobs matched (${matchingJobs.length}) - marking as pending for manual assignment`);
-    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
-  }
-
-  // Exactly ONE job matched - now try to match the date to a pour
-  const { job: matchedJob, confidence: matchConfidence } = matchingJobs[0];
-  console.log(`Single job match: ${matchedJob.name} (${matchedJob.id}) with ${matchConfidence}% confidence`);
-
-  const { data: pours, error: poursError } = await supabase
-    .from('job_pours')
-    .select('id, pour_date')
-    .eq('job_id', matchedJob.id);
-
-  if (poursError || !pours || pours.length === 0) {
-    console.log('No pours found for matched job - marking as pending');
-    return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
-  }
-
-  // Find matching pour by date
-  for (const pour of pours as Pour[]) {
-    if (datesMatch(extractedDate, pour.pour_date)) {
-      console.log(`Pour date matched: ${pour.pour_date} - auto-assigning`);
+  // Determine match status based on top score
+  if (sortedMatches.length > 0) {
+    const topMatch = sortedMatches[0];
+    
+    // Auto-match if score >= 70 AND we have a pour match
+    if (topMatch.score >= 70 && topMatch.bestPour) {
+      console.log('High-confidence match found:', topMatch.job.name, 'score:', topMatch.score);
       return {
         matchStatus: 'auto_matched',
-        matchedJobId: matchedJob.id,
-        matchedPourId: pour.id,
-        matchConfidence: matchConfidence
+        matchedJobId: topMatch.job.id,
+        matchedPourId: topMatch.bestPour.id,
+        matchConfidence: topMatch.score,
+        matchReason: topMatch.reasons.join(', '),
+        suggestedMatches
+      };
+    }
+
+    // Job-only match if score >= 40 but no pour
+    if (topMatch.score >= 40) {
+      console.log('Job matched but needs pour selection:', topMatch.job.name);
+      return {
+        matchStatus: 'pending',
+        matchedJobId: null,
+        matchedPourId: null,
+        matchConfidence: topMatch.score,
+        matchReason: topMatch.reasons.join(', '),
+        suggestedMatches
       };
     }
   }
 
-  // Job matched but no pour date match - mark as pending
-  console.log('Job matched but no pour date match - marking as pending');
-  return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
+  console.log('No confident match found');
+  return { 
+    matchStatus: 'pending', 
+    matchedJobId: null, 
+    matchedPourId: null, 
+    matchConfidence: 0,
+    suggestedMatches 
+  };
 }
 
 serve(async (req) => {
@@ -545,12 +700,16 @@ serve(async (req) => {
             console.error('Error calling scan-test-document:', scanError);
           }
 
-          // Try to auto-match to a job and pour
-          const matchResult = await findBestMatch(
+          // Try to auto-match to a job and pour using multi-signal matching
+          const matchResult = await findBestMatchMultiSignal(
             supabase,
             business.id,
-            extractedData.site_address || null,
-            extractedData.delivery_date || null
+            {
+              docket_number: extractedData.docket_number || null,
+              batch_ticket: extractedData.batch_ticket || null,
+              site_address: extractedData.site_address || null,
+              pour_date: extractedData.delivery_date || null
+            }
           );
 
           console.log('Match result for docket:', matchResult);
@@ -617,12 +776,20 @@ serve(async (req) => {
             console.error('Error calling scan-test-document:', scanError);
           }
 
-          // Try to auto-match to a job and pour
-          const matchResult = await findBestMatch(
+          // Try to auto-match to a job and pour using multi-signal matching
+          const matchResult = await findBestMatchMultiSignal(
             supabase,
             business.id,
-            extractedData.site_address || null,
-            extractedData.pour_date || extractedData.test_date || null
+            {
+              docket_number: extractedData.docket_number || null,
+              batch_ticket: extractedData.batch_ticket || null,
+              site_address: extractedData.site_address || null,
+              pour_date: extractedData.pour_date || null,
+              test_date: extractedData.test_date || null,
+              target_mpa: extractedData.target_mpa || null,
+              job_number: extractedData.job_number || null,
+              project_ref: extractedData.project_ref || null
+            }
           );
 
           console.log('Match result for test:', matchResult);

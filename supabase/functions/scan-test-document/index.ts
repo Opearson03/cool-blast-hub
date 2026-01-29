@@ -68,36 +68,42 @@ Extract these fields:
 - driver_name: The driver's name if visible
 - site_address: The delivery site address - VERY IMPORTANT for matching to jobs
 - batch_plant: The batch plant or depot name if visible
+- batch_ticket: The batch ticket number if different from docket number
 - notes: Any relevant notes, special instructions, or observations
 
 Return ONLY valid JSON in this exact format:
-{"docket_number": "string or null", "delivery_date": "string or null", "delivery_time": "string or null", "supplier": "string or null", "volume_m3": number or null, "mix_code": "string or null", "slump": number or null, "truck_rego": "string or null", "driver_name": "string or null", "site_address": "string or null", "batch_plant": "string or null", "notes": "string or null"}
+{"docket_number": "string or null", "delivery_date": "string or null", "delivery_time": "string or null", "supplier": "string or null", "volume_m3": number or null, "mix_code": "string or null", "slump": number or null, "truck_rego": "string or null", "driver_name": "string or null", "site_address": "string or null", "batch_plant": "string or null", "batch_ticket": "string or null", "notes": "string or null"}
 
 If you cannot find a value, use null. Do not include any text outside the JSON object.`
       : `You are a concrete test report analyzer. Extract ALL available information from concrete test lab reports.
 
-CRITICAL: The site_address field is the MOST IMPORTANT field for matching test results to jobs. Search thoroughly for ANY of these keywords and extract the associated address:
-- "Location", "Site Location", "Project Location"
-- "Address", "Site Address", "Project Address", "Delivery Address"
-- "Site", "Project Site", "Job Site"
-- "Project", "Project Name" (often contains address info)
-- Look in headers, footers, tables, and any metadata sections
+CRITICAL EXTRACTION FIELDS - Search thoroughly for these:
 
-Extract these fields:
-- test_id: The test/sample ID or reference number (e.g., "CT-001", "S123456")
-- test_type: The type of test. Must be one of: "7_day", "14_day", "28_day", "slump", "cylinder", "air", "other". Determine based on curing days mentioned (7 day = "7_day", 14 day = "14_day", 28 day = "28_day"), or test type (slump test = "slump", cylinder test = "cylinder", air content = "air")
-- pour_date: The date concrete was poured/cast (format: YYYY-MM-DD)
-- test_date: The date the test was conducted (format: YYYY-MM-DD)
-- supplier: The testing laboratory or concrete supplier name
-- target_mpa: The target/specified compressive strength in MPa (just the number)
-- actual_mpa: The actual/achieved compressive strength in MPa (just the number)
-- sample_count: Number of samples/specimens tested (just the number)
-- site_address: **CRITICAL** - The site/project/job address where concrete was placed. Look for fields labeled "Location", "Address", "Site", "Project Location", "Delivery Address", etc. This is essential for matching to the correct job. Include street number, street name, and suburb.
-- project_name: The project or job name if mentioned (may also contain location info)
-- notes: Any relevant notes, comments, or observations from the report
+1. DOCKET/REFERENCE NUMBERS (MOST IMPORTANT for matching):
+   - docket_number: Look for "Docket", "Delivery Docket", "Docket No.", "D-XXXXX" - this links to delivery dockets
+   - batch_ticket: Look for "Batch", "Batch Ticket", "Batch No.", "Plant Ticket"
+   - sample_ref: The lab's sample reference/ID (e.g., "S-123456", "CYL-001")
+   - project_ref: Client's project/job reference number
+   - job_number: Any job number visible on the report
+
+2. SITE/PROJECT LOCATION (CRITICAL for job matching):
+   Search for ANY of these keywords: "Location", "Site Location", "Project Location", "Address", "Site Address", "Project Address", "Delivery Address", "Site", "Project Site", "Job Site", "Project", "Project Name"
+   - site_address: The full site/project/delivery address
+   - project_name: The project or job name
+
+3. TEST DATA:
+   - test_id: The test/sample ID or reference number
+   - test_type: Must be one of: "7_day", "14_day", "28_day", "slump", "cylinder", "air", "other"
+   - pour_date: Date concrete was poured/cast (format: YYYY-MM-DD)
+   - test_date: Date test was conducted (format: YYYY-MM-DD)
+   - supplier: Testing laboratory name
+   - target_mpa: Target/specified compressive strength in MPa (just the number)
+   - actual_mpa: Actual/achieved compressive strength in MPa (just the number)
+   - sample_count: Number of samples/specimens tested
+   - notes: Any relevant notes or observations
 
 Return ONLY valid JSON in this exact format:
-{"test_id": "string or null", "test_type": "string or null", "pour_date": "string or null", "test_date": "string or null", "supplier": "string or null", "target_mpa": number or null, "actual_mpa": number or null, "sample_count": number or null, "site_address": "string or null", "project_name": "string or null", "notes": "string or null"}
+{"test_id": "string or null", "test_type": "string or null", "pour_date": "string or null", "test_date": "string or null", "supplier": "string or null", "target_mpa": number or null, "actual_mpa": number or null, "sample_count": number or null, "site_address": "string or null", "project_name": "string or null", "docket_number": "string or null", "batch_ticket": "string or null", "sample_ref": "string or null", "project_ref": "string or null", "job_number": "string or null", "notes": "string or null"}
 
 If you cannot find a value, use null. Do not include any text outside the JSON object.`;
 
@@ -163,6 +169,7 @@ If you cannot find a value, use null. Do not include any text outside the JSON o
           driver_name: null,
           site_address: null,
           batch_plant: null,
+          batch_ticket: null,
           notes: null 
         }
       : { 
@@ -176,6 +183,11 @@ If you cannot find a value, use null. Do not include any text outside the JSON o
           sample_count: null,
           site_address: null,
           project_name: null,
+          docket_number: null,
+          batch_ticket: null,
+          sample_ref: null,
+          project_ref: null,
+          job_number: null,
           notes: null 
         };
 

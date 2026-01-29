@@ -1098,8 +1098,10 @@ export type Database = {
       job_pours: {
         Row: {
           actual_m3: number | null
+          batch_ticket_refs: string[] | null
           concrete_supplier: string | null
           created_at: string | null
+          docket_numbers: string[] | null
           estimated_m3: number | null
           id: string
           job_id: string
@@ -1115,8 +1117,10 @@ export type Database = {
         }
         Insert: {
           actual_m3?: number | null
+          batch_ticket_refs?: string[] | null
           concrete_supplier?: string | null
           created_at?: string | null
+          docket_numbers?: string[] | null
           estimated_m3?: number | null
           id?: string
           job_id: string
@@ -1132,8 +1136,10 @@ export type Database = {
         }
         Update: {
           actual_m3?: number | null
+          batch_ticket_refs?: string[] | null
           concrete_supplier?: string | null
           created_at?: string | null
+          docket_numbers?: string[] | null
           estimated_m3?: number | null
           id?: string
           job_id?: string

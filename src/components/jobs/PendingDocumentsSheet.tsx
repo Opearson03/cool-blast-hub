@@ -162,7 +162,7 @@ export function PendingDocumentsSheet({
     enabled: !!selectedJobId
   });
 
-  // Approve mutation - moves document to documents table
+  // Approve mutation - moves document to documents table and saves docket number to pour
   const approveMutation = useMutation({
     mutationFn: async (doc: PendingDocument) => {
       if (!selectedJobId) throw new Error("Please select a job");
@@ -182,6 +182,37 @@ export function PendingDocumentsSheet({
 
       if (docError) throw docError;
 
+      // If linked to a pour and we have a docket number, save it to the pour for future matching
+      if (selectedPourId && doc.extracted_data.docket_number) {
+        // Fetch current docket_numbers array
+        const { data: currentPour, error: fetchError } = await supabase
+          .from("job_pours")
+          .select("docket_numbers, batch_ticket_refs")
+          .eq("id", selectedPourId)
+          .single();
+
+        if (!fetchError && currentPour) {
+          const currentDockets = currentPour.docket_numbers || [];
+          const docketNum = doc.extracted_data.docket_number;
+          
+          // Only add if not already present
+          if (!currentDockets.includes(docketNum)) {
+            const { error: updatePourError } = await supabase
+              .from("job_pours")
+              .update({
+                docket_numbers: [...currentDockets, docketNum]
+              })
+              .eq("id", selectedPourId);
+
+            if (updatePourError) {
+              console.warn('Failed to save docket number to pour:', updatePourError);
+            } else {
+              console.log('Saved docket number to pour:', docketNum);
+            }
+          }
+        }
+      }
+
       // Update pending document status
       const { error: updateError } = await supabase
         .from("pending_documents")
@@ -199,6 +230,7 @@ export function PendingDocumentsSheet({
       toast.success("Document approved and filed");
       queryClient.invalidateQueries({ queryKey: ["pending-documents"] });
       queryClient.invalidateQueries({ queryKey: ["job-documents"] });
+      queryClient.invalidateQueries({ queryKey: ["job-pours"] }); // Refresh pour data
       setSelectedDocId(null);
       setSelectedJobId(preselectedJobId || null);
       setSelectedPourId(null);
