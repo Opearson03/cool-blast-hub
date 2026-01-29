@@ -88,11 +88,12 @@ export const reinforcementFootingModule: EstimateModule = {
     const sections: LinearSection[] = scopeData?.linearSections || scopeData?.footings || [];
     const lapPercent = 1 + (Number(answers.rebar_lap_allowance) || DEFAULT_LAP_ALLOWANCE) / 100;
 
-    // Check if any section has TM enabled (tm_type not 'none')
+    // Check if any section has TM enabled (tm_type explicitly set and not 'none')
     const hasAnyTm = sections.length > 0 
       ? sections.some(s => {
-          const tmType = s.tm_type || DEFAULT_TM_TYPE;
-          return tmType !== 'none';
+          // Only count as TM if tm_type is explicitly set and not 'none'
+          const tmType = s.tm_type;
+          return tmType && tmType !== 'none';
         })
       : false;
 
@@ -120,8 +121,9 @@ export const reinforcementFootingModule: EstimateModule = {
         const length = section._actualLength || section.length;
         if (length <= 0) return;
 
-        const tmType = section.tm_type || DEFAULT_TM_TYPE;
-        if (tmType === 'none') return;
+        // Skip if tm_type is not set or is 'none'
+        const tmType = section.tm_type;
+        if (!tmType || tmType === 'none') return;
 
         const tmLayers = Number(section.tm_layers) || 1;
         const tmTypeTop = section.tm_type_top || tmType;
