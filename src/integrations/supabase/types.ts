@@ -920,6 +920,60 @@ export type Database = {
           },
         ]
       }
+      job_dates: {
+        Row: {
+          business_id: string
+          created_at: string
+          date: string
+          date_type: string
+          description: string | null
+          id: string
+          is_completed: boolean
+          job_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          date: string
+          date_type?: string
+          description?: string | null
+          id?: string
+          is_completed?: boolean
+          job_id: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          date?: string
+          date_type?: string
+          description?: string | null
+          id?: string
+          is_completed?: boolean
+          job_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_dates_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_dates_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       job_equipment: {
         Row: {
           created_at: string | null
