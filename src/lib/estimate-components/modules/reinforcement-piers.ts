@@ -22,6 +22,19 @@ export const reinforcementPiersModule: EstimateModule = {
     // rendered in ModuleSection under the "Pier Groups" section header.
     // Pricing section
     {
+      id: 'lap_percentage',
+      type: 'number',
+      label: 'Lap %',
+      defaultValue: 12.5,
+      unit: '%',
+      helpText: 'Percentage added for lapping/overlaps',
+      showIf: (_answers, scopeData) => {
+        const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
+        return pierGroups.some(g => g.has_starters || g.is_reinforced);
+      },
+      sectionLabel: 'Pricing & Delivery',
+    },
+    {
       id: 'rebar_type',
       type: 'select',
       label: 'Rebar supply type',
@@ -34,7 +47,6 @@ export const reinforcementPiersModule: EstimateModule = {
         const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
         return pierGroups.some(g => g.has_starters || g.is_reinforced);
       },
-      sectionLabel: 'Pricing & Delivery',
     },
     {
       id: 'rebar_price_per_tonne',
@@ -81,7 +93,8 @@ export const reinforcementPiersModule: EstimateModule = {
     let subtotal = 0;
 
     const pierGroups = (scopeData.pierGroups || []) as PierGroup[];
-    const lapMargin = 1 + DEFAULT_LAP_MARGIN / 100;
+    const lapPercentage = Number(answers.lap_percentage) || DEFAULT_LAP_MARGIN;
+    const lapMargin = 1 + lapPercentage / 100;
     const pricePerTonne = Number(answers.rebar_price_per_tonne) || 2100;
 
     // Process each pier group (all piers in a group are identical)
