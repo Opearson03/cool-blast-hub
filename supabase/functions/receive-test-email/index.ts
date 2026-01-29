@@ -776,6 +776,48 @@ serve(async (req) => {
             console.error('Error calling scan-test-document:', scanError);
           }
 
+          // Check for duplicate test result before creating pending record
+          // Match by test_id if we have one, otherwise this is a new unique result
+          if (extractedData.test_id) {
+            const { data: existingPending } = await supabase
+              .from('pending_test_results')
+              .select('id, status')
+              .eq('business_id', business.id)
+              .eq('status', 'pending')
+              .filter('extracted_data->>test_id', 'eq', extractedData.test_id);
+            
+            if (existingPending && existingPending.length > 0) {
+              console.log('Duplicate pending test result found for test_id:', extractedData.test_id, '- skipping');
+              results.push({
+                filename: attachment.filename,
+                type: 'test_result',
+                matchStatus: 'skipped',
+                success: true,
+                message: `Duplicate test_id ${extractedData.test_id} already pending`
+              });
+              continue;
+            }
+            
+            // Also check if this test_id already exists in concrete_tests
+            const { data: existingTest } = await supabase
+              .from('concrete_tests')
+              .select('id, job_id')
+              .eq('test_id', extractedData.test_id)
+              .limit(1);
+            
+            if (existingTest && existingTest.length > 0) {
+              console.log('Test result already exists in concrete_tests for test_id:', extractedData.test_id, '- skipping');
+              results.push({
+                filename: attachment.filename,
+                type: 'test_result',
+                matchStatus: 'skipped',
+                success: true,
+                message: `Test ${extractedData.test_id} already recorded`
+              });
+              continue;
+            }
+          }
+
           // Try to auto-match to a job and pour using multi-signal matching
           const matchResult = await findBestMatchMultiSignal(
             supabase,
