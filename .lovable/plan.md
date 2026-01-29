@@ -1,109 +1,43 @@
 
-# Plan: Redesign Settings Page with Collapsible Sections and Logical Grouping
 
-## Current Issues
+# Fix Email Domain Mismatch for Inbound Email Processing
 
-1. **Inconsistent Layout**: Mix of always-open cards and collapsible sections
-2. **No Logical Grouping**: Related settings are scattered throughout the page
-3. **Overwhelming Length**: The Branding section alone takes up ~250 lines of UI
-4. **Poor Default State**: Most sections expanded by default, making the page overwhelming
+## Problem Identified
+Emails sent to `jefconptyltd@contact.pourhub.au` are being received by Resend, but the webhook is failing silently because the edge function expects `@pourhub.au` instead of `@contact.pourhub.au`.
 
-## Proposed Structure
-
-Reorganize into **4 logical groups**, all using a unified collapsible accordion pattern:
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│  SETTINGS                                                   │
-│  Manage your business information                           │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│  ┌─ ACCOUNT ──────────────────────────────────────────────┐ │
-│  │                                                         │ │
-│  │  ▶ Subscription                    [collapsed]          │ │
-│  │  ▶ Account Security                [collapsed]          │ │
-│  │                                                         │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                             │
-│  ┌─ BUSINESS ─────────────────────────────────────────────┐ │
-│  │                                                         │ │
-│  │  ▶ Business Details                [collapsed]          │ │
-│  │  ▶ Preferred Suppliers             [collapsed]          │ │
-│  │                                                         │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                             │
-│  ┌─ DOCUMENTS ────────────────────────────────────────────┐ │
-│  │                                                         │ │
-│  │  ▶ Branding & Quote Templates      [collapsed]          │ │
-│  │  ▶ My Price List                   [collapsed]          │ │
-│  │  ▶ Test Result Email               [collapsed]          │ │
-│  │                                                         │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                             │
-│  ┌─ SUPPORT ──────────────────────────────────────────────┐ │
-│  │                                                         │ │
-│  │  ▶ Feedback                        [collapsed]          │ │
-│  │  ▶ Legal                           [collapsed]          │ │
-│  │                                                         │ │
-│  └─────────────────────────────────────────────────────────┘ │
-│                                                             │
-│  [ Save Settings ]                                          │
-│                                                             │
-│  ▶ Advanced options (Danger Zone - hidden by default)      │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+The regex pattern on line 256 of the edge function:
+```javascript
+const aliasMatch = recipientEmail.toLowerCase().match(/^([a-z0-9_-]+)@pourhub\.au$/);
 ```
 
-## Design Principles
+This does NOT match `jefconptyltd@contact.pourhub.au` and returns a 400 error with "Invalid recipient email format".
 
-1. **All Sections Collapsed by Default**: Clean initial view, user expands what they need
-2. **Consistent Accordion Pattern**: Every section uses Radix Accordion for smooth animations
-3. **Grouped by Purpose**:
-   - **Account**: Your subscription and security
-   - **Business**: Company info and suppliers
-   - **Documents**: Quote templates, pricing, email ingestion
-   - **Support**: Feedback and legal links
-4. **Group Headers**: Light section dividers with category labels
-5. **Unified Styling**: Each accordion item uses the same card-like appearance with chevron indicators
+## Changes Required
 
-## Implementation Details
+### 1. Update Edge Function Domain Matching
+**File:** `supabase/functions/receive-test-email/index.ts`
 
-### Component Changes
+Update the regex to match the correct domain:
+- Change from: `/^([a-z0-9_-]+)@pourhub\.au$/`
+- Change to: `/^([a-z0-9_-]+)@contact\.pourhub\.au$/`
 
-**Create New Component: `SettingsAccordionItem.tsx`**
-A reusable wrapper that provides consistent styling for each settings section:
-- Icon + Title + Description in trigger
-- Chevron that rotates on open
-- Smooth height animation
-- Card-like appearance with border
+### 2. Update Settings Display
+**File:** `src/components/settings/TestResultEmailSection.tsx`
 
-### Section Reorganization
+Update the displayed email address:
+- Change from: `` `${currentAlias}@pourhub.au` ``
+- Change to: `` `${currentAlias}@contact.pourhub.au` ``
 
-| Group | Sections (in order) | Icon |
-|-------|---------------------|------|
-| Account | Subscription, Account Security | CreditCard, Lock |
-| Business | Business Details, Preferred Suppliers | Building2, Truck |
-| Documents | Branding & Templates, Price List, Test Email | Palette, DollarSign, Mail |
-| Support | Feedback, Legal | MessageSquare, FileText |
+## Technical Details
 
-### Technical Approach
+| Component | Current | Should Be |
+|-----------|---------|-----------|
+| Edge function regex | `@pourhub\.au` | `@contact\.pourhub\.au` |
+| Settings display | `alias@pourhub.au` | `alias@contact.pourhub.au` |
 
-1. Use Radix `Accordion` component with `type="multiple"` to allow multiple sections open
-2. Create a consistent `AccordionItem` wrapper for uniform styling
-3. Keep all existing logic and form fields - just restructure the layout
-4. Use CSS transitions for smooth expand/collapse animations
-5. Add light section header labels between groups
+## Testing After Fix
+1. Deploy the updated edge function
+2. Send a test email to `jefconptyltd@contact.pourhub.au`
+3. Check edge function logs for successful processing
+4. Verify the email appears in the pending documents/test results
 
-### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/pages/admin/AdminSettings.tsx` | Restructure into grouped accordions, all collapsed by default |
-
-### Benefits
-
-- **Cleaner Initial View**: User sees organized categories, not a wall of forms
-- **Faster Navigation**: Users can jump to the section they need
-- **Consistent UX**: Same interaction pattern throughout
-- **Better Mobile Experience**: Less scrolling, more intentional navigation
-- **Maintainable Code**: Grouped sections make future additions logical
