@@ -1579,7 +1579,7 @@ serve(async (req: Request) => {
           const senderName = business?.name ? `${business.name} via Pourhub` : "Pourhub";
           
           await resend.emails.send({
-            from: `${senderName} <Hello@contact.pourhub.au>`,
+            from: `${senderName} <Hello@pourhub.au>`,
             to: estimate.client_email,
             cc: business?.email ? [business.email] : undefined,
             subject: `Your Signed Quote ${estimate.estimate_number} - Confirmed`,
@@ -1831,7 +1831,7 @@ serve(async (req: Request) => {
           const totalAmount = (Number(variation.amount) * 1.1);
           
           await resend.emails.send({
-            from: `${senderName} <Hello@contact.pourhub.au>`,
+            from: `${senderName} <Hello@pourhub.au>`,
             to: clientEmail,
             cc: business?.email ? [business.email] : undefined,
             subject: `Approved: Variation ${variation.variation_number} - ${job?.name || 'Job'}`,

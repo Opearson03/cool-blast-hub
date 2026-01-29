@@ -16,7 +16,7 @@ export function TestResultEmailSection({ businessId, currentAlias }: TestResultE
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const emailAddress = currentAlias ? `${currentAlias}@contact.pourhub.au` : null;
+  const emailAddress = currentAlias ? `${currentAlias}@pourhub.au` : null;
 
   const handleCopy = async () => {
     if (!emailAddress) return;

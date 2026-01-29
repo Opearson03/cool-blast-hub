@@ -455,7 +455,7 @@ const handler = async (req: Request): Promise<Response> => {
             : `${business.name} - ${pourCount} Pour Invites (${pourDatesFormatted})`;
 
           const emailResponse = await resend.emails.send({
-            from: `${business.name} via Pourhub <Hello@contact.pourhub.au>`,
+            from: `${business.name} via Pourhub <Hello@pourhub.au>`,
             to: [body.recipient_email],
             subject,
             html: emailHtml,
