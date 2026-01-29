@@ -1514,17 +1514,17 @@ export function generateBOQFromEstimate(
         );
       }
 
-      // Bar Chairs 25/40 (pods × 3)
-      const barChairsCount = Number(scopeAnswers.bar_chairs_count) || 0;
-      if (barChairsCount > 0) {
-        const bags = Math.ceil(barChairsCount / 100);
+      // Pod Rails (pods × 2)
+      const podRailsCount = Number(scopeAnswers.bar_chairs_count) || 0;
+      if (podRailsCount > 0) {
+        const packs = Math.ceil(podRailsCount / 20);
         addItem(
           "reinforcement",
-          "Bar Chairs 25-40mm",
-          bags,
-          "bags of 100",
+          "Pod Rails",
+          packs,
+          "packs of 20",
           undefined,
-          `${barChairsCount} chairs total`
+          `${podRailsCount} rails total`
         );
       }
 

@@ -535,15 +535,15 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       defaultValue: 0,
       helpText: 'Auto-calculated: Perimeter ÷ 1.2',
     },
-    // Bar chairs (pods × 3)
+    // Pod rails (pods × 2)
     {
       id: 'bar_chairs_count',
       type: 'number',
-      label: 'Bar Chairs (25/40)',
+      label: 'Pod Rails',
       required: false,
       min: 0,
       defaultValue: 0,
-      helpText: 'Auto-calculated: Pods × 3',
+      helpText: 'Auto-calculated: Pods × 2',
     },
     // Edge and internal beam fields (hidden, managed by multi-beam inputs)
     {

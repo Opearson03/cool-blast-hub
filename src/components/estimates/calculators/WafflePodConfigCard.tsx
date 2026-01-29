@@ -249,9 +249,9 @@ export function WafflePodConfigCard({
               />
             </div>
 
-            {/* Bar Chairs */}
+            {/* Pod Rails */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Bar Chairs</Label>
+              <Label className="text-xs text-muted-foreground">Pod Rails</Label>
               <Input
                 type="number"
                 inputMode="numeric"
