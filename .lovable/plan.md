@@ -1,118 +1,89 @@
 
-# Plan: Replace Footing Reinforcement UI with Edge Beam Reinforcement Pattern
+# Plan: Update Email Domain from `contact.pourhub.au` to `pourhub.au`
 
 ## Overview
-This plan swaps out the current per-section reinforcement UI for **Strip Footings** and **Retaining Wall Footings** with the grouped beam-style reinforcement UI that is used for Raft Slab Edge Beams. This provides a more intuitive, type-grouped interface where footing sections with matching dimensions share reinforcement settings.
-
----
-
-## Technical Summary
-
-### Current Architecture
-- **Strip Footings & Retaining Wall Footings**: Use `LinearSectionReinforcementInput` component which configures each section individually
-- **Raft Slab Edge Beams**: Use `BeamReinforcementInput` which groups segments by type (e.g., EB1, EB2) and applies shared settings
-
-### Target Architecture
-Both footing scopes will use the same grouped pattern as edge beams, providing:
-- Automatic grouping by footing type (SF1, SF2, etc.)
-- Shared reinforcement settings across all segments of the same type
-- Horizontal and vertical bar arrays with add/remove functionality
-- TM layers with independent top/bottom pricing
-- Ligatures with size and centres
-- TM chairs per group
+Replace all instances of the email domain `contact.pourhub.au` with `pourhub.au` across the codebase. This affects outbound email sender addresses and inbound email parsing.
 
 ---
 
 ## Files to Modify
 
-### 1. Create New Component: `FootingSectionReinforcementInput.tsx`
-**Location**: `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx`
+### Frontend (1 file)
 
-Create a new component based on `BeamReinforcementInput` but adapted for `LinearSection` type:
-- Parse footing type names (SF1, RWF1, etc.)
-- Group sections by type + dimensions (width/depth)
-- Display grouped UI with shared reinforcement settings
-- Support all reinforcement options: TM (1-2 layers), ligatures, horizontal bars, vertical bars, chairs
-
-### 2. Update `ModuleSection.tsx`
-**Location**: `src/components/estimates/calculators/ModuleSection.tsx`
-
-Replace the `LinearSectionReinforcementInput` usage in the footing reinforcement section:
-
-```text
-Before:
-  {isFootingReoSection && onScopeDataChange && footings.length > 0 && (
-    <LinearSectionReinforcementInput ... />
-  )}
-
-After:
-  {isFootingReoSection && onScopeDataChange && footings.length > 0 && (
-    <FootingSectionReinforcementInput ... />
-  )}
-```
-
-The new component will:
-- Accept `sections: LinearSection[]` as input
-- Use the same props pattern as `BeamReinforcementInput`
-- Output grouped sections with shared reinforcement to all segments in each group
-
-### 3. Verify/Update `reinforcement-footing` Module
-**Location**: `src/lib/estimate-components/modules/reinforcement-footing.ts`
-
-The calculation module already supports the array-based configuration pattern with:
-- TM per section with layers
-- Horizontal bars array (`horizontal_bars`)
-- Vertical bars array (`vertical_bars`)
-- Ligatures per section
-- Chairs per section
-
-No changes needed to the calculation logic - it already reads from `LinearSection` properties that match the beam pattern.
+**1. `src/components/settings/TestResultEmailSection.tsx`**
+- Line 19: Change inbound email display from `${currentAlias}@contact.pourhub.au` to `${currentAlias}@pourhub.au`
 
 ---
 
-## Implementation Steps
+### Edge Functions (16 files)
 
-1. **Copy and adapt `BeamReinforcementInput.tsx`** to create `FootingSectionReinforcementInput.tsx`:
-   - Change type from `BeamConfig` to `LinearSection`
-   - Update grouping logic to use `dimension1` (width) and `dimension2` (depth) instead of `width`/`depth`
-   - Update type name parsing for footing names (SF1, RWF1, etc.)
-   - Keep all reinforcement UI sections: TM, ligatures, horizontal bars, vertical bars, chairs
+**2. `supabase/functions/send-feedback/index.ts`**
+- Line 39: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
 
-2. **Update `ModuleSection.tsx`**:
-   - Import the new `FootingSectionReinforcementInput` component
-   - Replace the `LinearSectionReinforcementInput` call in the footing section with the new component
-   - Pass the same props pattern used for `BeamReinforcementInput`
+**3. `supabase/functions/send-password-reset/index.ts`**
+- Line 78: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
 
-3. **Optional cleanup**:
-   - The old `LinearSectionReinforcementInput` can remain for any legacy scopes that may use it
-   - Or it can be removed if no longer referenced
+**4. `supabase/functions/send-subtrade-invite/index.ts`**
+- Line 415: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**5. `supabase/functions/send-site-visit-email/index.ts`**
+- Line 94: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**6. `supabase/functions/respond-subtrade-invite/index.ts`**
+- Line 496: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+- Line 525: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+- Line 602: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+- Line 653: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**7. `supabase/functions/receive-test-email/index.ts`**
+- Line 399-401: Update comment and regex pattern from `@contact.pourhub.au` to `@pourhub.au`
+
+**8. `supabase/functions/send-estimate-email/index.ts`**
+- Line 785: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**9. `supabase/functions/send-batch-subtrade-invite/index.ts`**
+- Line 458: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**10. `supabase/functions/notify-referral-success/index.ts`**
+- Line 78: `hello@contact.pourhub.au` → `hello@pourhub.au`
+
+**11. `supabase/functions/send-waitlist-welcome/index.ts`**
+- Line 41: `hello@contact.pourhub.au` → `hello@pourhub.au`
+
+**12. `supabase/functions/send-referral-invite/index.ts`**
+- Line 41: `hello@contact.pourhub.au` → `hello@pourhub.au`
+
+**13. `supabase/functions/send-position-update/index.ts`**
+- Line 151: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**14. `supabase/functions/send-invite-email/index.ts`**
+- Line 39: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**15. `supabase/functions/send-variation-email/index.ts`**
+- Line 520: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**16. `supabase/functions/notify-subtrade-reschedule/index.ts`**
+- Line 381: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+
+**17. `supabase/functions/submit-signature/index.ts`**
+- Line 1582: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
+- Line 1834: `Hello@contact.pourhub.au` → `Hello@pourhub.au`
 
 ---
 
-## UI/UX Improvements
+## Summary of Changes
 
-After this change, users will see:
-
-| Before | After |
-|--------|-------|
-| Individual section cards for each footing | Grouped cards by footing type (SF1, SF2) |
-| Separate settings per section | Shared settings across all sections of same type |
-| No segment count summary | Clear segment count and total length per group |
-| Manual entry for each section | Changes propagate to all segments in group |
+| Type | Count |
+|------|-------|
+| Frontend files | 1 |
+| Edge function files | 16 |
+| Total replacements | ~22 |
 
 ---
 
-## Risk Assessment
+## Prerequisites
 
-**Low Risk**: 
-- The data structure (`LinearSection`) already supports all the required reinforcement fields
-- The calculation module (`reinforcement-footing`) already reads from these fields correctly
-- This is primarily a UI-only change
-
-**Testing Checklist**:
-- Create estimate with Strip Footings scope
-- Mark multiple footing sections of same type (e.g., SF1-1, SF1-2, SF1-3)
-- Verify sections group correctly in reinforcement UI
-- Change TM type on one group and verify all segments update
-- Add horizontal bars and verify calculation includes them
-- Verify cost breakdown shows correct quantities
+Before deploying these changes, ensure the new domain `pourhub.au` is:
+1. Configured in Resend as a verified sending domain
+2. DNS records (SPF, DKIM, DMARC) are set up for email deliverability
+3. If using inbound email routing, the MX records point correctly for `pourhub.au`
