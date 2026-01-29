@@ -7,6 +7,9 @@ const BULK_EXCAVATION_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'dri
 // Scopes that primarily need detailed excavation (point/linear elements)
 const DETAILED_EXCAVATION_SCOPES = ['piers', 'pad_footings', 'strip_footings', 'retaining_wall_footings'];
 
+// Scopes that have "flat bottom" excavation (no below-slab beams) - detailed excavation not applicable
+const FLAT_BOTTOM_SCOPES = ['waffle_pod'];
+
 export const excavationModule: EstimateModule = {
   id: 'excavation',
   name: 'Excavation',
@@ -139,7 +142,11 @@ export const excavationModule: EstimateModule = {
       label: 'Detailed excavation required?',
       defaultValue: false,
       helpText: 'For excavating specific elements like edge beams, pad footings, piers, and strip footings',
-      showIf: (_answers, _scopeData) => true, // Show for all scopes
+      // Hide for waffle pod - beams are inline with slab (flat bottom), no below-slab excavation
+      showIf: (_answers, scopeData) => {
+        const scopeId = scopeData?.scopeId;
+        return !FLAT_BOTTOM_SCOPES.includes(scopeId);
+      },
     },
     {
       id: 'detailed_excavation_volume',
@@ -385,6 +392,7 @@ export const excavationModule: EstimateModule = {
     const exclusions: ExclusionItem[] = [];
     const scopeId = scopeData?.scopeId;
     const isBulkScope = BULK_EXCAVATION_SCOPES.includes(scopeId);
+    const isFlatBottomScope = FLAT_BOTTOM_SCOPES.includes(scopeId);
 
     const bulkEnabled = isBulkScope && answers.bulk_excavation_required === true;
     const detailedEnabled = answers.detailed_excavation_required === true;
@@ -398,8 +406,8 @@ export const excavationModule: EstimateModule = {
       });
     }
 
-    // If detailed excavation is off
-    if (!detailedEnabled) {
+    // If detailed excavation is off (but not for flat bottom scopes like waffle pod where it's N/A)
+    if (!detailedEnabled && !isFlatBottomScope) {
       exclusions.push({
         id: 'no_detailed_excavation',
         text: 'Detailed excavation for beams, footings, pads, and piers is not included.',
