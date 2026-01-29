@@ -1177,10 +1177,11 @@ const {
     if (hasMarkup) {
       const scopeMarkups = getMarkupsForScope(scope);
       
-      // For multi-area scopes (driveway, paths_surrounds, crossovers), 
-      // convert each markup into a named MeasurementArea
-      // Special handling for raft_slab and waffle_pod with beam data
-      if ((scope === 'raft_slab' || scope === 'waffle_pod') && scopeDefinition.supportsMultipleAreas) {
+      // For multi-area scopes with edge beam support,
+      // convert each markup into a named MeasurementArea and extract beam data
+      // Special handling for scopes with supportsMultipleEdgeBeams
+      const slabScopesWithBeams = ['raft_slab', 'waffle_pod', 'standard_slab', 'driveway', 'crossovers', 'paths_surrounds'];
+      if (slabScopesWithBeams.includes(scope) && scopeDefinition.supportsMultipleAreas) {
         const raftSlabAreas = getRaftSlabAreasForScope(scope);
         
         if (raftSlabAreas.length > 0) {
@@ -1341,7 +1342,7 @@ const {
             };
           }
         }
-      } else if (scopeDefinition.supportsMultipleAreas && scopeMarkups.length > 0) {
+      } else if (scopeDefinition.supportsMultipleAreas && !slabScopesWithBeams.includes(scope) && scopeMarkups.length > 0) {
         // Check if user hasn't already overridden with their own values
         const hasUserData = initialScopeAnswers.areas?.some((a: any) => a.length > 0 || a.width > 0);
         
