@@ -977,17 +977,32 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 100) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
-    const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
-    const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
 
     // Main slab volume
     const slabVolume = area * thicknessM;
 
-    // Edge thickening extra volume (depth below slab thickness)
-    // Use edge_beam_length if explicitly provided, otherwise fall back to perimeter
-    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-    const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-    const edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+    // Edge thickening volume - calculate from edgeBeams array if available
+    const edgeBeams = answers.edgeBeams || [];
+    let edgeThickeningVolume = 0;
+
+    if (edgeBeams.length > 0) {
+      edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 300) / 1000;
+        const depthM = (Number(beam.depth) || 300) / 1000;
+        const extraDepth = Math.max(0, depthM - thicknessM);
+        return sum + lengthM * widthM * extraDepth;
+      }, 0);
+    } else {
+      // Fallback to scalar fields for backwards compatibility
+      const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+      const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
+      const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
+      const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+      edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+    }
+
+    // Note: Crossovers does not support internal thickening beams
 
     return safeVolume(slabVolume + edgeThickeningVolume);
   },
