@@ -42,6 +42,25 @@ const TURNSTILE_SITE_KEY = isPreviewDomain
   ? "1x00000000000000000000AA"  // Test key - always passes
   : "0x4AAAAAABgGTNV6NkSzLc0W"; // Production key
 
+const TURNSTILE_SCRIPT_ID = "cf-turnstile-script";
+const TURNSTILE_SCRIPT_SRC = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+
+function ensureTurnstileScriptLoaded(): HTMLScriptElement | null {
+  if (typeof document === "undefined") return null;
+
+  const existing = document.getElementById(TURNSTILE_SCRIPT_ID) as HTMLScriptElement | null;
+  if (existing) return existing;
+
+  const script = document.createElement("script");
+  script.id = TURNSTILE_SCRIPT_ID;
+  script.src = TURNSTILE_SCRIPT_SRC;
+  script.async = true;
+  script.defer = true;
+  document.head.appendChild(script);
+
+  return script;
+}
+
 export function Turnstile({
   onVerify,
   onExpire,
@@ -82,11 +101,24 @@ export function Turnstile({
       }
     };
 
+    // Ensure the Turnstile script is present (public sites may not have it injected elsewhere)
+    const scriptEl = ensureTurnstileScriptLoaded();
+
     // Check if Turnstile script is already loaded
     if (window.turnstile) {
       // Small delay to ensure DOM is ready
       timeoutId = setTimeout(renderWidget, 100);
     } else {
+      // Try to render immediately after script load
+      const onLoad = () => renderWidget();
+      const onScriptError = () => {
+        console.error("[Turnstile] Failed to load Turnstile script");
+        onError?.();
+      };
+
+      scriptEl?.addEventListener("load", onLoad, { once: true });
+      scriptEl?.addEventListener("error", onScriptError, { once: true });
+
       // Wait for script to load
       intervalId = setInterval(() => {
         if (window.turnstile) {
