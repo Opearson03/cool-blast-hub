@@ -639,11 +639,11 @@ export function ModularCalculator({
         }
       }
       
-      // Auto-calculate bar chairs: pods × 3 (only if not manually overridden)
+      // Auto-calculate pod rails: pods × 2 (only if not manually overridden)
       if (!scopeUserOverrides.has('bar_chairs_count')) {
-        const calculatedBarChairs = podCount * 3;
-        if (!scopeAnswers.bar_chairs_count || scopeAnswers.bar_chairs_count !== calculatedBarChairs) {
-          updates.bar_chairs_count = calculatedBarChairs;
+        const calculatedPodRails = podCount * 2;
+        if (!scopeAnswers.bar_chairs_count || scopeAnswers.bar_chairs_count !== calculatedPodRails) {
+          updates.bar_chairs_count = calculatedPodRails;
         }
       }
     }
