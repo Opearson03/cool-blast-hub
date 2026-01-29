@@ -104,8 +104,8 @@ export default function AdminDashboard() {
 
         {businessId && (
           <>
-            <UnassignedDocketsWidget businessId={businessId} />
             <DailyScheduleWidget businessId={businessId} />
+            <UnassignedDocketsWidget businessId={businessId} />
             <SubbieContactListWidget />
           </>
         )}
