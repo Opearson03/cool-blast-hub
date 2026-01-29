@@ -228,7 +228,13 @@ serve(async (req) => {
       from: payload.data?.from,
       to: payload.data?.to,
       subject: payload.data?.subject,
-      attachmentCount: payload.data?.attachments?.length || 0
+      attachmentCount: payload.data?.attachments?.length || 0,
+      attachmentDetails: payload.data?.attachments?.map(a => ({
+        filename: a.filename,
+        content_type: a.content_type,
+        hasContent: !!a.content,
+        contentLength: a.content?.length || 0
+      }))
     });
 
     // Only process email.received events
@@ -282,13 +288,21 @@ serve(async (req) => {
 
     console.log('Found business:', business.name, business.id);
 
-    // Filter for PDF attachments
-    const pdfAttachments = attachments?.filter(
-      att => att.content_type === 'application/pdf' && att.content
-    ) || [];
+    // Filter for PDF attachments - more flexible content type matching
+    // Resend may send content_type as 'application/pdf', 'application/pdf;charset=utf-8', etc.
+    // Also check filename extension as fallback
+    const pdfAttachments = attachments?.filter(att => {
+      const isPdfContentType = att.content_type?.toLowerCase().includes('pdf');
+      const isPdfFilename = att.filename?.toLowerCase().endsWith('.pdf');
+      const hasContent = !!att.content && att.content.length > 0;
+      
+      console.log(`Checking attachment: ${att.filename}, content_type: ${att.content_type}, isPdfContentType: ${isPdfContentType}, isPdfFilename: ${isPdfFilename}, hasContent: ${hasContent}`);
+      
+      return (isPdfContentType || isPdfFilename) && hasContent;
+    }) || [];
 
     if (pdfAttachments.length === 0) {
-      console.log('No PDF attachments found, creating record without document');
+      console.log('No PDF attachments found after filtering. Raw attachments:', JSON.stringify(attachments?.map(a => ({ filename: a.filename, content_type: a.content_type, contentLength: a.content?.length || 0 }))));
       
       // Still create a pending result record even without PDF
       const { error: insertError } = await supabase
