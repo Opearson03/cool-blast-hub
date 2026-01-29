@@ -39,6 +39,19 @@ export const reinforcementPadModule: EstimateModule = {
   questions: [
     // ============ PRICING ============
     {
+      id: 'lap_percentage',
+      type: 'number',
+      label: 'Lap %',
+      defaultValue: 12.5,
+      unit: '%',
+      helpText: 'Percentage added for lapping/overlaps',
+      showIf: (_answers, scopeData) => {
+        const padGroups = (scopeData?.padGroups || []) as PadFootingGroup[];
+        return padGroups.some(g => g.has_bottom_reo || g.has_top_reo);
+      },
+      sectionLabel: 'Pricing & Delivery',
+    },
+    {
       id: 'rebar_type',
       type: 'select',
       label: 'Rebar Supply Type',
@@ -80,6 +93,8 @@ export const reinforcementPadModule: EstimateModule = {
     let itemIdx = 0;
     
     const padGroups = (scopeData.padGroups || []) as PadFootingGroup[];
+    const lapPercentage = Number(answers.lap_percentage) || 12.5;
+    const lapMargin = 1 + lapPercentage / 100;
     const pricePerTonne = Number(answers.rebar_price_per_tonne) || 2100;
     
     // Fallback for legacy data without groups
@@ -90,10 +105,10 @@ export const reinforcementPadModule: EstimateModule = {
     
     let totalWeightKg = 0;
     
-    // Helper to calculate weight
+    // Helper to calculate weight (includes lap margin)
     const getBarWeight = (size: string, lengthMm: number, count: number): number => {
       const weightPerM = REBAR_WEIGHTS[size] || 1.58;
-      return (lengthMm / 1000) * weightPerM * count;
+      return (lengthMm / 1000) * weightPerM * count * lapMargin;
     };
     
     // Process pad groups (or fallback to legacy single calculation)
