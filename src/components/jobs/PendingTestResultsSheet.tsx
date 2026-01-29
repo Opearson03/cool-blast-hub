@@ -10,6 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { 
   Mail, 
   FileText, 
@@ -19,7 +25,8 @@ import {
   Loader2, 
   ExternalLink,
   FlaskConical,
-  Building2
+  Building2,
+  Eye
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -77,6 +84,7 @@ export function PendingTestResultsSheet({
   const [selectedJobId, setSelectedJobId] = useState<string | null>(preselectedJobId || null);
   const [selectedPourId, setSelectedPourId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Fetch pending test results
@@ -283,13 +291,22 @@ export function PendingTestResultsSheet({
                   </div>
 
                   {selectedResult.lab_report_url && (
-                    <Button variant="outline" size="sm" asChild className="w-full">
-                      <a href={selectedResult.lab_report_url} target="_blank" rel="noopener noreferrer">
-                        <FileText className="w-4 h-4 mr-2" />
-                        View Lab Report
-                        <ExternalLink className="w-3 h-3 ml-2" />
-                      </a>
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1"
+                        onClick={() => setPreviewUrl(selectedResult.lab_report_url)}
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View in App
+                      </Button>
+                      <Button variant="ghost" size="sm" asChild>
+                        <a href={selectedResult.lab_report_url} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </Button>
+                    </div>
                   )}
 
                   <Separator />
@@ -374,7 +391,7 @@ export function PendingTestResultsSheet({
                       </Select>
                     </div>
 
-                    {selectedJobId && pours.length > 0 && (
+                    {selectedJobId && (
                       <div>
                         <Label>Pour (optional)</Label>
                         <Select 
@@ -393,6 +410,11 @@ export function PendingTestResultsSheet({
                             ))}
                           </SelectContent>
                         </Select>
+                        {pours.length === 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            No pours found for this job
+                          </p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -468,6 +490,37 @@ export function PendingTestResultsSheet({
           )}
         </ScrollArea>
       </SheetContent>
+
+      {/* PDF Preview Dialog */}
+      <Dialog open={!!previewUrl} onOpenChange={(open) => !open && setPreviewUrl(null)}>
+        <DialogContent className="max-w-4xl h-[85vh] flex flex-col p-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Lab Report
+              </span>
+              {previewUrl && (
+                <Button variant="ghost" size="sm" asChild>
+                  <a href={previewUrl} target="_blank" rel="noopener noreferrer">
+                    <ExternalLink className="w-4 h-4 mr-2" />
+                    Open in New Tab
+                  </a>
+                </Button>
+              )}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden">
+            {previewUrl && (
+              <iframe
+                src={previewUrl}
+                className="w-full h-full border-0"
+                title="Lab Report Preview"
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </Sheet>
   );
 }
