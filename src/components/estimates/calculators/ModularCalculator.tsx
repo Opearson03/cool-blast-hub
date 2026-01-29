@@ -530,7 +530,9 @@ export function ModularCalculator({
       // Only return new object if there were changes, otherwise return previous to prevent re-render
       return hasChanges ? newModuleAnswers : prevModuleAnswers;
     });
-  }, [scopeData, priceMap, modules, priceListLoading, priceListItems, userOverrides]);
+  // NOTE: Include moduleAnswers so deriveFrom + priceList auto-fill re-runs when a toggle/select
+  // makes a field visible (e.g., Bulk excavation -> Area to excavate).
+  }, [scopeData, priceMap, modules, priceListLoading, priceListItems, userOverrides, moduleAnswers]);
 
   // Calculate costs for each module (including custom items)
   const moduleCosts = useMemo<ComponentCost[]>(() => {
