@@ -29,8 +29,17 @@ interface TurnstileProps {
   className?: string;
 }
 
-// Use the test sitekey for development, replace with real one for production
-const TURNSTILE_SITE_KEY = "0x4AAAAAABgGTNV6NkSzLc0W";
+// Cloudflare Turnstile sitekeys:
+// Production: 0x4AAAAAABgGTNV6NkSzLc0W (configured for pourhub.com.au)
+// Test/Visible: 1x00000000000000000000AA (always passes, visible widget)
+// For preview domains, use the test key; switch to production for published domain
+const isPreviewDomain = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('lovable.app') || 
+   window.location.hostname.includes('localhost'));
+   
+const TURNSTILE_SITE_KEY = isPreviewDomain 
+  ? "1x00000000000000000000AA"  // Test key - always passes
+  : "0x4AAAAAABgGTNV6NkSzLc0W"; // Production key
 
 export function Turnstile({
   onVerify,
