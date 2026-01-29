@@ -20,7 +20,9 @@ interface VariationItem {
 
 interface SendVariationRequest {
   variationId: string;
-  clientEmail: string;
+  clientEmail: string | null;
+  clientPhone: string | null;
+  sendMethod: "email" | "sms" | "both";
   clientName: string;
   variationNumber: string;
   jobName: string;
@@ -150,6 +152,14 @@ function getPdfFont(fontName: string): string {
   return fontMap[fontName] || 'helvetica';
 }
 
+// Format phone number to E.164 for AU
+function formatPhoneE164(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("61")) return `+${digits}`;
+  if (digits.startsWith("0")) return `+61${digits.slice(1)}`;
+  return `+61${digits}`;
+}
+
 const reasonLabels: Record<string, string> = {
   client_request: "Client Request",
   site_condition: "Site Condition",
@@ -167,6 +177,8 @@ const handler = async (req: Request): Promise<Response> => {
     const {
       variationId,
       clientEmail,
+      clientPhone,
+      sendMethod = "email",
       clientName,
       variationNumber,
       jobName,
@@ -189,300 +201,16 @@ const handler = async (req: Request): Promise<Response> => {
       quoteFont = 'Arial',
     }: SendVariationRequest = await req.json();
 
-    console.log(`Generating Variation PDF and sending ${variationNumber} to ${clientEmail}`);
+    console.log(`Sending Variation ${variationNumber} via ${sendMethod}`);
+    console.log(`Email: ${clientEmail}, Phone: ${clientPhone}`);
 
-    if (!clientEmail) {
-      throw new Error("Client email is required");
+    // Validate based on send method
+    if ((sendMethod === "email" || sendMethod === "both") && !clientEmail) {
+      throw new Error("Client email is required for email delivery");
     }
-
-    // Fetch logo
-    const logoData = await fetchLogoAsBase64(businessLogoUrl);
-
-    // Generate PDF
-    const doc = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
-    const contentWidth = pageWidth - (margin * 2);
-    let yPos = margin;
-
-    const primaryColor = hexToRgb(quotePrimaryColor);
-    const secondaryColor = hexToRgb(quoteSecondaryColor);
-    const darkColor = [51, 51, 51] as [number, number, number];
-    const grayColor = [102, 102, 102] as [number, number, number];
-    const pdfFont = getPdfFont(quoteFont);
-
-    // ====== HEADER ======
-    // Dark header bar
-    doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.rect(0, 0, pageWidth, 40, 'F');
-
-    // Logo in header (preserve aspect ratio)
-    let logoDisplayWidth = 0;
-    if (logoData) {
-      try {
-        const logoDims = calculateLogoDimensions(logoData, 40, 24);
-        doc.addImage(`data:image/${logoData.format.toLowerCase()};base64,${logoData.base64}`, logoData.format, margin, 8, logoDims.width, logoDims.height);
-        logoDisplayWidth = logoDims.width + 6;
-      } catch (e) {
-        console.error("Failed to add logo to PDF:", e);
-      }
+    if ((sendMethod === "sms" || sendMethod === "both") && !clientPhone) {
+      throw new Error("Client phone is required for SMS delivery");
     }
-
-    // Business name in header
-    doc.setFontSize(18);
-    doc.setFont(pdfFont, "bold");
-    doc.setTextColor(255, 255, 255);
-    doc.text(businessName || "Company Name", logoData ? margin + logoDisplayWidth : margin, 20);
-    
-    if (businessAbn) {
-      doc.setFontSize(9);
-      doc.setFont(pdfFont, "normal");
-      doc.text(`ABN: ${businessAbn}`, logoData ? margin + logoDisplayWidth : margin, 28);
-    }
-
-    // VARIATION title
-    doc.setFontSize(20);
-    doc.setFont(pdfFont, "bold");
-    doc.text("VARIATION", pageWidth - margin, 16, { align: 'right' });
-    
-    doc.setFontSize(14);
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text(variationNumber, pageWidth - margin, 26, { align: 'right' });
-
-    yPos = 48;
-
-    // Contact strip
-    doc.setFontSize(9);
-    doc.setFont(pdfFont, "normal");
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    
-    let contactX = margin;
-    if (businessPhone) {
-      doc.text(`Phone: ${businessPhone}`, contactX, yPos);
-      contactX += 50;
-    }
-    if (businessEmail) {
-      doc.text(`Email: ${businessEmail}`, contactX, yPos);
-    }
-    
-    const today = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
-    doc.text(`Date: ${today}`, pageWidth - margin, yPos, { align: 'right' });
-    
-    yPos += 4;
-    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.setLineWidth(1);
-    doc.line(margin, yPos, pageWidth - margin, yPos);
-    yPos += 12;
-
-    // ====== CLIENT & JOB INFO ======
-    const boxWidth = (contentWidth - 10) / 2;
-    
-    // Client box
-    doc.setFillColor(249, 250, 251);
-    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.setLineWidth(0.5);
-    doc.rect(margin, yPos, boxWidth, 28, 'FD');
-    doc.setLineWidth(2);
-    doc.line(margin, yPos, margin, yPos + 28);
-    
-    doc.setFontSize(8);
-    doc.setFont(pdfFont, "bold");
-    doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.text("CLIENT", margin + 5, yPos + 6);
-    
-    doc.setFontSize(12);
-    doc.setFont(pdfFont, "bold");
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text(clientName, margin + 5, yPos + 14);
-    
-    doc.setFontSize(9);
-    doc.setFont(pdfFont, "normal");
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    if (clientEmail) doc.text(clientEmail, margin + 5, yPos + 21);
-
-    // Job box
-    doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.setLineWidth(0.5);
-    doc.rect(margin + boxWidth + 10, yPos, boxWidth, 28, 'FD');
-    doc.setLineWidth(2);
-    doc.line(margin + boxWidth + 10, yPos, margin + boxWidth + 10, yPos + 28);
-    
-    doc.setFontSize(8);
-    doc.setFont(pdfFont, "bold");
-    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text("JOB DETAILS", margin + boxWidth + 15, yPos + 6);
-    
-    doc.setFontSize(10);
-    doc.setFont(pdfFont, "bold");
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    const jobTitle = jobNumber ? `${jobNumber} - ${jobName}` : jobName;
-    doc.text(doc.splitTextToSize(jobTitle, boxWidth - 10)[0], margin + boxWidth + 15, yPos + 14);
-    
-    doc.setFont(pdfFont, "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    doc.text(doc.splitTextToSize(siteAddress, boxWidth - 10)[0], margin + boxWidth + 15, yPos + 21);
-
-    yPos += 38;
-
-    // ====== VARIATION DESCRIPTION ======
-    doc.setFontSize(11);
-    doc.setFont(pdfFont, "bold");
-    doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-    doc.text("VARIATION DESCRIPTION", margin, yPos);
-    yPos += 7;
-    
-    doc.setFontSize(10);
-    doc.setFont(pdfFont, "normal");
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    const descLines = doc.splitTextToSize(description, contentWidth);
-    doc.text(descLines, margin, yPos);
-    yPos += descLines.length * 5 + 5;
-
-    if (reason) {
-      doc.setFontSize(9);
-      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-      doc.text(`Reason: ${reasonLabels[reason] || reason}`, margin, yPos);
-      yPos += 8;
-    }
-
-    // ====== LINE ITEMS TABLE ======
-    if (items && items.length > 0) {
-      yPos += 5;
-      doc.setFontSize(11);
-      doc.setFont(pdfFont, "bold");
-      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      doc.text("COST BREAKDOWN", margin, yPos);
-      yPos += 8;
-
-      // Table header
-      doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      doc.rect(margin, yPos, contentWidth, 8, 'F');
-      
-      doc.setFontSize(9);
-      doc.setFont(pdfFont, "bold");
-      doc.setTextColor(255, 255, 255);
-      doc.text("Description", margin + 3, yPos + 5.5);
-      doc.text("Qty", margin + 90, yPos + 5.5);
-      doc.text("Unit", margin + 110, yPos + 5.5);
-      doc.text("Rate", margin + 130, yPos + 5.5);
-      doc.text("Total", pageWidth - margin - 3, yPos + 5.5, { align: 'right' });
-      
-      yPos += 8;
-
-      // Table rows
-      doc.setFont(pdfFont, "normal");
-      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-      
-      items.forEach((item, index) => {
-        const rowY = yPos + (index * 8);
-        
-        if (index % 2 === 0) {
-          doc.setFillColor(249, 250, 251);
-          doc.rect(margin, rowY, contentWidth, 8, 'F');
-        }
-        
-        doc.setFontSize(9);
-        const descText = doc.splitTextToSize(item.description, 85)[0];
-        doc.text(descText, margin + 3, rowY + 5.5);
-        doc.text(String(item.quantity), margin + 90, rowY + 5.5);
-        doc.text(item.unit, margin + 110, rowY + 5.5);
-        doc.text(`$${item.unit_price.toFixed(2)}`, margin + 130, rowY + 5.5);
-        doc.text(`$${item.total.toFixed(2)}`, pageWidth - margin - 3, rowY + 5.5, { align: 'right' });
-      });
-
-      yPos += items.length * 8 + 5;
-    }
-
-    // ====== TOTAL ======
-    doc.setDrawColor(grayColor[0], grayColor[1], grayColor[2]);
-    doc.setLineWidth(0.3);
-    doc.line(margin + 100, yPos, pageWidth - margin, yPos);
-    yPos += 8;
-
-    doc.setFontSize(10);
-    doc.setFont(pdfFont, "normal");
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    doc.text("Subtotal (ex GST):", margin + 100, yPos);
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text(`$${amount.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
-    yPos += 6;
-
-    const gst = amount * 0.1;
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    doc.text("GST (10%):", margin + 100, yPos);
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text(`$${gst.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
-    yPos += 8;
-
-    doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.rect(margin + 100, yPos - 2, contentWidth - 100, 10, 'F');
-    
-    doc.setFontSize(12);
-    doc.setFont(pdfFont, "bold");
-    doc.setTextColor(255, 255, 255);
-    doc.text("TOTAL (inc GST):", margin + 103, yPos + 5);
-    doc.text(`$${(amount + gst).toFixed(2)}`, pageWidth - margin - 3, yPos + 5, { align: 'right' });
-    
-    yPos += 18;
-
-    // Days extension if applicable
-    if (daysExtension && daysExtension > 0) {
-      doc.setFontSize(10);
-      doc.setFont(pdfFont, "normal");
-      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-      doc.text(`Time Extension: ${daysExtension} day${daysExtension > 1 ? 's' : ''}`, margin, yPos);
-      yPos += 10;
-    }
-
-    // Notes
-    if (notes) {
-      doc.setFontSize(11);
-      doc.setFont(pdfFont, "bold");
-      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
-      doc.text("NOTES", margin, yPos);
-      yPos += 6;
-      
-      doc.setFontSize(9);
-      doc.setFont(pdfFont, "normal");
-      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-      const noteLines = doc.splitTextToSize(notes, contentWidth);
-      doc.text(noteLines, margin, yPos);
-      yPos += noteLines.length * 4 + 10;
-    }
-
-    // ====== APPROVAL SECTION ======
-    yPos += 5;
-    doc.setFillColor(249, 250, 251);
-    doc.rect(margin, yPos, contentWidth, 35, 'F');
-    doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
-    doc.setLineWidth(0.5);
-    doc.rect(margin, yPos, contentWidth, 35, 'S');
-    
-    doc.setFontSize(10);
-    doc.setFont(pdfFont, "bold");
-    doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
-    doc.text("APPROVAL", margin + 5, yPos + 8);
-    
-    doc.setFontSize(9);
-    doc.setFont(pdfFont, "normal");
-    doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
-    doc.text("I hereby approve this variation to the contract.", margin + 5, yPos + 16);
-    
-    doc.text("Signature: ___________________________", margin + 5, yPos + 26);
-    doc.text("Date: _______________", margin + 100, yPos + 26);
-    doc.text("Name: ___________________________", margin + 5, yPos + 33);
-
-    // Generate PDF output
-    const pdfOutput = doc.output('datauristring');
-    const base64Pdf = pdfOutput.split(',')[1];
-
-    console.log("PDF generated successfully, preparing signing token...");
 
     // Set up Supabase client
     const supabaseClient = createClient(
@@ -490,11 +218,10 @@ const handler = async (req: Request): Promise<Response> => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
     );
 
-    // Generate signing token expiry (48 hours)
+    // Generate signing token and URL
     const signingTokenExpiry = new Date();
     signingTokenExpiry.setHours(signingTokenExpiry.getHours() + 48);
 
-    // Get signing token and update expiry
     const { data: variationData } = await supabaseClient
       .from("job_variations")
       .select("signing_token")
@@ -510,57 +237,439 @@ const handler = async (req: Request): Promise<Response> => {
     const appDomain = "https://pourhub.com.au";
     const signingUrl = signingToken ? `${appDomain}/sign/variation/${signingToken}` : null;
 
-    // Format sender name
-    const senderName = businessName ? `${businessName} via Pourhub` : "Pourhub";
-    
     const totalWithGst = amount * 1.1;
     const formattedAmount = totalWithGst.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
-    const emailResponse = await resend.emails.send({
-      from: `${senderName} <Hello@pourhub.au>`,
-      to: [clientEmail],
-      cc: businessEmail ? [businessEmail] : undefined,
-      subject: `Variation ${variationNumber} - ${jobName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="background-color: ${quoteSecondaryColor}; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h1 style="color: white; margin: 0; font-size: 24px;">${businessName}</h1>
-          </div>
+    // Track delivery status
+    let emailSent = false;
+    let smsSent = false;
+    let smsDeliveryStatus: string | null = null;
+    let smsMessageSid: string | null = null;
+    let smsErrorMessage: string | null = null;
+
+    // ====== SEND EMAIL ======
+    if ((sendMethod === "email" || sendMethod === "both") && clientEmail) {
+      console.log("Generating PDF for email...");
+      
+      // Fetch logo
+      const logoData = await fetchLogoAsBase64(businessLogoUrl);
+
+      // Generate PDF
+      const doc = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      let yPos = margin;
+
+      const primaryColor = hexToRgb(quotePrimaryColor);
+      const secondaryColor = hexToRgb(quoteSecondaryColor);
+      const darkColor = [51, 51, 51] as [number, number, number];
+      const grayColor = [102, 102, 102] as [number, number, number];
+      const pdfFont = getPdfFont(quoteFont);
+
+      // ====== HEADER ======
+      doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.rect(0, 0, pageWidth, 40, 'F');
+
+      let logoDisplayWidth = 0;
+      if (logoData) {
+        try {
+          const logoDims = calculateLogoDimensions(logoData, 40, 24);
+          doc.addImage(`data:image/${logoData.format.toLowerCase()};base64,${logoData.base64}`, logoData.format, margin, 8, logoDims.width, logoDims.height);
+          logoDisplayWidth = logoDims.width + 6;
+        } catch (e) {
+          console.error("Failed to add logo to PDF:", e);
+        }
+      }
+
+      doc.setFontSize(18);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text(businessName || "Company Name", logoData ? margin + logoDisplayWidth : margin, 20);
+      
+      if (businessAbn) {
+        doc.setFontSize(9);
+        doc.setFont(pdfFont, "normal");
+        doc.text(`ABN: ${businessAbn}`, logoData ? margin + logoDisplayWidth : margin, 28);
+      }
+
+      doc.setFontSize(20);
+      doc.setFont(pdfFont, "bold");
+      doc.text("VARIATION", pageWidth - margin, 16, { align: 'right' });
+      
+      doc.setFontSize(14);
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text(variationNumber, pageWidth - margin, 26, { align: 'right' });
+
+      yPos = 48;
+
+      doc.setFontSize(9);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      
+      let contactX = margin;
+      if (businessPhone) {
+        doc.text(`Phone: ${businessPhone}`, contactX, yPos);
+        contactX += 50;
+      }
+      if (businessEmail) {
+        doc.text(`Email: ${businessEmail}`, contactX, yPos);
+      }
+      
+      const today = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: 'short', year: 'numeric' });
+      doc.text(`Date: ${today}`, pageWidth - margin, yPos, { align: 'right' });
+      
+      yPos += 4;
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setLineWidth(1);
+      doc.line(margin, yPos, pageWidth - margin, yPos);
+      yPos += 12;
+
+      // ====== CLIENT & JOB INFO ======
+      const boxWidth = (contentWidth - 10) / 2;
+      
+      doc.setFillColor(249, 250, 251);
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, yPos, boxWidth, 28, 'FD');
+      doc.setLineWidth(2);
+      doc.line(margin, yPos, margin, yPos + 28);
+      
+      doc.setFontSize(8);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.text("CLIENT", margin + 5, yPos + 6);
+      
+      doc.setFontSize(12);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text(clientName, margin + 5, yPos + 14);
+      
+      doc.setFontSize(9);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      if (clientEmail) doc.text(clientEmail, margin + 5, yPos + 21);
+
+      doc.setDrawColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.setLineWidth(0.5);
+      doc.rect(margin + boxWidth + 10, yPos, boxWidth, 28, 'FD');
+      doc.setLineWidth(2);
+      doc.line(margin + boxWidth + 10, yPos, margin + boxWidth + 10, yPos + 28);
+      
+      doc.setFontSize(8);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text("JOB DETAILS", margin + boxWidth + 15, yPos + 6);
+      
+      doc.setFontSize(10);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      const jobTitle = jobNumber ? `${jobNumber} - ${jobName}` : jobName;
+      doc.text(doc.splitTextToSize(jobTitle, boxWidth - 10)[0], margin + boxWidth + 15, yPos + 14);
+      
+      doc.setFont(pdfFont, "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      doc.text(doc.splitTextToSize(siteAddress, boxWidth - 10)[0], margin + boxWidth + 15, yPos + 21);
+
+      yPos += 38;
+
+      // ====== VARIATION DESCRIPTION ======
+      doc.setFontSize(11);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+      doc.text("VARIATION DESCRIPTION", margin, yPos);
+      yPos += 7;
+      
+      doc.setFontSize(10);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      const descLines = doc.splitTextToSize(description, contentWidth);
+      doc.text(descLines, margin, yPos);
+      yPos += descLines.length * 5 + 5;
+
+      if (reason) {
+        doc.setFontSize(9);
+        doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+        doc.text(`Reason: ${reasonLabels[reason] || reason}`, margin, yPos);
+        yPos += 8;
+      }
+
+      // ====== LINE ITEMS TABLE ======
+      if (items && items.length > 0) {
+        yPos += 5;
+        doc.setFontSize(11);
+        doc.setFont(pdfFont, "bold");
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.text("COST BREAKDOWN", margin, yPos);
+        yPos += 8;
+
+        doc.setFillColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.rect(margin, yPos, contentWidth, 8, 'F');
+        
+        doc.setFontSize(9);
+        doc.setFont(pdfFont, "bold");
+        doc.setTextColor(255, 255, 255);
+        doc.text("Description", margin + 3, yPos + 5.5);
+        doc.text("Qty", margin + 90, yPos + 5.5);
+        doc.text("Unit", margin + 110, yPos + 5.5);
+        doc.text("Rate", margin + 130, yPos + 5.5);
+        doc.text("Total", pageWidth - margin - 3, yPos + 5.5, { align: 'right' });
+        
+        yPos += 8;
+
+        doc.setFont(pdfFont, "normal");
+        doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+        
+        items.forEach((item, index) => {
+          const rowY = yPos + (index * 8);
           
-          <div style="background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
-            <p style="font-size: 16px; color: #374151;">Dear ${clientName},</p>
-            <p style="font-size: 16px; color: #374151;">Please find attached a variation order for <strong>${siteAddress}</strong>.</p>
-            
-            <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr><td style="padding: 8px 0; color: #6b7280;">Variation:</td><td style="text-align: right; font-weight: bold;">${variationNumber}</td></tr>
-                <tr><td style="padding: 8px 0; color: #6b7280;">Job:</td><td style="text-align: right;">${jobNumber ? `${jobNumber} - ` : ''}${jobName}</td></tr>
-                <tr style="border-top: 2px solid ${quotePrimaryColor};"><td style="padding: 12px 0; font-weight: bold; font-size: 18px;">Total:</td><td style="text-align: right; font-weight: bold; font-size: 18px; color: ${quotePrimaryColor};">${formattedAmount}</td></tr>
-              </table>
+          if (index % 2 === 0) {
+            doc.setFillColor(249, 250, 251);
+            doc.rect(margin, rowY, contentWidth, 8, 'F');
+          }
+          
+          doc.setFontSize(9);
+          const descText = doc.splitTextToSize(item.description, 85)[0];
+          doc.text(descText, margin + 3, rowY + 5.5);
+          doc.text(String(item.quantity), margin + 90, rowY + 5.5);
+          doc.text(item.unit, margin + 110, rowY + 5.5);
+          doc.text(`$${item.unit_price.toFixed(2)}`, margin + 130, rowY + 5.5);
+          doc.text(`$${item.total.toFixed(2)}`, pageWidth - margin - 3, rowY + 5.5, { align: 'right' });
+        });
+
+        yPos += items.length * 8 + 5;
+      }
+
+      // ====== TOTAL ======
+      doc.setDrawColor(grayColor[0], grayColor[1], grayColor[2]);
+      doc.setLineWidth(0.3);
+      doc.line(margin + 100, yPos, pageWidth - margin, yPos);
+      yPos += 8;
+
+      doc.setFontSize(10);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      doc.text("Subtotal (ex GST):", margin + 100, yPos);
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text(`$${amount.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
+      yPos += 6;
+
+      const gst = amount * 0.1;
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      doc.text("GST (10%):", margin + 100, yPos);
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text(`$${gst.toFixed(2)}`, pageWidth - margin, yPos, { align: 'right' });
+      yPos += 8;
+
+      doc.setFillColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.rect(margin + 100, yPos - 2, contentWidth - 100, 10, 'F');
+      
+      doc.setFontSize(12);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(255, 255, 255);
+      doc.text("TOTAL (inc GST):", margin + 103, yPos + 5);
+      doc.text(`$${(amount + gst).toFixed(2)}`, pageWidth - margin - 3, yPos + 5, { align: 'right' });
+      
+      yPos += 18;
+
+      if (daysExtension && daysExtension > 0) {
+        doc.setFontSize(10);
+        doc.setFont(pdfFont, "normal");
+        doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+        doc.text(`Time Extension: ${daysExtension} day${daysExtension > 1 ? 's' : ''}`, margin, yPos);
+        yPos += 10;
+      }
+
+      if (notes) {
+        doc.setFontSize(11);
+        doc.setFont(pdfFont, "bold");
+        doc.setTextColor(secondaryColor[0], secondaryColor[1], secondaryColor[2]);
+        doc.text("NOTES", margin, yPos);
+        yPos += 6;
+        
+        doc.setFontSize(9);
+        doc.setFont(pdfFont, "normal");
+        doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+        const noteLines = doc.splitTextToSize(notes, contentWidth);
+        doc.text(noteLines, margin, yPos);
+        yPos += noteLines.length * 4 + 10;
+      }
+
+      // ====== APPROVAL SECTION ======
+      yPos += 5;
+      doc.setFillColor(249, 250, 251);
+      doc.rect(margin, yPos, contentWidth, 35, 'F');
+      doc.setDrawColor(primaryColor[0], primaryColor[1], primaryColor[2]);
+      doc.setLineWidth(0.5);
+      doc.rect(margin, yPos, contentWidth, 35, 'S');
+      
+      doc.setFontSize(10);
+      doc.setFont(pdfFont, "bold");
+      doc.setTextColor(darkColor[0], darkColor[1], darkColor[2]);
+      doc.text("APPROVAL", margin + 5, yPos + 8);
+      
+      doc.setFontSize(9);
+      doc.setFont(pdfFont, "normal");
+      doc.setTextColor(grayColor[0], grayColor[1], grayColor[2]);
+      doc.text("I hereby approve this variation to the contract.", margin + 5, yPos + 16);
+      
+      doc.text("Signature: ___________________________", margin + 5, yPos + 26);
+      doc.text("Date: _______________", margin + 100, yPos + 26);
+      doc.text("Name: ___________________________", margin + 5, yPos + 33);
+
+      const pdfOutput = doc.output('datauristring');
+      const base64Pdf = pdfOutput.split(',')[1];
+
+      console.log("PDF generated, sending email...");
+
+      const senderName = businessName ? `${businessName} via Pourhub` : "Pourhub";
+
+      const emailResponse = await resend.emails.send({
+        from: `${senderName} <Hello@pourhub.au>`,
+        to: [clientEmail],
+        cc: businessEmail ? [businessEmail] : undefined,
+        subject: `Variation ${variationNumber} - ${jobName}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background-color: ${quoteSecondaryColor}; padding: 20px; border-radius: 8px 8px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">${businessName}</h1>
             </div>
             
-            ${signingUrl ? `<div style="text-align: center; margin: 20px 0;"><a href="${signingUrl}" style="display: inline-block; background: ${quotePrimaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">✍️ Approve & Sign Online</a><p style="font-size: 12px; color: #9ca3af; margin-top: 10px;">— or print the PDF and sign manually —</p></div>` : '<p style="font-size: 14px; color: #6b7280;">Please sign the attached PDF to approve.</p>'}
-            
-            <p style="color: #374151;">Kind regards,<br><strong>${businessName}</strong></p>
-            ${businessPhone ? `<p style="font-size: 14px; color: #6b7280;">📞 ${businessPhone}</p>` : ''}
+            <div style="background-color: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none;">
+              <p style="font-size: 16px; color: #374151;">Dear ${clientName},</p>
+              <p style="font-size: 16px; color: #374151;">Please find attached a variation order for <strong>${siteAddress}</strong>.</p>
+              
+              <div style="background-color: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 20px; margin: 20px 0;">
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr><td style="padding: 8px 0; color: #6b7280;">Variation:</td><td style="text-align: right; font-weight: bold;">${variationNumber}</td></tr>
+                  <tr><td style="padding: 8px 0; color: #6b7280;">Job:</td><td style="text-align: right;">${jobNumber ? `${jobNumber} - ` : ''}${jobName}</td></tr>
+                  <tr style="border-top: 2px solid ${quotePrimaryColor};"><td style="padding: 12px 0; font-weight: bold; font-size: 18px;">Total:</td><td style="text-align: right; font-weight: bold; font-size: 18px; color: ${quotePrimaryColor};">${formattedAmount}</td></tr>
+                </table>
+              </div>
+              
+              ${signingUrl ? `<div style="text-align: center; margin: 20px 0;"><a href="${signingUrl}" style="display: inline-block; background: ${quotePrimaryColor}; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; font-weight: bold;">✍️ Approve & Sign Online</a><p style="font-size: 12px; color: #9ca3af; margin-top: 10px;">— or print the PDF and sign manually —</p></div>` : '<p style="font-size: 14px; color: #6b7280;">Please sign the attached PDF to approve.</p>'}
+              
+              <p style="color: #374151;">Kind regards,<br><strong>${businessName}</strong></p>
+              ${businessPhone ? `<p style="font-size: 14px; color: #6b7280;">📞 ${businessPhone}</p>` : ''}
+            </div>
+            <div style="text-align: center; padding: 15px; color: #9ca3af; font-size: 12px;">Sent via <a href="https://pourhub.au" style="color: ${quotePrimaryColor};">Pourhub</a></div>
           </div>
-          <div style="text-align: center; padding: 15px; color: #9ca3af; font-size: 12px;">Sent via <a href="https://pourhub.au" style="color: ${quotePrimaryColor};">Pourhub</a></div>
-        </div>
-      `,
-      attachments: [{ filename: `${variationNumber}.pdf`, content: base64Pdf }],
-    });
+        `,
+        attachments: [{ filename: `${variationNumber}.pdf`, content: base64Pdf }],
+      });
 
-    console.log("Email sent successfully:", emailResponse);
+      if (emailResponse.error) {
+        console.error("Email send failed:", emailResponse.error);
+      } else {
+        console.log("Email sent successfully:", emailResponse.data?.id);
+        emailSent = true;
+      }
+    }
+
+    // ====== SEND SMS ======
+    if ((sendMethod === "sms" || sendMethod === "both") && clientPhone) {
+      console.log("Sending SMS...");
+      
+      const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+      const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+      const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
+
+      if (twilioAccountSid && twilioAuthToken && twilioPhoneNumber) {
+        try {
+          const formattedPhone = formatPhoneE164(clientPhone);
+          
+          // Build SMS message
+          let smsMessage = `${businessName}: Variation ${variationNumber} for ${siteAddress}.\nTotal: ${formattedAmount}`;
+          if (signingUrl) {
+            smsMessage += `\nApprove: ${signingUrl}`;
+          }
+
+          const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+          const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+
+          const smsResponse = await fetch(twilioUrl, {
+            method: "POST",
+            headers: {
+              Authorization: `Basic ${twilioAuth}`,
+              "Content-Type": "application/x-www-form-urlencoded",
+            },
+            body: new URLSearchParams({
+              To: formattedPhone,
+              From: twilioPhoneNumber,
+              Body: smsMessage,
+            }),
+          });
+
+          if (!smsResponse.ok) {
+            const smsError = await smsResponse.text();
+            console.error("Twilio SMS failed:", smsError);
+            smsDeliveryStatus = "failed";
+            smsErrorMessage = smsError.substring(0, 500);
+          } else {
+            const smsResult = await smsResponse.json();
+            console.log("SMS sent successfully to", formattedPhone);
+            smsDeliveryStatus = "sent";
+            smsMessageSid = smsResult.sid || null;
+            smsSent = true;
+          }
+        } catch (smsErr: any) {
+          console.error("SMS sending error:", smsErr);
+          smsDeliveryStatus = "failed";
+          smsErrorMessage = smsErr.message || "Unknown error";
+        }
+      } else {
+        console.warn("Twilio credentials not configured, skipping SMS");
+        smsDeliveryStatus = "failed";
+        smsErrorMessage = "Twilio credentials not configured";
+      }
+    }
+
+    // Update variation status
+    const updateData: Record<string, any> = {
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+      sent_via: sendMethod,
+    };
+
+    if (clientEmail && (sendMethod === "email" || sendMethod === "both")) {
+      updateData.submitted_to_email = clientEmail;
+    }
+    if (clientPhone && (sendMethod === "sms" || sendMethod === "both")) {
+      updateData.submitted_to_phone = clientPhone;
+      updateData.sms_delivery_status = smsDeliveryStatus;
+      updateData.sms_message_sid = smsMessageSid;
+      updateData.sms_error_message = smsErrorMessage;
+    }
 
     const { error: updateError } = await supabaseClient
       .from("job_variations")
-      .update({ status: "submitted", submitted_at: new Date().toISOString(), submitted_to_email: clientEmail })
+      .update(updateData)
       .eq("id", variationId);
 
     if (updateError) console.error("Failed to update variation status:", updateError);
 
+    // Determine success
+    const success = (sendMethod === "email" && emailSent) ||
+                   (sendMethod === "sms" && smsSent) ||
+                   (sendMethod === "both" && (emailSent || smsSent));
+
+    if (!success) {
+      throw new Error("Failed to send variation via any channel");
+    }
+
     return new Response(
-      JSON.stringify({ success: true, emailResponse }),
+      JSON.stringify({ 
+        success: true, 
+        emailSent, 
+        smsSent,
+        sendMethod,
+      }),
       {
         status: 200,
         headers: { "Content-Type": "application/json", ...corsHeaders },

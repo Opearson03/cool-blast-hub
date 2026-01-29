@@ -12,8 +12,9 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Send, Mail } from "lucide-react";
+import { Loader2, Send, Mail, MessageSquare } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 
 interface VariationItem {
@@ -50,7 +51,10 @@ interface SendVariationDialogProps {
   variation: Variation;
   job: Job;
   defaultClientEmail?: string | null;
+  defaultClientPhone?: string | null;
 }
+
+type SendMethod = "email" | "sms" | "both";
 
 export function SendVariationDialog({
   open,
@@ -58,6 +62,7 @@ export function SendVariationDialog({
   variation,
   job,
   defaultClientEmail,
+  defaultClientPhone,
 }: SendVariationDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -65,6 +70,8 @@ export function SendVariationDialog({
   
   const [clientName, setClientName] = useState("");
   const [clientEmail, setClientEmail] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [sendMethod, setSendMethod] = useState<SendMethod>("email");
 
   // Fetch business data for branding
   const { data: business } = useQuery({
@@ -82,14 +89,14 @@ export function SendVariationDialog({
     enabled: !!businessId && open,
   });
 
-  // Fetch client email from source estimate if available
+  // Fetch client email/phone from source estimate if available
   const { data: sourceEstimate } = useQuery({
-    queryKey: ["source-estimate-email", job.source_estimate_id],
+    queryKey: ["source-estimate-contact", job.source_estimate_id],
     queryFn: async () => {
       if (!job.source_estimate_id) return null;
       const { data, error } = await supabase
         .from("estimates")
-        .select("client_email")
+        .select("client_email, client_phone")
         .eq("id", job.source_estimate_id)
         .maybeSingle();
       if (error) throw error;
@@ -106,11 +113,16 @@ export function SendVariationDialog({
       }
       // Prefill client email from source estimate or passed default
       const emailToUse = defaultClientEmail || sourceEstimate?.client_email || "";
-      if (emailToUse) {
-        setClientEmail(emailToUse);
-      }
+      setClientEmail(emailToUse);
+      
+      // Prefill client phone from source estimate or passed default
+      const phoneToUse = defaultClientPhone || sourceEstimate?.client_phone || "";
+      setClientPhone(phoneToUse);
+      
+      // Reset send method to email
+      setSendMethod("email");
     }
-  }, [open, job.builder_client, defaultClientEmail, sourceEstimate?.client_email]);
+  }, [open, job.builder_client, defaultClientEmail, defaultClientPhone, sourceEstimate?.client_email, sourceEstimate?.client_phone]);
 
   const sendMutation = useMutation({
     mutationFn: async () => {
@@ -119,7 +131,9 @@ export function SendVariationDialog({
       const { data, error } = await supabase.functions.invoke("send-variation-email", {
         body: {
           variationId: variation.id,
-          clientEmail,
+          clientEmail: sendMethod === "sms" ? null : clientEmail,
+          clientPhone: sendMethod === "email" ? null : clientPhone,
+          sendMethod,
           clientName,
           variationNumber: variation.variation_number,
           jobName: job.name,
@@ -146,11 +160,21 @@ export function SendVariationDialog({
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["job-variations", job.id] });
+      
+      let methodText = "";
+      if (sendMethod === "both") {
+        methodText = `emailed to ${clientEmail} and sent via SMS to ${clientPhone}`;
+      } else if (sendMethod === "sms") {
+        methodText = `sent via SMS to ${clientPhone}`;
+      } else {
+        methodText = `emailed to ${clientEmail}`;
+      }
+      
       toast({
         title: "Variation sent",
-        description: `Variation ${variation.variation_number} has been emailed to ${clientEmail}`,
+        description: `Variation ${variation.variation_number} has been ${methodText}`,
       });
       onOpenChange(false);
     },
@@ -165,18 +189,48 @@ export function SendVariationDialog({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!clientEmail.trim()) {
-      toast({ title: "Email required", variant: "destructive" });
-      return;
-    }
+    
     if (!clientName.trim()) {
       toast({ title: "Client name required", variant: "destructive" });
       return;
     }
+    
+    if ((sendMethod === "email" || sendMethod === "both") && !clientEmail.trim()) {
+      toast({ title: "Email required for email delivery", variant: "destructive" });
+      return;
+    }
+    
+    if ((sendMethod === "sms" || sendMethod === "both") && !clientPhone.trim()) {
+      toast({ title: "Phone number required for SMS delivery", variant: "destructive" });
+      return;
+    }
+    
     sendMutation.mutate();
   };
 
   const totalWithGst = Number(variation.amount) * 1.1;
+
+  const getSendMethodIcon = () => {
+    switch (sendMethod) {
+      case "sms":
+        return <MessageSquare className="w-4 h-4 mr-2" />;
+      case "both":
+        return <Send className="w-4 h-4 mr-2" />;
+      default:
+        return <Mail className="w-4 h-4 mr-2" />;
+    }
+  };
+
+  const getSendButtonText = () => {
+    switch (sendMethod) {
+      case "sms":
+        return "Send via SMS";
+      case "both":
+        return "Send via Both";
+      default:
+        return "Send via Email";
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -210,6 +264,38 @@ export function SendVariationDialog({
             </div>
           </div>
 
+          {/* Send Method Selection */}
+          <div className="space-y-3">
+            <Label>Send Method</Label>
+            <RadioGroup
+              value={sendMethod}
+              onValueChange={(value) => setSendMethod(value as SendMethod)}
+              className="flex gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="email" id="email" />
+                <Label htmlFor="email" className="font-normal cursor-pointer flex items-center gap-1">
+                  <Mail className="w-4 h-4" />
+                  Email
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="sms" id="sms" />
+                <Label htmlFor="sms" className="font-normal cursor-pointer flex items-center gap-1">
+                  <MessageSquare className="w-4 h-4" />
+                  SMS
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="both" id="both" />
+                <Label htmlFor="both" className="font-normal cursor-pointer flex items-center gap-1">
+                  <Send className="w-4 h-4" />
+                  Both
+                </Label>
+              </div>
+            </RadioGroup>
+          </div>
+
           {/* Client Details */}
           <div className="space-y-3">
             <div className="space-y-2">
@@ -221,16 +307,32 @@ export function SendVariationDialog({
                 placeholder="Enter client name"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientEmail">Client Email *</Label>
-              <Input
-                id="clientEmail"
-                type="email"
-                value={clientEmail}
-                onChange={(e) => setClientEmail(e.target.value)}
-                placeholder="client@example.com"
-              />
-            </div>
+            
+            {(sendMethod === "email" || sendMethod === "both") && (
+              <div className="space-y-2">
+                <Label htmlFor="clientEmail">Client Email *</Label>
+                <Input
+                  id="clientEmail"
+                  type="email"
+                  value={clientEmail}
+                  onChange={(e) => setClientEmail(e.target.value)}
+                  placeholder="client@example.com"
+                />
+              </div>
+            )}
+            
+            {(sendMethod === "sms" || sendMethod === "both") && (
+              <div className="space-y-2">
+                <Label htmlFor="clientPhone">Client Phone *</Label>
+                <Input
+                  id="clientPhone"
+                  type="tel"
+                  value={clientPhone}
+                  onChange={(e) => setClientPhone(e.target.value)}
+                  placeholder="0400 000 000"
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>
@@ -241,9 +343,9 @@ export function SendVariationDialog({
               {sendMutation.isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
-                <Send className="w-4 h-4 mr-2" />
+                getSendMethodIcon()
               )}
-              Send Variation
+              {getSendButtonText()}
             </Button>
           </DialogFooter>
         </form>
