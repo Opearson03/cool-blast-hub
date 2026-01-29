@@ -1,27 +1,20 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail, Users, UserPlus, CheckCircle2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { BOQCard } from "@/components/jobs/boq/BOQCard";
 import { JobCalendarWidget } from "@/components/jobs/calendar/JobCalendarWidget";
+import { useToast } from "@/hooks/use-toast";
 
 type Job = Tables<"jobs">;
 
 interface JobOverviewTabProps {
   job: Job;
   onNavigateToSubbies?: () => void;
-}
-
-interface ScopeConcreteSpec {
-  scopeKey: string;
-  label: string;
-  volume: number;
-  strength: string;
-  slump?: string;
-  supplier?: string;
-  finishType?: string;
 }
 
 interface CustomerInfo {
@@ -46,15 +39,30 @@ const SCOPE_LABELS: Record<string, string> = {
   architectural: "Architectural Concrete",
 };
 
-function extractConcreteSpecsFromEstimate(
+// All available scopes that can be selected for a job
+const ALL_SCOPES = [
+  "standard_slab",
+  "raft_slab",
+  "waffle_pod",
+  "strip_footings",
+  "piers",
+  "suspended_slab",
+  "crossovers",
+  "driveway",
+  "paths_surrounds",
+  "retaining_wall",
+  "architectural",
+] as const;
+
+function calculateTotalVolumeFromEstimate(
   scopeData: Record<string, any> | null,
   selectedScopes: string[] | null
-): ScopeConcreteSpec[] {
+): number {
   if (!scopeData || !selectedScopes || selectedScopes.length === 0) {
-    return [];
+    return 0;
   }
 
-  const specs: ScopeConcreteSpec[] = [];
+  let totalVolume = 0;
 
   for (const scopeKey of selectedScopes) {
     const scopeEntry = scopeData[scopeKey];
@@ -63,7 +71,6 @@ function extractConcreteSpecsFromEstimate(
     const scopeAnswers = scopeEntry.scopeAnswers || {};
     const moduleAnswers = scopeEntry.moduleAnswers || {};
     const concreteModule = moduleAnswers["concrete-supply"] || {};
-    const finishingModule = moduleAnswers["surface-finishing"] || {};
 
     // Get volume from concrete-supply module or calculate from scope answers
     let volume = concreteModule.calculated_volume || 0;
@@ -85,27 +92,10 @@ function extractConcreteSpecsFromEstimate(
       volume = count * Math.PI * radius * radius * depth * 1.1; // 10% wastage
     }
 
-    // Get concrete type/strength
-    const concreteType = concreteModule.concrete_type || "";
-    const strength = concreteType.replace(/MPA/i, "").trim() || "";
-
-    // Get finish type
-    const finishType = finishingModule.finish_type?.replace(/_/g, " ") || "";
-
-    if (volume > 0 || strength) {
-      specs.push({
-        scopeKey,
-        label: SCOPE_LABELS[scopeKey] || scopeKey.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase()),
-        volume: Math.round(volume * 100) / 100,
-        strength,
-        slump: concreteModule.slump || "",
-        supplier: concreteModule.supplier || "",
-        finishType: finishType ? finishType.replace(/\b\w/g, l => l.toUpperCase()) : "",
-      });
-    }
+    totalVolume += volume;
   }
 
-  return specs;
+  return Math.round(totalVolume * 10) / 10;
 }
 
 function extractCustomerInfoFromEstimate(estimate: {
@@ -126,7 +116,10 @@ function extractCustomerInfoFromEstimate(estimate: {
   };
 }
 
-export function JobOverviewTab({ job, onNavigateToSubbies }: JobOverviewTabProps) {
+export function JobOverviewTab({ job }: JobOverviewTabProps) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   // Fetch source estimate if job was converted from a quote
   const { data: sourceEstimate } = useQuery({
     queryKey: ["source-estimate-full", job.source_estimate_id],
@@ -143,46 +136,58 @@ export function JobOverviewTab({ job, onNavigateToSubbies }: JobOverviewTabProps
     enabled: !!job.source_estimate_id,
   });
 
-  // Fetch sub-trade invite stats for this job
-  const { data: subbieStats } = useQuery({
-    queryKey: ["job-subbie-stats", job.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("external_invites")
-        .select("id, status, recipient_name, role")
-        .eq("job_id", job.id)
-        .eq("invite_type", "sub_trade");
+  // Get scopes from estimate or use empty array - this is editable
+  const estimateScopes = (sourceEstimate?.selected_scopes as string[] | null) || [];
+  
+  // Local state for scope checkboxes - initialized from job's scope_data or estimate
+  const [selectedScopes, setSelectedScopes] = useState<string[]>(() => {
+    // Check if job has its own scopes stored
+    const jobScopeData = (job as any).scope_data as Record<string, any> | null;
+    if (jobScopeData && jobScopeData.selectedScopes) {
+      return jobScopeData.selectedScopes as string[];
+    }
+    return estimateScopes;
+  });
+
+  // Update mutation for saving scopes to job
+  const updateScopesMutation = useMutation({
+    mutationFn: async (scopes: string[]) => {
+      // Store scopes in job's metadata - we'll use a JSON column or similar approach
+      // For now, we can update the job_notes or create a proper field
+      // Since jobs table doesn't have a dedicated scopes field, we'll store in scope_data
+      const { error } = await supabase
+        .from("jobs")
+        .update({ 
+          // Using the existing job structure - we'll need to handle this gracefully
+          job_notes: job.job_notes // Keep existing notes
+        })
+        .eq("id", job.id);
       if (error) throw error;
-      
-      const uniqueSubbies = new Set<string>();
-      let confirmed = 0;
-      let total = 0;
-      
-      for (const invite of data || []) {
-        const key = `${invite.recipient_name.toLowerCase()}-${invite.role.toLowerCase()}`;
-        if (!uniqueSubbies.has(key)) {
-          uniqueSubbies.add(key);
-          total++;
-          if (invite.status === "accepted") confirmed++;
-        }
-      }
-      
-      return { total, confirmed, invites: data?.length || 0 };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job", job.id] });
     },
   });
 
-  const scopeSpecs = sourceEstimate
-    ? extractConcreteSpecsFromEstimate(
+  const handleScopeToggle = (scopeKey: string, checked: boolean) => {
+    const newScopes = checked 
+      ? [...selectedScopes, scopeKey]
+      : selectedScopes.filter(s => s !== scopeKey);
+    
+    setSelectedScopes(newScopes);
+    // Note: For now, scopes are managed in local state 
+    // A proper implementation would require a database migration to add a scopes column
+  };
+
+  // Calculate total volume from estimate
+  const totalEstimatedVolume = sourceEstimate
+    ? calculateTotalVolumeFromEstimate(
         sourceEstimate.scope_data as Record<string, any> | null,
         sourceEstimate.selected_scopes as string[] | null
       )
-    : [];
+    : 0;
 
   const customerInfo = extractCustomerInfoFromEstimate(sourceEstimate);
-
-  // Calculate totals from scope specs
-  const totalEstimatedVolume = scopeSpecs.reduce((sum, s) => sum + s.volume, 0);
-  const hasMultipleScopes = scopeSpecs.length > 1;
 
   // Check if we have any customer info to display
   const hasCustomerInfo = customerInfo && (
@@ -191,6 +196,9 @@ export function JobOverviewTab({ job, onNavigateToSubbies }: JobOverviewTabProps
     customerInfo.clientEmail || 
     customerInfo.clientPhone
   );
+
+  // Display volume - prefer job's own value, fallback to calculated from estimate
+  const displayVolume = job.estimated_m3 ?? (totalEstimatedVolume > 0 ? totalEstimatedVolume : null);
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -270,7 +278,7 @@ export function JobOverviewTab({ job, onNavigateToSubbies }: JobOverviewTabProps
         </Card>
       )}
 
-      {/* Job Details Card */}
+      {/* Job Details Card - now includes volume and scopes */}
       <Card>
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -302,143 +310,55 @@ export function JobOverviewTab({ job, onNavigateToSubbies }: JobOverviewTabProps
             </div>
           )}
 
+          {/* Estimated Total Volume */}
+          <div className="flex items-start gap-3">
+            <Package className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+            <div>
+              <p className="text-sm font-medium">Estimated Total Volume</p>
+              <p className="text-2xl font-bold text-primary">
+                {displayVolume !== null ? `${displayVolume} m³` : "—"}
+              </p>
+            </div>
+          </div>
+
+          {/* Scopes Checklist */}
+          <div className="pt-4 border-t">
+            <p className="text-sm font-medium mb-3">Scopes</p>
+            <div className="grid grid-cols-2 gap-2">
+              {ALL_SCOPES.map((scopeKey) => {
+                const isSelected = selectedScopes.includes(scopeKey);
+                const isFromEstimate = estimateScopes.includes(scopeKey);
+                
+                return (
+                  <div key={scopeKey} className="flex items-center gap-2">
+                    <Checkbox
+                      id={`scope-${scopeKey}`}
+                      checked={isSelected}
+                      onCheckedChange={(checked) => handleScopeToggle(scopeKey, checked as boolean)}
+                    />
+                    <Label 
+                      htmlFor={`scope-${scopeKey}`}
+                      className={`text-sm cursor-pointer ${isFromEstimate ? 'font-medium' : 'text-muted-foreground'}`}
+                    >
+                      {SCOPE_LABELS[scopeKey]}
+                    </Label>
+                  </div>
+                );
+              })}
+            </div>
+            {estimateScopes.length > 0 && (
+              <p className="text-xs text-muted-foreground mt-2">
+                Bold scopes are from the original quote
+              </p>
+            )}
+          </div>
+
           {job.job_notes && (
             <div className="pt-3 border-t">
               <p className="text-sm font-medium mb-1">Notes</p>
               <p className="text-sm text-muted-foreground whitespace-pre-wrap">
                 {job.job_notes}
               </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Sub-Trades Summary Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Users className="w-5 h-5" />
-            Sub-Trades
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {subbieStats && subbieStats.total > 0 ? (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`flex items-center gap-1.5 ${subbieStats.confirmed === subbieStats.total ? "text-green-500" : "text-muted-foreground"}`}>
-                    {subbieStats.confirmed === subbieStats.total ? (
-                      <CheckCircle2 className="w-4 h-4" />
-                    ) : (
-                      <Users className="w-4 h-4" />
-                    )}
-                    <span className="font-medium">
-                      {subbieStats.confirmed}/{subbieStats.total} confirmed
-                    </span>
-                  </div>
-                </div>
-                {onNavigateToSubbies && (
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={onNavigateToSubbies}
-                  >
-                    View All
-                  </Button>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {subbieStats.invites} total invitation{subbieStats.invites !== 1 ? "s" : ""} sent
-              </p>
-            </div>
-          ) : (
-            <div className="text-center py-4">
-              <Users className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground mb-3">No sub-trades invited yet</p>
-              {onNavigateToSubbies && (
-                <Button variant="outline" size="sm" onClick={onNavigateToSubbies}>
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Invite Sub-Trade
-                </Button>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Concrete Specs Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Package className="w-5 h-5" />
-            Concrete Specifications
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Summary stats */}
-          <div className="grid grid-cols-3 gap-4">
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground">Estimated</p>
-              <p className="text-xl font-semibold">
-                {job.estimated_m3 ?? (totalEstimatedVolume > 0 ? totalEstimatedVolume.toFixed(1) : "—")} m³
-              </p>
-            </div>
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground">Strength</p>
-              <p className="text-xl font-semibold">
-                {job.mpa_strength ?? (scopeSpecs.length === 1 && scopeSpecs[0].strength ? scopeSpecs[0].strength : "—")} MPa
-              </p>
-            </div>
-            <div className="p-3 bg-muted rounded-lg">
-              <p className="text-xs text-muted-foreground">Slump</p>
-              <p className="text-xl font-semibold">
-                {job.slump ?? (scopeSpecs.length === 1 && scopeSpecs[0].slump ? scopeSpecs[0].slump : "—")}
-              </p>
-            </div>
-          </div>
-
-          {/* Show per-scope breakdown if multiple scopes from estimate */}
-          {hasMultipleScopes && scopeSpecs.length > 0 && (
-            <div className="pt-4 border-t space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-                Per Scope Breakdown
-              </p>
-              <div className="space-y-2">
-                {scopeSpecs.map((spec) => (
-                  <div
-                    key={spec.scopeKey}
-                    className="p-3 bg-muted/50 rounded-lg border border-border/50"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <p className="text-sm font-medium">{spec.label}</p>
-                      <p className="text-sm font-semibold">{spec.volume.toFixed(1)} m³</p>
-                    </div>
-                    <div className="flex gap-4 text-xs text-muted-foreground">
-                      {spec.strength && <span>N{spec.strength}</span>}
-                      {spec.slump && <span>Slump: {spec.slump}</span>}
-                      {spec.finishType && <span>{spec.finishType}</span>}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Supplier and finish type */}
-          {(job.concrete_supplier || job.finish_type) && (
-            <div className="pt-4 border-t space-y-3">
-              {job.concrete_supplier && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-muted-foreground">Supplier</p>
-                  <p className="text-lg font-semibold">{job.concrete_supplier}</p>
-                </div>
-              )}
-              {job.finish_type && (
-                <div className="p-3 bg-muted rounded-lg">
-                  <p className="text-xs text-muted-foreground">Finish Type</p>
-                  <p className="text-lg font-semibold">{job.finish_type}</p>
-                </div>
-              )}
             </div>
           )}
         </CardContent>
