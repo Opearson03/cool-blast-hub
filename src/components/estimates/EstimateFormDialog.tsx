@@ -790,8 +790,42 @@ const {
         if (currentStep === "takeoff" && nextStep === "configure") {
           await refetchMarkups();
           
-          // If we came from a "Mark on plans" action, clear that scope's state
-          // so the calculator re-initializes with the new takeoff measurements
+          // Clear state for any scopes that have takeoff markups to ensure fresh data is used
+          // This handles both "Mark on plans" flow and regular takeoff marking
+          const scopesWithMarkups = selectedScopesArray.filter(s => hasMarkupForScope(s));
+          if (scopesWithMarkups.length > 0) {
+            setModularScopeStates(prev => {
+              const updated = { ...prev };
+              scopesWithMarkups.forEach(s => {
+                // Only clear if the existing state was not from takeoff or has empty defaults
+                const existingState = updated[s];
+                if (existingState?.scopeAnswers) {
+                  // For demolition, check if existing areas are just empty defaults
+                  if (s === 'demolition') {
+                    const existingAreas = existingState.scopeAnswers.demolition_areas;
+                    const hasRealData = existingAreas?.some((a: any) => 
+                      (a.length > 0 || a.width > 0) && a._fromTakeoff !== true
+                    );
+                    if (!hasRealData) {
+                      delete updated[s];
+                    }
+                  } else {
+                    // For other scopes, check if areas are empty defaults
+                    const existingAreas = existingState.scopeAnswers.areas;
+                    const hasRealData = existingAreas?.some((a: any) => 
+                      (a.length > 0 || a.width > 0 || a._actualArea > 0) && a._fromTakeoff !== true
+                    );
+                    if (!hasRealData) {
+                      delete updated[s];
+                    }
+                  }
+                }
+              });
+              return updated;
+            });
+          }
+          
+          // If we came from a "Mark on plans" action, set active scope to the one we just marked
           const markedScope = markedTakeoffScopeRef.current;
           if (markedScope) {
             // Extract base scope from identifier (e.g., "raft_slab:edge_beam:EB1" -> "raft_slab")
@@ -799,12 +833,6 @@ const {
               ? markedScope.split(':')[0] as ScopeType
               : markedScope as ScopeType;
             
-            setModularScopeStates(prev => {
-              const updated = { ...prev };
-              delete updated[baseScope];
-              return updated;
-            });
-            // Also set active scope to the one we just marked
             const scopeIndex = selectedScopesArray.indexOf(baseScope);
             if (scopeIndex >= 0) {
               setActiveScopeIndex(scopeIndex);
@@ -1505,8 +1533,9 @@ const {
     }
     
     // Use a key that includes takeoff status to force re-mount when data arrives
-    // (reuse hasMarkup already calculated at line 1013)
-    const calculatorKey = `${scope}-${hasMarkup ? 'with-takeoff' : 'no-takeoff'}`;
+    // For demolition, include the count of areas to ensure remount when areas load
+    const demolitionAreaCount = scope === 'demolition' ? getDemolitionAreasForScope(scope).length : 0;
+    const calculatorKey = `${scope}-${hasMarkup ? 'with-takeoff' : 'no-takeoff'}-${demolitionAreaCount}`;
     
     return (
       <ModularCalculator
