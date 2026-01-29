@@ -160,15 +160,30 @@ export function PlanViewer({
     setIsPanning(false);
   };
 
-  // Scroll wheel zoom handler - requires Shift key
+  // Scroll wheel zoom handler - requires Shift key, zooms toward cursor
   const handleWheel = (e: React.WheelEvent) => {
     // Only zoom when Shift is held
     if (!e.shiftKey) return;
     
     e.preventDefault();
+    const container = containerRef.current;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    // Mouse position relative to container center
+    const mouseX = e.clientX - rect.left - rect.width / 2;
+    const mouseY = e.clientY - rect.top - rect.height / 2;
+
     const zoomFactor = 0.15;
     const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
     const newZoom = Math.min(Math.max(zoom + delta, 0.25), 5);
+    const zoomRatio = newZoom / zoom;
+
+    // Adjust pan offset so the point under the cursor stays fixed
+    const newPanX = mouseX - (mouseX - panOffset.x) * zoomRatio;
+    const newPanY = mouseY - (mouseY - panOffset.y) * zoomRatio;
+
+    setPanOffset({ x: newPanX, y: newPanY });
     onZoomChange?.(newZoom);
   };
 
