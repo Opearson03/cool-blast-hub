@@ -104,6 +104,12 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
 
   return (
     <>
+      <div className="flex justify-end mb-4">
+        <Button onClick={() => setInviteDialogOpen(true)}>
+          <UserPlus className="w-4 h-4 mr-2" />
+          Invite Subbie
+        </Button>
+      </div>
       <div className="space-y-2">
         {subbies.map((subbie, index) => (
           <Card
@@ -153,6 +159,12 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
         onOpenChange={(open) => !open && setSelectedSubbie(null)}
         jobId={jobId}
         subbie={selectedSubbie}
+      />
+
+      <ScheduleSubbieDialog
+        open={inviteDialogOpen}
+        onOpenChange={setInviteDialogOpen}
+        preselectedJobId={jobId}
       />
     </>
   );
