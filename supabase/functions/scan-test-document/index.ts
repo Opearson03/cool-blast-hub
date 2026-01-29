@@ -76,6 +76,13 @@ Return ONLY valid JSON in this exact format:
 If you cannot find a value, use null. Do not include any text outside the JSON object.`
       : `You are a concrete test report analyzer. Extract ALL available information from concrete test lab reports.
 
+CRITICAL: The site_address field is the MOST IMPORTANT field for matching test results to jobs. Search thoroughly for ANY of these keywords and extract the associated address:
+- "Location", "Site Location", "Project Location"
+- "Address", "Site Address", "Project Address", "Delivery Address"
+- "Site", "Project Site", "Job Site"
+- "Project", "Project Name" (often contains address info)
+- Look in headers, footers, tables, and any metadata sections
+
 Extract these fields:
 - test_id: The test/sample ID or reference number (e.g., "CT-001", "S123456")
 - test_type: The type of test. Must be one of: "7_day", "14_day", "28_day", "slump", "cylinder", "air", "other". Determine based on curing days mentioned (7 day = "7_day", 14 day = "14_day", 28 day = "28_day"), or test type (slump test = "slump", cylinder test = "cylinder", air content = "air")
@@ -85,8 +92,8 @@ Extract these fields:
 - target_mpa: The target/specified compressive strength in MPa (just the number)
 - actual_mpa: The actual/achieved compressive strength in MPa (just the number)
 - sample_count: Number of samples/specimens tested (just the number)
-- site_address: The site/project address where concrete was placed - VERY IMPORTANT for matching to jobs
-- project_name: The project or job name if mentioned
+- site_address: **CRITICAL** - The site/project/job address where concrete was placed. Look for fields labeled "Location", "Address", "Site", "Project Location", "Delivery Address", etc. This is essential for matching to the correct job. Include street number, street name, and suburb.
+- project_name: The project or job name if mentioned (may also contain location info)
 - notes: Any relevant notes, comments, or observations from the report
 
 Return ONLY valid JSON in this exact format:
