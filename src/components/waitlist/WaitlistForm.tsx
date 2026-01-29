@@ -36,6 +36,9 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
   const [waitlistStatus, setWaitlistStatus] = useState<WaitlistStatus | null>(null);
   const [turnstileToken, setTurnstileToken] = useState<string | null>(null);
   
+  // Show Turnstile only after user clicks the button
+  const [showTurnstile, setShowTurnstile] = useState(false);
+  
   // Friend invite state
   const [friendEmail, setFriendEmail] = useState("");
   const [isSendingInvite, setIsSendingInvite] = useState(false);
@@ -61,16 +64,23 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
     fetchStatus();
   }, [userId]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle initial button click - show Turnstile
+  const handleInitialSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!email) {
       toast.error("Please enter your email address");
       return;
     }
+    
+    // Show the Turnstile challenge
+    setShowTurnstile(true);
+  };
 
+  // Handle actual form submission after Turnstile verification
+  const handleSubmit = async () => {
     if (!turnstileToken) {
-      toast.error("Please complete the CAPTCHA verification");
+      toast.error("Please complete the verification");
       return;
     }
 
@@ -412,7 +422,7 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleInitialSubmit} className="space-y-4">
       <div className="space-y-2">
         <Label htmlFor="email" className="text-primary-foreground">Email *</Label>
         <Input
@@ -422,6 +432,7 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
+          disabled={showTurnstile}
           className="bg-background/50 border-border"
         />
       </div>
@@ -434,6 +445,7 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
           placeholder="John Smith"
           value={fullName}
           onChange={(e) => setFullName(e.target.value)}
+          disabled={showTurnstile}
           className="bg-background/50 border-border"
         />
       </div>
@@ -446,35 +458,67 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
           placeholder="Smith Concrete Pty Ltd"
           value={businessName}
           onChange={(e) => setBusinessName(e.target.value)}
+          disabled={showTurnstile}
           className="bg-background/50 border-border"
         />
       </div>
 
-      <div className="flex justify-center">
-        <Turnstile
-          onVerify={(token) => setTurnstileToken(token)}
-          onExpire={() => setTurnstileToken(null)}
-          onError={() => setTurnstileToken(null)}
-          theme="dark"
-          size="normal"
-        />
-      </div>
-      
-      <Button 
-        type="submit" 
-        className="w-full touch-target" 
-        size="lg"
-        disabled={isSubmitting || !turnstileToken}
-      >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            Joining...
-          </>
-        ) : (
-          "Join the Waiting List"
-        )}
-      </Button>
+      {showTurnstile ? (
+        <div className="space-y-4">
+          <div className="bg-charcoal border border-border rounded-lg p-4">
+            <p className="text-primary-foreground text-sm mb-3 text-center">
+              Complete the verification to join the waiting list
+            </p>
+            <div className="flex justify-center">
+              <Turnstile
+                onVerify={(token) => {
+                  setTurnstileToken(token);
+                  // Auto-submit once verified
+                  setTimeout(() => handleSubmit(), 100);
+                }}
+                onExpire={() => setTurnstileToken(null)}
+                onError={() => setTurnstileToken(null)}
+                theme="dark"
+                size="normal"
+              />
+            </div>
+            {turnstileToken && (
+              <p className="text-green-500 text-sm text-center mt-2 flex items-center justify-center gap-1">
+                <CheckCircle className="w-4 h-4" />
+                Verified! Submitting...
+              </p>
+            )}
+          </div>
+          
+          <Button 
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={() => {
+              setShowTurnstile(false);
+              setTurnstileToken(null);
+            }}
+          >
+            Back
+          </Button>
+        </div>
+      ) : (
+        <Button 
+          type="submit" 
+          className="w-full touch-target" 
+          size="lg"
+          disabled={isSubmitting}
+        >
+          {isSubmitting ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Joining...
+            </>
+          ) : (
+            "Join the Waiting List"
+          )}
+        </Button>
+      )}
     </form>
   );
 }
