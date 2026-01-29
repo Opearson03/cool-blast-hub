@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef } from "react";
 
 declare global {
   interface Window {
@@ -35,6 +35,7 @@ interface TurnstileProps {
 // For preview domains, use the test key; switch to production for published domain
 const isPreviewDomain = typeof window !== 'undefined' && 
   (window.location.hostname.includes('lovable.app') || 
+   window.location.hostname.includes('lovableproject.com') ||
    window.location.hostname.includes('localhost'));
    
 const TURNSTILE_SITE_KEY = isPreviewDomain 
@@ -51,55 +52,65 @@ export function Turnstile({
 }: TurnstileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const widgetIdRef = useRef<string | null>(null);
-
-  const renderWidget = useCallback(() => {
-    if (!containerRef.current || !window.turnstile) return;
-
-    // Remove existing widget if any
-    if (widgetIdRef.current) {
-      try {
-        window.turnstile.remove(widgetIdRef.current);
-      } catch (e) {
-        // Widget may already be removed
-      }
-    }
-
-    widgetIdRef.current = window.turnstile.render(containerRef.current, {
-      sitekey: TURNSTILE_SITE_KEY,
-      callback: onVerify,
-      "expired-callback": onExpire,
-      "error-callback": onError,
-      theme,
-      size,
-    });
-  }, [onVerify, onExpire, onError, theme, size]);
+  const renderedRef = useRef(false);
 
   useEffect(() => {
+    // Prevent double-rendering in StrictMode
+    if (renderedRef.current) return;
+    
+    let timeoutId: ReturnType<typeof setTimeout>;
+    let intervalId: ReturnType<typeof setInterval>;
+
+    const renderWidget = () => {
+      if (!containerRef.current || !window.turnstile || renderedRef.current) return;
+      
+      // Clear container first
+      containerRef.current.innerHTML = '';
+      
+      try {
+        widgetIdRef.current = window.turnstile.render(containerRef.current, {
+          sitekey: TURNSTILE_SITE_KEY,
+          callback: onVerify,
+          "expired-callback": onExpire,
+          "error-callback": onError,
+          theme,
+          size,
+        });
+        renderedRef.current = true;
+      } catch (e) {
+        console.error("[Turnstile] Render error:", e);
+      }
+    };
+
     // Check if Turnstile script is already loaded
     if (window.turnstile) {
-      renderWidget();
+      // Small delay to ensure DOM is ready
+      timeoutId = setTimeout(renderWidget, 100);
     } else {
       // Wait for script to load
-      const checkInterval = setInterval(() => {
+      intervalId = setInterval(() => {
         if (window.turnstile) {
-          clearInterval(checkInterval);
+          clearInterval(intervalId);
           renderWidget();
         }
       }, 100);
-
-      return () => clearInterval(checkInterval);
     }
 
     return () => {
-      if (widgetIdRef.current) {
+      clearTimeout(timeoutId);
+      clearInterval(intervalId);
+      
+      if (widgetIdRef.current && window.turnstile) {
         try {
           window.turnstile.remove(widgetIdRef.current);
         } catch (e) {
           // Widget may already be removed
         }
+        widgetIdRef.current = null;
       }
+      renderedRef.current = false;
     };
-  }, [renderWidget]);
+  }, []); // Empty deps - render once on mount
 
   return <div ref={containerRef} className={className} />;
 }
