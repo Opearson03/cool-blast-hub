@@ -209,39 +209,16 @@ export function ModularCalculator({
     let averageExcavationDepth = 0;
     let excavationArea = totalArea; // Default to total area for slab scopes
 
-    // Piers: cylindrical excavation - check both piers array and pierGroups
-    const piersArray = scopeAnswers.piers && Array.isArray(scopeAnswers.piers) && scopeAnswers.piers.length > 0
-      ? scopeAnswers.piers
-      : null;
+    // Piers: cylindrical excavation - check pierGroups (new architecture) first, then legacy piers array
     const pierGroupsArray = scopeAnswers.pierGroups && Array.isArray(scopeAnswers.pierGroups) && scopeAnswers.pierGroups.length > 0
       ? scopeAnswers.pierGroups
       : null;
+    const piersArray = scopeAnswers.piers && Array.isArray(scopeAnswers.piers) && scopeAnswers.piers.length > 0
+      ? scopeAnswers.piers
+      : null;
     
-    if (piersArray) {
-      const totalPiers = piersArray.reduce((s: number, p: any) => s + (Number(p.quantity) || 0), 0);
-      
-      excavationVolume = piersArray.reduce((sum: number, pier: any) => {
-        const qty = Number(pier.quantity) || 0;
-        const radiusM = (Number(pier.diameter) || 0) / 2000; // mm to m
-        const depthM = (Number(pier.depth) || 0) / 1000; // mm to m
-        return sum + qty * Math.PI * radiusM * radiusM * depthM;
-      }, 0);
-
-      // Calculate excavation "area" as sum of pier cross-sections (for hours estimation)
-      excavationArea = piersArray.reduce((sum: number, pier: any) => {
-        const qty = Number(pier.quantity) || 0;
-        const radiusM = (Number(pier.diameter) || 0) / 2000;
-        return sum + qty * Math.PI * radiusM * radiusM;
-      }, 0);
-
-      // Weighted average depth
-      if (totalPiers > 0) {
-        averageExcavationDepth = piersArray.reduce((s: number, p: any) =>
-          s + (Number(p.depth) || 0) * (Number(p.quantity) || 0), 0) / totalPiers;
-      }
-    }
-    // Fallback to pierGroups if piers array not available (grouped pier architecture)
-    else if (pierGroupsArray) {
+    // Prioritize pierGroups (new grouped architecture) over legacy piers array
+    if (pierGroupsArray) {
       const totalPiers = pierGroupsArray.reduce((s: number, g: any) => s + (Number(g.quantity) || 1), 0);
       
       excavationVolume = pierGroupsArray.reduce((sum: number, group: any) => {
@@ -262,6 +239,30 @@ export function ModularCalculator({
       if (totalPiers > 0) {
         averageExcavationDepth = pierGroupsArray.reduce((s: number, g: any) =>
           s + (Number(g.depth) || 0) * (Number(g.quantity) || 1), 0) / totalPiers;
+      }
+    }
+    // Fallback to legacy piers array if pierGroups not available
+    else if (piersArray) {
+      const totalPiers = piersArray.reduce((s: number, p: any) => s + (Number(p.quantity) || 0), 0);
+      
+      excavationVolume = piersArray.reduce((sum: number, pier: any) => {
+        const qty = Number(pier.quantity) || 0;
+        const radiusM = (Number(pier.diameter) || 0) / 2000; // mm to m
+        const depthM = (Number(pier.depth) || 0) / 1000; // mm to m
+        return sum + qty * Math.PI * radiusM * radiusM * depthM;
+      }, 0);
+
+      // Calculate excavation "area" as sum of pier cross-sections (for hours estimation)
+      excavationArea = piersArray.reduce((sum: number, pier: any) => {
+        const qty = Number(pier.quantity) || 0;
+        const radiusM = (Number(pier.diameter) || 0) / 2000;
+        return sum + qty * Math.PI * radiusM * radiusM;
+      }, 0);
+
+      // Weighted average depth
+      if (totalPiers > 0) {
+        averageExcavationDepth = piersArray.reduce((s: number, p: any) =>
+          s + (Number(p.depth) || 0) * (Number(p.quantity) || 0), 0) / totalPiers;
       }
     }
     // Strip/Linear Footings: rectangular excavation

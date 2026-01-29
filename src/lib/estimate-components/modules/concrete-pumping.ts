@@ -170,16 +170,8 @@ export const concretePumpingModule: EstimateModule = {
     });
 
     // Per m³ charge - always applied when pumping is required
-    let volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
-    
-    // Calculate volume for piers if scope provides dimensions
-    if (scopeData.num_piers && scopeData.diameter && scopeData.depth) {
-      const numPiers = Number(scopeData.num_piers);
-      const diameter = Number(scopeData.diameter) / 1000;
-      const depth = Number(scopeData.depth) / 1000;
-      const radius = diameter / 2;
-      volume = numPiers * Math.PI * radius * radius * depth;
-    }
+    // Use pre-calculated concrete_volume from scope (already handles pierGroups, beams, etc.)
+    const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
 
     if (volume > 0) {
       const roundedVolume = roundUpToM3(volume);
