@@ -36,7 +36,7 @@ interface UseTakeoffDataReturn {
   addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
   addPadMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthMm: number, widthMm: number, depthMm: number, color: string, pageNumber: number, scopeType: 'pad_footings' | 'pit_bases', name?: string) => Promise<TakeoffMarkup | null>;
-  addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string, toeWidthMm?: number, toeDepthMm?: number) => Promise<TakeoffMarkup | null>;
+  addPolylineMarkup: (fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, heightMm: number, color: string, pageNumber: number, name?: string, hasToe?: boolean, toeWidthMm?: number, toeDepthMm?: number) => Promise<TakeoffMarkup | null>;
   addSlabWithBeams: (fileId: string, scopeId: string, slabData: { points: TakeoffPoint[]; shapeType: 'polygon' | 'rectangle'; name: string }, edgeBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, internalBeams: { segments: TakeoffPoint[][]; width_mm: number; depth_mm: number; totalLength: number } | null, color: string, pageNumber: number, wafflePodData?: { podCount: number; podThickness: number; spacer4WayCount: number; spacer2WayCount: number }) => Promise<TakeoffMarkup | null>;
   addBeamToSlab: (parentMarkupId: string, fileId: string, scopeId: string, points: TakeoffPoint[], lengthM: number, widthMm: number, depthMm: number, color: string, pageNumber: number, name: string, beamType: 'edge_beam' | 'internal_beam') => Promise<TakeoffMarkup | null>;
   updateMarkup: (markupId: string, points: TakeoffPoint[]) => Promise<void>;
@@ -824,6 +824,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     color: string,
     pageNumber: number,
     name?: string,
+    hasToe?: boolean,
     toeWidthMm?: number,
     toeDepthMm?: number
   ): Promise<TakeoffMarkup | null> => {
@@ -844,8 +845,9 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           width_mm: widthMm,
           height_mm: heightMm,
           name: name || null,
-          toe_width_mm: toeWidthMm || null,
-          toe_depth_mm: toeDepthMm || null,
+          // Only set toe dimensions if hasToe is explicitly true
+          toe_width_mm: hasToe === true ? (toeWidthMm || null) : null,
+          toe_depth_mm: hasToe === true ? (toeDepthMm || null) : null,
         })
         .select()
         .single();
