@@ -493,7 +493,7 @@ async function sendSubbieConfirmation(
       const statusText = response === "accepted" ? "Booking Confirmed" : "Response Recorded";
 
       await resend.emails.send({
-        from: `PourHub <Hello@contact.pourhub.au>`,
+        from: `PourHub <Hello@pourhub.au>`,
         to: [invite.recipient_email],
         subject: `${statusEmoji} ${statusText} - ${pour?.pour_name || "Work Invite"}`,
         html: `<p>Hi ${invite.recipient_name}, your response has been recorded. ${business?.name} has been notified.</p>`,
@@ -522,7 +522,7 @@ async function sendBusinessNotification(
       const statusText = response === "accepted" ? "ACCEPTED" : "DECLINED";
 
       await resend.emails.send({
-        from: `PourHub <Hello@contact.pourhub.au>`,
+        from: `PourHub <Hello@pourhub.au>`,
         to: [business.email],
         subject: `${statusEmoji} ${invite.recipient_name} ${response} - ${invite.role} for ${pour?.pour_name}`,
         html: `<p><strong>${invite.recipient_name}</strong> has <strong>${response}</strong> the invite for ${pour?.pour_name} on ${pourDateFormatted}.</p>`,
@@ -599,7 +599,7 @@ async function sendBatchConfirmation(
       }
 
       await resend.emails.send({
-        from: `PourHub <Hello@contact.pourhub.au>`,
+        from: `PourHub <Hello@pourhub.au>`,
         to: [firstInvite.recipient_email],
         subject,
         html: `<p>Hi ${firstInvite.recipient_name}, your responses have been recorded. ${business?.name} has been notified.</p>`,
@@ -650,7 +650,7 @@ async function sendBatchBusinessNotification(
     }
 
     await resend.emails.send({
-      from: `PourHub <Hello@contact.pourhub.au>`,
+      from: `PourHub <Hello@pourhub.au>`,
       to: [business.email],
       subject,
       html: htmlContent,

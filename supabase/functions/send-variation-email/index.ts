@@ -517,7 +517,7 @@ const handler = async (req: Request): Promise<Response> => {
     const formattedAmount = totalWithGst.toLocaleString('en-AU', { style: 'currency', currency: 'AUD', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
     const emailResponse = await resend.emails.send({
-      from: `${senderName} <Hello@contact.pourhub.au>`,
+      from: `${senderName} <Hello@pourhub.au>`,
       to: [clientEmail],
       cc: businessEmail ? [businessEmail] : undefined,
       subject: `Variation ${variationNumber} - ${jobName}`,

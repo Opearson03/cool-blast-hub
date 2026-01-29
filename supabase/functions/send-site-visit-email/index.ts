@@ -91,7 +91,7 @@ const handler = async (req: Request): Promise<Response> => {
       : `Please ensure access to the site is available on the scheduled date. If you have any specific requirements or concerns, feel free to let us know beforehand.`;
 
     const emailResponse = await resend.emails.send({
-      from: "PourHub <Hello@contact.pourhub.au>",
+      from: "PourHub <Hello@pourhub.au>",
       to: [clientEmail],
       subject: emailSubject,
       html: `

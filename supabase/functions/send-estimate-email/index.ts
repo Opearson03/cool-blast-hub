@@ -782,7 +782,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Sending email to client:", clientEmail, "with CC:", businessEmail || "none");
     
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: `${senderName} <Hello@contact.pourhub.au>`,
+      from: `${senderName} <Hello@pourhub.au>`,
       to: [clientEmail],
       cc: businessEmail ? [businessEmail] : undefined,
       subject: `Quote ${estimateNumber} from ${businessName}`,

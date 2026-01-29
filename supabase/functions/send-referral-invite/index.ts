@@ -38,7 +38,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending referral invite to ${friendEmail} from ${displayName}`);
 
     const emailResponse = await resend.emails.send({
-      from: "PourHub <hello@contact.pourhub.au>",
+      from: "PourHub <hello@pourhub.au>",
       to: [friendEmail],
       subject: `${displayName} invited you to join PourHub! 🎉`,
       html: `

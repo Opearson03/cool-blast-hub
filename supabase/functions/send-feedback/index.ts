@@ -36,7 +36,7 @@ const handler = async (req: Request): Promise<Response> => {
     const ratingStars = rating ? "⭐".repeat(rating) : "Not provided";
 
     const emailResponse = await resend.emails.send({
-      from: "PourHub Feedback <Hello@contact.pourhub.au>",
+      from: "PourHub Feedback <Hello@pourhub.au>",
       to: ["info@pourhub.com.au"],
       reply_to: email,
       subject: `[Feedback] ${feedbackType} from ${name}`,

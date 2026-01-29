@@ -412,7 +412,7 @@ const handler = async (req: Request): Promise<Response> => {
 </html>`;
 
           const emailResponse = await resend.emails.send({
-            from: `${business.name} via Pourhub <Hello@contact.pourhub.au>`,
+            from: `${business.name} via Pourhub <Hello@pourhub.au>`,
             to: [body.recipient_email],
             subject: `${business.name} - Work Invite for ${pourDateFormatted}`,
             html: emailHtml,
