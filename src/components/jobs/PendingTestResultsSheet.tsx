@@ -377,12 +377,15 @@ export function PendingTestResultsSheet({
                     {selectedJobId && pours.length > 0 && (
                       <div>
                         <Label>Pour (optional)</Label>
-                        <Select value={selectedPourId || ""} onValueChange={setSelectedPourId}>
+                        <Select 
+                          value={selectedPourId || "none"} 
+                          onValueChange={(val) => setSelectedPourId(val === "none" ? null : val)}
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="Link to a specific pour" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="">No specific pour</SelectItem>
+                            <SelectItem value="none">No specific pour</SelectItem>
                             {pours.map(pour => (
                               <SelectItem key={pour.id} value={pour.id}>
                                 {pour.pour_name}
