@@ -5,6 +5,7 @@ import { MapPin, Truck, FileText, Package, User, Building2, Phone, Mail, Users, 
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import { BOQCard } from "@/components/jobs/boq/BOQCard";
+import { JobCalendarWidget } from "@/components/jobs/calendar/JobCalendarWidget";
 
 type Job = Tables<"jobs">;
 
@@ -442,6 +443,9 @@ export function JobOverviewTab({ job, onNavigateToSubbies }: JobOverviewTabProps
           )}
         </CardContent>
       </Card>
+
+      {/* Job Calendar Widget - spans full width */}
+      <JobCalendarWidget jobId={job.id} businessId={job.business_id} />
 
       {/* Bill of Quantities Card - spans full width */}
       <div className="md:col-span-2">
