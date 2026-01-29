@@ -1175,12 +1175,17 @@ export type Database = {
           job_id: string
           notes: string | null
           reason: string | null
+          sent_via: string | null
           signed_at: string | null
           signing_token: string | null
           signing_token_expires_at: string | null
+          sms_delivery_status: string | null
+          sms_error_message: string | null
+          sms_message_sid: string | null
           status: string
           submitted_at: string | null
           submitted_to_email: string | null
+          submitted_to_phone: string | null
           updated_at: string | null
           variation_number: string
         }
@@ -1201,12 +1206,17 @@ export type Database = {
           job_id: string
           notes?: string | null
           reason?: string | null
+          sent_via?: string | null
           signed_at?: string | null
           signing_token?: string | null
           signing_token_expires_at?: string | null
+          sms_delivery_status?: string | null
+          sms_error_message?: string | null
+          sms_message_sid?: string | null
           status?: string
           submitted_at?: string | null
           submitted_to_email?: string | null
+          submitted_to_phone?: string | null
           updated_at?: string | null
           variation_number: string
         }
@@ -1227,12 +1237,17 @@ export type Database = {
           job_id?: string
           notes?: string | null
           reason?: string | null
+          sent_via?: string | null
           signed_at?: string | null
           signing_token?: string | null
           signing_token_expires_at?: string | null
+          sms_delivery_status?: string | null
+          sms_error_message?: string | null
+          sms_message_sid?: string | null
           status?: string
           submitted_at?: string | null
           submitted_to_email?: string | null
+          submitted_to_phone?: string | null
           updated_at?: string | null
           variation_number?: string
         }
