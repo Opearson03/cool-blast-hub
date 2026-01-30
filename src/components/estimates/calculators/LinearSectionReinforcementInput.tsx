@@ -740,7 +740,7 @@ export function LinearSectionReinforcementInput({
                             <>
                               <div className="flex items-center justify-between pt-2">
                                 <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                                  Chairs Between Layers
+                                  Chairs Top
                                 </Label>
                                 <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
                                   <Switch
@@ -759,7 +759,7 @@ export function LinearSectionReinforcementInput({
                               {section.layer_chairs_enabled && (
                                 <div className="grid grid-cols-2 gap-3">
                                   <div className="space-y-1">
-                                    <Label className="text-[10px] text-muted-foreground">Layer Chairs/m</Label>
+                                    <Label className="text-[10px] text-muted-foreground">Chairs/m</Label>
                                     <Input
                                       type="number"
                                       step="0.1"
