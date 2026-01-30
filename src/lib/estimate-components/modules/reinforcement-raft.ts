@@ -1,4 +1,4 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, BeamConfig, MeasurementArea } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, BeamConfig, MeasurementArea, HorizontalBarConfig, VerticalBarConfig } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
 
 /**
@@ -770,6 +770,63 @@ export const reinforcementRaftModule: EstimateModule = {
           });
           subtotal += ligCost;
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // HORIZONTAL BARS for edge beams
+        // ═══════════════════════════════════════════════════════════════
+        const hBars = beam.horizontal_bars || [];
+        if (hBars.length > 0) {
+          hBars.forEach((bar: HorizontalBarConfig) => {
+            const barSize = bar.bar_size || 'N12';
+            const barQuantity = bar.quantity || 1;
+            const position = bar.position || 'bottom';
+            const barLength = length * barQuantity * LAP_ALLOWANCE;
+            const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
+            const totalWeight = barLength * weightPerMetre;
+            const pricePerTonne = getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
+            const cost = (totalWeight / 1000) * pricePerTonne;
+
+            lineItems.push({
+              id: `edge_bar_${beam.id}_${barSize}_${position}`,
+              description: `${beam.name} – ${barSize} ${position} (${barQuantity} × ${Math.round(totalWeight)}kg)`,
+              quantity: Math.round(totalWeight),
+              unit: 'kg',
+              unitPrice: pricePerTonne / 1000,
+              total: Math.round(cost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += cost;
+          });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VERTICAL BARS (starters) for edge beams
+        // ═══════════════════════════════════════════════════════════════
+        const vBars = beam.vertical_bars || [];
+        if (vBars.length > 0) {
+          vBars.forEach((bar: VerticalBarConfig) => {
+            const barSize = bar.bar_size || 'N16';
+            const centres = bar.centres || 400;
+            const barLengthMm = bar.length || 1200;
+            const barLengthM = barLengthMm / 1000;
+            const barCount = Math.ceil((length * 1000) / centres);
+            const weightPerMetre = REBAR_WEIGHTS[barSize] || 1.58;
+            const totalWeight = barCount * barLengthM * weightPerMetre * LAP_ALLOWANCE;
+            const pricePerTonne = getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
+            const cost = (totalWeight / 1000) * pricePerTonne;
+
+            lineItems.push({
+              id: `edge_vbar_${beam.id}_${barSize}`,
+              description: `${beam.name} – ${barSize} Starters @ ${centres}mm (${barCount} pcs, ${Math.round(totalWeight)}kg)`,
+              quantity: barCount,
+              unit: 'pcs',
+              unitPrice: Math.round((cost / barCount) * 100) / 100,
+              total: Math.round(cost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += cost;
+          });
+        }
       });
     } else if (answers.edge_beam_reo && !edgeBeams.length) {
       const perimeter = Number(scopeData?.perimeter) || Number(scopeData?.edge_beam_length) || 0;
@@ -873,6 +930,63 @@ export const reinforcementRaftModule: EstimateModule = {
             category: 'materials',
           });
           subtotal += ligCost;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // HORIZONTAL BARS for internal beams
+        // ═══════════════════════════════════════════════════════════════
+        const hBars = beam.horizontal_bars || [];
+        if (hBars.length > 0) {
+          hBars.forEach((bar: HorizontalBarConfig) => {
+            const barSize = bar.bar_size || 'N12';
+            const barQuantity = bar.quantity || 1;
+            const position = bar.position || 'bottom';
+            const barLength = length * barQuantity * LAP_ALLOWANCE;
+            const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
+            const totalWeight = barLength * weightPerMetre;
+            const pricePerTonne = getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
+            const cost = (totalWeight / 1000) * pricePerTonne;
+
+            lineItems.push({
+              id: `internal_bar_${beam.id}_${barSize}_${position}`,
+              description: `${beam.name} – ${barSize} ${position} (${barQuantity} × ${Math.round(totalWeight)}kg)`,
+              quantity: Math.round(totalWeight),
+              unit: 'kg',
+              unitPrice: pricePerTonne / 1000,
+              total: Math.round(cost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += cost;
+          });
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VERTICAL BARS (starters) for internal beams
+        // ═══════════════════════════════════════════════════════════════
+        const vBars = beam.vertical_bars || [];
+        if (vBars.length > 0) {
+          vBars.forEach((bar: VerticalBarConfig) => {
+            const barSize = bar.bar_size || 'N16';
+            const centres = bar.centres || 400;
+            const barLengthMm = bar.length || 1200;
+            const barLengthM = barLengthMm / 1000;
+            const barCount = Math.ceil((length * 1000) / centres);
+            const weightPerMetre = REBAR_WEIGHTS[barSize] || 1.58;
+            const totalWeight = barCount * barLengthM * weightPerMetre * LAP_ALLOWANCE;
+            const pricePerTonne = getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
+            const cost = (totalWeight / 1000) * pricePerTonne;
+
+            lineItems.push({
+              id: `internal_vbar_${beam.id}_${barSize}`,
+              description: `${beam.name} – ${barSize} Starters @ ${centres}mm (${barCount} pcs, ${Math.round(totalWeight)}kg)`,
+              quantity: barCount,
+              unit: 'pcs',
+              unitPrice: Math.round((cost / barCount) * 100) / 100,
+              total: Math.round(cost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += cost;
+          });
         }
       });
     } else if (answers.internal_beam_reo) {
