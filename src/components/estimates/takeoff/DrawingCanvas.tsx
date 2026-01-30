@@ -2,6 +2,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Stage, Layer, Line, Rect, Circle, Group, Text } from 'react-konva';
 import type { KonvaEventObject } from 'konva/lib/Node';
 import type { TakeoffMarkup, TakeoffPoint } from '@/types/takeoff';
+import { useIsTouchDevice } from '@/hooks/use-mobile';
 
 // Props for showing the pending slab as visual reference during beam marking
 interface PendingSlabReference {
@@ -94,6 +95,7 @@ export function DrawingCanvas({
   const [currentMousePos, setCurrentMousePos] = useState<TakeoffPoint | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const stageRef = useRef<any>(null);
+  const isTouchDevice = useIsTouchDevice();
 
   // Clear stale drawing state when activeScope changes to null or dimensions change significantly
   useEffect(() => {
@@ -185,13 +187,16 @@ export function DrawingCanvas({
 
     if (tool === 'polygon' && activeScope) {
       // Check if clicking near first point to close polygon
+      // Use larger threshold for touch devices (finger taps are less precise)
+      const closeThreshold = isTouchDevice ? 35 : 15;
+      
       if (drawingPoints.length >= 3) {
         const firstPoint = drawingPoints[0];
         const distance = Math.sqrt(
           Math.pow(point.x - firstPoint.x, 2) + Math.pow(point.y - firstPoint.y, 2)
         );
         
-        if (distance < 15) {
+        if (distance < closeThreshold) {
           // Close polygon
           onMarkupComplete(drawingPoints, 'polygon');
           setDrawingPoints([]);
@@ -205,7 +210,7 @@ export function DrawingCanvas({
       setDrawingPoints(newPoints);
       onPointsChange?.(newPoints);
     }
-  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, isCalibrated, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange, polylinePoints, onPolylinePointsChange, isPanning]);
+  }, [tool, activeScope, drawingPoints, onMarkupComplete, onMarkupSelect, onPointsChange, isCalibrationMode, isCalibrated, calibrationPoints, onCalibrationPointsChange, pierPoints, onPierPointsChange, polylinePoints, onPolylinePointsChange, isPanning, isTouchDevice]);
 
   // Handle double click to close polygon
   const handleDoubleClick = useCallback(() => {
@@ -231,6 +236,17 @@ export function DrawingCanvas({
 
   // Handle mouse move
   const handleMouseMove = useCallback((e: KonvaEventObject<MouseEvent>) => {
+    const stage = e.target.getStage();
+    if (!stage) return;
+
+    const pos = stage.getPointerPosition();
+    if (!pos) return;
+
+    setCurrentMousePos({ x: pos.x, y: pos.y });
+  }, []);
+
+  // Handle touch move for position tracking on touch devices
+  const handleTouchMove = useCallback((e: KonvaEventObject<TouchEvent>) => {
     const stage = e.target.getStage();
     if (!stage) return;
 
@@ -771,18 +787,26 @@ export function DrawingCanvas({
             dash={[5, 5]}
             closed={false}
           />
-          {/* Points */}
-          {drawingPoints.map((point, index) => (
-            <Circle
-              key={index}
-              x={point.x}
-              y={point.y}
-              radius={index === 0 && drawingPoints.length >= 3 ? 8 : 5}
-              fill={index === 0 ? activeScopeColor : 'white'}
-              stroke={activeScopeColor}
-              strokeWidth={2}
-            />
-          ))}
+          {/* Points - larger hit targets on touch devices */}
+          {drawingPoints.map((point, index) => {
+            // First point when polygon can be closed gets larger hit target
+            const isClosingPoint = index === 0 && drawingPoints.length >= 3;
+            const baseRadius = isTouchDevice ? 10 : 5;
+            const closingRadius = isTouchDevice ? 18 : 8;
+            const radius = isClosingPoint ? closingRadius : baseRadius;
+            
+            return (
+              <Circle
+                key={index}
+                x={point.x}
+                y={point.y}
+                radius={radius}
+                fill={index === 0 ? activeScopeColor : 'white'}
+                stroke={activeScopeColor}
+                strokeWidth={2}
+              />
+            );
+          })}
         </Group>
       );
     }
@@ -1032,11 +1056,14 @@ export function DrawingCanvas({
         height={height}
         style={{ cursor: getCursor() }}
         onClick={handleStageClick}
+        onTap={handleStageClick}
         onDblClick={handleDoubleClick}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleMouseUp}
         onWheel={handleWheel}
       >
       <Layer>

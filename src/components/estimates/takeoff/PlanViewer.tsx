@@ -160,6 +160,41 @@ export function PlanViewer({
     setIsPanning(false);
   };
 
+  // Touch event handlers for mobile/tablet panning
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    setDragStartPos({ x: touch.clientX, y: touch.clientY });
+    setPanStart({ x: touch.clientX - panOffset.x, y: touch.clientY - panOffset.y });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!dragStartPos || e.touches.length !== 1) return;
+    const touch = e.touches[0];
+
+    const dx = Math.abs(touch.clientX - dragStartPos.x);
+    const dy = Math.abs(touch.clientY - dragStartPos.y);
+
+    if (!isDragging && (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD)) {
+      setIsDragging(true);
+      setIsPanning(true);
+    }
+
+    if (isPanning) {
+      e.preventDefault(); // Prevent page scroll during pan
+      setPanOffset({
+        x: touch.clientX - panStart.x,
+        y: touch.clientY - panStart.y,
+      });
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setDragStartPos(null);
+    setIsDragging(false);
+    setIsPanning(false);
+  };
+
   // Scroll wheel zoom handler - requires Shift key, zooms toward cursor
   const handleWheel = (e: React.WheelEvent) => {
     // Only zoom when Shift is held
@@ -235,6 +270,9 @@ export function PlanViewer({
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
+        onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
       >
         {isLoading && (
