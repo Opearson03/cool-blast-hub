@@ -531,30 +531,35 @@ export function SlabBeamMarkupDialog({
                 <>
                   <Separator />
                   
-                  {/* PROMINENT: Auto-calculated accessory counts */}
-                  <div className="p-4 bg-primary/10 border-2 border-primary/30 rounded-lg space-y-4">
+                  {/* PROMINENT: Auto-calculated accessory counts (labeled as allowances) */}
+                  <div className="p-4 bg-amber-500/10 border-2 border-amber-500/30 rounded-lg space-y-4">
                     <div className="flex items-center gap-2">
-                      <Grid3X3 className="h-5 w-5 text-primary" />
-                      <span className="text-base font-semibold text-primary">
-                        Accessories (Auto-calculated)
+                      <Grid3X3 className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                      <span className="text-base font-semibold text-amber-700 dark:text-amber-300">
+                        Accessories (Estimated Allowances)
                       </span>
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Quantities are estimated from your {slabArea.toFixed(1)} m² slab area. Adjust if needed.
+                      Quantities are estimated from your {slabArea.toFixed(1)} m² slab area. 
+                      These are allowances for quoting — adjust based on actual site conditions.
                     </p>
                     
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1.5 p-2 bg-background rounded-md">
-                        <Label htmlFor="pod-count" className="text-xs font-medium">Pods</Label>
-                        <Input
-                          id="pod-count"
-                          type="number"
-                          min={0}
-                          value={localPodCount}
-                          onChange={(e) => setLocalPodCount(Number(e.target.value) || 0)}
-                          className="h-9 text-center font-medium"
-                        />
-                      </div>
+                    {/* Pod count with grid info */}
+                    <div className="space-y-1.5 p-2 bg-background rounded-md">
+                      <Label htmlFor="pod-count" className="text-xs font-medium">Pods</Label>
+                      <Input
+                        id="pod-count"
+                        type="number"
+                        min={0}
+                        value={localPodCount}
+                        onChange={(e) => setLocalPodCount(Number(e.target.value) || 0)}
+                        className="h-9 text-center font-medium"
+                      />
+                      <p className="text-[10px] text-muted-foreground text-center">Area ÷ 1.51</p>
+                    </div>
+                    
+                    {/* Spacers row */}
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5 p-2 bg-background rounded-md">
                         <Label htmlFor="spacer-4way" className="text-xs font-medium">4-Way Spacers</Label>
                         <Input
@@ -565,6 +570,7 @@ export function SlabBeamMarkupDialog({
                           onChange={(e) => setLocalSpacer4Way(Number(e.target.value) || 0)}
                           className="h-9 text-center font-medium"
                         />
+                        <p className="text-[10px] text-muted-foreground text-center">Pods × 1.4</p>
                       </div>
                       <div className="space-y-1.5 p-2 bg-background rounded-md">
                         <Label htmlFor="spacer-2way" className="text-xs font-medium">2-Way Spacers</Label>
@@ -576,9 +582,12 @@ export function SlabBeamMarkupDialog({
                           onChange={(e) => setLocalSpacer2Way(Number(e.target.value) || 0)}
                           className="h-9 text-center font-medium"
                         />
+                        <p className="text-[10px] text-muted-foreground text-center">4-Way ÷ 3</p>
                       </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-3 mt-3">
+                    
+                    {/* Chairs row */}
+                    <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5 p-2 bg-background rounded-md">
                         <Label htmlFor="tm-chairs" className="text-xs font-medium">TM Chairs</Label>
                         <Input
@@ -604,6 +613,11 @@ export function SlabBeamMarkupDialog({
                         <p className="text-[10px] text-muted-foreground text-center">Pods × 3</p>
                       </div>
                     </div>
+                    
+                    {/* Allowance warning */}
+                    <p className="text-[10px] text-amber-600 dark:text-amber-400 border-t border-amber-500/20 pt-2">
+                      ⚠️ These are allowances for quoting. Grid dimensions (nx × ny) will be derived in the calculator from pod field geometry.
+                    </p>
                   </div>
                 </>
               )}
