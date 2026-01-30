@@ -123,11 +123,11 @@ export function aggregateRaftReinforcementItems(lineItems: CostLineItem[]): Aggr
   );
   const edgeBeamItems = lineItems.filter(item => 
     item.id.startsWith('edge_tm_') || item.id.startsWith('edge_ligs_') ||
-    item.id.startsWith('edge_bar_')
+    item.id.startsWith('edge_bar_') || item.id.startsWith('edge_vbar_')
   );
   const internalBeamItems = lineItems.filter(item => 
     item.id.startsWith('internal_tm_') || item.id.startsWith('internal_ligs_') ||
-    item.id.startsWith('internal_bar_')
+    item.id.startsWith('internal_bar_') || item.id.startsWith('internal_vbar_')
   );
   const accessoryItems = lineItems.filter(item => 
     item.id.includes('chair') || item.id === 'tie_wire' || item.id === 'reo_delivery'
