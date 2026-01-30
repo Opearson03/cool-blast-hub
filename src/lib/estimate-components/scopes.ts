@@ -406,7 +406,12 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     'pod_rails_required', 'pod_rail_packs',
     'pods_supplied_by_concreter', // Show in formwork module questions instead
     'internal_beams_length', 'internal_beam_width', 'internal_beam_depth', 
-    'edge_beam_length', 'edge_beam_width', 'edge_beam_depth'
+    'edge_beam_length', 'edge_beam_width', 'edge_beam_depth',
+    // New geometric reinforcement fields
+    'pods_x', 'pods_y', 'pod_field_length', 'pod_field_width', 'nx_ny_override',
+    'rib_bottom_bars', 'rib_bottom_bar_size', 'rib_top_bars', 'rib_top_bar_size', 'stock_length',
+    'topping_mesh_type', 'topping_mesh_layers', 'topping_mesh_area_mode', 
+    'topping_mesh_custom_area', 'topping_mesh_lap_percent',
   ],
   questions: [
     {
@@ -424,6 +429,168 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       required: true,
       min: 1,
       unit: 'm',
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // POD GRID DIMENSIONS (derived from pod field geometry)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'pods_x',
+      type: 'number',
+      label: 'Pods in X Direction',
+      required: false,
+      min: 0,
+      defaultValue: 0,
+      helpText: 'Auto-calculated from pod field dimensions. Can be overridden.',
+    },
+    {
+      id: 'pods_y',
+      type: 'number',
+      label: 'Pods in Y Direction',
+      required: false,
+      min: 0,
+      defaultValue: 0,
+      helpText: 'Auto-calculated from pod field dimensions. Can be overridden.',
+    },
+    {
+      id: 'pod_field_length',
+      type: 'number',
+      label: 'Pod Field Length (m)',
+      required: false,
+      min: 0,
+      helpText: 'Inner pod field length, derived from slab dimensions',
+    },
+    {
+      id: 'pod_field_width',
+      type: 'number',
+      label: 'Pod Field Width (m)',
+      required: false,
+      min: 0,
+      helpText: 'Inner pod field width, derived from slab dimensions',
+    },
+    {
+      id: 'nx_ny_override',
+      type: 'boolean',
+      label: 'Override Pod Grid Dimensions',
+      defaultValue: false,
+      helpText: 'Enable to manually set pod grid dimensions',
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // RIB REINFORCEMENT CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'rib_bottom_bars',
+      type: 'number',
+      label: 'Bottom Bars per Rib',
+      required: false,
+      min: 1,
+      max: 4,
+      defaultValue: 2,
+      helpText: 'Number of bottom bars in each rib (typically 2)',
+    },
+    {
+      id: 'rib_bottom_bar_size',
+      type: 'select',
+      label: 'Bottom Bar Size',
+      required: false,
+      options: [
+        { value: 'N10', label: 'N10' },
+        { value: 'N12', label: 'N12' },
+        { value: 'N16', label: 'N16' },
+        { value: 'N20', label: 'N20' },
+      ],
+      defaultValue: 'N12',
+    },
+    {
+      id: 'rib_top_bars',
+      type: 'number',
+      label: 'Top Bars per Rib',
+      required: false,
+      min: 0,
+      max: 4,
+      defaultValue: 1,
+      helpText: 'Number of top bars in each rib (typically 1)',
+    },
+    {
+      id: 'rib_top_bar_size',
+      type: 'select',
+      label: 'Top Bar Size',
+      required: false,
+      options: [
+        { value: 'N10', label: 'N10' },
+        { value: 'N12', label: 'N12' },
+        { value: 'N16', label: 'N16' },
+        { value: 'N20', label: 'N20' },
+      ],
+      defaultValue: 'N12',
+    },
+    {
+      id: 'stock_length',
+      type: 'select',
+      label: 'Bar Stock Length',
+      required: false,
+      options: [
+        { value: '6', label: '6m lengths' },
+        { value: '12', label: '12m lengths' },
+      ],
+      defaultValue: '6',
+      helpText: 'Standard bar length for ordering',
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // TOPPING MESH CONFIGURATION
+    // ═══════════════════════════════════════════════════════════════
+    {
+      id: 'topping_mesh_type',
+      type: 'select',
+      label: 'Topping Mesh Type',
+      required: false,
+      options: [
+        { value: 'SL62', label: 'SL62' },
+        { value: 'SL72', label: 'SL72' },
+        { value: 'SL82', label: 'SL82' },
+        { value: 'SL92', label: 'SL92' },
+        { value: 'SL102', label: 'SL102' },
+      ],
+      defaultValue: 'SL82',
+    },
+    {
+      id: 'topping_mesh_layers',
+      type: 'number',
+      label: 'Mesh Layers',
+      required: false,
+      min: 1,
+      max: 2,
+      defaultValue: 1,
+    },
+    {
+      id: 'topping_mesh_area_mode',
+      type: 'select',
+      label: 'Mesh Coverage Area',
+      required: false,
+      options: [
+        { value: 'pod_field', label: 'Pod field only' },
+        { value: 'full_slab', label: 'Full slab area' },
+        { value: 'custom', label: 'Custom area' },
+      ],
+      defaultValue: 'pod_field',
+      helpText: 'Area to cover with topping mesh',
+    },
+    {
+      id: 'topping_mesh_custom_area',
+      type: 'number',
+      label: 'Custom Mesh Area (m²)',
+      required: false,
+      min: 0,
+      unit: 'm²',
+      helpText: 'Manual mesh area when using custom mode',
+    },
+    {
+      id: 'topping_mesh_lap_percent',
+      type: 'number',
+      label: 'Mesh Lap Allowance (%)',
+      required: false,
+      min: 0,
+      max: 30,
+      defaultValue: 12.5,
     },
     // Pod-specific configuration fields
     {
