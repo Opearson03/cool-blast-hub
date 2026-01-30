@@ -1187,10 +1187,21 @@ const {
         if (raftSlabAreas.length > 0) {
           // Check if user hasn't already overridden with their own values
           // Also merge takeoff if areas exist but are missing _actualArea (need fresh takeoff data)
+          // OR if edgeBeams exist in takeoff but not in saved state (missing beam lengths)
           const hasUserData = initialScopeAnswers.areas?.some((a: any) => 
             (a.length > 0 || a.width > 0 || a._actualArea > 0) && a._fromTakeoff !== true
           );
-          const needsTakeoffMerge = !hasUserData || !initialScopeAnswers.areas?.some((a: any) => a._actualArea > 0);
+          const areasNeedMerge = !initialScopeAnswers.areas?.some((a: any) => a._actualArea > 0);
+          
+          // Check if edge beams need merging: takeoff has beams with length but saved state doesn't
+          const takeoffHasEdgeBeams = raftSlabAreas.some(s => s.edgeBeams && s.edgeBeams.length > 0 && 
+            s.edgeBeams.some(b => b.length > 0));
+          const savedEdgeBeamsHaveLength = initialScopeAnswers.edgeBeams?.some((b: any) => 
+            b.length > 0 && b._fromTakeoff === true
+          );
+          const edgeBeamsNeedMerge = takeoffHasEdgeBeams && !savedEdgeBeamsHaveLength;
+          
+          const needsTakeoffMerge = !hasUserData || areasNeedMerge || edgeBeamsNeedMerge;
           
           if (needsTakeoffMerge) {
             // Convert raft slab areas to MeasurementArea format
