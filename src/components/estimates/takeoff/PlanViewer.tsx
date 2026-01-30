@@ -45,6 +45,11 @@ export function PlanViewer({
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState<{ x: number; y: number } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Pinch-to-zoom state
+  const [initialPinchDistance, setInitialPinchDistance] = useState<number | null>(null);
+  const [initialPinchZoom, setInitialPinchZoom] = useState<number>(1);
+  const [pinchCenter, setPinchCenter] = useState<{ x: number; y: number } | null>(null);
 
   // Load PDF document
   useEffect(() => {
@@ -160,16 +165,74 @@ export function PlanViewer({
     setIsPanning(false);
   };
 
-  // Touch event handlers for mobile/tablet panning
+  // Helper to calculate distance between two touch points
+  const getTouchDistance = (touches: React.TouchList): number => {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Helper to get center point between two touches
+  const getTouchCenter = (touches: React.TouchList, rect: DOMRect): { x: number; y: number } => {
+    return {
+      x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left - rect.width / 2,
+      y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top - rect.height / 2,
+    };
+  };
+
+  // Touch event handlers for mobile/tablet panning and pinch-to-zoom
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    const touch = e.touches[0];
-    setDragStartPos({ x: touch.clientX, y: touch.clientY });
-    setPanStart({ x: touch.clientX - panOffset.x, y: touch.clientY - panOffset.y });
+    // Pinch-to-zoom: two fingers
+    if (e.touches.length === 2) {
+      e.preventDefault(); // Prevent browser zoom
+      const container = containerRef.current;
+      if (!container) return;
+      
+      const rect = container.getBoundingClientRect();
+      setInitialPinchDistance(getTouchDistance(e.touches));
+      setInitialPinchZoom(zoom);
+      setPinchCenter(getTouchCenter(e.touches, rect));
+      // Clear single-finger pan state
+      setDragStartPos(null);
+      setIsDragging(false);
+      setIsPanning(false);
+      return;
+    }
+    
+    // Single finger: panning
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      setDragStartPos({ x: touch.clientX, y: touch.clientY });
+      setPanStart({ x: touch.clientX - panOffset.x, y: touch.clientY - panOffset.y });
+      // Clear pinch state
+      setInitialPinchDistance(null);
+      setPinchCenter(null);
+    }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!dragStartPos || e.touches.length !== 1) return;
+    // Pinch-to-zoom handling
+    if (e.touches.length === 2 && initialPinchDistance !== null && pinchCenter !== null) {
+      e.preventDefault(); // Prevent browser zoom
+      const container = containerRef.current;
+      if (!container) return;
+      
+      const currentDistance = getTouchDistance(e.touches);
+      const scale = currentDistance / initialPinchDistance;
+      const newZoom = Math.min(Math.max(initialPinchZoom * scale, 0.25), 5);
+      
+      // Zoom toward the pinch center
+      const zoomRatio = newZoom / zoom;
+      const newPanX = pinchCenter.x - (pinchCenter.x - panOffset.x) * zoomRatio;
+      const newPanY = pinchCenter.y - (pinchCenter.y - panOffset.y) * zoomRatio;
+      
+      setPanOffset({ x: newPanX, y: newPanY });
+      onZoomChange?.(newZoom);
+      return;
+    }
+    
+    // Single finger panning
+    if (e.touches.length !== 1 || !dragStartPos) return;
     const touch = e.touches[0];
 
     const dx = Math.abs(touch.clientX - dragStartPos.x);
@@ -193,6 +256,8 @@ export function PlanViewer({
     setDragStartPos(null);
     setIsDragging(false);
     setIsPanning(false);
+    setInitialPinchDistance(null);
+    setPinchCenter(null);
   };
 
   // Scroll wheel zoom handler - requires Shift key, zooms toward cursor
