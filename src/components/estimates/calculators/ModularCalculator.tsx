@@ -17,6 +17,7 @@ import {
   CostLineItem,
   ExtraItem,
   createPriceMap,
+  REBAR_WEIGHTS,
 } from "@/lib/estimate-components/types";
 import { MODULE_REGISTRY } from "@/lib/estimate-components/modules";
 import { usePriceList } from "@/hooks/usePriceList";
@@ -33,7 +34,7 @@ import { MultiLinearTypeInput } from "./MultiLinearTypeInput";
 import { MultiBeamInput } from "./MultiBeamInput";
 import { MultiBeamTypeInput } from "./MultiBeamTypeInput";
 import { MultiDemolitionInput } from "./MultiDemolitionInput";
-import { WafflePodConfigCard } from "./WafflePodConfigCard";
+import { WafflePodConfigCard, ReinforcementBreakdown } from "./WafflePodConfigCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -820,6 +821,47 @@ export function ModularCalculator({
       }
     }
     
+    // Auto-calculate bar chairs: pods × 3 (only if not manually overridden)
+    if (podCount > 0 && !scopeUserOverrides.has('bar_chairs_count')) {
+      const calculatedBarChairs = podCount * 3;
+      if (!scopeAnswers.bar_chairs_count || scopeAnswers.bar_chairs_count !== calculatedBarChairs) {
+        updates.bar_chairs_count = calculatedBarChairs;
+      }
+    }
+    
+    // Auto-calculate pod grid dimensions (nx, ny) from pod field geometry
+    // Only if not manually overridden and we have area data
+    const totalArea = Number(scopeAnswers.area) || 0;
+    if (totalArea > 0 && !scopeUserOverrides.has('pods_x') && !scopeUserOverrides.has('pods_y') && !scopeAnswers.nx_ny_override) {
+      const podSizeMM = Number(scopeAnswers.pod_size) || 1090;
+      const ribWidthMM = Number(scopeAnswers.rib_width) || 110;
+      const edgeWidthM = 0.45; // Default edge beam width
+      
+      // Estimate pod field dimensions from area (assuming roughly square aspect)
+      // For irregular shapes, user can override
+      const aspectRatio = 1.2; // Slight rectangle assumption
+      const podFieldArea = totalArea * 0.85; // Approximate pod field (excluding edge beams)
+      const estimatedWidth = Math.sqrt(podFieldArea / aspectRatio);
+      const estimatedLength = podFieldArea / estimatedWidth;
+      
+      // Convert to inner dimensions (inside edge beams)
+      const L_in_m = Math.max(0, estimatedLength - 2 * edgeWidthM);
+      const W_in_m = Math.max(0, estimatedWidth - 2 * edgeWidthM);
+      
+      // Derive nx, ny: nx = floor((L_in - g) / (pL + g))
+      const pL_m = podSizeMM / 1000;
+      const g_m = ribWidthMM / 1000;
+      const cellSize = pL_m + g_m;
+      
+      const nx = cellSize > 0 ? Math.floor((L_in_m - g_m) / cellSize) : 0;
+      const ny = cellSize > 0 ? Math.floor((W_in_m - g_m) / cellSize) : 0;
+      
+      if (nx > 0 && ny > 0) {
+        if (scopeAnswers.pods_x !== nx) updates.pods_x = nx;
+        if (scopeAnswers.pods_y !== ny) updates.pods_y = ny;
+      }
+    }
+    
     // Only update if there are changes
     if (Object.keys(updates).length > 0) {
       setScopeAnswers(prev => ({
@@ -827,7 +869,7 @@ export function ModularCalculator({
         ...updates,
       }));
     }
-  }, [scope.id, scopeAnswers.top_slab_thickness, scopeAnswers.pod_count, scopeAnswers.perimeter, scopeUserOverrides]);
+  }, [scope.id, scopeAnswers.top_slab_thickness, scopeAnswers.pod_count, scopeAnswers.perimeter, scopeAnswers.area, scopeAnswers.pod_size, scopeAnswers.rib_width, scopeAnswers.nx_ny_override, scopeUserOverrides]);
 
   // Handlers - memoized to prevent unnecessary re-renders
   const handleScopeAnswerChange = useCallback((questionId: string, value: any) => {
@@ -1252,6 +1294,21 @@ export function ModularCalculator({
           fromTakeoff={scopeAnswers._fromTakeoff}
           podCountEstimated={!scopeUserOverrides.has('pod_count') && Number(scopeAnswers.pod_count) > 0}
           volumeBreakdown={wafflePodBreakdown}
+          podsX={Number(scopeAnswers.pods_x) || 0}
+          podsY={Number(scopeAnswers.pods_y) || 0}
+          nxNyOverride={scopeAnswers.nx_ny_override || false}
+          ribBottomBars={Number(scopeAnswers.rib_bottom_bars) || 2}
+          ribBottomBarSize={String(scopeAnswers.rib_bottom_bar_size || 'N12')}
+          ribTopBars={Number(scopeAnswers.rib_top_bars) || 1}
+          ribTopBarSize={String(scopeAnswers.rib_top_bar_size || 'N12')}
+          stockLength={String(scopeAnswers.stock_length || '6')}
+          toppingMeshType={String(scopeAnswers.topping_mesh_type || 'SL82')}
+          toppingMeshLayers={Number(scopeAnswers.topping_mesh_layers) || 1}
+          toppingMeshAreaMode={String(scopeAnswers.topping_mesh_area_mode || 'pod_field')}
+          toppingMeshCustomArea={Number(scopeAnswers.topping_mesh_custom_area) || 0}
+          toppingMeshLapPercent={Number(scopeAnswers.topping_mesh_lap_percent) || 12.5}
+          reinforcementBreakdown={undefined}
+          totalArea={Number(derivedScopeAnswers.area) || 0}
           onChange={handleScopeAnswerChange}
         />
       )}

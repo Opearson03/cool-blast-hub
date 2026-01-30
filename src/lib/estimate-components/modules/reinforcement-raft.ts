@@ -337,28 +337,121 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // WAFFLE POD SPECIFIC REINFORCEMENT
-    // Y-Bar for ribs: (Pods × 2.3) ÷ 5.5 = qty of 6m lengths
-    // Slab Mesh: Area ÷ 12.5 = qty of sheets
+    // WAFFLE POD SPECIFIC REINFORCEMENT (GEOMETRIC CALCULATION)
+    // 
+    // Rib Bars: Derived from pod grid dimensions (nx × ny)
+    // - X-direction ribs: (ny + 1) ribs running horizontally
+    // - Y-direction ribs: (nx + 1) ribs running vertically
+    // - Each rib has configurable top/bottom bars
+    // 
+    // Topping Mesh: Selectable coverage area (pod field/full slab/custom)
+    // 
+    // Accessories: Heuristic allowances (editable)
     // ═══════════════════════════════════════════════════════════════
     const isWafflePod = scopeData?.scopeId === 'waffle_pod';
     if (isWafflePod) {
       const podCount = Number(scopeData?.pod_count) || 0;
       const tmChairsCount = Number(scopeData?.tm_chairs_count) || 0;
       const barChairsCount = Number(scopeData?.bar_chairs_count) || 0;
+      const perimeter = Number(scopeData?.perimeter) || 0;
       
-      // Y-Bar for rib reinforcement: (Pods × 2.3) ÷ 5.5 = qty of 6m lengths
-      if (podCount > 0) {
+      // Pod and rib dimensions
+      const podSizeM = (Number(scopeData?.pod_size) || 1090) / 1000;
+      const ribWidthM = (Number(scopeData?.rib_width) || 110) / 1000;
+      
+      // Get grid dimensions (nx, ny) - derived from pod field or estimated from pod count
+      const nx = Number(scopeData?.pods_x) || 0;
+      const ny = Number(scopeData?.pods_y) || 0;
+      
+      // Stock length preference
+      const stockLength = Number(scopeData?.stock_length) || 6;
+      
+      // ═══════════════════════════════════════════════════════════════
+      // RIB BAR REINFORCEMENT (GEOMETRIC)
+      // ═══════════════════════════════════════════════════════════════
+      if (nx > 0 && ny > 0) {
+        // Calculate rib spans
+        // X_span = (nx × podSize) + ((nx + 1) × ribWidth)  - length of one X-direction rib
+        // Y_span = (ny × podSize) + ((ny + 1) × ribWidth)  - length of one Y-direction rib
+        const xSpanM = nx * podSizeM + (nx + 1) * ribWidthM;
+        const ySpanM = ny * podSizeM + (ny + 1) * ribWidthM;
+        
+        // Total rib lengths (count × span)
+        // X-direction ribs: (ny + 1) ribs, each of length xSpan
+        // Y-direction ribs: (nx + 1) ribs, each of length ySpan
+        const xRibCount = ny + 1;
+        const yRibCount = nx + 1;
+        const xRibTotalLength = xRibCount * xSpanM;
+        const yRibTotalLength = yRibCount * ySpanM;
+        const totalRibLength = xRibTotalLength + yRibTotalLength;
+        
+        // Bottom bars configuration
+        const bottomBarsPerRib = Number(scopeData?.rib_bottom_bars) || 2;
+        const bottomBarSize = String(scopeData?.rib_bottom_bar_size || 'N12');
+        const bottomBarWeight = REBAR_WEIGHTS[bottomBarSize] || 0.888;
+        
+        // Top bars configuration  
+        const topBarsPerRib = Number(scopeData?.rib_top_bars) || 1;
+        const topBarSize = String(scopeData?.rib_top_bar_size || 'N12');
+        const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
+        
+        // Calculate bottom bar totals with lap allowance
+        const bottomTotalLength = totalRibLength * bottomBarsPerRib * LAP_ALLOWANCE;
+        const bottomWeightKg = bottomTotalLength * bottomBarWeight;
+        const bottomStockQty = Math.ceil(bottomTotalLength / stockLength);
+        
+        // Calculate top bar totals with lap allowance
+        const topTotalLength = totalRibLength * topBarsPerRib * LAP_ALLOWANCE;
+        const topWeightKg = topTotalLength * topBarWeight;
+        const topStockQty = Math.ceil(topTotalLength / stockLength);
+        
+        // Price per tonne for rebar
+        const rebarPricePerTonne = getPrice(priceMap, 'rebar', `${bottomBarSize} CB`, 2100);
+        
+        // Bottom bars line item
+        if (bottomBarsPerRib > 0 && bottomTotalLength > 0) {
+          const bottomCost = (bottomWeightKg / 1000) * rebarPricePerTonne;
+          
+          lineItems.push({
+            id: 'waffle_rib_bottom',
+            description: `Rib Bottom ${bottomBarSize} × ${bottomBarsPerRib} (${bottomStockQty} × ${stockLength}m, ${Math.round(bottomWeightKg)}kg)`,
+            quantity: bottomStockQty,
+            unit: 'lengths',
+            unitPrice: Math.round((bottomCost / bottomStockQty) * 100) / 100,
+            total: Math.round(bottomCost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += bottomCost;
+        }
+        
+        // Top bars line item
+        if (topBarsPerRib > 0 && topTotalLength > 0) {
+          const topRebarPricePerTonne = getPrice(priceMap, 'rebar', `${topBarSize} CB`, 2100);
+          const topCost = (topWeightKg / 1000) * topRebarPricePerTonne;
+          
+          lineItems.push({
+            id: 'waffle_rib_top',
+            description: `Rib Top ${topBarSize} × ${topBarsPerRib} (${topStockQty} × ${stockLength}m, ${Math.round(topWeightKg)}kg)`,
+            quantity: topStockQty,
+            unit: 'lengths',
+            unitPrice: Math.round((topCost / topStockQty) * 100) / 100,
+            total: Math.round(topCost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += topCost;
+        }
+      } else if (podCount > 0) {
+        // FALLBACK: Empirical formula when grid dimensions not available
+        // Y-Bar for rib reinforcement: (Pods × 2.3) ÷ 5.5 = qty of 6m lengths
         const yBarLengths = Math.ceil((podCount * 2.3) / 5.5);
         const yBarPrice = getPrice(priceMap, 'rebar', 'N12 CB', 2100);
-        // Each 6m length of N12 is ~5.3kg
-        const yBarWeight = yBarLengths * 6 * (REBAR_WEIGHTS['N12'] || 0.888);
+        const yBarWeight = yBarLengths * stockLength * (REBAR_WEIGHTS['N12'] || 0.888);
         const yBarCost = (yBarWeight / 1000) * yBarPrice;
         
         if (yBarLengths > 0) {
           lineItems.push({
             id: 'waffle_rib_ybar',
-            description: `Rib Y-Bar N12 (${yBarLengths} × 6m lengths)`,
+            description: `Rib Y-Bar N12 (${yBarLengths} × ${stockLength}m, ~${Math.round(yBarWeight)}kg) [estimated]`,
             quantity: yBarLengths,
             unit: 'lengths',
             unitPrice: Math.round((yBarCost / yBarLengths) * 100) / 100,
@@ -369,19 +462,44 @@ export const reinforcementRaftModule: EstimateModule = {
         }
       }
       
-      // Slab Mesh for waffle pod: Area ÷ 12.5 = qty of sheets (12.5m² coverage per sheet with wastage)
-      // This is an industry-standard formula for waffle pod slab mesh
-      // Note: For waffle pod, we calculate mesh here (not per-area) since the mesh sits on top of the pod grid
-      if (totalArea > 0) {
-        const waffleMeshSheets = Math.ceil(totalArea / 12.5);
-        const meshType = 'SL82';
+      // ═══════════════════════════════════════════════════════════════
+      // TOPPING SLAB MESH (SELECTABLE COVERAGE AREA)
+      // ═══════════════════════════════════════════════════════════════
+      const meshType = String(scopeData?.topping_mesh_type || 'SL82');
+      const meshLayers = Number(scopeData?.topping_mesh_layers) || 1;
+      const meshAreaMode = String(scopeData?.topping_mesh_area_mode || 'pod_field');
+      const meshLapPercent = 1 + (Number(scopeData?.topping_mesh_lap_percent) || 12.5) / 100;
+      const podFieldArea = Number(scopeData?.volumeBreakdown?.podFieldArea_m2) || totalArea * 0.85;
+      
+      // Determine mesh coverage area based on mode
+      let meshCoverageArea = totalArea;
+      let coverageNote = '';
+      switch (meshAreaMode) {
+        case 'pod_field':
+          meshCoverageArea = podFieldArea;
+          coverageNote = 'pod field';
+          break;
+        case 'full_slab':
+          meshCoverageArea = totalArea;
+          coverageNote = 'full slab';
+          break;
+        case 'custom':
+          meshCoverageArea = Number(scopeData?.topping_mesh_custom_area) || totalArea;
+          coverageNote = 'custom';
+          break;
+      }
+      
+      if (meshCoverageArea > 0) {
+        const meshAreaWithLap = meshCoverageArea * meshLapPercent * meshLayers;
+        const meshSheets = Math.ceil(meshAreaWithLap / sheetArea);
         const meshPrice = getPrice(priceMap, 'mesh', meshType, 95);
-        const meshCost = waffleMeshSheets * meshPrice;
+        const meshCost = meshSheets * meshPrice;
         
+        const layerNote = meshLayers > 1 ? ` × ${meshLayers}L` : '';
         lineItems.push({
           id: 'waffle_slab_mesh',
-          description: `Slab ${meshType} (${waffleMeshSheets} sheets)`,
-          quantity: waffleMeshSheets,
+          description: `Topping ${meshType}${layerNote} (${meshSheets} sheets, ${coverageNote})`,
+          quantity: meshSheets,
           unit: 'sheets',
           unitPrice: meshPrice,
           total: Math.round(meshCost * 100) / 100,
@@ -390,7 +508,12 @@ export const reinforcementRaftModule: EstimateModule = {
         subtotal += meshCost;
       }
       
-      // TM Chairs for perimeter beams (from takeoff: perimeter ÷ 1.2)
+      // ═══════════════════════════════════════════════════════════════
+      // ACCESSORIES (ALLOWANCES - LABELED AND EDITABLE)
+      // These are heuristic-based allowances for quoting purposes
+      // ═══════════════════════════════════════════════════════════════
+      
+      // TM Chairs for perimeter beams (heuristic: perimeter ÷ 1.2)
       if (tmChairsCount > 0) {
         const tmChairPrice = getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
         const bags = Math.ceil(tmChairsCount / 25);
@@ -398,7 +521,7 @@ export const reinforcementRaftModule: EstimateModule = {
         
         lineItems.push({
           id: 'waffle_tm_chairs',
-          description: `Perimeter TM Chairs (${bags} × 25)`,
+          description: `TM Chairs (${bags} × 25) [allowance: perimeter ÷ 1.2]`,
           quantity: bags,
           unit: 'bags',
           unitPrice: tmChairPrice,
@@ -408,7 +531,7 @@ export const reinforcementRaftModule: EstimateModule = {
         subtotal += cost;
       }
       
-      // Bar Chairs 25/40 for waffle pod (from takeoff: pods × 3)
+      // Bar Chairs for pod support (heuristic: pods × 3)
       if (barChairsCount > 0) {
         const barChairPrice = getPrice(priceMap, 'consumables', '2540C', 35);
         const bags = Math.ceil(barChairsCount / 100);
@@ -416,7 +539,7 @@ export const reinforcementRaftModule: EstimateModule = {
         
         lineItems.push({
           id: 'waffle_bar_chairs',
-          description: `Bar Chairs 25-40mm (${bags} × 100)`,
+          description: `Bar Chairs 25-40mm (${bags} × 100) [allowance: pods × 3]`,
           quantity: bags,
           unit: 'bags',
           unitPrice: barChairPrice,

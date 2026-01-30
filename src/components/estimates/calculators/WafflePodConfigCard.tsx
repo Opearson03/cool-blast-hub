@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -15,7 +16,8 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { Grid3X3, Ruler, ChevronDown, AlertTriangle, Calculator } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Grid3X3, Ruler, ChevronDown, AlertTriangle, Calculator, Layers } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +33,22 @@ export interface VolumeBreakdown {
   internalBeams_m3: number;
   podFieldArea_m2: number;
   total_m3: number;
+}
+
+/**
+ * Reinforcement breakdown from geometric rib bar calculation.
+ */
+export interface ReinforcementBreakdown {
+  xRibCount: number;
+  yRibCount: number;
+  xSpanM: number;
+  ySpanM: number;
+  totalRibLengthM: number;
+  bottomBarsTotal: { lengthM: number; weightKg: number; stockQty: number };
+  topBarsTotal: { lengthM: number; weightKg: number; stockQty: number };
+  meshSheets: number;
+  meshAreaM2: number;
+  isEstimated: boolean;
 }
 
 interface WafflePodConfigCardProps {
@@ -58,6 +76,27 @@ interface WafflePodConfigCardProps {
   podCountEstimated?: boolean;
   /** Volume breakdown from geometric calculation */
   volumeBreakdown?: VolumeBreakdown;
+  /** Pod grid dimensions */
+  podsX: number;
+  podsY: number;
+  /** Grid dimensions override toggle */
+  nxNyOverride: boolean;
+  /** Rib reinforcement config */
+  ribBottomBars: number;
+  ribBottomBarSize: string;
+  ribTopBars: number;
+  ribTopBarSize: string;
+  stockLength: string;
+  /** Topping mesh config */
+  toppingMeshType: string;
+  toppingMeshLayers: number;
+  toppingMeshAreaMode: string;
+  toppingMeshCustomArea: number;
+  toppingMeshLapPercent: number;
+  /** Reinforcement breakdown (calculated) */
+  reinforcementBreakdown?: ReinforcementBreakdown;
+  /** Total slab area */
+  totalArea: number;
   /** Change handler */
   onChange: (field: string, value: any) => void;
 }
@@ -75,6 +114,26 @@ const POD_THICKNESS_OPTIONS = [
   { value: '375', label: '375mm' },
 ];
 
+const BAR_SIZE_OPTIONS = [
+  { value: 'N10', label: 'N10' },
+  { value: 'N12', label: 'N12' },
+  { value: 'N16', label: 'N16' },
+  { value: 'N20', label: 'N20' },
+];
+
+const MESH_TYPE_OPTIONS = [
+  { value: 'SL62', label: 'SL62' },
+  { value: 'SL72', label: 'SL72' },
+  { value: 'SL82', label: 'SL82' },
+  { value: 'SL92', label: 'SL92' },
+  { value: 'SL102', label: 'SL102' },
+];
+
+const STOCK_LENGTH_OPTIONS = [
+  { value: '6', label: '6m' },
+  { value: '12', label: '12m' },
+];
+
 export function WafflePodConfigCard({
   podSize,
   podThickness,
@@ -88,12 +147,32 @@ export function WafflePodConfigCard({
   fromTakeoff = false,
   podCountEstimated = false,
   volumeBreakdown,
+  podsX,
+  podsY,
+  nxNyOverride,
+  ribBottomBars,
+  ribBottomBarSize,
+  ribTopBars,
+  ribTopBarSize,
+  stockLength,
+  toppingMeshType,
+  toppingMeshLayers,
+  toppingMeshAreaMode,
+  toppingMeshCustomArea,
+  toppingMeshLapPercent,
+  reinforcementBreakdown,
+  totalArea,
   onChange,
 }: WafflePodConfigCardProps) {
-  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  const [volumeBreakdownOpen, setVolumeBreakdownOpen] = useState(false);
+  const [reoBreakdownOpen, setReoBreakdownOpen] = useState(false);
   
   // Calculate total slab height for display
   const totalHeight = (Number(podThickness) || 225) + (topSlabThickness || 85);
+  
+  // Calculate grid dimensions for display
+  const calculatedPodCount = podsX * podsY;
+  const hasGridDimensions = podsX > 0 && podsY > 0;
 
   return (
     <Card>
@@ -203,11 +282,271 @@ export function WafflePodConfigCard({
 
         <Separator />
 
-        {/* Accessories Section */}
+        {/* Pod Grid Dimensions Section */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Pod Grid
+            </h4>
+            <div className="flex items-center gap-2">
+              <Label htmlFor="nx-ny-override" className="text-xs text-muted-foreground cursor-pointer">
+                Override
+              </Label>
+              <Switch
+                id="nx-ny-override"
+                checked={nxNyOverride}
+                onCheckedChange={(v) => onChange('nx_ny_override', v)}
+                className="scale-75"
+              />
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Pods X</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={podsX === 0 ? '' : podsX}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange('pods_x', val === '' ? 0 : Number(val));
+                }}
+                className="h-9"
+                min={0}
+                placeholder="0"
+                disabled={!nxNyOverride}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Pods Y</Label>
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={podsY === 0 ? '' : podsY}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  onChange('pods_y', val === '' ? 0 : Number(val));
+                }}
+                className="h-9"
+                min={0}
+                placeholder="0"
+                disabled={!nxNyOverride}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">= Pods</Label>
+              <div className="h-9 flex items-center px-3 bg-muted/30 rounded-md border text-sm font-mono">
+                {hasGridDimensions ? calculatedPodCount : podCount || '—'}
+              </div>
+            </div>
+          </div>
+          
+          {!hasGridDimensions && podCount > 0 && (
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs gap-1 text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
+                <AlertTriangle className="h-3 w-3" />
+                Grid estimated from area
+              </Badge>
+            </div>
+          )}
+        </div>
+
+        <Separator />
+
+        {/* Rib Reinforcement Section */}
         <div className="space-y-3">
           <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Accessories (auto-calculated)
+            Rib Reinforcement
           </h4>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {/* Bottom Bars Count */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Bottom Bars</Label>
+              <Select value={String(ribBottomBars)} onValueChange={(v) => onChange('rib_bottom_bars', Number(v))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[1, 2, 3, 4].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Bottom Bar Size */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Bottom Size</Label>
+              <Select value={ribBottomBarSize} onValueChange={(v) => onChange('rib_bottom_bar_size', v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BAR_SIZE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Top Bars Count */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Top Bars</Label>
+              <Select value={String(ribTopBars)} onValueChange={(v) => onChange('rib_top_bars', Number(v))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {[0, 1, 2, 3, 4].map((n) => (
+                    <SelectItem key={n} value={String(n)}>{n}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Top Bar Size */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Top Size</Label>
+              <Select value={ribTopBarSize} onValueChange={(v) => onChange('rib_top_bar_size', v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BAR_SIZE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          
+          {/* Stock Length */}
+          <div className="flex items-center gap-3">
+            <Label className="text-xs text-muted-foreground">Stock Length:</Label>
+            <RadioGroup
+              value={stockLength}
+              onValueChange={(v) => onChange('stock_length', v)}
+              className="flex gap-4"
+            >
+              {STOCK_LENGTH_OPTIONS.map((opt) => (
+                <div key={opt.value} className="flex items-center gap-1.5">
+                  <RadioGroupItem value={opt.value} id={`stock-${opt.value}`} className="h-3.5 w-3.5" />
+                  <Label htmlFor={`stock-${opt.value}`} className="text-xs cursor-pointer">{opt.label}</Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Topping Mesh Section */}
+        <div className="space-y-3">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Topping Slab Mesh
+          </h4>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Mesh Type</Label>
+              <Select value={toppingMeshType} onValueChange={(v) => onChange('topping_mesh_type', v)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MESH_TYPE_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Layers</Label>
+              <Select value={String(toppingMeshLayers)} onValueChange={(v) => onChange('topping_mesh_layers', Number(v))}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1</SelectItem>
+                  <SelectItem value="2">2</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Lap %</Label>
+              <Input
+                type="number"
+                inputMode="decimal"
+                value={toppingMeshLapPercent}
+                onChange={(e) => onChange('topping_mesh_lap_percent', Number(e.target.value))}
+                className="h-9"
+                min={0}
+                max={30}
+                step={0.5}
+              />
+            </div>
+          </div>
+          
+          {/* Coverage Area Mode */}
+          <div className="space-y-2">
+            <Label className="text-xs text-muted-foreground">Coverage Area</Label>
+            <RadioGroup
+              value={toppingMeshAreaMode}
+              onValueChange={(v) => onChange('topping_mesh_area_mode', v)}
+              className="grid grid-cols-1 gap-2"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="pod_field" id="mesh-pod-field" className="h-3.5 w-3.5" />
+                  <Label htmlFor="mesh-pod-field" className="text-xs cursor-pointer">Pod field only</Label>
+                </div>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {volumeBreakdown?.podFieldArea_m2?.toFixed(1) || '—'} m²
+                </span>
+              </div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <RadioGroupItem value="full_slab" id="mesh-full-slab" className="h-3.5 w-3.5" />
+                  <Label htmlFor="mesh-full-slab" className="text-xs cursor-pointer">Full slab area</Label>
+                </div>
+                <span className="text-xs text-muted-foreground font-mono">
+                  {totalArea?.toFixed(1) || '—'} m²
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem value="custom" id="mesh-custom" className="h-3.5 w-3.5" />
+                <Label htmlFor="mesh-custom" className="text-xs cursor-pointer">Custom:</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  value={toppingMeshCustomArea === 0 ? '' : toppingMeshCustomArea}
+                  onChange={(e) => onChange('topping_mesh_custom_area', Number(e.target.value) || 0)}
+                  className="h-7 w-20 text-xs"
+                  placeholder="m²"
+                  disabled={toppingMeshAreaMode !== 'custom'}
+                />
+                <span className="text-xs text-muted-foreground">m²</span>
+              </div>
+            </RadioGroup>
+          </div>
+        </div>
+
+        <Separator />
+
+        {/* Accessories Section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Accessories
+            </h4>
+            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">
+              Allowances
+            </Badge>
+          </div>
           
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
             {/* Pod Count */}
@@ -276,11 +615,12 @@ export function WafflePodConfigCard({
                 min={0}
                 placeholder="0"
               />
+              <p className="text-[10px] text-muted-foreground">perimeter ÷ 1.2</p>
             </div>
 
-            {/* Pod Rails */}
+            {/* Bar Chairs / Pod Rails */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Pod Rails</Label>
+              <Label className="text-xs text-muted-foreground">Bar Chairs</Label>
               <Input
                 type="number"
                 inputMode="numeric"
@@ -293,15 +633,92 @@ export function WafflePodConfigCard({
                 min={0}
                 placeholder="0"
               />
+              <p className="text-[10px] text-muted-foreground">pods × 3</p>
             </div>
           </div>
+          
+          <div className="flex items-start gap-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+            <AlertTriangle className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+            <p className="text-[10px] text-muted-foreground">
+              These are allowances for quoting. Adjust based on actual site conditions.
+            </p>
+          </div>
         </div>
+
+        {/* Reinforcement Breakdown Section */}
+        {reinforcementBreakdown && hasGridDimensions && (
+          <>
+            <Separator />
+            <Collapsible open={reoBreakdownOpen} onOpenChange={setReoBreakdownOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium hover:bg-muted/50 rounded-md px-1 -mx-1">
+                <span className="flex items-center gap-2">
+                  <Layers className="h-4 w-4 text-primary" />
+                  Reinforcement Breakdown
+                </span>
+                <ChevronDown className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  reoBreakdownOpen && "rotate-180"
+                )} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <div className="space-y-2 text-sm bg-muted/30 rounded-lg p-3">
+                  <div className="grid grid-cols-2 gap-y-1.5">
+                    <span className="text-muted-foreground">X-direction ribs:</span>
+                    <span className="text-right font-mono">{reinforcementBreakdown.xRibCount} × {reinforcementBreakdown.xSpanM.toFixed(2)}m</span>
+                    
+                    <span className="text-muted-foreground">Y-direction ribs:</span>
+                    <span className="text-right font-mono">{reinforcementBreakdown.yRibCount} × {reinforcementBreakdown.ySpanM.toFixed(2)}m</span>
+                    
+                    <span className="text-muted-foreground">Total rib length:</span>
+                    <span className="text-right font-mono">{reinforcementBreakdown.totalRibLengthM.toFixed(1)}m</span>
+                  </div>
+                  
+                  <Separator className="my-2" />
+                  
+                  <div className="grid grid-cols-2 gap-y-1.5">
+                    <span className="text-muted-foreground">Bottom bars ({ribBottomBarSize} × {ribBottomBars}):</span>
+                    <span className="text-right font-mono">
+                      {reinforcementBreakdown.bottomBarsTotal.stockQty} × {stockLength}m ({Math.round(reinforcementBreakdown.bottomBarsTotal.weightKg)}kg)
+                    </span>
+                    
+                    {ribTopBars > 0 && (
+                      <>
+                        <span className="text-muted-foreground">Top bars ({ribTopBarSize} × {ribTopBars}):</span>
+                        <span className="text-right font-mono">
+                          {reinforcementBreakdown.topBarsTotal.stockQty} × {stockLength}m ({Math.round(reinforcementBreakdown.topBarsTotal.weightKg)}kg)
+                        </span>
+                      </>
+                    )}
+                  </div>
+                  
+                  <Separator className="my-2" />
+                  
+                  <div className="grid grid-cols-2 gap-y-1.5">
+                    <span className="text-muted-foreground">Topping mesh ({toppingMeshType}):</span>
+                    <span className="text-right font-mono">
+                      {reinforcementBreakdown.meshSheets} sheets ({reinforcementBreakdown.meshAreaM2.toFixed(1)}m²)
+                    </span>
+                  </div>
+                </div>
+                
+                {reinforcementBreakdown.isEstimated && (
+                  <div className="flex items-start gap-2 mt-3 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                    <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                    <p className="text-xs text-muted-foreground">
+                      Grid dimensions are estimated. Enable override to set exact values.
+                    </p>
+                  </div>
+                )}
+              </CollapsibleContent>
+            </Collapsible>
+          </>
+        )}
 
         {/* Volume Breakdown Section */}
         {volumeBreakdown && (
           <>
             <Separator />
-            <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+            <Collapsible open={volumeBreakdownOpen} onOpenChange={setVolumeBreakdownOpen}>
               <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium hover:bg-muted/50 rounded-md px-1 -mx-1">
                 <span className="flex items-center gap-2">
                   <Calculator className="h-4 w-4 text-primary" />
@@ -309,7 +726,7 @@ export function WafflePodConfigCard({
                 </span>
                 <ChevronDown className={cn(
                   "h-4 w-4 transition-transform duration-200",
-                  breakdownOpen && "rotate-180"
+                  volumeBreakdownOpen && "rotate-180"
                 )} />
               </CollapsibleTrigger>
               <CollapsibleContent className="pt-2">
@@ -356,8 +773,8 @@ export function WafflePodConfigCard({
           </>
         )}
 
-        {/* Pod count estimation badge */}
-        {podCountEstimated && podCount > 0 && (
+        {/* Pod count estimation badge - only show if no grid dimensions */}
+        {podCountEstimated && podCount > 0 && !hasGridDimensions && (
           <div className="flex items-center gap-2 pt-2">
             <Badge variant="outline" className="text-xs gap-1 text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
               <AlertTriangle className="h-3 w-3" />
