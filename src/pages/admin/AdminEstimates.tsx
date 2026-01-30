@@ -637,17 +637,17 @@ export default function AdminEstimates() {
         {!isLoading && (
           <Card className="hidden lg:block overflow-hidden">
             <CardContent className="p-0">
-              <table className="w-full table-fixed">
+              <table className="w-full">
                 <thead className="border-b border-border">
                   <tr className="text-left">
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-12">Type</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-14">Type</th>
                     <th className="p-3 xl:p-4 font-medium text-muted-foreground w-24 xl:w-28">Quote #</th>
                     <th className="p-3 xl:p-4 font-medium text-muted-foreground">Client</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground hidden xl:table-cell">Description</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground hidden xl:table-cell w-[20%]">Description</th>
                     <th className="p-3 xl:p-4 font-medium text-muted-foreground w-24">Amount</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-32 xl:w-36">Status</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-36">Status</th>
                     <th className="p-3 xl:p-4 font-medium text-muted-foreground hidden xl:table-cell w-24">Created</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground sr-only w-10">Actions</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-12">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
