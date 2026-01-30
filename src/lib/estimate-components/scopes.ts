@@ -189,42 +189,30 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
       slabVolume = area * sharedThicknessM;
     }
 
-    // Edge thickening volume - only if explicitly enabled
+    // Edge thickening volume - only include if takeoff beams exist
     let edgeThickeningVolume = 0;
-    if (answers.hasEdgeBeams === true) {
-      const edgeBeams = answers.edgeBeams || [];
-      if (edgeBeams.length > 0) {
-        edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
-          const lengthM = Number(beam.length) || 0;
-          const widthM = (Number(beam.width) || 300) / 1000;
-          const depthM = (Number(beam.depth) || 300) / 1000;
-          const extraDepth = Math.max(0, depthM - sharedThicknessM);
-          return sum + lengthM * widthM * extraDepth;
-        }, 0);
-      } else {
-        // Fallback to scalar fields for backwards compatibility
-        const perimeter = Number(answers.perimeter) || 0;
-        const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-        const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
-        const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
-        const extraEdgeDepth = Math.max(0, edgeBeamDepthM - sharedThicknessM);
-        edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
-      }
+    const edgeBeams = answers.edgeBeams || [];
+    if (edgeBeams.length > 0) {
+      edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 300) / 1000;
+        const depthM = (Number(beam.depth) || 300) / 1000;
+        const extraDepth = Math.max(0, depthM - sharedThicknessM);
+        return sum + lengthM * widthM * extraDepth;
+      }, 0);
     }
 
-    // Internal thickening volume - only if explicitly enabled
+    // Internal thickening volume - only include if takeoff beams exist
     let internalThickeningVolume = 0;
-    if (answers.hasInternalBeams === true) {
-      const beams = answers.beams || [];
-      if (beams.length > 0) {
-        internalThickeningVolume = beams.reduce((sum: number, beam: any) => {
-          const lengthM = Number(beam.length) || 0;
-          const widthM = (Number(beam.width) || 300) / 1000;
-          const depthM = (Number(beam.depth) || 300) / 1000;
-          const extraDepth = Math.max(0, depthM - sharedThicknessM);
-          return sum + lengthM * widthM * extraDepth;
-        }, 0);
-      }
+    const beams = answers.beams || [];
+    if (beams.length > 0) {
+      internalThickeningVolume = beams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 300) / 1000;
+        const depthM = (Number(beam.depth) || 300) / 1000;
+        const extraDepth = Math.max(0, depthM - sharedThicknessM);
+        return sum + lengthM * widthM * extraDepth;
+      }, 0);
     }
 
     return safeVolume(slabVolume + edgeThickeningVolume + internalThickeningVolume);
@@ -361,49 +349,30 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     // Main slab volume
     const slabVolume = area * thicknessM;
 
-    // Edge beam extra volume - only if explicitly enabled
+    // Edge beam extra volume - only include if takeoff beams exist
     let edgeBeamVolume = 0;
-    if (answers.hasEdgeBeams === true) {
-      const edgeBeams = answers.edgeBeams || [];
-      if (edgeBeams.length > 0) {
-        edgeBeamVolume = edgeBeams.reduce((sum: number, beam: any) => {
-          const lengthM = Number(beam.length) || 0;
-          const widthM = (Number(beam.width) || 450) / 1000;
-          const depthM = (Number(beam.depth) || 450) / 1000;
-          const extraDepth = Math.max(0, depthM - thicknessM);
-          return sum + lengthM * widthM * extraDepth;
-        }, 0);
-      } else {
-        // Fallback to scalar fields for backwards compatibility
-        const perimeter = Number(answers.perimeter) || 0;
-        const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-        const edgeBeamWidthM = (Number(answers.edge_beam_width) || 450) / 1000;
-        const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 450) / 1000;
-        const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-        edgeBeamVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
-      }
+    const edgeBeams = answers.edgeBeams || [];
+    if (edgeBeams.length > 0) {
+      edgeBeamVolume = edgeBeams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 450) / 1000;
+        const depthM = (Number(beam.depth) || 450) / 1000;
+        const extraDepth = Math.max(0, depthM - thicknessM);
+        return sum + lengthM * widthM * extraDepth;
+      }, 0);
     }
 
-    // Internal beams volume - only if explicitly enabled
+    // Internal beams volume - only include if takeoff beams exist
     let internalBeamVolume = 0;
-    if (answers.hasInternalBeams === true) {
-      const beams = answers.beams || [];
-      if (beams.length > 0) {
-        internalBeamVolume = beams.reduce((sum: number, beam: any) => {
-          const lengthM = Number(beam.length) || 0;
-          const widthM = (Number(beam.width) || 300) / 1000;
-          const depthM = (Number(beam.depth) || 400) / 1000;
-          const extraDepth = Math.max(0, depthM - thicknessM);
-          return sum + lengthM * widthM * extraDepth;
-        }, 0);
-      } else {
-        // Fallback to legacy single-value fields
-        const internalLength = Number(answers.internal_beams_length) || 0;
-        const internalWidthM = (Number(answers.internal_beam_width) || 300) / 1000;
-        const internalDepthM = (Number(answers.internal_beam_depth) || 400) / 1000;
-        const internalExtraDepth = Math.max(0, internalDepthM - thicknessM);
-        internalBeamVolume = internalLength * internalWidthM * internalExtraDepth;
-      }
+    const beams = answers.beams || [];
+    if (beams.length > 0) {
+      internalBeamVolume = beams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 300) / 1000;
+        const depthM = (Number(beam.depth) || 400) / 1000;
+        const extraDepth = Math.max(0, depthM - thicknessM);
+        return sum + lengthM * widthM * extraDepth;
+      }, 0);
     }
 
     return safeVolume(slabVolume + edgeBeamVolume + internalBeamVolume);
