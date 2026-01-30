@@ -160,6 +160,8 @@ export interface MeasurementArea {
   name: string;
   length: number;
   width: number;
+  /** Per-area thickness override in mm. When defined and usePerAreaThickness is true, this overrides the shared scope-level thickness */
+  thickness?: number;
   /** If true, this area was imported from plan takeoff */
   _fromTakeoff?: boolean;
   /** Actual measured area from takeoff (more accurate than length x width) */

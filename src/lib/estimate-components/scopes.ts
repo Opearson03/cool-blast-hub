@@ -168,12 +168,27 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
     'extra-items',
   ],
   calculateVolume: (answers) => {
-    const area = Number(answers.area) || 0;
-    const thicknessM = (Number(answers.thickness) || 100) / 1000;
+    const usePerAreaThickness = answers.usePerAreaThickness === true;
+    const areas = answers.areas || [];
+    const sharedThicknessM = (Number(answers.thickness) || 100) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
 
-    // Main slab volume
-    const slabVolume = area * thicknessM;
+    // Main slab volume - calculate per area if using individual thicknesses
+    let slabVolume = 0;
+    if (usePerAreaThickness && areas.length > 0) {
+      // Sum individual area volumes using each area's specific thickness
+      slabVolume = areas.reduce((sum: number, area: any) => {
+        const areaM2 = area._actualArea && area._actualArea > 0
+          ? area._actualArea
+          : (Number(area.length) || 0) * (Number(area.width) || 0);
+        const areaThicknessM = (Number(area.thickness) || Number(answers.thickness) || 100) / 1000;
+        return sum + areaM2 * areaThicknessM;
+      }, 0);
+    } else {
+      // Use shared thickness for all areas
+      const area = Number(answers.area) || 0;
+      slabVolume = area * sharedThicknessM;
+    }
 
     // Edge thickening volume - calculate from edgeBeams array if available
     const edgeBeams = answers.edgeBeams || [];
@@ -184,7 +199,7 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
         const lengthM = Number(beam.length) || 0;
         const widthM = (Number(beam.width) || 300) / 1000;
         const depthM = (Number(beam.depth) || 300) / 1000;
-        const extraDepth = Math.max(0, depthM - thicknessM);
+        const extraDepth = Math.max(0, depthM - sharedThicknessM);
         return sum + lengthM * widthM * extraDepth;
       }, 0);
     } else {
@@ -192,7 +207,7 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
       const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
       const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
       const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
-      const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+      const extraEdgeDepth = Math.max(0, edgeBeamDepthM - sharedThicknessM);
       edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
     }
 
@@ -205,7 +220,7 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
         const lengthM = Number(beam.length) || 0;
         const widthM = (Number(beam.width) || 300) / 1000;
         const depthM = (Number(beam.depth) || 300) / 1000;
-        const extraDepth = Math.max(0, depthM - thicknessM);
+        const extraDepth = Math.max(0, depthM - sharedThicknessM);
         return sum + lengthM * widthM * extraDepth;
       }, 0);
     }
