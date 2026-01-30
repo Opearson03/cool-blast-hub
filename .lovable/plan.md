@@ -1,80 +1,93 @@
 
-# Plan: Simplify Waffle Pod Dialog to Name-Only Step
+# Plan: Fix Waffle Pod Count Calculation
 
-## Overview
+## Problem Analysis
 
-Remove the "Pods and Accessories" section from the `SlabBeamMarkupDialog` for waffle pods. The pod count cannot be calculated until edge beams are placed (because pods fit inside the beam perimeter). The dialog should simply:
-1. Name the waffle pod slab
-2. Show area/perimeter
-3. Proceed to mark edge beams
+The current waffle pod count calculation is significantly underestimating the number of pods required. For a 42m² slab, the user sees only 12 pods when there should be approximately 30-35.
 
-All accessory calculations (pods, spacers, chairs) will be handled later in the calculator configure step after beams are placed.
+### Root Cause
 
----
+The pod grid estimation logic in `ModularCalculator.tsx` applies multiple conservative reductions that compound into a severe undercount:
 
-## Current State
+```text
+Input: 42m² slab area
+Step 1: podFieldArea = 42 × 0.85 = 35.7m² (assumes 15% edge beams)
+Step 2: Estimate dimensions as ~6.55m × 5.45m
+Step 3: Subtract 0.9m edge beam allowance → inner field 5.65m × 4.55m
+Step 4: Calculate grid: nx=4, ny=3 → 12 pods
+```
 
-The dialog currently shows for waffle pods:
-- Title: "Pods and Accessories"  
-- Slab name input
-- Area/perimeter stats
-- **Large "Accessories (Estimated Allowances)" section** with:
-  - Pod count input (Area ÷ 1.51)
-  - 4-Way Spacers input (Pods × 1.4)
-  - 2-Way Spacers input (4-Way ÷ 3)
-  - TM Chairs input (Perimeter ÷ 1.2)
-  - Bar Chairs input (Pods × 3)
+This is wrong because:
+1. The 85% pod field area multiplier is arbitrary and too aggressive
+2. The edge beam width assumption (0.45m × 2) is hardcoded and may not match reality
+3. The `floor()` operation on both dimensions compounds the error
+4. This grid-derived value then drives `pods_x` and `pods_y`, which in turn affects reinforcement calculations
 
----
+### Correct Approach
 
-## Proposed Changes
+The pod count should be based on **area coverage**, not geometric grid estimation:
 
-### 1. Update Dialog Title and Description
-
-| Before | After |
-|--------|-------|
-| Title: "Pods and Accessories" | Title: "Name Waffle Pod Slab" |
-| Description: "Give this waffle pod slab a name, select pod dimensions, then add beams if needed." | Description: "Give this waffle pod slab a name, then mark the edge beams." |
-
-### 2. Remove Accessories Section
-
-Remove the entire amber-bordered "Accessories (Estimated Allowances)" section (lines 531-622) from the waffle pod name step.
-
-### 3. Simplify Waffle Pod Name Step Content
-
-The waffle pod name step will contain only:
-- Slab name input
-- Area/perimeter stats display
-
-### 4. Remove Related State and Effects
-
-Remove or simplify:
-- Local state for accessory counts (`localPodCount`, `localSpacer4Way`, etc.) - no longer needed in this dialog
-- The `useEffect` that calculates accessory counts (lines 379-400)
-- The `onAccessoryCountsChange` callback usage in skip/start edge beam handlers
-
-### 5. Update Footer Actions
-
-Keep the existing footer for waffle pods:
-- **Cancel** - closes dialog
-- **Skip All** - saves slab without beams
-- **Mark edge beams →** - proceeds to edge beam marking
+```text
+Module pitch = pod_size + rib_width = 1090 + 110 = 1200mm = 1.2m
+Module area = 1.2 × 1.2 = 1.44 m²
+Pods required = ceil(slab_area / module_area) = ceil(42 / 1.44) = 30 pods
+```
 
 ---
 
-## Files to Modify
+## Technical Changes
+
+### 1. Update Pod Count Formula in ModularCalculator.tsx
+
+Replace the flawed grid estimation with a direct area-based calculation:
+
+| Current (incorrect) | Proposed (correct) |
+|--------------------|--------------------|
+| `podFieldArea = totalArea × 0.85` | Use full `totalArea` |
+| Grid estimation → nx, ny | Area ÷ module area = pod count |
+| `pods_x × pods_y = 12` | `ceil(42 / 1.44) = 30` |
+
+The grid dimensions (nx, ny) should only be derived **after edge beams are marked** from the actual pod field geometry, not estimated from slab area.
+
+### 2. Separate Pod Count from Grid Dimensions
+
+**Pod Count** (for quantity ordering):
+- Simple formula: `ceil(area / (moduleSize²))`
+- Used for: material ordering, accessory calculations
+
+**Grid Dimensions nx × ny** (for rib bar calculations):
+- Derived from actual edge beam geometry when available
+- Falls back to square root estimation when geometry unknown
+- Used for: rib reinforcement length calculations
+
+### 3. Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx` | Remove accessories section, update title/description, clean up unused state |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Fix auto-calculation logic for `pod_count`; decouple from nx/ny grid |
+
+---
+
+## Calculation Comparison
+
+| Metric | Current (Flawed) | Proposed (Correct) |
+|--------|-----------------|-------------------|
+| 42m² slab area | 12 pods | 30 pods |
+| Pod formula | `nx × ny` from estimated grid | `ceil(area / module²)` |
+| Module size | 1.2m (correct) | 1.2m (correct) |
+| Module area | 1.44m² | 1.44m² |
+| Result | 4 × 3 = 12 | ceil(42/1.44) = 30 |
 
 ---
 
 ## Summary
 
-The waffle pod naming dialog becomes a simple, focused step:
-1. Name the slab
-2. See area/perimeter
-3. Proceed to mark beams
+The fix replaces the complex grid-estimation approach with a straightforward area-based pod count:
 
-All pod counts and accessory calculations will be derived geometrically in the calculator once edge beams are placed and the pod field dimensions are known.
+```
+pods = ceil(slab_area / (module_pitch²))
+     = ceil(42 / 1.44)
+     = 30 pods
+```
+
+Grid dimensions (nx, ny) will still be calculated for rib bar reinforcement, but they won't override the pod count. This ensures accurate material quantities while preserving the geometric rib calculations for reinforcement.
