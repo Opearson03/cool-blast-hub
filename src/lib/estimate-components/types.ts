@@ -410,6 +410,7 @@ export interface LinearSection {
   
   // Per-section bar chair settings
   chairs_enabled?: boolean;
+  chair_type?: string;           // e.g., '2540C', '5065C', '7590C', '100120C', '125150C'
   chairs_per_m?: number;         // chairs per linear metre
   chair_price_per_bag?: number;  // price per 25
   layer_chairs_enabled?: boolean; // chairs between TM layers
@@ -445,6 +446,7 @@ export interface BeamConfig {
   
   // Per-beam bar chair settings
   chairs_enabled?: boolean;
+  chair_type?: string;           // e.g., '2540C', '5065C', '7590C', '100120C', '125150C'
   chairs_per_m?: number;         // chairs per linear metre
   chair_price_per_bag?: number;  // price per 25
   layer_chairs_enabled?: boolean; // chairs between TM layers

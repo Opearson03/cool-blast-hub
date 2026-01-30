@@ -49,6 +49,14 @@ const BAR_SIZE_OPTIONS = [
   { value: 'N24', label: 'N24' },
 ];
 
+const CHAIR_TYPE_OPTIONS = [
+  { value: '2540C', label: '25-40mm' },
+  { value: '5065C', label: '50-65mm' },
+  { value: '7590C', label: '75-90mm' },
+  { value: '100120C', label: '100-120mm' },
+  { value: '125150C', label: '125-150mm' },
+];
+
 // Get TM price from price map
 function getTmPrice(tmType: string, priceMap?: PriceMap): number | undefined {
   if (!priceMap || tmType === 'none') return undefined;
@@ -87,6 +95,7 @@ interface FootingTypeGroup {
   horizontal_bars?: HorizontalBarConfig[];
   vertical_bars?: VerticalBarConfig[];
   chairs_enabled?: boolean;
+  chair_type?: string;
   chairs_per_m?: number;
   chair_price_per_bag?: number;
   layer_chairs_enabled?: boolean;
@@ -133,6 +142,7 @@ function groupFootingsByType(sections: LinearSection[]): FootingTypeGroup[] {
         horizontal_bars: section.horizontal_bars,
         vertical_bars: section.vertical_bars,
         chairs_enabled: section.chairs_enabled,
+        chair_type: section.chair_type,
         chairs_per_m: section.chairs_per_m,
         chair_price_per_bag: section.chair_price_per_bag,
         layer_chairs_enabled: section.layer_chairs_enabled,
@@ -916,31 +926,58 @@ export function FootingSectionReinforcementInput({
                       </div>
 
                       {group.segments[0]?.chairs_enabled && (
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-2">
+                          {/* Chair Type Selection */}
                           <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">Chairs/m</Label>
-                            <Input
-                              type="number"
-                              step="0.1"
-                              min="1"
-                              max="5"
-                              value={group.segments[0]?.chairs_per_m ?? 1.4}
-                              onChange={(e) => updateGroupReinforcement(group, { chairs_per_m: Number(e.target.value) })}
-                              className="h-8 text-sm"
-                            />
+                            <Label className="text-[10px] text-muted-foreground">Chair Type</Label>
+                            <Select
+                              value={group.segments[0]?.chair_type || '5065C'}
+                              onValueChange={(val) => {
+                                // Update chair type and reset price from catalog
+                                const newPrice = priceMap?.['consumables']?.[val];
+                                updateGroupReinforcement(group, { 
+                                  chair_type: val,
+                                  chair_price_per_bag: newPrice !== undefined ? newPrice / 4 : 12.50 // /4 to convert 100-pack to 25-pack
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {CHAIR_TYPE_OPTIONS.map(opt => (
+                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           </div>
-                          <div className="space-y-1">
-                            <Label className="text-[10px] text-muted-foreground">$/25</Label>
-                            <div className="relative">
-                              <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                          
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground">Chairs/m</Label>
                               <Input
                                 type="number"
-                                step="0.01"
-                                min="0"
-                                value={group.segments[0]?.chair_price_per_bag ?? 12.50}
-                                onChange={(e) => updateGroupReinforcement(group, { chair_price_per_bag: Number(e.target.value) })}
-                                className="h-8 text-sm pl-6"
+                                step="0.1"
+                                min="1"
+                                max="5"
+                                value={group.segments[0]?.chairs_per_m ?? 1.4}
+                                onChange={(e) => updateGroupReinforcement(group, { chairs_per_m: Number(e.target.value) })}
+                                className="h-8 text-sm"
                               />
+                            </div>
+                            <div className="space-y-1">
+                              <Label className="text-[10px] text-muted-foreground">$/25</Label>
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={group.segments[0]?.chair_price_per_bag ?? 12.50}
+                                  onChange={(e) => updateGroupReinforcement(group, { chair_price_per_bag: Number(e.target.value) })}
+                                  className="h-8 text-sm pl-6"
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>
