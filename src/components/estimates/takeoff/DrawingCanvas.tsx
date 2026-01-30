@@ -502,22 +502,6 @@ export function DrawingCanvas({
         ? INTERNAL_BEAM_COLOR 
         : activeScopeColor;
 
-    // Calculate individual segment lengths
-    const segmentLengths: { midX: number; midY: number; length: number }[] = [];
-    if (showSegmentLabels && pixelsPerMeter && polylinePoints.length >= 2) {
-      for (let i = 0; i < polylinePoints.length - 1; i++) {
-        const p1 = polylinePoints[i];
-        const p2 = polylinePoints[i + 1];
-        const pixelLength = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.y - p1.y, 2));
-        const lengthMeters = pixelLength / pixelsPerMeter;
-        segmentLengths.push({
-          midX: (p1.x + p2.x) / 2,
-          midY: (p1.y + p2.y) / 2,
-          length: lengthMeters,
-        });
-      }
-    }
-
     return (
       <Group>
         {/* Polyline path - solid line between placed points only */}
@@ -528,38 +512,13 @@ export function DrawingCanvas({
           lineCap="round"
           lineJoin="round"
         />
-        {/* Segment length labels */}
-        {segmentLengths.map((seg, index) => (
-          <Group key={`seg-label-${index}`}>
-            {/* Background for label */}
-            <Rect
-              x={seg.midX - 20}
-              y={seg.midY - 10}
-              width={40}
-              height={16}
-              fill="rgba(0,0,0,0.7)"
-              cornerRadius={4}
-            />
-            <Text
-              x={seg.midX}
-              y={seg.midY}
-              text={`${seg.length.toFixed(1)}m`}
-              fontSize={10}
-              fontStyle="bold"
-              fill="#fff"
-              align="center"
-              offsetX={16}
-              offsetY={4}
-            />
-          </Group>
-        ))}
         {/* Vertex points */}
         {polylinePoints.map((point, index) => (
           <Circle
             key={index}
             x={point.x}
             y={point.y}
-            radius={activeBeamType ? 7 : 6}
+            radius={activeBeamType ? 3.5 : 3}
             fill={index === 0 ? polylineColor : 'white'}
             stroke={polylineColor}
             strokeWidth={2}
@@ -599,7 +558,7 @@ export function DrawingCanvas({
               key={index}
               x={point.x}
               y={point.y}
-              radius={4}
+              radius={2}
               fill={color}
               opacity={0.6}
             />
@@ -690,7 +649,7 @@ export function DrawingCanvas({
                   key={pIndex}
                   x={point.x}
                   y={point.y}
-                  radius={6}
+                  radius={3}
                   fill={beamColor}
                   stroke="#fff"
                   strokeWidth={2}
@@ -711,9 +670,6 @@ export function DrawingCanvas({
     return (
       <Group>
         {discreteInternalBeams.map((beam, index) => {
-          const midX = (beam.startPoint.x + beam.endPoint.x) / 2;
-          const midY = (beam.startPoint.y + beam.endPoint.y) / 2;
-          
           return (
             <Group key={`discrete-beam-${index}`}>
               {/* Beam line */}
@@ -728,7 +684,7 @@ export function DrawingCanvas({
               <Circle
                 x={beam.startPoint.x}
                 y={beam.startPoint.y}
-                radius={6}
+                radius={3}
                 fill={INTERNAL_BEAM_COLOR}
                 stroke="#fff"
                 strokeWidth={2}
@@ -736,33 +692,11 @@ export function DrawingCanvas({
               <Circle
                 x={beam.endPoint.x}
                 y={beam.endPoint.y}
-                radius={6}
+                radius={3}
                 fill="white"
                 stroke={INTERNAL_BEAM_COLOR}
                 strokeWidth={2}
               />
-              {/* Length label at midpoint */}
-              <Group>
-                <Rect
-                  x={midX - 22}
-                  y={midY - 10}
-                  width={44}
-                  height={16}
-                  fill="rgba(0,0,0,0.7)"
-                  cornerRadius={4}
-                />
-                <Text
-                  x={midX}
-                  y={midY}
-                  text={`${beam.length.toFixed(1)}m`}
-                  fontSize={10}
-                  fontStyle="bold"
-                  fill="#fff"
-                  align="center"
-                  offsetX={18}
-                  offsetY={4}
-                />
-              </Group>
             </Group>
           );
         })}
@@ -878,7 +812,7 @@ export function DrawingCanvas({
                 key={index}
                 x={point.x}
                 y={point.y}
-                radius={6}
+                radius={3}
                 fill="white"
                 stroke={markup.color}
                 strokeWidth={2}
@@ -925,10 +859,10 @@ export function DrawingCanvas({
             )}
             {isSelected && (
               <>
-                <Circle x={x} y={y} radius={6} fill="white" stroke={markup.color} strokeWidth={2} />
-                <Circle x={x + w} y={y} radius={6} fill="white" stroke={markup.color} strokeWidth={2} />
-                <Circle x={x} y={y + h} radius={6} fill="white" stroke={markup.color} strokeWidth={2} />
-                <Circle x={x + w} y={y + h} radius={6} fill="white" stroke={markup.color} strokeWidth={2} />
+                <Circle x={x} y={y} radius={3} fill="white" stroke={markup.color} strokeWidth={2} />
+                <Circle x={x + w} y={y} radius={3} fill="white" stroke={markup.color} strokeWidth={2} />
+                <Circle x={x} y={y + h} radius={3} fill="white" stroke={markup.color} strokeWidth={2} />
+                <Circle x={x + w} y={y + h} radius={3} fill="white" stroke={markup.color} strokeWidth={2} />
               </>
             )}
           </Group>
@@ -1024,7 +958,7 @@ export function DrawingCanvas({
                 key={index}
                 x={point.x}
                 y={point.y}
-                radius={6}
+                radius={3}
                 fill="white"
                 stroke={markup.color}
                 strokeWidth={2}
