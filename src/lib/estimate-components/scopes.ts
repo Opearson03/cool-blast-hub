@@ -1056,12 +1056,25 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
     'extra-items',
   ],
   calculateVolume: (answers) => {
-    const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 100) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
 
-    // Main slab volume
-    const slabVolume = area * thicknessM;
+    // Calculate slab volume from areas array when available
+    const areas = answers.areas || [];
+    let slabVolume = 0;
+
+    if (areas.length > 0) {
+      slabVolume = areas.reduce((sum: number, areaItem: any) => {
+        const areaM2 = areaItem._actualArea && areaItem._actualArea > 0
+          ? areaItem._actualArea
+          : (Number(areaItem.length) || 0) * (Number(areaItem.width) || 0);
+        return sum + areaM2 * thicknessM;
+      }, 0);
+    } else {
+      // Fallback to scalar area for backwards compatibility
+      const area = Number(answers.area) || 0;
+      slabVolume = area * thicknessM;
+    }
 
     // Edge thickening volume - calculate from edgeBeams array if available
     const edgeBeams = answers.edgeBeams || [];
@@ -1199,12 +1212,25 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
     'extra-items',
   ],
   calculateVolume: (answers) => {
-    const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 100) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
 
-    // Main slab volume
-    const slabVolume = area * thicknessM;
+    // Calculate slab volume from areas array when available
+    const areas = answers.areas || [];
+    let slabVolume = 0;
+
+    if (areas.length > 0) {
+      slabVolume = areas.reduce((sum: number, areaItem: any) => {
+        const areaM2 = areaItem._actualArea && areaItem._actualArea > 0
+          ? areaItem._actualArea
+          : (Number(areaItem.length) || 0) * (Number(areaItem.width) || 0);
+        return sum + areaM2 * thicknessM;
+      }, 0);
+    } else {
+      // Fallback to scalar area for backwards compatibility
+      const area = Number(answers.area) || 0;
+      slabVolume = area * thicknessM;
+    }
 
     // Edge thickening volume - calculate from edgeBeams array if available
     const edgeBeams = answers.edgeBeams || [];
@@ -1330,12 +1356,25 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
     'extra-items',
   ],
   calculateVolume: (answers) => {
-    const area = Number(answers.area) || 0;
     const thicknessM = (Number(answers.thickness) || 100) / 1000;
     const perimeter = Number(answers.perimeter) || 0;
 
-    // Main slab volume
-    const slabVolume = area * thicknessM;
+    // Calculate slab volume from areas array when available
+    const areas = answers.areas || [];
+    let slabVolume = 0;
+
+    if (areas.length > 0) {
+      slabVolume = areas.reduce((sum: number, areaItem: any) => {
+        const areaM2 = areaItem._actualArea && areaItem._actualArea > 0
+          ? areaItem._actualArea
+          : (Number(areaItem.length) || 0) * (Number(areaItem.width) || 0);
+        return sum + areaM2 * thicknessM;
+      }, 0);
+    } else {
+      // Fallback to scalar area for backwards compatibility
+      const area = Number(answers.area) || 0;
+      slabVolume = area * thicknessM;
+    }
 
     // Edge thickening volume - calculate from edgeBeams array if available
     const edgeBeams = answers.edgeBeams || [];
