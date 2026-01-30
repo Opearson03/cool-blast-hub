@@ -51,3 +51,17 @@ export function useIsMobileOrTablet() {
 
   return !!isMobileOrTablet;
 }
+
+export function useIsTouchDevice() {
+  const [isTouch, setIsTouch] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsTouch(
+      'ontouchstart' in window ||
+      navigator.maxTouchPoints > 0 ||
+      (navigator as any).msMaxTouchPoints > 0
+    );
+  }, []);
+
+  return isTouch;
+}
