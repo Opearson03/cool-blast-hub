@@ -115,6 +115,9 @@ export function PlanTakeoffStep({
   const [pendingSlabData, setPendingSlabData] = useState<PendingSlabData | null>(null);
   // Current beam being drawn (points collected before naming)
   const [currentBeamPoints, setCurrentBeamPoints] = useState<TakeoffPoint[]>([]);
+  // Cached beam length and segments (set before clearing polylinePoints)
+  const [cachedBeamLength, setCachedBeamLength] = useState<number>(0);
+  const [cachedBeamSegments, setCachedBeamSegments] = useState<Array<{ startPoint: TakeoffPoint; endPoint: TakeoffPoint; length: number }>>([]);
   
   // Edit beam dialog state
   const [editingBeam, setEditingBeam] = useState<TakeoffMarkup | null>(null);
@@ -492,8 +495,24 @@ export function PlanTakeoffStep({
   const handleDoneMarkingSingleBeam = useCallback(() => {
     // For edge beams: use continuous polyline points
     if (slabWorkflowStep === 'mark_edge_beam' && polylinePoints.length >= 2 && currentScale) {
+      // Calculate and cache the length and segments BEFORE clearing polylinePoints
+      const length = calculatePolylineLength(polylinePoints, currentScale);
+      const segments = polylinePoints.slice(0, -1).map((point, i) => {
+        const nextPoint = polylinePoints[i + 1];
+        const pixelLength = Math.sqrt(
+          Math.pow(nextPoint.x - point.x, 2) + Math.pow(nextPoint.y - point.y, 2)
+        );
+        return {
+          startPoint: point,
+          endPoint: nextPoint,
+          length: pixelLength / currentScale,
+        };
+      });
+      
+      setCachedBeamLength(length);
+      setCachedBeamSegments(segments);
       setCurrentBeamPoints([...polylinePoints]);
-      setPolylinePoints([]);
+      setPolylinePoints([]);  // Now safe to clear
       setSlabWorkflowStep('edge_beam_details');
       setShowSlabBeamDialog(true);
       setActiveTool('select');
@@ -601,6 +620,8 @@ export function PlanTakeoffStep({
     setShowSlabBeamDialog(false);
     setSlabWorkflowStep('mark_edge_beam');
     setPolylinePoints([]);
+    setCachedBeamLength(0);
+    setCachedBeamSegments([]);
     setActiveTool('polyline');
   }, []);
 
@@ -758,6 +779,8 @@ export function PlanTakeoffStep({
     setPendingSlabData(null);
     setCurrentBeamPoints([]);
     setPolylinePoints([]);
+    setCachedBeamLength(0);
+    setCachedBeamSegments([]);
     setDiscreteInternalBeams([]); // Clear discrete beams
     setSlabSavedId(null); // Clear saved slab ID to allow new slab creation
     setActiveTool('select');
@@ -1656,8 +1679,8 @@ export function PlanTakeoffStep({
         slabArea={slabStats.area}
         slabPerimeter={slabStats.perimeter}
         currentBeamPoints={currentBeamPoints}
-        currentBeamLength={currentBeamLength}
-        currentBeamSegments={polylineSegments}
+        currentBeamLength={cachedBeamLength}
+        currentBeamSegments={cachedBeamSegments}
         discreteInternalBeams={discreteInternalBeams}
         savedEdgeBeams={pendingSlabData?.edgeBeams || []}
         savedInternalBeams={pendingSlabData?.internalBeams || []}
