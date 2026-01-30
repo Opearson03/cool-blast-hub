@@ -159,11 +159,51 @@ export const excavationModule: EstimateModule = {
         if (scopeData.excavation_volume && scopeData.excavation_volume > 0) {
           return `~${scopeData.excavation_volume.toFixed(2)}m³`;
         }
+        
+        // Calculate pier excavation volume from pierGroups (same logic as concrete-supply)
+        if (scopeData.pierGroups && Array.isArray(scopeData.pierGroups) && scopeData.pierGroups.length > 0) {
+          let pierVolume = 0;
+          for (const group of scopeData.pierGroups) {
+            const qty = Number(group.quantity) || 0;
+            const diameter = Number(group.diameter) / 1000; // mm to m
+            const depth = Number(group.depth) / 1000; // mm to m
+            const radius = diameter / 2;
+            pierVolume += qty * Math.PI * radius * radius * depth;
+          }
+          if (pierVolume > 0) {
+            return `~${pierVolume.toFixed(2)}m³`;
+          }
+        }
+        
+        // Fallback to legacy pier fields
+        if (scopeData.num_piers && scopeData.diameter && scopeData.depth) {
+          const numPiers = Number(scopeData.num_piers);
+          const diameter = Number(scopeData.diameter) / 1000; // mm to m
+          const depth = Number(scopeData.depth) / 1000; // mm to m
+          const radius = diameter / 2;
+          const pierVolume = numPiers * Math.PI * radius * radius * depth;
+          if (pierVolume > 0) {
+            return `~${pierVolume.toFixed(2)}m³`;
+          }
+        }
+        
         return undefined;
       },
       showIf: (answers, scopeData) => {
-        return answers.detailed_excavation_required === true && 
-          scopeData.excavation_volume && scopeData.excavation_volume > 0;
+        if (answers.detailed_excavation_required !== true) return false;
+        
+        // Show if we have excavation_volume
+        if (scopeData.excavation_volume && scopeData.excavation_volume > 0) return true;
+        
+        // Show if we have pier groups
+        if (scopeData.pierGroups && Array.isArray(scopeData.pierGroups) && scopeData.pierGroups.length > 0) {
+          return scopeData.pierGroups.some((g: any) => Number(g.quantity) > 0);
+        }
+        
+        // Show if we have legacy pier data
+        if (scopeData.num_piers && scopeData.diameter && scopeData.depth) return true;
+        
+        return false;
       },
     },
     {
