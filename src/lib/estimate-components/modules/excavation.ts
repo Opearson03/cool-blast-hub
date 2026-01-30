@@ -187,6 +187,43 @@ export const excavationModule: EstimateModule = {
           }
         }
         
+        // Calculate from linearSections (strip footings, retaining wall footings)
+        const linearSections = scopeData.linearSections || scopeData.footings || [];
+        if (Array.isArray(linearSections) && linearSections.length > 0) {
+          let volume = 0;
+          for (const section of linearSections) {
+            const length = Number(section._actualLength || section.length) || 0;
+            const widthM = (Number(section.dimension1 || section.width) || 0) / 1000;
+            const depthM = (Number(section.dimension2 || section.depth) || 0) / 1000;
+            volume += length * widthM * depthM;
+            
+            // Add toe volume if present (retaining wall footings)
+            if (section.has_toe) {
+              const toeWidthM = (Number(section.toe_width) || 0) / 1000;
+              const toeDepthM = (Number(section.toe_depth) || 0) / 1000;
+              volume += length * toeWidthM * toeDepthM;
+            }
+          }
+          if (volume > 0) {
+            return `~${volume.toFixed(2)}m³`;
+          }
+        }
+        
+        // Calculate from padGroups (pad footings)
+        if (scopeData.padGroups && Array.isArray(scopeData.padGroups) && scopeData.padGroups.length > 0) {
+          let padVolume = 0;
+          for (const group of scopeData.padGroups) {
+            const qty = Number(group.quantity) || 1;
+            const lengthM = (Number(group.length) || 0) / 1000;
+            const widthM = (Number(group.width) || 0) / 1000;
+            const depthM = (Number(group.depth) || 0) / 1000;
+            padVolume += qty * lengthM * widthM * depthM;
+          }
+          if (padVolume > 0) {
+            return `~${padVolume.toFixed(2)}m³`;
+          }
+        }
+        
         return undefined;
       },
       showIf: (answers, scopeData) => {
@@ -202,6 +239,20 @@ export const excavationModule: EstimateModule = {
         
         // Show if we have legacy pier data
         if (scopeData.num_piers && scopeData.diameter && scopeData.depth) return true;
+        
+        // Show if we have linear sections (strip/retaining wall footings)
+        const linearSections = scopeData.linearSections || scopeData.footings || [];
+        if (Array.isArray(linearSections) && linearSections.length > 0) {
+          return linearSections.some((s: any) => {
+            const length = Number(s._actualLength || s.length) || 0;
+            return length > 0;
+          });
+        }
+        
+        // Show if we have pad groups
+        if (scopeData.padGroups && Array.isArray(scopeData.padGroups) && scopeData.padGroups.length > 0) {
+          return scopeData.padGroups.some((g: any) => Number(g.quantity) > 0);
+        }
         
         return false;
       },
