@@ -1076,39 +1076,41 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
       slabVolume = area * thicknessM;
     }
 
-    // Edge thickening volume - calculate from edgeBeams array if available
-    const edgeBeams = answers.edgeBeams || [];
+    // Edge thickening volume - only calculate if hasEdgeBeams is explicitly enabled
     let edgeThickeningVolume = 0;
-
-    if (edgeBeams.length > 0) {
-      edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
-        const lengthM = Number(beam.length) || 0;
-        const widthM = (Number(beam.width) || 300) / 1000;
-        const depthM = (Number(beam.depth) || 300) / 1000;
-        const extraDepth = Math.max(0, depthM - thicknessM);
-        return sum + lengthM * widthM * extraDepth;
-      }, 0);
-    } else {
-      // Fallback to scalar fields for backwards compatibility
-      const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-      const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
-      const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
-      const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-      edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+    if (answers.hasEdgeBeams === true) {
+      const edgeBeams = answers.edgeBeams || [];
+      if (edgeBeams.length > 0) {
+        edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
+          const lengthM = Number(beam.length) || 0;
+          const widthM = (Number(beam.width) || 300) / 1000;
+          const depthM = (Number(beam.depth) || 300) / 1000;
+          const extraDepth = Math.max(0, depthM - thicknessM);
+          return sum + lengthM * widthM * extraDepth;
+        }, 0);
+      } else {
+        // Fallback to scalar fields for backwards compatibility
+        const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+        const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
+        const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
+        const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+        edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+      }
     }
 
-    // Internal thickening volume - calculate from beams array if available
-    const beams = answers.beams || [];
+    // Internal thickening volume - only calculate if hasInternalBeams is explicitly enabled
     let internalThickeningVolume = 0;
-
-    if (beams.length > 0) {
-      internalThickeningVolume = beams.reduce((sum: number, beam: any) => {
-        const lengthM = Number(beam.length) || 0;
-        const widthM = (Number(beam.width) || 300) / 1000;
-        const depthM = (Number(beam.depth) || 300) / 1000;
-        const extraDepth = Math.max(0, depthM - thicknessM);
-        return sum + lengthM * widthM * extraDepth;
-      }, 0);
+    if (answers.hasInternalBeams === true) {
+      const beams = answers.beams || [];
+      if (beams.length > 0) {
+        internalThickeningVolume = beams.reduce((sum: number, beam: any) => {
+          const lengthM = Number(beam.length) || 0;
+          const widthM = (Number(beam.width) || 300) / 1000;
+          const depthM = (Number(beam.depth) || 300) / 1000;
+          const extraDepth = Math.max(0, depthM - thicknessM);
+          return sum + lengthM * widthM * extraDepth;
+        }, 0);
+      }
     }
 
     return safeVolume(slabVolume + edgeThickeningVolume + internalThickeningVolume);
@@ -1232,25 +1234,26 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
       slabVolume = area * thicknessM;
     }
 
-    // Edge thickening volume - calculate from edgeBeams array if available
-    const edgeBeams = answers.edgeBeams || [];
+    // Edge thickening volume - only calculate if hasEdgeBeams is explicitly enabled
     let edgeThickeningVolume = 0;
-
-    if (edgeBeams.length > 0) {
-      edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
-        const lengthM = Number(beam.length) || 0;
-        const widthM = (Number(beam.width) || 300) / 1000;
-        const depthM = (Number(beam.depth) || 300) / 1000;
-        const extraDepth = Math.max(0, depthM - thicknessM);
-        return sum + lengthM * widthM * extraDepth;
-      }, 0);
-    } else {
-      // Fallback to scalar fields for backwards compatibility
-      const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-      const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
-      const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
-      const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-      edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+    if (answers.hasEdgeBeams === true) {
+      const edgeBeams = answers.edgeBeams || [];
+      if (edgeBeams.length > 0) {
+        edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
+          const lengthM = Number(beam.length) || 0;
+          const widthM = (Number(beam.width) || 300) / 1000;
+          const depthM = (Number(beam.depth) || 300) / 1000;
+          const extraDepth = Math.max(0, depthM - thicknessM);
+          return sum + lengthM * widthM * extraDepth;
+        }, 0);
+      } else {
+        // Fallback to scalar fields for backwards compatibility
+        const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+        const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
+        const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
+        const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+        edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+      }
     }
 
     // Note: Crossovers does not support internal thickening beams
@@ -1376,25 +1379,26 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
       slabVolume = area * thicknessM;
     }
 
-    // Edge thickening volume - calculate from edgeBeams array if available
-    const edgeBeams = answers.edgeBeams || [];
+    // Edge thickening volume - only calculate if hasEdgeBeams is explicitly enabled
     let edgeThickeningVolume = 0;
-
-    if (edgeBeams.length > 0) {
-      edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
-        const lengthM = Number(beam.length) || 0;
-        const widthM = (Number(beam.width) || 300) / 1000;
-        const depthM = (Number(beam.depth) || 300) / 1000;
-        const extraDepth = Math.max(0, depthM - thicknessM);
-        return sum + lengthM * widthM * extraDepth;
-      }, 0);
-    } else {
-      // Fallback to scalar fields for backwards compatibility
-      const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-      const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
-      const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
-      const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-      edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+    if (answers.hasEdgeBeams === true) {
+      const edgeBeams = answers.edgeBeams || [];
+      if (edgeBeams.length > 0) {
+        edgeThickeningVolume = edgeBeams.reduce((sum: number, beam: any) => {
+          const lengthM = Number(beam.length) || 0;
+          const widthM = (Number(beam.width) || 300) / 1000;
+          const depthM = (Number(beam.depth) || 300) / 1000;
+          const extraDepth = Math.max(0, depthM - thicknessM);
+          return sum + lengthM * widthM * extraDepth;
+        }, 0);
+      } else {
+        // Fallback to scalar fields for backwards compatibility
+        const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+        const edgeBeamWidthM = (Number(answers.edge_beam_width) || 300) / 1000;
+        const edgeBeamDepthM = (Number(answers.edge_beam_depth) || 300) / 1000;
+        const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
+        edgeThickeningVolume = edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
+      }
     }
 
     // Note: Paths & Surrounds does not support internal thickening beams
