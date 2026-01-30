@@ -661,6 +661,44 @@ const {
     fetchBusinessId();
   }, [editEstimate, open]);
 
+  // Auto-sync inclusions/exclusions based on module answers
+  useEffect(() => {
+    let hasPumping = false;
+    let hasExcavation = false;
+    
+    for (const scopeType of Array.from(selectedScopes)) {
+      const state = modularScopeStates[scopeType];
+      if (!state?.moduleAnswers) continue;
+      
+      // Check concrete-pumping module
+      const pumpingAnswers = state.moduleAnswers['concrete-pumping'];
+      if (pumpingAnswers?.pump_required === true) {
+        hasPumping = true;
+      }
+      
+      // Check excavation module  
+      const excavationAnswers = state.moduleAnswers['excavation'];
+      if (excavationAnswers?.detailed_excavation_required === true || 
+          excavationAnswers?.bulk_excavation_required === true) {
+        hasExcavation = true;
+      }
+    }
+    
+    // Sync inclusions - add pump_hire if pumping is enabled
+    if (hasPumping && !selectedInclusions.has('pump_hire')) {
+      setSelectedInclusions(prev => new Set([...prev, 'pump_hire']));
+    }
+    
+    // Sync exclusions - remove exc_excavation if excavation is enabled
+    if (hasExcavation && selectedExclusions.has('exc_excavation')) {
+      setSelectedExclusions(prev => {
+        const next = new Set(prev);
+        next.delete('exc_excavation');
+        return next;
+      });
+    }
+  }, [modularScopeStates, selectedScopes, selectedInclusions, selectedExclusions]);
+
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
   const progressPercent = ((currentStepIndex + 1) / STEP_ORDER.length) * 100;
 
