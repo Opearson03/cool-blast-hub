@@ -456,10 +456,16 @@ export function PlanTakeoffStep({
   const handleSkipAllBeams = useCallback(async () => {
     if (!pendingSlabData || !activeScope || !currentFileId) return;
     
+    // Idempotency check: only save if slab hasn't been saved yet
+    if (slabSavedId) {
+      resetSlabWorkflow();
+      return;
+    }
+    
     const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
     
     // Save slab without beams
-    await addSlabWithBeams(
+    const slabMarkup = await addSlabWithBeams(
       currentFileId,
       activeScope,
       {
@@ -473,9 +479,14 @@ export function PlanTakeoffStep({
       currentPage
     );
     
+    // Store the saved ID to prevent double-saves
+    if (slabMarkup?.id) {
+      setSlabSavedId(slabMarkup.id);
+    }
+    
     // Reset all slab workflow state
     resetSlabWorkflow();
-  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, currentPage]);
+  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, currentPage, slabSavedId]);
 
   // Handler: Done marking a single beam (ready for naming/dimensions)
   const handleDoneMarkingSingleBeam = useCallback(() => {
