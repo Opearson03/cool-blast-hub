@@ -531,11 +531,11 @@ export default function AdminEstimates() {
           </div>
         )}
 
-        {/* Estimates List - Mobile Cards */}
+        {/* Estimates List - Card Layout (All Screens) */}
         {!isLoading && (
-          <div className="lg:hidden space-y-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {filteredEstimates.length === 0 ? (
-              <Card>
+              <Card className="sm:col-span-2 xl:col-span-3">
                 <CardContent className="py-8 text-center text-muted-foreground">
                   {estimates.length === 0 ? "No quotes yet. Create your first estimate!" : "No quotes found"}
                 </CardContent>
@@ -544,6 +544,7 @@ export default function AdminEstimates() {
               filteredEstimates.map((estimate) => {
                 const StatusIcon = statusConfig[estimate.status].icon;
                 const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Square;
+                const typeLabel = estimateTypeConfig[estimate.estimate_type]?.label || "Small Slabs";
                 return (
                   <Card 
                     key={estimate.id} 
@@ -551,17 +552,17 @@ export default function AdminEstimates() {
                     onClick={() => handleRowClick(estimate)}
                   >
                     <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-md bg-muted">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="p-1.5 rounded-md bg-muted shrink-0" title={typeLabel}>
                             <TypeIcon className="w-4 h-4 text-muted-foreground" />
                           </div>
-                          <div>
-                            <p className="font-semibold">{estimate.estimate_number}</p>
-                            <p className="text-sm text-muted-foreground">{estimate.client_name}</p>
+                          <div className="min-w-0">
+                            <p className="font-semibold truncate">{estimate.estimate_number}</p>
+                            <p className="text-sm text-muted-foreground truncate">{estimate.client_name}</p>
                           </div>
                         </div>
-                        <Badge variant={statusConfig[estimate.status].variant} className="gap-1">
+                        <Badge variant={statusConfig[estimate.status].variant} className="gap-1 shrink-0">
                           <StatusIcon className="w-3 h-3" />
                           {statusConfig[estimate.status].label}
                         </Badge>
@@ -572,8 +573,8 @@ export default function AdminEstimates() {
                         <DraftProgressTracker estimate={estimate} variant="compact" />
                       )}
                       
-                      {estimate.description && <p className="text-sm line-clamp-1">{estimate.description}</p>}
-                      <p className="text-xs text-muted-foreground">{estimate.site_address}</p>
+                      {estimate.description && <p className="text-sm line-clamp-2">{estimate.description}</p>}
+                      <p className="text-xs text-muted-foreground truncate">{estimate.site_address}</p>
                       
                       <div className="flex items-center justify-between pt-2 border-t border-border">
                         <div className="flex items-center gap-4 text-sm">
@@ -631,122 +632,6 @@ export default function AdminEstimates() {
               })
             )}
           </div>
-        )}
-
-        {/* Estimates List - Desktop Table */}
-        {!isLoading && (
-          <Card className="hidden lg:block overflow-hidden">
-            <CardContent className="p-0">
-              <table className="w-full">
-                <thead className="border-b border-border">
-                  <tr className="text-left">
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-14">Type</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-24 xl:w-28">Quote #</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground">Client</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground hidden xl:table-cell w-[20%]">Description</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-24">Amount</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-36">Status</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground hidden xl:table-cell w-24">Created</th>
-                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-12">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredEstimates.length === 0 ? (
-                    <tr>
-                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
-                        {estimates.length === 0 ? "No quotes yet. Create your first estimate!" : "No quotes found"}
-                      </td>
-                    </tr>
-                  ) : (
-                    filteredEstimates.map((estimate) => {
-                      const StatusIcon = statusConfig[estimate.status].icon;
-                      const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Square;
-                      const typeLabel = estimateTypeConfig[estimate.estimate_type]?.label || "Small Slabs";
-                      return (
-                        <tr 
-                          key={estimate.id} 
-                          className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => handleRowClick(estimate)}
-                        >
-                          <td className="p-3 xl:p-4">
-                            <div className="flex items-center" title={typeLabel}>
-                              <div className="p-1.5 rounded-md bg-muted">
-                                <TypeIcon className="w-4 h-4 text-muted-foreground" />
-                              </div>
-                            </div>
-                          </td>
-                          <td className="p-3 xl:p-4 font-medium text-sm truncate">{estimate.estimate_number}</td>
-                          <td className="p-3 xl:p-4">
-                            <div className="min-w-0">
-                              <p className="font-medium truncate">{estimate.client_name}</p>
-                              <p className="text-sm text-muted-foreground truncate">{estimate.site_address}</p>
-                            </div>
-                          </td>
-                          <td className="p-3 xl:p-4 hidden xl:table-cell">
-                            <span className="truncate block">{estimate.description || "-"}</span>
-                          </td>
-                          <td className="p-3 xl:p-4 font-semibold text-sm">{formatCurrency(estimate.total_amount || 0)}</td>
-                          <td className="p-3 xl:p-4">
-                            {estimate.status === "draft" ? (
-                              <div className="min-w-0">
-                                <DraftProgressTracker estimate={estimate} variant="compact" />
-                              </div>
-                            ) : (
-                              <Badge variant={statusConfig[estimate.status].variant} className="gap-1">
-                                <StatusIcon className="w-3 h-3" />
-                                {statusConfig[estimate.status].label}
-                              </Badge>
-                            )}
-                          </td>
-                          <td className="p-3 xl:p-4 text-muted-foreground text-sm hidden xl:table-cell">{formatDate(estimate.created_at)}</td>
-                          <td className="p-3 xl:p-4 w-10">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreVertical className="w-4 h-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={(e) => handleEdit(estimate, e)}>Edit</DropdownMenuItem>
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDuplicatingEstimate(estimate); }}>
-                                  <Copy className="w-4 h-4 mr-2" />
-                                  Duplicate
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
-                                  Mark as Sent
-                                </DropdownMenuItem>
-                                {estimate.status !== "accepted" && (
-                                  <DropdownMenuItem onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    updateStatusMutation.mutate({ id: estimate.id, status: "accepted" });
-                                    handleConvertToJob(estimate);
-                                  }}>
-                                    <Briefcase className="w-4 h-4 mr-2" />
-                                    Accept & Create Job
-                                  </DropdownMenuItem>
-                                )}
-                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
-                                  Mark as Declined
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem 
-                                  className="text-destructive"
-                                  onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(estimate.id); }}
-                                >
-                                  Delete
-                                </DropdownMenuItem>
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
         )}
       </div>
 
