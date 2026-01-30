@@ -3,6 +3,7 @@
 export { formworkModule } from './formwork';
 export { excavationModule } from './excavation';
 export { basePreparationModule } from './base-preparation';
+export { podsModule } from './pods';
 export { reinforcementPiersModule } from './reinforcement-piers';
 export { reinforcementSlabModule } from './reinforcement-slab';
 export { reinforcementFootingModule } from './reinforcement-footing';
@@ -29,6 +30,7 @@ export { extraItemsModule } from './extra-items';
 import { formworkModule } from './formwork';
 import { excavationModule } from './excavation';
 import { basePreparationModule } from './base-preparation';
+import { podsModule } from './pods';
 import { reinforcementPiersModule } from './reinforcement-piers';
 import { reinforcementSlabModule } from './reinforcement-slab';
 import { reinforcementFootingModule } from './reinforcement-footing';
@@ -60,6 +62,7 @@ export const MODULE_REGISTRY: Record<string, EstimateModule> = {
   'formwork': formworkModule,
   'excavation': excavationModule,
   'base-preparation': basePreparationModule,
+  'pods': podsModule,
   'reinforcement': reinforcementPiersModule,
   'reinforcement-piers': reinforcementPiersModule,
   'reinforcement-slab': reinforcementSlabModule,

@@ -777,6 +777,7 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     'excavation',
     'base-preparation',
     'formwork',
+    'pods',  // Waffle pod materials and accessories
     'reinforcement-raft',  // Consolidated reinforcement for slab, edge beams, and internal beams
     'labour-prep',
     'concrete-supply',

@@ -13,7 +13,7 @@ import { Separator } from "@/components/ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Grid3X3, AlertTriangle, Ruler } from "lucide-react";
 
-interface WafflePodReinforcementInputProps {
+interface WafflePodConfigInputProps {
   scopeData: Record<string, any>;
   onScopeDataChange: (key: string, value: any) => void;
 }
@@ -51,10 +51,10 @@ const STOCK_LENGTH_OPTIONS = [
   { value: '12', label: '12m' },
 ];
 
-export function WafflePodReinforcementInput({
+export function WafflePodConfigInput({
   scopeData,
   onScopeDataChange,
-}: WafflePodReinforcementInputProps) {
+}: WafflePodConfigInputProps) {
   // Extract values from scopeData
   const podSize = String(scopeData?.pod_size || '1090');
   const podThickness = String(scopeData?.pod_thickness || '225');
