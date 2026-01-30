@@ -37,7 +37,8 @@ import { FootingReinforcementInput } from "./FootingReinforcementInput";
 import { FootingSectionReinforcementInput } from "./FootingSectionReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
 import { WafflePodConfigInput } from "./WafflePodConfigInput";
-import { WafflePodReinforcementInput } from "./WafflePodReinforcementInput";
+import { WafflePodRibsInput } from "./WafflePodRibsInput";
+import { WafflePodToppingMeshInput } from "./WafflePodToppingMeshInput";
 import { ExtraItemsInput } from "./ExtraItemsInput";
 import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
 import { MultiPlacementInput } from "./MultiPlacementInput";
@@ -398,14 +399,6 @@ export function ModuleSection({
               />
             )}
             
-            {/* Waffle Pod Reinforcement - shown in the Reinforcement module */}
-            {module.id === 'reinforcement-raft' && scopeId === 'waffle_pod' && onScopeDataChange && (
-              <WafflePodReinforcementInput
-                scopeData={scopeData || {}}
-                onScopeDataChange={onScopeDataChange}
-              />
-            )}
-            
             {/* Questions - grouped by section, with inline beam/area inputs for raft reo */}
             {(() => {
               // Group questions by section
@@ -422,9 +415,11 @@ export function ModuleSection({
                   
                   // Check if this section should have inline inputs
                   // Support both "Edge Beams" and "Edge Thickening" for driveway scope
-                  const isSlabSurfaceSection = isRaftReoModule && currentSection === 'Slab Surface';
-                  const isEdgeBeamsSection = isRaftReoModule && (currentSection === 'Edge Beams' || currentSection === 'Edge Thickening');
-                  const isInternalBeamsSection = isRaftReoModule && currentSection === 'Internal Beams';
+                  // Skip these for waffle_pod as it has dedicated sections
+                  const isWafflePod = scopeId === 'waffle_pod';
+                  const isSlabSurfaceSection = isRaftReoModule && currentSection === 'Slab Surface' && !isWafflePod;
+                  const isEdgeBeamsSection = isRaftReoModule && (currentSection === 'Edge Beams' || currentSection === 'Edge Thickening') && !isWafflePod;
+                  const isInternalBeamsSection = isRaftReoModule && currentSection === 'Internal Beams' && !isWafflePod;
                   // Footing reinforcement now uses LinearSectionReinforcementInput
                   const isFootingReoSection = isFootingReoModule && currentSection === 'Footing Reinforcement';
                   
@@ -542,7 +537,11 @@ export function ModuleSection({
               };
 
               // Skip default question rendering for extra-items module (uses custom component)
-              if (module.id !== 'extra-items') {
+              // Also skip for waffle_pod reinforcement (has dedicated sections)
+              const skipDefaultQuestions = module.id === 'extra-items' || 
+                (isRaftReoModule && scopeId === 'waffle_pod');
+              
+              if (!skipDefaultQuestions) {
                 visibleQuestions.forEach((question) => {
                   if (question.sectionLabel && question.sectionLabel !== currentSection) {
                     flushSection();
@@ -607,7 +606,91 @@ export function ModuleSection({
                 );
               }
 
-              // Special case: Extra Items module renders custom input
+              // Special case: Waffle Pod reinforcement module renders custom sections
+              // for Ribs, Topping Mesh, Edge Beams, and Internal Beams
+              const isWafflePodReo = isRaftReoModule && scopeId === 'waffle_pod';
+              if (isWafflePodReo && onScopeDataChange) {
+                // Ribs Section
+                elements.push(
+                  <div key="waffle-ribs-section" className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2 first:pt-0">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Ribs
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <WafflePodRibsInput
+                      scopeData={scopeData || {}}
+                      onScopeDataChange={onScopeDataChange}
+                    />
+                  </div>
+                );
+                
+                // Topping Mesh Section
+                elements.push(
+                  <div key="waffle-topping-section" className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Topping Slab Mesh
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <WafflePodToppingMeshInput
+                      scopeData={scopeData || {}}
+                      onScopeDataChange={onScopeDataChange}
+                    />
+                  </div>
+                );
+                
+                // Edge Beams Section (if any edge beams exist)
+                if (edgeBeams.length > 0) {
+                  elements.push(
+                    <div key="waffle-edge-beams-section" className="space-y-4">
+                      <div className="flex items-center gap-2 pt-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Edge Beams
+                        </h4>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                      <BeamReinforcementInput
+                        beams={edgeBeams}
+                        onChange={(newBeams) => onScopeDataChange('edgeBeams', newBeams)}
+                        defaultTmType="L11TM4"
+                        defaultAddLigs={false}
+                        defaultLigSize="R10"
+                        defaultLigCentres={200}
+                        label="Edge Beams"
+                        priceMap={priceMap}
+                      />
+                    </div>
+                  );
+                }
+                
+                // Internal Beams Section (if any internal beams exist)
+                if (internalBeams.length > 0) {
+                  elements.push(
+                    <div key="waffle-internal-beams-section" className="space-y-4">
+                      <div className="flex items-center gap-2 pt-2">
+                        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          Internal Beams
+                        </h4>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                      <BeamReinforcementInput
+                        beams={internalBeams}
+                        onChange={(newBeams) => onScopeDataChange('beams', newBeams)}
+                        defaultTmType="L11TM4"
+                        defaultAddLigs={false}
+                        defaultLigSize="R10"
+                        defaultLigCentres={200}
+                        label="Internal Beams"
+                        priceMap={priceMap}
+                      />
+                    </div>
+                  );
+                }
+              }
+
               if (module.id === 'extra-items') {
                 elements.push(
                   <div key="extra-items-section" className="space-y-4">
