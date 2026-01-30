@@ -1,98 +1,107 @@
 
-
-# Fix Raft Slab Chair Costs Not Updating with Selection
+# Auto-sync Inclusions/Exclusions Based on Module Answers
 
 ## Problem Summary
 
-When users change the **Chair Size** dropdown in the Raft Slab reinforcement module, the cost does not update. The chair type is stored, but the associated price remains unchanged from its default or previous value.
+When users enable "Concrete Pumping" or "Detailed Excavation" in the calculator modules, the corresponding items in the "What's Included" and "What's Excluded" lists on the Conditions step don't update automatically. Users must manually check/uncheck these boxes, which is error-prone and confusing.
+
+## Current Behavior
+
+| User Action | Expected | Actual |
+|-------------|----------|--------|
+| Enable "Pump Required" in Concrete Pumping module | "Concrete pump hire" auto-checked in Inclusions | Remains unchecked |
+| Enable "Detailed/Bulk Excavation" in Excavation module | "Excavation" removed from Exclusions | Remains checked |
 
 ## Root Cause
 
-In `AreaReinforcementInput.tsx`, when the user changes the chair type, only the `chair_type` property is updated - the `chair_price_per_bag` is not reset to the new chair type's price from the catalog.
+The `selectedInclusions` and `selectedExclusions` state are initialized once with defaults (lines 384-385) and only updated when users manually click the checkboxes. There's no synchronization logic that reads from `modularScopeStates.moduleAnswers` to update these lists.
 
-**Current buggy code (line 551):**
+**Default initialization:**
 ```javascript
-onValueChange={(val) => updateArea(index, { chair_type: val })}
-```
+// pump_hire (index 6) is NOT in default inclusions (only 0-5)
+setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
 
-**Compare with mesh type (lines 344-350) which works correctly:**
-```javascript
-onValueChange={(val) => {
-  // When mesh type changes, update type and reset price to catalog price
-  const catalogPrice = getMeshPrice(val, priceMap);
-  updateArea(index, { 
-    mesh_type: val,
-    mesh_price: catalogPrice
-  });
-}}
+// exc_excavation (index 0) IS in default exclusions
+setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
 ```
-
-The same pattern should be applied to chair type selection.
 
 ## Solution
 
-Update the `chair_type` `onValueChange` handler to also update `chair_price_per_bag` with the new chair's catalog price from the price map.
+Add a `useEffect` hook that watches `modularScopeStates` and automatically syncs the inclusions/exclusions based on module answers:
+
+1. **Pumping**: If ANY scope has `concrete-pumping.pump_required === true`, add `pump_hire` to inclusions
+2. **Excavation**: If ANY scope has `excavation.detailed_excavation_required === true` OR `excavation.bulk_excavation_required === true`, remove `exc_excavation` from exclusions
+
+The sync should only ADD items when modules are enabled, never remove user's manual additions. Similarly for exclusions, only REMOVE when excavation is enabled, never add back.
 
 ---
 
 ## Technical Details
 
-### File: `src/components/estimates/calculators/AreaReinforcementInput.tsx`
+### File: `src/components/estimates/EstimateFormDialog.tsx`
 
-**Add helper function** (near the existing `getMeshPrice` function, around line 60):
+**Add new useEffect hook** (after line ~662, near other useEffect hooks):
 
-```javascript
-// Get chair price from price map
-function getChairPrice(chairType: string, priceMap?: PriceMap): number | undefined {
-  if (!priceMap) return undefined;
-  return priceMap['consumables']?.[chairType];
-}
+```typescript
+// Auto-sync inclusions/exclusions based on module answers
+useEffect(() => {
+  // Check all scopes for module answers
+  let hasPumping = false;
+  let hasExcavation = false;
+  
+  for (const scopeType of Array.from(selectedScopes)) {
+    const state = modularScopeStates[scopeType];
+    if (!state?.moduleAnswers) continue;
+    
+    // Check concrete-pumping module
+    const pumpingAnswers = state.moduleAnswers['concrete-pumping'];
+    if (pumpingAnswers?.pump_required === true) {
+      hasPumping = true;
+    }
+    
+    // Check excavation module  
+    const excavationAnswers = state.moduleAnswers['excavation'];
+    if (excavationAnswers?.detailed_excavation_required === true || 
+        excavationAnswers?.bulk_excavation_required === true) {
+      hasExcavation = true;
+    }
+  }
+  
+  // Sync inclusions - add pump_hire if pumping is enabled
+  if (hasPumping && !selectedInclusions.has('pump_hire')) {
+    setSelectedInclusions(prev => new Set([...prev, 'pump_hire']));
+  }
+  
+  // Sync exclusions - remove exc_excavation if excavation is enabled
+  if (hasExcavation && selectedExclusions.has('exc_excavation')) {
+    setSelectedExclusions(prev => {
+      const next = new Set(prev);
+      next.delete('exc_excavation');
+      return next;
+    });
+  }
+}, [modularScopeStates, selectedScopes, selectedInclusions, selectedExclusions]);
 ```
-
-**Update chair type selector** (around line 549-551):
-
-Before:
-```javascript
-onValueChange={(val) => updateArea(index, { chair_type: val })}
-```
-
-After:
-```javascript
-onValueChange={(val) => {
-  // When chair type changes, update type and reset price to catalog price
-  const catalogPrice = getChairPrice(val, priceMap);
-  updateArea(index, { 
-    chair_type: val,
-    chair_price_per_bag: catalogPrice
-  });
-}}
-```
-
----
-
-## Other Scopes to Check
-
-I audited other reinforcement components for similar chair selection patterns:
-
-| Component | Has Chair Type Selector? | Status |
-|-----------|-------------------------|--------|
-| `AreaReinforcementInput.tsx` | Yes (Chair Size dropdown) | **BUG - needs fix** |
-| `BeamReinforcementInput.tsx` | No (TM chairs only - no size selection) | OK |
-| `LinearSectionReinforcementInput.tsx` | No (TM chairs only - no size selection) | OK |
-| `PadFootingGroupReinforcementInput.tsx` | No (only price input, no type selection) | OK |
-
-Only `AreaReinforcementInput.tsx` has the chair type selector, so this is the only file that needs to be fixed.
 
 ---
 
 ## Testing Verification
 
 After implementation:
-1. Open a Raft Slab estimate with an area configured
-2. Enable Bar Chairs for the area
-3. Note the default chair type (75-90mm) and price
-4. Change Chair Size to "100-120mm"
-5. Verify the price updates from ~$22.40 to ~$45.00 (from catalog)
-6. Verify the Cost Breakdown total updates accordingly
-7. Change to "25-40mm" and verify price updates to ~$15.80
+1. Create a new estimate and add a Raft Slab scope
+2. In the Configure step, open the "Concrete Pumping" module
+3. Toggle "Do you require a concrete pump?" to ON
+4. Navigate to the Conditions step
+5. **Verify**: "Concrete pump hire" should be automatically checked
+6. Go back to Configure, open "Excavation" module
+7. Toggle "Detailed excavation required?" to ON  
+8. Return to Conditions step
+9. **Verify**: "Excavation and site preparation" should be automatically unchecked from exclusions
 
+---
+
+## Edge Cases Handled
+
+- **Multiple scopes**: If any scope has pumping/excavation enabled, the sync triggers
+- **User override**: Users can still manually uncheck pump_hire or re-check excavation if desired
+- **No double-triggering**: The check `!selectedInclusions.has('pump_hire')` prevents unnecessary state updates
