@@ -1,107 +1,234 @@
 
-# Auto-sync Inclusions/Exclusions Based on Module Answers
+# Add Double Layer Mesh/TM Chairs to Estimate, Schedule & BOQ
 
-## Problem Summary
+## Summary
 
-When users enable "Concrete Pumping" or "Detailed Excavation" in the calculator modules, the corresponding items in the "What's Included" and "What's Excluded" lists on the Conditions step don't update automatically. Users must manually check/uncheck these boxes, which is error-prone and confusing.
-
-## Current Behavior
-
-| User Action | Expected | Actual |
-|-------------|----------|--------|
-| Enable "Pump Required" in Concrete Pumping module | "Concrete pump hire" auto-checked in Inclusions | Remains unchecked |
-| Enable "Detailed/Bulk Excavation" in Excavation module | "Excavation" removed from Exclusions | Remains checked |
-
-## Root Cause
-
-The `selectedInclusions` and `selectedExclusions` state are initialized once with defaults (lines 384-385) and only updated when users manually click the checkboxes. There's no synchronization logic that reads from `modularScopeStates.moduleAnswers` to update these lists.
-
-**Default initialization:**
-```javascript
-// pump_hire (index 6) is NOT in default inclusions (only 0-5)
-setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
-
-// exc_excavation (index 0) IS in default exclusions
-setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
-```
-
-## Solution
-
-Add a `useEffect` hook that watches `modularScopeStates` and automatically syncs the inclusions/exclusions based on module answers:
-
-1. **Pumping**: If ANY scope has `concrete-pumping.pump_required === true`, add `pump_hire` to inclusions
-2. **Excavation**: If ANY scope has `excavation.detailed_excavation_required === true` OR `excavation.bulk_excavation_required === true`, remove `exc_excavation` from exclusions
-
-The sync should only ADD items when modules are enabled, never remove user's manual additions. Similarly for exclusions, only REMOVE when excavation is enabled, never add back.
+When users select 2-layer mesh or trench mesh configurations, they need "layer chairs" (spacers that hold the two mesh layers apart at the correct distance). The UI for enabling layer chairs already exists, and the cost calculations in the reinforcement modules are working correctly. However, the **Bill of Quantities (BOQ) generator is not extracting these items**, meaning they don't appear on the material schedule for procurement.
 
 ---
 
-## Technical Details
+## Current State Analysis
 
-### File: `src/components/estimates/EstimateFormDialog.tsx`
+| Component | Location | Layer Chairs Support |
+|-----------|----------|---------------------|
+| **Area Reinforcement UI** | `AreaReinforcementInput.tsx` | Shows toggle when mesh_layers > 1 |
+| **Beam Reinforcement UI** | `BeamReinforcementInput.tsx` | Shows toggle when tm_layers > 1 |
+| **Linear Section UI** | `LinearSectionReinforcementInput.tsx` | Shows toggle when tm_layers > 1 |
+| **Raft Slab Calculator** | `reinforcement-raft.ts` | Calculates and adds to cost breakdown |
+| **Footing Calculator** | `reinforcement-footing.ts` | Calculates and adds to cost breakdown |
+| **BOQ Generator** | `boq-generator.ts` | Missing layer chair extraction |
 
-**Add new useEffect hook** (after line ~662, near other useEffect hooks):
+---
+
+## Solution
+
+Update the BOQ generator to extract layer chairs from:
+1. Slab areas with 2-layer mesh
+2. Edge beams with 2-layer trench mesh  
+3. Internal beams with 2-layer trench mesh
+4. Footings with 2-layer trench mesh
+
+---
+
+## Technical Changes
+
+### File: `src/lib/boq-generator.ts`
+
+#### 1. Add Layer Chair Extraction for Slab Areas (lines ~681-715)
+
+After the existing bar chairs extraction, add logic to iterate through areas and aggregate layer chairs:
 
 ```typescript
-// Auto-sync inclusions/exclusions based on module answers
-useEffect(() => {
-  // Check all scopes for module answers
-  let hasPumping = false;
-  let hasExcavation = false;
+// After bar chairs extraction block (~line 715)
+
+// ═══════════════════════════════════════════════════════════════
+// SLAB LAYER CHAIRS (for 2-layer mesh)
+// ═══════════════════════════════════════════════════════════════
+if (areas.length > 0) {
+  let totalLayerChairs = 0;
+  let layerChairPrice = 35;
   
-  for (const scopeType of Array.from(selectedScopes)) {
-    const state = modularScopeStates[scopeType];
-    if (!state?.moduleAnswers) continue;
+  areas.forEach((area: any) => {
+    const reoType = area.reo_type || 'mesh';
+    if (reoType !== 'mesh') return;
     
-    // Check concrete-pumping module
-    const pumpingAnswers = state.moduleAnswers['concrete-pumping'];
-    if (pumpingAnswers?.pump_required === true) {
-      hasPumping = true;
-    }
+    const meshLayers = area.mesh_layers || 1;
+    if (meshLayers <= 1) return;
+    if (!area.layer_chairs_enabled) return;
     
-    // Check excavation module  
-    const excavationAnswers = state.moduleAnswers['excavation'];
-    if (excavationAnswers?.detailed_excavation_required === true || 
-        excavationAnswers?.bulk_excavation_required === true) {
-      hasExcavation = true;
-    }
-  }
+    const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
+    if (areaValue <= 0) return;
+    
+    const layerChairsPerM2 = area.layer_chairs_per_m2 ?? 2;
+    layerChairPrice = area.layer_chair_price ?? 35;
+    totalLayerChairs += Math.ceil(areaValue * layerChairsPerM2);
+  });
   
-  // Sync inclusions - add pump_hire if pumping is enabled
-  if (hasPumping && !selectedInclusions.has('pump_hire')) {
-    setSelectedInclusions(prev => new Set([...prev, 'pump_hire']));
+  if (totalLayerChairs > 0) {
+    const bags = Math.ceil(totalLayerChairs / 100);
+    addItem(
+      "reinforcement",
+      "Mesh Layer Spacer Chairs",
+      bags,
+      "bags",
+      layerChairPrice,
+      `${bags} × 100 pcs (between mesh layers)`
+    );
   }
-  
-  // Sync exclusions - remove exc_excavation if excavation is enabled
-  if (hasExcavation && selectedExclusions.has('exc_excavation')) {
-    setSelectedExclusions(prev => {
-      const next = new Set(prev);
-      next.delete('exc_excavation');
-      return next;
-    });
-  }
-}, [modularScopeStates, selectedScopes, selectedInclusions, selectedExclusions]);
+}
 ```
+
+#### 2. Add Layer Chair Extraction for Edge Beams (lines ~733-798)
+
+Inside the edge beams loop, after processing trench mesh and ligatures:
+
+```typescript
+// After edge beams trench mesh extraction
+
+// ═══════════════════════════════════════════════════════════════
+// EDGE BEAM LAYER CHAIRS (for 2-layer TM)
+// ═══════════════════════════════════════════════════════════════
+if (edgeBeams.length > 0) {
+  let totalLayerChairs = 0;
+  let layerChairPrice = 12.50;
+  
+  edgeBeams.forEach((beam: any) => {
+    const tmLayers = beam.tm_layers || 1;
+    if (tmLayers <= 1) return;
+    if (!beam.layer_chairs_enabled) return;
+    
+    const length = Number(beam.length) || 0;
+    if (length <= 0) return;
+    
+    const layerChairsPerM = beam.layer_chairs_per_m ?? 1;
+    layerChairPrice = beam.layer_chair_price ?? 12.50;
+    totalLayerChairs += Math.ceil(length * layerChairsPerM);
+  });
+  
+  if (totalLayerChairs > 0) {
+    const bags = Math.ceil(totalLayerChairs / 25);
+    addItem(
+      "reinforcement",
+      "Edge Beam TM Layer Chairs",
+      bags,
+      "bags",
+      layerChairPrice,
+      `${bags} × 25 pcs (between TM layers)`
+    );
+  }
+}
+```
+
+#### 3. Add Layer Chair Extraction for Internal Beams (lines ~801-870)
+
+Same pattern as edge beams:
+
+```typescript
+// After internal beams trench mesh extraction
+
+// ═══════════════════════════════════════════════════════════════
+// INTERNAL BEAM LAYER CHAIRS (for 2-layer TM)
+// ═══════════════════════════════════════════════════════════════
+if (internalBeams.length > 0) {
+  let totalLayerChairs = 0;
+  let layerChairPrice = 12.50;
+  
+  internalBeams.forEach((beam: any) => {
+    const tmLayers = beam.tm_layers || 1;
+    if (tmLayers <= 1) return;
+    if (!beam.layer_chairs_enabled) return;
+    
+    const length = Number(beam.length) || 0;
+    if (length <= 0) return;
+    
+    const layerChairsPerM = beam.layer_chairs_per_m ?? 1;
+    layerChairPrice = beam.layer_chair_price ?? 12.50;
+    totalLayerChairs += Math.ceil(length * layerChairsPerM);
+  });
+  
+  if (totalLayerChairs > 0) {
+    const bags = Math.ceil(totalLayerChairs / 25);
+    addItem(
+      "reinforcement",
+      "Internal Beam TM Layer Chairs",
+      bags,
+      "bags",
+      layerChairPrice,
+      `${bags} × 25 pcs (between TM layers)`
+    );
+  }
+}
+```
+
+#### 4. Add Layer Chair Extraction for Strip Footings (in reinforcement-footing section)
+
+For the footing reinforcement module extraction section, add:
+
+```typescript
+// After footing trench mesh extraction
+
+// ═══════════════════════════════════════════════════════════════
+// FOOTING LAYER CHAIRS (for 2-layer TM)
+// ═══════════════════════════════════════════════════════════════
+const footings = scopeAnswers.linearSections || scopeAnswers.footings || [];
+if (footings.length > 0) {
+  let totalLayerChairs = 0;
+  let layerChairPrice = 12.50;
+  
+  footings.forEach((section: any) => {
+    const tmLayers = section.tm_layers || 1;
+    if (tmLayers <= 1) return;
+    if (!section.layer_chairs_enabled) return;
+    
+    const length = section._actualLength || Number(section.length) || 0;
+    if (length <= 0) return;
+    
+    const layerChairsPerM = section.layer_chairs_per_m ?? 1;
+    layerChairPrice = section.layer_chair_price ?? 12.50;
+    totalLayerChairs += Math.ceil(length * layerChairsPerM);
+  });
+  
+  if (totalLayerChairs > 0) {
+    const bags = Math.ceil(totalLayerChairs / 25);
+    addItem(
+      "reinforcement",
+      "Footing TM Layer Chairs",
+      bags,
+      "bags",
+      layerChairPrice,
+      `${bags} × 25 pcs (between TM layers)`
+    );
+  }
+}
+```
+
+---
+
+## Implementation Details
+
+| Material Type | Unit | Bag Size | Per-Unit Default |
+|--------------|------|----------|------------------|
+| Slab mesh layer chairs | bags | 100 pcs | $35/bag |
+| TM layer chairs (beams/footings) | bags | 25 pcs | $12.50/bag |
 
 ---
 
 ## Testing Verification
 
-After implementation:
-1. Create a new estimate and add a Raft Slab scope
-2. In the Configure step, open the "Concrete Pumping" module
-3. Toggle "Do you require a concrete pump?" to ON
-4. Navigate to the Conditions step
-5. **Verify**: "Concrete pump hire" should be automatically checked
-6. Go back to Configure, open "Excavation" module
-7. Toggle "Detailed excavation required?" to ON  
-8. Return to Conditions step
-9. **Verify**: "Excavation and site preparation" should be automatically unchecked from exclusions
+1. Create a new Raft Slab estimate
+2. Add an area with 2-layer mesh and enable "Chairs Between Layers"
+3. Add edge beams with 2-layer TM and enable "Chairs Between Layers"
+4. Verify cost breakdown shows layer chair line items
+5. Accept the quote and navigate to the job
+6. Open the Bill of Quantities
+7. Verify layer chairs appear in the reinforcement section with correct quantities
+8. Print/export BOQ and confirm layer chairs are listed
 
 ---
 
-## Edge Cases Handled
+## Files to Modify
 
-- **Multiple scopes**: If any scope has pumping/excavation enabled, the sync triggers
-- **User override**: Users can still manually uncheck pump_hire or re-check excavation if desired
-- **No double-triggering**: The check `!selectedInclusions.has('pump_hire')` prevents unnecessary state updates
+| File | Changes |
+|------|---------|
+| `src/lib/boq-generator.ts` | Add 4 new extraction blocks for layer chairs (slab, edge beams, internal beams, footings) |
+
