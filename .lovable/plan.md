@@ -1,234 +1,95 @@
 
-# Add Double Layer Mesh/TM Chairs to Estimate, Schedule & BOQ
+# Remove Length Labels and Reduce Vertex Dot Sizes on Takeoff Canvas
 
 ## Summary
 
-When users select 2-layer mesh or trench mesh configurations, they need "layer chairs" (spacers that hold the two mesh layers apart at the correct distance). The UI for enabling layer chairs already exists, and the cost calculations in the reinforcement modules are working correctly. However, the **Bill of Quantities (BOQ) generator is not extracting these items**, meaning they don't appear on the material schedule for procurement.
+The takeoff drawing canvas currently displays length tags on polyline segments which creates visual clutter. Additionally, the vertex dots at each point on lines are too large. This plan addresses both issues by:
+1. Removing the segment length labels from polyline previews and discrete internal beams
+2. Reducing all vertex dot radii by 50%
 
 ---
 
-## Current State Analysis
+## Changes Overview
 
-| Component | Location | Layer Chairs Support |
-|-----------|----------|---------------------|
-| **Area Reinforcement UI** | `AreaReinforcementInput.tsx` | Shows toggle when mesh_layers > 1 |
-| **Beam Reinforcement UI** | `BeamReinforcementInput.tsx` | Shows toggle when tm_layers > 1 |
-| **Linear Section UI** | `LinearSectionReinforcementInput.tsx` | Shows toggle when tm_layers > 1 |
-| **Raft Slab Calculator** | `reinforcement-raft.ts` | Calculates and adds to cost breakdown |
-| **Footing Calculator** | `reinforcement-footing.ts` | Calculates and adds to cost breakdown |
-| **BOQ Generator** | `boq-generator.ts` | Missing layer chair extraction |
+### File: `src/components/estimates/takeoff/DrawingCanvas.tsx`
 
 ---
 
-## Solution
+## Change 1: Remove Segment Length Labels from Polyline Preview
 
-Update the BOQ generator to extract layer chairs from:
-1. Slab areas with 2-layer mesh
-2. Edge beams with 2-layer trench mesh  
-3. Internal beams with 2-layer trench mesh
-4. Footings with 2-layer trench mesh
+**Location:** Lines 531-555
+
+Remove the entire segment length labels rendering block from `renderPolylinePreview()`:
+
+```typescript
+// DELETE this entire block (lines 531-555):
+{/* Segment length labels */}
+{segmentLengths.map((seg, index) => (
+  <Group key={`seg-label-${index}`}>
+    {/* Background for label */}
+    <Rect ... />
+    <Text ... />
+  </Group>
+))}
+```
+
+Also remove the now-unused `segmentLengths` calculation (lines 506-519) since it's no longer needed.
 
 ---
 
-## Technical Changes
+## Change 2: Remove Length Labels from Discrete Internal Beams
 
-### File: `src/lib/boq-generator.ts`
+**Location:** Lines 744-765
 
-#### 1. Add Layer Chair Extraction for Slab Areas (lines ~681-715)
-
-After the existing bar chairs extraction, add logic to iterate through areas and aggregate layer chairs:
+Remove the length label Group from `renderDiscreteInternalBeams()`:
 
 ```typescript
-// After bar chairs extraction block (~line 715)
-
-// ═══════════════════════════════════════════════════════════════
-// SLAB LAYER CHAIRS (for 2-layer mesh)
-// ═══════════════════════════════════════════════════════════════
-if (areas.length > 0) {
-  let totalLayerChairs = 0;
-  let layerChairPrice = 35;
-  
-  areas.forEach((area: any) => {
-    const reoType = area.reo_type || 'mesh';
-    if (reoType !== 'mesh') return;
-    
-    const meshLayers = area.mesh_layers || 1;
-    if (meshLayers <= 1) return;
-    if (!area.layer_chairs_enabled) return;
-    
-    const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
-    if (areaValue <= 0) return;
-    
-    const layerChairsPerM2 = area.layer_chairs_per_m2 ?? 2;
-    layerChairPrice = area.layer_chair_price ?? 35;
-    totalLayerChairs += Math.ceil(areaValue * layerChairsPerM2);
-  });
-  
-  if (totalLayerChairs > 0) {
-    const bags = Math.ceil(totalLayerChairs / 100);
-    addItem(
-      "reinforcement",
-      "Mesh Layer Spacer Chairs",
-      bags,
-      "bags",
-      layerChairPrice,
-      `${bags} × 100 pcs (between mesh layers)`
-    );
-  }
-}
+// DELETE this entire block (lines 745-765):
+{/* Length label at midpoint */}
+<Group>
+  <Rect ... />
+  <Text ... />
+</Group>
 ```
 
-#### 2. Add Layer Chair Extraction for Edge Beams (lines ~733-798)
-
-Inside the edge beams loop, after processing trench mesh and ligatures:
-
-```typescript
-// After edge beams trench mesh extraction
-
-// ═══════════════════════════════════════════════════════════════
-// EDGE BEAM LAYER CHAIRS (for 2-layer TM)
-// ═══════════════════════════════════════════════════════════════
-if (edgeBeams.length > 0) {
-  let totalLayerChairs = 0;
-  let layerChairPrice = 12.50;
-  
-  edgeBeams.forEach((beam: any) => {
-    const tmLayers = beam.tm_layers || 1;
-    if (tmLayers <= 1) return;
-    if (!beam.layer_chairs_enabled) return;
-    
-    const length = Number(beam.length) || 0;
-    if (length <= 0) return;
-    
-    const layerChairsPerM = beam.layer_chairs_per_m ?? 1;
-    layerChairPrice = beam.layer_chair_price ?? 12.50;
-    totalLayerChairs += Math.ceil(length * layerChairsPerM);
-  });
-  
-  if (totalLayerChairs > 0) {
-    const bags = Math.ceil(totalLayerChairs / 25);
-    addItem(
-      "reinforcement",
-      "Edge Beam TM Layer Chairs",
-      bags,
-      "bags",
-      layerChairPrice,
-      `${bags} × 25 pcs (between TM layers)`
-    );
-  }
-}
-```
-
-#### 3. Add Layer Chair Extraction for Internal Beams (lines ~801-870)
-
-Same pattern as edge beams:
-
-```typescript
-// After internal beams trench mesh extraction
-
-// ═══════════════════════════════════════════════════════════════
-// INTERNAL BEAM LAYER CHAIRS (for 2-layer TM)
-// ═══════════════════════════════════════════════════════════════
-if (internalBeams.length > 0) {
-  let totalLayerChairs = 0;
-  let layerChairPrice = 12.50;
-  
-  internalBeams.forEach((beam: any) => {
-    const tmLayers = beam.tm_layers || 1;
-    if (tmLayers <= 1) return;
-    if (!beam.layer_chairs_enabled) return;
-    
-    const length = Number(beam.length) || 0;
-    if (length <= 0) return;
-    
-    const layerChairsPerM = beam.layer_chairs_per_m ?? 1;
-    layerChairPrice = beam.layer_chair_price ?? 12.50;
-    totalLayerChairs += Math.ceil(length * layerChairsPerM);
-  });
-  
-  if (totalLayerChairs > 0) {
-    const bags = Math.ceil(totalLayerChairs / 25);
-    addItem(
-      "reinforcement",
-      "Internal Beam TM Layer Chairs",
-      bags,
-      "bags",
-      layerChairPrice,
-      `${bags} × 25 pcs (between TM layers)`
-    );
-  }
-}
-```
-
-#### 4. Add Layer Chair Extraction for Strip Footings (in reinforcement-footing section)
-
-For the footing reinforcement module extraction section, add:
-
-```typescript
-// After footing trench mesh extraction
-
-// ═══════════════════════════════════════════════════════════════
-// FOOTING LAYER CHAIRS (for 2-layer TM)
-// ═══════════════════════════════════════════════════════════════
-const footings = scopeAnswers.linearSections || scopeAnswers.footings || [];
-if (footings.length > 0) {
-  let totalLayerChairs = 0;
-  let layerChairPrice = 12.50;
-  
-  footings.forEach((section: any) => {
-    const tmLayers = section.tm_layers || 1;
-    if (tmLayers <= 1) return;
-    if (!section.layer_chairs_enabled) return;
-    
-    const length = section._actualLength || Number(section.length) || 0;
-    if (length <= 0) return;
-    
-    const layerChairsPerM = section.layer_chairs_per_m ?? 1;
-    layerChairPrice = section.layer_chair_price ?? 12.50;
-    totalLayerChairs += Math.ceil(length * layerChairsPerM);
-  });
-  
-  if (totalLayerChairs > 0) {
-    const bags = Math.ceil(totalLayerChairs / 25);
-    addItem(
-      "reinforcement",
-      "Footing TM Layer Chairs",
-      bags,
-      "bags",
-      layerChairPrice,
-      `${bags} × 25 pcs (between TM layers)`
-    );
-  }
-}
-```
+Also remove the `midX` and `midY` calculations (lines 714-715) since they're no longer needed.
 
 ---
 
-## Implementation Details
+## Change 3: Reduce Vertex Dot Radii by 50%
 
-| Material Type | Unit | Bag Size | Per-Unit Default |
-|--------------|------|----------|------------------|
-| Slab mesh layer chairs | bags | 100 pcs | $35/bag |
-| TM layer chairs (beams/footings) | bags | 25 pcs | $12.50/bag |
+Update all vertex circle radii throughout the file:
+
+| Location | Current Radius | New Radius |
+|----------|---------------|------------|
+| Polyline preview vertices (line 562) | `activeBeamType ? 7 : 6` | `activeBeamType ? 3.5 : 3` |
+| Existing beam segment vertices (line 694) | `6` | `3` |
+| Discrete internal beams start point (line 731) | `6` | `3` |
+| Discrete internal beams end point (line 739) | `6` | `3` |
+| Pending slab reference vertices (line 603) | `4` | `2` |
+| Selected polygon vertices (line 881) | `6` | `3` |
+| Selected rectangle corners (lines 928-931) | `6` | `3` |
+| Selected polyline vertices (line 1027) | `6` | `3` |
+
+**Note:** The polygon drawing preview vertices (lines 794-796) use touch-adaptive sizing for usability, so those should remain unchanged to maintain touch target sizes for closing polygons.
+
+---
+
+## What Stays Unchanged
+
+- **Area labels on completed polygons/rectangles** (e.g., "45.2 m²") - These provide important information about completed markups
+- **Calibration point labels** ("Point 1", "Point 2") - Essential for calibration workflow
+- **Number labels on pier/pad points** - Needed for counting elements
+- **Touch-adaptive first-point hit targets** - Needed for closing polygons on touch devices
 
 ---
 
 ## Testing Verification
 
-1. Create a new Raft Slab estimate
-2. Add an area with 2-layer mesh and enable "Chairs Between Layers"
-3. Add edge beams with 2-layer TM and enable "Chairs Between Layers"
-4. Verify cost breakdown shows layer chair line items
-5. Accept the quote and navigate to the job
-6. Open the Bill of Quantities
-7. Verify layer chairs appear in the reinforcement section with correct quantities
-8. Print/export BOQ and confirm layer chairs are listed
-
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/lib/boq-generator.ts` | Add 4 new extraction blocks for layer chairs (slab, edge beams, internal beams, footings) |
-
+After implementation:
+1. Open a takeoff and add a polyline (linear scope like Strip Footings)
+2. While drawing, verify NO length labels appear on segments
+3. Complete the polyline and verify the saved markup has NO segment labels
+4. Add internal beams and verify NO length labels appear
+5. Verify all vertex dots are visibly smaller (50% reduction)
+6. Confirm polygon closing still works (first point hit target unchanged)
