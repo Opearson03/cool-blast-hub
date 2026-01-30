@@ -426,6 +426,7 @@ export function SubbieContactDetailSheet({
       <ScheduleSubbieDialog
         open={assignDialogOpen}
         onOpenChange={setAssignDialogOpen}
+        preselectedSubbie={subbie}
       />
     </>
   );
