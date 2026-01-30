@@ -829,32 +829,15 @@ export function ModularCalculator({
       }
     }
     
-    // Auto-calculate pod grid dimensions (nx, ny) from pod field geometry
-    // Only if not manually overridden and we have area data
-    const totalArea = Number(scopeAnswers.area) || 0;
-    if (totalArea > 0 && !scopeUserOverrides.has('pods_x') && !scopeUserOverrides.has('pods_y') && !scopeAnswers.nx_ny_override) {
-      const podSizeMM = Number(scopeAnswers.pod_size) || 1090;
-      const ribWidthMM = Number(scopeAnswers.rib_width) || 110;
-      const edgeWidthM = 0.45; // Default edge beam width
-      
-      // Estimate pod field dimensions from area (assuming roughly square aspect)
-      // For irregular shapes, user can override
-      const aspectRatio = 1.2; // Slight rectangle assumption
-      const podFieldArea = totalArea * 0.85; // Approximate pod field (excluding edge beams)
-      const estimatedWidth = Math.sqrt(podFieldArea / aspectRatio);
-      const estimatedLength = podFieldArea / estimatedWidth;
-      
-      // Convert to inner dimensions (inside edge beams)
-      const L_in_m = Math.max(0, estimatedLength - 2 * edgeWidthM);
-      const W_in_m = Math.max(0, estimatedWidth - 2 * edgeWidthM);
-      
-      // Derive nx, ny: nx = floor((L_in - g) / (pL + g))
-      const pL_m = podSizeMM / 1000;
-      const g_m = ribWidthMM / 1000;
-      const cellSize = pL_m + g_m;
-      
-      const nx = cellSize > 0 ? Math.floor((L_in_m - g_m) / cellSize) : 0;
-      const ny = cellSize > 0 ? Math.floor((W_in_m - g_m) / cellSize) : 0;
+    // Auto-calculate pod grid dimensions (nx, ny) for rib bar calculations
+    // Grid is derived from pod count using square root estimation
+    // Only if not manually overridden and we have pod count
+    if (podCount > 0 && !scopeUserOverrides.has('pods_x') && !scopeUserOverrides.has('pods_y') && !scopeAnswers.nx_ny_override) {
+      // Derive grid dimensions from pod count using square root
+      // This gives a balanced grid for rib bar calculations
+      const gridSize = Math.sqrt(podCount);
+      const ny = Math.round(gridSize); // rows
+      const nx = Math.ceil(podCount / ny); // cols
       
       if (nx > 0 && ny > 0) {
         if (scopeAnswers.pods_x !== nx) updates.pods_x = nx;
@@ -932,17 +915,17 @@ export function ModularCalculator({
         perimeter: totalPerimeter,
       };
       
-      // Auto-calculate pod count for waffle pod scope
+      // Auto-calculate pod count for waffle pod scope using area-based formula
+      // Formula: pods = ceil(slab_area / module_pitch²) where module_pitch = pod_size + rib_width
       if (scope.id === 'waffle_pod' && totalArea > 0) {
         const podSize = Number(prev.pod_size) || 1090;
         const ribWidth = Number(prev.rib_width) || 110;
-        const moduleSize = (podSize + ribWidth) / 1000; // Convert mm to m
-        const estimatedPodCount = Math.ceil(totalArea / (moduleSize * moduleSize));
+        const moduleSize = (podSize + ribWidth) / 1000; // Convert mm to m (e.g., 1.2m)
+        const moduleArea = moduleSize * moduleSize; // e.g., 1.44 m²
+        const estimatedPodCount = Math.ceil(totalArea / moduleArea);
         
-        // Only auto-update if pod_count hasn't been manually set or is 0
-        if (!prev.pod_count || prev.pod_count === 0) {
-          updates.pod_count = estimatedPodCount;
-        }
+        // Always update pod count when area changes (area-based calculation is authoritative)
+        updates.pod_count = estimatedPodCount;
         
         // Auto-calculate pod rails for 100mm+ slabs
         const topSlabThickness = Number(prev.top_slab_thickness) || 85;
