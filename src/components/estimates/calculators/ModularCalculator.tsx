@@ -445,6 +445,116 @@ export function ModularCalculator({
     return 0;
   }, [scope, derivedScopeAnswers]);
 
+  // Calculate waffle pod volume breakdown (geometric formula)
+  const wafflePodBreakdown = useMemo(() => {
+    if (scope.id !== 'waffle_pod') return undefined;
+    
+    // Use scopeAnswers for waffle pod specific fields, derivedScopeAnswers for calculated area/perimeter
+    const totalArea = Number(derivedScopeAnswers.area) || 0;
+    const perimeter = Number(derivedScopeAnswers.perimeter) || 0;
+    const topSlabM = (Number(scopeAnswers.top_slab_thickness) || 85) / 1000;
+    const podThicknessM = (Number(scopeAnswers.pod_thickness) || 225) / 1000;
+    const podSizeM = (Number(scopeAnswers.pod_size) || 1090) / 1000;
+    const ribWidthM = (Number(scopeAnswers.rib_width) || 110) / 1000;
+    const podCount = Number(scopeAnswers.pod_count) || 0;
+    const totalHeightM = topSlabM + podThicknessM;
+
+    // Topping volume
+    const V_topping = totalArea * topSlabM;
+
+    // Edge beams
+    const edgeBeams = scopeAnswers.edgeBeams || [];
+    let totalEdgeBeamLength = 0;
+    let avgEdgeWidthM = 0.45;
+    
+    if (Array.isArray(edgeBeams) && edgeBeams.length > 0) {
+      totalEdgeBeamLength = edgeBeams.reduce((sum: number, b: any) => sum + (Number(b.length) || 0), 0);
+      const totalEdgeWidth = edgeBeams.reduce((sum: number, b: any) => sum + (Number(b.width) || 450), 0);
+      avgEdgeWidthM = (totalEdgeWidth / edgeBeams.length) / 1000;
+    } else {
+      totalEdgeBeamLength = Number(scopeAnswers.edge_beam_length) || perimeter;
+      avgEdgeWidthM = (Number(scopeAnswers.edge_beam_width) || 450) / 1000;
+    }
+    
+    const cornerOverlapArea = 4 * avgEdgeWidthM * avgEdgeWidthM;
+    const edgeBeamFootprint = Math.max(0, (totalEdgeBeamLength * avgEdgeWidthM) - cornerOverlapArea);
+    
+    // Internal beams
+    const beams = scopeAnswers.beams || [];
+    const internalBeams = Array.isArray(beams) 
+      ? beams.filter((b: any) => b.type !== 'edge_beam' && b.markup_type !== 'edge_beam')
+      : [];
+    
+    let internalBeamFootprint = 0;
+    let avgInternalWidthM = ribWidthM;
+    let edgeIntersectionCount = 0;
+    
+    if (internalBeams.length > 0) {
+      const rawInternalFootprint = internalBeams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 110) / 1000;
+        return sum + (lengthM * widthM);
+      }, 0);
+      
+      const totalInternalWidth = internalBeams.reduce((sum: number, b: any) => sum + (Number(b.width) || 110), 0);
+      avgInternalWidthM = (totalInternalWidth / internalBeams.length) / 1000;
+      edgeIntersectionCount = internalBeams.length * 2;
+      
+      const internalEdgeOverlap = edgeIntersectionCount * avgInternalWidthM * avgEdgeWidthM;
+      internalBeamFootprint = Math.max(0, rawInternalFootprint - internalEdgeOverlap);
+    }
+
+    // Pod field
+    const podFieldArea = Math.max(0, totalArea - edgeBeamFootprint - internalBeamFootprint);
+    const podVoidVolume = podCount * podSizeM * podSizeM * podThicknessM;
+    const V_pod_field = Math.max(0, (podFieldArea * podThicknessM) - podVoidVolume);
+
+    // Edge beam volume
+    let V_edge_raw = 0;
+    if (Array.isArray(edgeBeams) && edgeBeams.length > 0) {
+      V_edge_raw = edgeBeams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 450) / 1000;
+        const depthM = (Number(beam.depth) || totalHeightM * 1000) / 1000;
+        return sum + (lengthM * widthM * depthM);
+      }, 0);
+    } else {
+      const depthM = (Number(scopeAnswers.edge_beam_depth) || totalHeightM * 1000) / 1000;
+      V_edge_raw = totalEdgeBeamLength * avgEdgeWidthM * depthM;
+    }
+    
+    const avgEdgeDepthM = (Number(scopeAnswers.edge_beam_depth) || totalHeightM * 1000) / 1000;
+    const cornerVolumeOverlap = 4 * avgEdgeWidthM * avgEdgeWidthM * avgEdgeDepthM;
+    const V_edge = Math.max(0, V_edge_raw - cornerVolumeOverlap);
+
+    // Internal beam volume
+    let V_internal_raw = 0;
+    if (internalBeams.length > 0) {
+      V_internal_raw = internalBeams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 110) / 1000;
+        const depthM = (Number(beam.depth) || totalHeightM * 1000) / 1000;
+        return sum + (lengthM * widthM * depthM);
+      }, 0);
+    }
+    
+    const avgInternalDepthM = (Number(scopeAnswers.internal_beam_depth) || totalHeightM * 1000) / 1000;
+    const intersectionOverlap = edgeIntersectionCount * avgInternalWidthM * avgEdgeWidthM * Math.max(avgInternalDepthM, avgEdgeDepthM);
+    const V_internal = Math.max(0, V_internal_raw - intersectionOverlap);
+
+    const V_total = V_topping + V_pod_field + V_edge + V_internal;
+
+    return {
+      topping_m3: Number(V_topping.toFixed(3)),
+      podFieldNet_m3: Number(V_pod_field.toFixed(3)),
+      voidVolume_m3: Number(podVoidVolume.toFixed(3)),
+      edgeBeams_m3: Number(V_edge.toFixed(3)),
+      internalBeams_m3: Number(V_internal.toFixed(3)),
+      podFieldArea_m2: Number(podFieldArea.toFixed(2)),
+      total_m3: Number(V_total.toFixed(3)),
+    };
+  }, [scope.id, scopeAnswers, derivedScopeAnswers]);
+
   // Build scope data for module calculations
   const scopeData = useMemo(() => {
     return {
@@ -1140,6 +1250,8 @@ export function ModularCalculator({
           tmChairsCount={Number(scopeAnswers.tm_chairs_count) || 0}
           barChairsCount={Number(scopeAnswers.bar_chairs_count) || 0}
           fromTakeoff={scopeAnswers._fromTakeoff}
+          podCountEstimated={!scopeUserOverrides.has('pod_count') && Number(scopeAnswers.pod_count) > 0}
+          volumeBreakdown={wafflePodBreakdown}
           onChange={handleScopeAnswerChange}
         />
       )}

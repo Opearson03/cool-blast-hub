@@ -620,86 +620,156 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     'sundries',
     'extra-items',
   ],
+  /**
+   * GEOMETRIC VOLUME CALCULATION FOR WAFFLE POD
+   * 
+   * This replaces the empirical "area ÷ divisor" method with a precise geometric formula:
+   * 
+   * V_total = V_topping + V_pod_field + V_edge + V_internal
+   * 
+   * Where:
+   * - V_topping = A_zone × t_top (topping slab over entire area)
+   * - V_pod_field = (A_pod × pH) - V_void (pod field concrete minus pod voids)
+   * - V_edge = Σ(L×W×H) - corner_overlaps (edge beam volume with deductions)
+   * - V_internal = Σ(L×W×H) - intersections (internal beam volume with deductions)
+   */
   calculateVolume: (answers) => {
-    const area = Number(answers.area) || 0;
-    const podThicknessM = (Number(answers.pod_thickness) || 225) / 1000;
-    const topSlabM = (Number(answers.top_slab_thickness) || 85) / 1000;
+    // === INPUTS ===
+    const totalArea = Number(answers.area) || 0;
     const perimeter = Number(answers.perimeter) || 0;
+    const topSlabM = (Number(answers.top_slab_thickness) || 85) / 1000; // Topping thickness in meters
+    const podThicknessM = (Number(answers.pod_thickness) || 225) / 1000; // Pod height in meters
+    const podSizeM = (Number(answers.pod_size) || 1090) / 1000; // Pod dimension in meters
+    const ribWidthM = (Number(answers.rib_width) || 110) / 1000; // Rib width in meters
+    const podCount = Number(answers.pod_count) || 0;
     
-    // Total slab height in mm for divisor lookup
-    const totalHeightMm = (podThicknessM + topSlabM) * 1000;
-    const totalHeightM = podThicknessM + topSlabM;
+    // Total slab height (topping + pod depth) - this is the full depth of edge/internal beams
+    const totalHeightM = topSlabM + podThicknessM;
+
+    // === STEP 1: TOPPING SLAB VOLUME ===
+    // The thin concrete layer over the entire slab area, sitting on top of pods
+    const V_topping = totalArea * topSlabM;
+
+    // === STEP 2: BEAM FOOTPRINTS (for calculating pod field area) ===
     
-    // Edge beam length (defaults to perimeter if not specified)
-    const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+    // Edge beams from array or fallback to perimeter-based
+    const edgeBeams = answers.edgeBeams || [];
+    let totalEdgeBeamLength = 0;
+    let avgEdgeWidthM = 0.45; // Default 450mm
     
-    // Industry divisor lookup based on total slab height
-    // Standard values: 260mm→8.35, 310mm→7.80, 385mm→6.93, 460mm→6.30, 610mm→5.00
-    const divisorTable = [
-      { height: 260, divisor: 8.35 },
-      { height: 310, divisor: 7.80 },
-      { height: 385, divisor: 6.93 },
-      { height: 460, divisor: 6.30 },
-      { height: 610, divisor: 5.00 },
-    ];
-    
-    // Find appropriate divisor with interpolation for in-between values
-    let divisor = 8.35; // Default for heights ≤ 260mm
-    
-    if (totalHeightMm >= 610) {
-      divisor = 5.00;
-    } else if (totalHeightMm <= 260) {
-      divisor = 8.35;
+    if (Array.isArray(edgeBeams) && edgeBeams.length > 0) {
+      totalEdgeBeamLength = edgeBeams.reduce((sum: number, b: any) => sum + (Number(b.length) || 0), 0);
+      const totalEdgeWidth = edgeBeams.reduce((sum: number, b: any) => sum + (Number(b.width) || 450), 0);
+      avgEdgeWidthM = (totalEdgeWidth / edgeBeams.length) / 1000;
     } else {
-      // Linear interpolation between known points
-      for (let i = 0; i < divisorTable.length - 1; i++) {
-        const lower = divisorTable[i];
-        const upper = divisorTable[i + 1];
-        if (totalHeightMm >= lower.height && totalHeightMm <= upper.height) {
-          const ratio = (totalHeightMm - lower.height) / (upper.height - lower.height);
-          divisor = lower.divisor - ratio * (lower.divisor - upper.divisor);
-          break;
-        }
-      }
+      // Fallback to perimeter with default width
+      totalEdgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+      avgEdgeWidthM = (Number(answers.edge_beam_width) || 450) / 1000;
     }
     
-    // Step 1: Slab body volume using industry divisor
-    const slabBodyVolume = area / divisor;
+    // Edge beam footprint area (length × width) minus corner overlaps
+    // Corner overlaps: 4 corners × (width × width)
+    const cornerOverlapArea = 4 * avgEdgeWidthM * avgEdgeWidthM;
+    const edgeBeamFootprint = Math.max(0, (totalEdgeBeamLength * avgEdgeWidthM) - cornerOverlapArea);
     
-    // Step 2: Edge beam volume (industry formula)
-    // Part A: Length × 0.15m × 0.15m (150mm × 150mm base contribution)
-    const edgeBeamPartA = edgeBeamLength * 0.15 * 0.15;
-    // Part B: Length × TotalHeight × 0.05m (50mm additional width)
-    const edgeBeamPartB = edgeBeamLength * totalHeightM * 0.05;
-    const edgeBeamVolume = edgeBeamPartA + edgeBeamPartB;
-    
-    // Step 3: Internal beam volume (geometric calculation)
-    // Internal beams occupy full depth in the void space between pods
+    // Internal beams from array
     const beams = answers.beams || [];
-    let internalBeamVolume = 0;
+    const internalBeams = Array.isArray(beams) 
+      ? beams.filter((b: any) => b.type !== 'edge_beam' && b.markup_type !== 'edge_beam')
+      : [];
     
-    if (Array.isArray(beams) && beams.length > 0) {
-      // Calculate from beam configurations array (from takeoff or multi-beam input)
-      internalBeamVolume = beams.reduce((sum: number, beam: any) => {
-        // Only count internal beams (not edge beams)
-        if (beam.type === 'edge_beam' || beam.markup_type === 'edge_beam') return sum;
+    let internalBeamFootprint = 0;
+    let avgInternalWidthM = ribWidthM; // Default to rib width
+    let edgeIntersectionCount = 0;
+    
+    if (internalBeams.length > 0) {
+      // Calculate internal beam footprint
+      const rawInternalFootprint = internalBeams.reduce((sum: number, beam: any) => {
         const lengthM = Number(beam.length) || 0;
-        const widthM = (Number(beam.width) || 110) / 1000; // Default 110mm for waffle pod
-        const depthM = (Number(beam.depth) || totalHeightMm) / 1000; // Default to total slab height
-        return sum + lengthM * widthM * depthM;
+        const widthM = (Number(beam.width) || 110) / 1000;
+        return sum + (lengthM * widthM);
       }, 0);
+      
+      // Calculate average internal width
+      const totalInternalWidth = internalBeams.reduce((sum: number, b: any) => sum + (Number(b.width) || 110), 0);
+      avgInternalWidthM = (totalInternalWidth / internalBeams.length) / 1000;
+      
+      // Each internal beam typically intersects edge beams at both ends (2 intersections per beam)
+      edgeIntersectionCount = internalBeams.length * 2;
+      
+      // Deduct edge beam intersection overlaps from internal footprint
+      const internalEdgeOverlap = edgeIntersectionCount * avgInternalWidthM * avgEdgeWidthM;
+      internalBeamFootprint = Math.max(0, rawInternalFootprint - internalEdgeOverlap);
     } else {
-      // Fallback to legacy single-value fields
+      // Fallback to legacy scalar fields
       const internalLength = Number(answers.internal_beams_length) || 0;
       const internalWidthM = (Number(answers.internal_beam_width) || 110) / 1000;
-      const internalDepthM = (Number(answers.internal_beam_depth) || totalHeightMm) / 1000;
-      internalBeamVolume = internalLength * internalWidthM * internalDepthM;
+      avgInternalWidthM = internalWidthM;
+      internalBeamFootprint = internalLength * internalWidthM;
+    }
+
+    // === STEP 3: POD FIELD VOLUME ===
+    // Pod field area = total area minus beam footprints
+    const podFieldArea = Math.max(0, totalArea - edgeBeamFootprint - internalBeamFootprint);
+    
+    // Pod void volume (the EPS pods that displace concrete)
+    const podVoidVolume = podCount * podSizeM * podSizeM * podThicknessM;
+    
+    // Pod field concrete volume = (pod field area × pod height) - pod void volume
+    // This represents the concrete ribs between pods
+    const V_pod_field = Math.max(0, (podFieldArea * podThicknessM) - podVoidVolume);
+
+    // === STEP 4: EDGE BEAM VOLUME ===
+    // Edge beams run full height (topping + pod depth) around the perimeter
+    let V_edge_raw = 0;
+    
+    if (Array.isArray(edgeBeams) && edgeBeams.length > 0) {
+      V_edge_raw = edgeBeams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 450) / 1000;
+        const depthM = (Number(beam.depth) || totalHeightM * 1000) / 1000;
+        return sum + (lengthM * widthM * depthM);
+      }, 0);
+    } else {
+      // Fallback using perimeter
+      const depthM = (Number(answers.edge_beam_depth) || totalHeightM * 1000) / 1000;
+      V_edge_raw = totalEdgeBeamLength * avgEdgeWidthM * depthM;
     }
     
-    // Base volume (wastage applied in concrete-supply module at 10%)
-    const baseVolume = slabBodyVolume + edgeBeamVolume + internalBeamVolume;
+    // Deduct corner overlaps (4 corners where edge beams meet)
+    const avgEdgeDepthM = (Number(answers.edge_beam_depth) || totalHeightM * 1000) / 1000;
+    const cornerVolumeOverlap = 4 * avgEdgeWidthM * avgEdgeWidthM * avgEdgeDepthM;
+    const V_edge = Math.max(0, V_edge_raw - cornerVolumeOverlap);
+
+    // === STEP 5: INTERNAL BEAM VOLUME ===
+    // Internal beams run full height through the pod field
+    let V_internal_raw = 0;
     
-    return safeVolume(baseVolume);
+    if (internalBeams.length > 0) {
+      V_internal_raw = internalBeams.reduce((sum: number, beam: any) => {
+        const lengthM = Number(beam.length) || 0;
+        const widthM = (Number(beam.width) || 110) / 1000;
+        // Use beam depth or default to total height
+        const depthM = (Number(beam.depth) || totalHeightM * 1000) / 1000;
+        return sum + (lengthM * widthM * depthM);
+      }, 0);
+    } else {
+      // Fallback to legacy fields
+      const internalLength = Number(answers.internal_beams_length) || 0;
+      const internalWidthM = (Number(answers.internal_beam_width) || 110) / 1000;
+      const internalDepthM = (Number(answers.internal_beam_depth) || totalHeightM * 1000) / 1000;
+      V_internal_raw = internalLength * internalWidthM * internalDepthM;
+    }
+    
+    // Deduct overlaps where internal beams intersect edge beams
+    const avgInternalDepthM = (Number(answers.internal_beam_depth) || totalHeightM * 1000) / 1000;
+    const intersectionOverlap = edgeIntersectionCount * avgInternalWidthM * avgEdgeWidthM * Math.max(avgInternalDepthM, avgEdgeDepthM);
+    const V_internal = Math.max(0, V_internal_raw - intersectionOverlap);
+
+    // === STEP 6: TOTAL VOLUME ===
+    const V_total = V_topping + V_pod_field + V_edge + V_internal;
+    
+    return safeVolume(V_total);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'waffle_pod' },

@@ -10,7 +10,28 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import { Grid3X3, Ruler } from "lucide-react";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Grid3X3, Ruler, ChevronDown, AlertTriangle, Calculator } from "lucide-react";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+
+/**
+ * Volume breakdown from geometric calculation.
+ * Each value is in cubic meters (m³) except podFieldArea_m2 which is in m².
+ */
+export interface VolumeBreakdown {
+  topping_m3: number;
+  podFieldNet_m3: number;
+  voidVolume_m3: number;
+  edgeBeams_m3: number;
+  internalBeams_m3: number;
+  podFieldArea_m2: number;
+  total_m3: number;
+}
 
 interface WafflePodConfigCardProps {
   /** Pod size in mm (1050, 1090, 1110) */
@@ -33,6 +54,10 @@ interface WafflePodConfigCardProps {
   barChairsCount: number;
   /** Whether measurements came from takeoff */
   fromTakeoff?: boolean;
+  /** Whether pod count is estimated (not manually entered) */
+  podCountEstimated?: boolean;
+  /** Volume breakdown from geometric calculation */
+  volumeBreakdown?: VolumeBreakdown;
   /** Change handler */
   onChange: (field: string, value: any) => void;
 }
@@ -61,8 +86,12 @@ export function WafflePodConfigCard({
   tmChairsCount,
   barChairsCount,
   fromTakeoff = false,
+  podCountEstimated = false,
+  volumeBreakdown,
   onChange,
 }: WafflePodConfigCardProps) {
+  const [breakdownOpen, setBreakdownOpen] = useState(false);
+  
   // Calculate total slab height for display
   const totalHeight = (Number(podThickness) || 225) + (topSlabThickness || 85);
 
@@ -267,6 +296,75 @@ export function WafflePodConfigCard({
             </div>
           </div>
         </div>
+
+        {/* Volume Breakdown Section */}
+        {volumeBreakdown && (
+          <>
+            <Separator />
+            <Collapsible open={breakdownOpen} onOpenChange={setBreakdownOpen}>
+              <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-sm font-medium hover:bg-muted/50 rounded-md px-1 -mx-1">
+                <span className="flex items-center gap-2">
+                  <Calculator className="h-4 w-4 text-primary" />
+                  Volume Breakdown
+                </span>
+                <ChevronDown className={cn(
+                  "h-4 w-4 transition-transform duration-200",
+                  breakdownOpen && "rotate-180"
+                )} />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <div className="space-y-2 text-sm bg-muted/30 rounded-lg p-3">
+                  <div className="grid grid-cols-2 gap-y-1.5">
+                    <span className="text-muted-foreground">Topping slab:</span>
+                    <span className="text-right font-mono">{volumeBreakdown.topping_m3.toFixed(2)} m³</span>
+                    
+                    <span className="text-muted-foreground">Pod field (net of voids):</span>
+                    <span className="text-right font-mono">{volumeBreakdown.podFieldNet_m3.toFixed(2)} m³</span>
+                    
+                    <span className="text-muted-foreground text-xs pl-3">└ Void deduction:</span>
+                    <span className="text-right font-mono text-xs text-muted-foreground">-{volumeBreakdown.voidVolume_m3.toFixed(2)} m³</span>
+                    
+                    <span className="text-muted-foreground">Edge beams:</span>
+                    <span className="text-right font-mono">{volumeBreakdown.edgeBeams_m3.toFixed(2)} m³</span>
+                    
+                    <span className="text-muted-foreground">Internal beams:</span>
+                    <span className="text-right font-mono">{volumeBreakdown.internalBeams_m3.toFixed(2)} m³</span>
+                  </div>
+                  
+                  <Separator className="my-2" />
+                  
+                  <div className="flex justify-between items-center font-medium">
+                    <span>Total (pre-wastage):</span>
+                    <span className="font-mono text-base">{volumeBreakdown.total_m3.toFixed(2)} m³</span>
+                  </div>
+                  
+                  <div className="flex justify-between items-center text-xs text-muted-foreground">
+                    <span>Pod field area:</span>
+                    <span className="font-mono">{volumeBreakdown.podFieldArea_m2.toFixed(1)} m²</span>
+                  </div>
+                </div>
+                
+                {/* Warning note */}
+                <div className="flex items-start gap-2 mt-3 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-muted-foreground">
+                    Estimator only. Actual volumes may vary based on site conditions and engineering specifications.
+                  </p>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </>
+        )}
+
+        {/* Pod count estimation badge */}
+        {podCountEstimated && podCount > 0 && (
+          <div className="flex items-center gap-2 pt-2">
+            <Badge variant="outline" className="text-xs gap-1 text-amber-700 border-amber-300 dark:text-amber-400 dark:border-amber-700">
+              <AlertTriangle className="h-3 w-3" />
+              Pod count is estimated
+            </Badge>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
