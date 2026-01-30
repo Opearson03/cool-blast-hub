@@ -714,6 +714,42 @@ export function generateBOQFromEstimate(
         }
       }
 
+      // ═══════════════════════════════════════════════════════════════
+      // SLAB LAYER CHAIRS (for 2-layer mesh)
+      // ═══════════════════════════════════════════════════════════════
+      if (areas.length > 0) {
+        let totalLayerChairs = 0;
+        let layerChairPrice = 35;
+        
+        areas.forEach((area: any) => {
+          const reoType = area.reo_type || defaultSlabReoType;
+          if (reoType !== 'mesh') return;
+          
+          const meshLayers = area.mesh_layers || 1;
+          if (meshLayers <= 1) return;
+          if (!area.layer_chairs_enabled) return;
+          
+          const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
+          if (areaValue <= 0) return;
+          
+          const layerChairsPerM2 = area.layer_chairs_per_m2 ?? 2;
+          layerChairPrice = area.layer_chair_price ?? 35;
+          totalLayerChairs += Math.ceil(areaValue * layerChairsPerM2);
+        });
+        
+        if (totalLayerChairs > 0) {
+          const bags = Math.ceil(totalLayerChairs / 100);
+          addItem(
+            "reinforcement",
+            "Mesh Layer Spacer Chairs",
+            bags,
+            "bags",
+            layerChairPrice,
+            `${bags} × 100 pcs (between mesh layers)`
+          );
+        }
+      }
+
       if (reoRaftModule.tie_wire && hasAnySlabReo) {
         const coils = reoRaftModule.tie_wire_coils || 2;
         const pricePerCoil = reoRaftModule.tie_wire_price || 15;
@@ -796,6 +832,37 @@ export function generateBOQFromEstimate(
             );
           }
         }
+
+        // ═══════════════════════════════════════════════════════════════
+        // EDGE BEAM LAYER CHAIRS (for 2-layer TM)
+        // ═══════════════════════════════════════════════════════════════
+        let totalEdgeLayerChairs = 0;
+        let edgeLayerChairPrice = 12.50;
+        
+        edgeBeams.forEach((beam: any) => {
+          const tmLayers = beam.tm_layers || 1;
+          if (tmLayers <= 1) return;
+          if (!beam.layer_chairs_enabled) return;
+          
+          const length = Number(beam.length) || 0;
+          if (length <= 0) return;
+          
+          const layerChairsPerM = beam.layer_chairs_per_m ?? 1;
+          edgeLayerChairPrice = beam.layer_chair_price ?? 12.50;
+          totalEdgeLayerChairs += Math.ceil(length * layerChairsPerM);
+        });
+        
+        if (totalEdgeLayerChairs > 0) {
+          const bags = Math.ceil(totalEdgeLayerChairs / 25);
+          addItem(
+            "reinforcement",
+            "Edge Beam TM Layer Chairs",
+            bags,
+            "bags",
+            edgeLayerChairPrice,
+            `${bags} × 25 pcs (between TM layers)`
+          );
+        }
       }
 
       // ═══════════════════════════════════════════════════════════════
@@ -866,6 +933,37 @@ export function generateBOQFromEstimate(
               `${totalInternalLength.toFixed(1)}m total`
             );
           }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INTERNAL BEAM LAYER CHAIRS (for 2-layer TM)
+        // ═══════════════════════════════════════════════════════════════
+        let totalInternalLayerChairs = 0;
+        let internalLayerChairPrice = 12.50;
+        
+        internalBeams.forEach((beam: any) => {
+          const tmLayers = beam.tm_layers || 1;
+          if (tmLayers <= 1) return;
+          if (!beam.layer_chairs_enabled) return;
+          
+          const length = Number(beam.length) || 0;
+          if (length <= 0) return;
+          
+          const layerChairsPerM = beam.layer_chairs_per_m ?? 1;
+          internalLayerChairPrice = beam.layer_chair_price ?? 12.50;
+          totalInternalLayerChairs += Math.ceil(length * layerChairsPerM);
+        });
+        
+        if (totalInternalLayerChairs > 0) {
+          const bags = Math.ceil(totalInternalLayerChairs / 25);
+          addItem(
+            "reinforcement",
+            "Internal Beam TM Layer Chairs",
+            bags,
+            "bags",
+            internalLayerChairPrice,
+            `${bags} × 25 pcs (between TM layers)`
+          );
         }
       }
 
@@ -1017,6 +1115,40 @@ export function generateBOQFromEstimate(
           "coils",
           reoFootingModule.tie_wire_price
         );
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // FOOTING LAYER CHAIRS (for 2-layer TM)
+      // ═══════════════════════════════════════════════════════════════
+      const footings = scopeAnswers.linearSections || scopeAnswers.footings || [];
+      if (Array.isArray(footings) && footings.length > 0) {
+        let totalFootingLayerChairs = 0;
+        let footingLayerChairPrice = 12.50;
+        
+        footings.forEach((section: any) => {
+          const tmLayers = section.tm_layers || 1;
+          if (tmLayers <= 1) return;
+          if (!section.layer_chairs_enabled) return;
+          
+          const length = section._actualLength || Number(section.length) || 0;
+          if (length <= 0) return;
+          
+          const layerChairsPerM = section.layer_chairs_per_m ?? 1;
+          footingLayerChairPrice = section.layer_chair_price ?? 12.50;
+          totalFootingLayerChairs += Math.ceil(length * layerChairsPerM);
+        });
+        
+        if (totalFootingLayerChairs > 0) {
+          const bags = Math.ceil(totalFootingLayerChairs / 25);
+          addItem(
+            "reinforcement",
+            "Footing TM Layer Chairs",
+            bags,
+            "bags",
+            footingLayerChairPrice,
+            `${bags} × 25 pcs (between TM layers)`
+          );
+        }
       }
     }
 
