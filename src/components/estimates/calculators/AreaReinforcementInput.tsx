@@ -62,6 +62,12 @@ function getMeshPrice(meshType: string, priceMap?: PriceMap): number | undefined
   return priceMap['mesh']?.[meshType];
 }
 
+// Get chair price from price map
+function getChairPrice(chairType: string, priceMap?: PriceMap): number | undefined {
+  if (!priceMap) return undefined;
+  return priceMap['consumables']?.[chairType];
+}
+
 interface AreaReinforcementInputProps {
   areas: MeasurementArea[];
   onChange: (areas: MeasurementArea[]) => void;
@@ -548,7 +554,14 @@ export function AreaReinforcementInput({
                                 <Label className="text-[10px] text-muted-foreground">Chair Size</Label>
                                 <Select
                                   value={area.chair_type || '7590C'}
-                                  onValueChange={(val) => updateArea(index, { chair_type: val })}
+                                  onValueChange={(val) => {
+                                    // When chair type changes, update type and reset price to catalog price
+                                    const catalogPrice = getChairPrice(val, priceMap);
+                                    updateArea(index, { 
+                                      chair_type: val,
+                                      chair_price_per_bag: catalogPrice
+                                    });
+                                  }}
                                 >
                                   <SelectTrigger className="h-8 text-sm">
                                     <SelectValue />
