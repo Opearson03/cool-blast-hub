@@ -1,113 +1,114 @@
 
-# Plan: Fix Missing Horizontal & Vertical Bar Calculations in Reinforcement Module
+# Fix Volume Calculation for Raft Slab and Standard Slab Scopes
 
-## Problem Summary
-When users add horizontal bars or vertical (starter) bars to edge beams or internal beams in a slab estimate, these bars are **not being included in the cost calculations**. The bars are correctly stored in the data structure but the calculation module ignores them.
+## Problem
 
-## Root Cause
-The `BeamReinforcementInput.tsx` UI component allows users to add:
-- **Horizontal bars** (bars running along the beam length, positioned top or bottom)
-- **Vertical bars** (starter bars projecting from the beam at regular centres)
+When creating Raft Slab or Standard Slab estimates, the concrete volume is incorrectly inflated because the calculation includes edge beam and internal beam volumes even when those beams haven't been enabled by the user.
 
-These are stored in the `BeamConfig.horizontal_bars` and `BeamConfig.vertical_bars` arrays. However, the `reinforcement-raft.ts` module only processes:
-- Trench mesh (tm_type, tm_layers)
-- Ligatures (add_ligs, lig_size, lig_centres)
-- Chairs
-
-The horizontal and vertical bar arrays are never read or costed.
+The UI correctly shows toggle switches ("Include edge beams?" and "Include internal beams?") that must be activated before beam data can be entered. However, the volume calculation functions ignore these toggles and always attempt to calculate beam volumes using fallback scalar fields (defaulting to perimeter for edge beam length).
 
 ## Affected Scopes
-All scopes using the `reinforcement-raft` module:
-- Slab on Ground (standard_slab)
-- Raft Slab (raft_slab)
-- Waffle Pod (waffle_pod)
-- Driveway
-- Crossovers
-- Paths & Surrounds
 
-## Technical Solution
+| Scope | Issue |
+|-------|-------|
+| **Raft Slab** | Edge beam + internal beam volumes calculated unconditionally |
+| **Standard Slab (Slab on Ground)** | Edge beam + internal beam volumes calculated unconditionally |
+| Driveway | Already fixed (checks `hasEdgeBeams`/`hasInternalBeams`) |
+| Crossovers | Already fixed |
+| Paths & Surrounds | Already fixed |
+| Waffle Pod | Works correctly (always requires beams by design) |
 
-### File: `src/lib/estimate-components/modules/reinforcement-raft.ts`
+## Root Cause
 
-Add processing for `horizontal_bars` and `vertical_bars` arrays for both edge beams and internal beams. The implementation will mirror the pattern already used in `reinforcement-footing.ts`.
+In `src/lib/estimate-components/scopes.ts`:
 
-**Changes:**
+**Raft Slab** (lines 355-393):
+- Edge beam volume is calculated from scalar fallback fields when `edgeBeams` array is empty
+- Uses `perimeter` as default edge beam length, causing phantom volume
+- Internal beam volume also uses fallback scalar fields
 
-1. **Import `HorizontalBarConfig` and `VerticalBarConfig` types** from the types file
+**Standard Slab** (lines 170-228):
+- Same issue as Raft Slab
 
-2. **Add horizontal bar calculation for edge beams** (inside the existing edge beam loop):
-   - Iterate through `beam.horizontal_bars` array
-   - For each bar config: calculate total length (beam length × bar quantity × lap allowance)
-   - Aggregate bars by size and position (top/bottom)
-   - Calculate weight using REBAR_WEIGHTS lookup
-   - Create line items with proper pricing
-
-3. **Add vertical bar calculation for edge beams** (inside the existing edge beam loop):
-   - Iterate through `beam.vertical_bars` array
-   - For each bar config: calculate count based on centres and beam length
-   - Calculate weight (count × bar length × weight per metre)
-   - Create line items with proper pricing
-
-4. **Repeat the same for internal beams**
-
-5. **Ensure all costs are added to the `subtotal`**
-
-### Code Structure
-The new code blocks will be inserted after the existing ligature calculations for each beam type:
-
-```text
-Edge Beams Section (existing):
-  ├── Trench mesh calculation ✓
-  ├── Ligatures calculation ✓
-  ├── [NEW] Horizontal bars calculation
-  └── [NEW] Vertical bars calculation
-
-Internal Beams Section (existing):
-  ├── Trench mesh calculation ✓
-  ├── Ligatures calculation ✓
-  ├── [NEW] Horizontal bars calculation
-  └── [NEW] Vertical bars calculation
+**Correctly working scopes** (Driveway, Crossovers, Paths & Surrounds):
+```javascript
+// Only calculate if toggle is enabled
+if (answers.hasEdgeBeams === true) {
+  // Calculate edge beam volume...
+}
 ```
 
-### Line Item IDs
-To maintain consistency and allow aggregation in the cost breakdown:
-- Edge beam horizontal bars: `edge_bar_{beam.id}_{barSize}_{position}`
-- Edge beam vertical bars: `edge_vbar_{beam.id}_{barSize}`
-- Internal beam horizontal bars: `internal_bar_{beam.id}_{barSize}_{position}`
-- Internal beam vertical bars: `internal_vbar_{beam.id}_{barSize}`
+## Solution
+
+Update the `calculateVolume` functions in both **Raft Slab** and **Standard Slab** scopes to:
+
+1. Check for `hasEdgeBeams === true` before calculating edge beam volume
+2. Check for `hasInternalBeams === true` before calculating internal beam volume
+3. Only use the fallback scalar fields when the respective toggle is enabled
+
+This mirrors the pattern already used in Driveway, Crossovers, and Paths & Surrounds scopes.
 
 ---
 
-## Technical Details
+## Technical Changes
 
-### Horizontal Bar Calculation Formula
-For each bar in `horizontal_bars` array:
-```
-barLength = beamLength × barQuantity × lapPercent (1.125)
-weight = barLength × REBAR_WEIGHTS[barSize]
-cost = (weight / 1000) × pricePerTonne
+### File: `src/lib/estimate-components/scopes.ts`
+
+**RAFT_SLAB_SCOPE.calculateVolume** (around line 355):
+
+Before:
+```javascript
+calculateVolume: (answers) => {
+  // ... slab volume calculation ...
+  
+  // Edge beam extra volume (always calculated)
+  const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
+  // ... calculates edge beam volume ...
+  
+  // Internal beams volume (always calculated)
+  const beams = answers.beams || [];
+  // ... calculates internal beam volume ...
+}
 ```
 
-### Vertical Bar Calculation Formula
-For each bar in `vertical_bars` array:
-```
-barCount = ceil(beamLength × 1000 / centres)
-barLengthM = barLength / 1000  // mm to m
-totalLength = barCount × barLengthM
-weight = totalLength × REBAR_WEIGHTS[barSize] × lapPercent
-cost = (weight / 1000) × pricePerTonne
+After:
+```javascript
+calculateVolume: (answers) => {
+  // ... slab volume calculation (unchanged) ...
+  
+  // Edge beam extra volume - only if explicitly enabled
+  let edgeBeamVolume = 0;
+  if (answers.hasEdgeBeams === true) {
+    const edgeBeams = answers.edgeBeams || [];
+    if (edgeBeams.length > 0) {
+      // Calculate from edgeBeams array
+    } else {
+      // Fallback to scalar fields
+    }
+  }
+  
+  // Internal beams volume - only if explicitly enabled
+  let internalBeamVolume = 0;
+  if (answers.hasInternalBeams === true) {
+    const beams = answers.beams || [];
+    // ... calculate internal beam volume ...
+  }
+}
 ```
 
-### Files to Modify
-| File | Change |
-|------|--------|
-| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Add horizontal and vertical bar processing for edge and internal beams |
+**STANDARD_SLAB_SCOPE.calculateVolume** (around line 170):
 
-### Testing Verification
+Apply the same pattern - wrap edge beam and internal beam calculations in toggle checks.
+
+---
+
+## Testing Verification
+
 After implementation:
-1. Create/edit a Raft Slab or Driveway estimate
-2. Add an edge beam with horizontal bars via the Reinforcement module
-3. Verify the bars appear in the Cost Breakdown with correct quantities and pricing
-4. Verify the bars are included in the module subtotal and grand total
-5. Repeat for internal beams
-6. Repeat for vertical (starter) bars
+1. Create a new Raft Slab estimate with area and thickness only
+2. Verify calculated volume = area x thickness (no phantom beam volume)
+3. Enable "Include edge beams?" toggle and add beams
+4. Verify volume now includes edge beam volume
+5. Enable "Include internal beams?" toggle and add beams
+6. Verify volume includes internal beam volume
+7. Repeat for Standard Slab scope
