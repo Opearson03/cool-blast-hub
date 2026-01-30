@@ -1,95 +1,153 @@
 
-# Remove Length Labels and Reduce Vertex Dot Sizes on Takeoff Canvas
+# Fix Beam Length Not Being Recorded in Edge Beam Details Dialog
 
-## Summary
+## Problem Summary
 
-The takeoff drawing canvas currently displays length tags on polyline segments which creates visual clutter. Additionally, the vertex dots at each point on lines are too large. This plan addresses both issues by:
-1. Removing the segment length labels from polyline previews and discrete internal beams
-2. Reducing all vertex dot radii by 50%
+When you draw an edge beam on the takeoff and click "Done", the "Edge Beam Details" dialog shows "0.00 m" for beam length instead of the actual measured length. The length should display correctly and carry through to the configure page.
 
----
+## Root Cause
 
-## Changes Overview
+The issue is a timing problem in how data flows:
 
-### File: `src/components/estimates/takeoff/DrawingCanvas.tsx`
+1. When you finish drawing and click "Done", the code calls `handleDoneMarkingSingleBeam`
+2. This function copies the drawn points to `currentBeamPoints`
+3. It then **immediately clears** `polylinePoints` 
+4. But the `currentBeamLength` displayed in the dialog is calculated from `polylinePoints` - not from `currentBeamPoints`
 
----
+Since `polylinePoints` is emptied before the dialog shows, the length calculation returns 0.
 
-## Change 1: Remove Segment Length Labels from Polyline Preview
-
-**Location:** Lines 531-555
-
-Remove the entire segment length labels rendering block from `renderPolylinePreview()`:
-
-```typescript
-// DELETE this entire block (lines 531-555):
-{/* Segment length labels */}
-{segmentLengths.map((seg, index) => (
-  <Group key={`seg-label-${index}`}>
-    {/* Background for label */}
-    <Rect ... />
-    <Text ... />
-  </Group>
-))}
+```text
+Timeline of events:
+┌─────────────────────────────────────────────────────────────┐
+│ User clicks "Done"                                          │
+│    ↓                                                        │
+│ polylinePoints = [point1, point2, point3...]  (has data)   │
+│    ↓                                                        │
+│ Copy to currentBeamPoints                                   │
+│    ↓                                                        │
+│ setPolylinePoints([])  ← CLEARED!                           │
+│    ↓                                                        │
+│ Dialog opens                                                │
+│    ↓                                                        │
+│ currentBeamLength = calculateFrom(polylinePoints)           │
+│                    = calculateFrom([])                      │
+│                    = 0  ← BUG!                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-Also remove the now-unused `segmentLengths` calculation (lines 506-519) since it's no longer needed.
+## Where This Issue Occurs
+
+| Location | Affected | Why |
+|----------|----------|-----|
+| SlabBeamMarkupDialog - Edge Beam | YES | Uses `currentBeamLength` derived from cleared `polylinePoints` |
+| SlabBeamMarkupDialog - Segments | YES | Uses `polylineSegments` derived from cleared `polylinePoints` |
+| LinearDimensionsDialog | NO | Correctly caches `pendingPolylineLength` before clearing |
+| EditBeamDialog (existing slabs) | NO | Correctly uses cached `pendingBeamLength` |
+
+## Solution
+
+Create a cached beam length value (similar to how linear scopes work) that gets set before clearing `polylinePoints`, and also cache the segments.
 
 ---
 
-## Change 2: Remove Length Labels from Discrete Internal Beams
+## Technical Changes
 
-**Location:** Lines 744-765
+### File: `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
 
-Remove the length label Group from `renderDiscreteInternalBeams()`:
+#### 1. Add new state for cached beam length and segments (near line 117)
 
 ```typescript
-// DELETE this entire block (lines 745-765):
-{/* Length label at midpoint */}
-<Group>
-  <Rect ... />
-  <Text ... />
-</Group>
+const [currentBeamPoints, setCurrentBeamPoints] = useState<TakeoffPoint[]>([]);
+
+// ADD THESE TWO NEW STATE VARIABLES:
+const [cachedBeamLength, setCachedBeamLength] = useState<number>(0);
+const [cachedBeamSegments, setCachedBeamSegments] = useState<BeamSegment[]>([]);
 ```
 
-Also remove the `midX` and `midY` calculations (lines 714-715) since they're no longer needed.
+#### 2. Update `handleDoneMarkingSingleBeam` to cache values before clearing (around line 492-500)
 
----
+```typescript
+const handleDoneMarkingSingleBeam = useCallback(() => {
+  // For edge beams: use continuous polyline points
+  if (slabWorkflowStep === 'mark_edge_beam' && polylinePoints.length >= 2 && currentScale) {
+    // Calculate and cache the length BEFORE clearing polylinePoints
+    const length = calculatePolylineLength(polylinePoints, currentScale);
+    const segments = polylinePoints.slice(0, -1).map((point, i) => {
+      const nextPoint = polylinePoints[i + 1];
+      const pixelLength = Math.sqrt(
+        Math.pow(nextPoint.x - point.x, 2) + Math.pow(nextPoint.y - point.y, 2)
+      );
+      return {
+        startPoint: point,
+        endPoint: nextPoint,
+        length: pixelLength / currentScale,
+      };
+    });
+    
+    setCachedBeamLength(length);
+    setCachedBeamSegments(segments);
+    setCurrentBeamPoints([...polylinePoints]);
+    setPolylinePoints([]);  // Now safe to clear
+    setSlabWorkflowStep('edge_beam_details');
+    setShowSlabBeamDialog(true);
+    setActiveTool('select');
+    return;
+  }
+  // ... rest of function
+}, [...dependencies, calculatePolylineLength]);
+```
 
-## Change 3: Reduce Vertex Dot Radii by 50%
+#### 3. Pass cached values to SlabBeamMarkupDialog (around line 1658-1660)
 
-Update all vertex circle radii throughout the file:
+```typescript
+currentBeamPoints={currentBeamPoints}
+currentBeamLength={cachedBeamLength}        // Changed from currentBeamLength
+currentBeamSegments={cachedBeamSegments}    // Changed from polylineSegments
+```
 
-| Location | Current Radius | New Radius |
-|----------|---------------|------------|
-| Polyline preview vertices (line 562) | `activeBeamType ? 7 : 6` | `activeBeamType ? 3.5 : 3` |
-| Existing beam segment vertices (line 694) | `6` | `3` |
-| Discrete internal beams start point (line 731) | `6` | `3` |
-| Discrete internal beams end point (line 739) | `6` | `3` |
-| Pending slab reference vertices (line 603) | `4` | `2` |
-| Selected polygon vertices (line 881) | `6` | `3` |
-| Selected rectangle corners (lines 928-931) | `6` | `3` |
-| Selected polyline vertices (line 1027) | `6` | `3` |
+#### 4. Reset cached values when starting new beam (in handleAddAnotherEdgeBeam, around line 600)
 
-**Note:** The polygon drawing preview vertices (lines 794-796) use touch-adaptive sizing for usability, so those should remain unchanged to maintain touch target sizes for closing polygons.
+```typescript
+const handleAddAnotherEdgeBeam = useCallback(() => {
+  setShowSlabBeamDialog(false);
+  setSlabWorkflowStep('mark_edge_beam');
+  setPolylinePoints([]);
+  setCachedBeamLength(0);      // ADD
+  setCachedBeamSegments([]);   // ADD
+  setActiveTool('polyline');
+}, []);
+```
 
----
+#### 5. Also reset in workflow reset function (in resetSlabWorkflow)
 
-## What Stays Unchanged
-
-- **Area labels on completed polygons/rectangles** (e.g., "45.2 m²") - These provide important information about completed markups
-- **Calibration point labels** ("Point 1", "Point 2") - Essential for calibration workflow
-- **Number labels on pier/pad points** - Needed for counting elements
-- **Touch-adaptive first-point hit targets** - Needed for closing polygons on touch devices
+Add to the reset:
+```typescript
+setCachedBeamLength(0);
+setCachedBeamSegments([]);
+```
 
 ---
 
 ## Testing Verification
 
 After implementation:
-1. Open a takeoff and add a polyline (linear scope like Strip Footings)
-2. While drawing, verify NO length labels appear on segments
-3. Complete the polyline and verify the saved markup has NO segment labels
-4. Add internal beams and verify NO length labels appear
-5. Verify all vertex dots are visibly smaller (50% reduction)
-6. Confirm polygon closing still works (first point hit target unchanged)
+1. Create a new estimate with Raft Slab scope
+2. Upload a plan and calibrate
+3. Draw the slab outline (polygon)
+4. Name the slab and click "Next: Mark Edge Beams"
+5. Draw an edge beam polyline on the plan
+6. Click "Done" button
+7. **Verify**: The "Edge Beam Details" dialog should show the correct beam length (e.g., "5.40 m") - NOT "0.00 m"
+8. Enter type name (EB1), width, and depth
+9. Click "Save Beam"
+10. Navigate to Configure step
+11. **Verify**: The beam length carries through correctly to the Edge Beams section
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Add cached state variables, update handler to cache before clearing, pass cached values to dialog, reset in appropriate places |
+
