@@ -65,6 +65,7 @@ interface ScheduleSubbieDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   preselectedJobId?: string;
+  preselectedSubbie?: PastSubbie;
 }
 
 type Job = {
@@ -119,13 +120,13 @@ const formSchema = z
 
 type FormData = z.infer<typeof formSchema>;
 
-export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId }: ScheduleSubbieDialogProps) {
+export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, preselectedSubbie }: ScheduleSubbieDialogProps) {
   const [step, setStep] = useState<"select" | "details">("select");
   const [selectedJob, setSelectedJob] = useState<Job | null>(null);
   const [selectedPours, setSelectedPours] = useState<SelectedPour[]>([]);
   const [jobSearch, setJobSearch] = useState("");
   const [detailsTab, setDetailsTab] = useState<"existing" | "new">("existing");
-  const [selectedPastSubbie, setSelectedPastSubbie] = useState<PastSubbie | null>(null);
+  const [selectedPastSubbie, setSelectedPastSubbie] = useState<PastSubbie | null>(preselectedSubbie || null);
   const [subbieSearch, setSubbieSearch] = useState("");
   
   const sendInvite = useSendSubTradeInvite();
@@ -251,11 +252,18 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId }: S
       setSelectedPours([]);
       setJobSearch("");
       setDetailsTab("existing");
-      setSelectedPastSubbie(null);
+      setSelectedPastSubbie(preselectedSubbie || null);
       setSubbieSearch("");
       form.reset();
     }
-  }, [open, form]);
+  }, [open, form, preselectedSubbie]);
+
+  // Set preselected subbie when it changes
+  useEffect(() => {
+    if (preselectedSubbie && open) {
+      setSelectedPastSubbie(preselectedSubbie);
+    }
+  }, [preselectedSubbie, open]);
 
   const handleJobSelect = async (job: Job) => {
     setSelectedJob(job);
@@ -406,11 +414,17 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId }: S
       <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {step === "select" ? "Schedule a Subbie" : "Subbie Details"}
+            {step === "select" 
+              ? preselectedSubbie 
+                ? `Assign ${preselectedSubbie.recipient_name}` 
+                : "Schedule a Subbie" 
+              : "Confirm & Send"}
           </DialogTitle>
           <DialogDescription>
             {step === "select"
-              ? "Select jobs and pours to invite a subcontractor to"
+              ? preselectedSubbie
+                ? `Select jobs and pours to assign ${preselectedSubbie.recipient_name} (${preselectedSubbie.role}) to`
+                : "Select jobs and pours to invite a subcontractor to"
               : `Sending invite to ${selectedPours.length} pour${selectedPours.length > 1 ? "s" : ""}`}
           </DialogDescription>
         </DialogHeader>
@@ -583,6 +597,82 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId }: S
               >
                 Continue
                 <ChevronRight className="ml-1 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ) : preselectedSubbie ? (
+          // Simplified view when subbie is preselected - just confirm and send
+          <div className="flex-1 flex flex-col min-h-0 space-y-4">
+            {/* Selected subbie summary */}
+            <div className="p-4 rounded-lg border bg-muted/30">
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium">{preselectedSubbie.recipient_name}</div>
+                  <div className="text-sm text-muted-foreground flex items-center gap-2">
+                    {preselectedSubbie.recipient_phone && (
+                      <span className="flex items-center gap-1">
+                        <Phone className="h-3 w-3" />
+                        {preselectedSubbie.recipient_phone}
+                      </span>
+                    )}
+                    {preselectedSubbie.recipient_email && (
+                      <span className="flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        {preselectedSubbie.recipient_email}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <Badge variant="secondary">{preselectedSubbie.role}</Badge>
+              </div>
+            </div>
+
+            {/* Selected pours summary */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Inviting to:</p>
+              <div className="space-y-1.5">
+                {selectedPours.map((pour) => (
+                  <div key={pour.pourId} className="text-sm p-2 rounded bg-muted/50 flex items-center gap-2">
+                    <Calendar className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                    <span className="truncate">{pour.jobName} - {pour.pourName}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Notes */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Notes (optional)</label>
+              <Textarea
+                placeholder="Access instructions, timing, site constraints..."
+                className="resize-none"
+                rows={2}
+                value={form.watch("notes") || ""}
+                onChange={(e) => form.setValue("notes", e.target.value)}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex justify-between pt-2 border-t mt-auto">
+              <Button type="button" variant="outline" onClick={handleBackToSelection}>
+                <ChevronLeft className="mr-1 h-4 w-4" />
+                Back
+              </Button>
+              <Button 
+                onClick={handleSendExistingSubbie} 
+                disabled={sendInvite.isPending}
+              >
+                {sendInvite.isPending ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    <Send className="mr-2 h-4 w-4" />
+                    Send {selectedPours.length > 1 ? `${selectedPours.length} Invites` : "Invite"}
+                  </>
+                )}
               </Button>
             </div>
           </div>
