@@ -139,6 +139,11 @@ export function CalibrationDialog({
                     placeholder="e.g. 10"
                     value={distance}
                     onChange={(e) => setDistance(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && distance && parseFloat(distance) > 0 && !isApplying) {
+                        handleApplyPointsScale();
+                      }
+                    }}
                     min="0"
                     step="0.1"
                     autoFocus
