@@ -469,7 +469,8 @@ export const reinforcementRaftModule: EstimateModule = {
       const meshLayers = Number(scopeData?.topping_mesh_layers) || 1;
       const meshAreaMode = String(scopeData?.topping_mesh_area_mode || 'pod_field');
       const meshLapPercent = 1 + (Number(scopeData?.topping_mesh_lap_percent) || 12.5) / 100;
-      const podFieldArea = Number(scopeData?.volumeBreakdown?.podFieldArea_m2) || totalArea * 0.85;
+      // Use volumeBreakdown if available, otherwise fall back to full area (no 0.85 reduction)
+      const podFieldArea = Number(scopeData?.volumeBreakdown?.podFieldArea_m2) || totalArea;
       
       // Determine mesh coverage area based on mode
       let meshCoverageArea = totalArea;
