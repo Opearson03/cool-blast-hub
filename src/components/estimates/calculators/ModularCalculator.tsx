@@ -34,7 +34,7 @@ import { MultiLinearTypeInput } from "./MultiLinearTypeInput";
 import { MultiBeamInput } from "./MultiBeamInput";
 import { MultiBeamTypeInput } from "./MultiBeamTypeInput";
 import { MultiDemolitionInput } from "./MultiDemolitionInput";
-import { WafflePodConfigCard, ReinforcementBreakdown } from "./WafflePodConfigCard";
+// WafflePodConfigCard removed - waffle pod configuration is now rendered inside the Reinforcement module
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -1279,39 +1279,7 @@ export function ModularCalculator({
         />
       )}
 
-      {/* Waffle Pod Configuration - simplified card for pod specs and accessories */}
-      {scope.id === 'waffle_pod' && (
-        <WafflePodConfigCard
-          podSize={String(scopeAnswers.pod_size || '1090')}
-          podThickness={String(scopeAnswers.pod_thickness || '225')}
-          topSlabThickness={Number(scopeAnswers.top_slab_thickness) || 85}
-          ribWidth={Number(scopeAnswers.rib_width) || 110}
-          podCount={Number(scopeAnswers.pod_count) || 0}
-          spacer4WayCount={Number(scopeAnswers.spacer_4way_count) || 0}
-          spacer2WayCount={Number(scopeAnswers.spacer_2way_count) || 0}
-          tmChairsCount={Number(scopeAnswers.tm_chairs_count) || 0}
-          barChairsCount={Number(scopeAnswers.bar_chairs_count) || 0}
-          fromTakeoff={scopeAnswers._fromTakeoff}
-          podCountEstimated={!scopeUserOverrides.has('pod_count') && Number(scopeAnswers.pod_count) > 0}
-          volumeBreakdown={wafflePodBreakdown}
-          podsX={Number(scopeAnswers.pods_x) || 0}
-          podsY={Number(scopeAnswers.pods_y) || 0}
-          nxNyOverride={scopeAnswers.nx_ny_override || false}
-          ribBottomBars={Number(scopeAnswers.rib_bottom_bars) || 2}
-          ribBottomBarSize={String(scopeAnswers.rib_bottom_bar_size || 'N12')}
-          ribTopBars={Number(scopeAnswers.rib_top_bars) || 1}
-          ribTopBarSize={String(scopeAnswers.rib_top_bar_size || 'N12')}
-          stockLength={String(scopeAnswers.stock_length || '6')}
-          toppingMeshType={String(scopeAnswers.topping_mesh_type || 'SL82')}
-          toppingMeshLayers={Number(scopeAnswers.topping_mesh_layers) || 1}
-          toppingMeshAreaMode={String(scopeAnswers.topping_mesh_area_mode || 'pod_field')}
-          toppingMeshCustomArea={Number(scopeAnswers.topping_mesh_custom_area) || 0}
-          toppingMeshLapPercent={Number(scopeAnswers.topping_mesh_lap_percent) || 12.5}
-          reinforcementBreakdown={undefined}
-          totalArea={Number(derivedScopeAnswers.area) || 0}
-          onChange={handleScopeAnswerChange}
-        />
-      )}
+      {/* Waffle Pod Configuration removed - now rendered inside the Reinforcement module */}
 
       {/* Multi-pier group input */}
       {scope.supportsMultiplePiers && (
