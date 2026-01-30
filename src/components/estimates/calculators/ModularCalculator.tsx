@@ -1411,13 +1411,13 @@ export function ModularCalculator({
                 </Label>
                 <Switch
                   id="has-edge-beams"
-                  checked={scopeAnswers.hasEdgeBeams ?? true}
+                  checked={scopeAnswers.hasEdgeBeams ?? false}
                   onCheckedChange={(checked) => handleScopeAnswerChange('hasEdgeBeams', checked)}
                 />
               </div>
             </div>
           </CardHeader>
-          {(scopeAnswers.hasEdgeBeams ?? true) && (
+          {scopeAnswers.hasEdgeBeams && (
             <CardContent className="pt-0">
               <MultiBeamTypeInput
                 label=""
