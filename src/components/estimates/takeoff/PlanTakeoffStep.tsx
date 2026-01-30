@@ -908,9 +908,16 @@ export function PlanTakeoffStep({
   }, [slabWorkflowActive, handleDoneMarkingSingleBeam]);
 
   const handleUndo = useCallback(() => {
-    // Undo polyline point
+    // Undo polyline point (for edge beams or linear scopes)
     if (activeTool === 'polyline' && polylinePoints.length > 0) {
       setPolylinePoints(prev => prev.slice(0, -1));
+      return;
+    }
+    
+    // Undo discrete internal beam segment (remove last completed beam)
+    // This handles internal beam workflow where pairs of points form discrete beams
+    if (activeTool === 'polyline' && discreteInternalBeams.length > 0 && polylinePoints.length === 0) {
+      setDiscreteInternalBeams(prev => prev.slice(0, -1));
       return;
     }
     
@@ -924,7 +931,7 @@ export function PlanTakeoffStep({
     if (drawingPoints.length > 0) {
       setDrawingPoints(prev => prev.slice(0, -1));
     }
-  }, [activeTool, polylinePoints.length, pierPoints.length, drawingPoints.length]);
+  }, [activeTool, polylinePoints.length, pierPoints.length, drawingPoints.length, discreteInternalBeams.length]);
 
   // Handler to cancel current markup and clear unsaved points
   const handleCancelCurrentMarkup = useCallback(() => {
