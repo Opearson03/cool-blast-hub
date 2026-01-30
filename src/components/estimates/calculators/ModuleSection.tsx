@@ -36,7 +36,7 @@ import { PierReinforcementInput } from "./PierReinforcementInput";
 import { FootingReinforcementInput } from "./FootingReinforcementInput";
 import { FootingSectionReinforcementInput } from "./FootingSectionReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
-import { WafflePodReinforcementInput } from "./WafflePodReinforcementInput";
+import { WafflePodConfigInput } from "./WafflePodConfigInput";
 import { ExtraItemsInput } from "./ExtraItemsInput";
 import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
 import { MultiPlacementInput } from "./MultiPlacementInput";
@@ -389,9 +389,9 @@ export function ModuleSection({
         </AccordionTrigger>
         <AccordionContent className="pb-6">
           <div className="space-y-6">
-            {/* Waffle Pod Configuration - shown at the top of Reinforcement module for waffle_pod scope */}
-            {isRaftReoModule && scopeId === 'waffle_pod' && onScopeDataChange && (
-              <WafflePodReinforcementInput
+            {/* Waffle Pod Configuration - shown in the Pods module */}
+            {module.id === 'pods' && scopeId === 'waffle_pod' && onScopeDataChange && (
+              <WafflePodConfigInput
                 scopeData={scopeData || {}}
                 onScopeDataChange={onScopeDataChange}
               />
