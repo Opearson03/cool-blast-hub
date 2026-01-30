@@ -229,6 +229,32 @@ export const reinforcementPadModule: EstimateModule = {
         });
       }
       
+      // Starter Bars (per-group)
+      const hasStarters = group.has_starters ?? false;
+      if (hasStarters) {
+        const starterCount = group.starter_count ?? 4;
+        const starterSize = group.starter_size || 'N16';
+        const starterLengthMm = group.starter_length ?? 1200;
+        
+        const weightPerM = REBAR_WEIGHTS[starterSize] || 1.58;
+        // Calculate for single pad then multiply by quantity
+        const singlePadStarterWeight = starterCount * (starterLengthMm / 1000) * lapMargin * weightPerM;
+        const totalStarterWeight = singlePadStarterWeight * numPads;
+        const starterCost = (totalStarterWeight / 1000) * pricePerTonne;
+        totalWeightKg += totalStarterWeight;
+        totalCost += starterCost;
+        
+        lineItems.push({
+          id: `reo-pad-${itemIdx++}`,
+          description: `${groupName} - Starters ${starterSize} (${starterCount} bars × ${numPads} pads @ ${starterLengthMm}mm)`,
+          quantity: totalStarterWeight,
+          unit: 'kg',
+          unitPrice: pricePerTonne / 1000,
+          total: starterCost,
+          category: 'materials',
+        });
+      }
+      
       // Bar chairs (per-group)
       if (chairsEnabled) {
         const padAreaSqm = (padLength / 1000) * (padWidth / 1000) * numPads;
@@ -281,12 +307,20 @@ export const reinforcementPadModule: EstimateModule = {
     // Get exclusions based on all groups
     const exclusions: ExclusionItem[] = [];
     const hasAnyReo = groupsToProcess.some(g => g.has_bottom_reo || g.has_top_reo);
+    const hasAnyStarters = groupsToProcess.some(g => g.has_starters);
     const hasAnyChairs = groupsToProcess.some(g => g.chairs_enabled);
     
     if (!hasAnyReo) {
       exclusions.push({
         id: 'no-reinforcement',
         text: 'Steel reinforcement not included',
+        moduleId: 'reinforcement-pad',
+      });
+    }
+    if (!hasAnyStarters) {
+      exclusions.push({
+        id: 'no-starters',
+        text: 'Starter bars not included',
         moduleId: 'reinforcement-pad',
       });
     }
@@ -313,12 +347,21 @@ export const reinforcementPadModule: EstimateModule = {
     
     // Check if any group has reinforcement
     const hasAnyReo = padGroups.some(g => g.has_bottom_reo || g.has_top_reo);
+    const hasAnyStarters = padGroups.some(g => g.has_starters);
     const hasAnyChairs = padGroups.some(g => g.chairs_enabled);
     
     if (!hasAnyReo && padGroups.length > 0) {
       exclusions.push({
         id: 'no-reinforcement',
         text: 'Steel reinforcement not included',
+        moduleId: 'reinforcement-pad',
+      });
+    }
+    
+    if (!hasAnyStarters && padGroups.length > 0) {
+      exclusions.push({
+        id: 'no-starters',
+        text: 'Starter bars not included',
         moduleId: 'reinforcement-pad',
       });
     }

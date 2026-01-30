@@ -290,6 +290,12 @@ export interface PadFootingGroup {
   top_b_size?: string;
   top_b_centres?: number;
   
+  // Starter Bars (vertical bars projecting from pad footing)
+  has_starters?: boolean;
+  starter_count?: number;     // number of starters per pad
+  starter_size?: string;      // bar size e.g. 'N16'
+  starter_length?: number;    // mm projection length
+  
   // Bar Chairs
   chairs_enabled?: boolean;
   chairs_per_sqm?: number;
