@@ -1666,16 +1666,6 @@ export function PlanTakeoffStep({
         spacer2WayCount={pendingSlabData?.spacer2WayCount || 0}
         wafflePodCountingComplete={false} // No longer using counting workflow
         onStartCountingPods={undefined} // No longer using counting workflow
-        onAccessoryCountsChange={(counts) => {
-          setPendingSlabData(prev => prev ? {
-            ...prev,
-            wafflePodCount: counts.podCount,
-            spacer4WayCount: counts.spacer4Way,
-            spacer2WayCount: counts.spacer2Way,
-            tmChairsCount: counts.tmChairs,
-            barChairsCount: counts.barChairs,
-          } : null);
-        }}
         onStartEdgeBeams={handleStartEdgeBeams}
         onSkipAllBeams={handleSkipAllBeams}
         onSaveBeam={handleSaveBeam}
