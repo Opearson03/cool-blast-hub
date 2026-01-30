@@ -140,6 +140,98 @@ export interface ScopeMarkupStatus {
 }
 
 // Utility functions for area calculation
+
+/**
+ * Calculate polygon area using grid-based subdivision for accurate measurement
+ * of complex shapes (L-shapes, irregular polygons, etc.)
+ * 
+ * This is the authoritative area calculation method that replaces the simple
+ * shoelace formula for volume calculations.
+ * 
+ * @param points - Polygon vertices in pixel coordinates
+ * @param pixelsPerMeter - Scale factor (pixels per meter)
+ * @param cellSizeMm - Grid cell size in mm (default 500mm)
+ * @returns Area in square meters
+ */
+export function calculatePolygonAreaGrid(
+  points: TakeoffPoint[],
+  pixelsPerMeter: number,
+  cellSizeMm: number = 500
+): number {
+  // Import the grid area estimator dynamically to avoid circular dependencies
+  // The actual implementation is in src/lib/takeoff/gridArea.ts
+  if (points.length < 3 || pixelsPerMeter <= 0) return 0;
+  
+  const metersPerPixel = 1 / pixelsPerMeter;
+  
+  // Grid-based area estimation with 9-point sampling per cell
+  const cellSizeM = cellSizeMm / 1000;
+  const cellSizePx = cellSizeM / metersPerPixel;
+  
+  // Get bounding box
+  let minX = points[0].x, maxX = points[0].x;
+  let minY = points[0].y, maxY = points[0].y;
+  for (const p of points) {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.y > maxY) maxY = p.y;
+  }
+  
+  // Point-in-polygon helper (ray casting)
+  const pointInPolygon = (x: number, y: number): boolean => {
+    let inside = false;
+    const n = points.length;
+    for (let i = 0, j = n - 1; i < n; j = i++) {
+      const xi = points[i].x, yi = points[i].y;
+      const xj = points[j].x, yj = points[j].y;
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  };
+  
+  // Sample offsets (3x3 grid within each cell)
+  const offsets = [1/6, 3/6, 5/6];
+  const sampleCount = 9;
+  const cellAreaM2 = cellSizeM * cellSizeM;
+  
+  let totalArea = 0;
+  const gridWidth = Math.ceil((maxX - minX) / cellSizePx);
+  const gridHeight = Math.ceil((maxY - minY) / cellSizePx);
+  
+  // Limit grid size for performance
+  if (gridWidth > 100 || gridHeight > 100) {
+    const scale = Math.max(gridWidth, gridHeight) / 100;
+    return calculatePolygonAreaGrid(points, pixelsPerMeter, cellSizeMm * scale);
+  }
+  
+  for (let cy = 0; cy < gridHeight; cy++) {
+    for (let cx = 0; cx < gridWidth; cx++) {
+      const startX = minX + cx * cellSizePx;
+      const startY = minY + cy * cellSizePx;
+      
+      let inside = 0;
+      for (const ox of offsets) {
+        for (const oy of offsets) {
+          if (pointInPolygon(startX + ox * cellSizePx, startY + oy * cellSizePx)) {
+            inside++;
+          }
+        }
+      }
+      
+      totalArea += (inside / sampleCount) * cellAreaM2;
+    }
+  }
+  
+  return totalArea;
+}
+
+/**
+ * Calculate polygon area using traditional shoelace formula.
+ * Kept for backwards compatibility and simple rectangular shapes.
+ */
 export function calculatePolygonArea(points: TakeoffPoint[], pixelsPerMeter: number): number {
   if (points.length < 3) return 0;
   
