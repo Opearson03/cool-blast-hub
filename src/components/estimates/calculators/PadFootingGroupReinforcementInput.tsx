@@ -96,6 +96,7 @@ export function PadFootingGroupReinforcementInput({
     let totalPads = 0;
     let withBottomReoCount = 0;
     let withTopReoCount = 0;
+    let withStartersCount = 0;
     let withChairsCount = 0;
     let customCount = 0;
 
@@ -105,16 +106,17 @@ export function PadFootingGroupReinforcementInput({
       
       if (group.has_bottom_reo) withBottomReoCount += padCount;
       if (group.has_top_reo) withTopReoCount += padCount;
+      if (group.has_starters) withStartersCount += padCount;
       if (group.chairs_enabled) withChairsCount += padCount;
       
       if (group.has_bottom_reo !== undefined || group.bottom_a_size !== undefined ||
           group.has_top_reo !== undefined || group.top_a_size !== undefined ||
-          group.chairs_enabled !== undefined) {
+          group.has_starters !== undefined || group.chairs_enabled !== undefined) {
         customCount++;
       }
     });
 
-    return { totalPads, withBottomReoCount, withTopReoCount, withChairsCount, customCount, totalGroups: padGroups.length };
+    return { totalPads, withBottomReoCount, withTopReoCount, withStartersCount, withChairsCount, customCount, totalGroups: padGroups.length };
   }, [padGroups]);
 
   if (padGroups.length === 0) {
@@ -147,6 +149,12 @@ export function PadFootingGroupReinforcementInput({
             <>
               <span className="text-border">•</span>
               <span>{summary.withTopReoCount} with top</span>
+            </>
+          )}
+          {summary.withStartersCount > 0 && (
+            <>
+              <span className="text-border">•</span>
+              <span>{summary.withStartersCount} with starters</span>
             </>
           )}
           {summary.withChairsCount > 0 && (
@@ -190,6 +198,10 @@ export function PadFootingGroupReinforcementInput({
           const topACentres = group.top_a_centres ?? 200;
           const topBSize = group.top_b_size || 'N16';
           const topBCentres = group.top_b_centres ?? 200;
+          const hasStarters = group.has_starters ?? false;
+          const starterCount = group.starter_count ?? 4;
+          const starterSize = group.starter_size || 'N16';
+          const starterLength = group.starter_length ?? 1200;
           const chairsEnabled = group.chairs_enabled ?? false;
           const chairsPerSqm = group.chairs_per_sqm ?? 4;
           const chairPricePer100 = group.chair_price_per_100 ?? 45;
@@ -200,6 +212,8 @@ export function PadFootingGroupReinforcementInput({
             group.bottom_a_centres !== undefined ||
             group.has_top_reo !== undefined ||
             group.top_a_size !== undefined ||
+            group.has_starters !== undefined ||
+            group.starter_count !== undefined ||
             group.chairs_enabled !== undefined;
 
           return (
@@ -236,6 +250,11 @@ export function PadFootingGroupReinforcementInput({
                       {hasTopReo && (
                         <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-accent text-accent-foreground">
                           Top
+                        </span>
+                      )}
+                      {hasStarters && (
+                        <span className="text-[11px] px-2 py-0.5 rounded-full font-medium bg-warning/20 text-warning-foreground">
+                          Starters
                         </span>
                       )}
                       {chairsEnabled && (
@@ -434,6 +453,76 @@ export function PadFootingGroupReinforcementInput({
                                 min={100}
                                 max={600}
                                 step={50}
+                              />
+                              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                                mm
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Starter Bars Section */}
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Starter Bars</Label>
+                        <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                          <Switch
+                            checked={hasStarters}
+                            onCheckedChange={(val) => updateGroup(groupIndex, { has_starters: val })}
+                          />
+                          <span className={cn(
+                            "text-sm min-w-[3ch]",
+                            hasStarters ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                            {hasStarters ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {hasStarters && (
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Per Pad</Label>
+                            <Input
+                              type="number"
+                              value={starterCount}
+                              onChange={(e) => updateGroup(groupIndex, { starter_count: Number(e.target.value) })}
+                              className="h-8 text-sm"
+                              min={1}
+                              max={20}
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Size</Label>
+                            <Select
+                              value={starterSize}
+                              onValueChange={(val) => updateGroup(groupIndex, { starter_size: val })}
+                            >
+                              <SelectTrigger className="h-8 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="z-[150]">
+                                {BAR_SIZE_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-[10px] text-muted-foreground">Length</Label>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                value={starterLength}
+                                onChange={(e) => updateGroup(groupIndex, { starter_length: Number(e.target.value) })}
+                                className="h-8 text-sm pr-8"
+                                min={300}
+                                max={3000}
+                                step={100}
                               />
                               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
                                 mm
