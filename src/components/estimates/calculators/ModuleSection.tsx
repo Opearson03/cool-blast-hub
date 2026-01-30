@@ -37,6 +37,7 @@ import { FootingReinforcementInput } from "./FootingReinforcementInput";
 import { FootingSectionReinforcementInput } from "./FootingSectionReinforcementInput";
 import { PadFootingGroupReinforcementInput } from "./PadFootingGroupReinforcementInput";
 import { WafflePodConfigInput } from "./WafflePodConfigInput";
+import { WafflePodReinforcementInput } from "./WafflePodReinforcementInput";
 import { ExtraItemsInput } from "./ExtraItemsInput";
 import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
 import { MultiPlacementInput } from "./MultiPlacementInput";
@@ -392,6 +393,14 @@ export function ModuleSection({
             {/* Waffle Pod Configuration - shown in the Pods module */}
             {module.id === 'pods' && scopeId === 'waffle_pod' && onScopeDataChange && (
               <WafflePodConfigInput
+                scopeData={scopeData || {}}
+                onScopeDataChange={onScopeDataChange}
+              />
+            )}
+            
+            {/* Waffle Pod Reinforcement - shown in the Reinforcement module */}
+            {module.id === 'reinforcement-raft' && scopeId === 'waffle_pod' && onScopeDataChange && (
+              <WafflePodReinforcementInput
                 scopeData={scopeData || {}}
                 onScopeDataChange={onScopeDataChange}
               />
