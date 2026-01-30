@@ -987,7 +987,7 @@ export function FootingSectionReinforcementInput({
                       {tmType !== 'none' && tmLayers > 1 && (
                         <>
                           <div className="flex items-center justify-between pt-2">
-                            <Label className="text-xs font-medium">Chairs Between Layers</Label>
+                            <Label className="text-xs font-medium">Chairs Top</Label>
                             <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
                               <Switch
                                 checked={group.segments[0]?.layer_chairs_enabled ?? false}
@@ -1005,7 +1005,7 @@ export function FootingSectionReinforcementInput({
                           {group.segments[0]?.layer_chairs_enabled && (
                             <div className="grid grid-cols-2 gap-2">
                               <div className="space-y-1">
-                                <Label className="text-[10px] text-muted-foreground">Layer Chairs/m</Label>
+                                <Label className="text-[10px] text-muted-foreground">Chairs/m</Label>
                                 <Input
                                   type="number"
                                   step="0.1"

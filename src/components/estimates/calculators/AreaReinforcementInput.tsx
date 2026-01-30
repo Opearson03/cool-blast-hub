@@ -532,7 +532,7 @@ export function AreaReinforcementInput({
                         <div className="pt-3 border-t space-y-3">
                           <div className="flex items-center justify-between">
                             <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                              Bar Chairs
+                              {meshLayers > 1 ? 'Chairs Bottom' : 'Bar Chairs'}
                             </Label>
                             <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
                               <Switch
@@ -609,7 +609,7 @@ export function AreaReinforcementInput({
                             <>
                               <div className="flex items-center justify-between pt-2">
                                 <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                                  Chairs Between Layers
+                                  Chairs Top
                                 </Label>
                                 <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
                                   <Switch
@@ -628,7 +628,7 @@ export function AreaReinforcementInput({
                               {area.layer_chairs_enabled && (
                                 <div className="grid grid-cols-2 gap-3">
                                   <div className="space-y-1">
-                                    <Label className="text-[10px] text-muted-foreground">Layer Chairs/m²</Label>
+                                    <Label className="text-[10px] text-muted-foreground">Chairs/m²</Label>
                                     <Input
                                       type="number"
                                       step="0.5"
