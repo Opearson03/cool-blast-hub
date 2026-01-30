@@ -635,19 +635,19 @@ export default function AdminEstimates() {
 
         {/* Estimates List - Desktop Table */}
         {!isLoading && (
-          <Card className="hidden lg:block">
-            <CardContent className="p-0">
-              <table className="w-full">
+          <Card className="hidden lg:block overflow-hidden">
+            <CardContent className="p-0 overflow-x-auto">
+              <table className="w-full min-w-[800px]">
                 <thead className="border-b border-border">
                   <tr className="text-left">
-                    <th className="p-4 font-medium text-muted-foreground">Type</th>
-                    <th className="p-4 font-medium text-muted-foreground">Quote #</th>
-                    <th className="p-4 font-medium text-muted-foreground">Client</th>
-                    <th className="p-4 font-medium text-muted-foreground">Description</th>
-                    <th className="p-4 font-medium text-muted-foreground">Amount</th>
-                    <th className="p-4 font-medium text-muted-foreground">Status</th>
-                    <th className="p-4 font-medium text-muted-foreground">Created</th>
-                    <th className="p-4 font-medium text-muted-foreground">Valid Until</th>
+                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Type</th>
+                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Quote #</th>
+                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Client</th>
+                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Description</th>
+                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
+                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Status</th>
+                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Created</th>
+                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Valid Until</th>
                     <th className="p-4 font-medium text-muted-foreground sr-only">Actions</th>
                   </tr>
                 </thead>

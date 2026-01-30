@@ -125,10 +125,12 @@ export function AdminLayout({ children }: { children: ReactNode }) {
 
       {/* Main Content - header is ~56px + safe-area on native */}
       <main 
-        className="lg:ml-64 p-4 lg:p-6 pt-20 lg:pt-6 overflow-x-hidden"
+        className="lg:ml-64 p-4 lg:p-6 pt-20 lg:pt-6 overflow-x-hidden max-w-full"
         style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 72px)' } : undefined}
       >
-        {children}
+        <div className="w-full max-w-full overflow-x-auto">
+          {children}
+        </div>
       </main>
     </div>
     </SubscriptionGate>
