@@ -1,93 +1,107 @@
 
-# Plan: Fix Waffle Pod Count Calculation
+# Plan: Allow Multiple Thicknesses for Different Area Measurements (Slab on Ground)
 
-## Problem Analysis
-
-The current waffle pod count calculation is significantly underestimating the number of pods required. For a 42m² slab, the user sees only 12 pods when there should be approximately 30-35.
-
-### Root Cause
-
-The pod grid estimation logic in `ModularCalculator.tsx` applies multiple conservative reductions that compound into a severe undercount:
-
-```text
-Input: 42m² slab area
-Step 1: podFieldArea = 42 × 0.85 = 35.7m² (assumes 15% edge beams)
-Step 2: Estimate dimensions as ~6.55m × 5.45m
-Step 3: Subtract 0.9m edge beam allowance → inner field 5.65m × 4.55m
-Step 4: Calculate grid: nx=4, ny=3 → 12 pods
-```
-
-This is wrong because:
-1. The 85% pod field area multiplier is arbitrary and too aggressive
-2. The edge beam width assumption (0.45m × 2) is hardcoded and may not match reality
-3. The `floor()` operation on both dimensions compounds the error
-4. This grid-derived value then drives `pods_x` and `pods_y`, which in turn affects reinforcement calculations
-
-### Correct Approach
-
-The pod count should be based on **area coverage**, not geometric grid estimation:
-
-```text
-Module pitch = pod_size + rib_width = 1090 + 110 = 1200mm = 1.2m
-Module area = 1.2 × 1.2 = 1.44 m²
-Pods required = ceil(slab_area / module_area) = ceil(42 / 1.44) = 30 pods
-```
+## Overview
+Currently, the Slab on Ground scope uses a single shared thickness value for all areas. This change will allow users to specify different thickness values for each individual area measurement, which is important for projects where different slab sections have varying thickness requirements.
 
 ---
 
-## Technical Changes
+## What You'll Get
+- Each area in the "Slab on Ground" scope can have its own thickness value
+- Option to still use a shared thickness for all areas (default behavior preserved)
+- Toggle switch to enable "per-area thickness" mode
+- Accurate volume calculations based on individual area thicknesses
+- Correct chair type suggestions per area based on their specific thickness
 
-### 1. Update Pod Count Formula in ModularCalculator.tsx
+---
 
-Replace the flawed grid estimation with a direct area-based calculation:
+## Technical Implementation
 
-| Current (incorrect) | Proposed (correct) |
-|--------------------|--------------------|
-| `podFieldArea = totalArea × 0.85` | Use full `totalArea` |
-| Grid estimation → nx, ny | Area ÷ module area = pod count |
-| `pods_x × pods_y = 12` | `ceil(42 / 1.44) = 30` |
+### Step 1: Update Data Model
+**File: `src/lib/estimate-components/types.ts`**
 
-The grid dimensions (nx, ny) should only be derived **after edge beams are marked** from the actual pod field geometry, not estimated from slab area.
+Add `thickness` property to the `MeasurementArea` interface:
+- `thickness?: number` (mm) - optional per-area thickness
+- When undefined, the area uses the shared scope-level thickness
 
-### 2. Separate Pod Count from Grid Dimensions
+### Step 2: Update MultiAreaInput Component
+**File: `src/components/estimates/calculators/MultiAreaInput.tsx`**
 
-**Pod Count** (for quantity ordering):
-- Simple formula: `ceil(area / (moduleSize²))`
-- Used for: material ordering, accessory calculations
+Changes:
+- Add a toggle: "Use different thicknesses per area"
+- When toggled ON:
+  - Hide the shared thickness input at the bottom
+  - Show thickness input inside each area card
+- When toggled OFF (default):
+  - Show shared thickness (current behavior)
+  - Per-area thickness values are ignored
+- Pass per-area thickness mode state to parent via callback
 
-**Grid Dimensions nx × ny** (for rib bar calculations):
-- Derived from actual edge beam geometry when available
-- Falls back to square root estimation when geometry unknown
-- Used for: rib reinforcement length calculations
+### Step 3: Update Volume Calculation
+**File: `src/lib/estimate-components/scopes.ts`**
 
-### 3. Files to Modify
+Modify `STANDARD_SLAB_SCOPE.calculateVolume()`:
+```text
+Current: totalVolume = totalArea × singleThickness
+New:     totalVolume = Σ(eachArea × eachThickness)
+```
+
+- If per-area thickness mode is enabled:
+  - Calculate each area's volume using its own thickness
+  - Sum all individual volumes
+- If using shared thickness (default):
+  - Use existing calculation (area × shared thickness)
+
+### Step 4: Update Derived Scope Answers
+**File: `src/components/estimates/calculators/ModularCalculator.tsx`**
+
+Update `derivedScopeAnswers` to:
+- Calculate effective thickness (weighted average when using per-area mode)
+- Pass `usePerAreaThickness` flag and `areas` array to modules
+- Ensure volume calculations flow through correctly
+
+### Step 5: Update Reinforcement Module
+**File: `src/lib/estimate-components/modules/reinforcement-raft.ts`**
+
+The module already supports per-area reinforcement settings including chairs. Update chair type auto-selection to use:
+- Per-area thickness when available
+- Shared thickness as fallback
+
+---
+
+## User Experience
+
+**Default Behavior (unchanged):**
+- Single thickness input shown below all areas
+- Label: "Thickness - shared across all areas"
+- All areas use the same thickness value
+
+**Per-Area Mode (new):**
+- Toggle appears: "Different thickness per area"
+- When enabled:
+  - Shared thickness input hides
+  - Each area card shows its own thickness field
+  - Volume badge on each area shows individual volume (m³)
+
+---
+
+## Considerations
+
+1. **Backward Compatibility**: Existing estimates without per-area thickness will continue working - they'll use the shared thickness value as before
+
+2. **Takeoff Integration**: Areas from plan takeoff will still work - thickness can be manually set per area after import
+
+3. **Reinforcement Accuracy**: Chair types will be suggested based on each area's actual thickness, ensuring correct cover is maintained
+
+4. **Edge Thickening**: Beam volume calculations remain unchanged - they continue to use their own depth values independent of slab thickness
+
+---
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Fix auto-calculation logic for `pod_count`; decouple from nx/ny grid |
-
----
-
-## Calculation Comparison
-
-| Metric | Current (Flawed) | Proposed (Correct) |
-|--------|-----------------|-------------------|
-| 42m² slab area | 12 pods | 30 pods |
-| Pod formula | `nx × ny` from estimated grid | `ceil(area / module²)` |
-| Module size | 1.2m (correct) | 1.2m (correct) |
-| Module area | 1.44m² | 1.44m² |
-| Result | 4 × 3 = 12 | ceil(42/1.44) = 30 |
-
----
-
-## Summary
-
-The fix replaces the complex grid-estimation approach with a straightforward area-based pod count:
-
-```
-pods = ceil(slab_area / (module_pitch²))
-     = ceil(42 / 1.44)
-     = 30 pods
-```
-
-Grid dimensions (nx, ny) will still be calculated for rib bar reinforcement, but they won't override the pod count. This ensures accurate material quantities while preserving the geometric rib calculations for reinforcement.
+| `src/lib/estimate-components/types.ts` | Add `thickness` to `MeasurementArea` |
+| `src/components/estimates/calculators/MultiAreaInput.tsx` | Add per-area thickness toggle and inputs |
+| `src/lib/estimate-components/scopes.ts` | Update `calculateVolume()` for standard_slab |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Update derived scope answers and state handling |
