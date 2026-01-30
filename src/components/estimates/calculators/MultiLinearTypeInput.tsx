@@ -38,6 +38,7 @@ interface LinearTypeGroup {
   has_toe?: boolean;
   toe_width?: number;
   toe_depth?: number;
+  chairs_enabled?: boolean;
   segments: LinearSection[];
   totalLength: number;
   totalVolume: number;
@@ -88,6 +89,7 @@ function groupLinearByType(sections: LinearSection[], includeToe: boolean = fals
         has_toe: section.has_toe,
         toe_width: section.toe_width,
         toe_depth: section.toe_depth,
+        chairs_enabled: section.chairs_enabled,
         segments: [section],
         totalLength: length,
         totalVolume: volume,
@@ -97,6 +99,10 @@ function groupLinearByType(sections: LinearSection[], includeToe: boolean = fals
       group.segments.push(section);
       group.totalLength += length;
       group.totalVolume += volume;
+      // chairs_enabled is true if any segment in the group has it
+      if (section.chairs_enabled) {
+        group.chairs_enabled = true;
+      }
     }
   });
   
@@ -180,6 +186,16 @@ export function MultiLinearTypeInput({
     const updatedSections = sections.map(section => {
       if (matchesGroup(section, group)) {
         return { ...section, [field]: value };
+      }
+      return section;
+    });
+    onChange(updatedSections);
+  };
+
+  const updateGroupChairs = (group: LinearTypeGroup, enabled: boolean) => {
+    const updatedSections = sections.map(section => {
+      if (matchesGroup(section, group)) {
+        return { ...section, chairs_enabled: enabled };
       }
       return section;
     });
@@ -531,6 +547,24 @@ export function MultiLinearTypeInput({
                           </div>
                         </div>
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Chairs Section - for strip footings and retaining wall footings */}
+                {(scopeId === 'strip_footings' || scopeId === 'retaining_wall_footings') && (
+                  <div className="border-t px-3 py-3 bg-muted/20">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-sm font-medium">Include Chairs?</Label>
+                      <Switch
+                        checked={group.chairs_enabled ?? false}
+                        onCheckedChange={(checked) => updateGroupChairs(group, checked)}
+                      />
+                    </div>
+                    {group.chairs_enabled && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Chairs will be calculated based on footing length (~1.4 per metre)
+                      </p>
                     )}
                   </div>
                 )}
