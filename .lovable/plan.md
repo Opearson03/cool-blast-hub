@@ -1,114 +1,95 @@
 
-# Fix Volume Calculation for Raft Slab and Standard Slab Scopes
 
-## Problem
+# Fix Missing Reinforcement Totals for Strip Footings and Retaining Wall Footings
 
-When creating Raft Slab or Standard Slab estimates, the concrete volume is incorrectly inflated because the calculation includes edge beam and internal beam volumes even when those beams haven't been enabled by the user.
-
-The UI correctly shows toggle switches ("Include edge beams?" and "Include internal beams?") that must be activated before beam data can be entered. However, the volume calculation functions ignore these toggles and always attempt to calculate beam volumes using fallback scalar fields (defaulting to perimeter for edge beam length).
-
-## Affected Scopes
-
-| Scope | Issue |
-|-------|-------|
-| **Raft Slab** | Edge beam + internal beam volumes calculated unconditionally |
-| **Standard Slab (Slab on Ground)** | Edge beam + internal beam volumes calculated unconditionally |
-| Driveway | Already fixed (checks `hasEdgeBeams`/`hasInternalBeams`) |
-| Crossovers | Already fixed |
-| Paths & Surrounds | Already fixed |
-| Waffle Pod | Works correctly (always requires beams by design) |
+## Problem Summary
+When users create strip footing or retaining wall footing estimates, the reinforcement module shows no cost totals even though the UI displays default trench mesh (L11TM4) selected. The issue is that the calculation module doesn't include these defaults in the cost calculation.
 
 ## Root Cause
 
-In `src/lib/estimate-components/scopes.ts`:
+There's a disconnect between the UI display and the data calculation:
 
-**Raft Slab** (lines 355-393):
-- Edge beam volume is calculated from scalar fallback fields when `edgeBeams` array is empty
-- Uses `perimeter` as default edge beam length, causing phantom volume
-- Internal beam volume also uses fallback scalar fields
+| Component | Behavior |
+|-----------|----------|
+| **UI** (`FootingSectionReinforcementInput`) | Shows defaults like 'L11TM4' for TM type, using fallback: `group.tm_type \|\| defaultTmType` |
+| **Calculation** (`reinforcement-footing.ts`) | Checks raw section data: `s.tm_type` without fallbacks |
+| **New sections** (`MultiLinearTypeInput`) | Created without any reinforcement properties (no `tm_type`, `add_ligs`, etc.) |
 
-**Standard Slab** (lines 170-228):
-- Same issue as Raft Slab
+When users create footing sections and don't explicitly interact with the TM dropdown (because it already shows the desired default), the section data has no `tm_type` set. The calculation module's early return check fails to find any reinforcement:
 
-**Correctly working scopes** (Driveway, Crossovers, Paths & Surrounds):
 ```javascript
-// Only calculate if toggle is enabled
-if (answers.hasEdgeBeams === true) {
-  // Calculate edge beam volume...
+if (!hasAnyTm && !hasAnyHBars && !hasAnyVBars && !hasAnyLigs) {
+  return { lineItems: [], subtotal: 0, ... };  // Early return with zero cost!
 }
 ```
 
 ## Solution
 
-Update the `calculateVolume` functions in both **Raft Slab** and **Standard Slab** scopes to:
+Modify the calculation module to apply the same defaults that the UI displays. This ensures that what users see matches what gets calculated.
 
-1. Check for `hasEdgeBeams === true` before calculating edge beam volume
-2. Check for `hasInternalBeams === true` before calculating internal beam volume
-3. Only use the fallback scalar fields when the respective toggle is enabled
+**Changes to `src/lib/estimate-components/modules/reinforcement-footing.ts`:**
 
-This mirrors the pattern already used in Driveway, Crossovers, and Paths & Surrounds scopes.
+1. Update the early return check (lines 91-98) to consider sections that have NO `tm_type` set as using the default 'L11TM4' (not 'none')
+2. Update the TM calculation loop (line 125-126) to apply the default TM type when not explicitly set
+
+This approach:
+- Maintains backwards compatibility (explicit 'none' still excludes TM)
+- Matches UI behavior (what you see is what you get)
+- Requires minimal code changes
 
 ---
 
-## Technical Changes
+## Technical Details
 
-### File: `src/lib/estimate-components/scopes.ts`
+### File: `src/lib/estimate-components/modules/reinforcement-footing.ts`
 
-**RAFT_SLAB_SCOPE.calculateVolume** (around line 355):
+**Change 1: Update early return check (lines 91-98)**
 
 Before:
 ```javascript
-calculateVolume: (answers) => {
-  // ... slab volume calculation ...
-  
-  // Edge beam extra volume (always calculated)
-  const edgeBeamLength = Number(answers.edge_beam_length) || perimeter;
-  // ... calculates edge beam volume ...
-  
-  // Internal beams volume (always calculated)
-  const beams = answers.beams || [];
-  // ... calculates internal beam volume ...
-}
+const hasAnyTm = sections.length > 0 
+  ? sections.some(s => {
+      const tmType = s.tm_type;
+      return tmType && tmType !== 'none';
+    })
+  : false;
 ```
 
 After:
 ```javascript
-calculateVolume: (answers) => {
-  // ... slab volume calculation (unchanged) ...
-  
-  // Edge beam extra volume - only if explicitly enabled
-  let edgeBeamVolume = 0;
-  if (answers.hasEdgeBeams === true) {
-    const edgeBeams = answers.edgeBeams || [];
-    if (edgeBeams.length > 0) {
-      // Calculate from edgeBeams array
-    } else {
-      // Fallback to scalar fields
-    }
-  }
-  
-  // Internal beams volume - only if explicitly enabled
-  let internalBeamVolume = 0;
-  if (answers.hasInternalBeams === true) {
-    const beams = answers.beams || [];
-    // ... calculate internal beam volume ...
-  }
-}
+const hasAnyTm = sections.length > 0 
+  ? sections.some(s => {
+      // Use default TM type if not explicitly set or not 'none'
+      const tmType = s.tm_type ?? DEFAULT_TM_TYPE;
+      return tmType !== 'none';
+    })
+  : false;
 ```
 
-**STANDARD_SLAB_SCOPE.calculateVolume** (around line 170):
+**Change 2: Update TM calculation loop (lines 124-126)**
 
-Apply the same pattern - wrap edge beam and internal beam calculations in toggle checks.
+Before:
+```javascript
+const tmType = section.tm_type;
+if (!tmType || tmType === 'none') return;
+```
+
+After:
+```javascript
+// Apply default TM type if not explicitly set
+const tmType = section.tm_type ?? DEFAULT_TM_TYPE;
+if (tmType === 'none') return;
+```
 
 ---
 
 ## Testing Verification
 
 After implementation:
-1. Create a new Raft Slab estimate with area and thickness only
-2. Verify calculated volume = area x thickness (no phantom beam volume)
-3. Enable "Include edge beams?" toggle and add beams
-4. Verify volume now includes edge beam volume
-5. Enable "Include internal beams?" toggle and add beams
-6. Verify volume includes internal beam volume
-7. Repeat for Standard Slab scope
+1. Create a new Strip Footing estimate
+2. Add a footing section (e.g., SF1) with length and dimensions
+3. Open the Reinforcement module - verify it shows default 'L11TM4' selected
+4. **Without changing any reinforcement settings**, verify the Cost Breakdown shows trench mesh line items and a non-zero subtotal
+5. Change TM type to 'None' - verify subtotal drops appropriately
+6. Repeat for Retaining Wall Footings scope
+
