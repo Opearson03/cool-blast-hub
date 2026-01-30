@@ -636,25 +636,24 @@ export default function AdminEstimates() {
         {/* Estimates List - Desktop Table */}
         {!isLoading && (
           <Card className="hidden lg:block overflow-hidden">
-            <CardContent className="p-0 overflow-x-auto">
-              <table className="w-full min-w-[800px]">
+            <CardContent className="p-0">
+              <table className="w-full table-fixed">
                 <thead className="border-b border-border">
                   <tr className="text-left">
-                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Type</th>
-                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Quote #</th>
-                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Client</th>
-                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Description</th>
-                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Amount</th>
-                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Status</th>
-                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Created</th>
-                    <th className="p-4 font-medium text-muted-foreground whitespace-nowrap">Valid Until</th>
-                    <th className="p-4 font-medium text-muted-foreground sr-only">Actions</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-12">Type</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-24 xl:w-28">Quote #</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground">Client</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground hidden xl:table-cell">Description</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-24">Amount</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground w-32 xl:w-36">Status</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground hidden xl:table-cell w-24">Created</th>
+                    <th className="p-3 xl:p-4 font-medium text-muted-foreground sr-only w-10">Actions</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredEstimates.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="p-8 text-center text-muted-foreground">
+                      <td colSpan={8} className="p-8 text-center text-muted-foreground">
                         {estimates.length === 0 ? "No quotes yet. Create your first estimate!" : "No quotes found"}
                       </td>
                     </tr>
@@ -669,25 +668,27 @@ export default function AdminEstimates() {
                           className="border-b border-border last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
                           onClick={() => handleRowClick(estimate)}
                         >
-                          <td className="p-4">
-                            <div className="flex items-center gap-2" title={typeLabel}>
+                          <td className="p-3 xl:p-4">
+                            <div className="flex items-center" title={typeLabel}>
                               <div className="p-1.5 rounded-md bg-muted">
                                 <TypeIcon className="w-4 h-4 text-muted-foreground" />
                               </div>
                             </div>
                           </td>
-                          <td className="p-4 font-medium">{estimate.estimate_number}</td>
-                          <td className="p-4">
-                            <div>
-                              <p className="font-medium">{estimate.client_name}</p>
-                              <p className="text-sm text-muted-foreground truncate max-w-[200px]">{estimate.site_address}</p>
+                          <td className="p-3 xl:p-4 font-medium text-sm truncate">{estimate.estimate_number}</td>
+                          <td className="p-3 xl:p-4">
+                            <div className="min-w-0">
+                              <p className="font-medium truncate">{estimate.client_name}</p>
+                              <p className="text-sm text-muted-foreground truncate">{estimate.site_address}</p>
                             </div>
                           </td>
-                          <td className="p-4 max-w-[250px] truncate">{estimate.description || "-"}</td>
-                          <td className="p-4 font-semibold">{formatCurrency(estimate.total_amount || 0)}</td>
-                          <td className="p-4">
+                          <td className="p-3 xl:p-4 hidden xl:table-cell">
+                            <span className="truncate block">{estimate.description || "-"}</span>
+                          </td>
+                          <td className="p-3 xl:p-4 font-semibold text-sm">{formatCurrency(estimate.total_amount || 0)}</td>
+                          <td className="p-3 xl:p-4">
                             {estimate.status === "draft" ? (
-                              <div className="min-w-[140px]">
+                              <div className="min-w-0">
                                 <DraftProgressTracker estimate={estimate} variant="compact" />
                               </div>
                             ) : (
@@ -697,9 +698,8 @@ export default function AdminEstimates() {
                               </Badge>
                             )}
                           </td>
-                          <td className="p-4 text-muted-foreground">{formatDate(estimate.created_at)}</td>
-                          <td className="p-4 text-muted-foreground">{formatDate(estimate.valid_until)}</td>
-                          <td className="p-4 w-12">
+                          <td className="p-3 xl:p-4 text-muted-foreground text-sm hidden xl:table-cell">{formatDate(estimate.created_at)}</td>
+                          <td className="p-3 xl:p-4 w-10">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
                                 <Button variant="ghost" size="icon" className="h-8 w-8">
