@@ -1250,6 +1250,9 @@ export function ModularCalculator({
           onThicknessChange={(val) => handleScopeAnswerChange('thickness', val)}
           thicknessDefault={0}
           thicknessMin={scope.questions.find(q => q.id === 'thickness')?.min || 50}
+          // Per-area thickness support (for Slab on Ground)
+          usePerAreaThickness={scopeAnswers.usePerAreaThickness || false}
+          onUsePerAreaThicknessChange={(val) => handleScopeAnswerChange('usePerAreaThickness', val)}
           // Legacy thickening option - REMOVED: now handled by reinforcement-raft module with per-type markup
           showThickeningOption={false}
           // Markup prompt support - pass scope identifier for navigation
