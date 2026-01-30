@@ -14,17 +14,6 @@ export const podsModule: EstimateModule = {
   name: 'Pods',
   description: 'Waffle pod materials and accessories',
   questions: [
-    // Pod Count - auto-calculated from area
-    {
-      id: 'pod_count_display',
-      type: 'number',
-      label: 'Pod Count',
-      derivedReadOnly: true,
-      helpText: 'Calculated from slab area ÷ module pitch²',
-      deriveFrom: (scopeData) => {
-        return Number(scopeData?.pod_count) || 0;
-      },
-    },
     // Pod supply toggle
     {
       id: 'include_pod_supply',
@@ -42,31 +31,13 @@ export const podsModule: EstimateModule = {
       priceListKey: 'sundries.WAFFLEPOD',
       showIf: (answers) => answers.include_pod_supply === true,
     },
-    // Accessories toggle
+    // Pod Rails toggle
     {
-      id: 'include_accessories',
+      id: 'include_pod_rails',
       type: 'boolean',
-      label: 'Include Accessories',
+      label: 'Include Pod Rails',
       defaultValue: true,
-      helpText: 'TM chairs, bar chairs, pod rails, spacers',
-    },
-    // TM Chair price
-    {
-      id: 'tm_chair_price',
-      type: 'currency',
-      label: 'TM Chair Price (per bag)',
-      defaultValue: 12.50,
-      priceListKey: 'consumables.TMCHAIR',
-      showIf: (answers) => answers.include_accessories === true,
-    },
-    // Bar Chair price
-    {
-      id: 'bar_chair_price',
-      type: 'currency',
-      label: 'Bar Chair Price (per bag)',
-      defaultValue: 18,
-      priceListKey: 'consumables.BARCHAIR',
-      showIf: (answers) => answers.include_accessories === true,
+      helpText: 'Rails for thicker topping slabs (100mm+)',
     },
     // Pod Rail price
     {
@@ -75,7 +46,15 @@ export const podsModule: EstimateModule = {
       label: 'Pod Rail Price (per pack)',
       defaultValue: 45,
       priceListKey: 'sundries.PODRAIL',
-      showIf: (answers) => answers.include_accessories === true,
+      showIf: (answers) => answers.include_pod_rails === true,
+    },
+    // Spacers toggle
+    {
+      id: 'include_spacers',
+      type: 'boolean',
+      label: 'Include Spacers',
+      defaultValue: true,
+      helpText: '4-way and 2-way pod spacers',
     },
     // Spacer 4-way price
     {
@@ -83,7 +62,7 @@ export const podsModule: EstimateModule = {
       type: 'currency',
       label: '4-Way Spacer Price',
       defaultValue: 2.50,
-      showIf: (answers) => answers.include_accessories === true,
+      showIf: (answers) => answers.include_spacers === true,
     },
     // Spacer 2-way price
     {
@@ -91,7 +70,7 @@ export const podsModule: EstimateModule = {
       type: 'currency',
       label: '2-Way Spacer Price',
       defaultValue: 1.80,
-      showIf: (answers) => answers.include_accessories === true,
+      showIf: (answers) => answers.include_spacers === true,
     },
   ],
   calculate: (answers, priceMap, scopeData) => {
@@ -133,61 +112,28 @@ export const podsModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // ACCESSORIES
+    // POD RAILS (for thicker slabs, 100mm+)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.include_accessories !== false) {
-      // TM Chairs (for perimeter beams)
-      if (tmChairsCount > 0) {
-        const tmChairPrice = Number(answers.tm_chair_price) || getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
-        const bags = Math.ceil(tmChairsCount / 25);
-        const cost = bags * tmChairPrice;
-        
-        lineItems.push({
-          id: 'tm_chairs',
-          description: `TM Chairs (${bags} bags of 25, ~${tmChairsCount} chairs)`,
-          quantity: bags,
-          unit: 'bags',
-          unitPrice: tmChairPrice,
-          total: Math.round(cost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += cost;
-      }
+    if (answers.include_pod_rails !== false && podRailsRequired && podRailPacks > 0) {
+      const podRailPrice = Number(answers.pod_rail_price) || getPrice(priceMap, 'sundries', 'PODRAIL', 45);
+      const cost = podRailPacks * podRailPrice;
+      
+      lineItems.push({
+        id: 'pod_rails',
+        description: `Pod Rails (${podRailPacks} packs of 20, for ${topSlabThickness}mm topping)`,
+        quantity: podRailPacks,
+        unit: 'packs',
+        unitPrice: podRailPrice,
+        total: Math.round(cost * 100) / 100,
+        category: 'materials',
+      });
+      subtotal += cost;
+    }
 
-      // Bar Chairs (for rib reinforcement support)
-      if (barChairsCount > 0) {
-        const barChairPrice = Number(answers.bar_chair_price) || getPrice(priceMap, 'consumables', 'BARCHAIR', 18);
-        const bags = Math.ceil(barChairsCount / 50);
-        const cost = bags * barChairPrice;
-        
-        lineItems.push({
-          id: 'bar_chairs',
-          description: `Bar Chairs (${bags} bags of 50, ~${barChairsCount} chairs)`,
-          quantity: bags,
-          unit: 'bags',
-          unitPrice: barChairPrice,
-          total: Math.round(cost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += cost;
-      }
-
-      // Pod Rails (for thicker slabs, 100mm+)
-      if (podRailsRequired && podRailPacks > 0) {
-        const podRailPrice = Number(answers.pod_rail_price) || getPrice(priceMap, 'sundries', 'PODRAIL', 45);
-        const cost = podRailPacks * podRailPrice;
-        
-        lineItems.push({
-          id: 'pod_rails',
-          description: `Pod Rails (${podRailPacks} packs of 20, for ${topSlabThickness}mm topping)`,
-          quantity: podRailPacks,
-          unit: 'packs',
-          unitPrice: podRailPrice,
-          total: Math.round(cost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += cost;
-      }
+    // ═══════════════════════════════════════════════════════════════
+    // SPACERS
+    // ═══════════════════════════════════════════════════════════════
+    if (answers.include_spacers !== false) {
 
       // 4-Way Spacers
       if (spacer4WayCount > 0) {
@@ -247,10 +193,18 @@ export const podsModule: EstimateModule = {
       });
     }
 
-    if (answers.include_accessories === false) {
+    if (answers.include_pod_rails === false) {
       exclusions.push({
-        id: 'pods-accessories-excluded',
-        text: 'Pod accessories (TM chairs, bar chairs, spacers, rails)',
+        id: 'pods-rails-excluded',
+        text: 'Pod rails (by others)',
+        moduleId: 'pods',
+      });
+    }
+
+    if (answers.include_spacers === false) {
+      exclusions.push({
+        id: 'pods-spacers-excluded',
+        text: 'Pod spacers (by others)',
         moduleId: 'pods',
       });
     }
