@@ -379,14 +379,26 @@ export function ModuleSection({
             onToggle();
           }}
         >
-          <div className="flex items-center gap-3 flex-1">
-            <span className="font-medium">{module.name}</span>
-            {isMarkedDone && <AccordionDoneBadge />}
-            {subtotal > 0 && (
-              <span className="ml-auto mr-4 text-sm font-medium text-primary">
-                {formatCurrency(subtotal)}
-              </span>
-            )}
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            {/* Module name - takes remaining space */}
+            <span className="font-medium truncate">{module.name}</span>
+            
+            {/* Spacer to push right-side elements */}
+            <div className="flex-1" />
+            
+            {/* Done badge - fixed width container for alignment */}
+            <div className="w-16 flex justify-end shrink-0">
+              {isMarkedDone && <AccordionDoneBadge />}
+            </div>
+            
+            {/* Subtotal - fixed width container for alignment */}
+            <div className="w-24 text-right shrink-0 mr-2">
+              {subtotal > 0 && (
+                <span className="text-sm font-medium text-primary">
+                  {formatCurrency(subtotal)}
+                </span>
+              )}
+            </div>
           </div>
         </AccordionTrigger>
         <AccordionContent className="pb-6">
