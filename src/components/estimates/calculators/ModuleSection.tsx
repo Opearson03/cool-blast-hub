@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem, PumpVisit, LabourPlacement } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -334,6 +334,71 @@ export function ModuleSection({
   const pierGroups = (scopeData?.pierGroups || []) as PierGroup[];
   const padGroups = (scopeData?.padGroups || []) as PadFootingGroup[];
   const footings = (scopeData?.footings || scopeData?.linearSections || []) as (FootingConfig | LinearSection)[];
+
+  // IMPORTANT: For strip/retaining wall footings we store data in scopeData.linearSections,
+  // but we also keep a legacy scopeData.footings mirror for older volume logic.
+  // The reinforcement-footing calculator reads linearSections first, so the Reinforcement UI
+  // must read/write linearSections when present.
+  const hasLinearSections = Array.isArray(scopeData?.linearSections);
+  const footingReoSections = (hasLinearSections
+    ? (scopeData?.linearSections || [])
+    : (scopeData?.footings || [])) as LinearSection[];
+
+  // One-time-ish migration/sync: if users previously edited reinforcement against legacy `footings`
+  // (because both arrays existed), copy missing reinforcement fields onto `linearSections`.
+  useEffect(() => {
+    if (!isFootingReoModule || !onScopeDataChange) return;
+    if (!hasLinearSections) return;
+
+    const linearSectionsRaw = (scopeData?.linearSections || []) as any[];
+    const legacyFootingsRaw = (scopeData?.footings || []) as any[];
+    if (!Array.isArray(linearSectionsRaw) || linearSectionsRaw.length === 0) return;
+    if (!Array.isArray(legacyFootingsRaw) || legacyFootingsRaw.length === 0) return;
+
+    const legacyById = new Map<string, any>(legacyFootingsRaw.map((f) => [String(f.id), f]));
+    const fieldsToSync: Array<keyof LinearSection> = [
+      'reo_type',
+      'tm_type',
+      'tm_layers',
+      'tm_type_top',
+      'tm_price',
+      'tm_price_top',
+      'add_ligs',
+      'lig_size',
+      'lig_centres',
+      'horizontal_bars',
+      'vertical_bars',
+      'chairs_enabled',
+      'chair_type',
+      'chairs_per_m',
+      'chair_price_per_bag',
+      'layer_chairs_enabled',
+      'layer_chair_type',
+      'layer_chairs_per_m',
+      'layer_chair_price',
+    ];
+
+    let changed = false;
+    const merged = (linearSectionsRaw as LinearSection[]).map((s) => {
+      const legacy = legacyById.get(String((s as any).id));
+      if (!legacy) return s;
+
+      let next: any = s;
+      fieldsToSync.forEach((field) => {
+        if (next[field] === undefined && legacy[field] !== undefined) {
+          if (next === s) next = { ...s };
+          next[field] = legacy[field];
+          changed = true;
+        }
+      });
+
+      return next;
+    });
+
+    if (changed) {
+      onScopeDataChange('linearSections', merged);
+    }
+  }, [hasLinearSections, isFootingReoModule, onScopeDataChange, scopeData?.footings, scopeData?.linearSections]);
   
   // Custom items for this module
   const customItems: ExtraItem[] = answers.custom_items || [];
@@ -522,16 +587,14 @@ export function ModuleSection({
                       )}
                       
                       {/* Inline per-section inputs for Footing Reinforcement */}
-                      {isFootingReoSection && onScopeDataChange && footings.length > 0 && (
+                      {isFootingReoSection && onScopeDataChange && footingReoSections.length > 0 && (
                         <div className="mt-4">
                           <FootingSectionReinforcementInput
-                            sections={footings as LinearSection[]}
+                            sections={footingReoSections}
                             onChange={(newSections) => {
-                              if (scopeData?.footings) {
-                                onScopeDataChange('footings', newSections);
-                              } else {
-                                onScopeDataChange('linearSections', newSections);
-                              }
+                              // Prefer linearSections when present (reinforcement-footing calculator reads it first)
+                              if (hasLinearSections) onScopeDataChange('linearSections', newSections);
+                              else onScopeDataChange('footings', newSections);
                             }}
                             defaultTmType="L11TM4"
                             defaultAddLigs={answers.add_ligs || false}
