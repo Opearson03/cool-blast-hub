@@ -38,19 +38,15 @@ export function WafflePodRibsInput({
   const ribTopBarSize = String(scopeData?.rib_top_bar_size || 'N12');
   const stockLength = String(scopeData?.stock_length || '6');
   
-  // Grid dimensions for summary
-  const nx = Number(scopeData?.pods_x) || 0;
-  const ny = Number(scopeData?.pods_y) || 0;
+  // Pod count for summary
   const podCount = Number(scopeData?.pod_count) || 0;
 
   const handleChange = (field: string, value: any) => {
     onScopeDataChange(field, value);
   };
 
-  // Calculate estimated rib stats
-  const xRibCount = ny > 0 ? ny + 1 : 0;
-  const yRibCount = nx > 0 ? nx + 1 : 0;
-  const totalRibs = xRibCount + yRibCount;
+  // Calculate estimated rib length using boss's formula: pods × 2.4 per layer
+  const ribLengthPerLayer = podCount * 2.4;
 
   return (
     <div className="space-y-3">
@@ -59,11 +55,11 @@ export function WafflePodRibsInput({
         <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
           <div className="flex items-center gap-1.5">
             <Grid3X3 className="h-3.5 w-3.5" />
-            <span className="font-medium text-foreground">{totalRibs}</span>
-            <span>ribs</span>
+            <span className="font-medium text-foreground">{Math.round(ribLengthPerLayer)}m</span>
+            <span>per layer</span>
             {podCount > 0 && (
               <span className="text-muted-foreground/60">
-                ({xRibCount} × X + {yRibCount} × Y from {nx}×{ny} grid)
+                ({podCount} pods × 2.4m)
               </span>
             )}
           </div>

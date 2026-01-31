@@ -367,23 +367,13 @@ export const reinforcementRaftModule: EstimateModule = {
       const stockLength = Number(scopeData?.stock_length) || 6;
       
       // ═══════════════════════════════════════════════════════════════
-      // RIB BAR REINFORCEMENT (GEOMETRIC)
+      // RIB BAR REINFORCEMENT (SIMPLIFIED FORMULA)
+      // Boss's formula: ribs reo = pods × 2.4 (per layer)
+      // This gives total linear metres of bar per layer of reinforcement
       // ═══════════════════════════════════════════════════════════════
-      if (nx > 0 && ny > 0) {
-        // Calculate rib spans
-        // X_span = (nx × podSize) + ((nx + 1) × ribWidth)  - length of one X-direction rib
-        // Y_span = (ny × podSize) + ((ny + 1) × ribWidth)  - length of one Y-direction rib
-        const xSpanM = nx * podSizeM + (nx + 1) * ribWidthM;
-        const ySpanM = ny * podSizeM + (ny + 1) * ribWidthM;
-        
-        // Total rib lengths (count × span)
-        // X-direction ribs: (ny + 1) ribs, each of length xSpan
-        // Y-direction ribs: (nx + 1) ribs, each of length ySpan
-        const xRibCount = ny + 1;
-        const yRibCount = nx + 1;
-        const xRibTotalLength = xRibCount * xSpanM;
-        const yRibTotalLength = yRibCount * ySpanM;
-        const totalRibLength = xRibTotalLength + yRibTotalLength;
+      if (podCount > 0) {
+        // Total rib length per layer = pods × 2.4 metres
+        const ribLengthPerLayerM = podCount * 2.4;
         
         // Bottom bars configuration
         const bottomBarsPerRib = Number(scopeData?.rib_bottom_bars) || 2;
@@ -396,12 +386,12 @@ export const reinforcementRaftModule: EstimateModule = {
         const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
         
         // Calculate bottom bar totals with lap allowance
-        const bottomTotalLength = totalRibLength * bottomBarsPerRib * LAP_ALLOWANCE;
+        const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
         const bottomWeightKg = bottomTotalLength * bottomBarWeight;
         const bottomStockQty = Math.ceil(bottomTotalLength / stockLength);
         
         // Calculate top bar totals with lap allowance
-        const topTotalLength = totalRibLength * topBarsPerRib * LAP_ALLOWANCE;
+        const topTotalLength = ribLengthPerLayerM * topBarsPerRib * LAP_ALLOWANCE;
         const topWeightKg = topTotalLength * topBarWeight;
         const topStockQty = Math.ceil(topTotalLength / stockLength);
         
@@ -439,26 +429,6 @@ export const reinforcementRaftModule: EstimateModule = {
             category: 'materials',
           });
           subtotal += topCost;
-        }
-      } else if (podCount > 0) {
-        // FALLBACK: Empirical formula when grid dimensions not available
-        // Y-Bar for rib reinforcement: (Pods × 2.3) ÷ 5.5 = qty of 6m lengths
-        const yBarLengths = Math.ceil((podCount * 2.3) / 5.5);
-        const yBarPrice = getPrice(priceMap, 'rebar', 'N12 CB', 2100);
-        const yBarWeight = yBarLengths * stockLength * (REBAR_WEIGHTS['N12'] || 0.888);
-        const yBarCost = (yBarWeight / 1000) * yBarPrice;
-        
-        if (yBarLengths > 0) {
-          lineItems.push({
-            id: 'waffle_rib_ybar',
-            description: `Rib Y-Bar N12 (${yBarLengths} × ${stockLength}m, ~${Math.round(yBarWeight)}kg) [estimated]`,
-            quantity: yBarLengths,
-            unit: 'lengths',
-            unitPrice: Math.round((yBarCost / yBarLengths) * 100) / 100,
-            total: Math.round(yBarCost * 100) / 100,
-            category: 'materials',
-          });
-          subtotal += yBarCost;
         }
       }
       

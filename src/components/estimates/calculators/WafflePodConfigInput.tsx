@@ -14,7 +14,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 
 interface WafflePodConfigInputProps {
@@ -40,6 +40,7 @@ export function WafflePodConfigInput({
   onScopeDataChange,
 }: WafflePodConfigInputProps) {
   const [isExpanded, setIsExpanded] = useState(true);
+  const lastCalculatedRef = useRef<{ podCount: number; perimeter: number }>({ podCount: 0, perimeter: 0 });
 
   // Extract values from scopeData
   const podSize = String(scopeData?.pod_size || '1090');
@@ -47,10 +48,45 @@ export function WafflePodConfigInput({
   const topSlabThickness = Number(scopeData?.top_slab_thickness) || 85;
   const ribWidth = Number(scopeData?.rib_width) || 110;
   const podCount = Number(scopeData?.pod_count) || 0;
+  const perimeter = Number(scopeData?.perimeter) || 0;
   const fromTakeoff = scopeData?._fromTakeoff;
 
   // Calculate derived values
   const totalHeight = (Number(podThickness) || 225) + (topSlabThickness || 85);
+
+  // Auto-derive accessory quantities when podCount or perimeter changes
+  // Using boss's formulas:
+  // - 4-Way Spacers: pods × 1
+  // - 2-Way Spacers: inside perimeter / 1.2
+  // - Pod Rails: pods × 2 (then divide by 20 for packs)
+  useEffect(() => {
+    // Skip if inputs haven't changed
+    if (lastCalculatedRef.current.podCount === podCount && 
+        lastCalculatedRef.current.perimeter === perimeter) {
+      return;
+    }
+    lastCalculatedRef.current = { podCount, perimeter };
+
+    if (podCount > 0) {
+      // 4-Way Spacers: pods × 1
+      const spacer4Way = podCount;
+      
+      // 2-Way Spacers: inside perimeter / 1.2
+      // Inside perimeter is approximately perimeter minus edge beam corners
+      const edgeBeamWidth = Number(scopeData?.edgeBeams?.[0]?.width) || 450;
+      const insidePerimeter = Math.max(0, perimeter - (8 * edgeBeamWidth / 1000));
+      const spacer2Way = Math.ceil(insidePerimeter / 1.2);
+      
+      // Pod Rails: pods × 2, then packs of 20
+      const podRailUnits = podCount * 2;
+      const podRailPacks = Math.ceil(podRailUnits / 20);
+      
+      onScopeDataChange('spacer_4way_count', spacer4Way);
+      onScopeDataChange('spacer_2way_count', spacer2Way);
+      onScopeDataChange('pod_rail_packs', podRailPacks);
+      onScopeDataChange('pod_rails_required', true);
+    }
+  }, [podCount, perimeter, scopeData?.edgeBeams, onScopeDataChange]);
 
   const handleChange = (field: string, value: any) => {
     onScopeDataChange(field, value);

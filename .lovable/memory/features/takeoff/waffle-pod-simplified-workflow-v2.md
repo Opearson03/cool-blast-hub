@@ -8,7 +8,32 @@ Additionally, all waffle pod configuration is now rendered in a **dedicated "Pod
 - Pod grid dimensions (nx, ny)
 - Accessories (TM chairs, bar chairs, pod count)
 
-The **Reinforcement module** (`reinforcement-raft`) for waffle pod scopes renders dedicated sections that integrate with the existing UI patterns:
+## Boss's Simplified Formulas (Jan 2026)
+
+All accessory and reinforcement quantities are now derived from **pod count** using empirical industry formulas:
+
+| Item | Formula | Unit | Notes |
+|------|---------|------|-------|
+| Ribs Reo (per layer) | `pods × 2.4` | linear metres | Total bar length per reinforcement layer |
+| 4-Way Spacers | `pods × 1` | units | One spacer per pod |
+| 2-Way Spacers | `inside perimeter / 1.2` | units | Perimeter spacers every 1.2m |
+| Pod Rails | `pods × 2` | units | Two rails per pod (packs of 20) |
+
+### Implementation:
+- `WafflePodConfigInput.tsx`: Auto-derives spacer/rail counts via `useEffect` when `podCount` or `perimeter` changes
+- `reinforcement-raft.ts`: Replaced grid-based (nx × ny) rib calculation with `pods × 2.4` formula
+- `WafflePodRibsInput.tsx`: UI displays simplified "Xm per layer (Y pods × 2.4m)" summary
+
+### Rib Concrete Formula (Pending Clarification)
+Boss provided: `(pods × depth × 0.264) - (inside perimeter × depth × 110/2 × 3.64)`
+Awaiting clarification on:
+1. Is "depth" pod thickness or total slab height?
+2. What does the 3.64 factor represent?
+3. How is "inside perimeter" measured?
+
+## Reinforcement Module Structure
+
+The **Reinforcement module** (`reinforcement-raft`) for waffle pod scopes renders dedicated sections:
 
 1. **Ribs Section** (`WafflePodRibsInput`):
    - Bar counts per rib (top/bottom)
@@ -28,12 +53,3 @@ The **Reinforcement module** (`reinforcement-raft`) for waffle pod scopes render
 4. **Internal Beams Section** (`BeamReinforcementInput`):
    - Rendered only if internal beams exist
    - Uses the standard beam reinforcement UI
-
-**Key changes:**
-1. `SlabBeamMarkupDialog` for waffle pods shows only name input and area/perimeter stats
-2. `pods` module created with material/accessory cost calculations
-3. `WafflePodConfigInput` renders pod config (specs, grid, accessories) inside the Pods module accordion
-4. Reinforcement module uses dedicated sections for waffle pod (no duplicate info)
-5. Standard `BeamReinforcementInput` reused for edge/internal beams
-6. Pod count uses area-based formula: `ceil(area / module_pitch²)` where module_pitch = pod_size + rib_width
-7. Module order: Excavation → Base Prep → Formwork → **Pods** → Reinforcement → ...
