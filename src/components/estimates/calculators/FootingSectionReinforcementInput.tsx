@@ -88,6 +88,7 @@ interface FootingTypeGroup {
   segments: LinearSection[];
   totalLength: number;
   groupKey: string;
+  stableKey: string;  // Stable key for React (typeName only, not dimensions)
   
   // Derived reinforcement from first segment (all segments in group share same reo)
   tm_type?: string;
@@ -107,6 +108,7 @@ interface FootingTypeGroup {
   layer_chairs_enabled?: boolean;
   layer_chairs_per_m?: number;
   layer_chair_price?: number;
+  layer_chair_type?: string;
 }
 
 function parseFootingTypeName(name: string): string {
@@ -125,7 +127,7 @@ function groupFootingsByType(sections: LinearSection[]): FootingTypeGroup[] {
     const typeName = parseFootingTypeName(section.name);
     const width = section.dimension1 || 0;
     const depth = section.dimension2 || 0;
-    // Group by typeName + dimensions
+    // Group by typeName + dimensions for data grouping
     const key = `${typeName}-${width}-${depth}`;
     
     if (!groupMap.has(key)) {
@@ -136,6 +138,7 @@ function groupFootingsByType(sections: LinearSection[]): FootingTypeGroup[] {
         segments: [section],
         totalLength: section._actualLength || section.length || 0,
         groupKey: key,
+        stableKey: typeName,  // Use typeName only for React key (prevents remounting on dimension change)
         // Use first segment's reinforcement as group settings
         tm_type: section.tm_type,
         tm_layers: section.tm_layers,
@@ -154,6 +157,7 @@ function groupFootingsByType(sections: LinearSection[]): FootingTypeGroup[] {
         layer_chairs_enabled: section.layer_chairs_enabled,
         layer_chairs_per_m: section.layer_chairs_per_m,
         layer_chair_price: section.layer_chair_price,
+        layer_chair_type: section.layer_chair_type,
       });
     } else {
       const group = groupMap.get(key)!;
@@ -182,24 +186,24 @@ export function FootingSectionReinforcementInput({
 
   const groups = useMemo(() => groupFootingsByType(sections), [sections]);
 
-  const toggleGroup = (groupKey: string) => {
+  const toggleGroup = (stableKey: string) => {
     setOpenGroups(prev => {
       const next = new Set(prev);
-      if (next.has(groupKey)) {
-        next.delete(groupKey);
+      if (next.has(stableKey)) {
+        next.delete(stableKey);
       } else {
-        next.add(groupKey);
+        next.add(stableKey);
       }
       return next;
     });
   };
 
   const toggleAll = () => {
-    const allOpen = groups.every(g => openGroups.has(g.groupKey));
+    const allOpen = groups.every(g => openGroups.has(g.stableKey));
     if (allOpen) {
       setOpenGroups(new Set());
     } else {
-      setOpenGroups(new Set(groups.map(g => g.groupKey)));
+      setOpenGroups(new Set(groups.map(g => g.stableKey)));
     }
   };
 
@@ -361,7 +365,7 @@ export function FootingSectionReinforcementInput({
     };
   }, [groups, sections.length, defaultAddLigs]);
 
-  // Initialize TM prices from priceMap when it becomes available
+  // Initialize TM and chair prices from priceMap when it becomes available
   useEffect(() => {
     if (!priceMap || sections.length === 0) return;
     
@@ -386,6 +390,28 @@ export function FootingSectionReinforcementInput({
         const catalogPriceTop = getTmPrice(topType, priceMap);
         if (catalogPriceTop !== undefined) {
           updates.tm_price_top = catalogPriceTop;
+          hasChanges = true;
+        }
+      }
+      
+      // Initialize chair prices if chairs enabled and price undefined
+      if (section.chairs_enabled && section.chair_price_per_bag === undefined) {
+        const chairType = section.chair_type || '5065C';
+        const catalogPrice = getChairPrice(chairType, priceMap);
+        if (catalogPrice !== undefined) {
+          // Bar chairs are priced per bag of 100, divide by 4 to get per-25 price
+          updates.chair_price_per_bag = catalogPrice / 4;
+          hasChanges = true;
+        }
+      }
+      
+      // Initialize layer chair prices if layer chairs enabled and price undefined
+      if (section.layer_chairs_enabled && section.layer_chair_price === undefined) {
+        const layerChairType = section.layer_chair_type || '2540C';
+        const catalogPrice = getChairPrice(layerChairType, priceMap);
+        if (catalogPrice !== undefined) {
+          // Bar chairs are priced per bag of 100, divide by 4 to get per-25 price
+          updates.layer_chair_price = catalogPrice / 4;
           hasChanges = true;
         }
       }
@@ -440,14 +466,14 @@ export function FootingSectionReinforcementInput({
           className="h-7 text-xs gap-1.5 text-muted-foreground hover:text-foreground shrink-0"
         >
           <ChevronsUpDown className="h-3.5 w-3.5" />
-          {groups.every(g => openGroups.has(g.groupKey)) ? 'Collapse' : 'Expand'}
+          {groups.every(g => openGroups.has(g.stableKey)) ? 'Collapse' : 'Expand'}
         </Button>
       </div>
 
       {/* Footing Type Group Cards */}
       <div className="space-y-2">
         {groups.map((group) => {
-          const isOpen = openGroups.has(group.groupKey);
+          const isOpen = openGroups.has(group.stableKey);
           const tmType = group.tm_type || defaultTmType;
           const tmLayers = group.tm_layers || 1;
           const addLigs = group.add_ligs ?? defaultAddLigs;
@@ -461,7 +487,7 @@ export function FootingSectionReinforcementInput({
           const tmOption = TM_OPTIONS.find(o => o.value === tmType);
 
           return (
-            <Collapsible key={group.groupKey} open={isOpen} onOpenChange={() => toggleGroup(group.groupKey)}>
+            <Collapsible key={group.stableKey} open={isOpen} onOpenChange={() => toggleGroup(group.stableKey)}>
               <div className={cn(
                 "border rounded-lg overflow-hidden transition-colors",
                 hasCustomSettings ? "border-primary/30 bg-primary/[0.02]" : "bg-card"
@@ -940,10 +966,12 @@ export function FootingSectionReinforcementInput({
                               value={group.segments[0]?.chair_type || '5065C'}
                               onValueChange={(val) => {
                                 // Update chair type and reset price from catalog
-                                const newPrice = priceMap?.['consumables']?.[val];
+                                // Bar chairs are priced per bag of 100, divide by 4 to get per-25 price
+                                const catalogPrice = priceMap?.['consumables']?.[val];
+                                const pricePerBagOf25 = catalogPrice !== undefined ? catalogPrice / 4 : 12.50;
                                 updateGroupReinforcement(group, { 
                                   chair_type: val,
-                                  chair_price_per_bag: newPrice !== undefined ? newPrice / 4 : 12.50 // /4 to convert 100-pack to 25-pack
+                                  chair_price_per_bag: pricePerBagOf25
                                 });
                               }}
                             >
