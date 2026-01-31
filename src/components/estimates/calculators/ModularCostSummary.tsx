@@ -23,52 +23,6 @@ export function ModularCostSummary({
   const gst = subtotalWithMargin * 0.1;
   const grandTotal = subtotalWithMargin + gst;
 
-  // Group costs by category
-  const labourTotal = moduleCosts.reduce(
-    (sum, mc) =>
-      sum +
-      mc.lineItems
-        .filter((item) => item.category === 'labour')
-        .reduce((s, i) => s + i.total, 0),
-    0
-  );
-
-  const materialsTotal = moduleCosts.reduce(
-    (sum, mc) =>
-      sum +
-      mc.lineItems
-        .filter((item) => item.category === 'materials')
-        .reduce((s, i) => s + i.total, 0),
-    0
-  );
-
-  const plantTotal = moduleCosts.reduce(
-    (sum, mc) =>
-      sum +
-      mc.lineItems
-        .filter((item) => item.category === 'plant')
-        .reduce((s, i) => s + i.total, 0),
-    0
-  );
-
-  const subcontractorTotal = moduleCosts.reduce(
-    (sum, mc) =>
-      sum +
-      mc.lineItems
-        .filter((item) => item.category === 'subcontractor')
-        .reduce((s, i) => s + i.total, 0),
-    0
-  );
-
-  const otherTotal = moduleCosts.reduce(
-    (sum, mc) =>
-      sum +
-      mc.lineItems
-        .filter((item) => item.category === 'other')
-        .reduce((s, i) => s + i.total, 0),
-    0
-  );
-
   return (
     <Card className="bg-muted/30 sticky top-4">
       <CardHeader className="pb-3">
@@ -93,45 +47,6 @@ export function ModularCostSummary({
                 <span>{formatCurrency(mc.subtotal)}</span>
               </div>
             ))}
-        </div>
-
-        <Separator />
-
-        {/* Category breakdown */}
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            By Category
-          </h4>
-          {labourTotal > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Labour</span>
-              <span>{formatCurrency(labourTotal)}</span>
-            </div>
-          )}
-          {materialsTotal > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Materials</span>
-              <span>{formatCurrency(materialsTotal)}</span>
-            </div>
-          )}
-          {plantTotal > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Plant & Equipment</span>
-              <span>{formatCurrency(plantTotal)}</span>
-            </div>
-          )}
-          {subcontractorTotal > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Subcontractors</span>
-              <span>{formatCurrency(subcontractorTotal)}</span>
-            </div>
-          )}
-          {otherTotal > 0 && (
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Other</span>
-              <span>{formatCurrency(otherTotal)}</span>
-            </div>
-          )}
         </div>
 
         <Separator />
