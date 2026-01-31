@@ -658,7 +658,7 @@ export function AreaReinforcementInput({
                                       step="0.5"
                                       min="1"
                                       max="10"
-                                      value={area.layer_chairs_per_m2 ?? 2}
+                                      value={area.layer_chairs_per_m2 ?? 4}
                                       onChange={(e) => updateArea(index, { layer_chairs_per_m2: Number(e.target.value) })}
                                       className="h-8 text-sm"
                                     />
