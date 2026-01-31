@@ -1,140 +1,171 @@
 
 
-# Fix Done Badge Column Alignment in Module Sections
+# Implement Boss's Waffle Pod Calculation Formulas
 
-## Problem Summary
+## Summary
 
-The "Done" badges across module sections within each scope are not aligned in a neat column. This happens because:
+Your boss has provided simplified, empirical formulas for waffle pod calculations that replace the current complex geometric grid-based calculations. These formulas use pod count as the primary driver for all accessory and reinforcement quantities.
 
-1. **Variable module name lengths**: Module names like "Concrete Supply" vs "Pods" have very different widths
-2. **Conflicting `ml-auto` classes**: Both the Done badge and the subtotal use `ml-auto`, causing unpredictable positioning
-3. **Badge placed before subtotal**: The badge sits between the name and subtotal, so its position shifts based on name length
+## Formula Interpretation
 
-## Current Layout Structure
+| Item | Formula | Unit | Description |
+|------|---------|------|-------------|
+| Ribs Reo (per layer) | `pods x 2.4` | linear metres | Total bar length for rib reinforcement per layer |
+| 4-Way Spacers | `pods x 1` | units | One spacer per pod (sits at pod corners) |
+| 2-Way Spacers | `inside perimeter / 1.2` | units | Perimeter spacers every 1.2m along edge beams |
+| Pod Rails | `pods x 2` | units | Two rails per pod (then divide by 20 for packs) |
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Module Name      [Done]               $1,234.56        ▼          │
-└─────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────┐
-│  Concrete Pumping         [Done]       $567.89          ▼          │
-└─────────────────────────────────────────────────────────────────────┘
-```
+### Rib Concrete Formula
 
-The Done badges don't align because they follow the variable-width module names.
+The formula `(pods x depth x 0.264) - (inside perimeter x depth x 110/2 x 3.64)` needs clarification:
 
-## Solution
+**Possible Interpretation:**
+- First term: Gross rib concrete based on pod count and depth
+- Second term: Deduction for where ribs meet edge beams (to avoid double-counting)
 
-Restructure the accordion trigger layout to use a **fixed column grid** that places the Done badge and subtotal in predictable positions:
+**Questions for your boss:**
+1. Is "depth" the pod thickness (e.g., 225mm) or total slab height (topping + pod)?
+2. What does the 3.64 factor represent?
+3. Is "inside perimeter" the inner edge of edge beams or a calculated value?
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Module Name                          [Done]    $1,234.56    ▼     │
-│  ─────────────(flex-1)──────────────  ──────    ──────────   ──    │
-└─────────────────────────────────────────────────────────────────────┘
-```
+---
 
-### Layout Changes
+## Implementation Plan
 
-**File:** `src/components/estimates/calculators/ModuleSection.tsx`
+### Phase 1: Update Accessory Calculations
 
-Change the trigger content structure from:
+**File:** `src/lib/estimate-components/modules/pods.ts` and `src/components/estimates/calculators/WafflePodConfigInput.tsx`
 
-```tsx
-<div className="flex items-center gap-3 flex-1">
-  <span className="font-medium">{module.name}</span>
-  {isMarkedDone && <AccordionDoneBadge />}
-  {subtotal > 0 && (
-    <span className="ml-auto mr-4 text-sm font-medium text-primary">
-      {formatCurrency(subtotal)}
-    </span>
-  )}
-</div>
+Add auto-calculation of spacer and rail quantities when pod count changes:
+
+```text
+Formulas:
+- 4-Way Spacers: podCount x 1
+- 2-Way Spacers: ceil(insidePerimeter / 1.2)
+- Pod Rails (units): podCount x 2
+- Pod Rail Packs: ceil((podCount x 2) / 20)
 ```
 
-To a structured grid layout:
+The "inside perimeter" will be derived as:
+```text
+insidePerimeter = perimeter - (4 x edgeBeamWidth x 2)
+```
+Or if edge beams array is available, calculate inner perimeter directly.
 
-```tsx
-<div className="flex items-center gap-3 flex-1 min-w-0">
-  {/* Module name - takes remaining space */}
-  <span className="font-medium truncate">{module.name}</span>
-  
-  {/* Spacer to push right-side elements */}
-  <div className="flex-1" />
-  
-  {/* Done badge - fixed width container for alignment */}
-  <div className="w-16 flex justify-end shrink-0">
-    {isMarkedDone && <AccordionDoneBadge />}
-  </div>
-  
-  {/* Subtotal - fixed width container for alignment */}
-  <div className="w-24 text-right shrink-0">
-    {subtotal > 0 && (
-      <span className="text-sm font-medium text-primary">
-        {formatCurrency(subtotal)}
-      </span>
-    )}
-  </div>
-</div>
+### Phase 2: Update Rib Reinforcement Calculation
+
+**File:** `src/lib/estimate-components/modules/reinforcement-raft.ts`
+
+Replace the complex grid-based rib bar calculation with the simpler formula:
+
+```text
+Current (lines 372-442):
+  - Calculates xSpan, ySpan from grid dimensions
+  - Uses rib counts from (nx+1) and (ny+1)
+  - Multiplies by bars per rib and lap allowance
+
+New:
+  - totalRibLength = podCount x 2.4 (per layer of bars)
+  - bottomBarsLength = totalRibLength x bottomBarsPerRib x lapAllowance
+  - topBarsLength = totalRibLength x topBarsPerRib x lapAllowance
+  - Convert to weight using REBAR_WEIGHTS, then price per tonne
 ```
 
-### AccordionDoneBadge Update
+### Phase 3: Update Rib Concrete Volume (Pending Clarification)
 
-**File:** `src/components/estimates/calculators/shared/AccordionDoneBadge.tsx`
+**File:** `src/lib/estimate-components/scopes.ts`
 
-Remove `ml-auto mr-2` from the badge since positioning is now handled by the parent container:
+Once the rib concrete formula is clarified, update the `calculateVolume` function in the waffle pod scope:
 
-```tsx
-export const AccordionDoneBadge = () => (
-  <Badge 
-    variant="outline" 
-    className="bg-green-50 text-green-700 border-green-200 text-xs dark:bg-green-950 dark:text-green-400 dark:border-green-800"
-  >
-    <Check className="w-3 h-3 mr-1" /> Done
-  </Badge>
-);
+```text
+Current (lines 880-889):
+  V_pod_field = (podFieldArea x podThickness) - podVoidVolume
+
+Proposed (awaiting clarification):
+  V_ribs = (podCount x depthM x 0.264) - (insidePerimeterM x depthM x 0.055 x 3.64)
 ```
 
-## After Layout
+---
 
+## Technical Details
+
+### Changes to WafflePodConfigInput.tsx
+
+Add derived calculations that auto-populate on pod count change:
+
+```typescript
+// Auto-derive accessory quantities when podCount or perimeter changes
+useEffect(() => {
+  if (podCount > 0) {
+    // 4-Way Spacers: pods x 1
+    const spacer4Way = podCount;
+    
+    // 2-Way Spacers: inside perimeter / 1.2
+    const edgeBeamWidth = Number(scopeData?.edgeBeams?.[0]?.width) || 450;
+    const insidePerimeter = Math.max(0, perimeter - (4 * edgeBeamWidth / 1000 * 2));
+    const spacer2Way = Math.ceil(insidePerimeter / 1.2);
+    
+    // Pod Rails: pods x 2, then packs of 20
+    const podRailUnits = podCount * 2;
+    const podRailPacks = Math.ceil(podRailUnits / 20);
+    
+    onScopeDataChange('spacer_4way_count', spacer4Way);
+    onScopeDataChange('spacer_2way_count', spacer2Way);
+    onScopeDataChange('pod_rail_packs', podRailPacks);
+  }
+}, [podCount, perimeter]);
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│  Module Name                                   [Done]  $1,234.56 ▼ │
-└─────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────┐
-│  Concrete Pumping                              [Done]    $567.89 ▼ │
-└─────────────────────────────────────────────────────────────────────┘
-┌─────────────────────────────────────────────────────────────────────┐
-│  Pods                                                     $89.00 ▼ │
-└─────────────────────────────────────────────────────────────────────┘
+
+### Changes to reinforcement-raft.ts
+
+Replace the grid-based rib calculation (lines 372-462):
+
+```typescript
+// SIMPLIFIED RIB BAR FORMULA
+// Total rib length per layer = pods x 2.4 metres
+const ribLengthPerLayerM = podCount * 2.4;
+
+// Bottom bars: ribLength x bars per rib x lap allowance
+const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
+const bottomWeightKg = bottomTotalLength * bottomBarWeight;
+const bottomCost = (bottomWeightKg / 1000) * rebarPricePerTonne;
+
+// Top bars: same formula
+const topTotalLength = ribLengthPerLayerM * topBarsPerRib * LAP_ALLOWANCE;
+const topWeightKg = topTotalLength * topBarWeight;
+const topCost = (topWeightKg / 1000) * topRebarPricePerTonne;
 ```
 
-The Done badges and subtotals now align in neat columns regardless of module name length.
-
-## Verification: Done State Persistence
-
-The "Done" state already persists correctly:
-
-1. **On click**: `setDoneModules((prev) => new Set([...prev, module.id]))` adds module to state
-2. **State change notification**: `notifyStateChange` includes `doneModules: Array.from(doneModules)`
-3. **Parent handler**: `handleModularStateChange` stores `doneModules` in `modularScopeStates`
-4. **Auto-save trigger**: `onModuleDone` calls `saveDraftMutation.mutate({ closeAfter: false, showToast: false })`
-5. **Restoration**: `initialDoneModules={currentState?.doneModules}` restores state on component mount
-
-The flow is complete and working correctly for persistence.
+---
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/calculators/ModuleSection.tsx` | Restructure trigger layout with fixed-width columns |
-| `src/components/estimates/calculators/shared/AccordionDoneBadge.tsx` | Remove `ml-auto mr-2` margin classes |
+| `src/components/estimates/calculators/WafflePodConfigInput.tsx` | Add useEffect to auto-derive spacer/rail counts from pod count |
+| `src/lib/estimate-components/modules/pods.ts` | Update to use derived quantities instead of manual input |
+| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Replace grid-based rib calculation with `pods x 2.4` formula |
+| `src/lib/estimate-components/scopes.ts` | (Pending) Update rib concrete volume formula once clarified |
+| `src/components/estimates/calculators/WafflePodRibsInput.tsx` | Update UI to show simplified calculation summary |
+
+---
 
 ## Impact
 
-- Done badges will align in a neat vertical column across all modules in each scope
-- Subtotals will also align in their own column
-- Long module names will truncate with ellipsis if needed
-- No changes to Done state persistence (already working correctly)
-- Responsive behavior preserved with `shrink-0` on fixed-width elements
+1. **Simpler Calculations**: Pod count drives all rib-related quantities
+2. **Consistent with Industry Practice**: The 2.4m/pod formula is an empirical industry standard
+3. **Reduced Grid Dependency**: No longer need nx/ny grid dimensions for rib calculations
+4. **Backward Compatible**: Existing estimates will recalculate using new formulas on next edit
+
+---
+
+## Clarification Needed
+
+Before implementing the rib concrete formula, please ask your boss:
+
+1. **Depth definition**: Is "depth" the pod thickness (225mm) or total slab height (topping + pod)?
+2. **The 3.64 factor**: What does this represent? Is it a unit conversion or empirical correction?
+3. **Inside perimeter**: How is this measured - inner edge of edge beams or a simplified calculation?
+
+Once clarified, I can implement the rib concrete volume update.
 
