@@ -1,96 +1,46 @@
 
-
-# Remove "By Category" Section from Cost Summary Sidebars
+# Update Default Chair Count for Double Layer Mesh
 
 ## Summary
 
-Remove the "By Category" breakdown (Labour, Materials, Plant & Equipment, Subcontractors, Other) from both the desktop and mobile cost summary components. The "By Module" breakdown and the totals section will be kept.
+Change the Top Chairs default from 2 chairs/m² to 4 chairs/m² to match the Bottom Chairs default in double layer mesh configurations.
 
 ---
 
-## Files to Modify
+## Current Behavior
 
-| File | Changes |
-|------|---------|
-| `src/components/estimates/calculators/ModularCostSummary.tsx` | Remove category calculation logic and "By Category" UI section |
-| `src/components/estimates/calculators/MobileCostSummaryBar.tsx` | Remove category calculation logic and "By Category" UI section |
+| Chair Type | Default Value |
+|------------|---------------|
+| Bottom Chairs | 4 chairs/m² |
+| Top Chairs | 2 chairs/m² |
+
+## Desired Behavior
+
+| Chair Type | Default Value |
+|------------|---------------|
+| Bottom Chairs | 4 chairs/m² |
+| Top Chairs | 4 chairs/m² |
 
 ---
 
-## Technical Changes
+## Technical Change
 
-### 1. `ModularCostSummary.tsx`
+**File:** `src/components/estimates/calculators/AreaReinforcementInput.tsx`
 
-**Remove lines 26-70** - Delete all category total calculations:
+**Line 661:** Change the default value from 2 to 4
+
 ```typescript
-// DELETE: labourTotal, materialsTotal, plantTotal, subcontractorTotal, otherTotal
-```
+// Before
+value={area.layer_chairs_per_m2 ?? 2}
 
-**Remove lines 98-137** - Delete the separator and "By Category" section:
-```typescript
-// DELETE: <Separator /> and the entire category breakdown div
-```
-
-### 2. `MobileCostSummaryBar.tsx`
-
-**Remove lines 38-73** - Delete all category total calculations:
-```typescript
-// DELETE: labourTotal, materialsTotal, plantTotal, subcontractorTotal
-```
-
-**Remove lines 140-173** - Delete the separator and "By Category" section:
-```typescript
-// DELETE: <Separator /> and the entire category breakdown div
+// After
+value={area.layer_chairs_per_m2 ?? 4}
 ```
 
 ---
 
-## Before / After
+## Impact
 
-**Before:**
-```text
-┌─────────────────────────────┐
-│ Cost Summary                │
-├─────────────────────────────┤
-│ BY MODULE                   │
-│   Reinforcement    $5,000   │
-│   Concrete Supply  $3,000   │
-├─────────────────────────────┤
-│ BY CATEGORY        ← DELETE │
-│   Labour           $4,000   │
-│   Materials        $3,500   │
-│   Plant            $500     │
-├─────────────────────────────┤
-│ Subtotal           $8,000   │
-│ Margin (15%)       $1,200   │
-│ GST (10%)          $920     │
-│ Total              $10,120  │
-└─────────────────────────────┘
-```
-
-**After:**
-```text
-┌─────────────────────────────┐
-│ Cost Summary                │
-├─────────────────────────────┤
-│ BY MODULE                   │
-│   Reinforcement    $5,000   │
-│   Concrete Supply  $3,000   │
-├─────────────────────────────┤
-│ Subtotal           $8,000   │
-│ Margin (15%)       $1,200   │
-│ GST (10%)          $920     │
-│ Total              $10,120  │
-└─────────────────────────────┘
-```
-
----
-
-## What Stays Unchanged
-
-- "By Module" cost breakdown
-- Concrete Volume display
-- Subtotal, Margin, GST, and Total calculations
-- Rate per m² display
-- All calculation logic and data structures
-
+- Newly created double layer mesh areas will default to 4 chairs/m² for both bottom and top layers
+- Existing estimates with explicitly set values will not be affected
+- Provides consistency between both chair layer defaults
