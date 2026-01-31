@@ -1,77 +1,173 @@
 
-# Fix Manual Input for Strip Footings and Retaining Wall Footings
+
+# Fix Reinforcement Pricing for Retaining Wall Footings and Strip Footings
 
 ## Problem Summary
 
-When users try to manually enter or override dimensions (Width, Depth) for strip footings and retaining wall footings, the input loses focus and changes don't persist correctly. This occurs because:
+The reinforcement pricing for retaining wall footings and strip footings is broken due to several interconnected issues:
 
-1. **React Key Changes on Every Keystroke**: The component uses `key={groupKey}` where `groupKey = typeName-dimension1-dimension2`. When a user changes dimension1 from 450 to 500, the key changes from `SF1-450-300` to `SF1-500-300`, causing React to unmount and remount the entire group component.
+1. **Unstable React Keys**: The `FootingSectionReinforcementInput` component uses `groupKey` that includes dimensions in the key, causing component remounts when dimensions change (same issue that was just fixed in `MultiLinearTypeInput`)
 
-2. **Expanded State Lost**: The `expandedTypes` Set uses keys that include dimensions. When dimensions change, the new key isn't in the Set, so the section collapses.
+2. **Missing Price Initialization for Chairs**: The `useEffect` only initializes TM prices but not chair prices, leaving chair prices at hardcoded defaults
 
-3. **Input Focus Lost**: Both issues above cause the input field to lose focus during typing, making manual entry frustrating or impossible.
+3. **Incorrect Chair Price Conversion**: The code divides bar chair prices by 4 assuming conversion from 100-pack to 25-pack, but TM chairs use a different pack size (25 per bag for TMCHAIR)
+
+4. **Layer Chair Price Not Initialized from Catalog**: Layer chair prices fall back to hardcoded 12.50 instead of looking up from price catalog
 
 ---
 
 ## Root Cause Analysis
 
-In `MultiLinearTypeInput.tsx`:
+### Issue 1: Unstable React Keys (Critical)
+
+In `FootingSectionReinforcementInput.tsx`, the grouping function creates keys with dimensions:
 
 ```typescript
-// Line 357: groupKey includes dimensions - changes on every input
-const groupKey = `${group.typeName}-${group.dimension1}-${group.dimension2}`;
-
-// Line 356: expandedTypes check uses dimension-based key
-const isExpanded = expandedTypes.has(`${group.typeName}-${group.dimension1}-${group.dimension2}`);
-
-// Line 360: React key causes remount when dimensions change
-<Collapsible key={groupKey} ...>
+// Line 129: Key includes dimensions - changes when dimensions change
+const key = `${typeName}-${width}-${depth}`;
 ```
+
+This causes the same remounting issue that was just fixed in `MultiLinearTypeInput.tsx`.
+
+### Issue 2: Price Initialization Gap
+
+The `useEffect` at lines 365-399 only initializes TM prices, missing:
+- Chair prices (`chair_price_per_bag`)
+- Layer chair prices (`layer_chair_price`)
+- Chair type-specific pricing from catalog
+
+### Issue 3: Chair Price Calculation Mismatch
+
+At line 946, bar chair prices are divided by 4:
+```typescript
+chair_price_per_bag: newPrice !== undefined ? newPrice / 4 : 12.50
+```
+
+This is incorrect because:
+- TMCHAIR in catalog is $12.50 per bag of 25 (no conversion needed)
+- Bar chairs (2540C, 5065C, etc.) are priced per bag of 100, so need `/4` to get per-25 price
+- The current logic applies `/4` to ALL chair types, including TMCHAIR
+
+### Issue 4: Layer Chair Price Fallback
+
+In `reinforcement-footing.ts` at line 191:
+```typescript
+layerChairPrice = section.layer_chair_price ?? 12.50;
+```
+
+This hardcodes the fallback instead of looking up from the price catalog based on `layer_chair_type`.
 
 ---
 
 ## Solution
 
-### 1. Use Stable Keys for React Components
+### Phase 1: Fix Unstable React Keys
 
-Change the `key` prop to use only the type name (or a stable identifier), not the dimensions:
+**File:** `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx`
+
+Use stable keys based on `typeName` only, not dimensions:
 
 ```typescript
-// Before
-const groupKey = `${group.typeName}-${group.dimension1}-${group.dimension2}`;
+// groupFootingsByType function - use stable internal key for state tracking
+interface FootingTypeGroup {
+  // ... existing fields
+  stableKey: string;  // Add stable key field
+}
 
-// After - Use only typeName for stable key
-const groupKey = group.typeName;
+// In the grouping function:
+groupMap.set(key, {
+  // ... existing fields
+  stableKey: typeName,  // Use typeName as stable key for React
+});
+
+// In the render:
+<Collapsible key={group.stableKey} open={openGroups.has(group.stableKey)} ...>
 ```
 
-### 2. Fix Expanded State Tracking
+### Phase 2: Extend Price Initialization for Chairs
 
-Update the expanded state to track by type name only:
+**File:** `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx`
 
-```typescript
-// Before
-const isExpanded = expandedTypes.has(`${group.typeName}-${group.dimension1}-${group.dimension2}`);
-
-// After
-const isExpanded = expandedTypes.has(group.typeName);
-```
-
-### 3. Update Toggle Function
-
-Ensure `toggleExpand` uses the stable key:
+Expand the `useEffect` to initialize chair prices:
 
 ```typescript
-const toggleExpand = (typeName: string) => {
-  setExpandedTypes(prev => {
-    const next = new Set(prev);
-    if (next.has(typeName)) {
-      next.delete(typeName);
-    } else {
-      next.add(typeName);
+useEffect(() => {
+  if (!priceMap || sections.length === 0) return;
+  
+  let hasChanges = false;
+  const updatedSections = sections.map(section => {
+    let updates: Partial<LinearSection> = {};
+    
+    // Existing TM price initialization...
+    
+    // Initialize chair prices if chairs enabled and price undefined
+    if (section.chairs_enabled && section.chair_price_per_bag === undefined) {
+      const chairType = section.chair_type || 'TMCHAIR';
+      const catalogPrice = priceMap['consumables']?.[chairType];
+      if (catalogPrice !== undefined) {
+        // TMCHAIR is per 25, bar chairs are per 100
+        const pricePerBagOf25 = chairType === 'TMCHAIR' ? catalogPrice : catalogPrice / 4;
+        updates.chair_price_per_bag = pricePerBagOf25;
+        hasChanges = true;
+      }
     }
-    return next;
+    
+    // Initialize layer chair prices
+    if (section.layer_chairs_enabled && section.layer_chair_price === undefined) {
+      const layerChairType = section.layer_chair_type || '2540C';
+      const catalogPrice = priceMap['consumables']?.[layerChairType];
+      if (catalogPrice !== undefined) {
+        updates.layer_chair_price = catalogPrice / 4; // Bar chairs are per 100
+        hasChanges = true;
+      }
+    }
+    
+    return Object.keys(updates).length > 0 ? { ...section, ...updates } : section;
   });
-};
+  
+  if (hasChanges) {
+    onChange(updatedSections);
+  }
+}, [priceMap, sections.length]);
+```
+
+### Phase 3: Fix Chair Type Selection Price Logic
+
+**File:** `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx`
+
+Update the chair type selection handler (around line 941-947):
+
+```typescript
+onValueChange={(val) => {
+  const catalogPrice = priceMap?.['consumables']?.[val];
+  // TMCHAIR is priced per bag of 25, bar chairs are per bag of 100
+  const pricePerBagOf25 = val === 'TMCHAIR' 
+    ? catalogPrice 
+    : (catalogPrice !== undefined ? catalogPrice / 4 : undefined);
+  updateGroupReinforcement(group, { 
+    chair_type: val,
+    chair_price_per_bag: pricePerBagOf25 ?? 12.50
+  });
+}}
+```
+
+### Phase 4: Fix Layer Chair Price Lookup in Calculation
+
+**File:** `src/lib/estimate-components/modules/reinforcement-footing.ts`
+
+Update layer chair price lookup to use catalog:
+
+```typescript
+// Layer chairs (between TM layers)
+const tmLayers = section.tm_layers || 1;
+if (section.layer_chairs_enabled && tmLayers > 1) {
+  const layerChairsPerM = section.layer_chairs_per_m ?? 1;
+  const layerChairType = section.layer_chair_type || '2540C';
+  // Look up from catalog, divide by 4 for per-25 pricing
+  const catalogLayerPrice = getPrice(priceMap, 'consumables', layerChairType, 50) / 4;
+  layerChairPrice = section.layer_chair_price ?? catalogLayerPrice;
+  totalLayerChairs += Math.ceil(length * layerChairsPerM);
+}
 ```
 
 ---
@@ -80,88 +176,47 @@ const toggleExpand = (typeName: string) => {
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/calculators/MultiLinearTypeInput.tsx` | Use stable keys for React components and expanded state tracking |
+| `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx` | Fix unstable keys, extend price initialization for chairs, fix chair type selection |
+| `src/lib/estimate-components/modules/reinforcement-footing.ts` | Fix layer chair price lookup from catalog |
 
 ---
 
-## Detailed Changes
+## Technical Details
 
-### Lines 355-363
+### Chair Price Categories in Price List
 
-**Before:**
-```typescript
-{groups.map((group) => {
-  const isExpanded = expandedTypes.has(`${group.typeName}-${group.dimension1}-${group.dimension2}`);
-  const groupKey = `${group.typeName}-${group.dimension1}-${group.dimension2}`;
-  
-  return (
-    <Collapsible
-      key={groupKey}
-      open={isExpanded}
-      onOpenChange={() => toggleExpand(groupKey)}
-    >
-```
+| Item Code | Name | Unit | Default Price |
+|-----------|------|------|---------------|
+| TMCHAIR | Trench Mesh Supports | /bag (25) | $12.50 |
+| 2540C | Barchair 25/40C | /bag (100) | $15.80 |
+| 5065C | Barchair 50/65C | /bag (100) | $16.80 |
+| 7590C | Barchair 75/90C | /bag (100) | $22.40 |
+| 100120C | Barchair 100/120 | /bag (100) | $45.00 |
+| 125150C | Barchair 125/150 | /bag (100) | $55.00 |
 
-**After:**
-```typescript
-{groups.map((group) => {
-  // Use stable key based only on typeName to prevent remounting when dimensions change
-  const stableKey = group.typeName;
-  const isExpanded = expandedTypes.has(stableKey);
-  
-  return (
-    <Collapsible
-      key={stableKey}
-      open={isExpanded}
-      onOpenChange={() => toggleExpand(stableKey)}
-    >
-```
+The calculation divides bag-of-100 prices by 4 to get per-25 price for consistency with TMCHAIR bags.
 
----
+### Expanded State Tracking
 
-## Edge Case: Multiple Groups with Same Type Name
-
-The current grouping logic creates separate groups when the same type name has different dimensions (e.g., if someone manually edits one segment's dimensions differently). With the stable key fix:
-
-- This scenario would now merge those segments visually (same key = same component)
-- However, the `updateGroupDimensions` function uses `matchesGroup` which checks dimensions, so updates would still only apply to matching segments
-
-This is actually the correct behavior since changing dimensions at the group level should update all segments of that type.
-
----
-
-## Before / After
-
-**Before (Broken):**
+Before fix:
 ```text
-1. User expands SF1 group
-2. User clicks on Width input (value: 450)
-3. User types "5" to change 450 to 4505 (or tries to clear and type 500)
-4. onChange fires, sections update with new dimension1
-5. groups recalculates, groupKey changes from "SF1-450-300" to "SF1-4505-300"
-6. React unmounts old Collapsible, mounts new one
-7. Input loses focus, user can't continue typing
-8. expandedTypes still has "SF1-450-300", so new group shows collapsed
+openGroups.has("SF1-450-300") // Dimension-based key
+→ Changes when width 450→500, loses expanded state
 ```
 
-**After (Fixed):**
+After fix:
 ```text
-1. User expands SF1 group (key: "SF1")
-2. User clicks on Width input (value: 450)
-3. User types to change value
-4. onChange fires, sections update with new dimension
-5. groups recalculates, but key remains "SF1"
-6. React updates existing Collapsible (no remount)
-7. Input retains focus
-8. expandedTypes has "SF1", section stays expanded
+openGroups.has("SF1") // Type-name-based stable key
+→ Stays consistent regardless of dimension changes
 ```
 
 ---
 
 ## Impact
 
-- Strip footings and retaining wall footings will allow proper manual dimension input
-- Kerbs/channels and retaining walls (other linear scopes) will also benefit
-- No functional changes to calculations
-- Grouping by type name still works correctly
-- Segment-level edits are unaffected (they already use stable `segment.id` keys)
+- Strip footings and retaining wall footings will maintain stable UI state when editing dimensions
+- Chair prices will be correctly initialized from the price catalog
+- Layer chair prices will use catalog values instead of hardcoded defaults
+- Bar chair vs TM chair price conversion will be handled correctly
+- Existing estimates with explicit prices will be preserved
+
