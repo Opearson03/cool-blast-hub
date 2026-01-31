@@ -190,6 +190,7 @@ export interface ModularScopeState {
   moduleAnswers: Record<string, Record<string, any>>;
   customExclusions: ExclusionItem[];
   calculatedTotal: number;
+  doneModules?: string[];  // Array of module IDs marked as done
 }
 
 // Step definitions for clarity
@@ -273,6 +274,7 @@ function migrateLegacyScopeData(
         moduleAnswers: legacyData.moduleAnswers || {},
         customExclusions: legacyData.customExclusions || [],
         calculatedTotal: legacyData.calculatedTotal || 0,
+        doneModules: legacyData.doneModules || [],
       };
       continue;
     }
@@ -953,6 +955,7 @@ const {
           moduleAnswers: state.moduleAnswers,
           customExclusions: state.customExclusions,
           calculatedTotal: state.calculatedTotal,
+          doneModules: state.doneModules || [],
         };
       }
     }
@@ -1182,6 +1185,7 @@ const {
     moduleAnswers: Record<string, Record<string, any>>;
     customExclusions: ExclusionItem[];
     total: number;
+    doneModules?: string[];
   }) => {
     setModularScopeStates(prev => ({
       ...prev,
@@ -1190,6 +1194,7 @@ const {
         moduleAnswers: state.moduleAnswers,
         customExclusions: state.customExclusions,
         calculatedTotal: state.total,
+        doneModules: state.doneModules || [],
       },
     }));
   }, []);
@@ -1605,6 +1610,7 @@ const {
         initialScopeAnswers={initialScopeAnswers}
         initialModuleAnswers={initialModuleAnswers}
         initialCustomExclusions={currentState?.customExclusions}
+        initialDoneModules={currentState?.doneModules}
         onStateChange={(state) => handleModularStateChange(scope, state)}
         onModuleDone={() => {
           // Auto-save when a module is marked as done (do not close dialog)

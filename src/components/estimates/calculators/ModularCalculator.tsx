@@ -50,6 +50,7 @@ interface ModularCalculatorProps {
   initialScopeAnswers?: Record<string, any>;
   initialModuleAnswers?: Record<string, Record<string, any>>;
   initialCustomExclusions?: ExclusionItem[];
+  initialDoneModules?: string[];  // Array of module IDs to restore as done
   onStateChange?: (state: {
     scopeAnswers: Record<string, any>;
     moduleAnswers: Record<string, Record<string, any>>;
@@ -61,6 +62,7 @@ interface ModularCalculatorProps {
     marginAmount: number;
     gst: number;
     total: number;
+    doneModules: string[];  // Array of done module IDs
   }) => void;
   onModuleDone?: () => void;
   // Markup prompt support - identifier format: "scopeId" or "scopeId:beamType:typeName"
@@ -75,6 +77,7 @@ export function ModularCalculator({
   initialScopeAnswers = {},
   initialModuleAnswers = {},
   initialCustomExclusions = [],
+  initialDoneModules = [],
   onStateChange,
   onModuleDone,
   onRequestMarkup,
@@ -137,8 +140,10 @@ export function ModularCalculator({
   // Track open accordion sections - start closed by default
   const [openModuleId, setOpenModuleId] = useState<string | null>(null);
 
-  // Track which modules have been manually marked as done
-  const [doneModules, setDoneModules] = useState<Set<string>>(new Set());
+  // Track which modules have been manually marked as done - initialize from props
+  const [doneModules, setDoneModules] = useState<Set<string>>(
+    () => new Set(initialDoneModules)
+  );
 
   // Build price map from price list
   const priceMap = useMemo<PriceMap>(() => {
@@ -726,6 +731,7 @@ export function ModularCalculator({
         marginAmount: totals.marginAmount,
         gst: totals.gst,
         total: totals.total,
+        doneModules: Array.from(doneModules),  // Convert Set to Array for persistence
       });
     }
   }, [
@@ -737,6 +743,7 @@ export function ModularCalculator({
     customExclusions,
     marginPercent,
     totals,
+    doneModules,  // Include doneModules in dependencies
   ]);
 
   // Notify on changes
