@@ -1,92 +1,78 @@
 
-# Fix Concrete Volume with Wastage for Pumping Module
+# Fix Manual Input for Strip Footings and Retaining Wall Footings
 
 ## Problem Summary
 
-When concrete wastage is configured in the Concrete Supply module (e.g., 10% wastage), the Concrete Pumping module does not include this wastage in its per-m³ charge calculation.
+When users try to manually enter or override dimensions (Width, Depth) for strip footings and retaining wall footings, the input loses focus and changes don't persist correctly. This occurs because:
 
-**Example:**
-- Base volume: 1 m³
-- Wastage: 10%
-- Concrete Supply correctly orders: 1.1 m³
-- Pumping module incorrectly charges for: 1 m³ (should be 1.1 m³)
+1. **React Key Changes on Every Keystroke**: The component uses `key={groupKey}` where `groupKey = typeName-dimension1-dimension2`. When a user changes dimension1 from 450 to 500, the key changes from `SF1-450-300` to `SF1-500-300`, causing React to unmount and remount the entire group component.
 
-This affects all scopes that use both the concrete-supply and concrete-pumping modules.
+2. **Expanded State Lost**: The `expandedTypes` Set uses keys that include dimensions. When dimensions change, the new key isn't in the Set, so the section collapses.
+
+3. **Input Focus Lost**: Both issues above cause the input field to lose focus during typing, making manual entry frustrating or impossible.
 
 ---
 
-## Root Cause
+## Root Cause Analysis
 
-The `scopeData` object passed to modules contains only the base `concrete_volume`. The wastage percentage is stored in the concrete-supply module's answers but is not accessible to the pumping module.
+In `MultiLinearTypeInput.tsx`:
 
-```text
-scopeData = {
-  concrete_volume: 1.0,  // Base volume only
-  ...
-}
+```typescript
+// Line 357: groupKey includes dimensions - changes on every input
+const groupKey = `${group.typeName}-${group.dimension1}-${group.dimension2}`;
 
-concrete-supply module answers = {
-  wastage_percent: 10,   // Not accessible to pumping module
-  ...
-}
+// Line 356: expandedTypes check uses dimension-based key
+const isExpanded = expandedTypes.has(`${group.typeName}-${group.dimension1}-${group.dimension2}`);
+
+// Line 360: React key causes remount when dimensions change
+<Collapsible key={groupKey} ...>
 ```
 
 ---
 
 ## Solution
 
-### Phase 1: Extend scopeData with Module Answers
+### 1. Use Stable Keys for React Components
 
-**File:** `src/components/estimates/calculators/ModularCalculator.tsx`
-
-Include `moduleAnswers` in the `scopeData` object so any module can access settings from other modules when needed:
+Change the `key` prop to use only the type name (or a stable identifier), not the dimensions:
 
 ```typescript
-const scopeData = useMemo(() => {
-  return {
-    ...derivedScopeAnswers,
-    volume: scopeVolume,
-    concrete_volume: scopeVolume,
-    scopeId: scope.id,
-    moduleAnswers: moduleAnswers,  // NEW: Include all module answers
-  };
-}, [derivedScopeAnswers, scopeVolume, scope.id, moduleAnswers]);
+// Before
+const groupKey = `${group.typeName}-${group.dimension1}-${group.dimension2}`;
+
+// After - Use only typeName for stable key
+const groupKey = group.typeName;
 ```
 
-### Phase 2: Update Pumping Module to Use Wastage
+### 2. Fix Expanded State Tracking
 
-**File:** `src/lib/estimate-components/modules/concrete-pumping.ts`
-
-Update the pumping calculation to read the wastage percentage from the concrete-supply module and apply it:
+Update the expanded state to track by type name only:
 
 ```typescript
-// Per m³ charge - apply wastage from concrete-supply module
-const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
+// Before
+const isExpanded = expandedTypes.has(`${group.typeName}-${group.dimension1}-${group.dimension2}`);
 
-// Get wastage from concrete-supply module answers (default 10%)
-const concreteSupplyAnswers = scopeData.moduleAnswers?.['concrete-supply'] || {};
-const wastagePercent = Number(concreteSupplyAnswers.wastage_percent) || 10;
-const volumeWithWastage = volume * (1 + wastagePercent / 100);
+// After
+const isExpanded = expandedTypes.has(group.typeName);
+```
 
-if (volume > 0) {
-  const roundedVolume = roundUpToM3(volumeWithWastage);  // Use wastage-adjusted volume
-  const m3Rate = Number(answers.m3_rate) || getPrice(priceMap, 'pumping', 'PUMP M3', 8);
-  const m3Cost = roundedVolume * m3Rate;
+### 3. Update Toggle Function
 
-  lineItems.push({
-    id: 'pump_per_m3',
-    description: `Pumping Charge (${roundedVolume} m³ incl. wastage)`,
-    quantity: roundedVolume,
-    unit: 'm³',
-    unitPrice: m3Rate,
-    total: Math.round(m3Cost * 100) / 100,
-    category: 'plant',
+Ensure `toggleExpand` uses the stable key:
+
+```typescript
+const toggleExpand = (typeName: string) => {
+  setExpandedTypes(prev => {
+    const next = new Set(prev);
+    if (next.has(typeName)) {
+      next.delete(typeName);
+    } else {
+      next.add(typeName);
+    }
+    return next;
   });
-  subtotal += m3Cost;
-}
+};
 ```
-
-Also update the pump recommendation logic at the top of the calculate function to use volume with wastage for determining pump size.
 
 ---
 
@@ -94,34 +80,88 @@ Also update the pump recommendation logic at the top of the calculate function t
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Add `moduleAnswers` to `scopeData` object |
-| `src/lib/estimate-components/modules/concrete-pumping.ts` | Read `wastage_percent` from concrete-supply module and apply to volume calculations |
+| `src/components/estimates/calculators/MultiLinearTypeInput.tsx` | Use stable keys for React components and expanded state tracking |
+
+---
+
+## Detailed Changes
+
+### Lines 355-363
+
+**Before:**
+```typescript
+{groups.map((group) => {
+  const isExpanded = expandedTypes.has(`${group.typeName}-${group.dimension1}-${group.dimension2}`);
+  const groupKey = `${group.typeName}-${group.dimension1}-${group.dimension2}`;
+  
+  return (
+    <Collapsible
+      key={groupKey}
+      open={isExpanded}
+      onOpenChange={() => toggleExpand(groupKey)}
+    >
+```
+
+**After:**
+```typescript
+{groups.map((group) => {
+  // Use stable key based only on typeName to prevent remounting when dimensions change
+  const stableKey = group.typeName;
+  const isExpanded = expandedTypes.has(stableKey);
+  
+  return (
+    <Collapsible
+      key={stableKey}
+      open={isExpanded}
+      onOpenChange={() => toggleExpand(stableKey)}
+    >
+```
+
+---
+
+## Edge Case: Multiple Groups with Same Type Name
+
+The current grouping logic creates separate groups when the same type name has different dimensions (e.g., if someone manually edits one segment's dimensions differently). With the stable key fix:
+
+- This scenario would now merge those segments visually (same key = same component)
+- However, the `updateGroupDimensions` function uses `matchesGroup` which checks dimensions, so updates would still only apply to matching segments
+
+This is actually the correct behavior since changing dimensions at the group level should update all segments of that type.
 
 ---
 
 ## Before / After
 
-**Before (Incorrect):**
-| Item | Value |
-|------|-------|
-| Base Volume | 1.0 m³ |
-| Wastage | 10% |
-| Concrete Supply | 1.1 m³ |
-| Pumping Charge | 1.0 m³ |
+**Before (Broken):**
+```text
+1. User expands SF1 group
+2. User clicks on Width input (value: 450)
+3. User types "5" to change 450 to 4505 (or tries to clear and type 500)
+4. onChange fires, sections update with new dimension1
+5. groups recalculates, groupKey changes from "SF1-450-300" to "SF1-4505-300"
+6. React unmounts old Collapsible, mounts new one
+7. Input loses focus, user can't continue typing
+8. expandedTypes still has "SF1-450-300", so new group shows collapsed
+```
 
-**After (Correct):**
-| Item | Value |
-|------|-------|
-| Base Volume | 1.0 m³ |
-| Wastage | 10% |
-| Concrete Supply | 1.1 m³ |
-| Pumping Charge | 1.1 m³ |
+**After (Fixed):**
+```text
+1. User expands SF1 group (key: "SF1")
+2. User clicks on Width input (value: 450)
+3. User types to change value
+4. onChange fires, sections update with new dimension
+5. groups recalculates, but key remains "SF1"
+6. React updates existing Collapsible (no remount)
+7. Input retains focus
+8. expandedTypes has "SF1", section stays expanded
+```
 
 ---
 
 ## Impact
 
-- All scopes using concrete-supply and concrete-pumping modules will now have consistent volume calculations
-- Pumping charges will accurately reflect the actual volume being pumped (including wastage)
-- No changes to default wastage percentage (remains 10%)
-- Existing estimates with custom wastage settings will be respected
+- Strip footings and retaining wall footings will allow proper manual dimension input
+- Kerbs/channels and retaining walls (other linear scopes) will also benefit
+- No functional changes to calculations
+- Grouping by type name still works correctly
+- Segment-level edits are unaffected (they already use stable `segment.id` keys)
