@@ -568,8 +568,9 @@ export function ModularCalculator({
       volume: scopeVolume,
       concrete_volume: scopeVolume, // Alias for module compatibility (concrete-supply, concrete-pumping)
       scopeId: scope.id,
+      moduleAnswers: moduleAnswers, // Include module answers so modules can access other module settings
     };
-  }, [derivedScopeAnswers, scopeVolume, scope.id]);
+  }, [derivedScopeAnswers, scopeVolume, scope.id, moduleAnswers]);
 
   // Apply derived values and auto-fill from price list when fields become visible
   // Use functional update to avoid dependency on moduleAnswers (prevents infinite loops)

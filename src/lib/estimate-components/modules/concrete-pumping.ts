@@ -173,14 +173,19 @@ export const concretePumpingModule: EstimateModule = {
     // Use pre-calculated concrete_volume from scope (already handles pierGroups, beams, etc.)
     const volume = Number(scopeData.concrete_volume) || Number(scopeData.volume) || 0;
 
+    // Get wastage from concrete-supply module answers (default 10%)
+    const concreteSupplyAnswers = (scopeData as any).moduleAnswers?.['concrete-supply'] || {};
+    const wastagePercent = Number(concreteSupplyAnswers.wastage_percent) ?? 10;
+    const volumeWithWastage = volume * (1 + wastagePercent / 100);
+
     if (volume > 0) {
-      const roundedVolume = roundUpToM3(volume);
+      const roundedVolume = roundUpToM3(volumeWithWastage);
       const m3Rate = Number(answers.m3_rate) || getPrice(priceMap, 'pumping', 'PUMP M3', 8);
       const m3Cost = roundedVolume * m3Rate;
 
       lineItems.push({
         id: 'pump_per_m3',
-        description: `Pumping Charge (${roundedVolume} m³)`,
+        description: `Pumping Charge (${roundedVolume} m³ incl. wastage)`,
         quantity: roundedVolume,
         unit: 'm³',
         unitPrice: m3Rate,
