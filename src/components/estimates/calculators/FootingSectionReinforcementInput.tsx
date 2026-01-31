@@ -993,7 +993,7 @@ export function FootingSectionReinforcementInput({
                       {tmType !== 'none' && tmLayers > 1 && (
                         <>
                           <div className="flex items-center justify-between pt-2">
-                            <Label className="text-xs font-medium">Chairs Top</Label>
+                            <Label className="text-xs font-medium">Top Chairs</Label>
                             <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
                               <Switch
                                 checked={group.segments[0]?.layer_chairs_enabled ?? false}
