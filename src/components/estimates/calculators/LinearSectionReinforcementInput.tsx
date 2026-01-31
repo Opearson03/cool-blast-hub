@@ -745,9 +745,9 @@ export function LinearSectionReinforcementInput({
                           {showTm && tmLayers > 1 && (
                             <>
                               <div className="flex items-center justify-between pt-2">
-                                <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
-                                  Chairs Top
-                                </Label>
+                  <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                    Top Chairs
+                  </Label>
                                 <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
                                   <Switch
                                     checked={section.layer_chairs_enabled ?? false}
