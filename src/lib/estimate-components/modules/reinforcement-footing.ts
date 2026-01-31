@@ -181,14 +181,20 @@ export const reinforcementFootingModule: EstimateModule = {
         if (length <= 0) return;
         
         const chairsPerM = section.chairs_per_m ?? 1.4;
-        chairPrice = section.chair_price_per_bag ?? getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
+        // Use section price or fall back to catalog (bar chairs are per 100, divide by 4 for per-25)
+        const chairType = section.chair_type || '5065C';
+        const catalogChairPrice = getPrice(priceMap, 'consumables', chairType, 50) / 4;
+        chairPrice = section.chair_price_per_bag ?? catalogChairPrice;
         totalChairs += Math.ceil(length * chairsPerM);
         
         // Layer chairs (between TM layers)
         const tmLayers = section.tm_layers || 1;
         if (section.layer_chairs_enabled && tmLayers > 1) {
           const layerChairsPerM = section.layer_chairs_per_m ?? 1;
-          layerChairPrice = section.layer_chair_price ?? 12.50;
+          // Look up layer chair price from catalog (bar chairs are per 100, divide by 4 for per-25)
+          const layerChairType = section.layer_chair_type || '2540C';
+          const catalogLayerPrice = getPrice(priceMap, 'consumables', layerChairType, 50) / 4;
+          layerChairPrice = section.layer_chair_price ?? catalogLayerPrice;
           totalLayerChairs += Math.ceil(length * layerChairsPerM);
         }
       });
