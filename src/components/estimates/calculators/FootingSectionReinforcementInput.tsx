@@ -16,7 +16,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Settings2, Ruler, ChevronsUpDown, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Settings2, Ruler, ChevronsUpDown, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
@@ -365,15 +365,25 @@ export function FootingSectionReinforcementInput({
     };
   }, [groups, sections.length, defaultAddLigs]);
 
-  // Initialize TM and chair prices from priceMap when it becomes available
+  // Initialize TM type and prices from priceMap when it becomes available
+  // FIX: Explicitly set tm_type to default if undefined so "None" selection works correctly
   useEffect(() => {
     if (!priceMap || sections.length === 0) return;
     
     let hasChanges = false;
     const updatedSections = sections.map(section => {
-      const tmType = section.tm_type || defaultTmType;
-      const tmLayers = section.tm_layers || 1;
       let updates: Partial<LinearSection> = {};
+      
+      // FIX: Explicitly set tm_type to default if undefined
+      // This ensures stored value matches displayed value, so selecting "None" 
+      // correctly overwrites an explicit value rather than undefined
+      if (section.tm_type === undefined) {
+        updates.tm_type = defaultTmType;
+        hasChanges = true;
+      }
+      
+      const tmType = section.tm_type ?? defaultTmType;
+      const tmLayers = section.tm_layers || 1;
       
       // Initialize bottom/single layer price if TM type is not 'none' and price undefined
       if (tmType !== 'none' && section.tm_price === undefined) {
@@ -422,7 +432,7 @@ export function FootingSectionReinforcementInput({
     if (hasChanges) {
       onChange(updatedSections);
     }
-  }, [priceMap, sections.length]); // Run when priceMap changes or new sections added
+  }, [priceMap, sections.length, defaultTmType]); // Run when priceMap changes or new sections added
 
   if (sections.length === 0) {
     return (
@@ -557,6 +567,16 @@ export function FootingSectionReinforcementInput({
                 {/* Content */}
                 <CollapsibleContent>
                   <div className="px-3 pb-3 pt-2 border-t bg-muted/30 space-y-4">
+                    {/* Zero Length Warning */}
+                    {group.totalLength <= 0 && (
+                      <div className="flex items-center gap-2 p-2 rounded-md bg-warning/10 text-warning-foreground dark:text-warning text-xs border border-warning/30">
+                        <AlertTriangle className="h-4 w-4 shrink-0" />
+                        <span>
+                          No length specified for this footing type. Set a length above to calculate reinforcement costs.
+                        </span>
+                      </div>
+                    )}
+                    
                     {/* Segments List (collapsed preview) */}
                     <div className="text-xs text-muted-foreground">
                       <span className="font-medium text-foreground">Segments: </span>
