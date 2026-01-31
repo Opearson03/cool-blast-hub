@@ -81,6 +81,12 @@ function getTmPrice(tmType: string, priceMap?: PriceMap): number | undefined {
   return priceMap['trench_mesh']?.[tmType];
 }
 
+// Get chair price from price map
+function getChairPrice(chairType: string, priceMap?: PriceMap): number | undefined {
+  if (!priceMap) return undefined;
+  return priceMap['consumables']?.[chairType];
+}
+
 interface LinearSectionReinforcementInputProps {
   sections: LinearSection[];
   onChange: (sections: LinearSection[]) => void;
@@ -757,7 +763,31 @@ export function LinearSectionReinforcementInput({
                               </div>
                               
                               {section.layer_chairs_enabled && (
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-3 gap-3">
+                                  <div className="space-y-1">
+                                    <Label className="text-[10px] text-muted-foreground">Chair Size</Label>
+                                    <Select
+                                      value={section.layer_chair_type || '2540C'}
+                                      onValueChange={(val) => {
+                                        const catalogPrice = getChairPrice(val, priceMap);
+                                        updateSection(index, { 
+                                          layer_chair_type: val,
+                                          layer_chair_price: catalogPrice ?? 12.50
+                                        });
+                                      }}
+                                    >
+                                      <SelectTrigger className="h-8 text-sm">
+                                        <SelectValue />
+                                      </SelectTrigger>
+                                      <SelectContent className="z-[150]">
+                                        <SelectItem value="2540C">25-40mm</SelectItem>
+                                        <SelectItem value="5065C">50-65mm</SelectItem>
+                                        <SelectItem value="7590C">75-90mm</SelectItem>
+                                        <SelectItem value="100120C">100-120mm</SelectItem>
+                                        <SelectItem value="125150C">125-150mm</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
                                   <div className="space-y-1">
                                     <Label className="text-[10px] text-muted-foreground">Chairs/m</Label>
                                     <Input
