@@ -30,10 +30,8 @@ const JOINT_DEPTH_OPTIONS = [
   { value: '200', label: '200mm' },
 ];
 
-const JOINT_LENGTH_OPTIONS = [
-  { value: '3000', label: '3m' },
-  { value: '6000', label: '6m' },
-];
+// Expansion joints come in 25m rolls
+const ROLL_LENGTH_M = 25;
 
 const CAPPING_TYPE_OPTIONS = [
   { value: 'EXJ CAP B', label: 'Black Capping Mould' },
@@ -142,16 +140,14 @@ export function MultiExpansionJointInput({
     }
   }, [joints, openJoints]);
 
-  // Calculate quantity from total length
-  const calculateQuantityFromLength = useCallback((totalLengthM: number, jointPieceLengthMM: string): number => {
+  // Calculate quantity (rolls) from total length - 25m per roll
+  const calculateQuantityFromLength = useCallback((totalLengthM: number): number => {
     if (!totalLengthM || totalLengthM <= 0) return 0;
-    const pieceLengthM = Number(jointPieceLengthMM) / 1000; // 3m or 6m
-    return Math.ceil(totalLengthM / pieceLengthM);
+    return Math.ceil(totalLengthM / ROLL_LENGTH_M);
   }, []);
 
   const addJoint = useCallback(() => {
     const defaultDepth = '100';
-    const defaultLength = '3000';
     const defaultDowelSize = 'R12-300 GAL';
     const defaultFoamHeight = '100';
     const defaultFoamType = 'sticky_back';
@@ -160,9 +156,9 @@ export function MultiExpansionJointInput({
       id: `joint_${Date.now()}`,
       name: '',
       depth: defaultDepth,
-      length: defaultLength,
+      length: String(ROLL_LENGTH_M * 1000), // 25m rolls
       quantity: 0, // Default to 0, will be calculated from total_length_m
-      price_each: getJointPrice(defaultDepth, defaultLength, priceMap),
+      price_each: getJointPrice(defaultDepth, String(ROLL_LENGTH_M * 1000), priceMap),
       capping_required: false,
       capping_type: 'EXJ CAP B',
       capping_price_per_m: getCappingPrice('EXJ CAP B', priceMap),
@@ -197,12 +193,11 @@ export function MultiExpansionJointInput({
     const currentJoint = newJoints[index];
     const updatedJoint = { ...currentJoint, ...updates };
     
-    // Auto-calculate quantity when total_length_m or joint length changes
-    if (updates.total_length_m !== undefined || updates.length !== undefined) {
+    // Auto-calculate quantity (rolls) when total_length_m changes
+    if (updates.total_length_m !== undefined) {
       const totalLength = updates.total_length_m ?? currentJoint.total_length_m ?? 0;
-      const jointLength = updates.length ?? currentJoint.length ?? '3000';
       if (totalLength > 0) {
-        updatedJoint.quantity = calculateQuantityFromLength(totalLength, jointLength);
+        updatedJoint.quantity = calculateQuantityFromLength(totalLength);
       }
     }
     
@@ -313,7 +308,6 @@ export function MultiExpansionJointInput({
           const isOpen = openJoints.has(joint.id);
           const jointCost = calculateJointCost(joint);
           const depthLabel = JOINT_DEPTH_OPTIONS.find(o => o.value === joint.depth)?.label || joint.depth;
-          const lengthLabel = JOINT_LENGTH_OPTIONS.find(o => o.value === joint.length)?.label || joint.length;
 
           // Calculate dowel count for display
           let displayDowelCount = joint.dowel_count || 10;
@@ -339,7 +333,7 @@ export function MultiExpansionJointInput({
                         {joint.name || `${depthLabel} Joints`}
                       </span>
                       <Badge variant="outline" className="text-xs font-normal h-5">
-                        {joint.quantity} × {depthLabel} × {lengthLabel}
+                        {joint.quantity} roll{joint.quantity !== 1 ? 's' : ''} × {depthLabel}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
@@ -363,54 +357,29 @@ export function MultiExpansionJointInput({
                       />
                     </div>
 
-                    {/* Depth & Length */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Joint Depth (Slab Thickness)</Label>
-                        <Select
-                          value={joint.depth}
-                          onValueChange={(val) => {
-                            updateJoint(index, { 
-                              depth: val,
-                              price_each: getJointPrice(val, joint.length, priceMap)
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="z-[150]">
-                            {JOINT_DEPTH_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Piece Length</Label>
-                        <Select
-                          value={joint.length}
-                          onValueChange={(val) => {
-                            updateJoint(index, { 
-                              length: val,
-                              price_each: getJointPrice(joint.depth, val, priceMap)
-                            });
-                          }}
-                        >
-                          <SelectTrigger className="h-9 text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent className="z-[150]">
-                            {JOINT_LENGTH_OPTIONS.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    {/* Depth */}
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-medium">Joint Depth (Slab Thickness)</Label>
+                      <Select
+                        value={joint.depth}
+                        onValueChange={(val) => {
+                          updateJoint(index, { 
+                            depth: val,
+                            price_each: getJointPrice(val, String(ROLL_LENGTH_M * 1000), priceMap)
+                          });
+                        }}
+                      >
+                        <SelectTrigger className="h-9 text-sm">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="z-[150]">
+                          {JOINT_DEPTH_OPTIONS.map((opt) => (
+                            <SelectItem key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     {/* Total Length - Takeoff Integration */}
@@ -455,7 +424,7 @@ export function MultiExpansionJointInput({
                       </div>
                       {(joint.total_length_m ?? 0) > 0 && (
                         <p className="text-xs text-muted-foreground">
-                          Auto-calculated: {Math.ceil((joint.total_length_m || 0) / (Number(joint.length) / 1000))} pieces needed ({joint.total_length_m}m ÷ {Number(joint.length) / 1000}m each)
+                          Auto-calculated: {Math.ceil((joint.total_length_m || 0) / ROLL_LENGTH_M)} roll{Math.ceil((joint.total_length_m || 0) / ROLL_LENGTH_M) !== 1 ? 's' : ''} needed ({joint.total_length_m}m ÷ {ROLL_LENGTH_M}m per roll)
                         </p>
                       )}
                     </div>
