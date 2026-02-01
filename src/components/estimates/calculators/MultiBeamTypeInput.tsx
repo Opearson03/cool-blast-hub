@@ -270,14 +270,15 @@ export function MultiBeamTypeInput({
   return (
     <div className="space-y-3">
       {groups.map((group) => {
-        const isExpanded = expandedTypes.has(`${group.typeName}-${group.width}-${group.depth}`);
-        const groupKey = `${group.typeName}-${group.width}-${group.depth}`;
+        // Use stable key based only on typeName to prevent remounting when dimensions change
+        const stableKey = group.typeName;
+        const isExpanded = expandedTypes.has(stableKey);
         
         return (
           <Collapsible
-            key={groupKey}
+            key={stableKey}
             open={isExpanded}
-            onOpenChange={() => toggleExpand(groupKey)}
+            onOpenChange={() => toggleExpand(stableKey)}
           >
             <div className="border rounded-lg bg-muted/30">
               {/* Type Header Row */}
