@@ -1,146 +1,181 @@
 
-# Feature: "Edge Beam = Full Perimeter" Quick Option
+
+# Feature: Measure Expansion Joints on Plans
 
 ## Overview
 
-Add a quick toggle/button in the slab naming dialog that allows users to instantly create an edge beam that matches the slab's perimeter without having to manually trace it. This speeds up the takeoff workflow significantly for common cases.
+Add the ability to measure expansion joint locations and lengths directly on the takeoff screen, similar to how strip footings are marked. This allows users to draw joint lines on plans rather than manually estimating quantities.
 
 ## User Flow
 
-1. User marks a slab area (polygon or rectangle)
-2. The **"Name This Slab"** dialog appears with slab stats (Area: X m², Perimeter: Y m)
-3. **NEW:** Below the edge beam section, a toggle/button appears:
-   - "Does the edge beam run the full perimeter?"
-   - [Yes, Use Perimeter] / [No, I'll Mark It]
-4. If user clicks **"Yes, Use Perimeter"**:
-   - Skip the manual marking step
-   - Go directly to **edge_beam_details** step with pre-filled length = perimeter
-   - User only needs to enter beam name, width, and depth
-5. If user clicks **"No, I'll Mark It"** or the existing "Add Edge Beam" button:
-   - Continue with normal manual marking workflow
+1. User adds a new expansion joint in the **Connections & Joints** module
+2. Joint is created with **total_length_m = 0** by default
+3. Two input options are presented:
+   - **Manual Entry**: User types total length in meters directly
+   - **"Mark on Plans" Button**: Navigates to the takeoff screen to draw joint lines
+
+4. When "Mark on Plans" is clicked:
+   - The current estimate state is saved
+   - User is navigated to the takeoff step
+   - The polyline drawing tool is activated
+   - User draws one or more lines representing joint cuts (continuous polyline, same as strip footings)
+
+5. When user completes marking (presses Enter, Done, or double-clicks):
+   - A dimensions dialog appears showing total length measured
+   - User configures joint depth and other options
+   - On confirm, user is automatically returned to the Configure step
+   - The joint's `total_length_m` is populated with the measured length
+   - Joint piece quantity is auto-calculated: `quantity = ceil(total_length_m / (joint_length / 1000))`
 
 ---
 
 ## Technical Changes
 
-### 1. SlabBeamMarkupDialog.tsx
+### 1. Update ExpansionJointConfig Interface
 
-**Add new prop for the "use perimeter" action:**
+**File:** `src/lib/estimate-components/types.ts`
 
+Add new fields to track measured length:
+
+```text
+Current fields kept:
+  - id, name, depth, length, quantity, price_each
+  - capping_required, capping_type, capping_price_per_m
+  - dowels_required, dowel_size, dowel_count, ...
+  - foam_required, foam_type, foam_rolls, ...
+
+New fields to add:
+  - total_length_m?: number;        // Total measured length in meters (from takeoff or manual)
+  - measured_on_plans?: boolean;    // Flag indicating if length came from takeoff
+```
+
+### 2. Update MultiExpansionJointInput Component
+
+**File:** `src/components/estimates/calculators/MultiExpansionJointInput.tsx`
+
+**New Props:**
 ```typescript
-interface SlabBeamMarkupDialogProps {
-  // ... existing props
-  onUsePerimeterAsEdgeBeam?: () => void;  // NEW
+interface MultiExpansionJointInputProps {
+  joints: ExpansionJointConfig[];
+  onChange: (joints: ExpansionJointConfig[]) => void;
+  priceMap?: PriceMap;
+  // NEW: Markup prompt support
+  onRequestMarkup?: (jointId: string) => void;
+  hasPlans?: boolean;
 }
 ```
 
-**Update the 'name' step UI** to add a quick option section:
+**UI Changes per joint card:**
+- Add a new section for **Total Length** with two input methods:
+  1. Manual text input for total_length_m (defaulting to 0)
+  2. "Mark on Plans" button (shown only when hasPlans is true)
+- Auto-calculate quantity from total_length_m: `Math.ceil(total_length_m / (joint.length / 1000))`
+- Display a "Measured" badge if `measured_on_plans === true`
+- Keep manual quantity override available if user wants to adjust
 
-After the "Edge Beams" label and description, add:
+**Calculation Logic Change:**
+- If `total_length_m > 0`, auto-calculate quantity
+- Allow user to override quantity manually
+- When joint length changes, recalculate quantity from total_length_m
 
-```text
-┌─────────────────────────────────────────────────────┐
-│ Does the edge beam run the full perimeter?          │
-│                                                     │
-│  [Yes, Use Perimeter (X.Xm)]    [No, Mark Manually] │
-└─────────────────────────────────────────────────────┘
-```
+### 3. Add Expansion Joint Scope to Takeoff
 
-The buttons:
-- **"Yes, Use Perimeter (X.Xm)"**: Calls `onUsePerimeterAsEdgeBeam()`, displays the perimeter length for clarity
-- **"No, Mark Manually"**: Calls the existing `onStartEdgeBeams()` 
+**File:** `src/types/takeoff.ts`
 
-**Move existing footer buttons** to this inline section for a cleaner flow, so the footer only shows Cancel/Skip.
-
-### 2. PlanTakeoffStep.tsx
-
-**Add new handler for perimeter-based edge beam:**
-
+Add `expansion_joints` to LINEAR_SCOPES:
 ```typescript
-const handleUsePerimeterAsEdgeBeam = useCallback(() => {
-  if (!pendingSlabData || !currentScale) return;
-  
-  const { slabPoints, slabShapeType } = pendingSlabData;
-  
-  // Convert slab polygon to a closed polyline for the edge beam
-  // For polygons: use all points, adding first point at end to close the loop
-  // For rectangles: expand 2 corners into 4 corners + close
-  let edgeBeamPoints: TakeoffPoint[];
-  
-  if (slabShapeType === 'polygon') {
-    // Close the polygon by adding first point at end
-    edgeBeamPoints = [...slabPoints, slabPoints[0]];
-  } else {
-    // Rectangle: expand corners [topLeft, bottomRight] to full rectangle path
-    const [p1, p2] = slabPoints;
-    edgeBeamPoints = [
-      { x: p1.x, y: p1.y },  // top-left
-      { x: p2.x, y: p1.y },  // top-right
-      { x: p2.x, y: p2.y },  // bottom-right
-      { x: p1.x, y: p2.y },  // bottom-left
-      { x: p1.x, y: p1.y },  // close back to top-left
-    ];
-  }
-  
-  // Calculate perimeter length
-  const perimeter = slabStats.perimeter; // Already calculated
-  
-  // Cache beam data
-  setCachedBeamLength(perimeter);
-  setCachedBeamSegments(/* calculate segments from edgeBeamPoints */);
-  setCurrentBeamPoints(edgeBeamPoints);
-  
-  // Skip directly to edge_beam_details step
-  setSlabWorkflowStep('edge_beam_details');
-  setShowSlabBeamDialog(true);
-}, [pendingSlabData, currentScale, slabStats]);
+export const LINEAR_SCOPES = [
+  'strip_footings',
+  'retaining_wall_footings',
+  'kerbs_channels',
+  'retaining_walls',
+  'expansion_joints',  // NEW
+] as const;
 ```
 
-**Pass the new handler to the dialog:**
+### 4. Update ModuleSection to Pass Markup Props
 
-```tsx
-<SlabBeamMarkupDialog
-  // ... existing props
-  onUsePerimeterAsEdgeBeam={handleUsePerimeterAsEdgeBeam}
+**File:** `src/components/estimates/calculators/ModuleSection.tsx`
+
+Pass the new props to MultiExpansionJointInput:
+```typescript
+<MultiExpansionJointInput
+  joints={(answers.expansion_joints || []) as ExpansionJointConfig[]}
+  onChange={(joints) => onAnswerChange('expansion_joints', joints)}
+  priceMap={priceMap}
+  // NEW: Pass markup support props
+  onRequestMarkup={onRequestJointMarkup}
+  hasPlans={hasPlans}
 />
 ```
 
+### 5. Update ModularCalculator for Joint Markup
+
+**File:** `src/components/estimates/calculators/ModularCalculator.tsx`
+
+- Accept new `onRequestMarkup` format for joints: `"connections-joints:joint:{jointId}"`
+- Handle returning from takeoff and updating the specific joint's `total_length_m`
+
+### 6. Update PlanTakeoffStep for Joint Marking
+
+**File:** `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
+
+- Handle `expansion_joints` scope type in the polyline marking workflow
+- Store joint markups with scope_id = 'expansion_joints'
+- After completing a polyline, show a simplified dimensions dialog for joints
+- Return the measured length to the callback
+
+### 7. Create JointDimensionsDialog Component
+
+**File:** `src/components/estimates/takeoff/JointDimensionsDialog.tsx` (New)
+
+A simplified dialog for expansion joint measurements:
+- Shows total length measured
+- Displays number of segments if multiple lines drawn
+- Joint depth dropdown (100mm, 125mm, 150mm, 200mm)
+- Joint piece length dropdown (3m or 6m)
+- Auto-calculated quantity
+- "Confirm" and "Add Another" buttons
+
+### 8. Update EstimateFormDialog for Joint Return Flow
+
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
+
+Handle the return flow when user completes joint marking:
+- Parse the `pendingTakeoffScope` for joint identifiers
+- Look up the specific joint configuration by ID
+- Update its `total_length_m` and `measured_on_plans` fields
+- Navigate back to the configure step with the module open
+
 ---
 
-## UI Design (Updated 'name' Step)
+## UI Layout (Updated Joint Card)
 
 ```text
-┌─────────────────────────────────────────────────────────┐
-│ 🏷 Name This Slab                                      │
-│ Give this slab a descriptive name, then add beams.     │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│ Slab Name                                               │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ Slab 1                                              │ │
-│ └─────────────────────────────────────────────────────┘ │
-│                                                         │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ Area:        125.50 m²                              │ │
-│ │ Perimeter:    45.20 m                               │ │
-│ └─────────────────────────────────────────────────────┘ │
-│                                                         │
-│ ─────────────────────────────────────────────────────── │
-│                                                         │
-│ Edge Beams                                              │
-│ Raft slabs typically have thickened edge beams...      │
-│                                                         │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │ Does the edge beam run the full perimeter?          │ │
-│ │                                                     │ │
-│ │ ┌───────────────────────┐ ┌───────────────────────┐ │ │
-│ │ │ ✓ Yes (45.2m)         │ │   No, Mark Manually   │ │ │
-│ │ └───────────────────────┘ └───────────────────────┘ │ │
-│ └─────────────────────────────────────────────────────┘ │
-│                                                         │
-├─────────────────────────────────────────────────────────┤
-│                    [Cancel]     [Skip Beams]            │
-└─────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ ▼ 100mm Joints            5 pieces × 3m        $175.00     │
+├─────────────────────────────────────────────────────────────┤
+│ Label (optional): [                                      ]  │
+│                                                             │
+│ ┌─ Total Length ──────────────────────────────────────────┐ │
+│ │ [     0     ] m    [📍 Mark on Plans]    (or edit)      │ │
+│ │ ✓ Measured on plans: 15.2m ───────────── recalculate   │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ┌─ Joint Depth & Length ──────────────────────────────────┐ │
+│ │ Joint Depth: [100mm ▼]      Joint Piece Length: [3m ▼] │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ┌─ Quantity & Price ──────────────────────────────────────┐ │
+│ │ Qty: [6] (auto from 15.2m ÷ 3m)   Price Each: [$35.00] │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ── Joint Capping Mould ─────────────────── [Yes ●○ No]     │
+│ ── Dowels Required ─────────────────────── [Yes ●○ No]     │
+│ ── Expansion Foam Required ─────────────── [Yes ●○ No]     │
+│                                                             │
+│ [Remove]                                                    │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -149,22 +184,39 @@ const handleUsePerimeterAsEdgeBeam = useCallback(() => {
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx` | Add `onUsePerimeterAsEdgeBeam` prop, add "full perimeter" quick option UI in 'name' step |
-| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Add `handleUsePerimeterAsEdgeBeam` handler, pass to dialog |
+| `src/lib/estimate-components/types.ts` | Add `total_length_m` and `measured_on_plans` to ExpansionJointConfig |
+| `src/types/takeoff.ts` | Add `expansion_joints` to LINEAR_SCOPES |
+| `src/components/estimates/calculators/MultiExpansionJointInput.tsx` | Add total length input + "Mark on Plans" button, auto-calc quantity |
+| `src/components/estimates/calculators/ModuleSection.tsx` | Pass markup props to MultiExpansionJointInput |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Handle joint markup callbacks |
+| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Add expansion_joints scope handling |
+| `src/components/estimates/takeoff/JointDimensionsDialog.tsx` | New file for joint dimension entry after marking |
+| `src/components/estimates/EstimateFormDialog.tsx` | Handle return flow from joint marking |
+| `src/lib/estimate-components/modules/connections-joints.ts` | Use total_length_m for capping calculation if available |
 
 ---
 
-## Edge Cases Handled
+## Quantity Calculation Logic
 
-1. **Rectangle slabs**: The 2-point rectangle is expanded to a 4-corner path before creating the polyline
-2. **Polygon slabs**: The polygon points are used directly with the first point appended to close the loop
-3. **Existing workflow preserved**: Users can still choose to manually mark edge beams for partial perimeters or complex shapes
+```typescript
+// Auto-calculate quantity from measured length
+const calculateQuantityFromLength = (totalLengthM: number, jointPieceLengthMM: number): number => {
+  if (!totalLengthM || totalLengthM <= 0) return 0;
+  const pieceLengthM = jointPieceLengthMM / 1000; // 3m or 6m
+  return Math.ceil(totalLengthM / pieceLengthM);
+};
+
+// Example: 15.2m of joints with 3m pieces = ceil(15.2/3) = 6 pieces
+```
 
 ---
 
 ## Benefits
 
-1. **Speed**: Skip entire marking step for the most common case (full perimeter edge beams)
-2. **Accuracy**: Uses exact slab geometry, no manual tracing errors
-3. **Clear UX**: Simple Y/N choice right after naming the slab
-4. **Non-breaking**: Existing "Mark Manually" workflow remains available
+1. **Accuracy**: Measure exact joint locations from plans instead of estimating
+2. **Speed**: Draw lines quickly rather than counting and measuring manually
+3. **Flexibility**: Can still enter length manually if no plans available
+4. **Consistency**: Uses same polyline marking workflow as strip footings
+5. **Auto-calculation**: Quantity automatically derived from measured length
+6. **Reversibility**: User can override auto-calculated quantity if needed
+
