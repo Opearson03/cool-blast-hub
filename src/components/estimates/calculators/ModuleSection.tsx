@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem, PumpVisit, LabourPlacement, ExpansionJointConfig } from "@/lib/estimate-components/types";
+import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem, PumpVisit, LabourPlacement, ExpansionJointConfig, ControlJointConfig } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -43,6 +43,7 @@ import { ExtraItemsInput } from "./ExtraItemsInput";
 import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
 import { MultiPlacementInput } from "./MultiPlacementInput";
 import { MultiExpansionJointInput } from "./MultiExpansionJointInput";
+import { MultiControlJointInput } from "./MultiControlJointInput";
 import { AddCustomItemDialog } from "./AddCustomItemDialog";
 import { formatCurrency } from "@/lib/format-currency";
 import { aggregateRaftReinforcementItems, AggregatedMaterial } from "./shared/aggregateMaterials";
@@ -62,6 +63,7 @@ interface ModuleSectionProps {
   priceMap?: Record<string, Record<string, number>>;
   scopeId?: string;
   onRequestJointMarkup?: (jointId: string) => void;
+  onRequestControlJointMarkup?: (jointId: string) => void;
   hasPlans?: boolean;
 }
 
@@ -321,6 +323,7 @@ export function ModuleSection({
   priceMap,
   scopeId,
   onRequestJointMarkup,
+  onRequestControlJointMarkup,
   hasPlans,
 }: ModuleSectionProps) {
   // State for add custom item dialog
@@ -829,6 +832,27 @@ export function ModuleSection({
                       onChange={(joints) => onAnswerChange('expansion_joints', joints)}
                       priceMap={priceMap}
                       onRequestMarkup={onRequestJointMarkup}
+                      hasPlans={hasPlans}
+                    />
+                  </div>
+                );
+              }
+
+              // Special case: Control Joints module renders multi-control-joint input
+              if (module.id === 'joints-control' && answers.saw_cutting_required) {
+                elements.push(
+                  <div key="control-joints-section" className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Control Joints / Saw Cuts
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <MultiControlJointInput
+                      joints={(answers.control_joints || []) as ControlJointConfig[]}
+                      onChange={(joints) => onAnswerChange('control_joints', joints)}
+                      priceMap={priceMap}
+                      onRequestMarkup={onRequestControlJointMarkup}
                       hasPlans={hasPlans}
                     />
                   </div>

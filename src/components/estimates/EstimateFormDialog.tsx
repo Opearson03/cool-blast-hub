@@ -454,6 +454,8 @@ const {
     getDemolitionAreasForScope,
     // Expansion joints specific
     getExpansionJointTotalLength,
+    // Control joints specific
+    getControlJointTotalLength,
     refetch: refetchMarkups 
   } = useTakeoffMarkups(estimateIdForTakeoff);
   

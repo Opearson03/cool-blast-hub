@@ -177,6 +177,8 @@ interface UseTakeoffMarkupsReturn {
   getDemolitionAreasForScope: (scopeId: string) => DemolitionAreaFromTakeoff[];
   // Expansion joints specific
   getExpansionJointTotalLength: () => number;
+  // Control joints specific
+  getControlJointTotalLength: () => number;
   refetch: () => Promise<void>;
 }
 
@@ -654,6 +656,20 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     return jointMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
   }, [markups]);
 
+  /**
+   * Get total length of control joint markups
+   * Returns the sum of all polyline lengths marked as control_joints
+   */
+  const getControlJointTotalLength = useCallback((): number => {
+    const jointMarkups = markups.filter(
+      m => m.scope_id === 'control_joints' && m.shape_type === 'polyline'
+    );
+    
+    if (jointMarkups.length === 0) return 0;
+    
+    return jointMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
+  }, [markups]);
+
   return {
     markups,
     isLoading,
@@ -677,6 +693,8 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     getDemolitionAreasForScope,
     // Expansion joints specific
     getExpansionJointTotalLength,
+    // Control joints specific
+    getControlJointTotalLength,
     refetch: fetchMarkups,
   };
 }

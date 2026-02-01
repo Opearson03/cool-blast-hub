@@ -1553,6 +1553,10 @@ export function ModularCalculator({
                   // Request markup for expansion joints using format: "expansion_joints:joint:{jointId}"
                   onRequestMarkup?.(`expansion_joints:joint:${jointId}`);
                 }}
+                onRequestControlJointMarkup={(jointId) => {
+                  // Request markup for control joints using format: "control_joints:joint:{jointId}"
+                  onRequestMarkup?.(`control_joints:joint:${jointId}`);
+                }}
                 hasPlans={hasPlans}
               />
             );

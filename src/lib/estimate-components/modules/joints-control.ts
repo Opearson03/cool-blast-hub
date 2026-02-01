@@ -1,4 +1,4 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, ControlJointConfig } from '../types';
 import { getPrice } from '../types';
 
 export const jointsControlModule: EstimateModule = {
@@ -8,7 +8,6 @@ export const jointsControlModule: EstimateModule = {
   icon: 'Scissors',
 
   questions: [
-    // Saw Cutting
     {
       id: 'saw_cutting_required',
       type: 'boolean',
@@ -17,185 +16,86 @@ export const jointsControlModule: EstimateModule = {
       required: true,
       helpText: 'Cut control joints after concrete has cured',
     },
-    {
-      id: 'saw_cutting_method',
-      type: 'select',
-      label: 'Saw Cutting Pricing Method',
-      options: [
-        { value: 'per_metre', label: 'Price per Linear Metre' },
-        { value: 'hourly', label: 'Hourly Rate' },
-      ],
-      defaultValue: 'per_metre',
-      showIf: (answers) => answers.saw_cutting_required === true,
-    },
-    {
-      id: 'saw_cut_length',
-      type: 'number',
-      label: 'Total Saw Cut Length',
-      unit: 'm',
-      min: 1,
-      showIf: (answers) => answers.saw_cutting_required === true && answers.saw_cutting_method === 'per_metre',
-    },
-    {
-      id: 'saw_cut_price_per_m',
-      type: 'currency',
-      label: 'Saw Cutting Price per Metre',
-      defaultValue: 4.50,
-      priceListKey: 'joint_saw_cutting.JOINTCUT',
-      unit: '/m',
-      showIf: (answers) => answers.saw_cutting_required === true && answers.saw_cutting_method === 'per_metre',
-    },
-    {
-      id: 'saw_cut_hours',
-      type: 'number',
-      label: 'Saw Cutting Hours',
-      unit: 'hrs',
-      min: 0.5,
-      step: 0.5,
-      defaultValue: 4,
-      showIf: (answers) => answers.saw_cutting_required === true && answers.saw_cutting_method === 'hourly',
-    },
-    {
-      id: 'saw_cut_hourly_rate',
-      type: 'currency',
-      label: 'Saw Cutting Hourly Rate',
-      defaultValue: 75,
-      priceListKey: 'joint_saw_cutting.JOINTCUT HR',
-      unit: '/hr',
-      showIf: (answers) => answers.saw_cutting_required === true && answers.saw_cutting_method === 'hourly',
-    },
-    // Caulking
-    {
-      id: 'caulking_required',
-      type: 'boolean',
-      label: 'Is joint caulking required?',
-      defaultValue: false,
-      required: true,
-      helpText: 'Seal saw cut joints with polyurethane',
-    },
-    {
-      id: 'caulking_method',
-      type: 'select',
-      label: 'Caulking Pricing Method',
-      options: [
-        { value: 'per_metre', label: 'Price per Linear Metre' },
-        { value: 'hourly', label: 'Hourly Rate' },
-      ],
-      defaultValue: 'per_metre',
-      showIf: (answers) => answers.caulking_required === true,
-    },
-    {
-      id: 'caulking_length',
-      type: 'number',
-      label: 'Total Caulking Length',
-      unit: 'm',
-      min: 1,
-      deriveFrom: (scopeData, moduleAnswers) => moduleAnswers.saw_cut_length || undefined,
-      showIf: (answers) => answers.caulking_required === true && answers.caulking_method === 'per_metre',
-    },
-    {
-      id: 'caulking_price_per_m',
-      type: 'currency',
-      label: 'Caulking Price per Metre',
-      defaultValue: 8,
-      priceListKey: 'joint_saw_cutting.CAULKING',
-      unit: '/m',
-      showIf: (answers) => answers.caulking_required === true && answers.caulking_method === 'per_metre',
-    },
-    {
-      id: 'caulking_hours',
-      type: 'number',
-      label: 'Caulking Hours',
-      unit: 'hrs',
-      min: 0.5,
-      step: 0.5,
-      defaultValue: 4,
-      showIf: (answers) => answers.caulking_required === true && answers.caulking_method === 'hourly',
-    },
-    {
-      id: 'caulking_hourly_rate',
-      type: 'currency',
-      label: 'Caulking Hourly Rate',
-      defaultValue: 75,
-      priceListKey: 'joint_saw_cutting.CAULKING HRS',
-      unit: '/hr',
-      showIf: (answers) => answers.caulking_required === true && answers.caulking_method === 'hourly',
-    },
+    // Note: Individual control joint configs are managed by MultiControlJointInput component
+    // stored in answers.control_joints as ControlJointConfig[]
   ],
 
   calculate: (answers, priceMap, scopeData): ComponentCost => {
     const lineItems: CostLineItem[] = [];
     let subtotal = 0;
 
-    // Saw cutting
-    if (answers.saw_cutting_required) {
-      if (answers.saw_cutting_method === 'per_metre') {
-        const length = Number(answers.saw_cut_length) || 50;
-        const pricePerM = Number(answers.saw_cut_price_per_m) || getPrice(priceMap, 'joint_saw_cutting', 'JOINTCUT', 4.50);
+    // If saw cutting not required, return empty
+    if (!answers.saw_cutting_required) {
+      return {
+        moduleId: 'joints-control',
+        moduleName: 'Control Joints',
+        lineItems,
+        subtotal: 0,
+        exclusions: [],
+      };
+    }
+
+    // Get control joints from multi-row input
+    const controlJoints: ControlJointConfig[] = answers.control_joints || [];
+
+    controlJoints.forEach((joint, index) => {
+      const length = joint.total_length_m || 0;
+      const jointLabel = joint.name || `Control Joint ${index + 1}`;
+
+      // Saw cutting cost
+      if (joint.pricing_method === 'per_metre') {
+        const pricePerM = joint.price_per_m ?? getPrice(priceMap, 'joint_saw_cutting', 'JOINTCUT', 4.50);
         const sawCost = length * pricePerM;
 
-        lineItems.push({
-          id: 'saw_cutting',
-          description: `Saw Cutting Control Joints (${length}m)`,
-          quantity: length,
-          unit: 'm',
-          unitPrice: pricePerM,
-          total: Math.round(sawCost * 100) / 100,
-          category: 'labour',
-        });
-        subtotal += sawCost;
+        if (length > 0) {
+          lineItems.push({
+            id: `saw_cutting_${joint.id}`,
+            description: `Saw Cutting - ${jointLabel} (${length}m)`,
+            quantity: length,
+            unit: 'm',
+            unitPrice: pricePerM,
+            total: Math.round(sawCost * 100) / 100,
+            category: 'labour',
+          });
+          subtotal += sawCost;
+        }
       } else {
-        const hours = Number(answers.saw_cut_hours) || 4;
-        const hourlyRate = Number(answers.saw_cut_hourly_rate) || getPrice(priceMap, 'joint_saw_cutting', 'JOINTCUT HR', 75);
+        // Hourly pricing
+        const hours = joint.hours ?? 4;
+        const hourlyRate = joint.hourly_rate ?? getPrice(priceMap, 'joint_saw_cutting', 'JOINTCUT HR', 75);
         const sawCost = hours * hourlyRate;
 
-        lineItems.push({
-          id: 'saw_cutting',
-          description: `Saw Cutting Control Joints (${hours} hrs)`,
-          quantity: hours,
-          unit: 'hrs',
-          unitPrice: hourlyRate,
-          total: Math.round(sawCost * 100) / 100,
-          category: 'labour',
-        });
-        subtotal += sawCost;
+        if (hours > 0) {
+          lineItems.push({
+            id: `saw_cutting_${joint.id}`,
+            description: `Saw Cutting - ${jointLabel} (${hours} hrs)`,
+            quantity: hours,
+            unit: 'hrs',
+            unitPrice: hourlyRate,
+            total: Math.round(sawCost * 100) / 100,
+            category: 'labour',
+          });
+          subtotal += sawCost;
+        }
       }
-    }
 
-    // Caulking
-    if (answers.caulking_required) {
-      if (answers.caulking_method === 'per_metre') {
-        const length = Number(answers.caulking_length) || Number(answers.saw_cut_length) || 50;
-        const pricePerM = Number(answers.caulking_price_per_m) || getPrice(priceMap, 'joint_saw_cutting', 'CAULKING', 8);
-        const caulkCost = length * pricePerM;
+      // Caulking cost (if enabled for this joint)
+      if (joint.caulking_required && length > 0) {
+        const caulkingPricePerM = joint.caulking_price_per_m ?? getPrice(priceMap, 'joint_saw_cutting', 'CAULKING', 8);
+        const caulkCost = length * caulkingPricePerM;
 
         lineItems.push({
-          id: 'joint_caulking',
-          description: `Joint Caulking/Sealing (${length}m)`,
+          id: `caulking_${joint.id}`,
+          description: `Joint Caulking - ${jointLabel} (${length}m)`,
           quantity: length,
           unit: 'm',
-          unitPrice: pricePerM,
-          total: Math.round(caulkCost * 100) / 100,
-          category: 'labour',
-        });
-        subtotal += caulkCost;
-      } else {
-        const hours = Number(answers.caulking_hours) || 4;
-        const hourlyRate = Number(answers.caulking_hourly_rate) || getPrice(priceMap, 'joint_saw_cutting', 'CAULKING HRS', 75);
-        const caulkCost = hours * hourlyRate;
-
-        lineItems.push({
-          id: 'joint_caulking',
-          description: `Joint Caulking/Sealing (${hours} hrs)`,
-          quantity: hours,
-          unit: 'hrs',
-          unitPrice: hourlyRate,
+          unitPrice: caulkingPricePerM,
           total: Math.round(caulkCost * 100) / 100,
           category: 'labour',
         });
         subtotal += caulkCost;
       }
-    }
+    });
 
     return {
       moduleId: 'joints-control',
@@ -217,7 +117,11 @@ export const jointsControlModule: EstimateModule = {
       });
     }
 
-    if (!answers.caulking_required) {
+    // Check if ANY joint has caulking enabled
+    const controlJoints: ControlJointConfig[] = answers.control_joints || [];
+    const anyCaulking = controlJoints.some(j => j.caulking_required);
+    
+    if (answers.saw_cutting_required && !anyCaulking) {
       exclusions.push({
         id: 'no_caulking',
         text: 'Caulking/sealing of joints is not included.',
@@ -231,16 +135,21 @@ export const jointsControlModule: EstimateModule = {
   validate: (answers) => {
     const errors: string[] = [];
 
-    if (answers.saw_cutting_required && answers.saw_cutting_method === 'per_metre') {
-      if (!answers.saw_cut_length || answers.saw_cut_length < 1) {
-        errors.push('Please specify the total saw cut length');
+    if (answers.saw_cutting_required) {
+      const controlJoints: ControlJointConfig[] = answers.control_joints || [];
+      
+      if (controlJoints.length === 0) {
+        errors.push('Please add at least one control joint configuration');
       }
-    }
 
-    if (answers.caulking_required && answers.caulking_method === 'per_metre') {
-      if (!answers.caulking_length || answers.caulking_length < 1) {
-        errors.push('Please specify the total caulking length');
-      }
+      controlJoints.forEach((joint, index) => {
+        if (joint.pricing_method === 'per_metre' && (!joint.total_length_m || joint.total_length_m < 0.1)) {
+          errors.push(`Control Joint ${index + 1}: Please specify the total saw cut length`);
+        }
+        if (joint.pricing_method === 'hourly' && (!joint.hours || joint.hours < 0.5)) {
+          errors.push(`Control Joint ${index + 1}: Please specify the number of hours`);
+        }
+      });
     }
 
     return { valid: errors.length === 0, errors };

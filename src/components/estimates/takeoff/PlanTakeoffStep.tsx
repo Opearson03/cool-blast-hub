@@ -161,7 +161,7 @@ export function PlanTakeoffStep({
 
   // Define scope types for different drawing tools
   const POINT_SCOPES = ['piers', 'bollards', 'pit_bases', 'pad_footings'];
-  const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls', 'expansion_joints'];
+  const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls', 'expansion_joints', 'control_joints'];
   
   const isPointScope = activeScope !== null && POINT_SCOPES.includes(activeScope);
   const isLinearScope = activeScope !== null && LINEAR_SCOPES.includes(activeScope);
