@@ -122,6 +122,8 @@ interface SlabBeamMarkupDialogProps {
   // Actions for slab naming step
   onStartEdgeBeams: () => void;
   onSkipAllBeams: () => void;
+  /** Quick action: use slab perimeter as edge beam (skip manual marking) */
+  onUsePerimeterAsEdgeBeam?: () => void;
   
   // Actions for individual beam details
   onSaveBeam: (beamData: { name: string; width: number; depth: number }) => void;
@@ -164,6 +166,7 @@ export function SlabBeamMarkupDialog({
   onStartCountingPods,
   onStartEdgeBeams,
   onSkipAllBeams,
+  onUsePerimeterAsEdgeBeam,
   onSaveBeam,
   onAddAnotherEdgeBeam,
   onFinishEdgeBeams,
@@ -497,13 +500,38 @@ export function SlabBeamMarkupDialog({
               {!isWafflePod && (
                 <>
                   <Separator />
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <Label className="text-sm font-medium">{getEdgeLabel()}</Label>
                     <p className="text-xs text-muted-foreground">
                       {isDriveway 
-                        ? 'Driveways can have thickened edges around the perimeter. Each thickening can have its own name and dimensions.'
-                        : 'Raft slabs typically have thickened edge beams around the perimeter. Each beam can have its own name and dimensions.'}
+                        ? 'Driveways can have thickened edges around the perimeter.'
+                        : 'Raft slabs typically have thickened edge beams around the perimeter.'}
                     </p>
+                    
+                    {/* Quick option: Full perimeter */}
+                    <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
+                      <p className="text-sm font-medium">
+                        Does the {isDriveway ? 'edge thickening' : 'edge beam'} run the full perimeter?
+                      </p>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <Button 
+                          variant="default"
+                          onClick={onUsePerimeterAsEdgeBeam}
+                          className="flex-1 gap-2"
+                          disabled={!onUsePerimeterAsEdgeBeam}
+                        >
+                          <Check className="h-4 w-4" />
+                          Yes ({slabPerimeter.toFixed(1)}m)
+                        </Button>
+                        <Button 
+                          variant="outline"
+                          onClick={onStartEdgeBeams}
+                          className="flex-1"
+                        >
+                          No, Mark Manually
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </>
               )}
@@ -950,8 +978,15 @@ export function SlabBeamMarkupDialog({
                   </>
                 )
               ) : (
-                // Standard slab/driveway flow
+                // Standard slab/driveway flow - only show Cancel/Skip, main actions are inline
                 <>
+                  <Button 
+                    variant="outline" 
+                    onClick={onCancel}
+                    className="w-full sm:w-auto"
+                  >
+                    Cancel
+                  </Button>
                   <Button 
                     variant="secondary" 
                     onClick={onSkipAllBeams}
@@ -959,10 +994,6 @@ export function SlabBeamMarkupDialog({
                   >
                     <SkipForward className="h-4 w-4" />
                     {isDriveway ? 'Skip Thickening' : 'Skip Beams'}
-                  </Button>
-                  <Button onClick={onStartEdgeBeams} className="w-full sm:w-auto gap-1">
-                    {isDriveway ? 'Add Edge Thickening' : 'Add Edge Beam'}
-                    <ArrowRight className="h-4 w-4" />
                   </Button>
                 </>
               )}

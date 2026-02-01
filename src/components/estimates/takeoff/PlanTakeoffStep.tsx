@@ -455,6 +455,53 @@ export function PlanTakeoffStep({
     setActiveTool('polyline');
   }, []);
 
+  // Handler: Use slab perimeter as edge beam (skip manual marking)
+  const handleUsePerimeterAsEdgeBeam = useCallback(() => {
+    if (!pendingSlabData || !currentScale) return;
+    
+    const { slabPoints, slabShapeType } = pendingSlabData;
+    
+    // Convert slab polygon/rectangle to a closed polyline for the edge beam
+    let edgeBeamPoints: TakeoffPoint[];
+    
+    if (slabShapeType === 'polygon') {
+      // Close the polygon by adding first point at end
+      edgeBeamPoints = [...slabPoints, slabPoints[0]];
+    } else {
+      // Rectangle: expand 2 corners into 4 corners + close
+      const [p1, p2] = slabPoints;
+      edgeBeamPoints = [
+        { x: p1.x, y: p1.y },  // top-left
+        { x: p2.x, y: p1.y },  // top-right
+        { x: p2.x, y: p2.y },  // bottom-right
+        { x: p1.x, y: p2.y },  // bottom-left
+        { x: p1.x, y: p1.y },  // close back to top-left
+      ];
+    }
+    
+    // Calculate segments from the closed polyline
+    const segments = edgeBeamPoints.slice(0, -1).map((point, i) => {
+      const nextPoint = edgeBeamPoints[i + 1];
+      const pixelLength = Math.sqrt(
+        Math.pow(nextPoint.x - point.x, 2) + Math.pow(nextPoint.y - point.y, 2)
+      );
+      return {
+        startPoint: point,
+        endPoint: nextPoint,
+        length: pixelLength / currentScale,
+      };
+    });
+    
+    // Cache beam data with pre-calculated perimeter
+    setCachedBeamLength(slabStats.perimeter);
+    setCachedBeamSegments(segments);
+    setCurrentBeamPoints(edgeBeamPoints);
+    
+    // Skip directly to edge_beam_details step
+    setSlabWorkflowStep('edge_beam_details');
+    setShowSlabBeamDialog(true);
+  }, [pendingSlabData, currentScale, slabStats.perimeter]);
+
   // Handler: Skip all beams and save slab only
   const handleSkipAllBeams = useCallback(async () => {
     if (!pendingSlabData || !activeScope || !currentFileId) return;
@@ -1697,6 +1744,7 @@ export function PlanTakeoffStep({
         wafflePodCountingComplete={false} // No longer using counting workflow
         onStartCountingPods={undefined} // No longer using counting workflow
         onStartEdgeBeams={handleStartEdgeBeams}
+        onUsePerimeterAsEdgeBeam={handleUsePerimeterAsEdgeBeam}
         onSkipAllBeams={handleSkipAllBeams}
         onSaveBeam={handleSaveBeam}
         onAddAnotherEdgeBeam={handleAddAnotherEdgeBeam}
