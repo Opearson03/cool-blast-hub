@@ -769,3 +769,41 @@ export interface ControlJointConfig {
   caulking_required: boolean;
   caulking_price_per_m?: number;
 }
+
+/**
+ * Waffle Pod Zone configuration
+ * Each zone represents a distinct area with its own pod specifications
+ * Allows for multiple pod depths within a single estimate (e.g., 100m² of 225mm + 80m² of 300mm)
+ */
+export interface WafflePodZone {
+  id: string;
+  name: string;                    // e.g., "Zone A - Living Areas"
+  
+  // Geometry
+  area: number;                    // m² (from takeoff or manual)
+  perimeter: number;               // m (for edge calculations, optional per-zone)
+  _fromTakeoff?: boolean;
+  _actualArea?: number;
+  _actualPerimeter?: number;
+  
+  // Pod Specifications
+  pod_size: string;                // '1050' | '1090' | '1110' (mm)
+  pod_thickness: string;           // '225' | '275' | '325' | '375' (mm)
+  top_slab_thickness: number;      // mm (default 85)
+  rib_width: number;               // mm (default 110)
+  
+  // Derived/Calculated
+  pod_count: number;               // Total pods in this zone
+  
+  // Rib Reinforcement (per zone)
+  rib_bottom_bars?: number;
+  rib_bottom_bar_size?: string;
+  rib_top_bars?: number;
+  rib_top_bar_size?: string;
+  
+  // Accessories (auto-derived from pod_count)
+  spacer_4way_count?: number;
+  spacer_2way_count?: number;
+  pod_rail_packs?: number;
+  pod_rails_required?: boolean;
+}
