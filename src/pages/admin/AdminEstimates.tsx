@@ -531,105 +531,118 @@ export default function AdminEstimates() {
           </div>
         )}
 
-        {/* Estimates List - Card Layout (All Screens) */}
+        {/* Estimates List - Full Width Cards (like Jobs page) */}
         {!isLoading && (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="space-y-3">
             {filteredEstimates.length === 0 ? (
-              <Card className="sm:col-span-2 xl:col-span-3">
+              <Card>
                 <CardContent className="py-8 text-center text-muted-foreground">
                   {estimates.length === 0 ? "No quotes yet. Create your first estimate!" : "No quotes found"}
                 </CardContent>
               </Card>
             ) : (
-              filteredEstimates.map((estimate) => {
-                const StatusIcon = statusConfig[estimate.status].icon;
-                const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Square;
-                const typeLabel = estimateTypeConfig[estimate.estimate_type]?.label || "Small Slabs";
-                return (
-                  <Card 
-                    key={estimate.id} 
-                    className="overflow-hidden cursor-pointer hover:bg-muted/50 transition-colors"
-                    onClick={() => handleRowClick(estimate)}
-                  >
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <div className="p-1.5 rounded-md bg-muted shrink-0" title={typeLabel}>
-                            <TypeIcon className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="font-semibold truncate">{estimate.estimate_number}</p>
-                            <p className="text-sm text-muted-foreground truncate">{estimate.client_name}</p>
-                          </div>
-                        </div>
-                        <Badge variant={statusConfig[estimate.status].variant} className="gap-1 shrink-0">
-                          <StatusIcon className="w-3 h-3" />
-                          {statusConfig[estimate.status].label}
-                        </Badge>
-                      </div>
-                      
-                      {/* Draft Progress Tracker */}
-                      {estimate.status === "draft" && (
-                        <DraftProgressTracker estimate={estimate} variant="compact" />
-                      )}
-                      
-                      {estimate.description && <p className="text-sm line-clamp-2">{estimate.description}</p>}
-                      <p className="text-xs text-muted-foreground truncate">{estimate.site_address}</p>
-                      
-                      <div className="flex items-center justify-between pt-2 border-t border-border">
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="flex items-center gap-1 text-muted-foreground">
-                            <Calendar className="w-3.5 h-3.5" />
-                            {formatDate(estimate.created_at)}
-                          </span>
-                          <span className="flex items-center gap-1 font-semibold">
-                            <DollarSign className="w-3.5 h-3.5" />
-                            {formatCurrency(estimate.total_amount || 0)}
-                          </span>
-                        </div>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                            <Button variant="ghost" size="icon" className="h-8 w-8">
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={(e) => handleEdit(estimate, e)}>Edit</DropdownMenuItem>
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDuplicatingEstimate(estimate); }}>
-                              <Copy className="w-4 h-4 mr-2" />
-                              Duplicate
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
-                              Mark as Sent
-                            </DropdownMenuItem>
-                            {estimate.status !== "accepted" && (
-                              <DropdownMenuItem onClick={(e) => { 
-                                e.stopPropagation(); 
-                                updateStatusMutation.mutate({ id: estimate.id, status: "accepted" });
-                                handleConvertToJob(estimate);
-                              }}>
-                                <Briefcase className="w-4 h-4 mr-2" />
-                                Accept & Create Job
-                              </DropdownMenuItem>
+              <>
+                <h2 className="text-sm font-medium text-muted-foreground">
+                  Quotes ({filteredEstimates.length})
+                </h2>
+                {filteredEstimates.map((estimate) => {
+                  const StatusIcon = statusConfig[estimate.status].icon;
+                  const TypeIcon = estimateTypeConfig[estimate.estimate_type]?.icon || Square;
+                  const typeLabel = estimateTypeConfig[estimate.estimate_type]?.label || "Small Slabs";
+                  return (
+                    <Card 
+                      key={estimate.id} 
+                      className="cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => handleRowClick(estimate)}
+                    >
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="text-xs text-muted-foreground font-mono">
+                                {estimate.estimate_number}
+                              </span>
+                              <Badge variant={statusConfig[estimate.status].variant} className="gap-1">
+                                <StatusIcon className="w-3 h-3" />
+                                {statusConfig[estimate.status].label}
+                              </Badge>
+                              <Badge variant="outline" className="text-xs" title={typeLabel}>
+                                <TypeIcon className="w-3 h-3 mr-1" />
+                                {typeLabel}
+                              </Badge>
+                            </div>
+                            <h3 className="font-semibold truncate">
+                              {estimate.client_name} - {estimate.site_address.split(",")[0]}
+                            </h3>
+                            <p className="text-sm text-muted-foreground truncate">{estimate.site_address}</p>
+                            {estimate.company_name && (
+                              <p className="text-sm text-muted-foreground">Client: {estimate.company_name}</p>
                             )}
-                            <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
-                              Mark as Declined
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              className="text-destructive"
-                              onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(estimate.id); }}
-                            >
-                              Delete
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })
+                            
+                            {/* Draft Progress Tracker */}
+                            {estimate.status === "draft" && (
+                              <div className="mt-2">
+                                <DraftProgressTracker estimate={estimate} variant="compact" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0 flex flex-col items-end gap-2">
+                            <p className="text-sm font-semibold text-primary">
+                              {formatCurrency(estimate.total_amount || 0)}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {formatDate(estimate.created_at)}
+                            </p>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                  <MoreVertical className="w-4 h-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={(e) => handleEdit(estimate, e)}>Edit</DropdownMenuItem>
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); setDuplicatingEstimate(estimate); }}>
+                                  <Copy className="w-4 h-4 mr-2" />
+                                  Duplicate
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "sent" }); }}>
+                                  Mark as Sent
+                                </DropdownMenuItem>
+                                {estimate.status !== "accepted" && (
+                                  <DropdownMenuItem onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    updateStatusMutation.mutate({ id: estimate.id, status: "accepted" });
+                                    handleConvertToJob(estimate);
+                                  }}>
+                                    <Briefcase className="w-4 h-4 mr-2" />
+                                    Accept & Create Job
+                                  </DropdownMenuItem>
+                                )}
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateStatusMutation.mutate({ id: estimate.id, status: "declined" }); }}>
+                                  Mark as Declined
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
+                                <DropdownMenuItem 
+                                  className="text-destructive"
+                                  onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(estimate.id); }}
+                                >
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </div>
+                        {estimate.description && (
+                          <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
+                            <span className="line-clamp-1">{estimate.description}</span>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </>
             )}
           </div>
         )}
