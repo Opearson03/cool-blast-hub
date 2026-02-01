@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem, PumpVisit, LabourPlacement } from "@/lib/estimate-components/types";
+import { ComponentQuestion, EstimateModule, CostLineItem, BeamConfig, MeasurementArea, PierGroup, FootingConfig, LinearSection, PadFootingGroup, ExtraItem, PumpVisit, LabourPlacement, ExpansionJointConfig } from "@/lib/estimate-components/types";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -42,6 +42,7 @@ import { WafflePodToppingMeshInput } from "./WafflePodToppingMeshInput";
 import { ExtraItemsInput } from "./ExtraItemsInput";
 import { MultiPumpVisitInput } from "./MultiPumpVisitInput";
 import { MultiPlacementInput } from "./MultiPlacementInput";
+import { MultiExpansionJointInput } from "./MultiExpansionJointInput";
 import { AddCustomItemDialog } from "./AddCustomItemDialog";
 import { formatCurrency } from "@/lib/format-currency";
 import { aggregateRaftReinforcementItems, AggregatedMaterial } from "./shared/aggregateMaterials";
@@ -803,6 +804,25 @@ export function ModuleSection({
                     <MultiPlacementInput
                       placements={(answers.placements || []) as LabourPlacement[]}
                       onChange={(placements) => onAnswerChange('placements', placements)}
+                      priceMap={priceMap}
+                    />
+                  </div>
+                );
+              }
+
+              // Special case: Connections & Joints module renders multi-expansion-joint input
+              if (module.id === 'connections-joints' && answers.expansion_joints_required) {
+                elements.push(
+                  <div key="expansion-joints-section" className="space-y-4">
+                    <div className="flex items-center gap-2 pt-2">
+                      <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        Expansion Joints
+                      </h4>
+                      <div className="flex-1 h-px bg-border" />
+                    </div>
+                    <MultiExpansionJointInput
+                      joints={(answers.expansion_joints || []) as ExpansionJointConfig[]}
+                      onChange={(joints) => onAnswerChange('expansion_joints', joints)}
                       priceMap={priceMap}
                     />
                   </div>

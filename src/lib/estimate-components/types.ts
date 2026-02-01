@@ -706,3 +706,19 @@ export interface LabourPlacement {
   crew_size: number;
   hours: number;           // Hours for this placement
 }
+
+/**
+ * Individual expansion joint configuration for multi-depth joints
+ * Allows specifying different joint depths for slabs with varying thicknesses
+ */
+export interface ExpansionJointConfig {
+  id: string;
+  name?: string;           // Optional label (e.g., "100mm Slab Joints")
+  depth: string;           // Joint depth matching slab thickness: '100', '125', '150', '200'
+  length: string;          // Joint piece length: '3000' or '6000'
+  quantity: number;        // Number of joint pieces
+  price_each: number;      // Price per joint piece
+  capping_required: boolean;
+  capping_type?: string;   // 'EXJ CAP B', 'EXJ CAP G', 'EXJ CAP RBM'
+  capping_price_per_m?: number;
+}
