@@ -25,15 +25,6 @@ export const formworkModule: EstimateModule = {
       helpText: 'Enter total allowance for formwork materials and setup',
       showIf: (answers) => answers.formwork_required === true,
     },
-    // Waffle Pod specific: pods/spacers supply question
-    {
-      id: 'pods_supplied_by_concreter',
-      type: 'boolean',
-      label: 'Pods & Spacers Supplied by Concreter?',
-      defaultValue: false,
-      helpText: 'If Yes, pods and spacers will be included in quote. If No, they are excluded (supply by others).',
-      showIf: (_answers, scopeData) => scopeData?.scopeId === 'waffle_pod',
-    },
   ],
 
   calculate: (answers, priceMap, scopeData): ComponentCost => {
