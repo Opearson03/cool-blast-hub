@@ -1,4 +1,4 @@
-import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, BeamConfig, MeasurementArea, HorizontalBarConfig, VerticalBarConfig } from '../types';
+import type { EstimateModule, ComponentCost, ExclusionItem, CostLineItem, PriceMap, BeamConfig, MeasurementArea, HorizontalBarConfig, VerticalBarConfig, WafflePodZone } from '../types';
 import { getPrice, REBAR_WEIGHTS } from '../types';
 
 /**
@@ -339,98 +339,170 @@ export const reinforcementRaftModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     // WAFFLE POD SPECIFIC REINFORCEMENT (GEOMETRIC CALCULATION)
     // 
-    // Rib Bars: Derived from pod grid dimensions (nx × ny)
-    // - X-direction ribs: (ny + 1) ribs running horizontally
-    // - Y-direction ribs: (nx + 1) ribs running vertically
-    // - Each rib has configurable top/bottom bars
-    // 
-    // Topping Mesh: Selectable coverage area (pod field/full slab/custom)
-    // 
-    // Accessories: Heuristic allowances (editable)
+    // Supports multi-zone waffle pods with different pod depths per zone.
+    // Rib bars are calculated per zone and aggregated.
     // ═══════════════════════════════════════════════════════════════
     const isWafflePod = scopeData?.scopeId === 'waffle_pod';
     if (isWafflePod) {
-      const podCount = Number(scopeData?.pod_count) || 0;
-      const tmChairsCount = Number(scopeData?.tm_chairs_count) || 0;
-      const barChairsCount = Number(scopeData?.bar_chairs_count) || 0;
-      const perimeter = Number(scopeData?.perimeter) || 0;
-      
-      // Pod and rib dimensions
-      const podSizeM = (Number(scopeData?.pod_size) || 1090) / 1000;
-      const ribWidthM = (Number(scopeData?.rib_width) || 110) / 1000;
-      
-      // Get grid dimensions (nx, ny) - derived from pod field or estimated from pod count
-      const nx = Number(scopeData?.pods_x) || 0;
-      const ny = Number(scopeData?.pods_y) || 0;
+      const podZones: WafflePodZone[] = scopeData?.podZones || [];
+      const hasZones = podZones.length > 0;
       
       // Stock length preference
       const stockLength = Number(scopeData?.stock_length) || 6;
-      
+
       // ═══════════════════════════════════════════════════════════════
-      // RIB BAR REINFORCEMENT (SIMPLIFIED FORMULA)
+      // MULTI-ZONE RIB BAR REINFORCEMENT
       // Boss's formula: ribs reo = pods × 2.4 (per layer)
-      // This gives total linear metres of bar per layer of reinforcement
+      // Calculate per zone for different configurations
       // ═══════════════════════════════════════════════════════════════
-      if (podCount > 0) {
-        // Total rib length per layer = pods × 2.4 metres
-        const ribLengthPerLayerM = podCount * 2.4;
-        
-        // Bottom bars configuration
-        const bottomBarsPerRib = Number(scopeData?.rib_bottom_bars) || 2;
-        const bottomBarSize = String(scopeData?.rib_bottom_bar_size || 'N12');
-        const bottomBarWeight = REBAR_WEIGHTS[bottomBarSize] || 0.888;
-        
-        // Top bars configuration  
-        const topBarsPerRib = Number(scopeData?.rib_top_bars) || 1;
-        const topBarSize = String(scopeData?.rib_top_bar_size || 'N12');
-        const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
-        
-        // Calculate bottom bar totals with lap allowance
-        const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
-        const bottomWeightKg = bottomTotalLength * bottomBarWeight;
-        const bottomStockQty = Math.ceil(bottomTotalLength / stockLength);
-        
-        // Calculate top bar totals with lap allowance
-        const topTotalLength = ribLengthPerLayerM * topBarsPerRib * LAP_ALLOWANCE;
-        const topWeightKg = topTotalLength * topBarWeight;
-        const topStockQty = Math.ceil(topTotalLength / stockLength);
-        
-        // Price per tonne for rebar
-        const rebarPricePerTonne = getPrice(priceMap, 'rebar', `${bottomBarSize} CB`, 2100);
-        
-        // Bottom bars line item
-        if (bottomBarsPerRib > 0 && bottomTotalLength > 0) {
-          const bottomCost = (bottomWeightKg / 1000) * rebarPricePerTonne;
+      if (hasZones) {
+        // Aggregate rib bars by size for combined line items
+        const ribBarsBySize: Record<string, { 
+          totalLength: number; 
+          weight: number; 
+          position: 'bottom' | 'top';
+          zones: string[];
+        }> = {};
+
+        podZones.forEach(zone => {
+          const zonePodCount = Number(zone.pod_count) || 0;
+          if (zonePodCount === 0) return;
+          
+          // Total rib length per layer = pods × 2.4 metres
+          const ribLengthPerLayerM = zonePodCount * 2.4;
+          
+          // Bottom bars configuration
+          const bottomBarsPerRib = Number(zone.rib_bottom_bars) || 2;
+          const bottomBarSize = String(zone.rib_bottom_bar_size || 'N12');
+          const bottomBarWeight = REBAR_WEIGHTS[bottomBarSize] || 0.888;
+          
+          // Top bars configuration  
+          const topBarsPerRib = Number(zone.rib_top_bars) || 1;
+          const topBarSize = String(zone.rib_top_bar_size || 'N12');
+          const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
+          
+          // Calculate bottom bar totals with lap allowance
+          const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
+          const bottomWeightKg = bottomTotalLength * bottomBarWeight;
+          
+          // Aggregate bottom bars
+          const bottomKey = `${bottomBarSize}_bottom`;
+          if (!ribBarsBySize[bottomKey]) {
+            ribBarsBySize[bottomKey] = { totalLength: 0, weight: 0, position: 'bottom', zones: [] };
+          }
+          ribBarsBySize[bottomKey].totalLength += bottomTotalLength;
+          ribBarsBySize[bottomKey].weight += bottomWeightKg;
+          ribBarsBySize[bottomKey].zones.push(zone.name);
+          
+          // Calculate top bar totals with lap allowance
+          if (topBarsPerRib > 0) {
+            const topTotalLength = ribLengthPerLayerM * topBarsPerRib * LAP_ALLOWANCE;
+            const topWeightKg = topTotalLength * topBarWeight;
+            
+            // Aggregate top bars
+            const topKey = `${topBarSize}_top`;
+            if (!ribBarsBySize[topKey]) {
+              ribBarsBySize[topKey] = { totalLength: 0, weight: 0, position: 'top', zones: [] };
+            }
+            ribBarsBySize[topKey].totalLength += topTotalLength;
+            ribBarsBySize[topKey].weight += topWeightKg;
+            ribBarsBySize[topKey].zones.push(zone.name);
+          }
+        });
+
+        // Generate line items for aggregated rib bars
+        Object.entries(ribBarsBySize).forEach(([key, data]) => {
+          const [barSize, position] = key.split('_');
+          const stockQty = Math.ceil(data.totalLength / stockLength);
+          const rebarPricePerTonne = getPrice(priceMap, 'rebar', `${barSize} CB`, 2100);
+          const cost = (data.weight / 1000) * rebarPricePerTonne;
+          
+          const zoneNote = data.zones.length <= 2 
+            ? data.zones.join(' & ') 
+            : `${data.zones.length} zones`;
           
           lineItems.push({
-            id: 'waffle_rib_bottom',
-            description: `Rib Bottom ${bottomBarSize} × ${bottomBarsPerRib} (${bottomStockQty} × ${stockLength}m, ${Math.round(bottomWeightKg)}kg)`,
-            quantity: bottomStockQty,
+            id: `waffle_rib_${position}_${barSize}`,
+            description: `Rib ${position === 'bottom' ? 'Bottom' : 'Top'} ${barSize} (${stockQty} × ${stockLength}m, ${Math.round(data.weight)}kg) – ${zoneNote}`,
+            quantity: stockQty,
             unit: 'lengths',
-            unitPrice: Math.round((bottomCost / bottomStockQty) * 100) / 100,
-            total: Math.round(bottomCost * 100) / 100,
+            unitPrice: Math.round((cost / stockQty) * 100) / 100,
+            total: Math.round(cost * 100) / 100,
             category: 'materials',
           });
-          subtotal += bottomCost;
-        }
+          subtotal += cost;
+        });
+      } else {
+        // Legacy single-zone calculation (backward compatibility)
+        const podCount = Number(scopeData?.pod_count) || 0;
         
-        // Top bars line item
-        if (topBarsPerRib > 0 && topTotalLength > 0) {
-          const topRebarPricePerTonne = getPrice(priceMap, 'rebar', `${topBarSize} CB`, 2100);
-          const topCost = (topWeightKg / 1000) * topRebarPricePerTonne;
+        if (podCount > 0) {
+          // Total rib length per layer = pods × 2.4 metres
+          const ribLengthPerLayerM = podCount * 2.4;
           
-          lineItems.push({
-            id: 'waffle_rib_top',
-            description: `Rib Top ${topBarSize} × ${topBarsPerRib} (${topStockQty} × ${stockLength}m, ${Math.round(topWeightKg)}kg)`,
-            quantity: topStockQty,
-            unit: 'lengths',
-            unitPrice: Math.round((topCost / topStockQty) * 100) / 100,
-            total: Math.round(topCost * 100) / 100,
-            category: 'materials',
-          });
-          subtotal += topCost;
+          // Bottom bars configuration
+          const bottomBarsPerRib = Number(scopeData?.rib_bottom_bars) || 2;
+          const bottomBarSize = String(scopeData?.rib_bottom_bar_size || 'N12');
+          const bottomBarWeight = REBAR_WEIGHTS[bottomBarSize] || 0.888;
+          
+          // Top bars configuration  
+          const topBarsPerRib = Number(scopeData?.rib_top_bars) || 1;
+          const topBarSize = String(scopeData?.rib_top_bar_size || 'N12');
+          const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
+          
+          // Calculate bottom bar totals with lap allowance
+          const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
+          const bottomWeightKg = bottomTotalLength * bottomBarWeight;
+          const bottomStockQty = Math.ceil(bottomTotalLength / stockLength);
+          
+          // Calculate top bar totals with lap allowance
+          const topTotalLength = ribLengthPerLayerM * topBarsPerRib * LAP_ALLOWANCE;
+          const topWeightKg = topTotalLength * topBarWeight;
+          const topStockQty = Math.ceil(topTotalLength / stockLength);
+          
+          // Price per tonne for rebar
+          const rebarPricePerTonne = getPrice(priceMap, 'rebar', `${bottomBarSize} CB`, 2100);
+          
+          // Bottom bars line item
+          if (bottomBarsPerRib > 0 && bottomTotalLength > 0) {
+            const bottomCost = (bottomWeightKg / 1000) * rebarPricePerTonne;
+            
+            lineItems.push({
+              id: 'waffle_rib_bottom',
+              description: `Rib Bottom ${bottomBarSize} × ${bottomBarsPerRib} (${bottomStockQty} × ${stockLength}m, ${Math.round(bottomWeightKg)}kg)`,
+              quantity: bottomStockQty,
+              unit: 'lengths',
+              unitPrice: Math.round((bottomCost / bottomStockQty) * 100) / 100,
+              total: Math.round(bottomCost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += bottomCost;
+          }
+          
+          // Top bars line item
+          if (topBarsPerRib > 0 && topTotalLength > 0) {
+            const topRebarPricePerTonne = getPrice(priceMap, 'rebar', `${topBarSize} CB`, 2100);
+            const topCost = (topWeightKg / 1000) * topRebarPricePerTonne;
+            
+            lineItems.push({
+              id: 'waffle_rib_top',
+              description: `Rib Top ${topBarSize} × ${topBarsPerRib} (${topStockQty} × ${stockLength}m, ${Math.round(topWeightKg)}kg)`,
+              quantity: topStockQty,
+              unit: 'lengths',
+              unitPrice: Math.round((topCost / topStockQty) * 100) / 100,
+              total: Math.round(topCost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += topCost;
+          }
         }
       }
+      
+      // Get aggregated values for mesh calculation
+      const tmChairsCount = Number(scopeData?.tm_chairs_count) || 0;
+      const barChairsCount = Number(scopeData?.bar_chairs_count) || 0;
+      const perimeter = Number(scopeData?.perimeter) || 0;
+      const podCount = Number(scopeData?.pod_count) || 0;
       
       // ═══════════════════════════════════════════════════════════════
       // TOPPING SLAB MESH (SELECTABLE COVERAGE AREA)

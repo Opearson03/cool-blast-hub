@@ -1,8 +1,8 @@
 // ============= PODS MODULE =============
 // Handles waffle pod material costs (pods, accessories, spacers)
-// This module is separate from reinforcement as pods are structural void-formers
+// Supports multi-zone waffle pods with different pod depths per zone
 
-import { EstimateModule, ComponentCost, CostLineItem, ExclusionItem, PriceMap } from '../types';
+import { EstimateModule, ComponentCost, CostLineItem, ExclusionItem, PriceMap, WafflePodZone } from '../types';
 
 // Helper to get price with fallback
 function getPrice(priceMap: PriceMap, category: string, itemCode: string, defaultPrice: number): number {
@@ -82,19 +82,138 @@ export const podsModule: EstimateModule = {
       return { moduleId: 'pods', moduleName: 'Pods', lineItems, subtotal, exclusions: [] };
     }
 
+    // Check for multi-zone support
+    const podZones: WafflePodZone[] = scopeData?.podZones || [];
+    const hasZones = podZones.length > 0;
+
+    // ═══════════════════════════════════════════════════════════════
+    // MULTI-ZONE CALCULATION
+    // ═══════════════════════════════════════════════════════════════
+    if (hasZones) {
+      // Aggregate totals per pod thickness for grouped line items
+      const podsByThickness: Record<string, { count: number; zones: string[] }> = {};
+      let totalSpacer4Way = 0;
+      let totalSpacer2Way = 0;
+      let totalPodRailPacks = 0;
+      let anyRailsRequired = false;
+
+      podZones.forEach(zone => {
+        const podCount = Number(zone.pod_count) || 0;
+        const thickness = zone.pod_thickness || '225';
+        
+        // Group pods by thickness
+        if (!podsByThickness[thickness]) {
+          podsByThickness[thickness] = { count: 0, zones: [] };
+        }
+        podsByThickness[thickness].count += podCount;
+        podsByThickness[thickness].zones.push(zone.name);
+
+        // Accumulate accessories
+        totalSpacer4Way += Number(zone.spacer_4way_count) || podCount;
+        totalSpacer2Way += Number(zone.spacer_2way_count) || 0;
+        
+        if (zone.pod_rails_required || (zone.top_slab_thickness || 85) >= 100) {
+          anyRailsRequired = true;
+          totalPodRailPacks += Number(zone.pod_rail_packs) || Math.ceil((podCount * 2) / 20);
+        }
+      });
+
+      // POD SUPPLY - grouped by thickness
+      if (answers.include_pod_supply !== false) {
+        const podPrice = Number(answers.pod_unit_price) || getPrice(priceMap, 'sundries', 'WAFFLEPOD', 14);
+        
+        Object.entries(podsByThickness).forEach(([thickness, data]) => {
+          if (data.count > 0) {
+            const podCost = data.count * podPrice;
+            const zoneNames = data.zones.length <= 2 ? data.zones.join(' & ') : `${data.zones.length} zones`;
+            
+            lineItems.push({
+              id: `waffle_pods_${thickness}`,
+              description: `Waffle Pods ${thickness}mm (${data.count} units) – ${zoneNames}`,
+              quantity: data.count,
+              unit: 'pods',
+              unitPrice: podPrice,
+              total: Math.round(podCost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += podCost;
+          }
+        });
+      }
+
+      // POD RAILS (aggregated across zones)
+      if (answers.include_pod_rails !== false && anyRailsRequired && totalPodRailPacks > 0) {
+        const podRailPrice = Number(answers.pod_rail_price) || getPrice(priceMap, 'sundries', 'PODRAIL', 45);
+        const cost = totalPodRailPacks * podRailPrice;
+        
+        lineItems.push({
+          id: 'pod_rails',
+          description: `Pod Rails (${totalPodRailPacks} packs of 20)`,
+          quantity: totalPodRailPacks,
+          unit: 'packs',
+          unitPrice: podRailPrice,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
+
+      // SPACERS (aggregated)
+      if (answers.include_spacers !== false) {
+        if (totalSpacer4Way > 0) {
+          const spacerPrice = Number(answers.spacer_4way_price) || 2.50;
+          const cost = totalSpacer4Way * spacerPrice;
+          
+          lineItems.push({
+            id: 'spacers_4way',
+            description: `4-Way Spacers (${totalSpacer4Way} units)`,
+            quantity: totalSpacer4Way,
+            unit: 'ea',
+            unitPrice: spacerPrice,
+            total: Math.round(cost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += cost;
+        }
+
+        if (totalSpacer2Way > 0) {
+          const spacerPrice = Number(answers.spacer_2way_price) || 1.80;
+          const cost = totalSpacer2Way * spacerPrice;
+          
+          lineItems.push({
+            id: 'spacers_2way',
+            description: `2-Way Spacers (${totalSpacer2Way} units)`,
+            quantity: totalSpacer2Way,
+            unit: 'ea',
+            unitPrice: spacerPrice,
+            total: Math.round(cost * 100) / 100,
+            category: 'materials',
+          });
+          subtotal += cost;
+        }
+      }
+
+      return {
+        moduleId: 'pods',
+        moduleName: 'Pods',
+        lineItems,
+        subtotal: Math.round(subtotal * 100) / 100,
+        exclusions: [],
+      };
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // LEGACY SINGLE-ZONE CALCULATION (backward compatibility)
+    // ═══════════════════════════════════════════════════════════════
     const podCount = Number(scopeData?.pod_count) || 0;
     const perimeter = Number(scopeData?.perimeter) || 0;
     const topSlabThickness = Number(scopeData?.top_slab_thickness) || 85;
-    const tmChairsCount = Number(scopeData?.tm_chairs_count) || 0;
-    const barChairsCount = Number(scopeData?.bar_chairs_count) || 0;
     const spacer4WayCount = Number(scopeData?.spacer_4way_count) || 0;
     const spacer2WayCount = Number(scopeData?.spacer_2way_count) || 0;
     const podRailsRequired = scopeData?.pod_rails_required === true;
     const podRailPacks = Number(scopeData?.pod_rail_packs) || 0;
 
-    // ═══════════════════════════════════════════════════════════════
     // POD SUPPLY
-    // ═══════════════════════════════════════════════════════════════
     if (answers.include_pod_supply !== false && podCount > 0) {
       const podPrice = Number(answers.pod_unit_price) || getPrice(priceMap, 'sundries', 'WAFFLEPOD', 14);
       const podCost = podCount * podPrice;
@@ -111,9 +230,7 @@ export const podsModule: EstimateModule = {
       subtotal += podCost;
     }
 
-    // ═══════════════════════════════════════════════════════════════
     // POD RAILS (for thicker slabs, 100mm+)
-    // ═══════════════════════════════════════════════════════════════
     if (answers.include_pod_rails !== false && podRailsRequired && podRailPacks > 0) {
       const podRailPrice = Number(answers.pod_rail_price) || getPrice(priceMap, 'sundries', 'PODRAIL', 45);
       const cost = podRailPacks * podRailPrice;
@@ -130,11 +247,8 @@ export const podsModule: EstimateModule = {
       subtotal += cost;
     }
 
-    // ═══════════════════════════════════════════════════════════════
     // SPACERS
-    // ═══════════════════════════════════════════════════════════════
     if (answers.include_spacers !== false) {
-
       // 4-Way Spacers
       if (spacer4WayCount > 0) {
         const spacerPrice = Number(answers.spacer_4way_price) || 2.50;
