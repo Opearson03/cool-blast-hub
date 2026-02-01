@@ -1,131 +1,260 @@
 
-# Fix Manual Input Focus Loss on Driveway Beams
+# Multi-Zone Waffle Pod Support
 
-## Problem Analysis
+## Overview
 
-Manual inputs for driveway edge thickening/beams lose focus or don't work properly when editing dimensions (width, depth, length). This is caused by **React component remounting** due to unstable keys.
-
-### Root Cause
-
-In `MultiBeamTypeInput.tsx`, there's a fundamental key stability issue:
-
-1. **Grouping uses full dimensions**: Line 55 groups beams by `${typeName}-${beam.width}-${beam.depth}` (e.g., `EB1-450-300`)
-
-2. **React key uses only typeName**: Line 274 sets `const stableKey = group.typeName` (e.g., just `EB1`)
-
-3. **The matching function uses stale references**: Lines 114-123 check:
-   ```typescript
-   if (beamType === group.typeName && beam.width === group.width && beam.depth === group.depth)
-   ```
-   This compares against the group's OLD dimensions, which can fail when the component re-renders mid-edit
-
-### Why This Breaks Input
-
-When a user types in a dimension field:
-1. The `onChange` handler receives the new value
-2. State updates and groups are recalculated with new dimensions
-3. The matching logic may fail because it compares against stale group dimensions from the closure
-4. The Input component loses its controlled value sync, causing erratic behavior
-
-This is the same issue that was previously fixed in `MultiLinearTypeInput` and `FootingSectionReinforcementInput` using stable unique keys.
+Adding support for multiple waffle pod zones within a single estimate, where each zone can have different pod specifications (e.g., 100m² of 225mm pods + 100m² of 300mm pods). This is more complex than per-area thickness in regular slabs because different pod depths require different:
+- Pod types/sizes
+- Rib reinforcement configurations
+- Spacer and accessory quantities
+- Volume calculations
 
 ---
 
-## Solution
+## Data Architecture
 
-Apply the same fix that works in `FootingSectionReinforcementInput`:
+### New Type: `WafflePodZone`
 
-### 1. Add `groupKey` to BeamTypeGroup interface
+Each zone represents a distinct area with its own pod specifications:
 
-Store the full grouping key (`typeName-width-depth`) in the group object itself, so the matching logic can use the segment-level data instead of the stale group-level reference.
-
-### 2. Fix matching logic to use segment IDs directly
-
-Instead of comparing dimensions against the group object (which may be stale), update all segments that belong to the group by their IDs:
-
-```typescript
-const updateGroupDimensions = (group: BeamTypeGroup, field: 'width' | 'depth', value: number) => {
-  // Get IDs of all segments in this group
-  const segmentIds = new Set(group.segments.map(s => s.id));
+```text
+interface WafflePodZone {
+  id: string;
+  name: string;                    // e.g., "Zone A - Living Areas"
   
-  const updatedBeams = beams.map(beam => {
-    if (segmentIds.has(beam.id)) {
-      return { ...beam, [field]: value };
-    }
-    return beam;
-  });
-  onChange(updatedBeams);
-};
-```
-
-### 3. Apply same fix to `updateGroupTotalLength` and `deleteGroup`
-
-Use segment IDs instead of dimension-based matching for all group operations.
-
----
-
-## Technical Details
-
-### File to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/estimates/calculators/MultiBeamTypeInput.tsx` | Fix matching logic to use segment IDs instead of stale dimension comparisons |
-
-### Specific Changes
-
-**1. Update `groupBeamsByType` function (lines 49-78)**
-Add a `groupKey` property to track the full key:
-
-```typescript
-interface BeamTypeGroup {
-  typeName: string;
-  width: number;
-  depth: number;
-  segments: BeamConfig[];
-  totalLength: number;
-  totalVolume: number;
-  groupKey: string;  // Add this
+  // Geometry
+  area: number;                    // m² (from takeoff or manual)
+  perimeter: number;               // m (for edge calculations)
+  _fromTakeoff?: boolean;
+  _actualArea?: number;
+  _actualPerimeter?: number;
+  
+  // Pod Specifications
+  pod_size: string;                // '1050' | '1090' | '1110' (mm)
+  pod_thickness: string;           // '225' | '275' | '325' | '375' (mm)
+  top_slab_thickness: number;      // mm (default 85)
+  rib_width: number;               // mm (default 110)
+  
+  // Derived/Calculated
+  pod_count: number;               // Total pods in this zone
+  
+  // Rib Reinforcement (per zone)
+  rib_bottom_bars?: number;
+  rib_bottom_bar_size?: string;
+  rib_top_bars?: number;
+  rib_top_bar_size?: string;
+  
+  // Accessories (auto-derived from pod_count)
+  spacer_4way_count?: number;
+  spacer_2way_count?: number;
+  pod_rail_packs?: number;
 }
 ```
 
-**2. Fix `updateGroupDimensions` (lines 114-123)**
-Change from dimension-based matching to segment ID matching:
+---
 
-```typescript
-const updateGroupDimensions = (group: BeamTypeGroup, field: 'width' | 'depth', value: number) => {
-  const segmentIds = new Set(group.segments.map(s => s.id));
-  const updatedBeams = beams.map(beam => 
-    segmentIds.has(beam.id) ? { ...beam, [field]: value } : beam
-  );
-  onChange(updatedBeams);
-};
+## UI Design
+
+### Multi-Zone Pod Input Component
+
+New component: `MultiWafflePodZoneInput.tsx`
+
+```text
++----------------------------------------------------------+
+| Waffle Pod Zones                    [+ Add Zone] [Expand]|
++----------------------------------------------------------+
+| Summary: 2 zones • 200m² total • 180 pods                |
++----------------------------------------------------------+
+
++----------------------------------------------------------+
+| [v] Zone A - Living Areas                    120m² | 108 |
+|----------------------------------------------------------| 
+|   Pod Size       Pod Depth     Topping     Rib Width     |
+|   [1090mm v]     [225mm v]     [85 mm]     [110 mm]      |
+|                                                          |
+|   Pod Count      Total Height                            |
+|   [108    ]      310mm                                   |
+|                                                          |
+|   Rib Reinforcement  [Configure...]                      |
+|   Bottom: 2×N12  Top: 1×N12                              |
+|                                                          |
+|   [Duplicate]  [Remove]                                  |
++----------------------------------------------------------+
+
++----------------------------------------------------------+
+| [>] Zone B - Garage                           80m² | 72  |
++----------------------------------------------------------+
 ```
 
-**3. Fix `updateGroupTotalLength` (lines 125-157)**
-Apply the same segment ID matching pattern.
-
-**4. Fix `deleteGroup` (lines 159-165)**
-Apply the same segment ID matching pattern.
+### Key Features
+- Each zone is collapsible with summary in header
+- Pod specifications (size, depth, topping, rib width) per zone
+- Pod count per zone (auto-derived or manual)
+- Rib reinforcement configuration per zone
+- Duplicate/remove actions
+- Summary totals across all zones
 
 ---
 
-## Why This Works
+## Calculation Changes
 
-By using segment IDs instead of dimension comparisons:
+### Volume Calculation (scopes.ts)
 
-1. **Segment IDs are stable**: They don't change when dimensions are edited
-2. **No stale closures**: We don't rely on the group's dimensions matching the beams' dimensions
-3. **Immediate updates**: Each keystroke correctly identifies which beams to update
-4. **Consistent with other components**: Same pattern used in `FootingSectionReinforcementInput`
+The `calculateVolume` function will iterate over zones:
+
+```text
+Total Volume = Σ per zone:
+  - V_topping = zone.area × (zone.top_slab_thickness / 1000)
+  - V_pod_field = (zone.area × zone.pod_thickness/1000) - (zone.pod_count × pod_volume)
+  
++ Edge Beams (shared across zones, based on total perimeter)
++ Internal Beams (if any)
+```
+
+### Pods Module (pods.ts)
+
+Aggregate pod counts and accessories across zones:
+
+```text
+for each zone:
+  - Pod supply: zone.pod_count × zone-specific price (if different sizes/depths have different prices)
+  - Spacers: derived from zone.pod_count using standard formulas
+  - Pod rails: zone.pod_count × 2 / 20 packs (if zone.top_slab_thickness >= 100)
+```
+
+### Reinforcement Module (reinforcement-raft.ts)
+
+Rib bar calculations per zone:
+
+```text
+for each zone:
+  - Rib length per layer = zone.pod_count × 2.4m
+  - Bottom bars = rib_length × bottom_bars_per_rib × weight_per_m
+  - Top bars = rib_length × top_bars_per_rib × weight_per_m
+```
+
+---
+
+## Scope Data Structure Changes
+
+### Current Structure
+```text
+scopeAnswers: {
+  area: number,
+  perimeter: number,
+  pod_size: '1090',
+  pod_thickness: '225',
+  top_slab_thickness: 85,
+  pod_count: 150,
+  ...
+}
+```
+
+### New Structure
+```text
+scopeAnswers: {
+  // Aggregated totals (for backward compatibility and summary)
+  area: number,           // Sum of all zones
+  perimeter: number,      // Outer perimeter
+  
+  // Zone array
+  podZones: WafflePodZone[],
+  
+  // Aggregated pod count (sum across zones)
+  pod_count: number,
+  
+  // Global settings (shared)
+  edgeBeams: BeamConfig[],
+  beams: BeamConfig[],    // Internal beams
+}
+```
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/lib/estimate-components/types.ts` | Add `WafflePodZone` interface |
+| `src/lib/estimate-components/scopes.ts` | Update `WAFFLE_POD_SCOPE` questions, volume calculation |
+| `src/components/estimates/calculators/MultiWafflePodZoneInput.tsx` | **New component** for multi-zone UI |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Render new zone input, update derived calculations |
+| `src/lib/estimate-components/modules/pods.ts` | Calculate per-zone pod supply and accessories |
+| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Calculate per-zone rib reinforcement |
+| `src/components/estimates/calculators/WafflePodConfigInput.tsx` | Deprecate or repurpose as single-zone editor |
+
+---
+
+## Migration/Backward Compatibility
+
+Existing estimates with single-zone waffle pod data will be automatically migrated:
+
+```text
+if (!scopeAnswers.podZones && scopeAnswers.pod_count > 0) {
+  // Create single zone from existing data
+  scopeAnswers.podZones = [{
+    id: 'zone-1',
+    name: 'Zone 1',
+    area: scopeAnswers.area,
+    perimeter: scopeAnswers.perimeter,
+    pod_size: scopeAnswers.pod_size,
+    pod_thickness: scopeAnswers.pod_thickness,
+    top_slab_thickness: scopeAnswers.top_slab_thickness,
+    rib_width: scopeAnswers.rib_width,
+    pod_count: scopeAnswers.pod_count,
+    ...
+  }];
+}
+```
+
+---
+
+## Takeoff Integration
+
+When marking up waffle pod areas on plans:
+
+1. **Current behavior**: Single slab area markup populates global pod config
+2. **New behavior**: Each slab area markup can become a separate pod zone with its own specifications
+
+The `SlabBeamMarkupDialog` will allow users to specify pod depth for each marked area, which automatically creates a zone with those specifications.
 
 ---
 
 ## Implementation Sequence
 
-1. Update `BeamTypeGroup` interface to include `groupKey`
-2. Update `groupBeamsByType` to set `groupKey` 
-3. Refactor `updateGroupDimensions` to use segment IDs
-4. Refactor `updateGroupTotalLength` to use segment IDs
-5. Refactor `deleteGroup` to use segment IDs
-6. Test with driveway, raft slab, and other beam-enabled scopes
+1. Add `WafflePodZone` type to `types.ts`
+2. Create `MultiWafflePodZoneInput.tsx` component
+3. Update `ModularCalculator.tsx` to render zone input for waffle pod scope
+4. Update `WAFFLE_POD_SCOPE` in `scopes.ts` with zone-aware volume calculation
+5. Update `pods.ts` module to calculate per-zone accessories
+6. Update `reinforcement-raft.ts` module to calculate per-zone rib bars
+7. Add backward compatibility migration for existing estimates
+8. Test with multiple zones of different pod depths
+
+---
+
+## Technical Considerations
+
+### Price Differentiation
+Different pod sizes/depths may have different unit prices. The UI should allow:
+- Global pod price (applies to all zones)
+- Or per-zone price override (if pods vary in cost)
+
+### Shared vs Per-Zone Elements
+| Element | Scope |
+|---------|-------|
+| Pod specifications | Per zone |
+| Rib reinforcement | Per zone |
+| Pod count | Per zone |
+| Spacers | Per zone |
+| Edge beams | Shared (outer perimeter) |
+| Internal beams | Shared |
+| Topping mesh | Per zone (may vary with pod depth) |
+| Concrete type | Shared |
+
+### Summary Aggregations
+The cost summary will show:
+- Total pods across all zones
+- Total pod cost (sum of per-zone costs)
+- Rib reinforcement grouped by bar size (across zones)
+
