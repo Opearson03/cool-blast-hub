@@ -270,88 +270,6 @@ const ScopeLineItemsSection = ({
   );
 };
 
-// Scope Breakdown Component (quantitative table)
-const ScopeBreakdownSection = ({ 
-  data, 
-  primaryColor, 
-  secondaryColor,
-  template,
-  formatCurrency 
-}: { 
-  data: QuotePDFData; 
-  primaryColor: string; 
-  secondaryColor: string;
-  template: string;
-  formatCurrency: (amount: number) => string;
-}) => {
-  const { scopeBreakdowns } = data;
-  
-  if (scopeBreakdowns.length <= 1) return null;
-
-  if (template === 'minimal') {
-    return (
-      <div className="page-break-avoid mb-10">
-        <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Scope Breakdown</p>
-        <table className="w-full">
-          <thead>
-            <tr style={{ borderBottom: `1px solid ${secondaryColor}` }}>
-              <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Scope</th>
-              <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-24">Volume</th>
-              <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-24">Area</th>
-              <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-32">Details</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scopeBreakdowns.map((scope, index) => (
-              <tr key={index} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                <td className="py-3 text-sm text-gray-700">{scope.scopeName}</td>
-                <td className="py-3 text-sm text-right text-gray-600">{scope.volume.toFixed(2)} m³</td>
-                <td className="py-3 text-sm text-right text-gray-600">{scope.area ? `${scope.area.toFixed(1)} m²` : '—'}</td>
-                <td className="py-3 text-sm text-right text-gray-500">{scope.details || '—'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  // Modern and Classic templates
-  return (
-    <div className="page-break-avoid mb-6">
-      <h3 className={`text-sm font-${template === 'modern' ? 'bold' : 'semibold'} uppercase mb-2`} 
-          style={{ color: template === 'modern' ? secondaryColor : '#6b7280' }}>
-        Scope Breakdown
-      </h3>
-      <table className="w-full border-collapse">
-        <thead>
-          <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-            <th className="text-left py-2 px-3 text-sm font-semibold">Scope</th>
-            <th className="text-right py-2 px-3 text-sm font-semibold w-24">Volume</th>
-            <th className="text-right py-2 px-3 text-sm font-semibold w-24">Area</th>
-            <th className="text-right py-2 px-3 text-sm font-semibold w-32">Details</th>
-          </tr>
-        </thead>
-        <tbody>
-          {scopeBreakdowns.map((scope, index) => (
-            <tr key={index} className="border-b border-gray-200" style={{ backgroundColor: index % 2 === 0 ? "#f9fafb" : "white" }}>
-              <td className="py-2 px-3 text-sm font-medium">{scope.scopeName}</td>
-              <td className="py-2 px-3 text-sm text-right">{scope.volume.toFixed(2)} m³</td>
-              <td className="py-2 px-3 text-sm text-right">{scope.area ? `${scope.area.toFixed(1)} m²` : '—'}</td>
-              <td className="py-2 px-3 text-sm text-right text-gray-500">{scope.details || '—'}</td>
-            </tr>
-          ))}
-          <tr style={{ backgroundColor: "#f3f4f6", fontWeight: "bold" }}>
-            <td className="py-2 px-3 text-sm">Total</td>
-            <td className="py-2 px-3 text-sm text-right">{scopeBreakdowns.reduce((sum, s) => sum + s.volume, 0).toFixed(2)} m³</td>
-            <td className="py-2 px-3 text-sm text-right">{scopeBreakdowns.reduce((sum, s) => sum + (s.area || 0), 0).toFixed(1)} m²</td>
-            <td className="py-2 px-3 text-sm text-right"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  );
-};
 
 // Terms and Exclusions Page Component - NEW (Page 2)
 const TermsAndExclusionsPage = ({ 
@@ -841,14 +759,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             totalAmount={estimate.total_amount}
           />
 
-          {/* Scope Breakdown Table (if multiple scopes) */}
-          <ScopeBreakdownSection 
-            data={quotePDFData} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="modern"
-            formatCurrency={formatCurrency}
-          />
 
           {/* Line Items */}
           {parsedItems.length > 0 && (
@@ -997,14 +907,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             totalAmount={estimate.total_amount}
           />
 
-          {/* Scope Breakdown */}
-          <ScopeBreakdownSection 
-            data={quotePDFData} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="minimal"
-            formatCurrency={formatCurrency}
-          />
 
           {/* Line Items - minimal table */}
           {parsedItems.length > 0 && (
@@ -1155,14 +1057,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           totalAmount={estimate.total_amount}
         />
 
-        {/* Scope Breakdown */}
-        <ScopeBreakdownSection 
-          data={quotePDFData} 
-          primaryColor={primaryColor} 
-          secondaryColor={secondaryColor}
-          template="classic"
-          formatCurrency={formatCurrency}
-        />
 
         {/* Line Items Table (if available) */}
         {parsedItems.length > 0 && (
