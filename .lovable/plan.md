@@ -1,93 +1,175 @@
 
-# Fix: Scopes Appearing in Payment Terms Section of PDF Quotes
+
+# Move Dowels & Expansion Foam into Per-Joint Configuration
 
 ## Problem
 
-Scopes are incorrectly appearing within the "Payment Terms" section on Page 2 of the PDF quotes instead of being properly positioned as line items on Page 1 above the totals.
+Currently, dowels and expansion foam are configured as **global module-level settings**, meaning if you enable them, they apply broadly across the entire estimate. However, in real projects with multiple slab thicknesses (e.g., 100mm and 200mm slabs meeting existing structures):
 
-## Root Cause Analysis
-
-After reviewing the `PrintableEstimate.tsx` file, I found that there are **two** scope-related components rendering on Page 1:
-
-1. **`ScopeLineItemsSection`** (lines 150-271) - Displays scopes as line items with technical descriptions
-2. **`ScopeBreakdownSection`** (lines 273-354) - Displays a quantitative table with volume/area breakdown
-
-Both components render on Page 1, and the `ScopeBreakdownSection` appears **after** `ScopeLineItemsSection`. When there are multiple scopes, this second table can overflow onto Page 2 where it visually appears to be part of the "Payment Terms" section.
-
-Additionally, the `ScopeBreakdownSection` only renders when there are 2+ scopes (line 289: `if (scopeBreakdowns.length <= 1) return null`), but when it does render, it creates duplicate scope information that bleeds across the page break.
+- One joint location might need **dowels only** (tying into an existing slab)
+- Another might need **expansion foam only** (against a wall)
+- A third might need **both** (complex abutment)
 
 ## Solution
 
-### 1. Remove the Duplicate ScopeBreakdownSection
-
-Since `ScopeLineItemsSection` now serves as the primary scope display (with technical specs), the `ScopeBreakdownSection` is redundant and causes the overflow issue.
-
-**Action:** Remove the `ScopeBreakdownSection` component calls from all three templates.
-
-### 2. Ensure Page Break Isolation
-
-Add CSS to ensure content before the page break stays on Page 1 and the Terms page starts cleanly on Page 2.
+Move dowels and expansion foam configuration into each `ExpansionJointConfig` entry, making them per-joint options within the multi-row expansion joint component.
 
 ---
 
 ## Technical Changes
 
-### File: `src/components/estimates/PrintableEstimate.tsx`
+### 1. Update ExpansionJointConfig Interface
 
-#### Change 1: Remove ScopeBreakdownSection from Modern Template
-**Lines 844-851** - Delete these lines:
-```typescript
-// DELETE THIS BLOCK
-{/* Scope Breakdown Table (if multiple scopes) */}
-<ScopeBreakdownSection 
-  data={quotePDFData} 
-  primaryColor={primaryColor} 
-  secondaryColor={secondaryColor}
-  template="modern"
-  formatCurrency={formatCurrency}
-/>
+**File:** `src/lib/estimate-components/types.ts`
+
+Add new fields to the existing interface:
+
+```text
+Current:
+  - id, name, depth, length, quantity, price_each
+  - capping_required, capping_type, capping_price_per_m
+
+New fields to add:
+  - dowels_required: boolean
+  - dowel_size: string
+  - dowel_count: number
+  - dowel_calculation_method: 'manual' | 'spacing'
+  - connection_length: number (when using spacing method)
+  - dowel_spacing: string
+  - dowel_price_each: number
+  - chemical_anchor: boolean
+  - chemical_cartridges: number
+  - chemical_price: number
+  - foam_required: boolean
+  - foam_type: string
+  - foam_height: string
+  - foam_rolls: number
+  - foam_roll_price: number
 ```
 
-#### Change 2: Remove ScopeBreakdownSection from Minimal Template
-**Lines 1000-1007** - Delete these lines:
+### 2. Update MultiExpansionJointInput Component
+
+**File:** `src/components/estimates/calculators/MultiExpansionJointInput.tsx`
+
+Add two new collapsible sub-sections within each joint card (similar to the existing "Capping" section):
+
+**Dowels Sub-Section:**
+- Toggle: "Requires Dowels?"
+- When enabled, show:
+  - Dowel size dropdown (R12-R24 galvanised options)
+  - Quantity method (manual count or spacing calculation)
+  - Quantity/spacing inputs
+  - Price per dowel
+  - Chemical anchor toggle with cartridge count
+
+**Expansion Foam Sub-Section:**
+- Toggle: "Requires Expansion Foam?"
+- When enabled, show:
+  - Foam type dropdown (Sticky Back / Standard)
+  - Foam height dropdown (50-300mm)
+  - Number of rolls
+  - Price per roll
+
+### 3. Update Module Questions
+
+**File:** `src/lib/estimate-components/modules/connections-joints.ts`
+
+**Remove global questions:**
+- `dowels_required` and all its sub-questions (lines 11-126)
+- `foam_required` and all its sub-questions (lines 128-205)
+
+**Keep only:**
+- `expansion_joints_required` (the master toggle)
+
+This simplifies the module to just the expansion joints toggle, with all materials configured per-joint.
+
+### 4. Update Calculate Function
+
+**File:** `src/lib/estimate-components/modules/connections-joints.ts`
+
+Restructure the calculation to iterate through joints and calculate dowels/foam per joint:
+
 ```typescript
-// DELETE THIS BLOCK
-{/* Scope Breakdown */}
-<ScopeBreakdownSection 
-  data={quotePDFData} 
-  primaryColor={primaryColor} 
-  secondaryColor={secondaryColor}
-  template="minimal"
-  formatCurrency={formatCurrency}
-/>
+// For each expansion joint entry:
+expansionJoints.forEach((joint, index) => {
+  // 1. Calculate joint cost (existing)
+  // 2. Calculate capping cost if required (existing)
+  
+  // 3. NEW: Calculate dowels if required for this joint
+  if (joint.dowels_required) {
+    // Calculate dowel count based on method
+    // Add line item for dowels
+    // Add chemical anchor line item if enabled
+  }
+  
+  // 4. NEW: Calculate foam if required for this joint
+  if (joint.foam_required) {
+    // Calculate foam cost
+    // Add line item for foam
+  }
+});
 ```
 
-#### Change 3: Remove ScopeBreakdownSection from Classic Template
-**Lines 1158-1165** - Delete these lines:
+### 5. Update Exclusions Logic
+
+**File:** `src/lib/estimate-components/modules/connections-joints.ts`
+
+Update `getExclusions` to check if ANY joint has dowels/foam:
+
 ```typescript
-// DELETE THIS BLOCK
-{/* Scope Breakdown */}
-<ScopeBreakdownSection 
-  data={quotePDFData} 
-  primaryColor={primaryColor} 
-  secondaryColor={secondaryColor}
-  template="classic"
-  formatCurrency={formatCurrency}
-/>
+// Only exclude dowels if NO joints have dowels configured
+const anyDowels = joints.some(j => j.dowels_required);
+if (!anyDowels) {
+  exclusions.push({ text: 'Dowel bars not included...' });
+}
+
+// Only exclude foam if NO joints have foam configured
+const anyFoam = joints.some(j => j.foam_required);
+if (!anyFoam) {
+  exclusions.push({ text: 'Expansion foam not included...' });
+}
 ```
 
-#### Change 4: (Optional Cleanup) Remove the ScopeBreakdownSection Component Definition
-**Lines 273-354** - The entire component can be removed since it's no longer used.
+### 6. Update Summary Calculation
+
+**File:** `src/components/estimates/calculators/MultiExpansionJointInput.tsx`
+
+Update the `calculateJointCost` function to include dowels and foam costs in the per-joint subtotal and summary display.
 
 ---
 
-## Impact
+## UI Layout (Per Joint Card)
 
-| Before | After |
-|--------|-------|
-| Two scope tables on Page 1 (line items + breakdown) | Single scope line items table on Page 1 |
-| Second scope table overflows into Page 2 Terms section | Clean page break, no overflow |
-| Duplicate scope information | Single, consolidated scope presentation |
+```text
+┌─────────────────────────────────────────────────────┐
+│ ▼ 100mm Joints          5 × 100mm × 3m      $175.00 │
+├─────────────────────────────────────────────────────┤
+│ Label (optional): [                              ]  │
+│                                                     │
+│ ┌─ Depth & Length ────────────────────────────────┐ │
+│ │ Joint Depth: [100mm ▼]    Joint Length: [3m ▼] │ │
+│ └─────────────────────────────────────────────────┘ │
+│                                                     │
+│ ┌─ Quantity & Price ──────────────────────────────┐ │
+│ │ Quantity: [5]             Price Each: [$35.00] │ │
+│ └─────────────────────────────────────────────────┘ │
+│                                                     │
+│ ── Joint Capping Mould ─────────────── [Yes ●○ No] │
+│     Type: [Black ▼]    Price/m: [$4.50]            │
+│                                                     │
+│ ── Dowels Required ────────────────── [Yes ●○ No]  │  ← NEW
+│     Size: [R12 × 300mm Galv ▼]                     │
+│     Method: [Manual ▼]    Qty: [10]                │
+│     Price Each: [$3.50]                            │
+│     [  ] Include chemical anchoring                │
+│                                                     │
+│ ── Expansion Foam Required ─────────── [Yes ●○ No] │  ← NEW
+│     Type: [Sticky Back ▼]    Height: [100mm ▼]     │
+│     Rolls: [1]    Price/Roll: [$30.50]             │
+│                                                     │
+│ [Remove]                                            │
+└─────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -95,30 +177,16 @@ Add CSS to ensure content before the page break stays on Page 1 and the Terms pa
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/PrintableEstimate.tsx` | Remove 3 `ScopeBreakdownSection` calls from templates + optionally remove component definition |
+| `src/lib/estimate-components/types.ts` | Add dowel/foam fields to ExpansionJointConfig |
+| `src/components/estimates/calculators/MultiExpansionJointInput.tsx` | Add Dowels and Foam sub-sections per joint |
+| `src/lib/estimate-components/modules/connections-joints.ts` | Remove global dowel/foam questions, update calculate & exclusions |
 
 ---
 
-## Visual Result
+## Benefits
 
-**Page 1 (Commercial):**
-```text
-├── Header (logo, quote number, date)
-├── Client & Site info
-├── Project Summary (volume, area, etc.)
-├── Scope of Works (line items with technical specs)
-├── Additional Line Items (if any)
-├── Totals (Subtotal, GST, Total)
-└── Footer
-```
+1. **Flexibility**: Each joint location can have exactly what it needs
+2. **Accuracy**: Dowel sizes and foam heights can match each slab's thickness
+3. **Cleaner Module**: No more separate sections - everything is self-contained per joint
+4. **Better UX**: Users configure all related items for a connection point in one place
 
-**Page 2 (Terms & Conditions):**
-```text
-├── Mini Header (logo + "Terms & Conditions")
-├── Payment Terms
-├── Exclusions
-├── Acceptance (signature section)
-└── Footer
-```
-
-Scopes will no longer bleed into the Payment Terms section.
