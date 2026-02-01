@@ -9,9 +9,7 @@ const corsHeaders = {
 interface ResendAttachment {
   filename: string;
   content_type: string;
-  // NOTE: Resend's inbound webhook often does NOT include attachment bytes.
-  // In that case, we must fetch attachments via Resend's Receiving Attachments API.
-  content?: string | null; // base64 encoded (optional)
+  content?: string | null;
 }
 
 interface ResendEmailEvent {
@@ -35,6 +33,14 @@ type ResolvedAttachment = {
   source: 'payload' | 'resend_download';
 };
 
+type DocumentType = 'building_plan' | 'test_result' | 'delivery_docket';
+type MatchStatus = 'pending' | 'job_matched' | 'auto_matched';
+
+// Keywords for document type detection
+const TEST_RESULT_KEYWORDS = ['test', 'lab', 'result', 'mpa', 'strength', 'cylinder', 'slump', '7 day', '28 day', '7-day', '28-day', 'compressive', 'laboratory'];
+const DELIVERY_DOCKET_KEYWORDS = ['docket', 'delivery', 'cartage', 'truck', 'load', 'batch', 'dispatch', 'concrete delivery', 'ticket'];
+const BUILDING_PLAN_KEYWORDS = ['plan', 'plans', 'drawing', 'drawings', 'quote', 'quote request', 'estimate', 'pricing', 'price', 'architectural', 'engineering', 'structural', 'floor plan', 'site plan', 'blueprint', 'specs', 'specification', 'tender', 'rfq', 'request for quote', 'footing', 'slab'];
+
 function isLikelyPdfAttachment(meta: { filename?: string; content_type?: string }): boolean {
   const ct = meta.content_type?.toLowerCase() || '';
   const fn = meta.filename?.toLowerCase() || '';
@@ -48,12 +54,9 @@ function base64ToUint8Array(base64: string): Uint8Array {
   return bytes;
 }
 
-async function resolvePdfAttachments(
-  event: ResendEmailEvent
-): Promise<ResolvedAttachment[]> {
+async function resolvePdfAttachments(event: ResendEmailEvent): Promise<ResolvedAttachment[]> {
   const emailId = event.data?.email_id;
   const raw = event.data?.attachments || [];
-
   const pdfCandidates = raw.filter((a) => isLikelyPdfAttachment(a));
   if (pdfCandidates.length === 0) return [];
 
@@ -79,7 +82,6 @@ async function resolvePdfAttachments(
     }
   }
 
-  // If webhook didn't include bytes, fetch attachments from Resend using email_id.
   if (needsDownload.length > 0) {
     const resendKey = Deno.env.get('RESEND_API_KEY');
     if (!resendKey) {
@@ -91,8 +93,6 @@ async function resolvePdfAttachments(
       return resolved;
     }
 
-    // Resend Receiving API: List attachments
-    // GET https://api.resend.com/emails/receiving/:email_id/attachments
     const listResp = await fetch(
       `https://api.resend.com/emails/receiving/${emailId}/attachments`,
       {
@@ -137,7 +137,6 @@ async function resolvePdfAttachments(
         const resp = await fetch(meta.download_url);
         if (!resp.ok) {
           console.error('Failed to download attachment:', meta.filename, resp.status);
-          // consume body
           await resp.text();
           continue;
         }
@@ -155,7 +154,6 @@ async function resolvePdfAttachments(
     }
   }
 
-  // Deduplicate by filename (keep first)
   const seen = new Set<string>();
   return resolved.filter((a) => {
     if (seen.has(a.filename)) return false;
@@ -164,53 +162,10 @@ async function resolvePdfAttachments(
   });
 }
 
-interface Job {
-  id: string;
-  site_address: string;
-  name: string;
-  job_number: string | null;
-  mpa_strength: string | null;
-}
-
-interface Pour {
-  id: string;
-  job_id: string;
-  pour_date: string | null;
-  pour_name: string;
-  mpa_strength: string | null;
-  docket_numbers: string[] | null;
-  batch_ticket_refs: string[] | null;
-}
-
-interface MatchResult {
-  matchStatus: MatchStatus;
-  matchedJobId: string | null;
-  matchedPourId: string | null;
-  matchConfidence: number;
-  matchReason?: string;
-  suggestedMatches?: SuggestedMatch[];
-}
-
-interface SuggestedMatch {
-  jobId: string;
-  jobName: string;
-  pourId?: string;
-  pourName?: string;
-  score: number;
-  reasons: string[];
-}
-
-type DocumentType = 'test_result' | 'delivery_docket' | 'unknown';
-type MatchStatus = 'pending' | 'job_matched' | 'auto_matched';
-
-// Keywords for document type detection
-const TEST_RESULT_KEYWORDS = ['test', 'lab', 'result', 'mpa', 'strength', 'cylinder', 'slump', '7 day', '28 day', '7-day', '28-day', 'compressive'];
-const DELIVERY_DOCKET_KEYWORDS = ['docket', 'delivery', 'cartage', 'truck', 'load', 'batch', 'dispatch', 'concrete delivery'];
-
 function detectDocumentType(subject: string, filename: string, fromEmail: string): DocumentType {
   const searchText = `${subject} ${filename} ${fromEmail}`.toLowerCase();
   
-  // Check for delivery docket keywords first (more specific)
+  // Check for delivery docket keywords first (most specific)
   for (const keyword of DELIVERY_DOCKET_KEYWORDS) {
     if (searchText.includes(keyword)) {
       return 'delivery_docket';
@@ -224,11 +179,18 @@ function detectDocumentType(subject: string, filename: string, fromEmail: string
     }
   }
   
-  // Default to test result if PDF attached (legacy behavior)
-  return 'test_result';
+  // Check for building plan keywords
+  for (const keyword of BUILDING_PLAN_KEYWORDS) {
+    if (searchText.includes(keyword)) {
+      return 'building_plan';
+    }
+  }
+  
+  // Default to building_plan for PDFs without clear categorization
+  // (most emailed PDFs to a concreter are likely plans for quoting)
+  return 'building_plan';
 }
 
-// Normalize address for fuzzy matching
 function normalizeAddress(addr: string): string {
   if (!addr) return '';
   return addr
@@ -252,20 +214,14 @@ function normalizeAddress(addr: string): string {
     .trim();
 }
 
-// Calculate match confidence between two addresses
 function matchAddresses(extracted: string, jobAddress: string): number {
   const a = normalizeAddress(extracted);
   const b = normalizeAddress(jobAddress);
   
   if (!a || !b) return 0;
-  
-  // Exact match
   if (a === b) return 100;
-  
-  // One contains the other
   if (a.includes(b) || b.includes(a)) return 85;
   
-  // Word overlap calculation
   const aWords = a.split(' ').filter(w => w.length > 2);
   const bWords = b.split(' ').filter(w => w.length > 2);
   const overlap = aWords.filter(w => bWords.includes(w)).length;
@@ -276,7 +232,6 @@ function matchAddresses(extracted: string, jobAddress: string): number {
   return Math.round(score);
 }
 
-// Check if two dates are within a day window
 function datesMatch(extractedDate: string | null, pourDate: string | null, windowDays: number = 2): boolean {
   if (!extractedDate || !pourDate) return false;
   
@@ -291,8 +246,30 @@ function datesMatch(extractedDate: string | null, pourDate: string | null, windo
   }
 }
 
-// Multi-signal matching with weighted scoring
-// Scoring: docket_number=100, batch_ticket=80, job_number=50, address=40, date=30, mpa=20
+interface MatchResult {
+  matchStatus: MatchStatus;
+  matchedJobId: string | null;
+  matchedPourId: string | null;
+  matchConfidence: number;
+  matchReason?: string;
+}
+
+interface Job {
+  id: string;
+  site_address: string;
+  name: string;
+  job_number: string | null;
+  mpa_strength: string | null;
+}
+
+interface Pour {
+  id: string;
+  job_id: string;
+  pour_date: string | null;
+  pour_name: string;
+  mpa_strength: string | null;
+}
+
 async function findBestMatchMultiSignal(
   supabase: any,
   businessId: string,
@@ -307,8 +284,6 @@ async function findBestMatchMultiSignal(
     project_ref?: string | null;
   }
 ): Promise<MatchResult> {
-  const suggestedMatches: SuggestedMatch[] = [];
-  
   // 1. Try docket number match first (definitive - 100 points)
   if (extractedData.docket_number) {
     console.log('Searching for docket number match:', extractedData.docket_number);
@@ -386,7 +361,7 @@ async function findBestMatchMultiSignal(
     if (extractedData.site_address) {
       const addressScore = matchAddresses(extractedData.site_address, job.site_address);
       if (addressScore >= 70) {
-        const points = Math.round(addressScore * 0.4); // Max 40 points
+        const points = Math.round(addressScore * 0.4);
         score += points;
         reasons.push(`Address matched (${addressScore}%)`);
       }
@@ -413,12 +388,10 @@ async function findBestMatchMultiSignal(
     if (pours && pours.length > 0) {
       for (const pour of pours as Pour[]) {
         let thisScore = 0;
-        const pourReasons: string[] = [];
 
         // Date match (30 points)
         if (extractedDate && datesMatch(extractedDate, pour.pour_date)) {
           thisScore += 30;
-          pourReasons.push(`Pour date matched: ${pour.pour_date}`);
         }
 
         // Pour-level MPA match (10 bonus points)
@@ -426,14 +399,12 @@ async function findBestMatchMultiSignal(
           const pourMpa = parseFloat(pour.mpa_strength);
           if (!isNaN(pourMpa) && Math.abs(pourMpa - extractedData.target_mpa) <= 2) {
             thisScore += 10;
-            pourReasons.push(`Pour MPA matched: ${pour.mpa_strength}`);
           }
         }
 
         if (thisScore > pourScore) {
           pourScore = thisScore;
           bestPour = pour;
-          reasons.push(...pourReasons);
         }
       }
     }
@@ -444,24 +415,10 @@ async function findBestMatchMultiSignal(
     }
   }
 
-  // Sort by score and get top matches
   const sortedMatches = Array.from(jobScores.values())
     .sort((a, b) => b.score - a.score)
     .slice(0, 5);
 
-  // Build suggested matches for UI
-  for (const match of sortedMatches) {
-    suggestedMatches.push({
-      jobId: match.job.id,
-      jobName: match.job.name,
-      pourId: match.bestPour?.id,
-      pourName: match.bestPour?.pour_name,
-      score: match.score,
-      reasons: match.reasons
-    });
-  }
-
-  // Determine match status based on top score
   if (sortedMatches.length > 0) {
     const topMatch = sortedMatches[0];
     
@@ -473,37 +430,16 @@ async function findBestMatchMultiSignal(
         matchedJobId: topMatch.job.id,
         matchedPourId: topMatch.bestPour.id,
         matchConfidence: topMatch.score,
-        matchReason: topMatch.reasons.join(', '),
-        suggestedMatches
-      };
-    }
-
-    // Job-only match if score >= 40 but no pour
-    if (topMatch.score >= 40) {
-      console.log('Job matched but needs pour selection:', topMatch.job.name);
-      return {
-        matchStatus: 'pending',
-        matchedJobId: null,
-        matchedPourId: null,
-        matchConfidence: topMatch.score,
-        matchReason: topMatch.reasons.join(', '),
-        suggestedMatches
+        matchReason: topMatch.reasons.join(', ')
       };
     }
   }
 
   console.log('No confident match found');
-  return { 
-    matchStatus: 'pending', 
-    matchedJobId: null, 
-    matchedPourId: null, 
-    matchConfidence: 0,
-    suggestedMatches 
-  };
+  return { matchStatus: 'pending', matchedJobId: null, matchedPourId: null, matchConfidence: 0 };
 }
 
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
@@ -513,7 +449,6 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Parse the webhook payload
     const payload: ResendEmailEvent = await req.json();
     
     console.log('Received email webhook:', {
@@ -522,15 +457,8 @@ serve(async (req) => {
       to: payload.data?.to,
       subject: payload.data?.subject,
       attachmentCount: payload.data?.attachments?.length || 0,
-      attachmentDetails: payload.data?.attachments?.map(a => ({
-        filename: a.filename,
-        content_type: a.content_type,
-        hasContent: !!a.content,
-        contentLength: a.content?.length || 0
-      }))
     });
 
-    // Only process email.received events
     if (payload.type !== 'email.received') {
       console.log('Ignoring non-email.received event:', payload.type);
       return new Response(
@@ -541,7 +469,6 @@ serve(async (req) => {
 
     const { from, to, subject } = payload.data;
 
-    // Extract the alias from the recipient email (e.g., "mullinsconcrete" from "mullinsconcrete@pourhub.au")
     const recipientEmail = to?.[0];
     if (!recipientEmail) {
       console.error('No recipient email found');
@@ -551,7 +478,6 @@ serve(async (req) => {
       );
     }
 
-    // Parse the alias from the email (before @pourhub.au)
     const aliasMatch = recipientEmail.toLowerCase().match(/^([a-z0-9_-]+)@pourhub\.au$/);
     if (!aliasMatch) {
       console.error('Invalid recipient format:', recipientEmail);
@@ -564,7 +490,6 @@ serve(async (req) => {
     const alias = aliasMatch[1];
     console.log('Looking up business with alias:', alias);
 
-    // Look up the business by alias
     const { data: business, error: businessError } = await supabase
       .from('businesses')
       .select('id, name')
@@ -582,39 +507,28 @@ serve(async (req) => {
     console.log('Found business:', business.name, business.id);
 
     const resolvedPdfAttachments = await resolvePdfAttachments(payload);
-    console.log('Resolved PDF attachments:', resolvedPdfAttachments.map(a => ({
-      filename: a.filename,
-      content_type: a.content_type,
-      bytesLength: a.bytes.length,
-      source: a.source,
-    })));
+    console.log('Resolved PDF attachments:', resolvedPdfAttachments.length);
 
     if (resolvedPdfAttachments.length === 0) {
-      console.log(
-        'No PDF attachments could be resolved. Raw attachments:',
-        JSON.stringify((payload.data?.attachments || []).map(a => ({
-          filename: a.filename,
-          content_type: a.content_type,
-          contentLength: (a as any)?.content?.length || 0,
-        })))
-      );
+      console.log('No PDF attachments could be resolved');
       
-      // Still create a pending result record even without PDF
+      // Still create a pending plan record even without PDF (might be just an inquiry)
       const { error: insertError } = await supabase
-        .from('pending_test_results')
+        .from('pending_plans')
         .insert({
           business_id: business.id,
           from_email: from,
+          from_name: null,
           subject: subject || '(No subject)',
           received_at: new Date().toISOString(),
-          extracted_data: { note: 'No PDF attachment could be retrieved from inbound email' },
-          status: 'pending',
-          match_status: 'pending'
+          file_url: '',
+          file_name: 'No attachment',
+          extracted_data: { note: 'No PDF attachment in email' },
+          status: 'pending'
         });
 
       if (insertError) {
-        console.error('Failed to insert pending result:', insertError);
-        throw insertError;
+        console.error('Failed to insert pending plan:', insertError);
       }
 
       return new Response(
@@ -623,7 +537,6 @@ serve(async (req) => {
       );
     }
 
-    // Process each PDF attachment
     const results = [];
     
     for (const attachment of resolvedPdfAttachments) {
@@ -636,19 +549,20 @@ serve(async (req) => {
 
         const pdfContent = attachment.bytes;
         
-        // Check file size (max 10MB)
         if (pdfContent.length > 10 * 1024 * 1024) {
           console.warn('Attachment too large:', attachment.filename);
           continue;
         }
 
-        // Generate unique filename
+        // Generate storage path based on document type
         const timestamp = Date.now();
         const safeFilename = attachment.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const folderPrefix = documentType === 'delivery_docket' ? 'dockets' : 'tests';
+        let folderPrefix = 'plans';
+        if (documentType === 'test_result') folderPrefix = 'tests';
+        else if (documentType === 'delivery_docket') folderPrefix = 'dockets';
+        
         const storagePath = `${business.id}/inbound/${folderPrefix}/${timestamp}_${safeFilename}`;
 
-        // Upload to storage
         const { error: uploadError } = await supabase.storage
           .from('test-documents')
           .upload(storagePath, pdfContent, {
@@ -661,7 +575,6 @@ serve(async (req) => {
           continue;
         }
 
-        // Get public URL
         const { data: urlData } = supabase.storage
           .from('test-documents')
           .getPublicUrl(storagePath);
@@ -669,11 +582,72 @@ serve(async (req) => {
         const fileUrl = urlData.publicUrl;
         console.log('Uploaded to:', fileUrl);
 
-        if (documentType === 'delivery_docket') {
+        // Process based on document type
+        if (documentType === 'building_plan') {
+          // Process as building plan
+          let extractedData: any = {};
+          
+          try {
+            const scanResponse = await fetch(`${supabaseUrl}/functions/v1/scan-test-document`, {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${supabaseServiceKey}`,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ 
+                pdfUrl: fileUrl,
+                documentType: 'building_plan'
+              })
+            });
+
+            if (scanResponse.ok) {
+              const scanResult = await scanResponse.json();
+              if (scanResult.success && scanResult.data) {
+                extractedData = scanResult.data;
+                console.log('Extracted plan data:', extractedData);
+              }
+            } else {
+              console.warn('Scan failed:', await scanResponse.text());
+            }
+          } catch (scanError) {
+            console.error('Error calling scan-test-document:', scanError);
+          }
+
+          // Create pending plan record
+          const { data: pendingPlan, error: insertError } = await supabase
+            .from('pending_plans')
+            .insert({
+              business_id: business.id,
+              from_email: from,
+              from_name: extractedData.client_name || null,
+              subject: subject || '(No subject)',
+              received_at: new Date().toISOString(),
+              file_url: fileUrl,
+              file_name: attachment.filename,
+              extracted_data: extractedData,
+              status: 'pending'
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Failed to insert pending plan:', insertError);
+            continue;
+          }
+
+          results.push({
+            filename: attachment.filename,
+            id: pendingPlan.id,
+            type: 'building_plan',
+            success: true
+          });
+
+          console.log('Created pending plan:', pendingPlan.id);
+
+        } else if (documentType === 'delivery_docket') {
           // Process as delivery docket
           let extractedData: any = {};
           
-          // Try to extract docket data using scan-test-document
           try {
             const scanResponse = await fetch(`${supabaseUrl}/functions/v1/scan-test-document`, {
               method: 'POST',
@@ -700,7 +674,6 @@ serve(async (req) => {
             console.error('Error calling scan-test-document:', scanError);
           }
 
-          // Try to auto-match to a job and pour using multi-signal matching
           const matchResult = await findBestMatchMultiSignal(
             supabase,
             business.id,
@@ -712,9 +685,6 @@ serve(async (req) => {
             }
           );
 
-          console.log('Match result for docket:', matchResult);
-
-          // Create pending document record
           const { data: pendingDoc, error: insertError } = await supabase
             .from('pending_documents')
             .insert({
@@ -723,7 +693,7 @@ serve(async (req) => {
               subject: subject || '(No subject)',
               received_at: new Date().toISOString(),
               file_url: fileUrl,
-               file_name: attachment.filename,
+              file_name: attachment.filename,
               extracted_data: extractedData,
               document_type: 'delivery_docket',
               status: 'pending',
@@ -748,7 +718,7 @@ serve(async (req) => {
             success: true
           });
 
-          console.log('Created pending document:', pendingDoc.id, 'match_status:', matchResult.matchStatus);
+          console.log('Created pending document:', pendingDoc.id);
 
         } else {
           // Process as test result
@@ -767,7 +737,7 @@ serve(async (req) => {
               const scanResult = await scanResponse.json();
               if (scanResult.success && scanResult.data) {
                 extractedData = scanResult.data;
-                console.log('Extracted data:', extractedData);
+                console.log('Extracted test data:', extractedData);
               }
             } else {
               console.warn('Scan failed:', await scanResponse.text());
@@ -776,8 +746,7 @@ serve(async (req) => {
             console.error('Error calling scan-test-document:', scanError);
           }
 
-          // Check for duplicate test result before creating pending record
-          // Match by test_id if we have one, otherwise this is a new unique result
+          // Check for duplicate test result
           if (extractedData.test_id) {
             const { data: existingPending } = await supabase
               .from('pending_test_results')
@@ -787,7 +756,7 @@ serve(async (req) => {
               .filter('extracted_data->>test_id', 'eq', extractedData.test_id);
             
             if (existingPending && existingPending.length > 0) {
-              console.log('Duplicate pending test result found for test_id:', extractedData.test_id, '- skipping');
+              console.log('Duplicate pending test result found:', extractedData.test_id);
               results.push({
                 filename: attachment.filename,
                 type: 'test_result',
@@ -798,7 +767,6 @@ serve(async (req) => {
               continue;
             }
             
-            // Also check if this test_id already exists in concrete_tests
             const { data: existingTest } = await supabase
               .from('concrete_tests')
               .select('id, job_id')
@@ -806,7 +774,7 @@ serve(async (req) => {
               .limit(1);
             
             if (existingTest && existingTest.length > 0) {
-              console.log('Test result already exists in concrete_tests for test_id:', extractedData.test_id, '- skipping');
+              console.log('Test result already exists:', extractedData.test_id);
               results.push({
                 filename: attachment.filename,
                 type: 'test_result',
@@ -818,7 +786,6 @@ serve(async (req) => {
             }
           }
 
-          // Try to auto-match to a job and pour using multi-signal matching
           const matchResult = await findBestMatchMultiSignal(
             supabase,
             business.id,
@@ -834,9 +801,6 @@ serve(async (req) => {
             }
           );
 
-          console.log('Match result for test:', matchResult);
-
-          // Create pending test result record
           const { data: pendingResult, error: insertError } = await supabase
             .from('pending_test_results')
             .insert({
@@ -868,7 +832,7 @@ serve(async (req) => {
             success: true
           });
 
-          console.log('Created pending test result:', pendingResult.id, 'match_status:', matchResult.matchStatus);
+          console.log('Created pending test result:', pendingResult.id);
         }
 
       } catch (attError) {

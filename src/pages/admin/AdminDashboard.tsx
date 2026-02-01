@@ -7,7 +7,7 @@ import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget";
 import { SubbieContactListWidget } from "@/components/dashboard/SubbieContactListWidget";
-import { UnassignedDocketsWidget } from "@/components/dashboard/UnassignedDocketsWidget";
+import { InboxWidget } from "@/components/dashboard/InboxWidget";
 
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -105,7 +105,7 @@ export default function AdminDashboard() {
         {businessId && (
           <>
             <DailyScheduleWidget businessId={businessId} />
-            <UnassignedDocketsWidget businessId={businessId} />
+            <InboxWidget businessId={businessId} />
             <SubbieContactListWidget />
           </>
         )}
