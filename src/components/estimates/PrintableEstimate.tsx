@@ -691,15 +691,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           {/* PAGE 1 - Quote Content */}
           
-          {/* Modern Template - Bold header bar */}
-          <div className="page-break-avoid" style={{ backgroundColor: secondaryColor, padding: "24px", marginBottom: "24px" }}>
+          {/* Modern Template - Bold header banner */}
+          <div className="page-break-avoid" style={{ backgroundColor: secondaryColor, padding: "24px 32px", marginBottom: "24px" }}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-6">
                 {business?.logo_url && (
                   <img
                     src={business.logo_url}
                     alt="Company logo"
-                    style={{ maxHeight: "60px", maxWidth: "120px", width: "auto", height: "auto", objectFit: "contain", backgroundColor: "white", borderRadius: "8px", padding: "4px" }}
+                    style={{ maxHeight: "64px", maxWidth: "140px", width: "auto", height: "auto", objectFit: "contain", backgroundColor: "white", borderRadius: "8px", padding: "8px" }}
                   />
                 )}
                 <div style={{ color: "white" }}>
@@ -708,78 +708,100 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 </div>
               </div>
               <div style={{ color: "white", textAlign: "right" }}>
-                <h2 className="text-3xl font-black tracking-tight">QUOTE</h2>
-                <p className="text-lg font-bold mt-1" style={{ color: primaryColor }}>{estimate.estimate_number}</p>
+                <h2 className="text-2xl font-black tracking-tight">CONCRETE WORK</h2>
+                <h3 className="text-xl font-bold">ESTIMATE</h3>
+                <p className="text-lg font-bold mt-2" style={{ color: primaryColor }}>{estimate.estimate_number}</p>
               </div>
             </div>
           </div>
 
-          {/* Contact strip */}
-          <div className="page-break-avoid flex justify-between mb-6 text-sm" style={{ borderBottom: `3px solid ${primaryColor}`, paddingBottom: "12px" }}>
-            <div className="flex gap-6">
-              {business?.phone && <span>📞 {business.phone}</span>}
-              {business?.email && <span>✉️ {business.email}</span>}
+          {/* Two column client/company info cards */}
+          <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 px-2">
+            <div style={{ backgroundColor: "#f9fafb", padding: "20px", borderRadius: "8px", borderLeft: `4px solid ${primaryColor}` }}>
+              <h3 className="text-sm font-bold uppercase mb-3" style={{ color: primaryColor }}>Client Information</h3>
+              <div className="space-y-1 text-sm">
+                <p><span className="text-gray-500">Name:</span> <span className="font-semibold text-gray-900">{estimate.client_name}</span></p>
+                {estimate.company_name && <p><span className="text-gray-500">Company:</span> <span className="text-gray-900">{estimate.company_name}</span></p>}
+                <p><span className="text-gray-500">Address:</span> <span className="text-gray-900">{estimate.site_address}</span></p>
+                {estimate.client_phone && <p><span className="text-gray-500">Phone:</span> <span className="text-gray-900">{estimate.client_phone}</span></p>}
+                {estimate.client_email && <p><span className="text-gray-500">Email:</span> <span className="text-gray-900">{estimate.client_email}</span></p>}
+              </div>
             </div>
-            <div className="text-gray-600">
-              Date: {format(new Date(estimate.created_at), "d MMMM yyyy")}
-              {estimate.valid_until && ` • Valid until: ${format(new Date(estimate.valid_until), "d MMMM yyyy")}`}
+            <div style={{ backgroundColor: "#f9fafb", padding: "20px", borderRadius: "8px", borderLeft: `4px solid ${secondaryColor}` }}>
+              <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Company Information</h3>
+              <div className="space-y-1 text-sm">
+                <p><span className="text-gray-500">Company:</span> <span className="font-semibold text-gray-900">{business?.name}</span></p>
+                {business?.address && <p><span className="text-gray-500">Address:</span> <span className="text-gray-900">{business.address}</span></p>}
+                {business?.phone && <p><span className="text-gray-500">Phone:</span> <span className="text-gray-900">{business.phone}</span></p>}
+                {business?.email && <p><span className="text-gray-500">Email:</span> <span className="text-gray-900">{business.email}</span></p>}
+              </div>
             </div>
           </div>
 
-          {/* Two column client/site */}
-          <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6">
-            <div style={{ backgroundColor: "#f9fafb", padding: "16px", borderRadius: "8px", borderLeft: `4px solid ${primaryColor}` }}>
-              <h3 className="text-xs font-bold uppercase mb-2" style={{ color: primaryColor }}>Client</h3>
-              <p className="font-bold text-lg text-gray-900">{estimate.client_name}</p>
-              {estimate.company_name && <p className="text-sm text-gray-700">{estimate.company_name}</p>}
-              {estimate.client_email && <p className="text-sm text-gray-600">{estimate.client_email}</p>}
-              {estimate.client_phone && <p className="text-sm text-gray-600">{estimate.client_phone}</p>}
+          {/* Project Description */}
+          {estimate.description && (
+            <div className="page-break-avoid mb-6 px-2">
+              <div style={{ backgroundColor: "#f9fafb", padding: "16px 20px", borderRadius: "8px", borderLeft: `4px solid ${primaryColor}` }}>
+                <h3 className="text-sm font-bold uppercase mb-2" style={{ color: primaryColor }}>Project Description</h3>
+                <p className="text-sm text-gray-700">{estimate.description}</p>
+              </div>
             </div>
-            <div style={{ backgroundColor: "#f9fafb", padding: "16px", borderRadius: "8px", borderLeft: `4px solid ${secondaryColor}` }}>
-              <h3 className="text-xs font-bold uppercase mb-2" style={{ color: secondaryColor }}>Site Location</h3>
-              <p className="text-gray-900">{estimate.site_address}</p>
+          )}
+
+          {/* Date info strip */}
+          <div className="page-break-avoid flex justify-between mb-6 px-2 text-sm text-gray-600">
+            <div>
+              Date: {format(new Date(estimate.created_at), "d MMMM yyyy")}
             </div>
+            {estimate.valid_until && (
+              <div>
+                Valid until: {format(new Date(estimate.valid_until), "d MMMM yyyy")}
+              </div>
+            )}
           </div>
 
           {/* Project Summary */}
-          <ProjectSummarySection 
-            data={quotePDFData} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="modern"
-          />
+          <div className="px-2">
+            <ProjectSummarySection 
+              data={quotePDFData} 
+              primaryColor={primaryColor} 
+              secondaryColor={secondaryColor}
+              template="modern"
+            />
+          </div>
 
           {/* Scope of Works as Line Items - above totals */}
-          <ScopeLineItemsSection 
-            data={quotePDFData} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="modern"
-            formatCurrency={formatCurrency}
-            totalAmount={estimate.total_amount}
-          />
-
+          <div className="px-2">
+            <ScopeLineItemsSection 
+              data={quotePDFData} 
+              primaryColor={primaryColor} 
+              secondaryColor={secondaryColor}
+              template="modern"
+              formatCurrency={formatCurrency}
+              totalAmount={estimate.total_amount}
+            />
+          </div>
 
           {/* Line Items */}
           {parsedItems.length > 0 && (
-            <div className="page-break-avoid mb-6">
+            <div className="page-break-avoid mb-6 px-2">
               <table className="w-full border-collapse">
                 <thead>
                   <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
+                    <th className="text-left py-3 px-4 text-sm font-bold">No</th>
                     <th className="text-left py-3 px-4 text-sm font-bold">Description</th>
                     <th className="text-right py-3 px-4 text-sm font-bold w-20">Qty</th>
                     <th className="text-center py-3 px-4 text-sm font-bold w-16">Unit</th>
-                    <th className="text-right py-3 px-4 text-sm font-bold w-24">Rate</th>
-                    <th className="text-right py-3 px-4 text-sm font-bold w-28">Amount</th>
+                    <th className="text-right py-3 px-4 text-sm font-bold w-28">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {parsedItems.map((item, index) => (
                     <tr key={index} className="border-b border-gray-200" style={{ backgroundColor: index % 2 === 0 ? "#f9fafb" : "white" }}>
+                      <td className="py-3 px-4 text-sm font-medium">{String(index + 1).padStart(2, '0')}</td>
                       <td className="py-3 px-4 text-sm">{item.description}</td>
                       <td className="py-3 px-4 text-sm text-right">{item.quantity}</td>
                       <td className="py-3 px-4 text-sm text-center">{item.unit}</td>
-                      <td className="py-3 px-4 text-sm text-right">{formatCurrency(item.unitPrice)}</td>
                       <td className="py-3 px-4 text-sm text-right font-medium">{formatCurrency(item.total)}</td>
                     </tr>
                   ))}
@@ -789,7 +811,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           )}
 
           {/* Total - Modern style */}
-          <div className="page-break-avoid flex justify-end mb-8">
+          <div className="page-break-avoid flex justify-end mb-8 px-2">
             <div className="w-80" style={{ backgroundColor: "#f9fafb", padding: "20px", borderRadius: "8px" }}>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Subtotal (ex GST)</span>
@@ -804,7 +826,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 </span>
               </div>
               <div className="flex justify-between items-center pt-3" style={{ borderTop: `2px solid ${primaryColor}` }}>
-                <span className="text-lg font-bold text-gray-900">Total (inc GST)</span>
+                <span className="text-lg font-bold text-gray-900">TOTAL (inc GST)</span>
                 <span className="text-2xl font-black" style={{ color: primaryColor }}>
                   {formatCurrency(estimate.total_amount)}
                 </span>
@@ -812,11 +834,17 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             </div>
           </div>
 
-          {/* Page 1 Footer */}
-          <div className="page-break-avoid text-center pt-4 border-t border-gray-200">
-            <p className="text-xs text-gray-500">
-              Thank you for considering {business?.name || "us"} for your project.
-            </p>
+          {/* Notes & Signature */}
+          <div className="page-break-avoid px-2 py-4 border-t border-gray-200">
+            <div className="flex justify-between items-end">
+              <div className="text-sm text-gray-500">
+                <p>Notes: Quote valid for {estimate.quote_validity_days || 14} days</p>
+              </div>
+              <div className="text-right">
+                <p className="text-xs text-gray-500 mb-2">Signature</p>
+                <div className="w-48 border-b-2 border-gray-400"></div>
+              </div>
+            </div>
           </div>
 
           {/* PAGE 2 - Terms & Exclusions */}
@@ -849,43 +877,57 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           {/* PAGE 1 - Quote Content */}
 
-          {/* Minimal Template - Clean & Simple */}
-          <div className="page-break-avoid flex items-start justify-between mb-12">
+          {/* Minimal Template - Company info left, logo right */}
+          <div className="page-break-avoid flex items-start justify-between mb-8">
             <div>
-              {business?.logo_url && (
-                <img
-                  src={business.logo_url}
-                  alt="Company logo"
-                  style={{ maxHeight: "48px", maxWidth: "120px", width: "auto", height: "auto", objectFit: "contain", marginBottom: "8px" }}
-                />
-              )}
-              <h1 className="text-lg font-semibold text-gray-900">{business?.name || "Company Name"}</h1>
-              {business?.abn && <p className="text-xs text-gray-500">ABN: {business.abn}</p>}
+              <h1 className="text-xl font-semibold text-gray-900">{business?.name || "Company Name"}</h1>
+              {business?.address && <p className="text-sm text-gray-500">{business.address}</p>}
+              {business?.phone && <p className="text-sm text-gray-500">{business.phone}</p>}
+              {business?.abn && <p className="text-xs text-gray-400 mt-1">ABN: {business.abn}</p>}
             </div>
-            <div className="text-right">
-              <p className="text-xs uppercase tracking-widest text-gray-400 mb-1">Quote</p>
-              <p className="text-xl font-light" style={{ color: primaryColor }}>{estimate.estimate_number}</p>
-              <p className="text-xs text-gray-500 mt-4">
-                {format(new Date(estimate.created_at), "d MMMM yyyy")}
-              </p>
-            </div>
+            {business?.logo_url && (
+              <img
+                src={business.logo_url}
+                alt="Company logo"
+                style={{ maxHeight: "60px", maxWidth: "140px", width: "auto", height: "auto", objectFit: "contain" }}
+              />
+            )}
           </div>
 
-          {/* Simple divider */}
-          <div className="mb-8" style={{ borderBottom: `1px solid ${primaryColor}` }}></div>
+          {/* Large centered title */}
+          <div className="text-center my-10">
+            <h2 className="text-4xl font-bold tracking-widest" style={{ color: secondaryColor }}>CONCRETE</h2>
+            <h2 className="text-4xl font-bold tracking-widest" style={{ color: secondaryColor }}>ESTIMATE</h2>
+          </div>
 
-          {/* Client & Site - minimal layout */}
+          {/* Bill To and Estimate Meta */}
           <div className="page-break-avoid grid grid-cols-2 gap-12 mb-10">
             <div>
-              <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">To</p>
-              <p className="font-medium text-gray-900">{estimate.client_name}</p>
+              <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Bill To</p>
+              <p className="font-medium text-gray-900 text-lg">{estimate.client_name}</p>
               {estimate.company_name && <p className="text-sm text-gray-600">{estimate.company_name}</p>}
+              <p className="text-sm text-gray-600">{estimate.site_address}</p>
               {estimate.client_email && <p className="text-sm text-gray-500">{estimate.client_email}</p>}
-              {estimate.client_phone && <p className="text-sm text-gray-500">{estimate.client_phone}</p>}
             </div>
-            <div>
-              <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Site</p>
-              <p className="text-gray-900">{estimate.site_address}</p>
+            <div className="text-right">
+              <table className="ml-auto text-sm">
+                <tbody>
+                  <tr>
+                    <td className="text-gray-400 pr-4 py-1">Estimate #</td>
+                    <td className="font-medium text-gray-900">{estimate.estimate_number?.replace('Q-', '') || '0001'}</td>
+                  </tr>
+                  <tr>
+                    <td className="text-gray-400 pr-4 py-1">Estimate Date</td>
+                    <td className="text-gray-900">{format(new Date(estimate.created_at), "dd-MM")}</td>
+                  </tr>
+                  {estimate.valid_until && (
+                    <tr>
+                      <td className="text-gray-400 pr-4 py-1">Due Date</td>
+                      <td className="text-gray-900">{format(new Date(estimate.valid_until), "dd-MM")}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -907,24 +949,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             totalAmount={estimate.total_amount}
           />
 
-
           {/* Line Items - minimal table */}
           {parsedItems.length > 0 && (
             <div className="page-break-avoid mb-10">
               <table className="w-full">
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${secondaryColor}` }}>
-                    <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Item</th>
-                    <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-20">Qty</th>
-                    <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-24">Rate</th>
+                    <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Qty</th>
+                    <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Description</th>
+                    <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-24">Unit</th>
                     <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-28">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
                   {parsedItems.map((item, index) => (
                     <tr key={index} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                      <td className="py-3 text-sm text-gray-600">{item.quantity}</td>
                       <td className="py-3 text-sm text-gray-700">{item.description}</td>
-                      <td className="py-3 text-sm text-right text-gray-600">{item.quantity} {item.unit}</td>
                       <td className="py-3 text-sm text-right text-gray-600">{formatCurrency(item.unitPrice)}</td>
                       <td className="py-3 text-sm text-right text-gray-900">{formatCurrency(item.total)}</td>
                     </tr>
@@ -947,15 +988,29 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               </div>
               <div className="flex justify-between items-center pt-3" style={{ borderTop: `2px solid ${primaryColor}` }}>
                 <span className="text-gray-900 font-medium">Total</span>
-                <span className="text-xl font-light" style={{ color: primaryColor }}>
+                <span className="text-2xl font-light" style={{ color: primaryColor }}>
                   {formatCurrency(estimate.total_amount)}
                 </span>
               </div>
             </div>
           </div>
 
+          {/* Terms section */}
+          <div className="page-break-avoid mb-8">
+            <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Terms & Conditions</p>
+            <p className="text-sm text-gray-600">Payment due in {estimate.quote_validity_days || 14} days</p>
+          </div>
+
+          {/* Signature line */}
+          <div className="page-break-avoid flex justify-end">
+            <div className="text-center">
+              <div className="w-48 border-b border-gray-400 mb-2"></div>
+              <p className="text-xs text-gray-400">Customer Signature</p>
+            </div>
+          </div>
+
           {/* Page 1 Footer - minimal */}
-          <div className="page-break-avoid text-center pt-4" style={{ borderTop: "1px solid #e5e7eb" }}>
+          <div className="page-break-avoid text-center pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
             <div className="text-xs text-gray-400 space-x-4">
               {business?.phone && <span>{business.phone}</span>}
               {business?.email && <span>{business.email}</span>}
@@ -977,7 +1032,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
       );
     }
 
-    // Classic Template (default)
+    // Classic Template (default) - Form-style layout
     return (
       <div
         ref={ref}
@@ -992,134 +1047,184 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
         {/* PAGE 1 - Quote Content */}
 
-        {/* Header with Logo */}
-        <div className="page-break-avoid flex items-start justify-between pb-4 mb-6" style={{ borderBottom: `2px solid ${secondaryColor}` }}>
-          <div className="flex items-start gap-4">
+        {/* Header Banner with Logo */}
+        <div className="page-break-avoid mb-4" style={{ backgroundColor: secondaryColor, padding: "16px 24px" }}>
+          <div className="flex items-center gap-4">
             {business?.logo_url && (
               <img
                 src={business.logo_url}
                 alt="Company logo"
-                style={{ maxHeight: "64px", maxWidth: "140px", width: "auto", height: "auto", objectFit: "contain" }}
+                style={{ maxHeight: "56px", maxWidth: "120px", width: "auto", height: "auto", objectFit: "contain", backgroundColor: "white", borderRadius: "6px", padding: "6px" }}
               />
             )}
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">{business?.name || "Company Name"}</h1>
-              {business?.address && <p className="text-sm text-gray-600">{business.address}</p>}
-              {business?.phone && <p className="text-sm text-gray-600">Ph: {business.phone}</p>}
-              {business?.email && <p className="text-sm text-gray-600">{business.email}</p>}
-              {business?.abn && <p className="text-sm text-gray-600">ABN: {business.abn}</p>}
+            <div className="text-white">
+              <h1 className="text-xl font-bold">CONSTRUCTION QUOTE</h1>
+              <p className="text-sm opacity-80">({business?.name || "Company Name"})</p>
             </div>
           </div>
-          <div className="text-right">
-            <h2 className="text-2xl font-bold text-gray-900">QUOTE</h2>
-            <p className="text-lg font-semibold mt-1" style={{ color: primaryColor }}>{estimate.estimate_number}</p>
-            <p className="text-sm text-gray-600 mt-2">
-              Date: {format(new Date(estimate.created_at), "d MMMM yyyy")}
-            </p>
-            {estimate.valid_until && (
-              <p className="text-sm text-gray-600">
-                Valid Until: {format(new Date(estimate.valid_until), "d MMMM yyyy")}
-              </p>
+        </div>
+
+        {/* Company Details - Form style */}
+        <div className="page-break-avoid mb-4 px-4 py-3 border-b border-gray-200">
+          <div className="space-y-1">
+            <div className="flex">
+              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Company Address:</span>
+              <span className="text-sm text-gray-700">{business?.address || "123 Business Street"}</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Contact Number:</span>
+              <span className="text-sm text-gray-700">{business?.phone || "0400 000 000"}</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Email Address:</span>
+              <span className="text-sm text-gray-700">{business?.email || "email@company.com"}</span>
+            </div>
+            {business?.abn && (
+              <div className="flex">
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>ABN:</span>
+                <span className="text-sm text-gray-700">{business.abn}</span>
+              </div>
             )}
           </div>
         </div>
 
-        {/* Client Details */}
-        <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6">
-          <div>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Bill To</h3>
-            <p className="font-semibold text-gray-900">{estimate.client_name}</p>
-            {estimate.company_name && <p className="text-sm text-gray-700">{estimate.company_name}</p>}
-            {estimate.client_email && <p className="text-sm text-gray-600">{estimate.client_email}</p>}
-            {estimate.client_phone && <p className="text-sm text-gray-600">{estimate.client_phone}</p>}
-          </div>
-          <div>
-            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Site Address</h3>
-            <p className="text-gray-900">{estimate.site_address}</p>
+        {/* TO Section - Client Details */}
+        <div className="page-break-avoid mb-6 px-4 py-3 border-b border-gray-200">
+          <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>TO:</h3>
+          <div className="space-y-1">
+            <div className="flex">
+              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Owner Name:</span>
+              <span className="text-sm text-gray-700">{estimate.client_name}</span>
+            </div>
+            {estimate.company_name && (
+              <div className="flex">
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Company:</span>
+                <span className="text-sm text-gray-700">{estimate.company_name}</span>
+              </div>
+            )}
+            <div className="flex">
+              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Address:</span>
+              <span className="text-sm text-gray-700">{estimate.site_address}</span>
+            </div>
+            {estimate.client_phone && (
+              <div className="flex">
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Contact Number:</span>
+                <span className="text-sm text-gray-700">{estimate.client_phone}</span>
+              </div>
+            )}
+            {estimate.client_email && (
+              <div className="flex">
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Email Address:</span>
+                <span className="text-sm text-gray-700">{estimate.client_email}</span>
+              </div>
+            )}
+            <div className="flex">
+              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Date:</span>
+              <span className="text-sm text-gray-700">{format(new Date(estimate.created_at), "d MMMM yyyy")}</span>
+            </div>
+            <div className="flex">
+              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Quote Number:</span>
+              <span className="text-sm text-gray-700">{estimate.estimate_number}</span>
+            </div>
           </div>
         </div>
 
         {/* Project Summary */}
-        <ProjectSummarySection 
-          data={quotePDFData} 
-          primaryColor={primaryColor} 
-          secondaryColor={secondaryColor}
-          template="classic"
-        />
+        <div className="px-4">
+          <ProjectSummarySection 
+            data={quotePDFData} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="classic"
+          />
+        </div>
 
         {/* Scope of Works as Line Items - above totals */}
-        <ScopeLineItemsSection 
-          data={quotePDFData} 
-          primaryColor={primaryColor} 
-          secondaryColor={secondaryColor}
-          template="classic"
-          formatCurrency={formatCurrency}
-          totalAmount={estimate.total_amount}
-        />
+        <div className="px-4">
+          <ScopeLineItemsSection 
+            data={quotePDFData} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="classic"
+            formatCurrency={formatCurrency}
+            totalAmount={estimate.total_amount}
+          />
+        </div>
 
-
-        {/* Line Items Table (if available) */}
+        {/* Material Description Table with Tax column */}
         {parsedItems.length > 0 && (
-          <div className="page-break-avoid mb-6">
+          <div className="page-break-avoid mb-6 px-4">
             <table className="w-full border-collapse">
               <thead>
                 <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-                  <th className="text-left py-2 px-3 text-sm font-semibold">Description</th>
-                  <th className="text-right py-2 px-3 text-sm font-semibold w-20">Qty</th>
-                  <th className="text-center py-2 px-3 text-sm font-semibold w-16">Unit</th>
-                  <th className="text-right py-2 px-3 text-sm font-semibold w-24">Rate</th>
-                  <th className="text-right py-2 px-3 text-sm font-semibold w-28">Amount</th>
+                  <th className="text-left py-3 px-4 text-sm font-bold">Material Description</th>
+                  <th className="text-right py-3 px-4 text-sm font-bold w-28">Cost</th>
+                  <th className="text-center py-3 px-4 text-sm font-bold w-20">Tax</th>
+                  <th className="text-right py-3 px-4 text-sm font-bold w-28">Amount</th>
                 </tr>
               </thead>
               <tbody>
                 {parsedItems.map((item, index) => (
                   <tr key={index} className="border-b border-gray-200">
-                    <td className="py-2 px-3 text-sm">{item.description}</td>
-                    <td className="py-2 px-3 text-sm text-right">{item.quantity}</td>
-                    <td className="py-2 px-3 text-sm text-center">{item.unit}</td>
-                    <td className="py-2 px-3 text-sm text-right">{formatCurrency(item.unitPrice)}</td>
-                    <td className="py-2 px-3 text-sm text-right font-medium">{formatCurrency(item.total)}</td>
+                    <td className="py-3 px-4 text-sm">{item.description}</td>
+                    <td className="py-3 px-4 text-sm text-right">{formatCurrency(item.total / 1.1)}</td>
+                    <td className="py-3 px-4 text-sm text-center">10%</td>
+                    <td className="py-3 px-4 text-sm text-right font-medium">{formatCurrency(item.total)}</td>
                   </tr>
                 ))}
+                {/* Grand Total Row */}
+                <tr style={{ backgroundColor: primaryColor, color: "white" }}>
+                  <td className="py-3 px-4 text-sm font-bold" colSpan={3}>GRAND TOTAL</td>
+                  <td className="py-3 px-4 text-lg text-right font-bold">{formatCurrency(estimate.total_amount)}</td>
+                </tr>
               </tbody>
             </table>
           </div>
         )}
 
-        {/* Total */}
-        <div className="page-break-avoid flex justify-end mb-8">
-          <div className="w-72">
-            <div style={{ borderTop: `2px solid ${secondaryColor}`, paddingTop: "12px" }}>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">Subtotal (ex GST)</span>
-                <span className="text-base font-medium text-gray-700">
-                  {formatCurrency(estimate.total_amount / 1.1)}
-                </span>
-              </div>
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm text-gray-600">GST (10%)</span>
-                <span className="text-base font-medium text-gray-700">
-                  {formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}
-                </span>
-              </div>
-              <div className="flex justify-between items-center pt-2" style={{ borderTop: "1px solid #d1d5db" }}>
-                <span className="text-lg font-bold text-gray-900">Total (inc GST)</span>
-                <span className="text-2xl font-bold" style={{ color: primaryColor }}>
-                  {formatCurrency(estimate.total_amount)}
-                </span>
+        {/* If no line items, show total separately */}
+        {parsedItems.length === 0 && (
+          <div className="page-break-avoid flex justify-end mb-8 px-4">
+            <div className="w-72">
+              <div style={{ borderTop: `2px solid ${secondaryColor}`, paddingTop: "12px" }}>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">Subtotal (ex GST)</span>
+                  <span className="text-base font-medium text-gray-700">
+                    {formatCurrency(estimate.total_amount / 1.1)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-sm text-gray-600">GST (10%)</span>
+                  <span className="text-base font-medium text-gray-700">
+                    {formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}
+                  </span>
+                </div>
+                <div 
+                  className="flex justify-between items-center pt-3 text-white"
+                  style={{ backgroundColor: primaryColor, margin: "-4px", padding: "12px", borderRadius: "4px" }}
+                >
+                  <span className="text-base font-bold">GRAND TOTAL</span>
+                  <span className="text-xl font-bold">
+                    {formatCurrency(estimate.total_amount)}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
 
-        {/* Page 1 Footer */}
-        <div className="page-break-avoid text-center pt-4 border-t border-gray-200">
-          <p className="text-xs text-gray-500">
-            Thank you for considering {business?.name || "us"} for your project.
-          </p>
-          <p className="text-xs text-gray-400 mt-1">
-            Generated by PourHub • {format(new Date(), "d MMM yyyy")}
-          </p>
+        {/* Dual Signature/Date Row */}
+        <div className="page-break-avoid px-4 py-6 border-t border-gray-200">
+          <div className="flex justify-between items-end">
+            <div className="flex-1">
+              <div className="w-48 border-b-2 border-gray-400 mb-2"></div>
+              <p className="text-sm text-gray-500">(Signature)</p>
+            </div>
+            <div className="flex-1 text-right">
+              <div className="w-48 border-b-2 border-gray-400 mb-2 ml-auto"></div>
+              <p className="text-sm text-gray-500">(Date)</p>
+            </div>
+          </div>
         </div>
 
         {/* PAGE 2 - Terms & Exclusions */}
