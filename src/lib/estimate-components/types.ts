@@ -723,6 +723,10 @@ export interface ExpansionJointConfig {
   capping_type?: string;   // 'EXJ CAP B', 'EXJ CAP G', 'EXJ CAP RBM'
   capping_price_per_m?: number;
   
+  // Takeoff measurement fields
+  total_length_m?: number;      // Total measured length in meters (from takeoff or manual)
+  measured_on_plans?: boolean;  // Flag indicating if length came from takeoff
+  
   // Dowels configuration
   dowels_required?: boolean;
   dowel_size?: string;     // 'R12-300 GAL', 'R12-450 GAL', 'R16-300 GAL', etc.

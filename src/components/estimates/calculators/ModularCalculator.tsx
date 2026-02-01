@@ -1549,6 +1549,11 @@ export function ModularCalculator({
                 onScopeDataChange={handleModuleScopeDataChange}
                 priceMap={priceMap}
                 scopeId={scope.id}
+                onRequestJointMarkup={(jointId) => {
+                  // Request markup for expansion joints using format: "expansion_joints:joint:{jointId}"
+                  onRequestMarkup?.(`expansion_joints:joint:${jointId}`);
+                }}
+                hasPlans={hasPlans}
               />
             );
           })}

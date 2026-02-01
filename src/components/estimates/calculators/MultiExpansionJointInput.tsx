@@ -17,7 +17,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Ruler, Plus, Trash2, Settings2, ChevronsUpDown } from "lucide-react";
+import { ChevronDown, ChevronRight, Ruler, Plus, Trash2, Settings2, ChevronsUpDown, MapPin, Check } from "lucide-react";
 import { useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format-currency";
@@ -108,12 +108,16 @@ interface MultiExpansionJointInputProps {
   joints: ExpansionJointConfig[];
   onChange: (joints: ExpansionJointConfig[]) => void;
   priceMap?: PriceMap;
+  onRequestMarkup?: (jointId: string) => void;
+  hasPlans?: boolean;
 }
 
 export function MultiExpansionJointInput({
   joints,
   onChange,
   priceMap,
+  onRequestMarkup,
+  hasPlans = false,
 }: MultiExpansionJointInputProps) {
   const [openJoints, setOpenJoints] = useState<Set<string>>(new Set(joints.length > 0 ? [joints[0].id] : []));
 
@@ -138,6 +142,13 @@ export function MultiExpansionJointInput({
     }
   }, [joints, openJoints]);
 
+  // Calculate quantity from total length
+  const calculateQuantityFromLength = useCallback((totalLengthM: number, jointPieceLengthMM: string): number => {
+    if (!totalLengthM || totalLengthM <= 0) return 0;
+    const pieceLengthM = Number(jointPieceLengthMM) / 1000; // 3m or 6m
+    return Math.ceil(totalLengthM / pieceLengthM);
+  }, []);
+
   const addJoint = useCallback(() => {
     const defaultDepth = '100';
     const defaultLength = '3000';
@@ -150,11 +161,14 @@ export function MultiExpansionJointInput({
       name: '',
       depth: defaultDepth,
       length: defaultLength,
-      quantity: 5,
+      quantity: 0, // Default to 0, will be calculated from total_length_m
       price_each: getJointPrice(defaultDepth, defaultLength, priceMap),
       capping_required: false,
       capping_type: 'EXJ CAP B',
       capping_price_per_m: getCappingPrice('EXJ CAP B', priceMap),
+      // Takeoff measurement fields
+      total_length_m: 0,
+      measured_on_plans: false,
       // Dowels defaults
       dowels_required: false,
       dowel_size: defaultDowelSize,
@@ -180,9 +194,21 @@ export function MultiExpansionJointInput({
 
   const updateJoint = useCallback((index: number, updates: Partial<ExpansionJointConfig>) => {
     const newJoints = [...joints];
-    newJoints[index] = { ...newJoints[index], ...updates };
+    const currentJoint = newJoints[index];
+    const updatedJoint = { ...currentJoint, ...updates };
+    
+    // Auto-calculate quantity when total_length_m or joint length changes
+    if (updates.total_length_m !== undefined || updates.length !== undefined) {
+      const totalLength = updates.total_length_m ?? currentJoint.total_length_m ?? 0;
+      const jointLength = updates.length ?? currentJoint.length ?? '3000';
+      if (totalLength > 0) {
+        updatedJoint.quantity = calculateQuantityFromLength(totalLength, jointLength);
+      }
+    }
+    
+    newJoints[index] = updatedJoint;
     onChange(newJoints);
-  }, [joints, onChange]);
+  }, [joints, onChange, calculateQuantityFromLength]);
 
   const removeJoint = useCallback((index: number) => {
     const newJoints = joints.filter((_, i) => i !== index);
@@ -387,15 +413,67 @@ export function MultiExpansionJointInput({
                       </div>
                     </div>
 
+                    {/* Total Length - Takeoff Integration */}
+                    <div className="space-y-2 pt-3 border-t">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-xs font-medium">Total Joint Length</Label>
+                        {joint.measured_on_plans && (
+                          <Badge variant="secondary" className="text-[10px] h-4 gap-1">
+                            <Check className="h-3 w-3" />
+                            Measured
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="relative flex-1">
+                          <Input
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={joint.total_length_m || ''}
+                            onChange={(e) => updateJoint(index, { 
+                              total_length_m: e.target.value === '' ? 0 : Number(e.target.value),
+                              measured_on_plans: false // Clear measured flag when manually edited
+                            })}
+                            placeholder="0"
+                            className="h-9 text-sm pr-8"
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">m</span>
+                        </div>
+                        {hasPlans && onRequestMarkup && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => onRequestMarkup(joint.id)}
+                            className="h-9 gap-1.5 shrink-0"
+                          >
+                            <MapPin className="h-3.5 w-3.5" />
+                            Mark on Plans
+                          </Button>
+                        )}
+                      </div>
+                      {(joint.total_length_m ?? 0) > 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          Auto-calculated: {Math.ceil((joint.total_length_m || 0) / (Number(joint.length) / 1000))} pieces needed ({joint.total_length_m}m ÷ {Number(joint.length) / 1000}m each)
+                        </p>
+                      )}
+                    </div>
+
                     {/* Quantity & Price */}
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Quantity</Label>
+                        <Label className="text-xs font-medium">
+                          Quantity
+                          {(joint.total_length_m ?? 0) > 0 && (
+                            <span className="text-muted-foreground font-normal ml-1">(auto)</span>
+                          )}
+                        </Label>
                         <Input
                           type="number"
-                          min="1"
+                          min="0"
                           value={joint.quantity}
-                          onChange={(e) => updateJoint(index, { quantity: Number(e.target.value) || 1 })}
+                          onChange={(e) => updateJoint(index, { quantity: Number(e.target.value) || 0 })}
                           className="h-9 text-sm"
                         />
                       </div>
