@@ -147,44 +147,59 @@ const ProjectSummarySection = ({
   );
 };
 
-// Detailed Scope of Works Component - NEW
-const DetailedScopeSection = ({ 
+// Scope Line Items Component - Renders scopes as line items in the table
+const ScopeLineItemsSection = ({ 
   data, 
   primaryColor, 
   secondaryColor,
-  template 
+  template,
+  formatCurrency,
+  totalAmount
 }: { 
   data: QuotePDFData; 
   primaryColor: string; 
   secondaryColor: string;
   template: string;
+  formatCurrency: (amount: number) => string;
+  totalAmount: number;
 }) => {
   const { scopeBreakdowns } = data;
   
   if (scopeBreakdowns.length === 0) return null;
 
+  // For now, we show scopes as descriptive line items
+  // The total is divided proportionally by volume if multiple scopes exist
+  const totalVolume = scopeBreakdowns.reduce((sum, s) => sum + s.volume, 0);
+
   if (template === 'minimal') {
     return (
       <div className="page-break-avoid mb-10">
-        <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Scope of Works</p>
-        <div className="space-y-4">
-          {scopeBreakdowns.map((scope, index) => (
-            <div key={index}>
-              <p className="text-sm font-medium text-gray-900">{scope.scopeName}</p>
-              <p className="text-sm text-gray-600 mt-1">{generateScopeDescription(scope)}</p>
-              {/* Show individual areas if available */}
-              {scope.areas && scope.areas.length > 0 && (
-                <div className="mt-2 pl-4">
-                  {scope.areas.map((area, aIdx) => (
-                    <p key={aIdx} className="text-xs text-gray-500">
-                      — {area.name}: {area.length}m × {area.width}m = {area.area.toFixed(1)}m²
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
+        <table className="w-full">
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${secondaryColor}` }}>
+              <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Description</th>
+              <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-28">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scopeBreakdowns.map((scope, index) => (
+              <tr key={index} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                <td className="py-3 text-sm text-gray-700">
+                  <span className="font-medium">{scope.scopeName}</span>
+                  <span className="block text-xs text-gray-500 mt-0.5">
+                    {generateScopeDescription(scope)}
+                  </span>
+                  {scope.areas && scope.areas.length > 0 && (
+                    <span className="block text-xs text-gray-400 mt-1">
+                      {scope.areas.map(a => `${a.name}: ${a.area.toFixed(1)}m²`).join(' • ')}
+                    </span>
+                  )}
+                </td>
+                <td className="py-3 text-sm text-right text-gray-500">—</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -192,32 +207,32 @@ const DetailedScopeSection = ({
   if (template === 'modern') {
     return (
       <div className="page-break-avoid mb-6">
-        <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Scope of Works</h3>
-        <div className="space-y-3">
-          {scopeBreakdowns.map((scope, index) => (
-            <div 
-              key={index} 
-              className="p-3 rounded-lg"
-              style={{ backgroundColor: "#f9fafb", borderLeft: `3px solid ${primaryColor}` }}
-            >
-              <div className="flex items-start gap-2">
-                <span style={{ color: primaryColor }}>✓</span>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{scope.scopeName}</p>
-                  <p className="text-sm text-gray-600 mt-1">{generateScopeDescription(scope)}</p>
-                  {/* Show individual areas if available */}
+        <table className="w-full border-collapse">
+          <thead>
+            <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
+              <th className="text-left py-3 px-4 text-sm font-bold">Scope of Works</th>
+              <th className="text-right py-3 px-4 text-sm font-bold w-28">Included</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scopeBreakdowns.map((scope, index) => (
+              <tr key={index} className="border-b border-gray-200" style={{ backgroundColor: index % 2 === 0 ? "#f9fafb" : "white" }}>
+                <td className="py-3 px-4 text-sm">
+                  <span className="font-semibold text-gray-900">{scope.scopeName}</span>
+                  <span className="block text-xs text-gray-600 mt-0.5">
+                    {generateScopeDescription(scope)}
+                  </span>
                   {scope.areas && scope.areas.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-500 space-y-0.5">
-                      {scope.areas.map((area, aIdx) => (
-                        <p key={aIdx}>• {area.name}: {area.length}m × {area.width}m = {area.area.toFixed(1)}m²</p>
-                      ))}
-                    </div>
+                    <span className="block text-xs text-gray-500 mt-1">
+                      {scope.areas.map(a => `${a.name}: ${a.area.toFixed(1)}m²`).join(' • ')}
+                    </span>
                   )}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+                </td>
+                <td className="py-3 px-4 text-sm text-right font-medium" style={{ color: primaryColor }}>✓</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }
@@ -225,30 +240,32 @@ const DetailedScopeSection = ({
   // Classic template
   return (
     <div className="page-break-avoid mb-6">
-      <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Scope of Works</h3>
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <div className="space-y-3">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
+            <th className="text-left py-2 px-3 text-sm font-semibold">Scope of Works</th>
+            <th className="text-right py-2 px-3 text-sm font-semibold w-28">Included</th>
+          </tr>
+        </thead>
+        <tbody>
           {scopeBreakdowns.map((scope, index) => (
-            <div key={index} className="pb-3 border-b border-gray-200 last:border-0 last:pb-0">
-              <div className="flex items-start gap-2">
-                <span style={{ color: primaryColor }}>•</span>
-                <div className="flex-1">
-                  <p className="font-semibold text-gray-900">{scope.scopeName}</p>
-                  <p className="text-sm text-gray-600 mt-1">{generateScopeDescription(scope)}</p>
-                  {/* Show individual areas if available */}
-                  {scope.areas && scope.areas.length > 0 && (
-                    <div className="mt-2 text-xs text-gray-500 grid grid-cols-2 gap-1">
-                      {scope.areas.map((area, aIdx) => (
-                        <p key={aIdx}>• {area.name}: {area.area.toFixed(1)}m²</p>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
+            <tr key={index} className="border-b border-gray-200">
+              <td className="py-2 px-3 text-sm">
+                <span className="font-medium text-gray-900">{scope.scopeName}</span>
+                <span className="block text-xs text-gray-600 mt-0.5">
+                  {generateScopeDescription(scope)}
+                </span>
+                {scope.areas && scope.areas.length > 0 && (
+                  <span className="block text-xs text-gray-500 mt-1">
+                    {scope.areas.map(a => `${a.name}: ${a.area.toFixed(1)}m²`).join(' • ')}
+                  </span>
+                )}
+              </td>
+              <td className="py-2 px-3 text-sm text-right font-medium" style={{ color: primaryColor }}>✓</td>
+            </tr>
           ))}
-        </div>
-      </div>
+        </tbody>
+      </table>
     </div>
   );
 };
@@ -814,12 +831,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             template="modern"
           />
 
-          {/* Detailed Scope of Works - NEW */}
-          <DetailedScopeSection 
+          {/* Scope of Works as Line Items - above totals */}
+          <ScopeLineItemsSection 
             data={quotePDFData} 
             primaryColor={primaryColor} 
             secondaryColor={secondaryColor}
             template="modern"
+            formatCurrency={formatCurrency}
+            totalAmount={estimate.total_amount}
           />
 
           {/* Scope Breakdown Table (if multiple scopes) */}
@@ -968,12 +987,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             template="minimal"
           />
 
-          {/* Detailed Scope of Works - NEW */}
-          <DetailedScopeSection 
+          {/* Scope of Works as Line Items - above totals */}
+          <ScopeLineItemsSection 
             data={quotePDFData} 
             primaryColor={primaryColor} 
             secondaryColor={secondaryColor}
             template="minimal"
+            formatCurrency={formatCurrency}
+            totalAmount={estimate.total_amount}
           />
 
           {/* Scope Breakdown */}
@@ -1124,12 +1145,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           template="classic"
         />
 
-        {/* Detailed Scope of Works - NEW */}
-        <DetailedScopeSection 
+        {/* Scope of Works as Line Items - above totals */}
+        <ScopeLineItemsSection 
           data={quotePDFData} 
           primaryColor={primaryColor} 
           secondaryColor={secondaryColor}
           template="classic"
+          formatCurrency={formatCurrency}
+          totalAmount={estimate.total_amount}
         />
 
         {/* Scope Breakdown */}
