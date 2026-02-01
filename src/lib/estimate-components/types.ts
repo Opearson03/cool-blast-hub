@@ -710,6 +710,7 @@ export interface LabourPlacement {
 /**
  * Individual expansion joint configuration for multi-depth joints
  * Allows specifying different joint depths for slabs with varying thicknesses
+ * Includes per-joint dowels and expansion foam configuration
  */
 export interface ExpansionJointConfig {
   id: string;
@@ -721,4 +722,23 @@ export interface ExpansionJointConfig {
   capping_required: boolean;
   capping_type?: string;   // 'EXJ CAP B', 'EXJ CAP G', 'EXJ CAP RBM'
   capping_price_per_m?: number;
+  
+  // Dowels configuration
+  dowels_required?: boolean;
+  dowel_size?: string;     // 'R12-300 GAL', 'R12-450 GAL', 'R16-300 GAL', etc.
+  dowel_calculation_method?: 'manual' | 'spacing';
+  dowel_count?: number;    // Manual count
+  connection_length?: number; // metres (when using spacing method)
+  dowel_spacing?: string;  // '200', '250', '300', '400', '450', '600'
+  dowel_price_each?: number;
+  chemical_anchor?: boolean;
+  chemical_cartridges?: number;
+  chemical_price?: number;
+  
+  // Expansion foam configuration
+  foam_required?: boolean;
+  foam_type?: string;      // 'sticky_back' or 'standard'
+  foam_height?: string;    // '50', '75', '100', '125', '150', '200', '250', '300'
+  foam_rolls?: number;
+  foam_roll_price?: number;
 }

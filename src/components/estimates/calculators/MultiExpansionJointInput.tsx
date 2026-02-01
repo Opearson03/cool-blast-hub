@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ import { ChevronDown, ChevronRight, Ruler, Plus, Trash2, Settings2, ChevronsUpDo
 import { useState, useMemo, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format-currency";
+import { getPrice } from "@/lib/estimate-components/types";
 
 const JOINT_DEPTH_OPTIONS = [
   { value: '100', label: '100mm' },
@@ -39,6 +41,41 @@ const CAPPING_TYPE_OPTIONS = [
   { value: 'EXJ CAP RBM', label: 'Removable Capping Mould' },
 ];
 
+const DOWEL_SIZE_OPTIONS = [
+  { value: 'R12-300 GAL', label: 'R12 × 300mm Galvanised' },
+  { value: 'R12-450 GAL', label: 'R12 × 450mm Galvanised' },
+  { value: 'R16-300 GAL', label: 'R16 × 300mm Galvanised' },
+  { value: 'R16-450 GAL', label: 'R16 × 450mm Galvanised' },
+  { value: 'R20-450 GAL', label: 'R20 × 450mm Galvanised' },
+  { value: 'R20-600 GAL', label: 'R20 × 600mm Galvanised' },
+  { value: 'R24-450 GAL', label: 'R24 × 450mm Galvanised' },
+];
+
+const DOWEL_SPACING_OPTIONS = [
+  { value: '200', label: '200mm centres' },
+  { value: '250', label: '250mm centres' },
+  { value: '300', label: '300mm centres' },
+  { value: '400', label: '400mm centres' },
+  { value: '450', label: '450mm centres' },
+  { value: '600', label: '600mm centres' },
+];
+
+const FOAM_TYPE_OPTIONS = [
+  { value: 'sticky_back', label: 'Sticky Back (Self-Adhesive)' },
+  { value: 'standard', label: 'Standard (Non-Adhesive)' },
+];
+
+const FOAM_HEIGHT_OPTIONS = [
+  { value: '50', label: '50mm' },
+  { value: '75', label: '75mm' },
+  { value: '100', label: '100mm' },
+  { value: '125', label: '125mm' },
+  { value: '150', label: '150mm' },
+  { value: '200', label: '200mm' },
+  { value: '250', label: '250mm' },
+  { value: '300', label: '300mm' },
+];
+
 function getJointPrice(depth: string, length: string, priceMap?: PriceMap): number {
   if (!priceMap) return 35;
   const priceKey = `EXJ${depth}${length === '3000' ? '30' : '60'}`;
@@ -48,8 +85,23 @@ function getJointPrice(depth: string, length: string, priceMap?: PriceMap): numb
 function getCappingPrice(cappingType: string, priceMap?: PriceMap): number {
   if (!priceMap) return 4.50;
   const piecePrice = priceMap['joints_expansion']?.[cappingType] ?? 13.50;
-  // Capping pieces are 3m long, so price per metre = piece price / 3
   return piecePrice / 3;
+}
+
+function getDowelPrice(dowelSize: string, priceMap?: PriceMap): number {
+  if (!priceMap) return 3.50;
+  return priceMap['dowel']?.[dowelSize] ?? 3.50;
+}
+
+function getFoamPrice(foamHeight: string, foamType: string, priceMap?: PriceMap): number {
+  if (!priceMap) return 30.50;
+  let priceListKey = '';
+  if (foamType === 'sticky_back') {
+    priceListKey = `EJA10${foamHeight}SB`;
+  } else {
+    priceListKey = `EJ10${foamHeight}`;
+  }
+  return priceMap['joint_foam']?.[priceListKey] ?? 30.50;
 }
 
 interface MultiExpansionJointInputProps {
@@ -89,6 +141,10 @@ export function MultiExpansionJointInput({
   const addJoint = useCallback(() => {
     const defaultDepth = '100';
     const defaultLength = '3000';
+    const defaultDowelSize = 'R12-300 GAL';
+    const defaultFoamHeight = '100';
+    const defaultFoamType = 'sticky_back';
+    
     const newJoint: ExpansionJointConfig = {
       id: `joint_${Date.now()}`,
       name: '',
@@ -99,6 +155,23 @@ export function MultiExpansionJointInput({
       capping_required: false,
       capping_type: 'EXJ CAP B',
       capping_price_per_m: getCappingPrice('EXJ CAP B', priceMap),
+      // Dowels defaults
+      dowels_required: false,
+      dowel_size: defaultDowelSize,
+      dowel_calculation_method: 'manual',
+      dowel_count: 10,
+      connection_length: 10,
+      dowel_spacing: '300',
+      dowel_price_each: getDowelPrice(defaultDowelSize, priceMap),
+      chemical_anchor: false,
+      chemical_cartridges: 2,
+      chemical_price: 45,
+      // Foam defaults
+      foam_required: false,
+      foam_type: defaultFoamType,
+      foam_height: defaultFoamHeight,
+      foam_rolls: 1,
+      foam_roll_price: getFoamPrice(defaultFoamHeight, defaultFoamType, priceMap),
     };
     const newJoints = [...joints, newJoint];
     onChange(newJoints);
@@ -116,14 +189,38 @@ export function MultiExpansionJointInput({
     onChange(newJoints);
   }, [joints, onChange]);
 
-  // Calculate joint cost
+  // Calculate joint cost including dowels and foam
   const calculateJointCost = useCallback((joint: ExpansionJointConfig) => {
     let total = 0;
+    
+    // Base joint cost
     total += joint.quantity * joint.price_each;
     
+    // Capping cost
     if (joint.capping_required && joint.capping_price_per_m) {
       const cappingLength = joint.quantity * (Number(joint.length) / 1000);
       total += cappingLength * joint.capping_price_per_m;
+    }
+    
+    // Dowels cost
+    if (joint.dowels_required) {
+      let dowelCount = joint.dowel_count || 10;
+      if (joint.dowel_calculation_method === 'spacing' && joint.connection_length) {
+        const spacingMM = Number(joint.dowel_spacing) || 300;
+        const spacingM = spacingMM / 1000;
+        dowelCount = Math.ceil(joint.connection_length / spacingM) + 1;
+      }
+      total += dowelCount * (joint.dowel_price_each || 3.50);
+      
+      // Chemical anchor
+      if (joint.chemical_anchor) {
+        total += (joint.chemical_cartridges || 2) * (joint.chemical_price || 45);
+      }
+    }
+    
+    // Foam cost
+    if (joint.foam_required) {
+      total += (joint.foam_rolls || 1) * (joint.foam_roll_price || 30.50);
     }
     
     return total;
@@ -191,6 +288,14 @@ export function MultiExpansionJointInput({
           const jointCost = calculateJointCost(joint);
           const depthLabel = JOINT_DEPTH_OPTIONS.find(o => o.value === joint.depth)?.label || joint.depth;
           const lengthLabel = JOINT_LENGTH_OPTIONS.find(o => o.value === joint.length)?.label || joint.length;
+
+          // Calculate dowel count for display
+          let displayDowelCount = joint.dowel_count || 10;
+          if (joint.dowel_calculation_method === 'spacing' && joint.connection_length) {
+            const spacingMM = Number(joint.dowel_spacing) || 300;
+            const spacingM = spacingMM / 1000;
+            displayDowelCount = Math.ceil(joint.connection_length / spacingM) + 1;
+          }
 
           return (
             <Collapsible key={joint.id} open={isOpen} onOpenChange={() => toggleJoint(joint.id)}>
@@ -365,6 +470,291 @@ export function MultiExpansionJointInput({
                                 className="h-9 text-sm pl-6"
                               />
                             </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Dowels Section */}
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Dowels Required</Label>
+                        <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                          <Switch
+                            checked={joint.dowels_required || false}
+                            onCheckedChange={(val) => updateJoint(index, { dowels_required: val })}
+                          />
+                          <span className={cn(
+                            "text-sm min-w-[3ch]",
+                            joint.dowels_required ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                            {joint.dowels_required ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                      </div>
+                      {joint.dowels_required && (
+                        <div className="space-y-3">
+                          {/* Dowel Size */}
+                          <div className="space-y-1.5">
+                            <Label className="text-xs font-medium">Dowel Size</Label>
+                            <Select
+                              value={joint.dowel_size || 'R12-300 GAL'}
+                              onValueChange={(val) => {
+                                updateJoint(index, { 
+                                  dowel_size: val,
+                                  dowel_price_each: getDowelPrice(val, priceMap)
+                                });
+                              }}
+                            >
+                              <SelectTrigger className="h-9 text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent className="z-[150]">
+                                {DOWEL_SIZE_OPTIONS.map((opt) => (
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+
+                          {/* Quantity Method */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium">Quantity Method</Label>
+                              <Select
+                                value={joint.dowel_calculation_method || 'manual'}
+                                onValueChange={(val: 'manual' | 'spacing') => {
+                                  updateJoint(index, { dowel_calculation_method: val });
+                                }}
+                              >
+                                <SelectTrigger className="h-9 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="z-[150]">
+                                  <SelectItem value="manual">Enter count</SelectItem>
+                                  <SelectItem value="spacing">Calculate from length</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {joint.dowel_calculation_method === 'spacing' ? (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">Spacing</Label>
+                                <Select
+                                  value={joint.dowel_spacing || '300'}
+                                  onValueChange={(val) => updateJoint(index, { dowel_spacing: val })}
+                                >
+                                  <SelectTrigger className="h-9 text-sm">
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                  <SelectContent className="z-[150]">
+                                    {DOWEL_SPACING_OPTIONS.map((opt) => (
+                                      <SelectItem key={opt.value} value={opt.value}>
+                                        {opt.label}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              </div>
+                            ) : (
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">Number of Dowels</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  value={joint.dowel_count || 10}
+                                  onChange={(e) => updateJoint(index, { dowel_count: Number(e.target.value) || 1 })}
+                                  className="h-9 text-sm"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Connection Length (when using spacing) */}
+                          {joint.dowel_calculation_method === 'spacing' && (
+                            <div className="grid grid-cols-2 gap-3">
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">Connection Length (m)</Label>
+                                <Input
+                                  type="number"
+                                  min="1"
+                                  step="0.5"
+                                  value={joint.connection_length || 10}
+                                  onChange={(e) => updateJoint(index, { connection_length: Number(e.target.value) || 1 })}
+                                  className="h-9 text-sm"
+                                />
+                              </div>
+                              <div className="space-y-1.5">
+                                <Label className="text-xs font-medium">Calculated Qty</Label>
+                                <div className="h-9 flex items-center px-3 text-sm bg-muted rounded-md border">
+                                  {displayDowelCount} dowels
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Dowel Price */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium">Price per Dowel</Label>
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={joint.dowel_price_each || 3.50}
+                                  onChange={(e) => updateJoint(index, { dowel_price_each: Number(e.target.value) })}
+                                  className="h-9 text-sm pl-6"
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Chemical Anchor */}
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Checkbox
+                                id={`chemical-${joint.id}`}
+                                checked={joint.chemical_anchor || false}
+                                onCheckedChange={(val) => updateJoint(index, { chemical_anchor: !!val })}
+                              />
+                              <Label htmlFor={`chemical-${joint.id}`} className="text-xs font-medium cursor-pointer">
+                                Include chemical anchoring
+                              </Label>
+                            </div>
+                            {joint.chemical_anchor && (
+                              <div className="grid grid-cols-2 gap-3 pl-6">
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs font-medium">Cartridges</Label>
+                                  <Input
+                                    type="number"
+                                    min="1"
+                                    value={joint.chemical_cartridges || 2}
+                                    onChange={(e) => updateJoint(index, { chemical_cartridges: Number(e.target.value) || 1 })}
+                                    className="h-9 text-sm"
+                                  />
+                                </div>
+                                <div className="space-y-1.5">
+                                  <Label className="text-xs font-medium">Price Each</Label>
+                                  <div className="relative">
+                                    <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                    <Input
+                                      type="number"
+                                      step="0.01"
+                                      min="0"
+                                      value={joint.chemical_price || 45}
+                                      onChange={(e) => updateJoint(index, { chemical_price: Number(e.target.value) })}
+                                      className="h-9 text-sm pl-6"
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Expansion Foam Section */}
+                    <div className="space-y-3 pt-3 border-t">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium">Expansion Foam Required</Label>
+                        <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
+                          <Switch
+                            checked={joint.foam_required || false}
+                            onCheckedChange={(val) => updateJoint(index, { foam_required: val })}
+                          />
+                          <span className={cn(
+                            "text-sm min-w-[3ch]",
+                            joint.foam_required ? "text-foreground" : "text-muted-foreground"
+                          )}>
+                            {joint.foam_required ? 'Yes' : 'No'}
+                          </span>
+                        </div>
+                      </div>
+                      {joint.foam_required && (
+                        <div className="space-y-3">
+                          {/* Foam Type & Height */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium">Foam Type</Label>
+                              <Select
+                                value={joint.foam_type || 'sticky_back'}
+                                onValueChange={(val) => {
+                                  updateJoint(index, { 
+                                    foam_type: val,
+                                    foam_roll_price: getFoamPrice(joint.foam_height || '100', val, priceMap)
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="h-9 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="z-[150]">
+                                  {FOAM_TYPE_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium">Foam Height</Label>
+                              <Select
+                                value={joint.foam_height || '100'}
+                                onValueChange={(val) => {
+                                  updateJoint(index, { 
+                                    foam_height: val,
+                                    foam_roll_price: getFoamPrice(val, joint.foam_type || 'sticky_back', priceMap)
+                                  });
+                                }}
+                              >
+                                <SelectTrigger className="h-9 text-sm">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent className="z-[150]">
+                                  {FOAM_HEIGHT_OPTIONS.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          {/* Rolls & Price */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium">Number of Rolls (25m each)</Label>
+                              <Input
+                                type="number"
+                                min="1"
+                                value={joint.foam_rolls || 1}
+                                onChange={(e) => updateJoint(index, { foam_rolls: Number(e.target.value) || 1 })}
+                                className="h-9 text-sm"
+                              />
+                            </div>
+                            <div className="space-y-1.5">
+                              <Label className="text-xs font-medium">Price per Roll</Label>
+                              <div className="relative">
+                                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
+                                <Input
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={joint.foam_roll_price || 30.50}
+                                  onChange={(e) => updateJoint(index, { foam_roll_price: Number(e.target.value) })}
+                                  className="h-9 text-sm pl-6"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-xs text-muted-foreground">
+                            Total coverage: {(joint.foam_rolls || 1) * 25}m
                           </div>
                         </div>
                       )}
