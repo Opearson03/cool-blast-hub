@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Building2, Save, Plus, X, Upload, CreditCard, ExternalLink, Lock, Palette, FileText, Eye, DollarSign, MessageSquare, Truck, Mail } from "lucide-react";
+import { QuoteTemplatePreview } from "@/components/onboarding/QuoteTemplatePreview";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -667,159 +668,14 @@ export default function AdminSettings() {
                     <Eye className="w-4 h-4" />
                     Live Preview
                   </Label>
-                  <div 
-                    className="border rounded-lg overflow-hidden bg-white"
-                    style={{ transform: "scale(1)", transformOrigin: "top left" }}
-                  >
-                    <div 
-                      className="p-4"
-                      style={{ 
-                        fontFamily: `${quoteFont}, sans-serif`,
-                        fontSize: "10px",
-                        lineHeight: "1.4"
-                      }}
-                    >
-                      {quoteTemplate === "modern" ? (
-                        <div>
-                          <div style={{ backgroundColor: quoteSecondaryColor, padding: "12px", marginBottom: "12px", borderRadius: "4px" }}>
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                {logoUrl ? (
-                                  <img src={logoUrl} alt="Logo" className="h-6 w-6 object-contain bg-white rounded p-0.5" />
-                                ) : (
-                                  <div className="h-6 w-6 bg-white/20 rounded flex items-center justify-center">
-                                    <Building2 className="w-3 h-3 text-white/60" />
-                                  </div>
-                                )}
-                                <span className="text-white font-bold text-xs">{name || "Company Name"}</span>
-                              </div>
-                              <div className="text-right">
-                                <span className="text-white font-black text-sm">QUOTE</span>
-                                <p className="text-[8px]" style={{ color: quotePrimaryColor }}>#EST-001</p>
-                              </div>
-                            </div>
-                          </div>
-                          <div style={{ borderBottom: `2px solid ${quotePrimaryColor}`, marginBottom: "8px", paddingBottom: "4px" }} className="flex justify-between text-[8px] text-gray-500">
-                            <span>📞 {phone || "0400 000 000"}</span>
-                            <span>Date: 10 Jan 2026</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 mb-2">
-                            <div style={{ backgroundColor: "#f9fafb", padding: "6px", borderRadius: "4px", borderLeft: `2px solid ${quotePrimaryColor}` }}>
-                              <p className="text-[7px] uppercase font-bold" style={{ color: quotePrimaryColor }}>Client</p>
-                              <p className="font-bold text-gray-800">John Smith</p>
-                            </div>
-                            <div style={{ backgroundColor: "#f9fafb", padding: "6px", borderRadius: "4px", borderLeft: `2px solid ${quoteSecondaryColor}` }}>
-                              <p className="text-[7px] uppercase font-bold" style={{ color: quoteSecondaryColor }}>Site</p>
-                              <p className="text-gray-800">123 Example St</p>
-                            </div>
-                          </div>
-                          <div className="flex justify-end">
-                            <div style={{ backgroundColor: "#f9fafb", padding: "8px", borderRadius: "4px" }} className="w-1/2">
-                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                                <span>Subtotal</span><span>$4,545.45</span>
-                              </div>
-                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                                <span>GST</span><span>$454.55</span>
-                              </div>
-                              <div className="flex justify-between pt-1" style={{ borderTop: `1px solid ${quotePrimaryColor}` }}>
-                                <span className="font-bold text-gray-800">Total</span>
-                                <span className="font-black" style={{ color: quotePrimaryColor }}>$5,000.00</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : quoteTemplate === "minimal" ? (
-                        <div className="px-2">
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              {logoUrl ? (
-                                <img src={logoUrl} alt="Logo" className="h-5 object-contain mb-1" />
-                              ) : null}
-                              <p className="font-medium text-gray-800 text-[9px]">{name || "Company Name"}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-[7px] uppercase tracking-widest text-gray-400">Quote</p>
-                              <p className="text-sm font-light" style={{ color: quotePrimaryColor }}>#EST-001</p>
-                            </div>
-                          </div>
-                          <div style={{ borderBottom: `1px solid ${quotePrimaryColor}` }} className="mb-3"></div>
-                          <div className="grid grid-cols-2 gap-4 mb-3">
-                            <div>
-                              <p className="text-[7px] uppercase tracking-wider text-gray-400 mb-1">To</p>
-                              <p className="font-medium text-gray-800">John Smith</p>
-                            </div>
-                            <div>
-                              <p className="text-[7px] uppercase tracking-wider text-gray-400 mb-1">Site</p>
-                              <p className="text-gray-800">123 Example St</p>
-                            </div>
-                          </div>
-                          <div className="flex justify-end">
-                            <div className="w-1/2">
-                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                                <span>Subtotal</span><span>$4,545.45</span>
-                              </div>
-                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                                <span>GST</span><span>$454.55</span>
-                              </div>
-                              <div className="flex justify-between pt-1" style={{ borderTop: `1px solid ${quotePrimaryColor}` }}>
-                                <span className="font-medium text-gray-800">Total</span>
-                                <span className="font-light text-sm" style={{ color: quotePrimaryColor }}>$5,000.00</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="flex items-start justify-between pb-2 mb-3" style={{ borderBottom: `2px solid ${quoteSecondaryColor}` }}>
-                            <div className="flex items-start gap-2">
-                              {logoUrl ? (
-                                <img src={logoUrl} alt="Logo" className="h-8 w-8 object-contain" />
-                              ) : (
-                                <div className="h-8 w-8 bg-gray-100 rounded flex items-center justify-center">
-                                  <Building2 className="w-4 h-4 text-gray-400" />
-                                </div>
-                              )}
-                              <div>
-                                <p className="font-bold text-gray-800 text-xs">{name || "Company Name"}</p>
-                                <p className="text-[8px] text-gray-500">{address || "123 Business St"}</p>
-                                <p className="text-[8px] text-gray-500">Ph: {phone || "0400 000 000"}</p>
-                              </div>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-gray-800 text-sm">ESTIMATE</p>
-                              <p className="font-semibold" style={{ color: quotePrimaryColor }}>#EST-001</p>
-                              <p className="text-[8px] text-gray-500 mt-1">Date: 10 Jan 2026</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-4 mb-3">
-                            <div>
-                              <p className="text-[7px] uppercase font-semibold text-gray-400 mb-1">Bill To</p>
-                              <p className="font-semibold text-gray-800">John Smith</p>
-                              <p className="text-[8px] text-gray-500">john@example.com</p>
-                            </div>
-                            <div>
-                              <p className="text-[7px] uppercase font-semibold text-gray-400 mb-1">Site Address</p>
-                              <p className="text-gray-800">123 Example Street</p>
-                            </div>
-                          </div>
-                          <div className="flex justify-end">
-                            <div className="w-1/2" style={{ borderTop: `2px solid ${quoteSecondaryColor}`, paddingTop: "6px" }}>
-                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                                <span>Subtotal (ex GST)</span><span>$4,545.45</span>
-                              </div>
-                              <div className="flex justify-between text-[8px] text-gray-500 mb-1">
-                                <span>GST (10%)</span><span>$454.55</span>
-                              </div>
-                              <div className="flex justify-between pt-1" style={{ borderTop: "1px solid #d1d5db" }}>
-                                <span className="font-bold text-gray-800">Total (inc GST)</span>
-                                <span className="font-bold text-sm" style={{ color: quotePrimaryColor }}>$5,000.00</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                  <QuoteTemplatePreview
+                    template={quoteTemplate}
+                    primaryColor={quotePrimaryColor}
+                    secondaryColor={quoteSecondaryColor}
+                    font={quoteFont}
+                    logoUrl={logoUrl}
+                    businessName={name || "Your Business"}
+                  />
                   <p className="text-xs text-muted-foreground mt-2">
                     This is a preview. Your actual quotes will include full details and line items.
                   </p>
