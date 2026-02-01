@@ -138,7 +138,7 @@ function groupFootingsByType(sections: LinearSection[]): FootingTypeGroup[] {
         segments: [section],
         totalLength: section._actualLength || section.length || 0,
         groupKey: key,
-        stableKey: typeName,  // Use typeName only for React key (prevents remounting on dimension change)
+        stableKey: key,  // Use full groupKey (typeName-width-depth) for unique React keys
         // Use first segment's reinforcement as group settings
         tm_type: section.tm_type,
         tm_layers: section.tm_layers,
