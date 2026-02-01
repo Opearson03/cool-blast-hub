@@ -362,7 +362,10 @@ export function ITPDetailSheet({ open, onOpenChange, itp, jobId }: ITPDetailShee
 
   const handlePrint = () => {
     setShowPrintView(true);
-    setTimeout(() => {
+    // Small delay to render, then wait for images, then print
+    setTimeout(async () => {
+      const { waitForPrintImages } = await import("@/lib/wait-for-print-images");
+      await waitForPrintImages();
       window.print();
       setShowPrintView(false);
     }, 100);

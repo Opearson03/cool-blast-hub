@@ -206,7 +206,10 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
 
   const handlePrint = () => {
     setIsPrinting(true);
-    setTimeout(() => {
+    // Small delay to render, then wait for images, then print
+    setTimeout(async () => {
+      const { waitForPrintImages } = await import("@/lib/wait-for-print-images");
+      await waitForPrintImages();
       window.print();
       setIsPrinting(false);
     }, 100);
