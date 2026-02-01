@@ -1,76 +1,51 @@
 
-
-# Fix Missing Machine Sizes in Excavation Module
+# Remove Duplicate Bar Chairs from Measure Section
 
 ## Problem Summary
 
-The excavation module has limited machine options compared to the demolition module:
+The bar chairs option appears in two places for strip footings and retaining wall footings:
 
-| Module | Machine Options |
-|--------|----------------|
-| **Demolition** | 1.4T, 3.2T, 4T, 6T, 9T, Posi Track (all 6) |
-| **Excavation - Bulk** | 6T, 9T, Posi Track (only 3) |
-| **Excavation - Detailed** | 1.4T, 3.2T, 4T (only 3) |
+1. **Measure section** (`MultiLinearTypeInput.tsx` lines 555-571): Basic "Include Chairs?" toggle
+2. **Reinforcement section** (`FootingSectionReinforcementInput.tsx`): Full chair configuration with type selection, pricing, and layer chairs
 
-Users expect to see all machine sizes available in both bulk and detailed excavation, matching the demolition module.
+The measure section version is a duplicate and less featured - it should be removed.
 
 ---
 
 ## Solution
 
-Update both machine type selectors in the excavation module to include all 6 options.
+Remove the chairs section from `MultiLinearTypeInput.tsx` that is scoped to strip footings and retaining wall footings.
 
 ---
 
 ## Changes Required
 
-**File:** `src/lib/estimate-components/modules/excavation.ts`
+**File:** `src/components/estimates/calculators/MultiLinearTypeInput.tsx`
 
-### 1. Update Bulk Excavation Machine Options (line 86-90)
+### Delete the Chairs Section (lines 555-571)
 
-**Current:**
+Remove this entire block:
 ```typescript
-options: [
-  { value: 'EXC 6T', label: '6T Excavator', priceKey: 'excavation.EXC 6T' },
-  { value: 'EXC 9T', label: '9T Excavator', priceKey: 'excavation.EXC 9T' },
-  { value: 'POSI TRACK', label: 'Posi Track', priceKey: 'excavation.POSI TRACK' },
-],
+{/* Chairs Section - for strip footings and retaining wall footings */}
+{(scopeId === 'strip_footings' || scopeId === 'retaining_wall_footings') && (
+  <div className="border-t px-3 py-3 bg-muted/20">
+    <div className="flex items-center justify-between">
+      <Label className="text-sm font-medium">Include Chairs?</Label>
+      <Switch
+        checked={group.chairs_enabled ?? false}
+        onCheckedChange={(checked) => updateGroupChairs(group, checked)}
+      />
+    </div>
+    {group.chairs_enabled && (
+      <p className="text-xs text-muted-foreground mt-2">
+        Chairs will be calculated based on footing length (~1.4 per metre)
+      </p>
+    )}
+  </div>
+)}
 ```
 
-**Updated:**
-```typescript
-options: [
-  { value: 'EXC 1.4T', label: '1.4T Excavator', priceKey: 'excavation.EXC 1.4T' },
-  { value: 'EXC 3.2T', label: '3.2T Excavator', priceKey: 'excavation.EXC 3.2T' },
-  { value: 'EXC 4T', label: '4T Excavator', priceKey: 'excavation.EXC 4T' },
-  { value: 'EXC 6T', label: '6T Excavator', priceKey: 'excavation.EXC 6T' },
-  { value: 'EXC 9T', label: '9T Excavator', priceKey: 'excavation.EXC 9T' },
-  { value: 'POSI TRACK', label: 'Posi Track', priceKey: 'excavation.POSI TRACK' },
-],
-```
-
-### 2. Update Detailed Excavation Machine Options (line 264-268)
-
-**Current:**
-```typescript
-options: [
-  { value: 'EXC 1.4T', label: '1.4T Excavator', priceKey: 'excavation.EXC 1.4T' },
-  { value: 'EXC 3.2T', label: '3.2T Excavator', priceKey: 'excavation.EXC 3.2T' },
-  { value: 'EXC 4T', label: '4T Excavator', priceKey: 'excavation.EXC 4T' },
-],
-```
-
-**Updated:**
-```typescript
-options: [
-  { value: 'EXC 1.4T', label: '1.4T Excavator', priceKey: 'excavation.EXC 1.4T' },
-  { value: 'EXC 3.2T', label: '3.2T Excavator', priceKey: 'excavation.EXC 3.2T' },
-  { value: 'EXC 4T', label: '4T Excavator', priceKey: 'excavation.EXC 4T' },
-  { value: 'EXC 6T', label: '6T Excavator', priceKey: 'excavation.EXC 6T' },
-  { value: 'EXC 9T', label: '9T Excavator', priceKey: 'excavation.EXC 9T' },
-  { value: 'POSI TRACK', label: 'Posi Track', priceKey: 'excavation.POSI TRACK' },
-],
-```
+Also remove the associated `updateGroupChairs` function if it exists and is only used by this section.
 
 ---
 
@@ -78,14 +53,13 @@ options: [
 
 | File | Change |
 |------|--------|
-| `src/lib/estimate-components/modules/excavation.ts` | Add all 6 machine options to both bulk and detailed excavation selectors |
+| `src/components/estimates/calculators/MultiLinearTypeInput.tsx` | Remove duplicate chairs section (lines 555-571) and associated function |
 
 ---
 
 ## Impact
 
-- Both bulk and detailed excavation will show all 6 machine sizes
-- Matches the demolition module's full machine list
-- Price list lookups will work correctly (all machine codes already exist in price list)
-- No calculation logic changes needed - just the dropdown options
-
+- Bar chairs configuration will only appear in the Reinforcement module (where it belongs)
+- Users will have access to the full chair configuration (type, price, layer chairs) in one place
+- No duplicate data or confusion between the two sections
+- Existing chair settings saved in linearSections will continue to work with the reinforcement UI
