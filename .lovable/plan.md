@@ -1,233 +1,163 @@
 
-# Add Multi-Row Control Joints with Takeoff Measurement
+# Fix Takeoff Marking Save and Return Flow for Control & Expansion Joints
 
-## Overview
+## Problem Summary
 
-Refactor the **Control Joints** module to match the multi-row pattern used by the **Connections & Joints** module. This will allow users to add multiple control joint configurations (e.g., different lengths for different slab areas), with each joint having its own caulking toggle. Users will also be able to measure control joints directly on the takeoff screen using the polyline drawing tool.
+When a user clicks "Mark on Plans" for control joints or expansion joints:
+1. The polyline markups are saved to the database, but the measured length isn't being populated back into the specific joint configuration
+2. The user isn't automatically returned to the configure step after marking
+3. The LinearDimensionsDialog shows width/depth fields which aren't needed for joints
 
----
+## Root Causes
 
-## User Flow
-
-1. User enables "Is saw cutting required?" toggle
-2. A multi-row interface appears where they can add multiple control joint configurations
-3. For each joint configuration:
-   - Enter total length manually OR click "Mark on Plans" to measure
-   - Select pricing method (per metre or hourly)
-   - Toggle "Requires Caulking?" with per-metre pricing
-4. When "Mark on Plans" is clicked:
-   - Navigate to takeoff screen
-   - Draw polylines to mark saw cut locations
-   - On completion, return to configure step with measured length populated
+1. **No automatic return flow**: After saving polyline markups for joints, the user must manually click "Continue" - there's no callback to auto-navigate back
+2. **Missing length injection**: When returning to the configure step, the code doesn't look up the measured joint lengths from takeoff and inject them into the specific joint config
+3. **Wrong dialog shown**: The LinearDimensionsDialog is shown for all LINEAR_SCOPES, but joints only need a length confirmation (no width/depth)
 
 ---
 
 ## Technical Changes
 
-### 1. Create ControlJointConfig Interface
+### 1. Create JointDimensionsDialog Component
 
-**File:** `src/lib/estimate-components/types.ts`
+**New File:** `src/components/estimates/takeoff/JointDimensionsDialog.tsx`
 
-Add new interface for control joint configurations:
+A simplified dialog for joint measurements that only shows:
+- Total length measured
+- Number of segments drawn
+- Confirm button that saves and triggers auto-return
 
-```typescript
-export interface ControlJointConfig {
-  id: string;
-  name?: string;                    // Optional label (e.g., "Garage Floor Cuts")
-  
-  // Length - manual or measured from takeoff
-  total_length_m: number;           // Total saw cut length in metres
-  measured_on_plans?: boolean;      // Flag if measured from takeoff
-  
-  // Saw cutting pricing
-  pricing_method: 'per_metre' | 'hourly';
-  price_per_m?: number;             // Price per metre (when per_metre)
-  hours?: number;                   // Hours (when hourly)
-  hourly_rate?: number;             // Hourly rate (when hourly)
-  
-  // Caulking - per joint toggle
-  caulking_required: boolean;
-  caulking_price_per_m?: number;
-}
-```
+This dialog will be shown instead of LinearDimensionsDialog for expansion_joints and control_joints scopes.
 
-### 2. Create MultiControlJointInput Component
-
-**File:** `src/components/estimates/calculators/MultiControlJointInput.tsx` (NEW)
-
-Create a new component following the same pattern as `MultiExpansionJointInput`:
-
-- Summary header showing total length and cost
-- Collapsible cards for each joint configuration
-- Per-joint fields:
-  - Optional label
-  - Total length input + "Mark on Plans" button
-  - Pricing method dropdown (per metre / hourly)
-  - Conditional price fields based on method
-  - Caulking required toggle with price per metre
-- Add/Remove joint buttons
-
-### 3. Update Control Joints Module
-
-**File:** `src/lib/estimate-components/modules/joints-control.ts`
-
-Refactor to use the multi-row pattern:
-
-**Remove old questions:**
-- `saw_cutting_method`, `saw_cut_length`, `saw_cut_price_per_m`, `saw_cut_hours`, `saw_cut_hourly_rate`
-- `caulking_required`, `caulking_method`, `caulking_length`, `caulking_price_per_m`, `caulking_hours`, `caulking_hourly_rate`
-
-**Keep:**
-- `saw_cutting_required` as master toggle
-
-**Update `calculate` function:**
-```typescript
-const controlJoints: ControlJointConfig[] = answers.control_joints || [];
-
-controlJoints.forEach((joint, index) => {
-  const length = joint.total_length_m || 0;
-  
-  // Saw cutting cost
-  if (joint.pricing_method === 'per_metre') {
-    const cost = length * joint.price_per_m;
-    // Add line item...
-  } else {
-    const cost = joint.hours * joint.hourly_rate;
-    // Add line item...
-  }
-  
-  // Caulking cost (if enabled for this joint)
-  if (joint.caulking_required) {
-    const caulkCost = length * joint.caulking_price_per_m;
-    // Add line item...
-  }
-});
-```
-
-**Update `getExclusions`:**
-- Check if ANY joint has caulking enabled before adding exclusion
-
-### 4. Add Control Joints to LINEAR_SCOPES
-
-**File:** `src/types/takeoff.ts`
-
-Add `control_joints` to LINEAR_SCOPES for polyline marking:
-
-```typescript
-export const LINEAR_SCOPES = [
-  'strip_footings',
-  'retaining_wall_footings', 
-  'kerbs_channels',
-  'retaining_walls',
-  'expansion_joints',
-  'control_joints',  // NEW
-] as const;
-```
-
-### 5. Update ModuleSection for Control Joints
-
-**File:** `src/components/estimates/calculators/ModuleSection.tsx`
-
-Add special case rendering for the control joints module:
-
-```typescript
-// Special case: Control Joints module renders multi-control-joint input
-if (module.id === 'joints-control' && answers.saw_cutting_required) {
-  elements.push(
-    <div key="control-joints-section" className="space-y-4">
-      <div className="flex items-center gap-2 pt-2">
-        <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Control Joints / Saw Cuts
-        </h4>
-        <div className="flex-1 h-px bg-border" />
-      </div>
-      <MultiControlJointInput
-        joints={(answers.control_joints || []) as ControlJointConfig[]}
-        onChange={(joints) => onAnswerChange('control_joints', joints)}
-        priceMap={priceMap}
-        onRequestMarkup={onRequestControlJointMarkup}
-        hasPlans={hasPlans}
-      />
-    </div>
-  );
-}
-```
-
-### 6. Update ModularCalculator for Control Joint Markup
-
-**File:** `src/components/estimates/calculators/ModularCalculator.tsx`
-
-Handle markup callbacks for control joints with format: `control_joints:joint:{jointId}`
-
-### 7. Update PlanTakeoffStep for Control Joint Marking
+### 2. Update PlanTakeoffStep to Handle Joint Scopes Differently
 
 **File:** `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
 
-Handle `control_joints` scope in the linear marking workflow (same pattern as expansion_joints)
+Changes:
+1. Add state for the new JointDimensionsDialog: `showJointDimensions`
+2. In `handleDoneMarkingPolyline`, check if activeScope is `expansion_joints` or `control_joints` and show JointDimensionsDialog instead of LinearDimensionsDialog
+3. Add `onJointMarkupComplete` callback prop that gets called after joint markup is saved
+4. The callback passes the measured length and scope info back to EstimateFormDialog
 
-### 8. Update useTakeoffMarkups Hook
+```typescript
+// New prop
+onJointMarkupComplete?: (scopeId: string, lengthMeters: number) => void;
 
-**File:** `src/hooks/useTakeoffMarkups.ts`
+// In handleDoneMarkingPolyline
+if (activeScope === 'expansion_joints' || activeScope === 'control_joints') {
+  setShowJointDimensions(true);
+  return;
+}
+```
 
-Add `getControlJointTotalLength()` function to aggregate polyline lengths for control joints scope
-
-### 9. Update EstimateFormDialog for Control Joint Return Flow
+### 3. Update EstimateFormDialog to Handle Joint Return Flow
 
 **File:** `src/components/estimates/EstimateFormDialog.tsx`
 
-Handle return flow when user completes control joint marking:
-- Parse the `pendingTakeoffScope` for control joint identifiers
-- Update the specific joint's `total_length_m` and `measured_on_plans` fields
-- Navigate back to configure step
+Changes:
+1. Add a new handler `handleJointMarkupComplete` that:
+   - Parses the `pendingTakeoffScope` to extract the joint ID (format: `expansion_joints:joint:{jointId}`)
+   - Updates the specific joint's `total_length_m` and `measured_on_plans` fields in the modular state
+   - Automatically navigates back to the configure step
+   - Sets the active scope index to show the correct module
+
+2. Pass this handler to PlanTakeoffStep as `onJointMarkupComplete`
+
+```typescript
+const handleJointMarkupComplete = useCallback(async (scopeId: string, lengthMeters: number) => {
+  const markedScope = markedTakeoffScopeRef.current;
+  
+  if (markedScope && typeof markedScope === 'string' && markedScope.includes(':joint:')) {
+    // Parse: "expansion_joints:joint:{jointId}" or "control_joints:joint:{jointId}"
+    const parts = markedScope.split(':');
+    const jointModuleType = parts[0]; // 'expansion_joints' or 'control_joints'
+    const jointId = parts[2];
+    
+    // Update the specific joint's total_length_m in the module answers
+    // Navigate to configure step and open the relevant module
+  }
+  
+  // Clear ref and navigate
+  markedTakeoffScopeRef.current = null;
+  setPendingTakeoffScope(null);
+  await refetchMarkups();
+  setCurrentStep('configure');
+}, [...]);
+```
+
+### 4. Auto-Save and Auto-Return Workflow
+
+When user clicks "Done" in JointDimensionsDialog:
+1. Save the polyline markup to the database (via `addPolylineMarkup` with scope_id = 'expansion_joints' or 'control_joints')
+2. Call `onJointMarkupComplete` callback with the measured length
+3. EstimateFormDialog updates the module state and navigates back to configure step
+4. The specific module accordion is opened so user can continue editing
 
 ---
 
-## UI Layout (Per Control Joint Card)
+## UI Flow (Updated)
 
 ```text
-+-------------------------------------------------------------+
-| > Garage Floor Cuts         45.2m @ $4.50/m         $203.40 |
-+-------------------------------------------------------------+
-| Label (optional): [                                       ] |
-|                                                             |
-| +- Total Length -------------------------------------------+|
-| | [   45.2   ] m    [Mark on Plans]      (Measured)        ||
-| +----------------------------------------------------------+|
-|                                                             |
-| +- Pricing Method -----------------------------------------+|
-| | Method: [Per Metre v]    Price: $[4.50]/m                ||
-| +----------------------------------------------------------+|
-|                                                             |
-| -- Caulking Required ------------------- [Yes (o) No]      |
-|     Caulking Price: $[8.00]/m                              |
-|                                                             |
-| [Remove]                                                    |
-+-------------------------------------------------------------+
+User Journey:
+1. User adds expansion joint in Connections & Joints module
+2. Clicks "Mark on Plans" button → navigates to takeoff step
+3. Draws polyline(s) on plan
+4. Clicks "Done" or presses Enter
+5. JointDimensionsDialog appears showing "45.2m total measured"
+6. User clicks "Confirm" 
+7. → Markup is saved to database
+8. → User is AUTO-RETURNED to configure step
+9. → Joint's total_length_m is set to 45.2m
+10. → Joint's measured_on_plans is set to true
+11. → Quantity auto-recalculates from the measured length
 ```
 
 ---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/estimates/takeoff/JointDimensionsDialog.tsx` | Simple dialog for confirming joint length measurements |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/lib/estimate-components/types.ts` | Add `ControlJointConfig` interface |
-| `src/components/estimates/calculators/MultiControlJointInput.tsx` | NEW - Multi-row control joint input component |
-| `src/lib/estimate-components/modules/joints-control.ts` | Refactor to multi-row pattern with per-joint caulking |
-| `src/types/takeoff.ts` | Add `control_joints` to LINEAR_SCOPES |
-| `src/components/estimates/calculators/ModuleSection.tsx` | Add special case for control joints rendering |
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Handle control joint markup callbacks |
-| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Handle control_joints scope |
-| `src/hooks/useTakeoffMarkups.ts` | Add getControlJointTotalLength() |
-| `src/components/estimates/EstimateFormDialog.tsx` | Handle control joint return flow |
+| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Add JointDimensionsDialog, add `onJointMarkupComplete` callback, handle joint scopes separately |
+| `src/components/estimates/EstimateFormDialog.tsx` | Add `handleJointMarkupComplete` handler, update module state with measured length, auto-return to configure |
+
+---
+
+## JointDimensionsDialog Design
+
+```text
+┌──────────────────────────────────────────────────────┐
+│ 📏 Joint Length Measured                             │
+│                                                      │
+│ Total Length:  45.2m                                 │
+│ Segments:      3 lines drawn                         │
+│                                                      │
+│           [Cancel]     [✓ Confirm & Return]          │
+└──────────────────────────────────────────────────────┘
+```
+
+---
+
+## Edge Cases Handled
+
+1. **Multiple segments**: All polyline segments are summed into total length
+2. **User cancels**: Returns to drawing mode without saving or navigating
+3. **Add another joint**: After returning, user can click "Mark on Plans" again for a different joint
+4. **Manual override**: User can still manually edit total_length_m after marking (clears measured_on_plans flag)
+5. **No joint ID in scope**: If user marks via scope checklist (not via specific joint), save the markup but don't auto-populate any joint config
 
 ---
 
 ## Benefits
 
-1. **Flexibility**: Different areas can have different control joint configurations
-2. **Accuracy**: Measure exact saw cut locations from plans
-3. **Per-Joint Caulking**: One area may need caulking while another doesn't
-4. **Consistency**: Same UI pattern as expansion joints for familiar UX
-5. **Speed**: Mark multiple saw cuts in one takeoff session
-
+1. **Seamless workflow**: User marks → confirms → auto-returns to continue configuring
+2. **Accurate measurements**: Length from takeoff is automatically populated into the joint config
+3. **Clear UI**: Joints get a simple confirmation dialog without irrelevant dimension fields
+4. **Data persistence**: Markups are saved to database and survive page refreshes
+5. **Quantity auto-calculation**: Joint piece quantity recalculates from measured length
