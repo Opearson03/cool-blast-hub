@@ -389,7 +389,7 @@ export function MultiExpansionJointInput({
                         </Select>
                       </div>
                       <div className="space-y-1.5">
-                        <Label className="text-xs font-medium">Joint Length</Label>
+                        <Label className="text-xs font-medium">Piece Length</Label>
                         <Select
                           value={joint.length}
                           onValueChange={(val) => {
