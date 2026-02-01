@@ -1,256 +1,178 @@
 
-# Expand PourHub Inbox with Plans to Quote Support
+# Professional Quote Template Redesign
 
 ## Overview
 
-Transform the inbound email system from separate docket widgets into a unified **Inbox** with AI-powered document categorization. Users will be able to email building plans to get quotes, alongside existing test results and delivery dockets.
+Redesigning all three quote templates (`Modern`, `Minimal`, `Classic`) in `QuoteTemplatePreview.tsx` to look more professional based on the provided reference images. The changes will apply to both the small preview thumbnails in the onboarding wizard AND the full-size `PrintableEstimate.tsx` used for actual PDF generation.
 
 ---
 
-## User Flow
+## Design Analysis from References
 
-1. User shares their PourHub email address (e.g., `mybusiness@pourhub.au`) with:
-   - Builders/clients (for sending plans to quote)
-   - Testing labs (for test results)
-   - Concrete suppliers (for delivery dockets)
-
-2. When email arrives:
-   - AI analyzes the PDF attachment to determine document type
-   - Document is categorized into one of three tabs: Plans to Quote, Test Results, Delivery Dockets
-   - User is notified on dashboard
-
-3. Dashboard shows unified **Inbox** widget with tabbed interface:
-   - **Plans to Quote**: Building plans from clients needing estimates
-   - **Test Results**: Concrete test reports from labs
-   - **Delivery Dockets**: Concrete delivery dockets from suppliers
+| Template | Reference Inspiration | Key Design Elements |
+|----------|----------------------|---------------------|
+| **Modern** | Image 1 (Orange/Coral) | Bold colored header banner, two-column info cards with left border accents, itemized table with colored header row, project description section, signature area |
+| **Minimal** | Image 2 (Blue/Navy) | Clean white space, large bold document title, company info top-left, estimate meta on right, simple table with subtle header, terms section, signature line at bottom |
+| **Classic** | Image 3 (Brown/Gold) | Traditional form-style layout with labeled fields, professional color scheme, boxed sections, material table with colored header/total rows, dual signature/date fields |
 
 ---
 
-## Technical Changes
+## Changes to QuoteTemplatePreview.tsx
 
-### 1. Database: Add `pending_plans` Table
+### Modern Template
 
-Create a new table to store incoming building plans that need quoting:
-
-```sql
-CREATE TABLE pending_plans (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id),
-  from_email TEXT NOT NULL,
-  from_name TEXT,
-  subject TEXT,
-  received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  file_url TEXT NOT NULL,
-  file_name TEXT NOT NULL,
-  extracted_data JSONB DEFAULT '{}'::jsonb,
-  status TEXT NOT NULL DEFAULT 'pending', -- pending, converted, rejected
-  linked_estimate_id UUID REFERENCES estimates(id),
-  rejection_reason TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
--- Enable RLS
-ALTER TABLE pending_plans ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies
-CREATE POLICY "Admins can manage pending plans"
-ON pending_plans FOR ALL
-USING (has_role(auth.uid(), 'admin') AND business_id = get_user_business_id(auth.uid()))
-WITH CHECK (has_role(auth.uid(), 'admin') AND business_id = get_user_business_id(auth.uid()));
-
-CREATE POLICY "Users can view pending plans for their business"
-ON pending_plans FOR SELECT
-USING (business_id = get_user_business_id(auth.uid()));
-```
-
-### 2. Update Edge Function: `receive-test-email`
-
-Enhance the document type detection to include building plans:
-
-**New Document Types:**
-- `building_plan` - Construction plans, drawings, architectural documents
-- `test_result` - Lab test results (existing)
-- `delivery_docket` - Concrete delivery dockets (existing)
-
-**Enhanced AI Classification:**
-Add a preliminary classification step using AI to determine document type based on:
-- Email subject keywords
-- Sender email patterns
-- PDF content analysis (drawings vs data tables)
-
-**New Keywords for Plans:**
-```typescript
-const PLAN_KEYWORDS = [
-  'plan', 'plans', 'drawing', 'drawings', 'quote', 'quote request',
-  'estimate', 'pricing', 'price', 'architectural', 'engineering',
-  'structural', 'floor plan', 'site plan', 'blueprint', 'specs',
-  'specification', 'tender', 'rfq', 'request for quote'
-];
-```
-
-**Processing Flow:**
 ```text
-Email Received
-     |
-     v
-[AI Document Classifier]
-     |
-     +-- building_plan --> pending_plans table
-     |
-     +-- test_result --> pending_test_results table
-     |
-     +-- delivery_docket --> pending_documents table
++--------------------------------------------------+
+| [Logo] BUSINESS NAME           CONCRETE WORK     |
+|        ABN: XX XXX XXX XXX     ESTIMATE          |
+|                                #Q-0001           |
++--------------------------------------------------+
+| Client Information        | Company Information  |
+|---------------------------|----------------------|
+| Name: John Smith          | Company: Your Biz    |
+| Address: 123 Example St   | Phone: 0400 000 000  |
+| Phone: 0400 000 000       | Email: email@biz.com |
++--------------------------------------------------+
+| Project Description                              |
+| Concrete work for driveway and footpath...       |
++--------------------------------------------------+
+| No | Description    | Qty | Unit Price | Total  |
+|----|----------------|-----|------------|--------|
+| 01 | Site Prep      | 1   | $1,500     | $1,500 |
+| 02 | Concrete       | 18m³| $120/m³    | $2,160 |
++--------------------------------------------------+
+|                     Subtotal    |    $11,363.64  |
+|                     GST (10%)   |     $1,136.36  |
+|                     TOTAL       |    $12,500.00  |
++--------------------------------------------------+
+| Notes: Valid 14 days        | Signature:________ |
++--------------------------------------------------+
 ```
 
-**AI System Prompt for Classification:**
-```
-Analyze this PDF document and classify it into one of these categories:
-1. "building_plan" - Construction/architectural drawings, floor plans, site plans, engineering drawings
-2. "test_result" - Concrete test reports, lab results, strength tests, cylinder tests
-3. "delivery_docket" - Concrete delivery dockets, cartage notes, batch tickets
+**Key Visual Changes:**
+- Bold header banner using `secondaryColor` with logo + business name on left, "CONCRETE WORK ESTIMATE" on right
+- Two-column "Client Information" / "Company Information" sections with labeled fields
+- Project Description section with left accent bar
+- Itemized table with numbered rows, colored header using `secondaryColor`
+- Subtotal/GST/Total breakdown aligned right
+- Notes + Signature area at bottom
 
-Return JSON: {"document_type": "building_plan|test_result|delivery_docket", "confidence": 0.0-1.0}
-```
+### Minimal Template
 
-### 3. New Component: `InboxWidget`
-
-Replace `UnassignedDocketsWidget` with a new unified inbox widget.
-
-**File:** `src/components/dashboard/InboxWidget.tsx`
-
-**Features:**
-- Three tabs: Plans to Quote, Test Results, Delivery Dockets
-- Badge showing unread count per tab
-- Click to open respective sheet for processing
-- Unified empty state when no pending items
-
-**UI Layout:**
 ```text
-+------------------------------------------+
-| 📥 Inbox                     12 new      |
-+------------------------------------------+
-| [Plans (3)] [Tests (5)] [Dockets (4)]    |
-+------------------------------------------+
-| Recent items based on active tab...      |
-|                                          |
-| > Floor Plans - John Smith   5 min ago   |
-| > Site Plan - ABC Builders   1 hr ago    |
-|                                          |
-| [View All]                               |
-+------------------------------------------+
+Your Business Name                    [Upload Logo]
+123 Company Street
+Sydney NSW 2000
+
+                    CONCRETE
+                    ESTIMATE
+
+Bill To                          Estimate #    0001
+Customer Name                    Estimate Date 11-04
+123 Customer St                  Due Date      25-04
+Sydney NSW 2000
+
++--------------------------------------------------+
+| QTY | Description              | Unit    | Amount|
+|-----|--------------------------|---------|-------|
+| 1   | Site Preparation         | $1,500  | $1,500|
+| 18  | Concrete (m³)            | $120    | $2,160|
++--------------------------------------------------+
+                                 Subtotal   $11,364
+                                 GST (10%)   $1,136
+                                 Total      $12,500
+
+Terms & Conditions
+Payment due in 14 days
+                                 ___________________
+                                 Customer Signature
 ```
 
-### 4. New Component: `PendingPlansSheet`
+**Key Visual Changes:**
+- Company details top-left (name, address)
+- Logo placeholder top-right with dashed border
+- Large, bold, centered "CONCRETE ESTIMATE" title
+- Two-column layout: Bill To on left, estimate metadata on right
+- Clean table with minimal styling, blue header
+- Right-aligned totals
+- Terms section and signature line at bottom
 
-**File:** `src/components/jobs/PendingPlansSheet.tsx`
+### Classic Template
 
-Sheet for reviewing and processing incoming building plans:
-
-**Features:**
-- View PDF inline
-- AI-extracted data preview (client name, site address if detected)
-- Actions:
-  - "Start Estimate" - Creates new estimate with plan attached, opens estimate form
-  - "Reject" - Mark as spam/irrelevant with reason
-- Client details form (name, email, phone, site address)
-
-**UI Flow:**
-1. User views plan PDF
-2. AI shows any extracted details (client name, address, project type)
-3. User can edit/add client details
-4. Click "Start Estimate" creates estimate and attaches the plan file
-
-### 5. Update Settings: Unified Email Description
-
-**File:** `src/pages/admin/AdminSettings.tsx`
-
-Rename from "Test Result Email" to "Business Inbox Email"
-
-**Updated Description:**
+```text
++--------------------------------------------------+
+| [Logo] HOUSE CONSTRUCTION QUOTE                  |
+|        (Your Company Name)                       |
++--------------------------------------------------+
+| Company Address:   | 123 Business Street         |
+| Contact Number:    | 0400 000 000                |
+| Email Address:     | email@company.com           |
++--------------------------------------------------+
+| TO:                                              |
+| Owner Name:        | John Smith                  |
+| Address:           | 123 Example Street          |
+| Contact Number:    | 0400 000 000                |
+| Email Address:     | john@email.com              |
+| Date:              | 10 Jan 2026                 |
+| Quote Number:      | Q-0001                      |
++--------------------------------------------------+
+| MATERIAL DESCRIPTION     | COST  | TAX  | AMOUNT |
+|--------------------------|-------|------|--------|
+| Site Preparation         | $1,500| 10%  | $1,650 |
+| Concrete Supply          | $2,000| 10%  | $2,200 |
+|--------------------------|-------|------|--------|
+| GRAND TOTAL              |       |      |$12,500 |
++--------------------------------------------------+
+|    (Signature)           |         (Date)        |
++--------------------------------------------------+
 ```
-Share this email address with clients, testing labs, and suppliers:
 
-• Builders & Clients - Send plans for quoting
-• Testing Labs - Send concrete test results  
-• Concrete Suppliers - Send delivery dockets
-
-All documents are automatically sorted and processed by AI.
-```
-
-**Updated "How it works" list:**
-1. Share your email address with clients, labs, and suppliers
-2. They email PDFs (plans, test results, dockets) to your address
-3. AI automatically categorizes and extracts key information
-4. Review items in your Inbox on the dashboard
-
-### 6. AI Extraction for Building Plans
-
-Add new extraction prompts for building plans in `scan-test-document`:
-
-**System Prompt for Plans:**
-```
-You are a building plan analyzer. Extract available information from construction/architectural plans.
-
-Extract these fields:
-- project_name: The project or job name if visible
-- site_address: The site/project address
-- client_name: Client or builder name if visible
-- architect: Architect or designer name if visible
-- plan_type: Type of plan (floor plan, site plan, structural, etc.)
-- drawing_number: Drawing/plan number if visible
-- revision: Revision number or date
-- scale: Drawing scale if shown
-- notes: Any relevant notes or special requirements
-
-Return ONLY valid JSON...
-```
+**Key Visual Changes:**
+- Header with logo + bold document title + company name subtitle
+- Form-style labeled fields in rows using primary color for labels
+- "TO:" section with client details in same labeled format
+- Material table with 4 columns including separate TAX column
+- Grand Total row with colored background
+- Dual signature/date fields at bottom
 
 ---
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/dashboard/InboxWidget.tsx` | Unified inbox widget with tabs |
-| `src/components/jobs/PendingPlansSheet.tsx` | Sheet for reviewing/converting plans to estimates |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `supabase/functions/receive-test-email/index.ts` | Add plan detection, AI classification step, route to pending_plans |
-| `supabase/functions/scan-test-document/index.ts` | Add building_plan document type with extraction prompts |
-| `src/pages/admin/AdminDashboard.tsx` | Replace UnassignedDocketsWidget with InboxWidget |
-| `src/pages/admin/AdminSettings.tsx` | Update email section title and description |
-| `src/components/settings/TestResultEmailSection.tsx` | Rename and update description |
-
-## Database Migration
-
-| Change | Description |
-|--------|-------------|
-| Create `pending_plans` table | Store incoming building plans |
-| Add RLS policies | Admin full access, staff read access |
+| `src/components/onboarding/QuoteTemplatePreview.tsx` | Complete redesign of all three templates to match professional reference images |
+| `src/components/estimates/PrintableEstimate.tsx` | Update full-size PDF templates to match the new preview designs |
 
 ---
 
-## Implementation Sequence
+## Technical Details
 
-1. **Database**: Create `pending_plans` table with RLS
-2. **Edge Function**: Update `receive-test-email` with AI classification
-3. **Edge Function**: Add building_plan support to `scan-test-document`
-4. **Component**: Create `PendingPlansSheet` for plan review
-5. **Component**: Create `InboxWidget` with tabbed interface
-6. **Dashboard**: Replace old widget with new InboxWidget
-7. **Settings**: Update email section copy and description
+### Color Usage
+- `primaryColor`: Accent color (totals, highlights, checkmarks)
+- `secondaryColor`: Header backgrounds, section headers, table headers
+- Maintain proper contrast for text readability
+
+### Typography
+- Use the user's selected `font` consistently
+- Clear hierarchy: document title largest, section headers medium, body text smallest
+- All caps for headers/labels where appropriate
+
+### Layout Improvements
+- Better use of whitespace and padding
+- Clear visual separation between sections
+- Consistent alignment (left-aligned labels, right-aligned numbers)
+- Professional table formatting with alternating row colors where applicable
+
+### Preview Scale
+- Maintain the miniature preview scale (`text-[6px]`, `text-[7px]`)
+- Ensure all elements are visible and legible at thumbnail size
 
 ---
 
-## Benefits
+## Implementation Approach
 
-1. **Unified Experience**: One inbox for all incoming documents
-2. **Faster Quoting**: Clients can email plans directly, reducing back-and-forth
-3. **AI-Powered Sorting**: No manual categorization needed
-4. **Streamlined Workflow**: Plans flow directly into estimate creation
-5. **Clear Communication**: Settings explain all email use cases
+1. **QuoteTemplatePreview.tsx** - Update all three template previews with the new professional designs
+2. **PrintableEstimate.tsx** - Update the full-size PDF templates to match the preview designs while maintaining print-friendly formatting
 
+The new designs will be more visually consistent with industry-standard quote templates while preserving the customization options (colors, fonts, logos) that users have configured.
