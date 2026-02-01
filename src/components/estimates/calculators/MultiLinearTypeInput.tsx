@@ -192,16 +192,6 @@ export function MultiLinearTypeInput({
     onChange(updatedSections);
   };
 
-  const updateGroupChairs = (group: LinearTypeGroup, enabled: boolean) => {
-    const updatedSections = sections.map(section => {
-      if (matchesGroup(section, group)) {
-        return { ...section, chairs_enabled: enabled };
-      }
-      return section;
-    });
-    onChange(updatedSections);
-  };
-
   const updateGroupTotalLength = (group: LinearTypeGroup, newTotalLength: number) => {
     if (group.totalLength === 0 || newTotalLength <= 0) return;
     
@@ -548,24 +538,6 @@ export function MultiLinearTypeInput({
                           </div>
                         </div>
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Chairs Section - for strip footings and retaining wall footings */}
-                {(scopeId === 'strip_footings' || scopeId === 'retaining_wall_footings') && (
-                  <div className="border-t px-3 py-3 bg-muted/20">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-sm font-medium">Include Chairs?</Label>
-                      <Switch
-                        checked={group.chairs_enabled ?? false}
-                        onCheckedChange={(checked) => updateGroupChairs(group, checked)}
-                      />
-                    </div>
-                    {group.chairs_enabled && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Chairs will be calculated based on footing length (~1.4 per metre)
-                      </p>
                     )}
                   </div>
                 )}
