@@ -1,178 +1,131 @@
 
-# Professional Quote Template Redesign
+# Fix Manual Input Focus Loss on Driveway Beams
 
-## Overview
+## Problem Analysis
 
-Redesigning all three quote templates (`Modern`, `Minimal`, `Classic`) in `QuoteTemplatePreview.tsx` to look more professional based on the provided reference images. The changes will apply to both the small preview thumbnails in the onboarding wizard AND the full-size `PrintableEstimate.tsx` used for actual PDF generation.
+Manual inputs for driveway edge thickening/beams lose focus or don't work properly when editing dimensions (width, depth, length). This is caused by **React component remounting** due to unstable keys.
 
----
+### Root Cause
 
-## Design Analysis from References
+In `MultiBeamTypeInput.tsx`, there's a fundamental key stability issue:
 
-| Template | Reference Inspiration | Key Design Elements |
-|----------|----------------------|---------------------|
-| **Modern** | Image 1 (Orange/Coral) | Bold colored header banner, two-column info cards with left border accents, itemized table with colored header row, project description section, signature area |
-| **Minimal** | Image 2 (Blue/Navy) | Clean white space, large bold document title, company info top-left, estimate meta on right, simple table with subtle header, terms section, signature line at bottom |
-| **Classic** | Image 3 (Brown/Gold) | Traditional form-style layout with labeled fields, professional color scheme, boxed sections, material table with colored header/total rows, dual signature/date fields |
+1. **Grouping uses full dimensions**: Line 55 groups beams by `${typeName}-${beam.width}-${beam.depth}` (e.g., `EB1-450-300`)
 
----
+2. **React key uses only typeName**: Line 274 sets `const stableKey = group.typeName` (e.g., just `EB1`)
 
-## Changes to QuoteTemplatePreview.tsx
+3. **The matching function uses stale references**: Lines 114-123 check:
+   ```typescript
+   if (beamType === group.typeName && beam.width === group.width && beam.depth === group.depth)
+   ```
+   This compares against the group's OLD dimensions, which can fail when the component re-renders mid-edit
 
-### Modern Template
+### Why This Breaks Input
 
-```text
-+--------------------------------------------------+
-| [Logo] BUSINESS NAME           CONCRETE WORK     |
-|        ABN: XX XXX XXX XXX     ESTIMATE          |
-|                                #Q-0001           |
-+--------------------------------------------------+
-| Client Information        | Company Information  |
-|---------------------------|----------------------|
-| Name: John Smith          | Company: Your Biz    |
-| Address: 123 Example St   | Phone: 0400 000 000  |
-| Phone: 0400 000 000       | Email: email@biz.com |
-+--------------------------------------------------+
-| Project Description                              |
-| Concrete work for driveway and footpath...       |
-+--------------------------------------------------+
-| No | Description    | Qty | Unit Price | Total  |
-|----|----------------|-----|------------|--------|
-| 01 | Site Prep      | 1   | $1,500     | $1,500 |
-| 02 | Concrete       | 18m³| $120/m³    | $2,160 |
-+--------------------------------------------------+
-|                     Subtotal    |    $11,363.64  |
-|                     GST (10%)   |     $1,136.36  |
-|                     TOTAL       |    $12,500.00  |
-+--------------------------------------------------+
-| Notes: Valid 14 days        | Signature:________ |
-+--------------------------------------------------+
-```
+When a user types in a dimension field:
+1. The `onChange` handler receives the new value
+2. State updates and groups are recalculated with new dimensions
+3. The matching logic may fail because it compares against stale group dimensions from the closure
+4. The Input component loses its controlled value sync, causing erratic behavior
 
-**Key Visual Changes:**
-- Bold header banner using `secondaryColor` with logo + business name on left, "CONCRETE WORK ESTIMATE" on right
-- Two-column "Client Information" / "Company Information" sections with labeled fields
-- Project Description section with left accent bar
-- Itemized table with numbered rows, colored header using `secondaryColor`
-- Subtotal/GST/Total breakdown aligned right
-- Notes + Signature area at bottom
-
-### Minimal Template
-
-```text
-Your Business Name                    [Upload Logo]
-123 Company Street
-Sydney NSW 2000
-
-                    CONCRETE
-                    ESTIMATE
-
-Bill To                          Estimate #    0001
-Customer Name                    Estimate Date 11-04
-123 Customer St                  Due Date      25-04
-Sydney NSW 2000
-
-+--------------------------------------------------+
-| QTY | Description              | Unit    | Amount|
-|-----|--------------------------|---------|-------|
-| 1   | Site Preparation         | $1,500  | $1,500|
-| 18  | Concrete (m³)            | $120    | $2,160|
-+--------------------------------------------------+
-                                 Subtotal   $11,364
-                                 GST (10%)   $1,136
-                                 Total      $12,500
-
-Terms & Conditions
-Payment due in 14 days
-                                 ___________________
-                                 Customer Signature
-```
-
-**Key Visual Changes:**
-- Company details top-left (name, address)
-- Logo placeholder top-right with dashed border
-- Large, bold, centered "CONCRETE ESTIMATE" title
-- Two-column layout: Bill To on left, estimate metadata on right
-- Clean table with minimal styling, blue header
-- Right-aligned totals
-- Terms section and signature line at bottom
-
-### Classic Template
-
-```text
-+--------------------------------------------------+
-| [Logo] HOUSE CONSTRUCTION QUOTE                  |
-|        (Your Company Name)                       |
-+--------------------------------------------------+
-| Company Address:   | 123 Business Street         |
-| Contact Number:    | 0400 000 000                |
-| Email Address:     | email@company.com           |
-+--------------------------------------------------+
-| TO:                                              |
-| Owner Name:        | John Smith                  |
-| Address:           | 123 Example Street          |
-| Contact Number:    | 0400 000 000                |
-| Email Address:     | john@email.com              |
-| Date:              | 10 Jan 2026                 |
-| Quote Number:      | Q-0001                      |
-+--------------------------------------------------+
-| MATERIAL DESCRIPTION     | COST  | TAX  | AMOUNT |
-|--------------------------|-------|------|--------|
-| Site Preparation         | $1,500| 10%  | $1,650 |
-| Concrete Supply          | $2,000| 10%  | $2,200 |
-|--------------------------|-------|------|--------|
-| GRAND TOTAL              |       |      |$12,500 |
-+--------------------------------------------------+
-|    (Signature)           |         (Date)        |
-+--------------------------------------------------+
-```
-
-**Key Visual Changes:**
-- Header with logo + bold document title + company name subtitle
-- Form-style labeled fields in rows using primary color for labels
-- "TO:" section with client details in same labeled format
-- Material table with 4 columns including separate TAX column
-- Grand Total row with colored background
-- Dual signature/date fields at bottom
+This is the same issue that was previously fixed in `MultiLinearTypeInput` and `FootingSectionReinforcementInput` using stable unique keys.
 
 ---
 
-## Files to Modify
+## Solution
 
-| File | Changes |
-|------|---------|
-| `src/components/onboarding/QuoteTemplatePreview.tsx` | Complete redesign of all three templates to match professional reference images |
-| `src/components/estimates/PrintableEstimate.tsx` | Update full-size PDF templates to match the new preview designs |
+Apply the same fix that works in `FootingSectionReinforcementInput`:
+
+### 1. Add `groupKey` to BeamTypeGroup interface
+
+Store the full grouping key (`typeName-width-depth`) in the group object itself, so the matching logic can use the segment-level data instead of the stale group-level reference.
+
+### 2. Fix matching logic to use segment IDs directly
+
+Instead of comparing dimensions against the group object (which may be stale), update all segments that belong to the group by their IDs:
+
+```typescript
+const updateGroupDimensions = (group: BeamTypeGroup, field: 'width' | 'depth', value: number) => {
+  // Get IDs of all segments in this group
+  const segmentIds = new Set(group.segments.map(s => s.id));
+  
+  const updatedBeams = beams.map(beam => {
+    if (segmentIds.has(beam.id)) {
+      return { ...beam, [field]: value };
+    }
+    return beam;
+  });
+  onChange(updatedBeams);
+};
+```
+
+### 3. Apply same fix to `updateGroupTotalLength` and `deleteGroup`
+
+Use segment IDs instead of dimension-based matching for all group operations.
 
 ---
 
 ## Technical Details
 
-### Color Usage
-- `primaryColor`: Accent color (totals, highlights, checkmarks)
-- `secondaryColor`: Header backgrounds, section headers, table headers
-- Maintain proper contrast for text readability
+### File to Modify
 
-### Typography
-- Use the user's selected `font` consistently
-- Clear hierarchy: document title largest, section headers medium, body text smallest
-- All caps for headers/labels where appropriate
+| File | Changes |
+|------|---------|
+| `src/components/estimates/calculators/MultiBeamTypeInput.tsx` | Fix matching logic to use segment IDs instead of stale dimension comparisons |
 
-### Layout Improvements
-- Better use of whitespace and padding
-- Clear visual separation between sections
-- Consistent alignment (left-aligned labels, right-aligned numbers)
-- Professional table formatting with alternating row colors where applicable
+### Specific Changes
 
-### Preview Scale
-- Maintain the miniature preview scale (`text-[6px]`, `text-[7px]`)
-- Ensure all elements are visible and legible at thumbnail size
+**1. Update `groupBeamsByType` function (lines 49-78)**
+Add a `groupKey` property to track the full key:
+
+```typescript
+interface BeamTypeGroup {
+  typeName: string;
+  width: number;
+  depth: number;
+  segments: BeamConfig[];
+  totalLength: number;
+  totalVolume: number;
+  groupKey: string;  // Add this
+}
+```
+
+**2. Fix `updateGroupDimensions` (lines 114-123)**
+Change from dimension-based matching to segment ID matching:
+
+```typescript
+const updateGroupDimensions = (group: BeamTypeGroup, field: 'width' | 'depth', value: number) => {
+  const segmentIds = new Set(group.segments.map(s => s.id));
+  const updatedBeams = beams.map(beam => 
+    segmentIds.has(beam.id) ? { ...beam, [field]: value } : beam
+  );
+  onChange(updatedBeams);
+};
+```
+
+**3. Fix `updateGroupTotalLength` (lines 125-157)**
+Apply the same segment ID matching pattern.
+
+**4. Fix `deleteGroup` (lines 159-165)**
+Apply the same segment ID matching pattern.
 
 ---
 
-## Implementation Approach
+## Why This Works
 
-1. **QuoteTemplatePreview.tsx** - Update all three template previews with the new professional designs
-2. **PrintableEstimate.tsx** - Update the full-size PDF templates to match the preview designs while maintaining print-friendly formatting
+By using segment IDs instead of dimension comparisons:
 
-The new designs will be more visually consistent with industry-standard quote templates while preserving the customization options (colors, fonts, logos) that users have configured.
+1. **Segment IDs are stable**: They don't change when dimensions are edited
+2. **No stale closures**: We don't rely on the group's dimensions matching the beams' dimensions
+3. **Immediate updates**: Each keystroke correctly identifies which beams to update
+4. **Consistent with other components**: Same pattern used in `FootingSectionReinforcementInput`
+
+---
+
+## Implementation Sequence
+
+1. Update `BeamTypeGroup` interface to include `groupKey`
+2. Update `groupBeamsByType` to set `groupKey` 
+3. Refactor `updateGroupDimensions` to use segment IDs
+4. Refactor `updateGroupTotalLength` to use segment IDs
+5. Refactor `deleteGroup` to use segment IDs
+6. Test with driveway, raft slab, and other beam-enabled scopes
