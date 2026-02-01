@@ -746,3 +746,26 @@ export interface ExpansionJointConfig {
   foam_rolls?: number;
   foam_roll_price?: number;
 }
+
+/**
+ * Individual control joint (saw cut) configuration for multi-row control joints
+ * Allows specifying multiple control joint configurations with per-joint caulking toggle
+ */
+export interface ControlJointConfig {
+  id: string;
+  name?: string;                    // Optional label (e.g., "Garage Floor Cuts")
+  
+  // Length - manual or measured from takeoff
+  total_length_m: number;           // Total saw cut length in metres
+  measured_on_plans?: boolean;      // Flag if measured from takeoff
+  
+  // Saw cutting pricing
+  pricing_method: 'per_metre' | 'hourly';
+  price_per_m?: number;             // Price per metre (when per_metre)
+  hours?: number;                   // Hours (when hourly)
+  hourly_rate?: number;             // Hourly rate (when hourly)
+  
+  // Caulking - per joint toggle
+  caulking_required: boolean;
+  caulking_price_per_m?: number;
+}
