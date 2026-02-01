@@ -913,6 +913,90 @@ const {
     }
   };
 
+  /**
+   * Handle joint markup complete - called when user confirms joint marking in takeoff
+   * Updates the specific joint's total_length_m in module answers and auto-navigates back to configure step
+   */
+  const handleJointMarkupComplete = useCallback(async (scopeId: string, lengthMeters: number) => {
+    const markedScope = markedTakeoffScopeRef.current;
+    
+    // Check if this is a specific joint markup (format: "expansion_joints:joint:{jointId}" or "control_joints:joint:{jointId}")
+    if (markedScope && typeof markedScope === 'string' && markedScope.includes(':joint:')) {
+      const parts = markedScope.split(':');
+      const jointModuleType = parts[0]; // 'expansion_joints' or 'control_joints'
+      const jointId = parts[2];
+      
+      // Find the scope that contains this joint module
+      const targetScope = selectedScopesArray.find(s => {
+        const state = modularScopeStates[s];
+        if (!state?.moduleAnswers) return false;
+        
+        // Check if this scope has the joint module with matching joint ID
+        if (jointModuleType === 'expansion_joints') {
+          const joints = state.moduleAnswers['connections-joints']?.expansion_joints || [];
+          return joints.some((j: any) => j.id === jointId);
+        } else if (jointModuleType === 'control_joints') {
+          const joints = state.moduleAnswers['joints-control']?.control_joints || [];
+          return joints.some((j: any) => j.id === jointId);
+        }
+        return false;
+      });
+      
+      if (targetScope) {
+        // Update the specific joint's total_length_m in module answers
+        setModularScopeStates(prev => {
+          const updated = { ...prev };
+          const scopeState = { ...updated[targetScope] };
+          const moduleAnswers = { ...scopeState.moduleAnswers };
+          
+          if (jointModuleType === 'expansion_joints') {
+            const connectionsModule = { ...(moduleAnswers['connections-joints'] || {}) };
+            const joints = [...(connectionsModule.expansion_joints || [])];
+            const jointIndex = joints.findIndex((j: any) => j.id === jointId);
+            if (jointIndex >= 0) {
+              joints[jointIndex] = {
+                ...joints[jointIndex],
+                total_length_m: parseFloat(lengthMeters.toFixed(2)),
+                measured_on_plans: true,
+              };
+              connectionsModule.expansion_joints = joints;
+              moduleAnswers['connections-joints'] = connectionsModule;
+            }
+          } else if (jointModuleType === 'control_joints') {
+            const controlModule = { ...(moduleAnswers['joints-control'] || {}) };
+            const joints = [...(controlModule.control_joints || [])];
+            const jointIndex = joints.findIndex((j: any) => j.id === jointId);
+            if (jointIndex >= 0) {
+              joints[jointIndex] = {
+                ...joints[jointIndex],
+                total_length_m: parseFloat(lengthMeters.toFixed(2)),
+                measured_on_plans: true,
+              };
+              controlModule.control_joints = joints;
+              moduleAnswers['joints-control'] = controlModule;
+            }
+          }
+          
+          scopeState.moduleAnswers = moduleAnswers;
+          updated[targetScope] = scopeState;
+          return updated;
+        });
+        
+        // Set the active scope index to show the correct scope when returning
+        const scopeIndex = selectedScopesArray.indexOf(targetScope);
+        if (scopeIndex >= 0) {
+          setActiveScopeIndex(scopeIndex);
+        }
+      }
+    }
+    
+    // Clear the ref and navigate back to configure step
+    markedTakeoffScopeRef.current = null;
+    setPendingTakeoffScope(null);
+    await refetchMarkups();
+    setCurrentStep('configure');
+  }, [selectedScopesArray, modularScopeStates, refetchMarkups]);
+
   const getScopeLabel = (scope: ScopeType) => {
     return SCOPE_OPTIONS.find(s => s.id === scope)?.label || scope;
   };
@@ -1882,6 +1966,7 @@ const {
               )}
               initialScope={pendingTakeoffScope}
               onInitialScopeHandled={() => setPendingTakeoffScope(null)}
+              onJointMarkupComplete={handleJointMarkupComplete}
               onContinue={goNext}
               onBack={goBack}
               onSkip={goNext}

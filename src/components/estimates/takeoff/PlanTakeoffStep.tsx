@@ -15,6 +15,7 @@ import { PierDimensionsDialog } from './PierDimensionsDialog';
 import { BollardDimensionsDialog } from './BollardDimensionsDialog';
 import { PadFootingDimensionsDialog } from './PadFootingDimensionsDialog';
 import { LinearDimensionsDialog, type ExistingLinearSegment, type PolylineSegment } from './LinearDimensionsDialog';
+import { JointDimensionsDialog } from './JointDimensionsDialog';
 import { MarkupNameDialog } from './MarkupNameDialog';
 import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData, type BeamData } from './SlabBeamMarkupDialog';
 import { EditBeamDialog } from './EditBeamDialog';
@@ -33,6 +34,8 @@ interface PlanTakeoffStepProps {
   initialScope?: ScopeType | string | null;
   /** Callback to clear initialScope after it's been handled */
   onInitialScopeHandled?: () => void;
+  /** Callback when joint markup is completed - passes scope ID and measured length */
+  onJointMarkupComplete?: (scopeId: string, lengthMeters: number) => Promise<void>;
   onContinue: () => void;
   onBack: () => void;
   onSkip: () => void;
@@ -46,6 +49,7 @@ export function PlanTakeoffStep({
   scopeLabels,
   initialScope,
   onInitialScopeHandled,
+  onJointMarkupComplete,
   onContinue,
   onBack,
   onSkip,
@@ -85,6 +89,8 @@ export function PlanTakeoffStep({
   const [showBollardDimensions, setShowBollardDimensions] = useState(false);
   const [showPadDimensions, setShowPadDimensions] = useState(false);
   const [showLinearDimensions, setShowLinearDimensions] = useState(false);
+  const [showJointDimensions, setShowJointDimensions] = useState(false);
+  const [pendingJointType, setPendingJointType] = useState<'expansion_joints' | 'control_joints' | null>(null);
   const [showMarkupNameDialog, setShowMarkupNameDialog] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [selectedMarkupId, setSelectedMarkupId] = useState<string | null>(null);
@@ -162,9 +168,11 @@ export function PlanTakeoffStep({
   // Define scope types for different drawing tools
   const POINT_SCOPES = ['piers', 'bollards', 'pit_bases', 'pad_footings'];
   const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls', 'expansion_joints', 'control_joints'];
+  const JOINT_SCOPES = ['expansion_joints', 'control_joints'];
   
   const isPointScope = activeScope !== null && POINT_SCOPES.includes(activeScope);
   const isLinearScope = activeScope !== null && LINEAR_SCOPES.includes(activeScope);
+  const isJointScope = activeScope !== null && JOINT_SCOPES.includes(activeScope);
   const isPierScope = activeScope === 'piers';
   const isBollardScope = activeScope === 'bollards';
   const isPadScope = activeScope === 'pit_bases' || activeScope === 'pad_footings'; // Both use point tool now
@@ -958,9 +966,16 @@ export function PlanTakeoffStep({
     if (polylinePoints.length >= 2 && currentScale) {
       const lengthMeters = calculatePolylineLength(polylinePoints, currentScale);
       setPendingPolylineLength(lengthMeters);
-      setShowLinearDimensions(true);
+      
+      // For joint scopes, show simplified joint dimensions dialog
+      if (activeScope === 'expansion_joints' || activeScope === 'control_joints') {
+        setPendingJointType(activeScope as 'expansion_joints' | 'control_joints');
+        setShowJointDimensions(true);
+      } else {
+        setShowLinearDimensions(true);
+      }
     }
-  }, [polylinePoints, currentScale, slabWorkflowActive, handleDoneMarkingSingleBeam]);
+  }, [polylinePoints, currentScale, slabWorkflowActive, handleDoneMarkingSingleBeam, activeScope]);
 
   // Handler called by DrawingCanvas when polyline is completed (double-click alternative)
   const handlePolylineComplete = useCallback((points: TakeoffPoint[], lengthMeters: number) => {
@@ -974,8 +989,15 @@ export function PlanTakeoffStep({
     }
     
     setPendingPolylineLength(lengthMeters);
-    setShowLinearDimensions(true);
-  }, [slabWorkflowActive, handleDoneMarkingSingleBeam]);
+    
+    // For joint scopes, show simplified joint dimensions dialog
+    if (activeScope === 'expansion_joints' || activeScope === 'control_joints') {
+      setPendingJointType(activeScope as 'expansion_joints' | 'control_joints');
+      setShowJointDimensions(true);
+    } else {
+      setShowLinearDimensions(true);
+    }
+  }, [slabWorkflowActive, handleDoneMarkingSingleBeam, activeScope]);
 
   const handleUndo = useCallback(() => {
     // Undo polyline point (for edge beams or linear scopes)
@@ -1682,6 +1704,45 @@ export function PlanTakeoffStep({
           setPolylinePoints([]);
           setPendingPolylineLength(0);
           // Keep activeScope and activeTool so user can immediately continue drawing
+        }}
+      />
+
+      {/* Joint dimensions dialog for expansion/control joints */}
+      <JointDimensionsDialog
+        open={showJointDimensions}
+        onOpenChange={(open) => {
+          setShowJointDimensions(open);
+          if (!open) {
+            // Reset pending joint type if dialog is closed without saving
+            setPendingJointType(null);
+          }
+        }}
+        lengthMeters={pendingPolylineLength}
+        segmentCount={polylinePoints.length > 0 ? polylinePoints.length - 1 : 1}
+        jointType={pendingJointType || 'expansion_joints'}
+        onConfirm={async () => {
+          if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
+          const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+          const jointName = `Joint ${markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length + 1}`;
+          
+          // Save the polyline markup with minimal dimensions (joints don't need width/depth)
+          await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, 0, 0, color, currentPage, jointName);
+          
+          // Call the callback to notify parent about the completed joint markup
+          if (onJointMarkupComplete) {
+            await onJointMarkupComplete(activeScope, pendingPolylineLength);
+          }
+          
+          // Reset state
+          setPolylinePoints([]);
+          setPendingPolylineLength(0);
+          setActiveTool('select');
+          setActiveScope(null);
+          setPendingJointType(null);
+        }}
+        onCancel={() => {
+          // User cancelled - return to drawing mode without saving
+          setPendingJointType(null);
         }}
       />
 
