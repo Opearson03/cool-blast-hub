@@ -23,6 +23,7 @@ interface BeamTypeGroup {
   segments: BeamConfig[];
   totalLength: number;
   totalVolume: number;
+  groupKey: string;
 }
 
 interface MultiBeamTypeInputProps {
@@ -62,6 +63,7 @@ function groupBeamsByType(beams: BeamConfig[]): BeamTypeGroup[] {
         segments: [beam],
         totalLength: beam.length || 0,
         totalVolume: (beam.length || 0) * (beam.width / 1000) * (beam.depth / 1000),
+        groupKey: key,
       });
     } else {
       const group = groupMap.get(key)!;
@@ -112,13 +114,11 @@ export function MultiBeamTypeInput({
   };
 
   const updateGroupDimensions = (group: BeamTypeGroup, field: 'width' | 'depth', value: number) => {
-    const updatedBeams = beams.map(beam => {
-      const beamType = parseBeamTypeName(beam.name);
-      if (beamType === group.typeName && beam.width === group.width && beam.depth === group.depth) {
-        return { ...beam, [field]: value };
-      }
-      return beam;
-    });
+    // Use segment IDs for stable matching instead of dimension-based matching
+    const segmentIds = new Set(group.segments.map(s => s.id));
+    const updatedBeams = beams.map(beam => 
+      segmentIds.has(beam.id) ? { ...beam, [field]: value } : beam
+    );
     onChange(updatedBeams);
   };
 
@@ -126,19 +126,18 @@ export function MultiBeamTypeInput({
     // Don't allow negative values
     if (newTotalLength < 0) return;
     
+    // Use segment IDs for stable matching
+    const segmentIds = new Set(group.segments.map(s => s.id));
+    
     // If group has no length yet (all segments are 0), distribute the new length equally
     if (group.totalLength === 0) {
       const segmentCount = group.segments.length;
       if (segmentCount === 0) return;
       
       const lengthPerSegment = Math.round((newTotalLength / segmentCount) * 100) / 100;
-      const updatedBeams = beams.map(beam => {
-        const beamType = parseBeamTypeName(beam.name);
-        if (beamType === group.typeName && beam.width === group.width && beam.depth === group.depth) {
-          return { ...beam, length: lengthPerSegment };
-        }
-        return beam;
-      });
+      const updatedBeams = beams.map(beam => 
+        segmentIds.has(beam.id) ? { ...beam, length: lengthPerSegment } : beam
+      );
       onChange(updatedBeams);
       return;
     }
@@ -146,21 +145,18 @@ export function MultiBeamTypeInput({
     // Scale existing segments proportionally
     const ratio = newTotalLength / group.totalLength;
     
-    const updatedBeams = beams.map(beam => {
-      const beamType = parseBeamTypeName(beam.name);
-      if (beamType === group.typeName && beam.width === group.width && beam.depth === group.depth) {
-        return { ...beam, length: Math.round((beam.length || 0) * ratio * 100) / 100 };
-      }
-      return beam;
-    });
+    const updatedBeams = beams.map(beam => 
+      segmentIds.has(beam.id) 
+        ? { ...beam, length: Math.round((beam.length || 0) * ratio * 100) / 100 }
+        : beam
+    );
     onChange(updatedBeams);
   };
 
   const deleteGroup = (group: BeamTypeGroup) => {
-    const updatedBeams = beams.filter(beam => {
-      const beamType = parseBeamTypeName(beam.name);
-      return !(beamType === group.typeName && beam.width === group.width && beam.depth === group.depth);
-    });
+    // Use segment IDs for stable matching
+    const segmentIds = new Set(group.segments.map(s => s.id));
+    const updatedBeams = beams.filter(beam => !segmentIds.has(beam.id));
     onChange(updatedBeams);
   };
 
@@ -270,15 +266,14 @@ export function MultiBeamTypeInput({
   return (
     <div className="space-y-3">
       {groups.map((group) => {
-        // Use stable key based only on typeName to prevent remounting when dimensions change
-        const stableKey = group.typeName;
-        const isExpanded = expandedTypes.has(stableKey);
+        // Use stable groupKey that includes dimensions to properly identify unique groups
+        const isExpanded = expandedTypes.has(group.groupKey);
         
         return (
           <Collapsible
-            key={stableKey}
+            key={group.groupKey}
             open={isExpanded}
-            onOpenChange={() => toggleExpand(stableKey)}
+            onOpenChange={() => toggleExpand(group.groupKey)}
           >
             <div className="border rounded-lg bg-muted/30">
               {/* Type Header Row */}
