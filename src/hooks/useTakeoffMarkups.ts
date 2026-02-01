@@ -175,6 +175,8 @@ interface UseTakeoffMarkupsReturn {
   getRaftSlabAreasForScope: (scopeId: string) => RaftSlabAreaFromTakeoff[];
   // Demolition specific
   getDemolitionAreasForScope: (scopeId: string) => DemolitionAreaFromTakeoff[];
+  // Expansion joints specific
+  getExpansionJointTotalLength: () => number;
   refetch: () => Promise<void>;
 }
 
@@ -638,6 +640,20 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     });
   }, [markups]);
 
+  /**
+   * Get total length of expansion joint markups
+   * Returns the sum of all polyline lengths marked as expansion_joints
+   */
+  const getExpansionJointTotalLength = useCallback((): number => {
+    const jointMarkups = markups.filter(
+      m => m.scope_id === 'expansion_joints' && m.shape_type === 'polyline'
+    );
+    
+    if (jointMarkups.length === 0) return 0;
+    
+    return jointMarkups.reduce((sum, m) => sum + (m.length_m || 0), 0);
+  }, [markups]);
+
   return {
     markups,
     isLoading,
@@ -659,6 +675,8 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
     getRaftSlabAreasForScope,
     // Demolition specific
     getDemolitionAreasForScope,
+    // Expansion joints specific
+    getExpansionJointTotalLength,
     refetch: fetchMarkups,
   };
 }

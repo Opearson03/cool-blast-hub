@@ -452,6 +452,8 @@ const {
     getRaftSlabAreasForScope,
     // Demolition specific
     getDemolitionAreasForScope,
+    // Expansion joints specific
+    getExpansionJointTotalLength,
     refetch: refetchMarkups 
   } = useTakeoffMarkups(estimateIdForTakeoff);
   

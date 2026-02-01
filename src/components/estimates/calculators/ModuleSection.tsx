@@ -61,6 +61,8 @@ interface ModuleSectionProps {
   onScopeDataChange?: (key: string, value: any) => void;
   priceMap?: Record<string, Record<string, number>>;
   scopeId?: string;
+  onRequestJointMarkup?: (jointId: string) => void;
+  hasPlans?: boolean;
 }
 
 function QuestionInput({
@@ -318,6 +320,8 @@ export function ModuleSection({
   onScopeDataChange,
   priceMap,
   scopeId,
+  onRequestJointMarkup,
+  hasPlans,
 }: ModuleSectionProps) {
   // State for add custom item dialog
   const [showAddItemDialog, setShowAddItemDialog] = useState(false);
@@ -824,6 +828,8 @@ export function ModuleSection({
                       joints={(answers.expansion_joints || []) as ExpansionJointConfig[]}
                       onChange={(joints) => onAnswerChange('expansion_joints', joints)}
                       priceMap={priceMap}
+                      onRequestMarkup={onRequestJointMarkup}
+                      hasPlans={hasPlans}
                     />
                   </div>
                 );
