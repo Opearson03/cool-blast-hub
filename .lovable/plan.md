@@ -1,65 +1,97 @@
 
-# Remove Duplicate Bar Chairs from Measure Section
 
-## Problem Summary
+# Fix Print Logo Loading Issue
 
-The bar chairs option appears in two places for strip footings and retaining wall footings:
+## Problem
 
-1. **Measure section** (`MultiLinearTypeInput.tsx` lines 555-571): Basic "Include Chairs?" toggle
-2. **Reinforcement section** (`FootingSectionReinforcementInput.tsx`): Full chair configuration with type selection, pricing, and layer chairs
-
-The measure section version is a duplicate and less featured - it should be removed.
-
----
+When clicking "Print" on any PDF document (quotes, BOQ, ITP, SWMS), the browser's print interface opens before the company logo has finished loading. This happens because the current implementation uses a fixed 100ms delay which is too short for images to load from the network.
 
 ## Solution
 
-Remove the chairs section from `MultiLinearTypeInput.tsx` that is scoped to strip footings and retaining wall footings.
+Replace the fixed 100ms timeout with a smarter approach that:
+1. Waits for the logo image to actually finish loading
+2. Falls back to a maximum timeout (1.5 seconds) if the image fails or takes too long
 
----
+## Technical Approach
 
-## Changes Required
-
-**File:** `src/components/estimates/calculators/MultiLinearTypeInput.tsx`
-
-### Delete the Chairs Section (lines 555-571)
-
-Remove this entire block:
-```typescript
-{/* Chairs Section - for strip footings and retaining wall footings */}
-{(scopeId === 'strip_footings' || scopeId === 'retaining_wall_footings') && (
-  <div className="border-t px-3 py-3 bg-muted/20">
-    <div className="flex items-center justify-between">
-      <Label className="text-sm font-medium">Include Chairs?</Label>
-      <Switch
-        checked={group.chairs_enabled ?? false}
-        onCheckedChange={(checked) => updateGroupChairs(group, checked)}
-      />
-    </div>
-    {group.chairs_enabled && (
-      <p className="text-xs text-muted-foreground mt-2">
-        Chairs will be calculated based on footing length (~1.4 per metre)
-      </p>
-    )}
-  </div>
-)}
-```
-
-Also remove the associated `updateGroupChairs` function if it exists and is only used by this section.
+Create a reusable helper function that waits for images to load, then update all print handlers to use it.
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/components/estimates/calculators/MultiLinearTypeInput.tsx` | Remove duplicate chairs section (lines 555-571) and associated function |
+| File | Component | Change |
+|------|-----------|--------|
+| `src/components/estimates/EstimateDetailSheet.tsx` | Quote printing | Update handlePrint to wait for logo |
+| `src/components/jobs/boq/BOQCard.tsx` | BOQ printing | Update handlePrint to wait for logo |
+| `src/components/jobs/itps/ITPDetailSheet.tsx` | ITP printing | Update handlePrint to wait for logo |
+| `src/components/jobs/swms/SWMSDetailSheet.tsx` | SWMS printing | Update handlePrint to wait for logo |
+
+---
+
+## Implementation Details
+
+### New Pattern for handlePrint
+
+```typescript
+const handlePrint = () => {
+  setIsPrinting(true); // or setShowPrintView(true)
+  
+  // Wait for images to load before printing
+  const waitForImages = () => {
+    return new Promise<void>((resolve) => {
+      const maxWait = setTimeout(() => resolve(), 1500); // Max 1.5s wait
+      
+      const images = document.querySelectorAll('.print-container img, .print-estimate-portal img');
+      if (images.length === 0) {
+        clearTimeout(maxWait);
+        resolve();
+        return;
+      }
+      
+      let loadedCount = 0;
+      const checkAllLoaded = () => {
+        loadedCount++;
+        if (loadedCount >= images.length) {
+          clearTimeout(maxWait);
+          resolve();
+        }
+      };
+      
+      images.forEach((img) => {
+        if ((img as HTMLImageElement).complete) {
+          checkAllLoaded();
+        } else {
+          img.addEventListener('load', checkAllLoaded);
+          img.addEventListener('error', checkAllLoaded);
+        }
+      });
+    });
+  };
+  
+  // Small delay to render, then wait for images, then print
+  setTimeout(async () => {
+    await waitForImages();
+    window.print();
+    setIsPrinting(false); // or setShowPrintView(false)
+  }, 100);
+};
+```
+
+### Key Benefits
+
+- **Logo always visible**: Print dialog only opens after images have loaded
+- **No indefinite waiting**: 1.5 second maximum prevents hanging if images fail
+- **Handles all images**: Works with any images in the print view, not just logos
+- **Graceful fallback**: If an image fails to load, printing still proceeds
 
 ---
 
 ## Impact
 
-- Bar chairs configuration will only appear in the Reinforcement module (where it belongs)
-- Users will have access to the full chair configuration (type, price, layer chairs) in one place
-- No duplicate data or confusion between the two sections
-- Existing chair settings saved in linearSections will continue to work with the reinforcement UI
+- All print functionality (Quotes, BOQ, ITP, SWMS) will wait for logos to load
+- Maximum additional wait time: 1.5 seconds
+- If logo loads quickly, print opens immediately after loading
+- If logo fails to load, print still opens after timeout
+- No changes to print styling or layout
+
