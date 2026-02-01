@@ -24,6 +24,11 @@ export interface ScopeBreakdown {
   details: string;
   /** Individual areas for multi-area scopes */
   areas?: Array<{ name: string; length: number; width: number; area: number }>;
+  // Detailed scope specifications
+  concreteStrength?: string;     // e.g., "32MPa"
+  reinforcement?: string;        // e.g., "SL82 mesh"
+  surfaceFinish?: string;        // e.g., "Exposed aggregate, sealed"
+  thickness?: number;            // mm
 }
 
 export interface QuoteLineItem {
@@ -58,8 +63,72 @@ function formatScopeName(scopeId: string): string {
     retaining_wall: 'Retaining Wall',
     pool_shell: 'Pool Shell',
     shed_slab: 'Shed Slab',
+    waffle_pod: 'Waffle Pod Slab',
+    slab_on_ground: 'Slab on Ground',
+    strip_footing: 'Strip Footings',
   };
   return names[scopeId] || scopeId.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+}
+
+/**
+ * Format surface finish for display
+ */
+function formatSurfaceFinish(finish: string | undefined): string | undefined {
+  if (!finish) return undefined;
+  
+  const finishNames: Record<string, string> = {
+    broom: 'Broom finish',
+    exposed: 'Exposed aggregate',
+    exposed_aggregate: 'Exposed aggregate',
+    polished: 'Polished concrete',
+    burnished: 'Burnished finish',
+    trowel: 'Steel trowel finish',
+    steel_trowel: 'Steel trowel finish',
+    sponge: 'Sponge finish',
+    stamped: 'Stamped concrete',
+    sealed: 'Sealed',
+  };
+  
+  return finishNames[finish.toLowerCase()] || finish;
+}
+
+/**
+ * Generate a detailed description for a scope
+ */
+export function generateScopeDescription(scope: ScopeBreakdown): string {
+  const parts: string[] = [];
+  
+  // Volume with optional strength
+  if (scope.volume > 0) {
+    let volumePart = `${scope.volume.toFixed(1)}m³ concrete to be supplied`;
+    if (scope.concreteStrength) {
+      volumePart += ` at ${scope.concreteStrength}`;
+    }
+    parts.push(volumePart);
+  }
+  
+  // Thickness
+  if (scope.thickness && scope.thickness > 0) {
+    parts.push(`${scope.thickness}mm thick`);
+  }
+  
+  // Reinforcement
+  if (scope.reinforcement) {
+    parts.push(`reinforced with ${scope.reinforcement}`);
+  }
+  
+  // Surface finish
+  if (scope.surfaceFinish) {
+    parts.push(scope.surfaceFinish);
+  }
+  
+  // If we have parts, join them
+  if (parts.length > 0) {
+    return parts.join(', ');
+  }
+  
+  // Fallback to basic details
+  return scope.details || '';
 }
 
 /**
@@ -162,7 +231,7 @@ export function extractReinforcementDetails(
     const scope = scopes[scopeId];
     const scopeAnswers = scope.scopeAnswers || scope;
     const moduleAnswers = scope.moduleAnswers || {};
-    const reinforcement = moduleAnswers['reinforcement'] || {};
+    const reinforcement = moduleAnswers['reinforcement'] || moduleAnswers['reinforcement-slab'] || {};
     
     const meshType = reinforcement.mesh_type || 
                      scopeAnswers.mesh_type || 
@@ -181,6 +250,58 @@ export function extractReinforcementDetails(
 }
 
 /**
+ * Extract detailed reinforcement string from moduleAnswers
+ */
+function extractReinforcementString(moduleAnswers: Record<string, any>): string | undefined {
+  // Check various reinforcement modules
+  const reinforcementModules = [
+    'reinforcement',
+    'reinforcement-slab',
+    'reinforcement-raft',
+    'reinforcement-footing',
+  ];
+  
+  for (const modKey of reinforcementModules) {
+    const mod = moduleAnswers[modKey];
+    if (mod) {
+      const meshType = mod.mesh_type;
+      if (meshType && meshType !== 'None') {
+        return `${meshType} mesh`;
+      }
+      // Check for rebar
+      const rebarSize = mod.rebar_size || mod.bar_size;
+      if (rebarSize) {
+        return `${rebarSize} bars`;
+      }
+    }
+  }
+  
+  return undefined;
+}
+
+/**
+ * Extract surface finish from moduleAnswers
+ */
+function extractSurfaceFinish(moduleAnswers: Record<string, any>): string | undefined {
+  const finishModule = moduleAnswers['surface-finishing'] || moduleAnswers['architectural-finishing'];
+  
+  if (finishModule) {
+    const finishType = finishModule.finish_type || finishModule.surface_finish;
+    const formattedFinish = formatSurfaceFinish(finishType);
+    
+    // Check for sealer
+    const hasSealer = finishModule.include_sealer || finishModule.sealer_included;
+    
+    if (formattedFinish && hasSealer) {
+      return `${formattedFinish}, sealed`;
+    }
+    return formattedFinish;
+  }
+  
+  return undefined;
+}
+
+/**
  * Extract scope breakdowns from scope data
  */
 export function extractScopeBreakdowns(
@@ -196,6 +317,7 @@ export function extractScopeBreakdowns(
   for (const scopeId of Object.keys(scopes)) {
     const scope = scopes[scopeId];
     const scopeAnswers = scope.scopeAnswers || scope;
+    const moduleAnswers = scope.moduleAnswers || {};
     
     const volume = Number(scopeAnswers.concreteVolume || scopeAnswers.total_volume || scopeAnswers.volume || 0);
     let area = Number(scopeAnswers.area || 0);
@@ -204,7 +326,7 @@ export function extractScopeBreakdowns(
       area = Number(scopeAnswers.length) * Number(scopeAnswers.width);
     }
     
-    const thickness = scopeAnswers.thickness || scopeAnswers.slab_thickness;
+    const thickness = Number(scopeAnswers.thickness || scopeAnswers.slab_thickness || 0);
     
     // Extract individual areas for multi-area scopes
     let individualAreas: Array<{ name: string; length: number; width: number; area: number }> | undefined;
@@ -219,12 +341,30 @@ export function extractScopeBreakdowns(
         }));
     }
     
+    // Extract concrete strength
+    const concreteStrength = scopeAnswers.mpa_strength || 
+                              scopeAnswers.concreteStrength || 
+                              scopeAnswers.concrete_strength ||
+                              moduleAnswers['concrete-supply']?.mpa_strength;
+    
+    // Extract reinforcement details
+    const reinforcement = extractReinforcementString(moduleAnswers);
+    
+    // Extract surface finish
+    const surfaceFinish = extractSurfaceFinish(moduleAnswers);
+    
     breakdowns.push({
       scopeName: formatScopeName(scopeId),
       volume,
       area: area > 0 ? area : undefined,
       details: thickness ? `${thickness}mm thick` : '',
       areas: individualAreas,
+      concreteStrength: concreteStrength ? 
+        (String(concreteStrength).includes('MPa') ? String(concreteStrength) : `${concreteStrength}MPa`) : 
+        undefined,
+      reinforcement,
+      surfaceFinish,
+      thickness: thickness > 0 ? thickness : undefined,
     });
   }
   

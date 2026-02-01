@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { format } from "date-fns";
-import { extractQuotePDFData, hasDetailedData, type QuotePDFData } from "@/lib/quote-pdf-data";
+import { extractQuotePDFData, hasDetailedData, generateScopeDescription, type QuotePDFData, type ScopeBreakdown } from "@/lib/quote-pdf-data";
 
 interface EstimateLineItem {
   description: string;
@@ -147,7 +147,113 @@ const ProjectSummarySection = ({
   );
 };
 
-// Scope Breakdown Component
+// Detailed Scope of Works Component - NEW
+const DetailedScopeSection = ({ 
+  data, 
+  primaryColor, 
+  secondaryColor,
+  template 
+}: { 
+  data: QuotePDFData; 
+  primaryColor: string; 
+  secondaryColor: string;
+  template: string;
+}) => {
+  const { scopeBreakdowns } = data;
+  
+  if (scopeBreakdowns.length === 0) return null;
+
+  if (template === 'minimal') {
+    return (
+      <div className="page-break-avoid mb-10">
+        <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Scope of Works</p>
+        <div className="space-y-4">
+          {scopeBreakdowns.map((scope, index) => (
+            <div key={index}>
+              <p className="text-sm font-medium text-gray-900">{scope.scopeName}</p>
+              <p className="text-sm text-gray-600 mt-1">{generateScopeDescription(scope)}</p>
+              {/* Show individual areas if available */}
+              {scope.areas && scope.areas.length > 0 && (
+                <div className="mt-2 pl-4">
+                  {scope.areas.map((area, aIdx) => (
+                    <p key={aIdx} className="text-xs text-gray-500">
+                      — {area.name}: {area.length}m × {area.width}m = {area.area.toFixed(1)}m²
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (template === 'modern') {
+    return (
+      <div className="page-break-avoid mb-6">
+        <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Scope of Works</h3>
+        <div className="space-y-3">
+          {scopeBreakdowns.map((scope, index) => (
+            <div 
+              key={index} 
+              className="p-3 rounded-lg"
+              style={{ backgroundColor: "#f9fafb", borderLeft: `3px solid ${primaryColor}` }}
+            >
+              <div className="flex items-start gap-2">
+                <span style={{ color: primaryColor }}>✓</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900">{scope.scopeName}</p>
+                  <p className="text-sm text-gray-600 mt-1">{generateScopeDescription(scope)}</p>
+                  {/* Show individual areas if available */}
+                  {scope.areas && scope.areas.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500 space-y-0.5">
+                      {scope.areas.map((area, aIdx) => (
+                        <p key={aIdx}>• {area.name}: {area.length}m × {area.width}m = {area.area.toFixed(1)}m²</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Classic template
+  return (
+    <div className="page-break-avoid mb-6">
+      <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Scope of Works</h3>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <div className="space-y-3">
+          {scopeBreakdowns.map((scope, index) => (
+            <div key={index} className="pb-3 border-b border-gray-200 last:border-0 last:pb-0">
+              <div className="flex items-start gap-2">
+                <span style={{ color: primaryColor }}>•</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-gray-900">{scope.scopeName}</p>
+                  <p className="text-sm text-gray-600 mt-1">{generateScopeDescription(scope)}</p>
+                  {/* Show individual areas if available */}
+                  {scope.areas && scope.areas.length > 0 && (
+                    <div className="mt-2 text-xs text-gray-500 grid grid-cols-2 gap-1">
+                      {scope.areas.map((area, aIdx) => (
+                        <p key={aIdx}>• {area.name}: {area.area.toFixed(1)}m²</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Scope Breakdown Component (quantitative table)
 const ScopeBreakdownSection = ({ 
   data, 
   primaryColor, 
@@ -230,46 +336,222 @@ const ScopeBreakdownSection = ({
   );
 };
 
-// Exclusions Component
-const ExclusionsSection = ({ 
+// Terms and Exclusions Page Component - NEW (Page 2)
+const TermsAndExclusionsPage = ({ 
   exclusions, 
+  paymentTerms,
+  customNotes,
+  business,
+  estimate,
   primaryColor, 
   secondaryColor,
   template 
 }: { 
   exclusions: string[]; 
+  paymentTerms: string[] | null;
+  customNotes: string | null;
+  business: PrintableEstimateProps['business'];
+  estimate: PrintableEstimateProps['estimate'];
   primaryColor: string; 
   secondaryColor: string;
   template: string;
 }) => {
-  if (exclusions.length === 0) return null;
+  const hasContent = exclusions.length > 0 || paymentTerms || customNotes;
+  if (!hasContent) return null;
 
-  if (template === 'minimal') {
+  const renderHeader = () => {
+    if (template === 'minimal') {
+      return (
+        <div className="flex justify-between items-center mb-8 pb-4" style={{ borderBottom: `1px solid ${primaryColor}` }}>
+          <div className="flex items-center gap-3">
+            {business?.logo_url && (
+              <img
+                src={business.logo_url}
+                alt="Company logo"
+                style={{ maxHeight: "32px", maxWidth: "80px", width: "auto", height: "auto", objectFit: "contain" }}
+              />
+            )}
+            <span className="text-sm font-medium text-gray-700">{business?.name}</span>
+          </div>
+          <span className="text-xs uppercase tracking-wider text-gray-400">Terms & Conditions</span>
+        </div>
+      );
+    }
+
+    if (template === 'modern') {
+      return (
+        <div className="flex justify-between items-center mb-8 pb-4" style={{ borderBottom: `3px solid ${primaryColor}` }}>
+          <div className="flex items-center gap-4">
+            {business?.logo_url && (
+              <img
+                src={business.logo_url}
+                alt="Company logo"
+                style={{ maxHeight: "40px", maxWidth: "100px", width: "auto", height: "auto", objectFit: "contain" }}
+              />
+            )}
+            <div>
+              <p className="font-bold text-gray-900">{business?.name}</p>
+              <p className="text-xs text-gray-500">Quote: {estimate.estimate_number}</p>
+            </div>
+          </div>
+          <h2 className="text-lg font-bold uppercase" style={{ color: secondaryColor }}>Terms & Conditions</h2>
+        </div>
+      );
+    }
+
+    // Classic
     return (
-      <div className="page-break-avoid mb-8">
-        <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Exclusions</p>
-        <div className="text-xs text-gray-500 space-y-1">
-          {exclusions.map((exc, index) => (
-            <p key={index} className="flex items-start gap-2">
-              <span className="text-gray-400">×</span>
-              <span>{exc}</span>
-            </p>
-          ))}
+      <div className="flex justify-between items-center mb-6 pb-4" style={{ borderBottom: `2px solid ${secondaryColor}` }}>
+        <div className="flex items-center gap-4">
+          {business?.logo_url && (
+            <img
+              src={business.logo_url}
+              alt="Company logo"
+              style={{ maxHeight: "48px", maxWidth: "100px", width: "auto", height: "auto", objectFit: "contain" }}
+            />
+          )}
+          <div>
+            <p className="font-semibold text-gray-900">{business?.name}</p>
+            <p className="text-sm text-gray-500">Quote: {estimate.estimate_number}</p>
+          </div>
+        </div>
+        <h2 className="text-xl font-bold text-gray-700">Terms & Conditions</h2>
+      </div>
+    );
+  };
+
+  const renderTerms = () => {
+    if (template === 'minimal') {
+      return (
+        <div className="mb-8">
+          <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Payment Terms</p>
+          <div className="text-sm text-gray-600 space-y-2">
+            {customNotes ? (
+              <p className="whitespace-pre-wrap">{customNotes}</p>
+            ) : paymentTerms ? (
+              paymentTerms.map((term, index) => (
+                <p key={index} className="flex items-start gap-2">
+                  <span className="text-gray-400">•</span>
+                  <span>{term}</span>
+                </p>
+              ))
+            ) : (
+              <>
+                <p>• Quote valid 14 days from issue date</p>
+                <p>• 50% deposit required before commencement</p>
+                <p>• Balance due upon completion</p>
+                <p>• Prices include GST</p>
+                <p>• Variations may incur additional charges</p>
+              </>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    if (template === 'modern') {
+      return (
+        <div className="mb-8">
+          <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Payment Terms</h3>
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
+            <div className="text-sm text-blue-900 space-y-2">
+              {customNotes ? (
+                <p className="whitespace-pre-wrap">{customNotes}</p>
+              ) : paymentTerms ? (
+                paymentTerms.map((term, index) => (
+                  <p key={index}>• {term}</p>
+                ))
+              ) : (
+                <>
+                  <p>• This quote is valid for 14 days from the date of issue.</p>
+                  <p>• A 50% deposit is required before commencement of works.</p>
+                  <p>• Final payment is due upon completion of works.</p>
+                  <p>• Prices include GST unless otherwise stated.</p>
+                  <p>• Any variations to the scope of works may result in additional charges.</p>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Classic
+    return (
+      <div className="mb-8">
+        <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Payment Terms</h3>
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+          <div className="text-sm text-gray-700 space-y-2">
+            {customNotes ? (
+              <p className="whitespace-pre-wrap">{customNotes}</p>
+            ) : paymentTerms ? (
+              paymentTerms.map((term, index) => (
+                <p key={index}>• {term}</p>
+              ))
+            ) : (
+              <>
+                <p>• This quote is valid for 14 days from the date of issue unless otherwise specified.</p>
+                <p>• A 50% deposit is required before commencement of works.</p>
+                <p>• Final payment is due upon completion of works.</p>
+                <p>• Prices include GST unless otherwise stated.</p>
+                <p>• Any variations to the scope of works may result in additional charges.</p>
+              </>
+            )}
+          </div>
         </div>
       </div>
     );
-  }
+  };
 
-  if (template === 'modern') {
+  const renderExclusions = () => {
+    if (exclusions.length === 0) return null;
+
+    if (template === 'minimal') {
+      return (
+        <div className="mb-8">
+          <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Exclusions</p>
+          <p className="text-xs text-gray-500 mb-2">The following items are NOT included in this quote:</p>
+          <div className="text-sm text-gray-600 space-y-1">
+            {exclusions.map((exc, index) => (
+              <p key={index} className="flex items-start gap-2">
+                <span className="text-gray-400">×</span>
+                <span>{exc}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (template === 'modern') {
+      return (
+        <div className="mb-8">
+          <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Exclusions</h3>
+          <div className="bg-red-50 border border-red-100 rounded-lg p-4">
+            <p className="text-xs text-red-800 mb-3">The following items are NOT included in this quote:</p>
+            <ul className="space-y-1">
+              {exclusions.map((exc, index) => (
+                <li key={index} className="text-sm text-red-700 flex items-start gap-2">
+                  <span className="text-red-400">✕</span>
+                  <span>{exc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    // Classic
     return (
-      <div className="page-break-avoid mb-6">
-        <h3 className="text-sm font-bold uppercase mb-2" style={{ color: secondaryColor }}>Exclusions</h3>
-        <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-          <p className="text-xs text-red-800 mb-2">The following items are NOT included in this quote:</p>
+      <div className="mb-8">
+        <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Exclusions</h3>
+        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+          <p className="text-xs text-orange-800 mb-3">The following items are NOT included in this quote:</p>
           <ul className="space-y-1">
             {exclusions.map((exc, index) => (
-              <li key={index} className="text-xs text-red-700 flex items-start gap-2">
-                <span className="text-red-400">✕</span>
+              <li key={index} className="text-sm text-orange-700 flex items-start gap-2">
+                <span style={{ color: primaryColor }}>✕</span>
                 <span>{exc}</span>
               </li>
             ))}
@@ -277,23 +559,86 @@ const ExclusionsSection = ({
         </div>
       </div>
     );
-  }
+  };
 
-  // Classic template
-  return (
-    <div className="page-break-avoid mb-6">
-      <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Exclusions</h3>
-      <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-        <p className="text-xs text-orange-800 mb-2">The following items are NOT included in this quote:</p>
-        <ul className="space-y-1">
-          {exclusions.map((exc, index) => (
-            <li key={index} className="text-xs text-orange-700 flex items-start gap-2">
-              <span style={{ color: primaryColor }}>✕</span>
-              <span>{exc}</span>
-            </li>
-          ))}
-        </ul>
+  const renderAcceptance = () => {
+    if (template === 'minimal') {
+      return (
+        <div className="pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
+          <p className="text-xs uppercase tracking-wider text-gray-400 mb-4">Acceptance</p>
+          <p className="text-xs text-gray-500 mb-6">
+            By signing below, I accept this quote and authorize commencement of works.
+          </p>
+          <div className="grid grid-cols-2 gap-12">
+            <div>
+              <div className="border-b border-gray-300 h-12"></div>
+              <p className="text-xs text-gray-400 mt-1">Signature & Date</p>
+            </div>
+            <div>
+              <div className="border-b border-gray-300 h-12"></div>
+              <p className="text-xs text-gray-400 mt-1">Print Name</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (template === 'modern') {
+      return (
+        <div className="p-4" style={{ backgroundColor: "#f9fafb", borderRadius: "8px", border: `2px solid ${primaryColor}` }}>
+          <h3 className="text-sm font-bold mb-3" style={{ color: secondaryColor }}>Acceptance</h3>
+          <p className="text-xs text-gray-600 mb-4">
+            I accept this quote and authorize the commencement of works as described above.
+          </p>
+          <div className="grid grid-cols-3 gap-6">
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Signature</p>
+              <div className="border-b-2 border-gray-400 h-8"></div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Print Name</p>
+              <div className="border-b-2 border-gray-400 h-8"></div>
+            </div>
+            <div>
+              <p className="text-xs text-gray-500 mb-1">Date</p>
+              <div className="border-b-2 border-gray-400 h-8"></div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Classic
+    return (
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Acceptance</h3>
+        <p className="text-xs text-gray-600 mb-4">
+          I accept this quote and authorize the commencement of works as described above.
+        </p>
+        <div className="grid grid-cols-2 gap-8">
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Signature</p>
+            <div className="border-b border-gray-400 h-8"></div>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500 mb-1">Date</p>
+            <div className="border-b border-gray-400 h-8"></div>
+          </div>
+        </div>
+        <div className="mt-4">
+          <p className="text-xs text-gray-500 mb-1">Print Name</p>
+          <div className="border-b border-gray-400 h-8"></div>
+        </div>
       </div>
+    );
+  };
+
+  return (
+    <div className="page-break-before pt-8">
+      {renderHeader()}
+      {renderTerms()}
+      {renderExclusions()}
+      {renderAcceptance()}
     </div>
   );
 };
@@ -371,11 +716,29 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     // Parse description to extract calculated items if no line items provided
     const parsedItems: EstimateLineItem[] = lineItems.length > 0 ? lineItems : [];
     
-    // If no line items, try to show description-based summary
-    const descriptionParts = estimate.description?.split(" | ") || [];
-    
     // Get dynamic payment terms
     const paymentTerms = getPaymentTermsText(estimate);
+
+    // Common styles for print
+    const printStyles = `
+      @media screen {
+        .print-container {
+          max-width: 210mm;
+          margin: 0 auto;
+          padding: 20px;
+          background: white !important;
+          box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+      }
+      .page-break-avoid {
+        page-break-inside: avoid;
+        break-inside: avoid;
+      }
+      .page-break-before {
+        page-break-before: always;
+        break-before: page;
+      }
+    `;
 
     // Render template based on selection
     if (template === "modern") {
@@ -389,22 +752,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             color: "black"
           }}
         >
-          <style>{`
-            @media screen {
-              .print-container {
-                max-width: 210mm;
-                margin: 0 auto;
-                padding: 20px;
-                background: white !important;
-                box-shadow: 0 0 10px rgba(0,0,0,0.1);
-              }
-            }
-            .page-break-avoid {
-              page-break-inside: avoid;
-              break-inside: avoid;
-            }
-          `}</style>
+          <style>{printStyles}</style>
 
+          {/* PAGE 1 - Quote Content */}
+          
           {/* Modern Template - Bold header bar */}
           <div className="page-break-avoid" style={{ backgroundColor: secondaryColor, padding: "24px", marginBottom: "24px" }}>
             <div className="flex items-center justify-between">
@@ -463,7 +814,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             template="modern"
           />
 
-          {/* Scope Breakdown */}
+          {/* Detailed Scope of Works - NEW */}
+          <DetailedScopeSection 
+            data={quotePDFData} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="modern"
+          />
+
+          {/* Scope Breakdown Table (if multiple scopes) */}
           <ScopeBreakdownSection 
             data={quotePDFData} 
             primaryColor={primaryColor} 
@@ -471,21 +830,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             template="modern"
             formatCurrency={formatCurrency}
           />
-
-          {/* Scope */}
-          {descriptionParts.length > 0 && (
-            <div className="page-break-avoid mb-6">
-              <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Scope of Works</h3>
-              <div className="grid grid-cols-2 gap-2">
-                {descriptionParts.map((part, index) => (
-                  <div key={index} className="flex items-center gap-2 text-sm text-gray-700 bg-gray-50 p-2 rounded">
-                    <span style={{ color: primaryColor }}>✓</span>
-                    <span>{part}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Line Items */}
           {parsedItems.length > 0 && (
@@ -539,67 +883,24 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             </div>
           </div>
 
-          {/* Exclusions */}
-          <ExclusionsSection 
-            exclusions={quotePDFData.exclusions} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="modern"
-          />
-
-          {/* Terms */}
-          <div className="page-break-avoid border-t-2 border-gray-200 pt-4 mb-6">
-            <h3 className="text-sm font-bold uppercase mb-2" style={{ color: secondaryColor }}>Terms & Conditions</h3>
-            <div className="text-xs text-gray-600 space-y-1">
-              {estimate.notes ? (
-                <p className="whitespace-pre-wrap">{estimate.notes}</p>
-              ) : paymentTerms ? (
-                paymentTerms.map((term, index) => (
-                  <p key={index}>• {term}</p>
-                ))
-              ) : (
-                <>
-                  <p>• This quote is valid for 14 days from the date of issue unless otherwise specified.</p>
-                  <p>• A 50% deposit is required before commencement of works.</p>
-                  <p>• Final payment is due upon completion of works.</p>
-                  <p>• Prices include GST unless otherwise stated.</p>
-                  <p>• Any variations to the scope of works may result in additional charges.</p>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Acceptance */}
-          <div className="page-break-avoid p-4 mb-6" style={{ backgroundColor: "#f9fafb", borderRadius: "8px", border: `2px solid ${primaryColor}` }}>
-            <h3 className="text-sm font-bold mb-3" style={{ color: secondaryColor }}>Acceptance</h3>
-            <p className="text-xs text-gray-600 mb-4">
-              I accept this quote and authorize the commencement of works as described above.
-            </p>
-            <div className="grid grid-cols-3 gap-6">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Signature</p>
-                <div className="border-b-2 border-gray-400 h-8"></div>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Print Name</p>
-                <div className="border-b-2 border-gray-400 h-8"></div>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Date</p>
-                <div className="border-b-2 border-gray-400 h-8"></div>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="page-break-avoid text-center pt-4">
+          {/* Page 1 Footer */}
+          <div className="page-break-avoid text-center pt-4 border-t border-gray-200">
             <p className="text-xs text-gray-500">
               Thank you for considering {business?.name || "us"} for your project.
             </p>
-            <p className="text-xs text-gray-400 mt-1">
-              Generated by PourHub • {format(new Date(), "d MMM yyyy")}
-            </p>
           </div>
+
+          {/* PAGE 2 - Terms & Exclusions */}
+          <TermsAndExclusionsPage
+            exclusions={quotePDFData.exclusions}
+            paymentTerms={paymentTerms}
+            customNotes={estimate.notes}
+            business={business}
+            estimate={estimate}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            template="modern"
+          />
         </div>
       );
     }
@@ -615,21 +916,9 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             color: "black"
           }}
         >
-          <style>{`
-            @media screen {
-              .print-container {
-                max-width: 210mm;
-                margin: 0 auto;
-                padding: 40px;
-                background: white !important;
-                box-shadow: 0 0 10px rgba(0,0,0,0.1);
-              }
-            }
-            .page-break-avoid {
-              page-break-inside: avoid;
-              break-inside: avoid;
-            }
-          `}</style>
+          <style>{printStyles.replace('padding: 20px', 'padding: 40px')}</style>
+
+          {/* PAGE 1 - Quote Content */}
 
           {/* Minimal Template - Clean & Simple */}
           <div className="page-break-avoid flex items-start justify-between mb-12">
@@ -679,6 +968,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             template="minimal"
           />
 
+          {/* Detailed Scope of Works - NEW */}
+          <DetailedScopeSection 
+            data={quotePDFData} 
+            primaryColor={primaryColor} 
+            secondaryColor={secondaryColor}
+            template="minimal"
+          />
+
           {/* Scope Breakdown */}
           <ScopeBreakdownSection 
             data={quotePDFData} 
@@ -687,21 +984,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             template="minimal"
             formatCurrency={formatCurrency}
           />
-
-          {/* Scope - simple list */}
-          {descriptionParts.length > 0 && (
-            <div className="page-break-avoid mb-10">
-              <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Scope</p>
-              <ul className="space-y-2">
-                {descriptionParts.map((part, index) => (
-                  <li key={index} className="text-sm text-gray-700 flex items-start gap-3">
-                    <span style={{ color: primaryColor }}>—</span>
-                    <span>{part}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
 
           {/* Line Items - minimal table */}
           {parsedItems.length > 0 && (
@@ -749,56 +1031,25 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             </div>
           </div>
 
-          {/* Exclusions */}
-          <ExclusionsSection 
-            exclusions={quotePDFData.exclusions} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="minimal"
-          />
-
-          {/* Terms - minimal */}
-          <div className="page-break-avoid mb-8">
-            <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Terms</p>
-            <div className="text-xs text-gray-500 space-y-1">
-              {estimate.notes ? (
-                <p className="whitespace-pre-wrap">{estimate.notes}</p>
-              ) : paymentTerms ? (
-                <p>{paymentTerms.slice(0, 3).join(' • ')}</p>
-              ) : (
-                <>
-                  <p>Quote valid 14 days • 50% deposit required • Balance on completion</p>
-                  <p>Prices include GST • Variations may incur additional charges</p>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Acceptance - minimal */}
-          <div className="page-break-avoid pt-6 mb-8" style={{ borderTop: "1px solid #e5e7eb" }}>
-            <p className="text-xs text-gray-500 mb-6">
-              By signing below, I accept this quote and authorize commencement of works.
-            </p>
-            <div className="grid grid-cols-2 gap-12">
-              <div>
-                <div className="border-b border-gray-300 h-12"></div>
-                <p className="text-xs text-gray-400 mt-1">Signature & Date</p>
-              </div>
-              <div>
-                <div className="border-b border-gray-300 h-12"></div>
-                <p className="text-xs text-gray-400 mt-1">Print Name</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Footer - minimal */}
-          <div className="page-break-avoid text-center pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
+          {/* Page 1 Footer - minimal */}
+          <div className="page-break-avoid text-center pt-4" style={{ borderTop: "1px solid #e5e7eb" }}>
             <div className="text-xs text-gray-400 space-x-4">
               {business?.phone && <span>{business.phone}</span>}
               {business?.email && <span>{business.email}</span>}
-              {business?.address && <span>{business.address}</span>}
             </div>
           </div>
+
+          {/* PAGE 2 - Terms & Exclusions */}
+          <TermsAndExclusionsPage
+            exclusions={quotePDFData.exclusions}
+            paymentTerms={paymentTerms}
+            customNotes={estimate.notes}
+            business={business}
+            estimate={estimate}
+            primaryColor={primaryColor}
+            secondaryColor={secondaryColor}
+            template="minimal"
+          />
         </div>
       );
     }
@@ -814,22 +1065,9 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           color: "black"
         }}
       >
-        <style>{`
-          @media screen {
-            .print-container {
-              max-width: 210mm;
-              margin: 0 auto;
-              padding: 20px;
-              background: white !important;
-              box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            }
-          }
-          
-          .page-break-avoid {
-            page-break-inside: avoid;
-            break-inside: avoid;
-          }
-        `}</style>
+        <style>{printStyles}</style>
+
+        {/* PAGE 1 - Quote Content */}
 
         {/* Header with Logo */}
         <div className="page-break-avoid flex items-start justify-between pb-4 mb-6" style={{ borderBottom: `2px solid ${secondaryColor}` }}>
@@ -886,6 +1124,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           template="classic"
         />
 
+        {/* Detailed Scope of Works - NEW */}
+        <DetailedScopeSection 
+          data={quotePDFData} 
+          primaryColor={primaryColor} 
+          secondaryColor={secondaryColor}
+          template="classic"
+        />
+
         {/* Scope Breakdown */}
         <ScopeBreakdownSection 
           data={quotePDFData} 
@@ -894,23 +1140,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           template="classic"
           formatCurrency={formatCurrency}
         />
-
-        {/* Description / Scope */}
-        {descriptionParts.length > 0 && (
-          <div className="page-break-avoid mb-6">
-            <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Scope of Works</h3>
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-              <ul className="space-y-1">
-                {descriptionParts.map((part, index) => (
-                  <li key={index} className="text-sm text-gray-700 flex items-start gap-2">
-                    <span style={{ color: primaryColor }}>•</span>
-                    <span>{part}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        )}
 
         {/* Line Items Table (if available) */}
         {parsedItems.length > 0 && (
@@ -966,59 +1195,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
         </div>
 
-        {/* Exclusions */}
-        <ExclusionsSection 
-          exclusions={quotePDFData.exclusions} 
-          primaryColor={primaryColor} 
-          secondaryColor={secondaryColor}
-          template="classic"
-        />
-
-        {/* Terms & Notes */}
-        <div className="page-break-avoid border-t border-gray-300 pt-4 mb-6">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Terms & Conditions</h3>
-          <div className="text-xs text-gray-600 space-y-1">
-            {estimate.notes ? (
-              <p className="whitespace-pre-wrap">{estimate.notes}</p>
-            ) : paymentTerms ? (
-              paymentTerms.map((term, index) => (
-                <p key={index}>• {term}</p>
-              ))
-            ) : (
-              <>
-                <p>• This quote is valid for 14 days from the date of issue unless otherwise specified.</p>
-                <p>• A 50% deposit is required before commencement of works.</p>
-                <p>• Final payment is due upon completion of works.</p>
-                <p>• Prices include GST unless otherwise stated.</p>
-                <p>• Any variations to the scope of works may result in additional charges.</p>
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* Acceptance */}
-        <div className="page-break-avoid bg-gray-50 border border-gray-200 rounded-lg p-4 mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Acceptance</h3>
-          <p className="text-xs text-gray-600 mb-4">
-            I accept this quote and authorize the commencement of works as described above.
-          </p>
-          <div className="grid grid-cols-2 gap-8">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Signature</p>
-              <div className="border-b border-gray-400 h-8"></div>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Date</p>
-              <div className="border-b border-gray-400 h-8"></div>
-            </div>
-          </div>
-          <div className="mt-4">
-            <p className="text-xs text-gray-500 mb-1">Print Name</p>
-            <div className="border-b border-gray-400 h-8"></div>
-          </div>
-        </div>
-
-        {/* Footer */}
+        {/* Page 1 Footer */}
         <div className="page-break-avoid text-center pt-4 border-t border-gray-200">
           <p className="text-xs text-gray-500">
             Thank you for considering {business?.name || "us"} for your project.
@@ -1027,6 +1204,18 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             Generated by PourHub • {format(new Date(), "d MMM yyyy")}
           </p>
         </div>
+
+        {/* PAGE 2 - Terms & Exclusions */}
+        <TermsAndExclusionsPage
+          exclusions={quotePDFData.exclusions}
+          paymentTerms={paymentTerms}
+          customNotes={estimate.notes}
+          business={business}
+          estimate={estimate}
+          primaryColor={primaryColor}
+          secondaryColor={secondaryColor}
+          template="classic"
+        />
       </div>
     );
   }
