@@ -52,9 +52,33 @@ serve(async (req) => {
 
     // Choose system prompt based on document type
     const isDeliveryDocket = documentType === 'delivery_docket';
+    const isBuildingPlan = documentType === 'building_plan';
     
-    const systemPrompt = isDeliveryDocket
-      ? `You are a concrete delivery docket analyzer. Extract ALL available information from concrete delivery dockets.
+    let systemPrompt: string;
+    let userPrompt: string;
+    
+    if (isBuildingPlan) {
+      systemPrompt = `You are a building plan analyzer. Extract available information from construction/architectural plans.
+
+Extract these fields:
+- project_name: The project or job name if visible
+- site_address: The site/project address
+- client_name: Client or builder name if visible
+- architect: Architect or designer name if visible
+- plan_type: Type of plan (floor plan, site plan, structural, footing, slab, etc.)
+- drawing_number: Drawing/plan number if visible
+- revision: Revision number or date
+- scale: Drawing scale if shown (e.g., 1:100)
+- total_area_sqm: Total area in square meters if dimensioned
+- notes: Any relevant notes or special requirements
+
+Return ONLY valid JSON in this exact format:
+{"project_name": "string or null", "site_address": "string or null", "client_name": "string or null", "architect": "string or null", "plan_type": "string or null", "drawing_number": "string or null", "revision": "string or null", "scale": "string or null", "total_area_sqm": number or null, "notes": "string or null"}
+
+If you cannot find a value, use null. Do not include any text outside the JSON object.`;
+      userPrompt = 'Please analyze this building/construction plan PDF and extract all available information including project name, site address, client name, architect, plan type, drawing number, revision, scale, and any notes.';
+    } else if (isDeliveryDocket) {
+      systemPrompt = `You are a concrete delivery docket analyzer. Extract ALL available information from concrete delivery dockets.
 
 Extract these fields:
 - docket_number: The delivery docket number or reference (e.g., "D-123456", "DEL001")
@@ -74,42 +98,35 @@ Extract these fields:
 Return ONLY valid JSON in this exact format:
 {"docket_number": "string or null", "delivery_date": "string or null", "delivery_time": "string or null", "supplier": "string or null", "volume_m3": number or null, "mix_code": "string or null", "slump": number or null, "truck_rego": "string or null", "driver_name": "string or null", "site_address": "string or null", "batch_plant": "string or null", "batch_ticket": "string or null", "notes": "string or null"}
 
-If you cannot find a value, use null. Do not include any text outside the JSON object.`
-      : `You are a concrete test report analyzer. Extract ALL available information from concrete test lab reports.
+If you cannot find a value, use null. Do not include any text outside the JSON object.`;
+      userPrompt = 'Please analyze this concrete delivery docket PDF and extract all available information including docket number, delivery date/time, supplier, volume, mix code, truck details, and most importantly the site/delivery address.';
+    } else {
+      systemPrompt = `You are a concrete test report analyzer. Extract ALL available information from concrete test lab reports.
 
-CRITICAL EXTRACTION FIELDS - Search thoroughly for these:
-
-1. DOCKET/REFERENCE NUMBERS (MOST IMPORTANT for matching):
-   - docket_number: Look for "Docket", "Delivery Docket", "Docket No.", "D-XXXXX" - this links to delivery dockets
-   - batch_ticket: Look for "Batch", "Batch Ticket", "Batch No.", "Plant Ticket"
-   - sample_ref: The lab's sample reference/ID (e.g., "S-123456", "CYL-001")
-   - project_ref: Client's project/job reference number
-   - job_number: Any job number visible on the report
-
-2. SITE/PROJECT LOCATION (CRITICAL for job matching):
-   Search for ANY of these keywords: "Location", "Site Location", "Project Location", "Address", "Site Address", "Project Address", "Delivery Address", "Site", "Project Site", "Job Site", "Project", "Project Name"
-   - site_address: The full site/project/delivery address
-   - project_name: The project or job name
-
-3. TEST DATA:
-   - test_id: The test/sample ID or reference number
-   - test_type: Must be one of: "7_day", "14_day", "28_day", "slump", "cylinder", "air", "other"
-   - pour_date: Date concrete was poured/cast (format: YYYY-MM-DD)
-   - test_date: Date test was conducted (format: YYYY-MM-DD)
-   - supplier: Testing laboratory name
-   - target_mpa: Target/specified compressive strength in MPa (just the number)
-   - actual_mpa: Actual/achieved compressive strength in MPa (just the number)
-   - sample_count: Number of samples/specimens tested
-   - notes: Any relevant notes or observations
+CRITICAL EXTRACTION FIELDS:
+- test_id: The test/sample ID or reference number
+- test_type: Must be one of: "7_day", "14_day", "28_day", "slump", "cylinder", "air", "other"
+- pour_date: Date concrete was poured/cast (format: YYYY-MM-DD)
+- test_date: Date test was conducted (format: YYYY-MM-DD)
+- supplier: Testing laboratory name
+- target_mpa: Target/specified compressive strength in MPa (just the number)
+- actual_mpa: Actual/achieved compressive strength in MPa (just the number)
+- sample_count: Number of samples/specimens tested
+- site_address: The full site/project/delivery address
+- project_name: The project or job name
+- docket_number: Delivery docket number if visible
+- batch_ticket: Batch ticket number if visible
+- sample_ref: The lab's sample reference/ID
+- project_ref: Client's project/job reference number
+- job_number: Any job number visible on the report
+- notes: Any relevant notes or observations
 
 Return ONLY valid JSON in this exact format:
 {"test_id": "string or null", "test_type": "string or null", "pour_date": "string or null", "test_date": "string or null", "supplier": "string or null", "target_mpa": number or null, "actual_mpa": number or null, "sample_count": number or null, "site_address": "string or null", "project_name": "string or null", "docket_number": "string or null", "batch_ticket": "string or null", "sample_ref": "string or null", "project_ref": "string or null", "job_number": "string or null", "notes": "string or null"}
 
 If you cannot find a value, use null. Do not include any text outside the JSON object.`;
-
-    const userPrompt = isDeliveryDocket
-      ? 'Please analyze this concrete delivery docket PDF and extract all available information including docket number, delivery date/time, supplier, volume, mix code, truck details, and most importantly the site/delivery address.'
-      : 'Please analyze this concrete test report PDF and extract all available information including test ID, test type, dates, supplier, strength values, sample count, and most importantly the site/project address.';
+      userPrompt = 'Please analyze this concrete test report PDF and extract all available information including test ID, test type, dates, supplier, strength values, sample count, and most importantly the site/project address.';
+    }
 
     // Use Gemini to analyze the PDF
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -156,40 +173,56 @@ If you cannot find a value, use null. Do not include any text outside the JSON o
     console.log('AI response:', content);
 
     // Parse the JSON response with appropriate defaults
-    const defaultData = isDeliveryDocket
-      ? { 
-          docket_number: null, 
-          delivery_date: null, 
-          delivery_time: null, 
-          supplier: null, 
-          volume_m3: null, 
-          mix_code: null, 
-          slump: null, 
-          truck_rego: null,
-          driver_name: null,
-          site_address: null,
-          batch_plant: null,
-          batch_ticket: null,
-          notes: null 
-        }
-      : { 
-          test_id: null, 
-          test_type: null, 
-          pour_date: null, 
-          test_date: null, 
-          supplier: null, 
-          target_mpa: null, 
-          actual_mpa: null, 
-          sample_count: null,
-          site_address: null,
-          project_name: null,
-          docket_number: null,
-          batch_ticket: null,
-          sample_ref: null,
-          project_ref: null,
-          job_number: null,
-          notes: null 
-        };
+    let defaultData: any;
+    if (isBuildingPlan) {
+      defaultData = {
+        project_name: null,
+        site_address: null,
+        client_name: null,
+        architect: null,
+        plan_type: null,
+        drawing_number: null,
+        revision: null,
+        scale: null,
+        total_area_sqm: null,
+        notes: null
+      };
+    } else if (isDeliveryDocket) {
+      defaultData = { 
+        docket_number: null, 
+        delivery_date: null, 
+        delivery_time: null, 
+        supplier: null, 
+        volume_m3: null, 
+        mix_code: null, 
+        slump: null, 
+        truck_rego: null,
+        driver_name: null,
+        site_address: null,
+        batch_plant: null,
+        batch_ticket: null,
+        notes: null 
+      };
+    } else {
+      defaultData = { 
+        test_id: null, 
+        test_type: null, 
+        pour_date: null, 
+        test_date: null, 
+        supplier: null, 
+        target_mpa: null, 
+        actual_mpa: null, 
+        sample_count: null,
+        site_address: null,
+        project_name: null,
+        docket_number: null,
+        batch_ticket: null,
+        sample_ref: null,
+        project_ref: null,
+        job_number: null,
+        notes: null 
+      };
+    }
 
     let extractedData = { ...defaultData };
     try {

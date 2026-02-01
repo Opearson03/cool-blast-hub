@@ -1612,6 +1612,72 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_plans: {
+        Row: {
+          business_id: string
+          created_at: string
+          extracted_data: Json | null
+          file_name: string
+          file_url: string
+          from_email: string
+          from_name: string | null
+          id: string
+          linked_estimate_id: string | null
+          received_at: string
+          rejection_reason: string | null
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          extracted_data?: Json | null
+          file_name: string
+          file_url: string
+          from_email: string
+          from_name?: string | null
+          id?: string
+          linked_estimate_id?: string | null
+          received_at?: string
+          rejection_reason?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          extracted_data?: Json | null
+          file_name?: string
+          file_url?: string
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          linked_estimate_id?: string | null
+          received_at?: string
+          rejection_reason?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_plans_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_plans_linked_estimate_id_fkey"
+            columns: ["linked_estimate_id"]
+            isOneToOne: false
+            referencedRelation: "estimates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_test_results: {
         Row: {
           approved_at: string | null

@@ -839,15 +839,15 @@ export default function AdminSettings() {
               </div>
             </SettingsAccordionItem>
 
-            {/* Test Result Email */}
+            {/* Business Inbox Email */}
             {business && (
               <SettingsAccordionItem
-                value="test-email"
+                value="inbox-email"
                 icon={Mail}
-                title="Test Result Email"
-                description="Share with your testing lab to auto-process results"
+                title="Business Inbox Email"
+                description="Receive plans, test results & dockets automatically"
               >
-                <TestResultEmailInline 
+                <BusinessInboxEmailInline 
                   businessId={business.id} 
                   currentAlias={(business as any).inbound_email_alias || null}
                 />
@@ -965,8 +965,8 @@ export default function AdminSettings() {
   );
 }
 
-// Inline version of TestResultEmailSection without the Card wrapper
-function TestResultEmailInline({ businessId, currentAlias }: { businessId: string; currentAlias: string | null }) {
+// Inline version for business inbox email
+function BusinessInboxEmailInline({ businessId, currentAlias }: { businessId: string; currentAlias: string | null }) {
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   
@@ -988,7 +988,7 @@ function TestResultEmailInline({ businessId, currentAlias }: { businessId: strin
   return (
     <div className="space-y-4 pt-2">
       <CardDescription>
-        Share this email with your concrete testing lab. They can send test results directly to this address and they'll be automatically processed.
+        Share this email address with clients, testing labs, and suppliers. All documents are automatically sorted and processed by AI.
       </CardDescription>
 
       {emailAddress ? (
@@ -1014,7 +1014,7 @@ function TestResultEmailInline({ businessId, currentAlias }: { businessId: strin
           
           <Badge variant="secondary" className="text-xs">
             <Mail className="w-3 h-3 mr-1" />
-            Auto-processes PDF attachments
+            AI-powered document sorting
           </Badge>
         </div>
       ) : (
@@ -1024,12 +1024,21 @@ function TestResultEmailInline({ businessId, currentAlias }: { businessId: strin
       )}
 
       <div className="pt-2 border-t">
+        <h4 className="text-sm font-medium mb-2">What you can receive:</h4>
+        <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
+          <li><strong>Building Plans</strong> - Clients can email plans for quoting</li>
+          <li><strong>Test Results</strong> - Labs send concrete test reports</li>
+          <li><strong>Delivery Dockets</strong> - Suppliers send docket PDFs</li>
+        </ul>
+      </div>
+
+      <div className="pt-2 border-t">
         <h4 className="text-sm font-medium mb-2">How it works:</h4>
         <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
-          <li>Share your email address with your testing lab</li>
-          <li>Lab sends test results (PDF) to your email</li>
-          <li>AI automatically extracts test data from the PDF</li>
-          <li>Review and approve results to link them to jobs</li>
+          <li>Share your email with clients, labs, and suppliers</li>
+          <li>They email PDFs to your address</li>
+          <li>AI categorizes and extracts key information</li>
+          <li>Review items in your Inbox on the dashboard</li>
         </ol>
       </div>
     </div>
