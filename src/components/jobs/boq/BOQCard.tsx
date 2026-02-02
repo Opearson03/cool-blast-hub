@@ -235,7 +235,7 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
                   disabled={!hasUnorderedItems}
                 >
                   <Send className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Send PO</span>
+                  <span className="hidden sm:inline">Order</span>
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
                   <Pencil className="w-4 h-4 sm:mr-2" />
