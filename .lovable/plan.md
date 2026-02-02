@@ -1,84 +1,114 @@
 
-# Plan: Fix Quote Print Colors to Match Preview
+# Fix: Scope Breakdown Appearing in Payment Terms Section
 
 ## Problem Summary
-When printing a quote, all background colors are stripped out, making the printed version look very different from the preview. The emailed PDF (generated via `html2canvas`) looks correct, but the browser print dialog output is missing colors.
+The scope breakdown table is incorrectly appearing in the payment terms section (Page 2) instead of staying on Page 1 where it belongs. This happens for all scopes and all quote templates.
 
-## Root Cause
-The print CSS in `src/index.css` has an aggressive rule that removes ALL backgrounds:
+## Root Cause Analysis
+The current PDF generation in `generate-quote-pdf.ts` uses a **single-canvas slicing approach**:
 
-```css
-@media print {
-  *, *::before, *::after {
-    background: transparent !important;
-  }
-}
+1. Renders the entire `PrintableEstimate` component as one tall HTML element
+2. Captures it as a single canvas image using html2canvas
+3. Slices the image at fixed A4 height intervals (297mm)
+
+**Why this fails:**
+- CSS `page-break-before` and `page-break-avoid` classes work for browser printing but are **completely ignored by html2canvas**
+- Content gets cut at arbitrary pixel positions, causing sections to overflow across page boundaries
+- If Page 1 content is tall, the scope breakdown table gets pushed into the Page 2 slice
+
+```text
+Current Behavior (Broken):
+┌────────────────────────────┐
+│ Header & Client Info       │
+│ Project Summary            │
+│ Scope Breakdown Table      │ ← Starts here...
+├────────────────────────────┤ ← Arbitrary cut at 297mm
+│ (table continues here)     │ ← ...ends up on "Page 2"
+│ Payment Terms              │
+│ Exclusions                 │
+└────────────────────────────┘
 ```
 
-This overrides the styled elements in `PrintableEstimate.tsx` including:
-- Modern template's dark header banner
-- Info cards with colored left borders and gray backgrounds
-- Alternating table row colors
-- Colored boxes for terms and exclusions
+---
 
 ## Solution Strategy
-Remove the blanket background-stripping rule and instead ensure the print container explicitly preserves all styling with `print-color-adjust: exact`.
+Implement **section-aware PDF generation** that:
+
+1. Marks logical sections in the HTML with data attributes
+2. Captures each section individually with html2canvas
+3. Places sections on pages intelligently, adding page breaks when a section won't fit
+
+```text
+Fixed Behavior:
+┌─────────── Page 1 ───────────┐
+│ [Section: header]            │
+│ [Section: client-info]       │
+│ [Section: project-summary]   │
+│ [Section: scope-breakdown]   │ ← Stays complete on Page 1
+│ [Section: totals]            │
+│ [Section: signature]         │
+└──────────────────────────────┘
+
+┌─────────── Page 2 ───────────┐
+│ [Section: terms-header]      │ ← Starts fresh on Page 2
+│ [Section: payment-terms]     │
+│ [Section: exclusions]        │
+│ [Section: acceptance]        │
+└──────────────────────────────┘
+```
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Update Print CSS in `index.css`
-Remove the aggressive background-stripping rule and replace with targeted, color-preserving print styles.
+### Step 1: Add Section Markers to PrintableEstimate
+Add `data-pdf-section` attributes to key content blocks so they can be identified and captured separately:
 
-**Changes:**
-1. Remove the global `background: transparent !important` rule
-2. Add `print-color-adjust: exact` to the `.print-container` and all its children
-3. Keep hiding non-print elements (dialogs, nav, etc.)
+- `data-pdf-section="header"` - Company header/banner
+- `data-pdf-section="client-info"` - Client & company info cards
+- `data-pdf-section="project-summary"` - Technical specs cards
+- `data-pdf-section="scope-breakdown"` - Scope of works table
+- `data-pdf-section="totals"` - Pricing totals
+- `data-pdf-section="page-1-footer"` - Signature area on page 1
+- `data-pdf-section="page-2"` - Entire Terms & Exclusions page (forced to new page)
 
-### Step 2: Add Inline Print-Safe Styles to PrintableEstimate
-Ensure the component's critical colored elements use both inline styles AND the `-webkit-print-color-adjust` property for maximum browser compatibility.
+### Step 2: Update generate-quote-pdf.ts
+Rewrite the PDF generation logic:
 
-### Step 3: Test Both Print Flows
-- Browser print (Cmd/Ctrl + P) - should now show colors
-- Email PDF (already working via html2canvas)
+1. Render the component as before
+2. Query all `[data-pdf-section]` elements
+3. For each section:
+   - Calculate its height in mm
+   - Check if it fits on the current page
+   - If not, add a new page first
+   - Capture with html2canvas and add to PDF
+4. Handle "page-2" sections by always starting a new page
 
----
+**Pseudocode:**
+```text
+sections = querySelectorAll('[data-pdf-section]')
+currentY = margin
+pageHeight = 297mm - (2 * margin)
 
-## Technical Details
-
-### Updated Print CSS (src/index.css)
-```css
-@media print {
-  /* 
-   * REMOVED: The blanket background-stripping rule that was breaking colors:
-   * *, *::before, *::after { background: transparent !important; }
-   */
+for each section:
+  capture section with html2canvas
+  calculate heightMM = (canvas.height * contentWidth) / canvas.width
   
-  html, body {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: white !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
+  if section.dataset.pdfSection === 'page-2':
+    addPage()
+    currentY = margin
+  else if heightMM > (pageHeight - currentY):
+    addPage()
+    currentY = margin
   
-  /* Preserve ALL colors inside print container */
-  .print-container,
-  .print-container * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-  
-  /* Hide everything else (unchanged) */
-  body > *:not(.print-estimate-portal) { ... }
-}
+  addImage(canvas, x=margin, y=currentY, width=contentWidth, height=heightMM)
+  currentY += heightMM + gap
 ```
 
-### Key Print CSS Properties
-- `print-color-adjust: exact` - Tells browser to preserve exact colors, not optimize for ink
-- `-webkit-print-color-adjust: exact` - Safari/Chrome prefix
-- Remove `background: transparent !important` - This was the culprit
+### Step 3: Handle Edge Cases
+- **Very tall sections**: If a single section is taller than a page, allow it to overflow (rare edge case)
+- **Small gaps**: Add 2-4mm between sections for visual breathing room
+- **Image quality**: Maintain scale: 2 for crisp rendering
 
 ---
 
@@ -86,30 +116,58 @@ Ensure the component's critical colored elements use both inline styles AND the 
 
 | File | Changes |
 |------|---------|
-| `src/index.css` | Remove blanket background-stripping, add print-color-adjust for print container |
-| `src/components/estimates/PrintableEstimate.tsx` | (Optional) Add inline `-webkit-print-color-adjust: exact` to key styled elements for extra browser compatibility |
+| `src/components/estimates/PrintableEstimate.tsx` | Add `data-pdf-section` attributes to major content blocks in all 3 templates (Modern, Minimal, Classic) |
+| `src/lib/generate-quote-pdf.ts` | Rewrite to capture sections individually and intelligently place on pages |
 
 ---
 
-## Why This Will Work
+## Technical Details
 
-1. **The email PDF already shows correct colors** - This proves the `PrintableEstimate` component renders colors correctly
-2. **html2canvas captures the DOM visually** - It doesn't use print CSS, so it works
-3. **Browser print uses `@media print` CSS** - The aggressive rule was stripping all backgrounds
-4. **Removing that rule** lets the inline `backgroundColor` styles in the component render correctly
+### Section Markers (PrintableEstimate.tsx)
+Each template (modern, minimal, classic) will have markers like:
+
+```tsx
+{/* Header */}
+<div data-pdf-section="header" className="page-break-avoid" ...>
+
+{/* Client Info Cards */}  
+<div data-pdf-section="client-info" className="page-break-avoid grid ...">
+
+{/* Scope Breakdown - CRITICAL: must stay on Page 1 */}
+<div data-pdf-section="scope-breakdown">
+  <ScopeLineItemsSection ... />
+</div>
+
+{/* Terms Page - Force new page */}
+<div data-pdf-section="page-2">
+  <TermsAndExclusionsPage ... />
+</div>
+```
+
+### PDF Generation Logic (generate-quote-pdf.ts)
+Key changes:
+- Query sections: `container.querySelectorAll('[data-pdf-section]')`
+- Capture each individually: `html2canvas(section, { ... })`
+- Track currentY position per page
+- Force page break for `page-2` sections
+- Calculate remaining space before placing each section
 
 ---
 
-## Risk Assessment
+## Why This Will Fix the Issue
 
-- **Low risk**: Only modifying CSS print rules
-- **No functional changes**: Component rendering logic stays the same
-- **Fallback**: If specific browsers still strip colors, we can add more explicit inline styles
+1. **Section Boundaries Respected**: Each logical section is captured as its own canvas, preventing arbitrary slicing
+2. **Scope Stays on Page 1**: The scope breakdown section will never be split or pushed to Page 2
+3. **Terms Start on Page 2**: The `page-2` marker forces a new page for contractual content
+4. **Template Agnostic**: Works for all 3 templates (Modern, Minimal, Classic)
+5. **Both Flows Fixed**: Print and email PDFs use the same component, so both are fixed
 
 ---
 
 ## Acceptance Criteria
 
-- Printed quote shows the same colors as the preview (header banners, info cards, table rows)
-- Email PDF continues to work correctly
-- All three templates (Modern, Minimal, Classic) print with colors intact
+- Scope breakdown table appears completely on Page 1 for all scope types
+- Payment Terms and Exclusions start on Page 2
+- No content is arbitrarily split across pages
+- All three templates (Modern, Minimal, Classic) work correctly
+- Email PDF attachments match printed quotes exactly
