@@ -22,7 +22,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Plus, Send, Mail, MessageSquare } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Plus, Send, Mail, MessageSquare, FileQuestion } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BOQItem, BOQ_CATEGORIES, JobBOQ } from "./BOQTypes";
 import { SupplierContactDialog } from "./SupplierContactDialog";
@@ -44,6 +45,8 @@ interface SupplierContact {
   category: string | null;
 }
 
+type OrderType = "quote" | "po";
+
 export function SendPurchaseOrderDialog({
   open,
   onOpenChange,
@@ -51,6 +54,7 @@ export function SendPurchaseOrderDialog({
   jobId,
   siteAddress,
 }: SendPurchaseOrderDialogProps) {
+  const [orderType, setOrderType] = useState<OrderType>("po");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [supplierId, setSupplierId] = useState<string>("");
   const [manualSupplier, setManualSupplier] = useState({
@@ -77,6 +81,7 @@ export function SendPurchaseOrderDialog({
       setNotes("");
       setSendMethod("email");
       setSaveSupplier(false);
+      setOrderType("po");
     }
   }, [open, boq.items, siteAddress]);
 
@@ -146,6 +151,7 @@ export function SendPurchaseOrderDialog({
           deliveryAddress,
           notes,
           sendMethod,
+          orderType, // "quote" or "po"
           saveNewSupplier: !supplierId && saveSupplier ? {
             name: manualSupplier.name,
             email: manualSupplier.email,
@@ -160,33 +166,38 @@ export function SendPurchaseOrderDialog({
       return data;
     },
     onSuccess: (data) => {
-      // Update local BOQ items to mark as ordered
-      const updatedItems = boq.items.map(item => {
-        if (selectedItems.includes(item.id)) {
-          return { ...item, ordered: true, orderedAt: new Date().toISOString() };
-        }
-        return item;
-      });
-
-      // Update the BOQ in database
-      supabase
-        .from("job_boq")
-        .update({ items: JSON.parse(JSON.stringify(updatedItems)) })
-        .eq("id", boq.id)
-        .then(() => {
-          queryClient.invalidateQueries({ queryKey: ["job-boq", jobId] });
-          queryClient.invalidateQueries({ queryKey: ["supplier-contacts"] });
+      // Only mark as ordered if sending a PO (not a quote request)
+      if (orderType === "po") {
+        const updatedItems = boq.items.map(item => {
+          if (selectedItems.includes(item.id)) {
+            return { ...item, ordered: true, orderedAt: new Date().toISOString() };
+          }
+          return item;
         });
 
+        supabase
+          .from("job_boq")
+          .update({ items: JSON.parse(JSON.stringify(updatedItems)) })
+          .eq("id", boq.id)
+          .then(() => {
+            queryClient.invalidateQueries({ queryKey: ["job-boq", jobId] });
+            queryClient.invalidateQueries({ queryKey: ["supplier-contacts"] });
+          });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["supplier-contacts"] });
+      }
+
       toast({
-        title: "Purchase Order Sent",
-        description: `PO ${data.poNumber} sent successfully via ${sendMethod}`,
+        title: orderType === "po" ? "Purchase Order Sent" : "Quote Request Sent",
+        description: orderType === "po" 
+          ? `PO ${data.poNumber} sent successfully via ${sendMethod}`
+          : `Quote request sent successfully via ${sendMethod}`,
       });
       onOpenChange(false);
     },
     onError: (error) => {
       toast({
-        title: "Error sending PO",
+        title: orderType === "po" ? "Error sending PO" : "Error sending quote request",
         description: error.message,
         variant: "destructive",
       });
@@ -196,12 +207,14 @@ export function SendPurchaseOrderDialog({
   const canSend = () => {
     if (selectedItems.length === 0) return false;
     if (!recipientName) return false;
-    if (!deliveryAddress) return false;
+    if (orderType === "po" && !deliveryAddress) return false;
     if (sendMethod === "email" && !recipientEmail) return false;
     if (sendMethod === "sms" && !recipientPhone) return false;
     if (sendMethod === "both" && (!recipientEmail || !recipientPhone)) return false;
     return true;
   };
+
+  const isQuote = orderType === "quote";
 
   return (
     <>
@@ -209,13 +222,42 @@ export function SendPurchaseOrderDialog({
         <DialogContent className="max-w-2xl max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Send className="w-5 h-5" />
-              Send Purchase Order
+              {isQuote ? (
+                <>
+                  <FileQuestion className="w-5 h-5" />
+                  Request Quote
+                </>
+              ) : (
+                <>
+                  <Send className="w-5 h-5" />
+                  Send Purchase Order
+                </>
+              )}
             </DialogTitle>
           </DialogHeader>
 
           <ScrollArea className="max-h-[65vh] pr-4">
             <div className="space-y-6">
+              {/* Order Type Toggle */}
+              <Tabs value={orderType} onValueChange={(v) => setOrderType(v as OrderType)}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="quote" className="flex items-center gap-2">
+                    <FileQuestion className="w-4 h-4" />
+                    Request Quote
+                  </TabsTrigger>
+                  <TabsTrigger value="po" className="flex items-center gap-2">
+                    <Send className="w-4 h-4" />
+                    Send PO
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {isQuote && (
+                <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                  Request a quote from a supplier for pricing on selected items. Items will not be marked as ordered.
+                </p>
+              )}
+
               {/* Item Selection */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -330,24 +372,31 @@ export function SendPurchaseOrderDialog({
                 )}
               </div>
 
-              {/* Delivery Address */}
-              <div className="space-y-2">
-                <Label className="text-base font-medium">Delivery Address</Label>
-                <Textarea
-                  value={deliveryAddress}
-                  onChange={(e) => setDeliveryAddress(e.target.value)}
-                  placeholder="Enter delivery address..."
-                  rows={2}
-                />
-              </div>
+              {/* Delivery Address - only show for PO */}
+              {!isQuote && (
+                <div className="space-y-2">
+                  <Label className="text-base font-medium">Delivery Address</Label>
+                  <Textarea
+                    value={deliveryAddress}
+                    onChange={(e) => setDeliveryAddress(e.target.value)}
+                    placeholder="Enter delivery address..."
+                    rows={2}
+                  />
+                </div>
+              )}
 
               {/* Notes */}
               <div className="space-y-2">
-                <Label className="text-base font-medium">Notes (optional)</Label>
+                <Label className="text-base font-medium">
+                  {isQuote ? "Message (optional)" : "Notes (optional)"}
+                </Label>
                 <Textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Delivery instructions, special requirements..."
+                  placeholder={isQuote 
+                    ? "Any specific requirements or questions for the supplier..."
+                    : "Delivery instructions, special requirements..."
+                  }
                   rows={2}
                 />
               </div>
@@ -398,10 +447,12 @@ export function SendPurchaseOrderDialog({
             >
               {sendMutation.isPending ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : isQuote ? (
+                <FileQuestion className="w-4 h-4 mr-2" />
               ) : (
                 <Send className="w-4 h-4 mr-2" />
               )}
-              Send Purchase Order
+              {isQuote ? "Request Quote" : "Send Purchase Order"}
             </Button>
           </DialogFooter>
         </DialogContent>
