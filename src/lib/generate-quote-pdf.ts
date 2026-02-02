@@ -164,6 +164,12 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
         logging: false,
       });
       
+      // Validate canvas dimensions to prevent jsPDF.scale error
+      if (canvas.width === 0 || canvas.height === 0) {
+        console.warn(`Skipping empty section: ${sectionType}`);
+        continue; // Skip to next section
+      }
+      
       // Calculate the section height in mm
       const sectionHeightMM = (canvas.height * CONTENT_WIDTH_MM) / canvas.width;
       

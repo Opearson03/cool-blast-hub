@@ -2,6 +2,88 @@ import { forwardRef } from "react";
 import { format } from "date-fns";
 import { extractQuotePDFData, hasDetailedData, generateScopeDescription, type QuotePDFData, type ScopeBreakdown } from "@/lib/quote-pdf-data";
 
+// ===== Notes Parser Utility =====
+// Parses the estimate.notes field to extract user notes separately from auto-generated content
+interface ParsedNotes {
+  userNotes: string | null;
+  scopeBreakdownFromNotes: { name: string; amount: string }[];
+  inclusionsFromNotes: string[];
+  exclusionsFromNotes: string[];
+}
+
+function parseNotesContent(notes: string | null): ParsedNotes {
+  if (!notes) {
+    return {
+      userNotes: null,
+      scopeBreakdownFromNotes: [],
+      inclusionsFromNotes: [],
+      exclusionsFromNotes: [],
+    };
+  }
+
+  // Find markers for auto-generated sections
+  const scopeIdx = notes.indexOf('SCOPE BREAKDOWN:');
+  const inclIdx = notes.indexOf('INCLUSIONS:');
+  const exclIdx = notes.indexOf('EXCLUSIONS:');
+
+  // Determine the first marker position to extract user notes
+  const firstMarker = Math.min(
+    scopeIdx === -1 ? Infinity : scopeIdx,
+    inclIdx === -1 ? Infinity : inclIdx,
+    exclIdx === -1 ? Infinity : exclIdx
+  );
+
+  // Extract user notes (everything before the first marker)
+  const userNotes = firstMarker === Infinity
+    ? notes.trim()
+    : notes.substring(0, firstMarker).trim() || null;
+
+  // Parse scope breakdown section
+  let scopeBreakdownFromNotes: { name: string; amount: string }[] = [];
+  if (scopeIdx !== -1) {
+    const endIdx = Math.min(
+      inclIdx === -1 ? notes.length : inclIdx,
+      exclIdx === -1 ? notes.length : exclIdx
+    );
+    const scopeBlock = notes.substring(scopeIdx + 16, endIdx);
+    const lines = scopeBlock.split('\n').filter(l => l.trim().startsWith('•'));
+    scopeBreakdownFromNotes = lines
+      .map(line => {
+        const match = line.match(/•\s*(.+?):\s*(\$[\d,.]+)/);
+        return match ? { name: match[1].trim(), amount: match[2] } : null;
+      })
+      .filter(Boolean) as { name: string; amount: string }[];
+  }
+
+  // Parse inclusions section
+  let inclusionsFromNotes: string[] = [];
+  if (inclIdx !== -1) {
+    const endIdx = exclIdx === -1 ? notes.length : exclIdx;
+    const inclBlock = notes.substring(inclIdx + 11, endIdx);
+    inclusionsFromNotes = inclBlock
+      .split('\n')
+      .filter(l => l.trim().startsWith('•'))
+      .map(l => l.replace(/^•\s*/, '').trim());
+  }
+
+  // Parse exclusions section
+  let exclusionsFromNotes: string[] = [];
+  if (exclIdx !== -1) {
+    const exclBlock = notes.substring(exclIdx + 11);
+    exclusionsFromNotes = exclBlock
+      .split('\n')
+      .filter(l => l.trim().startsWith('•'))
+      .map(l => l.replace(/^•\s*/, '').trim());
+  }
+
+  return {
+    userNotes,
+    scopeBreakdownFromNotes,
+    inclusionsFromNotes,
+    exclusionsFromNotes,
+  };
+}
+
 interface EstimateLineItem {
   description: string;
   quantity: number;
@@ -579,9 +661,11 @@ const TermsAndExclusionsPage = ({
 };
 
 // Helper function to generate dynamic payment terms text
-const getPaymentTermsText = (estimate: PrintableEstimateProps['estimate']): string[] | null => {
-  // If custom notes are provided, use those
-  if (estimate.notes) return null;
+// NOTE: We no longer check for estimate.notes here - we use payment_terms_type to generate terms
+// and only use user-entered notes (parsed separately) for custom content
+const getPaymentTermsText = (estimate: PrintableEstimateProps['estimate'], hasUserNotes: boolean): string[] | null => {
+  // If user has entered custom notes, don't override with generated terms
+  if (hasUserNotes) return null;
   
   const validity = estimate.quote_validity_days || 14;
   const deposit = estimate.deposit_percentage || 50;
@@ -651,8 +735,11 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     // Parse description to extract calculated items if no line items provided
     const parsedItems: EstimateLineItem[] = lineItems.length > 0 ? lineItems : [];
     
-    // Get dynamic payment terms
-    const paymentTerms = getPaymentTermsText(estimate);
+    // Parse notes to extract user-entered notes separately from auto-generated content
+    const parsedNotes = parseNotesContent(estimate.notes);
+    
+    // Get dynamic payment terms (pass whether user has custom notes)
+    const paymentTerms = getPaymentTermsText(estimate, !!parsedNotes.userNotes);
 
     // Common styles for print
     const printStyles = `
@@ -851,7 +938,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           <TermsAndExclusionsPage
             exclusions={quotePDFData.exclusions}
             paymentTerms={paymentTerms}
-            customNotes={estimate.notes}
+            customNotes={parsedNotes.userNotes}
             business={business}
             estimate={estimate}
             primaryColor={primaryColor}
@@ -1027,7 +1114,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           <TermsAndExclusionsPage
             exclusions={quotePDFData.exclusions}
             paymentTerms={paymentTerms}
-            customNotes={estimate.notes}
+            customNotes={parsedNotes.userNotes}
             business={business}
             estimate={estimate}
             primaryColor={primaryColor}
@@ -1239,7 +1326,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
         <TermsAndExclusionsPage
           exclusions={quotePDFData.exclusions}
           paymentTerms={paymentTerms}
-          customNotes={estimate.notes}
+          customNotes={parsedNotes.userNotes}
           business={business}
           estimate={estimate}
           primaryColor={primaryColor}
