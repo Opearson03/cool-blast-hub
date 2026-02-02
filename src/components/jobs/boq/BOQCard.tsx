@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Collapsible,
   CollapsibleContent,
@@ -17,23 +18,26 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ClipboardList, ChevronDown, ChevronUp, Printer, Pencil, Plus } from "lucide-react";
+import { ClipboardList, ChevronDown, ChevronUp, Printer, Pencil, Plus, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BOQItem, BOQ_CATEGORIES, JobBOQ } from "./BOQTypes";
 import { BOQEditDialog } from "./BOQEditDialog";
 import { PrintableBOQ } from "./PrintableBOQ";
+import { SendPurchaseOrderDialog } from "./SendPurchaseOrderDialog";
 import { createPortal } from "react-dom";
 
 interface BOQCardProps {
   jobId: string;
   jobName: string;
   jobNumber?: string;
+  siteAddress: string;
 }
 
-export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
+export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [isSendPOOpen, setIsSendPOOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -109,6 +113,37 @@ export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
     },
   });
 
+  // Toggle ordered status mutation
+  const toggleOrderedMutation = useMutation({
+    mutationFn: async (itemId: string) => {
+      if (!boq) return;
+      
+      const updatedItems = boq.items.map(item => {
+        if (item.id === itemId) {
+          return {
+            ...item,
+            ordered: !item.ordered,
+            orderedAt: !item.ordered ? new Date().toISOString() : undefined,
+          };
+        }
+        return item;
+      });
+
+      const { error } = await supabase
+        .from("job_boq")
+        .update({ items: JSON.parse(JSON.stringify(updatedItems)) })
+        .eq("id", boq.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job-boq", jobId] });
+    },
+    onError: (error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   const handlePrint = () => {
     setIsPrinting(true);
     // Small delay to render, then wait for images, then print
@@ -135,6 +170,7 @@ export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
   }, {} as Record<string, BOQItem[]>) || {};
 
   const totalValue = boq?.items.reduce((sum, item) => sum + (item.totalPrice || 0), 0) || 0;
+  const hasUnorderedItems = boq?.items.some(item => !item.ordered) || false;
 
   if (isLoading) {
     return (
@@ -192,6 +228,15 @@ export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
                 </Button>
               </CollapsibleTrigger>
               <div className="flex gap-2">
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  onClick={() => setIsSendPOOpen(true)}
+                  disabled={!hasUnorderedItems}
+                >
+                  <Send className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Send PO</span>
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
                   <Pencil className="w-4 h-4 sm:mr-2" />
                   <span className="hidden sm:inline">Edit</span>
@@ -223,6 +268,7 @@ export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="w-12">Ordered</TableHead>
                               <TableHead>Description</TableHead>
                               <TableHead className="text-right w-24">Qty</TableHead>
                               <TableHead className="w-20">Unit</TableHead>
@@ -232,8 +278,17 @@ export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
                           </TableHeader>
                           <TableBody>
                             {items.map((item) => (
-                              <TableRow key={item.id}>
-                                <TableCell>{item.description}</TableCell>
+                              <TableRow key={item.id} className={item.ordered ? "opacity-60" : ""}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={item.ordered || false}
+                                    onCheckedChange={() => toggleOrderedMutation.mutate(item.id)}
+                                    disabled={toggleOrderedMutation.isPending}
+                                  />
+                                </TableCell>
+                                <TableCell className={item.ordered ? "line-through" : ""}>
+                                  {item.description}
+                                </TableCell>
                                 <TableCell className="text-right">{item.quantity}</TableCell>
                                 <TableCell>{item.unit}</TableCell>
                                 <TableCell className="text-right">
@@ -275,6 +330,14 @@ export function BOQCard({ jobId, jobName, jobNumber }: BOQCardProps) {
         onOpenChange={setIsEditOpen}
         boq={boq}
         jobId={jobId}
+      />
+
+      <SendPurchaseOrderDialog
+        open={isSendPOOpen}
+        onOpenChange={setIsSendPOOpen}
+        boq={boq}
+        jobId={jobId}
+        siteAddress={siteAddress}
       />
 
       {isPrinting && createPortal(

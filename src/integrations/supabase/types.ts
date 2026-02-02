@@ -2071,6 +2071,98 @@ export type Database = {
           },
         ]
       }
+      purchase_orders: {
+        Row: {
+          boq_id: string
+          business_id: string
+          created_at: string | null
+          created_by: string | null
+          delivery_address: string
+          id: string
+          items: Json
+          job_id: string
+          notes: string | null
+          po_number: string
+          sent_at: string | null
+          sent_via: string | null
+          status: string | null
+          supplier_contact_id: string | null
+          supplier_email: string | null
+          supplier_name: string
+          supplier_phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          boq_id: string
+          business_id: string
+          created_at?: string | null
+          created_by?: string | null
+          delivery_address: string
+          id?: string
+          items?: Json
+          job_id: string
+          notes?: string | null
+          po_number: string
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: string | null
+          supplier_contact_id?: string | null
+          supplier_email?: string | null
+          supplier_name: string
+          supplier_phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          boq_id?: string
+          business_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          delivery_address?: string
+          id?: string
+          items?: Json
+          job_id?: string
+          notes?: string | null
+          po_number?: string
+          sent_at?: string | null
+          sent_via?: string | null
+          status?: string | null
+          supplier_contact_id?: string | null
+          supplier_email?: string | null
+          supplier_name?: string
+          supplier_phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_orders_boq_id_fkey"
+            columns: ["boq_id"]
+            isOneToOne: false
+            referencedRelation: "job_boq"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_supplier_contact_id_fkey"
+            columns: ["supplier_contact_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_tokens: {
         Row: {
           created_at: string | null
@@ -2102,6 +2194,53 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_contacts: {
+        Row: {
+          business_id: string
+          category: string | null
+          company: string | null
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          business_id: string
+          category?: string | null
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          business_id?: string
+          category?: string | null
+          company?: string | null
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_contacts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
             referencedColumns: ["id"]
           },
         ]

@@ -7,6 +7,8 @@ export interface BOQItem {
   unitPrice?: number;
   totalPrice?: number;
   notes?: string;
+  ordered?: boolean;
+  orderedAt?: string;
 }
 
 export interface JobBOQ {
