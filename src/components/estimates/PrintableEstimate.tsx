@@ -352,9 +352,98 @@ const ScopeLineItemsSection = ({
   );
 };
 
+// Notes-Based Scope Breakdown Fallback - renders scopes from parsed notes when scope_data is empty
+const NotesBasedScopeBreakdown = ({ 
+  items, 
+  template, 
+  primaryColor, 
+  secondaryColor 
+}: { 
+  items: { name: string; amount: string }[];
+  template: string;
+  primaryColor: string;
+  secondaryColor: string;
+}) => {
+  if (items.length === 0) return null;
+
+  if (template === 'minimal') {
+    return (
+      <div className="page-break-avoid mb-10">
+        <table className="w-full">
+          <thead>
+            <tr style={{ borderBottom: `1px solid ${secondaryColor}` }}>
+              <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Description</th>
+              <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-28">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr key={index} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                <td className="py-3 text-sm text-gray-700">
+                  <span className="font-medium">{item.name}</span>
+                </td>
+                <td className="py-3 text-sm text-right font-medium text-gray-700">{item.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (template === 'modern') {
+    return (
+      <div className="page-break-avoid mb-6">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
+              <th className="text-left py-3 px-4 text-sm font-bold">Scope of Works</th>
+              <th className="text-right py-3 px-4 text-sm font-bold w-28">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr key={index} className="border-b border-gray-200" style={{ backgroundColor: index % 2 === 0 ? "#f9fafb" : "white" }}>
+                <td className="py-3 px-4 text-sm">
+                  <span className="font-semibold text-gray-900">{item.name}</span>
+                </td>
+                <td className="py-3 px-4 text-sm text-right font-medium" style={{ color: primaryColor }}>{item.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  // Classic template
+  return (
+    <div className="page-break-avoid mb-6">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
+            <th className="text-left py-2 px-3 text-sm font-semibold">Scope of Works</th>
+            <th className="text-right py-2 px-3 text-sm font-semibold w-28">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((item, index) => (
+            <tr key={index} className="border-b border-gray-200">
+              <td className="py-2 px-3 text-sm">
+                <span className="font-medium text-gray-900">{item.name}</span>
+              </td>
+              <td className="py-2 px-3 text-sm text-right font-medium text-gray-700">{item.amount}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 
 // Terms and Exclusions Page Component - NEW (Page 2)
-const TermsAndExclusionsPage = ({ 
+const TermsAndExclusionsPage = ({
   exclusions, 
   paymentTerms,
   customNotes,
@@ -859,14 +948,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           {/* Scope of Works as Line Items - above totals */}
           <div data-pdf-section="scope-breakdown" className="px-2">
-            <ScopeLineItemsSection 
-              data={quotePDFData} 
-              primaryColor={primaryColor} 
-              secondaryColor={secondaryColor}
-              template="modern"
-              formatCurrency={formatCurrency}
-              totalAmount={estimate.total_amount}
-            />
+            {quotePDFData.scopeBreakdowns.length > 0 ? (
+              <ScopeLineItemsSection 
+                data={quotePDFData} 
+                primaryColor={primaryColor} 
+                secondaryColor={secondaryColor}
+                template="modern"
+                formatCurrency={formatCurrency}
+                totalAmount={estimate.total_amount}
+              />
+            ) : parsedNotes.scopeBreakdownFromNotes.length > 0 ? (
+              <NotesBasedScopeBreakdown 
+                items={parsedNotes.scopeBreakdownFromNotes}
+                template="modern"
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+              />
+            ) : null}
           </div>
 
           {/* Line Items */}
@@ -1030,14 +1128,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           {/* Scope of Works as Line Items - above totals */}
           <div data-pdf-section="scope-breakdown">
-            <ScopeLineItemsSection 
-              data={quotePDFData} 
-              primaryColor={primaryColor} 
-              secondaryColor={secondaryColor}
-              template="minimal"
-              formatCurrency={formatCurrency}
-              totalAmount={estimate.total_amount}
-            />
+            {quotePDFData.scopeBreakdowns.length > 0 ? (
+              <ScopeLineItemsSection 
+                data={quotePDFData} 
+                primaryColor={primaryColor} 
+                secondaryColor={secondaryColor}
+                template="minimal"
+                formatCurrency={formatCurrency}
+                totalAmount={estimate.total_amount}
+              />
+            ) : parsedNotes.scopeBreakdownFromNotes.length > 0 ? (
+              <NotesBasedScopeBreakdown 
+                items={parsedNotes.scopeBreakdownFromNotes}
+                template="minimal"
+                primaryColor={primaryColor}
+                secondaryColor={secondaryColor}
+              />
+            ) : null}
           </div>
 
           {/* Line Items - minimal table */}
@@ -1236,14 +1343,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
         {/* Scope of Works as Line Items - above totals */}
         <div data-pdf-section="scope-breakdown" className="px-4">
-          <ScopeLineItemsSection 
-            data={quotePDFData} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="classic"
-            formatCurrency={formatCurrency}
-            totalAmount={estimate.total_amount}
-          />
+          {quotePDFData.scopeBreakdowns.length > 0 ? (
+            <ScopeLineItemsSection 
+              data={quotePDFData} 
+              primaryColor={primaryColor} 
+              secondaryColor={secondaryColor}
+              template="classic"
+              formatCurrency={formatCurrency}
+              totalAmount={estimate.total_amount}
+            />
+          ) : parsedNotes.scopeBreakdownFromNotes.length > 0 ? (
+            <NotesBasedScopeBreakdown 
+              items={parsedNotes.scopeBreakdownFromNotes}
+              template="classic"
+              primaryColor={primaryColor}
+              secondaryColor={secondaryColor}
+            />
+          ) : null}
         </div>
 
         {/* Material Description Table with Tax column */}
