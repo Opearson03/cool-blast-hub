@@ -1,179 +1,136 @@
 
-# Add Waffle Pod Pricing to Standard Price List
+# Split-Screen Plan Viewer for Takeoff
 
-## Overview
+## The Problem
 
-This plan adds the waffle pod items to the master price list and updates the pods calculation module to properly pull prices from the centralized price list. The items include:
+When users are in the "Configure" step entering dimensions (footing widths, depths, slab thickness, etc.), dimension dialogs popup and completely block the plan viewer. Users cannot reference the plans to answer questions that appear in these dialogs - this is the biggest usability issue reported.
 
-| Code | Description | Unit | Price |
-|------|-------------|------|-------|
-| POD150 | Waffle Pod 1090 x 1090 x 150 | /pod | $16.00 |
-| POD225 | Waffle Pod 1090 x 1090 x 225 | /pod | $18.70 |
-| POD300 | Waffle Pod 1090 x 1090 x 300 | /pod | $24.30 |
-| POD375 | Waffle Pod 1090 x 1090 x 375 | /pod | $33.00 |
-| POD4 | 4-Way Spacer Bag (25 units) | /bag | $59.00 |
-| POD2 | 2-Way Spacer Bag (20 units) | /bag | $66.00 |
-| PODRAIL | Pod Rail 40mm 550mm Bag (20 units) | /bag | $26.60 |
+**Current Flow:**
+1. User marks areas/footings on plans in "Takeoff" step
+2. User moves to "Configure" step (plans hidden)
+3. Dialogs pop up asking for dimensions (LinearDimensionsDialog, PierDimensionsDialog, etc.)
+4. User has no way to see plans to answer dimension questions
 
 ---
 
-## Changes Required
+## Proposed Solution: Split-Screen Configure Mode
 
-### 1. Add New Category to Price List Structure
+Replace the single-panel "Configure" step with a **resizable split-screen layout** that shows the plan viewer alongside the calculator inputs. This allows users to reference marked areas while entering dimensions.
 
-**File:** `src/lib/price-list-defaults.ts`
-
-Add a new `waffle_pods` category to `PRICE_LIST_CATEGORIES`:
-
-```typescript
-{ id: 'waffle_pods', label: 'Waffle Pods' },
+```text
++--------------------------------------------------+
+|  [Plan Viewer - 50%]    |  [Calculator - 50%]    |
+|                         |                        |
+|  Shows the marked up    |  - Module accordions   |
+|  plans with all scope   |  - Dimension inputs    |
+|  markups visible        |  - Cost summary        |
+|                         |                        |
+|  User can zoom/pan      |  Scrollable content    |
+|  to reference dims      |                        |
+|                         |                        |
++--------------------------------------------------+
+          <--- Resizable handle --->
 ```
 
-Add the 7 new items to `DEFAULT_PRICE_LIST`:
+### Key Features
 
-```typescript
-// Waffle Pods
-{ category: 'waffle_pods', item_code: 'POD150', item_name: 'Waffle Pod 1090 x 1090 x 150', unit: '/pod', default_price: 16 },
-{ category: 'waffle_pods', item_code: 'POD225', item_name: 'Waffle Pod 1090 x 1090 x 225', unit: '/pod', default_price: 18.70 },
-{ category: 'waffle_pods', item_code: 'POD300', item_name: 'Waffle Pod 1090 x 1090 x 300', unit: '/pod', default_price: 24.30 },
-{ category: 'waffle_pods', item_code: 'POD375', item_name: 'Waffle Pod 1090 x 1090 x 375', unit: '/pod', default_price: 33 },
-{ category: 'waffle_pods', item_code: 'POD4', item_name: '4-Way Spacer Bag 25', unit: '/bag', default_price: 59 },
-{ category: 'waffle_pods', item_code: 'POD2', item_name: '2-Way Spacer Bag 20', unit: '/bag', default_price: 66 },
-{ category: 'waffle_pods', item_code: 'PODRAIL', item_name: 'Pod Rail 40mm 550mm Bag 20', unit: '/bag', default_price: 26.60 },
-```
+1. **Persistent Plan Reference**: Plans stay visible in the left panel while entering data in the right panel
+2. **Resizable Panels**: Users can drag the divider to adjust the split (e.g., 60/40, 70/30)
+3. **Collapsible Plan Panel**: Button to hide plans entirely if user wants full-width calculator
+4. **Mobile Fallback**: On mobile devices, use a slide-up sheet or toggle between views (plans can't fit side-by-side)
 
 ---
 
-### 2. Update CSV Price List
+## Implementation Plan
 
-**File:** `src/data/default-price-list.csv`
+### 1. Create Split-Screen Layout Component
 
-Add lines at end (or grouped with other categories):
+**New File:** `src/components/estimates/SplitScreenLayout.tsx`
 
-```csv
-waffle_pods,POD150,Waffle Pod 1090 x 1090 x 150,/pod,16.00
-waffle_pods,POD225,Waffle Pod 1090 x 1090 x 225,/pod,18.70
-waffle_pods,POD300,Waffle Pod 1090 x 1090 x 300,/pod,24.30
-waffle_pods,POD375,Waffle Pod 1090 x 1090 x 375,/pod,33.00
-waffle_pods,POD4,4-Way Spacer Bag 25,/bag,59.00
-waffle_pods,POD2,2-Way Spacer Bag 20,/bag,66.00
-waffle_pods,PODRAIL,Pod Rail 40mm 550mm Bag 20,/bag,26.60
-```
+A reusable wrapper that combines:
+- `ResizablePanelGroup` with horizontal direction
+- Left panel: Plan viewer (read-only mode, no drawing)
+- Right panel: Children content (calculator)
+- Toggle button to show/hide plan panel
+- Persist panel sizes in localStorage
 
----
+### 2. Create Read-Only Plan Viewer
 
-### 3. Update Pods Module to Use Price List
+**New File:** `src/components/estimates/takeoff/PlanPreviewPanel.tsx`
 
-**File:** `src/lib/estimate-components/modules/pods.ts`
+A simplified, read-only version of PlanViewer that:
+- Shows current plans with all markups overlaid
+- Supports zoom/pan for reference
+- Highlights the currently active scope's markups
+- No drawing tools or calibration controls
+- Lighter weight than full takeoff component
 
-#### A. Update Pod Unit Price Question
+### 3. Update Configure Step in EstimateFormDialog
 
-Change the `priceListKey` to reference the new category and make it depth-aware:
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
 
-```typescript
-{
-  id: 'pod_unit_price',
-  type: 'currency',
-  label: 'Pod Unit Price',
-  defaultValue: 18.70,  // POD225 as default
-  priceListKey: 'waffle_pods.POD225',  // Updated category
-  showIf: (answers) => answers.include_pod_supply === true,
-},
-```
+Wrap the configure step content with SplitScreenLayout:
+- Pass the plan files and markups to the preview panel
+- Active scope highlighting syncs with calculator accordion
+- Maintain all existing calculator functionality in the right panel
 
-#### B. Update Pod Rail Price Question
+### 4. Mobile-Responsive Handling
 
-```typescript
-{
-  id: 'pod_rail_price',
-  type: 'currency',
-  label: 'Pod Rail Price (per bag of 20)',
-  defaultValue: 26.60,
-  priceListKey: 'waffle_pods.PODRAIL',  // Updated category
-  showIf: (answers) => answers.include_pod_rails === true,
-},
-```
-
-#### C. Add Spacer Price List Keys
-
-Update the spacer questions to reference the price list:
-
-```typescript
-{
-  id: 'spacer_4way_price',
-  type: 'currency',
-  label: '4-Way Spacer Price (per bag of 25)',
-  defaultValue: 59,
-  priceListKey: 'waffle_pods.POD4',
-  showIf: (answers) => answers.include_spacers === true,
-},
-{
-  id: 'spacer_2way_price',
-  type: 'currency',
-  label: '2-Way Spacer Price (per bag of 20)',
-  defaultValue: 66,
-  priceListKey: 'waffle_pods.POD2',
-  showIf: (answers) => answers.include_spacers === true,
-},
-```
-
-#### D. Update Calculation Logic for Depth-Based Pod Pricing
-
-In the `calculate` function, look up pod price by depth:
-
-```typescript
-// Map pod thickness to price list code
-const getPodPriceCode = (thickness: string): string => {
-  const thicknessNum = parseInt(thickness);
-  if (thicknessNum <= 150) return 'POD150';
-  if (thicknessNum <= 225) return 'POD225';
-  if (thicknessNum <= 300) return 'POD300';
-  return 'POD375';
-};
-
-// In multi-zone calculation
-Object.entries(podsByThickness).forEach(([thickness, data]) => {
-  if (data.count > 0) {
-    const podCode = getPodPriceCode(thickness);
-    const podPrice = getPrice(priceMap, 'waffle_pods', podCode, 18.70);
-    // ... rest of calculation
-  }
-});
-```
-
-#### E. Update Spacer Calculations for Bag Quantities
-
-Currently, spacers are counted individually but priced per bag. Update to calculate bags needed:
-
-```typescript
-// 4-way spacers: 25 per bag
-const spacer4WayBags = Math.ceil(totalSpacer4Way / 25);
-const spacer4WayBagPrice = Number(answers.spacer_4way_price) || getPrice(priceMap, 'waffle_pods', 'POD4', 59);
-const spacer4WayCost = spacer4WayBags * spacer4WayBagPrice;
-
-// 2-way spacers: 20 per bag
-const spacer2WayBags = Math.ceil(totalSpacer2Way / 20);
-const spacer2WayBagPrice = Number(answers.spacer_2way_price) || getPrice(priceMap, 'waffle_pods', 'POD2', 66);
-const spacer2WayCost = spacer2WayBags * spacer2WayBagPrice;
-```
+For screens < 768px wide:
+- Default to calculator-only view
+- Add floating "View Plans" button that opens a bottom sheet with the plan viewer
+- Sheet can be dismissed to return to calculator
 
 ---
 
-## Technical Summary
+## Technical Details
 
-| File | Changes |
-|------|---------|
-| `src/lib/price-list-defaults.ts` | Add `waffle_pods` category and 7 items |
-| `src/data/default-price-list.csv` | Add 7 CSV rows for waffle pod items |
-| `src/lib/estimate-components/modules/pods.ts` | Update questions with priceListKeys, add depth-based pod pricing, convert spacers to bag quantities |
+### Panel State Management
+
+```typescript
+interface SplitScreenLayoutProps {
+  estimateId: string | null;
+  businessId: string | null;
+  activeScope?: string | null;
+  showPlanPanel?: boolean;
+  onTogglePlanPanel?: () => void;
+  children: React.ReactNode;
+}
+```
+
+### File Changes Summary
+
+| File | Change |
+|------|--------|
+| `src/components/estimates/SplitScreenLayout.tsx` | NEW - Resizable split layout |
+| `src/components/estimates/takeoff/PlanPreviewPanel.tsx` | NEW - Read-only plan viewer |
+| `src/components/estimates/EstimateFormDialog.tsx` | Wrap configure step with split layout |
+| `src/components/ui/resizable.tsx` | Already exists - no changes needed |
+
+### State Flow
+
+1. When user enters Configure step, SplitScreenLayout mounts
+2. PlanPreviewPanel loads existing takeoff files and markups (reuses useTakeoffData hook)
+3. As user navigates between scopes in calculator, activeScope prop updates
+4. PlanPreviewPanel highlights markups for the active scope with a glow/border
+5. User can resize panels or collapse plan panel entirely
 
 ---
 
-## Impact
+## Benefits
 
-After implementation:
-- Users can customize waffle pod prices in Settings > My Price List
-- Pod prices will vary by depth (150mm, 225mm, 300mm, 375mm)
-- Spacers will be quoted as bags (not individual units)
-- Pod rails will reference the correct bag price
-- Existing users will need to click "Sync" to get the new items
+1. **Solves Core Problem**: Users can see plans while answering dimension questions
+2. **Non-Disruptive**: Existing takeoff and calculator flows remain unchanged
+3. **Flexible**: Resizable panels let users choose their preferred layout
+4. **Progressive**: Mobile users still get a workable fallback
+
+---
+
+## Alternative Considered: Floating Plan Window
+
+An alternative approach would be a floating/draggable window that shows plans, which users could position anywhere. However, this has UX challenges:
+- Window management complexity
+- Potential overlap with content
+- Mobile support is harder
+
+The split-screen approach is cleaner and more predictable.
