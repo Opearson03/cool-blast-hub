@@ -45,6 +45,18 @@ export function InboxHistoryTab() {
   const [selectedItem, setSelectedItem] = useState<InboxItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
 
+  // Helper to extract filename from URL
+  const getFileNameFromUrl = (url: string | null): string | null => {
+    if (!url) return null;
+    try {
+      const urlPath = url.split('?')[0]; // Remove query params
+      const parts = urlPath.split('/');
+      return parts[parts.length - 1] || null;
+    } catch {
+      return null;
+    }
+  };
+
   const { data: inboxItems = [], isLoading } = useQuery({
     queryKey: ["inbox-history"],
     queryFn: async () => {
@@ -117,6 +129,10 @@ export function InboxHistoryTab() {
 
       if (testResults) {
         for (const test of testResults) {
+          // Extract actual filename from URL or use default with proper extension
+          const extractedName = getFileNameFromUrl(test.lab_report_url);
+          const fileName = extractedName || (test.lab_report_url ? "lab-report.pdf" : null);
+          
           items.push({
             id: test.id,
             type: "test",
@@ -124,7 +140,7 @@ export function InboxHistoryTab() {
             from_name: null,
             subject: test.subject,
             file_url: test.lab_report_url,
-            file_name: test.lab_report_url ? "Lab Report" : null,
+            file_name: fileName,
             received_at: test.received_at,
             status: test.status,
             linked_id: test.linked_job_id,
