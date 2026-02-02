@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSubTradeInvites, useRevokeSubTradeInvite, SubTradeInvite } from "@/hooks/useSubTradeInvites";
+import { useSubTradeInvites, useRevokeSubTradeInvite, useResendSubTradeNotification, SubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { SubTradeStatusBadge } from "./SubTradeStatusBadge";
 import { SubTradeInviteDialog } from "./SubTradeInviteDialog";
 import { DeliveryStatusIndicator } from "./DeliveryStatusIndicator";
@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronDown, Plus, UserPlus, X, Clock, AlertTriangle } from "lucide-react";
+import { ChevronDown, Plus, UserPlus, X, Clock, AlertTriangle, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -40,6 +40,7 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
 
   const { data: invites = [], isLoading } = useSubTradeInvites(pourId);
   const revokeMutation = useRevokeSubTradeInvite();
+  const resendMutation = useResendSubTradeNotification();
 
   const confirmedCount = invites.filter((i) => i.status === "accepted").length;
   const pendingCount = invites.filter((i) => ["sent", "viewed"].includes(i.status)).length;
@@ -59,6 +60,20 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
         },
         onError: () => {
           toast.error("Failed to cancel invite");
+        },
+      }
+    );
+  };
+
+  const handleSendInvite = (invite: SubTradeInvite) => {
+    resendMutation.mutate(
+      { inviteId: invite.id, jobPourId: pourId },
+      {
+        onSuccess: () => {
+          toast.success("Invite sent successfully");
+        },
+        onError: () => {
+          toast.error("Failed to send invite");
         },
       }
     );
@@ -146,6 +161,18 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
                     </div>
                     <div className="flex items-center gap-1">
                       <SubTradeStatusBadge status={invite.status} className="text-xs" />
+                      {invite.status === "drafted" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs"
+                          onClick={() => handleSendInvite(invite)}
+                          disabled={resendMutation.isPending}
+                        >
+                          <Send className="h-3 w-3 mr-1" />
+                          Send
+                        </Button>
+                      )}
                       {["sent", "viewed"].includes(invite.status) && (
                         <Button
                           variant="ghost"
