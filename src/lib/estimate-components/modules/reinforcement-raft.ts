@@ -378,8 +378,9 @@ export const reinforcementRaftModule: EstimateModule = {
           const bottomBarSize = String(zone.rib_bottom_bar_size || 'N12');
           const bottomBarWeight = REBAR_WEIGHTS[bottomBarSize] || 0.888;
           
-          // Top bars configuration  
-          const topBarsPerRib = Number(zone.rib_top_bars) || 1;
+          // Top bars configuration (support 0 for no top bars)
+          const topBarsPerRib = zone.rib_top_bars !== undefined && zone.rib_top_bars !== null 
+            ? Number(zone.rib_top_bars) : 1;
           const topBarSize = String(zone.rib_top_bar_size || 'N12');
           const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
           
@@ -449,8 +450,9 @@ export const reinforcementRaftModule: EstimateModule = {
           const bottomBarSize = String(scopeData?.rib_bottom_bar_size || 'N12');
           const bottomBarWeight = REBAR_WEIGHTS[bottomBarSize] || 0.888;
           
-          // Top bars configuration  
-          const topBarsPerRib = Number(scopeData?.rib_top_bars) || 1;
+          // Top bars configuration (support 0 for no top bars)
+          const topBarsPerRib = scopeData?.rib_top_bars !== undefined && scopeData?.rib_top_bars !== null 
+            ? Number(scopeData.rib_top_bars) : 1;
           const topBarSize = String(scopeData?.rib_top_bar_size || 'N12');
           const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
           
