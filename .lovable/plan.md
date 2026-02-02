@@ -1,200 +1,187 @@
 
-
-# BOQ Ordering and Purchase Orders
+# Contacts Page - Consolidation of All Contacts & Email History
 
 ## Overview
 
-Enhance the Bill of Quantities feature to:
-1. Track items as "ordered" (checklist functionality)
-2. Send Purchase Orders to suppliers via Email or SMS
-3. Include delivery address based on job site address
+Create a new `/admin/contacts` page that consolidates:
+1. **All contact types**: Clients, Subbies, Suppliers
+2. **Email inbox history**: A permanent log of all received emails (plans, test results, delivery dockets)
+
+The SubbieContactListWidget will be removed from the dashboard.
 
 ---
 
-## Current State
+## Page Structure
 
-- **BOQ Items** are stored in `job_boq.items` as a JSONB array
-- Each item has: `id`, `category`, `description`, `quantity`, `unit`, `unitPrice`, `totalPrice`, `notes`
-- **Business suppliers** are stored as simple strings in `businesses.preferred_suppliers[]`
-- Twilio (SMS) and Resend (Email) are already configured
-
----
-
-## Technical Changes
-
-### 1. Update BOQItem Type
-
-Add `ordered` status and optional `supplier` field to track ordering:
-
-**File: `src/components/jobs/boq/BOQTypes.ts`**
-
-```typescript
-export interface BOQItem {
-  id: string;
-  category: 'concrete' | 'reinforcement' | 'formwork' | 'finishing' | 'other';
-  description: string;
-  quantity: number;
-  unit: string;
-  unitPrice?: number;
-  totalPrice?: number;
-  notes?: string;
-  ordered?: boolean;      // NEW: Track if item has been ordered
-  orderedAt?: string;     // NEW: When it was marked ordered
-}
-```
-
-### 2. Create Supplier Contacts Table
-
-Store supplier contact details for sending POs:
-
-```sql
-CREATE TABLE supplier_contacts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-  name TEXT NOT NULL,
-  company TEXT,
-  phone TEXT,
-  email TEXT,
-  category TEXT DEFAULT 'general',  -- concrete, reinforcement, formwork, etc.
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- RLS policies
-ALTER TABLE supplier_contacts ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage supplier contacts for their business"
-ON supplier_contacts FOR ALL
-USING (business_id = get_user_business_id(auth.uid()))
-WITH CHECK (business_id = get_user_business_id(auth.uid()));
-```
-
-### 3. Create Purchase Orders Table
-
-Track sent POs for history:
-
-```sql
-CREATE TABLE purchase_orders (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
-  job_id UUID NOT NULL REFERENCES jobs(id) ON DELETE CASCADE,
-  boq_id UUID NOT NULL REFERENCES job_boq(id) ON DELETE CASCADE,
-  po_number TEXT NOT NULL,
-  supplier_contact_id UUID REFERENCES supplier_contacts(id),
-  supplier_name TEXT NOT NULL,
-  supplier_email TEXT,
-  supplier_phone TEXT,
-  delivery_address TEXT NOT NULL,
-  items JSONB NOT NULL DEFAULT '[]',  -- Selected BOQ items
-  notes TEXT,
-  sent_via TEXT,  -- 'email', 'sms', 'both'
-  sent_at TIMESTAMPTZ,
-  status TEXT DEFAULT 'draft',
-  created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
-ALTER TABLE purchase_orders ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Users can manage POs for their business"
-ON purchase_orders FOR ALL
-USING (business_id = get_user_business_id(auth.uid()))
-WITH CHECK (business_id = get_user_business_id(auth.uid()));
-```
-
----
-
-## UI Components
-
-### 4. Update BOQCard - Add Ordered Checkboxes
-
-**File: `src/components/jobs/boq/BOQCard.tsx`**
-
-Add checkbox column to mark items as ordered:
-
-- Add checkbox column before Description
-- Toggle updates `ordered` flag in items array
-- Show visual indicator (strikethrough or checkmark) for ordered items
-- Add "Send PO" button to header actions
+The page will use tabs to organize the two main sections:
 
 ```text
-[ ] Description | Qty | Unit | Price | Total
-[x] N32 Concrete | 45 | m³ | $250 | $11,250 ← Ordered items shown with checkmark
-[ ] SL82 Mesh | 120 | m² | $18 | $2,160
+┌─────────────────────────────────────────────────────────┐
+│ Contacts                                                │
+├─────────────────────────────────────────────────────────┤
+│ [Clients] [Subbies] [Suppliers]  │  [Inbox History]     │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│  Search: [_______________]                              │
+│                                                         │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ Contact Card 1                                   │   │
+│  └─────────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────┐   │
+│  │ Contact Card 2                                   │   │
+│  └─────────────────────────────────────────────────┘   │
+│                                                         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### 5. Create SendPurchaseOrderDialog
+---
 
-**New file: `src/components/jobs/boq/SendPurchaseOrderDialog.tsx`**
+## Tab 1: People Contacts
 
-Dialog for creating and sending purchase orders:
+### 1.1 Clients Tab
+- Source: `estimates` table (unique by `client_name` + `client_email`)
+- Display: Client name, company, email, phone
+- Details sheet: Shows all quotes/jobs for this client
+- Click to call/email actions
 
-1. **Item Selection**
-   - Show unordered BOQ items with checkboxes
-   - Select which items to include in PO
-   - Show quantities and descriptions
+### 1.2 Subbies Tab
+- Source: `external_invites` table (existing `useBusinessSubbies` hook)
+- Display: Name, role, phone, email
+- Grouped by role (Laborer, Formworker, etc.)
+- Reuse existing `SubbieContactDetailSheet` for viewing history
+- "Invite to Job" action
 
-2. **Supplier Selection**
-   - Dropdown to select from saved supplier contacts
-   - Option to enter new supplier details manually
-   - Save new supplier for future use checkbox
+### 1.3 Suppliers Tab
+- Source: `supplier_contacts` table (created for BOQ/PO feature)
+- Display: Name, company, category, phone, email
+- Grouped by category (Concrete, Reinforcement, etc.)
+- Edit/delete actions
+- "Send PO" quick action
 
-3. **Delivery Details**
-   - Pre-fill with job site address
-   - Allow editing if needed
-   - Add delivery notes field
+---
 
-4. **Send Method**
-   - Radio buttons: Email / SMS / Both
-   - Show recipient email/phone based on selection
-   - Validate required fields
+## Tab 2: Inbox History
 
-5. **Send Action**
-   - Generate PO number (e.g., "PO-001")
-   - Call edge function to send
-   - Mark selected items as "ordered" in BOQ
-   - Save PO record for history
+A permanent log of ALL emails received at the business inbox address, regardless of status.
 
-### 6. Create Edge Function: send-purchase-order
+### Data Sources
+Query all three pending tables with all statuses (not just pending):
+- `pending_plans` - Quote request plans
+- `pending_test_results` - Concrete test reports
+- `pending_documents` - Delivery dockets
 
-**New file: `supabase/functions/send-purchase-order/index.ts`**
+### Display
+- Unified list sorted by `received_at` (newest first)
+- Each row shows:
+  - Document type icon (Plan/Test/Docket)
+  - Subject/file name
+  - From email/name
+  - Received date
+  - Status badge (Pending, Approved, Rejected, Converted)
+  - Link to view document
+  - Link to associated estimate/job if approved
 
-Handles sending PO via email and/or SMS:
+### Filters
+- Document type filter (All, Plans, Tests, Dockets)
+- Status filter (All, Pending, Processed)
+- Date range (optional)
+- Search by subject/sender
 
-**Email Content:**
-- Business branding (logo, colors)
-- PO number and date
-- Delivery address
-- Line items table: Description | Qty | Unit
-- Notes
-- Business contact details
+---
 
-**SMS Content:**
+## Technical Implementation
+
+### 1. Create New Page: `src/pages/admin/AdminContacts.tsx`
+
+Main page component with tabs:
+- Uses `AdminLayout`
+- Tabs: People (with sub-tabs for Clients, Subbies, Suppliers) | Inbox History
+- Search functionality for each section
+
+### 2. Create Contact Components
+
+**New files:**
+- `src/components/contacts/ClientsTab.tsx` - Lists unique clients from estimates
+- `src/components/contacts/ClientDetailSheet.tsx` - Shows client details and history
+- `src/components/contacts/SuppliersTab.tsx` - Lists supplier contacts
+- `src/components/contacts/InboxHistoryTab.tsx` - Unified email log
+
+**Reuse existing:**
+- Move `SubbieContactListWidget` logic into `src/components/contacts/SubbiesTab.tsx`
+- Keep `SubbieContactDetailSheet` (already full-featured)
+- Keep `SupplierContactDialog` for add/edit
+
+### 3. Add Navigation
+
+Update `AdminLayout.tsx` to add "Contacts" nav item:
+```typescript
+{ href: "/admin/contacts", label: "Contacts", icon: Users }
 ```
-PO {po_number} from {business_name}
-Deliver to: {delivery_address}
-Items: {item_count} items
-View details: {link} (optional)
-Reply to confirm
+
+### 4. Add Route
+
+Update `App.tsx`:
+```typescript
+<Route path="/admin/contacts" element={<ProtectedRoute allowedRole="admin"><AdminContacts /></ProtectedRoute>} />
 ```
 
-### 7. Update BOQEditDialog
+### 5. Update Dashboard
 
-**File: `src/components/jobs/boq/BOQEditDialog.tsx`**
+Modify `AdminDashboard.tsx`:
+- Remove `<SubbieContactListWidget />` component
+- Remove import
 
-- No changes needed - ordered status is managed from the card view, not the edit dialog
+---
 
-### 8. Add Supplier Contact Management
+## Inbox History Query
 
-**New file: `src/components/jobs/boq/SupplierContactDialog.tsx`**
+```sql
+-- Unified inbox history view (conceptual)
+SELECT 
+  id,
+  'plan' as type,
+  from_email,
+  from_name,
+  subject,
+  file_url,
+  received_at,
+  status,
+  linked_estimate_id as linked_id
+FROM pending_plans
+WHERE business_id = ?
 
-Simple dialog to add/edit supplier contacts:
-- Name, Company, Phone, Email
-- Category dropdown (Concrete, Reinforcement, Formwork, etc.)
-- Notes field
-- Accessed from Settings or quick-add in PO dialog
+UNION ALL
+
+SELECT 
+  id,
+  'test' as type,
+  from_email,
+  NULL as from_name,
+  subject,
+  lab_report_url as file_url,
+  received_at,
+  status::text,
+  linked_job_id as linked_id
+FROM pending_test_results
+WHERE business_id = ?
+
+UNION ALL
+
+SELECT 
+  id,
+  'docket' as type,
+  from_email,
+  NULL as from_name,
+  subject,
+  file_url,
+  received_at,
+  status,
+  linked_job_id as linked_id
+FROM pending_documents
+WHERE business_id = ?
+
+ORDER BY received_at DESC
+```
 
 ---
 
@@ -202,57 +189,40 @@ Simple dialog to add/edit supplier contacts:
 
 | File | Action | Purpose |
 |------|--------|---------|
-| `src/components/jobs/boq/BOQTypes.ts` | Modify | Add `ordered`, `orderedAt` fields |
-| `src/components/jobs/boq/BOQCard.tsx` | Modify | Add checkboxes, Send PO button, ordered toggle |
-| `src/components/jobs/boq/SendPurchaseOrderDialog.tsx` | Create | PO creation and sending dialog |
-| `src/components/jobs/boq/SupplierContactDialog.tsx` | Create | Add/edit supplier contacts |
-| `supabase/functions/send-purchase-order/index.ts` | Create | Send PO via email/SMS |
-| Database migration | Create | `supplier_contacts` and `purchase_orders` tables |
+| `src/pages/admin/AdminContacts.tsx` | Create | Main contacts page with tabs |
+| `src/components/contacts/ClientsTab.tsx` | Create | Client contacts list |
+| `src/components/contacts/ClientDetailSheet.tsx` | Create | Client history sheet |
+| `src/components/contacts/SubbiesTab.tsx` | Create | Subbies list (from widget) |
+| `src/components/contacts/SuppliersTab.tsx` | Create | Supplier contacts list |
+| `src/components/contacts/InboxHistoryTab.tsx` | Create | Email inbox history log |
+| `src/components/layout/AdminLayout.tsx` | Modify | Add Contacts nav item |
+| `src/App.tsx` | Modify | Add /admin/contacts route |
+| `src/pages/admin/AdminDashboard.tsx` | Modify | Remove SubbieContactListWidget |
 
 ---
 
 ## User Flow
 
-### Marking Items as Ordered
-1. View BOQ on job page
-2. Click checkbox next to an item
-3. Item is marked as ordered with timestamp
-4. Visual feedback (checkmark, subtle styling)
+### Viewing Contacts
+1. Navigate to Contacts from sidebar
+2. Default view shows Clients tab
+3. Switch between Clients, Subbies, Suppliers tabs
+4. Search/filter within each tab
+5. Click contact to see detail sheet with history
 
-### Sending a Purchase Order
-1. Click "Send PO" button on BOQ card
-2. Dialog opens showing unordered items
-3. Select items to include in PO
-4. Choose or enter supplier details
-5. Confirm delivery address (pre-filled from job)
-6. Select send method (Email/SMS/Both)
-7. Click "Send Purchase Order"
-8. Selected items automatically marked as ordered
-9. PO saved to history
+### Viewing Inbox History
+1. Click "Inbox History" tab
+2. See all received emails in chronological order
+3. Filter by type or status
+4. Click to view document
+5. Click linked job/estimate to navigate there
 
 ---
 
-## Data Flow
+## Benefits
 
-```text
-User clicks "Send PO"
-       ↓
-SendPurchaseOrderDialog opens
-       ↓
-User selects items + supplier + send method
-       ↓
-Frontend calls send-purchase-order edge function
-       ↓
-Edge function:
-  - Generates PO number
-  - Creates PO record in database
-  - Sends email via Resend (if selected)
-  - Sends SMS via Twilio (if selected)
-  - Returns success
-       ↓
-Frontend:
-  - Updates BOQ items as "ordered"
-  - Shows success toast
-  - Closes dialog
-```
-
+1. **Centralized contact management** - One place for all business contacts
+2. **Email audit trail** - Permanent record of all received documents
+3. **Cleaner dashboard** - Focus on daily operations, not contact browsing
+4. **Better organization** - Clients, subbies, suppliers clearly separated
+5. **Quick actions** - Call, email, invite, or send PO directly from contact view
