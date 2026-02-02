@@ -42,7 +42,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
 
   useEffect(() => {
     const fetchPendingInvites = async () => {
-      const today = format(new Date(), "yyyy-MM-dd");
+      const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
       const weekAhead = format(addDays(new Date(), 7), "yyyy-MM-dd");
 
       const { data, error } = await supabase
@@ -59,7 +59,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
         `)
         .eq("business_id", businessId)
         .in("status", ["sent", "viewed", "drafted"])
-        .gte("job_pour.pour_date", today)
+        .gte("job_pour.pour_date", tomorrow)
         .lte("job_pour.pour_date", weekAhead)
         .order("job_pour(pour_date)", { ascending: true });
 
@@ -165,7 +165,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Users className="h-5 w-5 text-amber-500" />
-            Sub-Contractor Responses Needed
+            Subcontractors Awaiting Response
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -183,7 +183,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
-            Sub-Contractor Responses Needed
+            Subcontractors Awaiting Response
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -202,7 +202,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Users className="h-5 w-5 text-amber-500" />
-            Sub-Contractor Responses Needed
+            Subcontractors Awaiting Response
             <Badge variant="secondary" className="ml-1">
               {invites.length}
             </Badge>
