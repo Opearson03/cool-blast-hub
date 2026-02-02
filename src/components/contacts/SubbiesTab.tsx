@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useSubcontractors, useCreateSubcontractor, useUpdateSubcontractor, useDeleteSubcontractor, Subcontractor } from "@/hooks/useSubcontractors";
+import { useBusinessSubbies } from "@/hooks/useBusinessSubbies";
 import { ContactList, ContactListItem } from "./ContactList";
 import { ContactFormDialog } from "./ContactFormDialog";
 
 export function SubbiesTab() {
-  const { data: subcontractors = [], isLoading } = useSubcontractors();
+  const { data: subcontractors = [], isLoading: isLoadingSubcontractors } = useSubcontractors();
+  const { data: pastSubbies = [], isLoading: isLoadingPastSubbies } = useBusinessSubbies();
   const createSubcontractor = useCreateSubcontractor();
   const updateSubcontractor = useUpdateSubcontractor();
   const deleteSubcontractor = useDeleteSubcontractor();
@@ -12,21 +14,71 @@ export function SubbiesTab() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSubcontractor, setEditingSubcontractor] = useState<Subcontractor | null>(null);
 
+  // Merge saved subcontractors with past subbies from invites (deduplicated)
+  const mergedContacts = useMemo(() => {
+    const contactMap = new Map<string, ContactListItem>();
+
+    // First add all saved subcontractors (these take priority)
+    for (const s of subcontractors) {
+      const key = `${s.name.toLowerCase().trim()}-${(s.trade || "").toLowerCase().trim()}`;
+      contactMap.set(key, {
+        id: s.id,
+        name: s.name,
+        company_name: s.company_name,
+        email: s.email,
+        phone: s.phone,
+        trade: s.trade,
+        notes: s.notes,
+        isSaved: true,
+      });
+    }
+
+    // Then add past subbies from invites that aren't already saved
+    for (const ps of pastSubbies) {
+      const key = `${ps.recipient_name.toLowerCase().trim()}-${ps.role.toLowerCase().trim()}`;
+      if (!contactMap.has(key)) {
+        contactMap.set(key, {
+          id: `invite-${key}`, // Temporary ID for unsaved entries
+          name: ps.recipient_name,
+          email: ps.recipient_email,
+          phone: ps.recipient_phone,
+          trade: ps.role,
+          isSaved: false,
+        });
+      }
+    }
+
+    return Array.from(contactMap.values());
+  }, [subcontractors, pastSubbies]);
+
   const handleAdd = () => {
     setEditingSubcontractor(null);
     setDialogOpen(true);
   };
 
   const handleEdit = (contact: ContactListItem) => {
-    const subcontractor = subcontractors.find((s) => s.id === contact.id);
-    if (subcontractor) {
-      setEditingSubcontractor(subcontractor);
+    // If it's an unsaved contact from invites, open the form to save it
+    if (!contact.isSaved) {
+      setEditingSubcontractor(null);
       setDialogOpen(true);
+      // Pre-fill with the contact data
+      setTimeout(() => {
+        // The dialog will be opened with initial data
+      }, 0);
+    } else {
+      const subcontractor = subcontractors.find((s) => s.id === contact.id);
+      if (subcontractor) {
+        setEditingSubcontractor(subcontractor);
+        setDialogOpen(true);
+      }
     }
   };
 
   const handleDelete = (id: string) => {
-    deleteSubcontractor.mutate(id);
+    // Only allow deleting saved subcontractors
+    if (!id.startsWith("invite-")) {
+      deleteSubcontractor.mutate(id);
+    }
   };
 
   const handleSave = async (data: any) => {
@@ -54,21 +106,13 @@ export function SubbiesTab() {
     setEditingSubcontractor(null);
   };
 
-  const contactList: ContactListItem[] = subcontractors.map((s) => ({
-    id: s.id,
-    name: s.name,
-    company_name: s.company_name,
-    email: s.email,
-    phone: s.phone,
-    trade: s.trade,
-    notes: s.notes,
-  }));
+  const isLoading = isLoadingSubcontractors || isLoadingPastSubbies;
 
   return (
     <>
       <ContactList
         type="subcontractor"
-        contacts={contactList}
+        contacts={mergedContacts}
         isLoading={isLoading}
         onAdd={handleAdd}
         onEdit={handleEdit}

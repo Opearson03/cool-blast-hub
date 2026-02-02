@@ -38,6 +38,7 @@ export interface ContactListItem {
   trade?: string | null;
   category?: string | null;
   notes?: string | null;
+  isSaved?: boolean; // Whether contact is saved to database vs from invites
 }
 
 interface ContactListProps {
@@ -182,7 +183,10 @@ export function ContactList({
           </p>
         )}
       </div>
-      <div className="flex items-center gap-1 shrink-0">
+      <div className="flex items-center gap-2 shrink-0">
+        {contact.isSaved === false && (
+          <Badge variant="secondary" className="text-xs">From Invites</Badge>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -190,13 +194,15 @@ export function ContactList({
         >
           <Pencil className="h-4 w-4" />
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={(e) => handleDelete(contact, e)}
-        >
-          <Trash2 className="h-4 w-4 text-destructive" />
-        </Button>
+        {contact.isSaved !== false && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={(e) => handleDelete(contact, e)}
+          >
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        )}
       </div>
     </div>
   );
