@@ -1246,8 +1246,8 @@ export function ModularCalculator({
         </AlertDescription>
       </Alert>
 
-      {/* Multi-area input */}
-      {scope.supportsMultipleAreas && (
+      {/* Multi-area input - hidden for waffle_pod since MultiWafflePodZoneInput handles area/perimeter */}
+      {scope.supportsMultipleAreas && scope.id !== 'waffle_pod' && (
         <MultiAreaInput
           label={scope.areasLabel || `${scope.name} Areas`}
           areas={scopeAnswers.areas || [{ id: 'area-1', name: 'Area 1', length: 0, width: 0 }]}
