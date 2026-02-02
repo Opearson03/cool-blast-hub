@@ -5,12 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Users, Phone, ChevronRight, Clock, Send, Eye } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { format, addDays, isToday, isTomorrow, differenceInDays } from "date-fns";
-import { Link } from "react-router-dom";
+import { PendingInviteActionSheet } from "./PendingInviteActionSheet";
 
 interface PendingInvite {
   id: string;
   recipient_name: string;
   recipient_phone: string | null;
+  recipient_email: string | null;
   role: string;
   status: string;
   sent_at: string | null;
@@ -18,6 +19,7 @@ interface PendingInvite {
   pour_name: string;
   job_name: string;
   job_id: string;
+  job_pour_id: string;
 }
 
 interface PendingSubbieInvitesWidgetProps {
@@ -39,6 +41,8 @@ const statusLabels: Record<string, string> = {
 export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesWidgetProps) {
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedInvite, setSelectedInvite] = useState<PendingInvite | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   useEffect(() => {
     const fetchPendingInvites = async () => {
@@ -51,10 +55,12 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
           id,
           recipient_name,
           recipient_phone,
+          recipient_email,
           role,
           status,
           sent_at,
-          job_pour:job_pours!inner(pour_date, pour_name),
+          job_pour_id,
+          job_pour:job_pours!inner(id, pour_date, pour_name),
           job:jobs!inner(id, name, business_id)
         `)
         .eq("business_id", businessId)
@@ -70,6 +76,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
           id: invite.id,
           recipient_name: invite.recipient_name,
           recipient_phone: invite.recipient_phone,
+          recipient_email: invite.recipient_email,
           role: invite.role,
           status: invite.status,
           sent_at: invite.sent_at,
@@ -77,6 +84,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
           pour_name: invite.job_pour.pour_name,
           job_name: invite.job.name,
           job_id: invite.job.id,
+          job_pour_id: invite.job_pour_id,
         }));
         setInvites(mapped);
       }
@@ -88,8 +96,54 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
     }
   }, [businessId]);
 
-  const handleCall = (phone: string) => {
-    window.location.href = `tel:${phone}`;
+  const handleInviteClick = (invite: PendingInvite) => {
+    setSelectedInvite(invite);
+    setSheetOpen(true);
+  };
+
+  const handleActionComplete = () => {
+    // Refetch invites after action
+    const tomorrow = format(addDays(new Date(), 1), "yyyy-MM-dd");
+    const weekAhead = format(addDays(new Date(), 7), "yyyy-MM-dd");
+    
+    supabase
+      .from("external_invites")
+      .select(`
+        id,
+        recipient_name,
+        recipient_phone,
+        recipient_email,
+        role,
+        status,
+        sent_at,
+        job_pour_id,
+        job_pour:job_pours!inner(id, pour_date, pour_name),
+        job:jobs!inner(id, name, business_id)
+      `)
+      .eq("business_id", businessId)
+      .in("status", ["sent", "viewed", "drafted"])
+      .gte("job_pour.pour_date", tomorrow)
+      .lte("job_pour.pour_date", weekAhead)
+      .order("job_pour(pour_date)", { ascending: true })
+      .then(({ data }) => {
+        if (data) {
+          const mapped = data.map((invite: any) => ({
+            id: invite.id,
+            recipient_name: invite.recipient_name,
+            recipient_phone: invite.recipient_phone,
+            recipient_email: invite.recipient_email,
+            role: invite.role,
+            status: invite.status,
+            sent_at: invite.sent_at,
+            pour_date: invite.job_pour.pour_date,
+            pour_name: invite.job_pour.pour_name,
+            job_name: invite.job.name,
+            job_id: invite.job.id,
+            job_pour_id: invite.job_pour_id,
+          }));
+          setInvites(mapped);
+        }
+      });
   };
 
   // Group invites by day
@@ -115,10 +169,10 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
     const StatusIcon = statusIcons[invite.status] || Send;
     
     return (
-      <Link
+      <div
         key={invite.id}
-        to={`/admin/jobs/${invite.job_id}`}
-        className="flex items-center justify-between gap-2 py-2 border-b last:border-0 hover:bg-muted/50 -mx-2 px-2 rounded transition-colors"
+        onClick={() => handleInviteClick(invite)}
+        className="flex items-center justify-between gap-2 py-2 border-b last:border-0 hover:bg-muted/50 -mx-2 px-2 rounded transition-colors cursor-pointer"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -139,23 +193,9 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
             <StatusIcon className="h-3 w-3" />
             {statusLabels[invite.status]}
           </Badge>
-          {invite.recipient_phone && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleCall(invite.recipient_phone!);
-              }}
-            >
-              <Phone className="h-4 w-4" />
-            </Button>
-          )}
           <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
-      </Link>
+      </div>
     );
   };
 
@@ -164,7 +204,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5 text-amber-500" />
+            <Users className="h-5 w-5 text-warning" />
             Subcontractors Awaiting Response
           </CardTitle>
         </CardHeader>
@@ -197,64 +237,65 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
   }
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+    <>
+      <Card>
+        <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Users className="h-5 w-5 text-amber-500" />
+            <Users className="h-5 w-5 text-warning" />
             Subcontractors Awaiting Response
             <Badge variant="secondary" className="ml-1">
               {invites.length}
             </Badge>
           </CardTitle>
-          <Link
-            to="/admin/contacts"
-            className="text-sm text-muted-foreground hover:text-primary flex items-center gap-1"
-          >
-            View all <ChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Tomorrow section */}
-        {tomorrowInvites.length > 0 && (
-          <div>
-          <div className="flex items-center gap-2 mb-2">
-              <span className="text-sm font-medium text-destructive">Tomorrow</span>
-              <Badge variant="destructive" className="text-xs">
-                {tomorrowInvites.length} pending
-              </Badge>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Tomorrow section */}
+          {tomorrowInvites.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-sm font-medium text-destructive">Tomorrow</span>
+                <Badge variant="destructive" className="text-xs">
+                  {tomorrowInvites.length} pending
+                </Badge>
+              </div>
+              <div className="bg-destructive/10 rounded-lg p-3 border border-destructive/30">
+                {tomorrowInvites.map(renderInviteItem)}
+              </div>
             </div>
-            <div className="bg-destructive/10 rounded-lg p-3 border border-destructive/30">
-              {tomorrowInvites.map(renderInviteItem)}
-            </div>
-          </div>
-        )}
+          )}
 
-        {/* This week section */}
-        {Object.keys(groupedLater).length > 0 && (
-          <div>
-            <span className="text-sm font-medium text-muted-foreground mb-2 block">
-              This Week ({laterInvites.length} more)
-            </span>
-            <div className="space-y-2">
-              {Object.entries(groupedLater).map(([date, dateInvites]) => (
-                <div key={date} className="bg-muted/30 rounded-lg p-3 border">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-medium">
-                      {format(new Date(date), "EEEE, MMM d")}
-                    </span>
-                    <Badge variant="outline" className="text-xs">
-                      {getDaysUntilLabel(date)}
-                    </Badge>
+          {/* This week section */}
+          {Object.keys(groupedLater).length > 0 && (
+            <div>
+              <span className="text-sm font-medium text-muted-foreground mb-2 block">
+                This Week ({laterInvites.length} more)
+              </span>
+              <div className="space-y-2">
+                {Object.entries(groupedLater).map(([date, dateInvites]) => (
+                  <div key={date} className="bg-muted/30 rounded-lg p-3 border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-xs font-medium">
+                        {format(new Date(date), "EEEE, MMM d")}
+                      </span>
+                      <Badge variant="outline" className="text-xs">
+                        {getDaysUntilLabel(date)}
+                      </Badge>
+                    </div>
+                    {dateInvites.map(renderInviteItem)}
                   </div>
-                  {dateInvites.map(renderInviteItem)}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      <PendingInviteActionSheet
+        invite={selectedInvite}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onActionComplete={handleActionComplete}
+      />
+    </>
   );
 }
