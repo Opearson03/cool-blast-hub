@@ -162,3 +162,10 @@ formwork,FORM TIMBER 150x35,Formwork Timber 150x35mm,/m,8.38
 formwork,FORM TIMBER 170x35,Formwork Timber 170x35mm,/m,9.50
 formwork,FORM TIMBER 200x35,Formwork Timber 200x35mm,/m,11.18
 formwork,FORM STAKE,Timber Stake,/each,3.00
+waffle_pods,POD150,Waffle Pod 1090 x 1090 x 150,/pod,16.00
+waffle_pods,POD225,Waffle Pod 1090 x 1090 x 225,/pod,18.70
+waffle_pods,POD300,Waffle Pod 1090 x 1090 x 300,/pod,24.30
+waffle_pods,POD375,Waffle Pod 1090 x 1090 x 375,/pod,33.00
+waffle_pods,POD4,4-Way Spacer Bag 25,/bag,59.00
+waffle_pods,POD2,2-Way Spacer Bag 20,/bag,66.00
+waffle_pods,PODRAIL,Pod Rail 40mm 550mm Bag 20,/bag,26.60
