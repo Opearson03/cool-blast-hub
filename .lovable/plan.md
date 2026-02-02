@@ -1,111 +1,179 @@
 
-# URGENT FIX: Scope Breakdown Appearing in Terms Page + jsPDF.scale Error
+# URGENT FIX: Scope Breakdown in Terms Page + jsPDF.scale Error
 
-## Problems Identified
+## Status: Plan NOT Implemented
 
-### Problem 1: Scope Breakdown in Terms Page
-The `estimate.notes` field contains generated content in this format:
+The previous plan was approved but **never executed**. The code still passes `estimate.notes` directly to `TermsAndExclusionsPage`, which renders the entire notes field (including SCOPE BREAKDOWN) under "Payment Terms".
+
+---
+
+## Root Cause (Verified in Code)
+
+### Problem 1: Notes Not Being Parsed
+**Lines 854, 1030, 1242** in `PrintableEstimate.tsx`:
+```tsx
+<TermsAndExclusionsPage
+  ...
+  customNotes={estimate.notes}  // ← Passes FULL notes including scope breakdown
 ```
-SCOPE BREAKDOWN:
-• Waffle Pod Slab: $220.00
 
-INCLUSIONS:
-• Supply of concrete to site
-...
-
-EXCLUSIONS:
-• Excavation and site preparation
-...
+**Lines 364, 394, 421** in `TermsAndExclusionsPage`:
+```tsx
+{customNotes ? (
+  <p className="whitespace-pre-wrap">{customNotes}</p>  // ← Renders everything!
+) : paymentTerms ? (
 ```
-
-This entire string is passed as `customNotes` to `TermsAndExclusionsPage`, which renders it directly under "Payment Terms". This causes the scope breakdown to incorrectly appear on Page 2.
 
 ### Problem 2: jsPDF.scale Error
-The error "invalid argument passed to jsPDF.scale" occurs when `html2canvas` returns an empty or invalid canvas (width/height of 0). This happens when a section has no visible content or is hidden.
+No validation exists for empty canvas in `generate-quote-pdf.ts`. When a section has no visible content, `html2canvas` returns a 0x0 canvas causing `jsPDF.scale` to fail.
 
 ---
 
-## Solution Overview
+## Implementation Plan
 
-1. **Parse notes to extract only user notes** (strip SCOPE BREAKDOWN, INCLUSIONS, EXCLUSIONS)
-2. **Move scope breakdown rendering to Page 1** using the notes fallback when `scopeData` is empty
-3. **Fix jsPDF error** by adding canvas validation before calling `addImage`
-4. **Clean up Terms page** to show only payment terms + exclusions (no scope breakdown)
+### Step 1: Create Notes Parser Function
 
----
-
-## Implementation Steps
-
-### Step 1: Create Notes Parser Utility
-Add a helper function to parse the notes field and extract components separately:
+Add a helper to extract components from the notes field:
 
 ```typescript
-// In PrintableEstimate.tsx
-function parseNotesContent(notes: string | null): {
+interface ParsedNotes {
   userNotes: string | null;
   scopeBreakdownFromNotes: { name: string; amount: string }[];
   inclusionsFromNotes: string[];
   exclusionsFromNotes: string[];
-} {
-  // Extract each section from notes
-  // Return user-entered notes separately from generated content
+}
+
+function parseNotesContent(notes: string | null): ParsedNotes {
+  if (!notes) return { 
+    userNotes: null, 
+    scopeBreakdownFromNotes: [], 
+    inclusionsFromNotes: [], 
+    exclusionsFromNotes: [] 
+  };
+  
+  // Find markers
+  const scopeIdx = notes.indexOf('SCOPE BREAKDOWN:');
+  const inclIdx = notes.indexOf('INCLUSIONS:');
+  const exclIdx = notes.indexOf('EXCLUSIONS:');
+  
+  // Extract user notes (everything before first marker)
+  const firstMarker = Math.min(
+    scopeIdx === -1 ? Infinity : scopeIdx,
+    inclIdx === -1 ? Infinity : inclIdx,
+    exclIdx === -1 ? Infinity : exclIdx
+  );
+  const userNotes = firstMarker === Infinity 
+    ? notes.trim() 
+    : notes.substring(0, firstMarker).trim() || null;
+  
+  // Parse scope breakdown
+  let scopeBreakdownFromNotes: { name: string; amount: string }[] = [];
+  if (scopeIdx !== -1) {
+    const endIdx = Math.min(
+      inclIdx === -1 ? notes.length : inclIdx,
+      exclIdx === -1 ? notes.length : exclIdx
+    );
+    const scopeBlock = notes.substring(scopeIdx + 16, endIdx);
+    const lines = scopeBlock.split('\n').filter(l => l.trim().startsWith('•'));
+    scopeBreakdownFromNotes = lines.map(line => {
+      const match = line.match(/•\s*(.+?):\s*(\$[\d,.]+)/);
+      return match ? { name: match[1].trim(), amount: match[2] } : null;
+    }).filter(Boolean) as { name: string; amount: string }[];
+  }
+  
+  // Parse inclusions
+  let inclusionsFromNotes: string[] = [];
+  if (inclIdx !== -1) {
+    const endIdx = exclIdx === -1 ? notes.length : exclIdx;
+    const inclBlock = notes.substring(inclIdx + 11, endIdx);
+    inclusionsFromNotes = inclBlock.split('\n')
+      .filter(l => l.trim().startsWith('•'))
+      .map(l => l.replace(/^•\s*/, '').trim());
+  }
+  
+  // Parse exclusions (if not already in quotePDFData)
+  let exclusionsFromNotes: string[] = [];
+  if (exclIdx !== -1) {
+    const exclBlock = notes.substring(exclIdx + 11);
+    exclusionsFromNotes = exclBlock.split('\n')
+      .filter(l => l.trim().startsWith('•'))
+      .map(l => l.replace(/^•\s*/, '').trim());
+  }
+  
+  return { userNotes, scopeBreakdownFromNotes, inclusionsFromNotes, exclusionsFromNotes };
 }
 ```
 
-### Step 2: Update PrintableEstimate.tsx
-- Parse `estimate.notes` using the new helper
-- Pass only **user-entered notes** to `TermsAndExclusionsPage` (not the full notes field)
-- If `scopeData` is empty but notes contains scope breakdown, render it on Page 1 as a fallback
+### Step 2: Update PrintableEstimate Component
 
-### Step 3: Update TermsAndExclusionsPage Component
-- Remove scope breakdown from the Terms page entirely
-- Only show: Payment terms + Exclusions + Acceptance
-- Use `exclusions` prop (from `quotePDFData.exclusions`) for exclusions display
-- For inclusions, either show from parsed notes or remove entirely
+1. Parse notes at the top of the component render
+2. Pass only `parsedNotes.userNotes` to `TermsAndExclusionsPage`
+3. If `quotePDFData.scopeBreakdowns` is empty, use `parsedNotes.scopeBreakdownFromNotes` as fallback on Page 1
+
+```tsx
+// Inside PrintableEstimate, before return:
+const parsedNotes = parseNotesContent(estimate.notes);
+
+// Pass to TermsAndExclusionsPage:
+<TermsAndExclusionsPage
+  exclusions={quotePDFData.exclusions}
+  paymentTerms={paymentTerms}
+  customNotes={parsedNotes.userNotes}  // ← Only user notes, not full string
+  ...
+/>
+```
+
+### Step 3: Add Fallback Scope Breakdown for Page 1
+
+Create a component to render scope breakdown from parsed notes:
+
+```tsx
+const NotesBasedScopeBreakdown = ({ 
+  items, 
+  template, 
+  primaryColor, 
+  secondaryColor 
+}: { 
+  items: { name: string; amount: string }[];
+  template: string;
+  primaryColor: string;
+  secondaryColor: string;
+}) => {
+  if (items.length === 0) return null;
+  
+  // Similar table structure to ScopeLineItemsSection
+  // but renders the name and amount from parsed notes
+  ...
+};
+```
+
+In each template, add conditional rendering:
+```tsx
+{/* Scope of Works */}
+{quotePDFData.scopeBreakdowns.length > 0 ? (
+  <ScopeLineItemsSection ... />
+) : parsedNotes.scopeBreakdownFromNotes.length > 0 ? (
+  <NotesBasedScopeBreakdown items={parsedNotes.scopeBreakdownFromNotes} ... />
+) : null}
+```
 
 ### Step 4: Fix jsPDF Canvas Validation
-Add validation in `generate-quote-pdf.ts`:
+
+Add validation in `generate-quote-pdf.ts` after capturing each section:
+
 ```typescript
-// Before adding image to PDF
+// Line ~165, after html2canvas call:
+const canvas = await html2canvas(sectionElement, { ... });
+
+// Add validation
 if (canvas.width === 0 || canvas.height === 0) {
   console.warn(`Skipping empty section: ${sectionType}`);
-  continue; // Skip empty sections
+  continue; // Skip to next section
 }
+
+// Calculate the section height in mm
+const sectionHeightMM = (canvas.height * CONTENT_WIDTH_MM) / canvas.width;
 ```
-
----
-
-## Technical Details
-
-### Notes Parsing Logic
-The notes field follows a predictable format:
-```
-[User notes if any]
-
-SCOPE BREAKDOWN:
-• Scope Name: $X.XX
-...
-
-INCLUSIONS:
-• Item 1
-...
-
-EXCLUSIONS:
-• Item 1
-...
-```
-
-Parsing approach:
-1. Find index of "SCOPE BREAKDOWN:", "INCLUSIONS:", "EXCLUSIONS:"
-2. Extract user notes = everything before the first marker
-3. Extract scope breakdown = content between "SCOPE BREAKDOWN:" and next marker
-4. Extract inclusions = content between "INCLUSIONS:" and "EXCLUSIONS:"
-5. Extract exclusions = content after "EXCLUSIONS:"
-
-### Fallback Scope Breakdown on Page 1
-When `quotePDFData.scopeBreakdowns` is empty (no scope_data), check if notes contains a scope breakdown:
-- If yes, render a simple fallback table on Page 1 showing scope names and amounts
-- This ensures quotes created before the new system still display correctly
 
 ---
 
@@ -113,29 +181,30 @@ When `quotePDFData.scopeBreakdowns` is empty (no scope_data), check if notes con
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/PrintableEstimate.tsx` | Add notes parser, update TermsAndExclusionsPage to receive parsed user notes only, add fallback scope breakdown for Page 1 |
-| `src/lib/generate-quote-pdf.ts` | Add canvas validation to prevent jsPDF.scale error on empty sections |
+| `src/components/estimates/PrintableEstimate.tsx` | Add `parseNotesContent()` function, add `NotesBasedScopeBreakdown` component, update all 3 templates to pass parsed user notes and use fallback scope breakdown |
+| `src/lib/generate-quote-pdf.ts` | Add canvas dimension validation to prevent jsPDF.scale error |
 
 ---
 
-## Expected Outcome
+## Expected Result
 
 **Page 1 (Quote):**
-- Header, client info, project summary
-- **Scope breakdown table** (from scopeData OR notes fallback)
+- Header, client info, dates
+- Project summary (if data exists)
+- Scope breakdown table (from scopeData OR parsed notes fallback)
 - Totals, signature area
 
 **Page 2 (Terms & Conditions):**
 - Header
-- Payment terms (dynamically generated based on payment_terms_type)
-- Exclusions (from quotePDFData.exclusions)
+- Payment terms (generated from `payment_terms_type` or defaults)
+- Exclusions (from `quotePDFData.exclusions`)
 - Acceptance block
-- **NO scope breakdown** (this is the fix)
+- **NO scope breakdown** (the fix)
 
 ---
 
-## Affected Flows
-All three will be fixed with these changes:
-1. **Print Estimate** - uses PrintableEstimate via browser print
+## Fixes Applied To
+
+1. **Print Estimate** (browser print) - renders PrintableEstimate
 2. **Email to Client PDF** - uses generate-quote-pdf.ts → PrintableEstimate
-3. **Client signing page** - uses the same notes parsing (separate fix if needed)
+3. **Client signing page** - if it uses the same component
