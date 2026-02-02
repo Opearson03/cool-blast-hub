@@ -403,7 +403,7 @@ export function JobOverviewTab({ job }: JobOverviewTabProps) {
       </Card>
 
       {/* Bill of Quantities Card */}
-      <BOQCard jobId={job.id} jobName={job.name} jobNumber={job.job_number ?? undefined} />
+      <BOQCard jobId={job.id} jobName={job.name} jobNumber={job.job_number ?? undefined} siteAddress={job.site_address} />
 
       {/* Schedule Event Dialog */}
       <AddJobDateDialog
