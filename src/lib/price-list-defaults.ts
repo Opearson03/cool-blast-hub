@@ -28,6 +28,7 @@ export const PRICE_LIST_CATEGORIES = [
   { id: 'plumbing', label: 'Plumbing' },
   { id: 'materials', label: 'Materials' },
   { id: 'formwork', label: 'Formwork' },
+  { id: 'waffle_pods', label: 'Waffle Pods' },
 ] as const;
 
 export type PriceListCategory = typeof PRICE_LIST_CATEGORIES[number]['id'];
@@ -235,6 +236,15 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'formwork', item_code: 'FORM TIMBER 170x35', item_name: 'Formwork Timber 170x35mm', unit: '/m', default_price: 9.50 },
   { category: 'formwork', item_code: 'FORM TIMBER 200x35', item_name: 'Formwork Timber 200x35mm', unit: '/m', default_price: 11.18 },
   { category: 'formwork', item_code: 'FORM STAKE', item_name: 'Timber Stake', unit: '/each', default_price: 3 },
+
+  // Waffle Pods
+  { category: 'waffle_pods', item_code: 'POD150', item_name: 'Waffle Pod 1090 x 1090 x 150', unit: '/pod', default_price: 16 },
+  { category: 'waffle_pods', item_code: 'POD225', item_name: 'Waffle Pod 1090 x 1090 x 225', unit: '/pod', default_price: 18.70 },
+  { category: 'waffle_pods', item_code: 'POD300', item_name: 'Waffle Pod 1090 x 1090 x 300', unit: '/pod', default_price: 24.30 },
+  { category: 'waffle_pods', item_code: 'POD375', item_name: 'Waffle Pod 1090 x 1090 x 375', unit: '/pod', default_price: 33 },
+  { category: 'waffle_pods', item_code: 'POD4', item_name: '4-Way Spacer Bag 25', unit: '/bag', default_price: 59 },
+  { category: 'waffle_pods', item_code: 'POD2', item_name: '2-Way Spacer Bag 20', unit: '/bag', default_price: 66 },
+  { category: 'waffle_pods', item_code: 'PODRAIL', item_name: 'Pod Rail 40mm 550mm Bag 20', unit: '/bag', default_price: 26.60 },
 ];
 
 // CSV headers for import/export
