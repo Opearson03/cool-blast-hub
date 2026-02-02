@@ -1874,7 +1874,7 @@ const {
                           company_name: client.company_name || prev.company_name,
                           client_email: client.email || prev.client_email,
                           client_phone: client.phone || prev.client_phone,
-                          site_address: client.address || prev.site_address,
+                          // Don't prefill site_address - each estimate is for a different site
                         }));
                       }}
                       placeholder="Start typing to search clients..."
