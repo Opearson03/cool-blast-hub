@@ -234,7 +234,7 @@ export default function AdminJobDetail() {
             {(job as any).job_type !== "misc" && (
               <>
                 <TabsTrigger value="pours" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  Pours
+                  Project Plan
                 </TabsTrigger>
                 <TabsTrigger value="tests" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
                   Test Results

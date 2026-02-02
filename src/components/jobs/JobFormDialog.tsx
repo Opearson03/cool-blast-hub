@@ -44,10 +44,11 @@ type JobFormData = {
 
 type PourData = {
   pour_name: string;
-  estimated_m3: number;
-  mpa_strength: string;
-  slump: string;
-  notes: string;
+  estimated_m3?: number;
+  mpa_strength?: string;
+  slump?: string;
+  notes?: string;
+  visit_type?: string;
 };
 
 type InitialJobData = Partial<JobFormData> & {
@@ -198,13 +199,14 @@ export function JobFormDialog({ open, onOpenChange, crews, editJob, initialData 
 
         // If we have pours from estimate conversion, create job_pours
         if (newJob && initialData?.pours && initialData.pours.length > 0) {
-          const poursToInsert = initialData.pours.map((pour, index) => ({
+          const poursToInsert = initialData.pours.map((pour) => ({
             job_id: newJob.id,
             pour_name: pour.pour_name,
             estimated_m3: pour.estimated_m3 || null,
             mpa_strength: pour.mpa_strength || null,
             slump: pour.slump || null,
             notes: pour.notes || null,
+            visit_type: pour.visit_type || "pour",
             status: "scheduled",
           }));
 

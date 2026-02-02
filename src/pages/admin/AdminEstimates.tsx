@@ -272,10 +272,11 @@ export default function AdminEstimates() {
     let concreteSupplier = "";
     const pours: Array<{
       pour_name: string;
-      estimated_m3: number;
-      mpa_strength: string;
-      slump: string;
-      notes: string;
+      estimated_m3?: number;
+      mpa_strength?: string;
+      slump?: string;
+      notes?: string;
+      visit_type?: string;
     }> = [];
 
     // Try to extract from structured scope_data first (new modular calculator format)
@@ -329,7 +330,7 @@ export default function AdminEstimates() {
           concreteSupplier = scopeAnswers.concrete_supplier;
         }
         
-        // Extract pours if defined in scope
+        // Extract pours if defined in scope (legacy format)
         if (scopeEntry.pours && Array.isArray(scopeEntry.pours)) {
           const scopeLabel = scopeKey.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());
           scopeEntry.pours.forEach((pour: any, index: number) => {
@@ -339,6 +340,41 @@ export default function AdminEstimates() {
               mpa_strength: mpaStrength,
               slump: slump,
               notes: `Crew: ${pour.crewSize || 4} | Hours: ${pour.hoursPerMan || 8}h per person`,
+              visit_type: "pour",
+            });
+          });
+        }
+        
+        // Extract from labour-prep module (prep days)
+        const labourPrepModule = moduleAnswers["labour-prep"];
+        if (labourPrepModule && labourPrepModule.number_of_days) {
+          const numDays = Number(labourPrepModule.number_of_days) || 0;
+          const crewSize = Number(labourPrepModule.crew_size) || 0;
+          const hoursPerDay = Number(labourPrepModule.hours_per_day) || 8;
+          
+          for (let i = 0; i < numDays; i++) {
+            pours.push({
+              pour_name: numDays > 1 ? `Prep Day ${i + 1}` : "Prep Day",
+              notes: crewSize > 0 ? `Crew: ${crewSize}, ${hoursPerDay} hrs/day` : undefined,
+              visit_type: "formwork_place",
+            });
+          }
+        }
+        
+        // Extract from labour-place module (placements/pours)
+        const labourPlaceModule = moduleAnswers["labour-place"];
+        if (labourPlaceModule && Array.isArray(labourPlaceModule.placements) && labourPlaceModule.placements.length > 0) {
+          labourPlaceModule.placements.forEach((placement: any, index: number) => {
+            const crewSize = Number(placement.crew_size) || 0;
+            const hours = Number(placement.hours) || 0;
+            const placementName = placement.name || `Pour ${index + 1}`;
+            
+            pours.push({
+              pour_name: placementName,
+              mpa_strength: mpaStrength,
+              slump: slump,
+              notes: crewSize > 0 ? `Crew: ${crewSize}, ${hours} hrs` : undefined,
+              visit_type: "pour",
             });
           });
         }
@@ -366,6 +402,7 @@ export default function AdminEstimates() {
                 mpa_strength: mpaStrength,
                 slump: slump,
                 notes: `Crew: ${pour.crewSize || 4} | Hours: ${pour.hoursPerMan || 8}h per person`,
+                visit_type: "pour",
               });
             });
           }
