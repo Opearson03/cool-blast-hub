@@ -42,7 +42,8 @@ import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
 import { useTakeoffMarkups } from "@/hooks/useTakeoffMarkups";
 import { ScopeBreakdownItem } from "./InternalBreakdownSection";
-
+import { ClientAutocomplete } from "@/components/contacts/ClientAutocomplete";
+import type { Client } from "@/hooks/useClients";
 // EstimateType kept for backwards compatibility with existing database values
 type EstimateType = "driveway" | "house_slab" | "commercial_slab";
 
@@ -1862,14 +1863,21 @@ const {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="client_name">Client Name *</Label>
-                    <Input
-                      id="client_name"
-                      name="client_name"
+                    <ClientAutocomplete
                       value={formData.client_name}
-                      onChange={handleChange}
-                      placeholder="e.g., John Smith"
-                      className={formErrors.client_name ? "border-destructive" : ""}
-                      maxLength={100}
+                      onChange={(value) => setFormData(prev => ({ ...prev, client_name: value }))}
+                      onSelect={(client: Client) => {
+                        setFormData(prev => ({
+                          ...prev,
+                          client_name: client.name,
+                          company_name: client.company_name || prev.company_name,
+                          client_email: client.email || prev.client_email,
+                          client_phone: client.phone || prev.client_phone,
+                          site_address: client.address || prev.site_address,
+                        }));
+                      }}
+                      placeholder="Start typing to search clients..."
+                      error={formErrors.client_name}
                     />
                     {formErrors.client_name && (
                       <p className="text-xs text-destructive">{formErrors.client_name}</p>

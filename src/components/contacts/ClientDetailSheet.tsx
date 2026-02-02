@@ -4,10 +4,10 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Phone, Mail, Building2, FileText, Briefcase, ExternalLink } from "lucide-react";
+import { Phone, Mail, Building2, FileText, Briefcase, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
-import type { Client } from "./ClientsTab";
+import type { Client } from "@/hooks/useClients";
 
 interface ClientDetailSheetProps {
   open: boolean;
@@ -19,7 +19,7 @@ export function ClientDetailSheet({ open, onOpenChange, client }: ClientDetailSh
   const navigate = useNavigate();
 
   const { data: estimates = [] } = useQuery({
-    queryKey: ["client-estimates", client?.client_name, client?.client_email],
+    queryKey: ["client-estimates", client?.name, client?.email],
     queryFn: async () => {
       if (!client) return [];
 
@@ -38,11 +38,11 @@ export function ClientDetailSheet({ open, onOpenChange, client }: ClientDetailSh
         .from("estimates")
         .select("id, estimate_number, site_address, status, total_amount, created_at")
         .eq("business_id", profile.business_id)
-        .eq("client_name", client.client_name)
+        .eq("client_name", client.name)
         .order("created_at", { ascending: false });
 
-      if (client.client_email) {
-        query = query.eq("client_email", client.client_email);
+      if (client.email) {
+        query = query.eq("client_email", client.email);
       }
 
       const { data } = await query;
@@ -52,7 +52,7 @@ export function ClientDetailSheet({ open, onOpenChange, client }: ClientDetailSh
   });
 
   const { data: jobs = [] } = useQuery({
-    queryKey: ["client-jobs", client?.client_name],
+    queryKey: ["client-jobs", client?.name],
     queryFn: async () => {
       if (!client) return [];
 
@@ -71,7 +71,7 @@ export function ClientDetailSheet({ open, onOpenChange, client }: ClientDetailSh
         .from("jobs")
         .select("id, name, job_number, site_address, status, created_at")
         .eq("business_id", profile.business_id)
-        .eq("builder_client", client.client_name)
+        .eq("builder_client", client.name)
         .order("created_at", { ascending: false });
 
       return data || [];
@@ -100,7 +100,7 @@ export function ClientDetailSheet({ open, onOpenChange, client }: ClientDetailSh
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader className="pb-4">
-          <SheetTitle className="text-xl">{client.client_name}</SheetTitle>
+          <SheetTitle className="text-xl">{client.name}</SheetTitle>
           {client.company_name && (
             <div className="flex items-center gap-2 text-muted-foreground">
               <Building2 className="h-4 w-4" />
@@ -112,17 +112,17 @@ export function ClientDetailSheet({ open, onOpenChange, client }: ClientDetailSh
         <div className="space-y-6">
           {/* Contact Actions */}
           <div className="flex gap-2">
-            {client.client_phone && (
+            {client.phone && (
               <Button variant="outline" size="sm" asChild>
-                <a href={`tel:${client.client_phone}`}>
+                <a href={`tel:${client.phone}`}>
                   <Phone className="h-4 w-4 mr-2" />
                   Call
                 </a>
               </Button>
             )}
-            {client.client_email && (
+            {client.email && (
               <Button variant="outline" size="sm" asChild>
-                <a href={`mailto:${client.client_email}`}>
+                <a href={`mailto:${client.email}`}>
                   <Mail className="h-4 w-4 mr-2" />
                   Email
                 </a>
@@ -133,16 +133,22 @@ export function ClientDetailSheet({ open, onOpenChange, client }: ClientDetailSh
           {/* Contact Info */}
           <Card>
             <CardContent className="pt-4 space-y-2">
-              {client.client_phone && (
+              {client.phone && (
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="h-4 w-4 text-muted-foreground" />
-                  {client.client_phone}
+                  {client.phone}
                 </div>
               )}
-              {client.client_email && (
+              {client.email && (
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-4 w-4 text-muted-foreground" />
-                  {client.client_email}
+                  {client.email}
+                </div>
+              )}
+              {client.address && (
+                <div className="flex items-center gap-2 text-sm">
+                  <MapPin className="h-4 w-4 text-muted-foreground" />
+                  {client.address}
                 </div>
               )}
             </CardContent>
