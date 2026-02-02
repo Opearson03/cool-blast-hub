@@ -144,12 +144,22 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
         throw new Error("Failed to store plan file");
       }
 
-      // 4. Create takeoff_files record with the storage path (not signed URL)
+      // Get signed URL for the new file (7-day expiry like useTakeoffData)
+      const { data: signedUrlData, error: signedUrlError } = await supabase.storage
+        .from('estimate-plans')
+        .createSignedUrl(destPath, 3600 * 24 * 7);
+
+      if (signedUrlError) {
+        console.error("Error creating signed URL:", signedUrlError);
+        throw new Error("Failed to generate plan URL");
+      }
+
+      // 4. Create takeoff_files record with the signed URL (matching useTakeoffData.ts behavior)
       const { error: fileRecordError } = await supabase
         .from('takeoff_files')
         .insert({
           takeoff_id: takeoff.id,
-          file_url: destPath,
+          file_url: signedUrlData.signedUrl,
           file_type: fileExt === 'pdf' ? 'pdf' : 'image',
           file_name: selectedPlan.file_name.replace(/\.[^/.]+$/, '') || 'Building Plan',
           page_count: 1,
@@ -158,6 +168,7 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
 
       if (fileRecordError) {
         console.error("Error creating takeoff file:", fileRecordError);
+        throw new Error("Failed to link plan file to estimate");
       }
 
       // 5. Update pending plan status
