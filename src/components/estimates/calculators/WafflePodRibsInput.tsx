@@ -39,15 +39,16 @@ export function WafflePodRibsInput({
   const ribTopBarSize = String(scopeData?.rib_top_bar_size || 'N12');
   const stockLength = String(scopeData?.stock_length || '6');
   
-  // Pod count for summary
+  // Pod count and perimeter for summary
   const podCount = numericWithDefault(scopeData?.pod_count, 0);
+  const perimeter = numericWithDefault(scopeData?.perimeter, 0);
 
   const handleChange = (field: string, value: any) => {
     onScopeDataChange(field, value);
   };
 
-  // Calculate estimated rib length using boss's formula: pods × 2.4 per layer
-  const ribLengthPerLayer = podCount * 2.4;
+  // Calculate estimated rib length using boss's formula: (pods × 2.4) - (perimeter / 2)
+  const ribLengthPerLayer = Math.max(0, (podCount * 2.4) - (perimeter / 2));
 
   return (
     <div className="space-y-3">
@@ -60,7 +61,7 @@ export function WafflePodRibsInput({
             <span>per layer</span>
             {podCount > 0 && (
               <span className="text-muted-foreground/60">
-                ({podCount} pods × 2.4m)
+                ({podCount} × 2.4 − {(perimeter / 2).toFixed(1)}m edge)
               </span>
             )}
           </div>
