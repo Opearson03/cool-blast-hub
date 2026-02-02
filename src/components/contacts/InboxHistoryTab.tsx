@@ -34,6 +34,7 @@ export interface InboxItem {
   received_at: string;
   status: string;
   linked_id: string | null;
+  email_body?: string | null;
 }
 
 export function InboxHistoryTab() {
@@ -63,7 +64,7 @@ export function InboxHistoryTab() {
       // Fetch plans
       const { data: plans } = await supabase
         .from("pending_plans")
-        .select("id, from_email, from_name, subject, file_url, file_name, received_at, status, linked_estimate_id")
+        .select("id, from_email, from_name, subject, file_url, file_name, received_at, status, linked_estimate_id, email_body")
         .eq("business_id", profile.business_id);
 
       if (plans) {
@@ -79,6 +80,7 @@ export function InboxHistoryTab() {
             received_at: plan.received_at,
             status: plan.status,
             linked_id: plan.linked_estimate_id,
+            email_body: plan.email_body,
           });
         }
       }
@@ -86,7 +88,7 @@ export function InboxHistoryTab() {
       // Fetch dockets
       const { data: dockets } = await supabase
         .from("pending_documents")
-        .select("id, from_email, subject, file_url, file_name, received_at, status, linked_job_id")
+        .select("id, from_email, subject, file_url, file_name, received_at, status, linked_job_id, email_body")
         .eq("business_id", profile.business_id);
 
       if (dockets) {
@@ -102,6 +104,7 @@ export function InboxHistoryTab() {
             received_at: docket.received_at,
             status: docket.status,
             linked_id: docket.linked_job_id,
+            email_body: docket.email_body,
           });
         }
       }
@@ -285,6 +288,11 @@ export function InboxHistoryTab() {
                     <p className="text-sm text-muted-foreground truncate">
                       From: {item.from_name || item.from_email}
                     </p>
+                    {item.email_body && (
+                      <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                        {item.email_body}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
                       <Calendar className="h-3 w-3" />
                       {format(new Date(item.received_at), "dd MMM yyyy 'at' h:mm a")}

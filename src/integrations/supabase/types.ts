@@ -1548,6 +1548,7 @@ export type Database = {
           business_id: string
           created_at: string
           document_type: string
+          email_body: string | null
           extracted_data: Json | null
           file_name: string
           file_url: string
@@ -1569,6 +1570,7 @@ export type Database = {
           business_id: string
           created_at?: string
           document_type?: string
+          email_body?: string | null
           extracted_data?: Json | null
           file_name: string
           file_url: string
@@ -1590,6 +1592,7 @@ export type Database = {
           business_id?: string
           created_at?: string
           document_type?: string
+          email_body?: string | null
           extracted_data?: Json | null
           file_name?: string
           file_url?: string
@@ -1663,6 +1666,7 @@ export type Database = {
         Row: {
           business_id: string
           created_at: string
+          email_body: string | null
           extracted_data: Json | null
           file_name: string
           file_url: string
@@ -1679,6 +1683,7 @@ export type Database = {
         Insert: {
           business_id: string
           created_at?: string
+          email_body?: string | null
           extracted_data?: Json | null
           file_name: string
           file_url: string
@@ -1695,6 +1700,7 @@ export type Database = {
         Update: {
           business_id?: string
           created_at?: string
+          email_body?: string | null
           extracted_data?: Json | null
           file_name?: string
           file_url?: string

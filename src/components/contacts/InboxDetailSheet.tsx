@@ -32,6 +32,7 @@ interface InboxItem {
   received_at: string;
   status: string;
   linked_id: string | null;
+  email_body?: string | null;
 }
 
 interface InboxDetailSheetProps {
@@ -88,19 +89,47 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
     setError(null);
     
     try {
-      const filePath = item.file_url.replace("inbox-documents/", "");
-      const { data, error: signError } = await supabase.storage
-        .from("inbox-documents")
-        .createSignedUrl(filePath, 3600);
+      let url = item.file_url;
       
-      if (signError) throw signError;
-      if (!data?.signedUrl) throw new Error("Failed to generate URL");
-      
-      setSignedUrl(data.signedUrl);
-      
-      // If PDF, load the document
-      if (getFileType(item.file_name) === 'pdf') {
-        await loadPdf(data.signedUrl);
+      // Check if file_url is already a full URL (public or signed)
+      if (url.startsWith('http://') || url.startsWith('https://')) {
+        // It's already a full URL, use it directly
+        setSignedUrl(url);
+        
+        // If PDF, load the document
+        if (getFileType(item.file_name) === 'pdf') {
+          await loadPdf(url);
+        }
+      } else {
+        // It's a storage path, generate a signed URL
+        // Try to determine the bucket from the path
+        let bucket = "inbox-documents";
+        let filePath = url;
+        
+        // Check if path contains a bucket prefix
+        if (url.includes("/")) {
+          const parts = url.split("/");
+          // Common bucket names to check
+          const knownBuckets = ["inbox-documents", "test-documents", "documents"];
+          if (knownBuckets.includes(parts[0])) {
+            bucket = parts[0];
+            filePath = parts.slice(1).join("/");
+          }
+        }
+        
+        const { data, error: signError } = await supabase.storage
+          .from(bucket)
+          .createSignedUrl(filePath, 3600);
+        
+        if (signError) throw signError;
+        if (!data?.signedUrl) throw new Error("Failed to generate URL");
+        
+        setSignedUrl(data.signedUrl);
+        
+        // If PDF, load the document
+        if (getFileType(item.file_name) === 'pdf') {
+          await loadPdf(data.signedUrl);
+        }
       }
     } catch (err) {
       console.error("Error fetching signed URL:", err);
@@ -224,6 +253,15 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
             {getStatusBadge(item.status)}
           </div>
         </SheetHeader>
+
+        {/* Email Body Content */}
+        {item.email_body && (
+          <div className="mt-4 p-3 bg-muted/30 rounded-lg">
+            <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+              {item.email_body}
+            </p>
+          </div>
+        )}
 
         {/* Document Viewer */}
         <div className="mt-6 space-y-4">
