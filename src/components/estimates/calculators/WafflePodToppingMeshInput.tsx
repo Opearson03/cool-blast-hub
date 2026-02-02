@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Layers } from "lucide-react";
+import { numericWithDefault } from "@/lib/utils";
 
 interface WafflePodToppingMeshInputProps {
   scopeData: Record<string, any>;
@@ -28,13 +29,13 @@ export function WafflePodToppingMeshInput({
   scopeData,
   onScopeDataChange,
 }: WafflePodToppingMeshInputProps) {
-  // Extract values from scopeData
+  // Extract values from scopeData - using numericWithDefault to preserve 0
   const toppingMeshType = String(scopeData?.topping_mesh_type || 'SL82');
-  const toppingMeshLayers = Number(scopeData?.topping_mesh_layers) || 1;
+  const toppingMeshLayers = numericWithDefault(scopeData?.topping_mesh_layers, 1);
   const toppingMeshAreaMode = String(scopeData?.topping_mesh_area_mode || 'pod_field');
-  const toppingMeshCustomArea = Number(scopeData?.topping_mesh_custom_area) || 0;
-  const toppingMeshLapPercent = Number(scopeData?.topping_mesh_lap_percent) || 12.5;
-  const totalArea = Number(scopeData?.area) || 0;
+  const toppingMeshCustomArea = numericWithDefault(scopeData?.topping_mesh_custom_area, 0);
+  const toppingMeshLapPercent = numericWithDefault(scopeData?.topping_mesh_lap_percent, 12.5);
+  const totalArea = numericWithDefault(scopeData?.area, 0);
   const volumeBreakdown = scopeData?.volumeBreakdown;
   const podFieldArea = volumeBreakdown?.podFieldArea_m2 || totalArea * 0.85;
 
@@ -165,8 +166,8 @@ export function WafflePodToppingMeshInput({
                 <Input
                   type="number"
                   inputMode="decimal"
-                  value={toppingMeshCustomArea === 0 ? '' : toppingMeshCustomArea}
-                  onChange={(e) => handleChange('topping_mesh_custom_area', Number(e.target.value) || 0)}
+                  value={toppingMeshCustomArea ?? ""}
+                  onChange={(e) => handleChange('topping_mesh_custom_area', e.target.value === "" ? 0 : Number(e.target.value))}
                   className="h-7 w-20 text-xs"
                   placeholder="m²"
                   disabled={toppingMeshAreaMode !== 'custom'}

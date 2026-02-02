@@ -214,8 +214,8 @@ export function MultiPlacementInput({
                           type="number"
                           min="1"
                           max="50"
-                          value={placement.crew_size || ''}
-                          onChange={(e) => updatePlacement(index, { crew_size: Number(e.target.value) || 0 })}
+                          value={placement.crew_size ?? ''}
+                          onChange={(e) => updatePlacement(index, { crew_size: e.target.value === "" ? 0 : Number(e.target.value) })}
                           placeholder="Enter crew size"
                           className="h-9 text-sm"
                         />

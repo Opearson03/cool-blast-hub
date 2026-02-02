@@ -15,7 +15,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { useState, useEffect, useRef } from "react";
-import { cn } from "@/lib/utils";
+import { cn, numericWithDefault } from "@/lib/utils";
 
 interface WafflePodConfigInputProps {
   scopeData: Record<string, any>;
@@ -42,13 +42,13 @@ export function WafflePodConfigInput({
   const [isExpanded, setIsExpanded] = useState(true);
   const lastCalculatedRef = useRef<{ podCount: number; perimeter: number }>({ podCount: 0, perimeter: 0 });
 
-  // Extract values from scopeData
+  // Extract values from scopeData - using numericWithDefault to preserve 0
   const podSize = String(scopeData?.pod_size || '1090');
   const podThickness = String(scopeData?.pod_thickness || '225');
-  const topSlabThickness = Number(scopeData?.top_slab_thickness) || 85;
-  const ribWidth = Number(scopeData?.rib_width) || 110;
-  const podCount = Number(scopeData?.pod_count) || 0;
-  const perimeter = Number(scopeData?.perimeter) || 0;
+  const topSlabThickness = numericWithDefault(scopeData?.top_slab_thickness, 85);
+  const ribWidth = numericWithDefault(scopeData?.rib_width, 110);
+  const podCount = numericWithDefault(scopeData?.pod_count, 0);
+  const perimeter = numericWithDefault(scopeData?.perimeter, 0);
   const fromTakeoff = scopeData?._fromTakeoff;
 
   // Calculate derived values
@@ -161,10 +161,9 @@ export function WafflePodConfigInput({
                 <Input
                   type="number"
                   inputMode="numeric"
-                  value={topSlabThickness === 0 ? '' : topSlabThickness}
+                  value={topSlabThickness ?? ""}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    handleChange('top_slab_thickness', val === '' ? 0 : Number(val));
+                    handleChange('top_slab_thickness', e.target.value === '' ? 0 : Number(e.target.value));
                   }}
                   onBlur={(e) => {
                     if (!e.target.value || Number(e.target.value) < 50) {
@@ -182,10 +181,9 @@ export function WafflePodConfigInput({
                 <Input
                   type="number"
                   inputMode="numeric"
-                  value={ribWidth === 0 ? '' : ribWidth}
+                  value={ribWidth ?? ""}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    handleChange('rib_width', val === '' ? 0 : Number(val));
+                    handleChange('rib_width', e.target.value === '' ? 0 : Number(e.target.value));
                   }}
                   onBlur={(e) => {
                     if (!e.target.value || Number(e.target.value) < 100) {
@@ -206,10 +204,9 @@ export function WafflePodConfigInput({
                 <Input
                   type="number"
                   inputMode="numeric"
-                  value={podCount === 0 ? '' : podCount}
+                  value={podCount ?? ""}
                   onChange={(e) => {
-                    const val = e.target.value;
-                    handleChange('pod_count', val === '' ? 0 : Number(val));
+                    handleChange('pod_count', e.target.value === '' ? 0 : Number(e.target.value));
                   }}
                   className="h-8 text-sm font-mono max-w-32"
                   min={0}

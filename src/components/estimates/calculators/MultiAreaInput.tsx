@@ -326,7 +326,7 @@ export function MultiAreaInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={area.length || ""}
+                            value={area.length ?? ""}
                             onChange={(e) =>
                               updateArea(area.id, "length", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -346,7 +346,7 @@ export function MultiAreaInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={area.width || ""}
+                            value={area.width ?? ""}
                             onChange={(e) =>
                               updateArea(area.id, "width", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -387,7 +387,7 @@ export function MultiAreaInput({
                             <Input
                               type="number"
                               inputMode="numeric"
-                              value={area.thickness || ""}
+                              value={area.thickness ?? ""}
                               onChange={(e) =>
                                 updateArea(area.id, "thickness", e.target.value === "" ? undefined : Number(e.target.value))
                               }

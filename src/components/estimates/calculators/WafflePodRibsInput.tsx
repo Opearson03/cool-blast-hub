@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Layers, Grid3X3 } from "lucide-react";
+import { numericWithDefault } from "@/lib/utils";
 
 interface WafflePodRibsInputProps {
   scopeData: Record<string, any>;
@@ -31,15 +32,15 @@ export function WafflePodRibsInput({
   scopeData,
   onScopeDataChange,
 }: WafflePodRibsInputProps) {
-  // Extract values from scopeData
-  const ribBottomBars = Number(scopeData?.rib_bottom_bars) || 2;
+  // Extract values from scopeData - using numericWithDefault to preserve 0
+  const ribBottomBars = numericWithDefault(scopeData?.rib_bottom_bars, 2);
   const ribBottomBarSize = String(scopeData?.rib_bottom_bar_size || 'N12');
-  const ribTopBars = Number(scopeData?.rib_top_bars) || 1;
+  const ribTopBars = numericWithDefault(scopeData?.rib_top_bars, 1);
   const ribTopBarSize = String(scopeData?.rib_top_bar_size || 'N12');
   const stockLength = String(scopeData?.stock_length || '6');
   
   // Pod count for summary
-  const podCount = Number(scopeData?.pod_count) || 0;
+  const podCount = numericWithDefault(scopeData?.pod_count, 0);
 
   const handleChange = (field: string, value: any) => {
     onScopeDataChange(field, value);

@@ -253,8 +253,8 @@ export function MultiWafflePodZoneInput({
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={zone.area === 0 ? '' : zone.area}
-                          onChange={(e) => handleZoneChange(zone.id, 'area', Number(e.target.value) || 0)}
+                          value={zone.area ?? ""}
+                          onChange={(e) => handleZoneChange(zone.id, 'area', e.target.value === "" ? 0 : Number(e.target.value))}
                           className="h-8 text-sm font-mono"
                           min={0}
                           step={0.1}
@@ -266,8 +266,8 @@ export function MultiWafflePodZoneInput({
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={zone.perimeter === 0 ? '' : zone.perimeter}
-                          onChange={(e) => handleZoneChange(zone.id, 'perimeter', Number(e.target.value) || 0)}
+                          value={zone.perimeter ?? ""}
+                          onChange={(e) => handleZoneChange(zone.id, 'perimeter', e.target.value === "" ? 0 : Number(e.target.value))}
                           className="h-8 text-sm font-mono"
                           min={0}
                           step={0.1}
@@ -321,8 +321,8 @@ export function MultiWafflePodZoneInput({
                         <Input
                           type="number"
                           inputMode="numeric"
-                          value={zone.top_slab_thickness === 0 ? '' : zone.top_slab_thickness}
-                          onChange={(e) => handleZoneChange(zone.id, 'top_slab_thickness', Number(e.target.value) || 0)}
+                          value={zone.top_slab_thickness ?? ""}
+                          onChange={(e) => handleZoneChange(zone.id, 'top_slab_thickness', e.target.value === "" ? 0 : Number(e.target.value))}
                           onBlur={(e) => {
                             if (!e.target.value || Number(e.target.value) < 50) {
                               handleZoneChange(zone.id, 'top_slab_thickness', 85);
@@ -339,8 +339,8 @@ export function MultiWafflePodZoneInput({
                         <Input
                           type="number"
                           inputMode="numeric"
-                          value={zone.rib_width === 0 ? '' : zone.rib_width}
-                          onChange={(e) => handleZoneChange(zone.id, 'rib_width', Number(e.target.value) || 0)}
+                          value={zone.rib_width ?? ""}
+                          onChange={(e) => handleZoneChange(zone.id, 'rib_width', e.target.value === "" ? 0 : Number(e.target.value))}
                           onBlur={(e) => {
                             if (!e.target.value || Number(e.target.value) < 100) {
                               handleZoneChange(zone.id, 'rib_width', 110);
@@ -361,8 +361,8 @@ export function MultiWafflePodZoneInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={zone.pod_count === 0 ? '' : zone.pod_count}
-                            onChange={(e) => handleZoneChange(zone.id, 'pod_count', Number(e.target.value) || 0)}
+                            value={zone.pod_count ?? ""}
+                            onChange={(e) => handleZoneChange(zone.id, 'pod_count', e.target.value === "" ? 0 : Number(e.target.value))}
                             className="h-8 text-sm font-mono"
                             min={0}
                             placeholder="0"

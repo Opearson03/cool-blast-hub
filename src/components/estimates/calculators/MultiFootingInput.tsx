@@ -263,7 +263,7 @@ export function MultiFootingInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={footing.length || ""}
+                            value={footing.length ?? ""}
                             onChange={(e) =>
                               updateFooting(footing.id, "length", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -283,7 +283,7 @@ export function MultiFootingInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={footing.width || ""}
+                            value={footing.width ?? ""}
                             onChange={(e) =>
                               updateFooting(footing.id, "width", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -303,7 +303,7 @@ export function MultiFootingInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={footing.depth || ""}
+                            value={footing.depth ?? ""}
                             onChange={(e) =>
                               updateFooting(footing.id, "depth", e.target.value === "" ? 0 : Number(e.target.value))
                             }
