@@ -242,7 +242,7 @@ export default function AdminJobDetail() {
               </>
             )}
             <TabsTrigger value="subbies" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-              Subbies
+              Sub-Contractors
             </TabsTrigger>
             <TabsTrigger value="variations" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
               Variations
