@@ -49,6 +49,49 @@ export interface QuotePDFData {
 }
 
 /**
+ * Shared helper to extract scopes from the flexible data structure
+ * The database stores scopes as top-level keys (e.g., "raft_slab", "retaining_wall_footings")
+ * rather than in a "scopes" wrapper object
+ */
+function getScopesFromData(scopeData: Record<string, any> | null): Record<string, any> {
+  if (!scopeData) return {};
+  
+  // If there's an explicit scopes wrapper, use it (legacy format)
+  if (scopeData.scopes && typeof scopeData.scopes === 'object') {
+    return scopeData.scopes;
+  }
+  
+  // Non-scope keys to skip - these are metadata, not actual scopes
+  const nonScopeKeys = new Set([
+    '_globalMargin', 
+    'exclusions', 
+    'customExclusions', 
+    'calculatedCosts',
+    'scopes',
+    'scopeId'
+  ]);
+  
+  const scopes: Record<string, any> = {};
+  
+  for (const key of Object.keys(scopeData)) {
+    // Skip known non-scope keys and internal keys (starting with _)
+    if (nonScopeKeys.has(key) || key.startsWith('_')) continue;
+    
+    const value = scopeData[key];
+    
+    // Identify a scope by its structure - it should have scopeAnswers, moduleAnswers,
+    // calculatedTotal, or doneModules (indicators of a real scope object)
+    if (value && typeof value === 'object' && 
+        (value.scopeAnswers || value.moduleAnswers || 
+         value.calculatedTotal !== undefined || value.doneModules)) {
+      scopes[key] = value;
+    }
+  }
+  
+  return scopes;
+}
+
+/**
  * Format scope name from ID
  */
 function formatScopeName(scopeId: string): string {
@@ -149,8 +192,11 @@ export function extractProjectSummary(
 
   if (!scopeData) return summary;
 
-  // Check if this is the new format with scopes object
-  const scopes = scopeData.scopes || { [scopeData.scopeId || 'default']: scopeData };
+  // Use the helper to correctly extract scopes from the data structure
+  const scopes = getScopesFromData(scopeData);
+  
+  // If no scopes found, return empty summary
+  if (Object.keys(scopes).length === 0) return summary;
   
   for (const scopeId of Object.keys(scopes)) {
     const scope = scopes[scopeId];
@@ -225,7 +271,12 @@ export function extractReinforcementDetails(
 ): ReinforcementDetails | null {
   if (!scopeData) return null;
   
-  const scopes = scopeData.scopes || { default: scopeData };
+  // Use the helper to correctly extract scopes from the data structure
+  const scopes = getScopesFromData(scopeData);
+  
+  // If no scopes found, return null
+  if (Object.keys(scopes).length === 0) return null;
+  
   
   for (const scopeId of Object.keys(scopes)) {
     const scope = scopes[scopeId];
@@ -312,7 +363,11 @@ export function extractScopeBreakdowns(
   
   if (!scopeData) return breakdowns;
   
-  const scopes = scopeData.scopes || { [scopeData.scopeId || 'default']: scopeData };
+  // Use the helper to correctly extract scopes from the data structure
+  const scopes = getScopesFromData(scopeData);
+  
+  // If no scopes found, return empty breakdowns
+  if (Object.keys(scopes).length === 0) return breakdowns;
   
   for (const scopeId of Object.keys(scopes)) {
     const scope = scopes[scopeId];
