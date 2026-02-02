@@ -62,10 +62,25 @@ function getMeshPrice(meshType: string, priceMap?: PriceMap): number | undefined
   return priceMap['mesh']?.[meshType];
 }
 
+// Chair options - unified across all types
+const CHAIR_TYPE_OPTIONS = [
+  { value: 'TMCHAIR', label: 'TM Chair', bagsOf: 25 },
+  { value: '2540C', label: '25-40mm', bagsOf: 100 },
+  { value: '5065C', label: '50-65mm', bagsOf: 100 },
+  { value: '7590C', label: '75-90mm', bagsOf: 100 },
+  { value: '100120C', label: '100-120mm', bagsOf: 100 },
+  { value: '125150C', label: '125-150mm', bagsOf: 100 },
+];
+
 // Get chair price from price map
 function getChairPrice(chairType: string, priceMap?: PriceMap): number | undefined {
   if (!priceMap) return undefined;
   return priceMap['consumables']?.[chairType];
+}
+
+// Get chair option by value
+function getChairOption(chairType: string) {
+  return CHAIR_TYPE_OPTIONS.find(opt => opt.value === chairType) || CHAIR_TYPE_OPTIONS[2]; // Default to 7590C
 }
 
 interface AreaReinforcementInputProps {
@@ -567,11 +582,9 @@ export function AreaReinforcementInput({
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent className="z-[150]">
-                                    <SelectItem value="2540C">25-40mm</SelectItem>
-                                    <SelectItem value="5065C">50-65mm</SelectItem>
-                                    <SelectItem value="7590C">75-90mm</SelectItem>
-                                    <SelectItem value="100120C">100-120mm</SelectItem>
-                                    <SelectItem value="125150C">125-150mm</SelectItem>
+                                    {CHAIR_TYPE_OPTIONS.map(opt => (
+                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                               </div>
@@ -643,11 +656,9 @@ export function AreaReinforcementInput({
                                         <SelectValue />
                                       </SelectTrigger>
                                       <SelectContent className="z-[150]">
-                                        <SelectItem value="2540C">25-40mm</SelectItem>
-                                        <SelectItem value="5065C">50-65mm</SelectItem>
-                                        <SelectItem value="7590C">75-90mm</SelectItem>
-                                        <SelectItem value="100120C">100-120mm</SelectItem>
-                                        <SelectItem value="125150C">125-150mm</SelectItem>
+                                        {CHAIR_TYPE_OPTIONS.map(opt => (
+                                          <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                        ))}
                                       </SelectContent>
                                     </Select>
                                   </div>
