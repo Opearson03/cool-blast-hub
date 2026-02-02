@@ -29,8 +29,8 @@ export interface InboxItem {
   from_email: string;
   from_name: string | null;
   subject: string | null;
-  file_url: string;
-  file_name: string;
+  file_url: string | null;
+  file_name: string | null;
   received_at: string;
   status: string;
   linked_id: string | null;
@@ -109,6 +109,30 @@ export function InboxHistoryTab() {
         }
       }
 
+      // Fetch test results
+      const { data: testResults } = await supabase
+        .from("pending_test_results")
+        .select("id, from_email, subject, lab_report_url, received_at, status, linked_job_id, email_body")
+        .eq("business_id", profile.business_id);
+
+      if (testResults) {
+        for (const test of testResults) {
+          items.push({
+            id: test.id,
+            type: "test",
+            from_email: test.from_email,
+            from_name: null,
+            subject: test.subject,
+            file_url: test.lab_report_url,
+            file_name: test.lab_report_url ? "Lab Report" : null,
+            received_at: test.received_at,
+            status: test.status,
+            linked_id: test.linked_job_id,
+            email_body: test.email_body,
+          });
+        }
+      }
+
       // Sort by received_at descending
       items.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
 
@@ -141,7 +165,7 @@ export function InboxHistoryTab() {
           item.from_email.toLowerCase().includes(query) ||
           item.from_name?.toLowerCase().includes(query) ||
           item.subject?.toLowerCase().includes(query) ||
-          item.file_name.toLowerCase().includes(query)
+          item.file_name?.toLowerCase().includes(query)
       );
     }
 
@@ -289,7 +313,7 @@ export function InboxHistoryTab() {
                       {getStatusBadge(item.status)}
                     </div>
                     <p className="font-medium mt-1 truncate">
-                      {item.subject || item.file_name}
+                      {item.subject || item.file_name || "(No subject)"}
                     </p>
                     <p className="text-sm text-muted-foreground truncate">
                       From: {item.from_name || item.from_email}
