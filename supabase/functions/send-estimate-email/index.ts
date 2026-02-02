@@ -75,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Get the app URL for the signing link
     const appUrl = Deno.env.get("APP_URL") || "https://pourhub.au";
-    const signingLink = `${appUrl}/sign-quote?token=${signingToken}`;
+    const signingLink = `${appUrl}/sign/quote/${signingToken}`;
 
     // Send email with the pre-generated PDF attachment
     // Resend expects base64 string directly for attachments, not Uint8Array
