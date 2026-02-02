@@ -1,26 +1,25 @@
 import { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Briefcase, Calendar } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
-import { useBusinessData } from "@/hooks/useBusinessData";
+import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget";
+import { PendingSubbieInvitesWidget } from "@/components/dashboard/PendingSubbieInvitesWidget";
+import { TomorrowPreviewWidget } from "@/components/dashboard/TomorrowPreviewWidget";
 import { InboxWidget } from "@/components/dashboard/InboxWidget";
+import { useDashboardData } from "@/hooks/useDashboardData";
 
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const businessData = useBusinessData();
+  const dashboardData = useDashboardData(businessId);
 
   useEffect(() => {
     const checkOnboarding = async () => {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        setUserId(user.id);
 
         const { data: profile } = await supabase
           .from("profiles")
@@ -74,36 +73,26 @@ export default function AdminDashboard() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
         
-        <div className="grid grid-cols-2 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Briefcase className="w-4 h-4" /> Pours Today
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {businessData.isLoading ? "..." : businessData.todayPoursCount}
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                <Calendar className="w-4 h-4" /> This Week
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">
-                {businessData.isLoading ? "..." : businessData.weekPoursCount}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Summary Cards */}
+        <SummaryCards
+          todayTasksCount={dashboardData.todayTasksCount}
+          pendingInvitesCount={dashboardData.pendingInvitesCount}
+          actionsRequiredCount={dashboardData.actionsRequiredCount}
+          isLoading={dashboardData.isLoading}
+        />
 
         {businessId && (
           <>
+            {/* Today's Schedule */}
             <DailyScheduleWidget businessId={businessId} />
+            
+            {/* Pending Subbie Invites */}
+            <PendingSubbieInvitesWidget businessId={businessId} />
+            
+            {/* Tomorrow's Preview */}
+            <TomorrowPreviewWidget businessId={businessId} />
+            
+            {/* Inbox */}
             <InboxWidget businessId={businessId} />
           </>
         )}
