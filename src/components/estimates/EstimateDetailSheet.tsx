@@ -230,32 +230,62 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
     setIsSending(true);
     
     try {
+      // Step 1: Generate PDF on client-side using the same template as print
+      toast({
+        title: "Generating PDF...",
+        description: "Creating your quote document.",
+      });
+      
+      const { generateQuotePDF } = await import("@/lib/generate-quote-pdf");
+      const pdfBase64 = await generateQuotePDF({
+        estimate: {
+          estimate_number: estimate.estimate_number,
+          client_name: estimate.client_name,
+          company_name: estimate.company_name,
+          client_email: estimate.client_email,
+          client_phone: estimate.client_phone,
+          site_address: estimate.site_address,
+          description: estimate.description,
+          total_amount: estimate.total_amount,
+          valid_until: estimate.valid_until,
+          notes: estimate.notes,
+          created_at: estimate.created_at,
+          payment_terms_type: estimate.payment_terms_type,
+          deposit_percentage: estimate.deposit_percentage,
+          quote_validity_days: estimate.quote_validity_days,
+        },
+        business: business ? {
+          name: business.name,
+          logo_url: business.logo_url,
+          address: business.address,
+          phone: business.phone,
+          email: business.email,
+          abn: business.abn,
+          quote_template: business.quote_template,
+          quote_primary_color: business.quote_primary_color,
+          quote_secondary_color: business.quote_secondary_color,
+          quote_font: business.quote_font,
+        } : null,
+        scopeData: estimate.scope_data,
+        selectedScopes: estimate.selected_scopes,
+      });
+
+      // Step 2: Send the pre-generated PDF via edge function
+      toast({
+        title: "Sending email...",
+        description: `Sending quote to ${estimate.client_email}`,
+      });
+
       const { data, error } = await supabase.functions.invoke("send-estimate-email", {
         body: {
           estimateId: estimate.id,
           clientEmail: estimate.client_email,
           clientName: estimate.client_name,
-          clientPhone: estimate.client_phone,
           estimateNumber: estimate.estimate_number,
           businessName: business?.name || "PourHub",
-          businessAddress: business?.address,
-          businessPhone: business?.phone,
-          businessEmail: business?.email,
-          businessAbn: business?.abn,
-          businessLogoUrl: business?.logo_url,
-          quoteTemplate: business?.quote_template || 'classic',
-          quotePrimaryColor: business?.quote_primary_color || '#f97316',
-          quoteSecondaryColor: business?.quote_secondary_color || '#1f2937',
-          quoteFont: business?.quote_font || 'Arial',
           totalAmount: formatCurrency(estimate.total_amount),
           siteAddress: estimate.site_address,
-          description: estimate.description,
-          notes: estimate.notes,
-          createdAt: format(new Date(estimate.created_at), "d MMMM yyyy"),
-          validUntil: estimate.valid_until ? format(new Date(estimate.valid_until), "d MMMM yyyy") : null,
-          paymentTermsType: estimate.payment_terms_type || 'deposit_balance',
-          depositPercentage: estimate.deposit_percentage || 50,
-          quoteValidityDays: estimate.quote_validity_days || 14,
+          pdfBase64: pdfBase64,
         },
       });
 
