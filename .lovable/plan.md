@@ -1,177 +1,144 @@
 
 
-# Fix 2-Way Spacers Missing from Waffle Pod Cost Breakdown
+# Dashboard Revamp Plan
 
-## Problem Summary
+## Current State
 
-2-way spacers are not appearing in the waffle pod cost breakdown despite the estimate having 715 pods. The cost breakdown shows:
-- Waffle Pods 225mm (715 units) – Zone 1: $13,370.50
-- Pod Rails (72 bags of 20): $3,240.00  
-- 4-Way Spacers (29 bags of 25): $72.50
-- **2-Way Spacers: MISSING**
+The dashboard currently shows:
+- **2 metric cards**: Pours Today, This Week
+- **Daily Schedule Widget**: Today's pours with subbie confirmation status
+- **Inbox Widget**: Pending plans, tests, dockets (hidden if empty)
 
-## Root Cause Analysis
+## Proposed Revamp
 
-The issue is a multi-level data flow problem:
+Based on your feedback, the dashboard should focus on:
+1. **Today's work & schedule** (primary)
+2. **Pending sub-contractor invites** for the week ahead (action required)
+3. **Tomorrow preview** (planning ahead)
 
-### 1. Initial Data Setup Problem (`EstimateFormDialog.tsx`)
+### New Dashboard Layout
 
-When waffle pod estimates are created from takeoff data:
-
-```typescript
-// Lines 1433-1442
-const spacer4WayCount = firstArea?.spacer4WayCount ?? 0;
-const spacer2WayCount = firstArea?.spacer2WayCount ?? 0;  // ← Defaults to 0
-
-initialScopeAnswers = {
-  ...initialScopeAnswers,
-  spacer_4way_count: spacer4WayCount,
-  spacer_2way_count: spacer2WayCount,  // ← Explicitly set to 0
+```text
++------------------------------------------+
+|  Dashboard                    [+ Quick Add]|
++------------------------------------------+
+|                                          |
+|  TODAY'S FOCUS                           |
+|  ┌──────────┐ ┌──────────┐ ┌──────────┐  |
+|  │ 3 Pours  │ │ 2 Subbies│ │ 1 Alert  │  |
+|  │ Today    │ │ Pending  │ │ Action   │  |
+|  └──────────┘ └──────────┘ └──────────┘  |
+|                                          |
+|  ┌─ TODAY'S SCHEDULE ──────────────────┐ |
+|  │ 6:00am  Slab Pour - 123 Smith St    │ |
+|  │         ✓ 3/3 subbies confirmed     │ |
+|  │                                     │ |
+|  │ 11:00am Formwork - 456 Jones Ave    │ |
+|  │         ⚠ 1/2 subbies confirmed     │ |
+|  └─────────────────────────────────────┘ |
+|                                          |
+|  ┌─ SUBBIE RESPONSES NEEDED ───────────┐ |
+|  │ Tomorrow (3 pending)                │ |
+|  │   • John Smith - Laborer - Sent     │ |
+|  │   • Mike Jones - Pump Op - Viewed   │ |
+|  │   • Dave Brown - Formworker - Sent  │ |
+|  │                                     │ |
+|  │ This Week (5 more pending)          │ |
+|  │   Wed: 2 awaiting  Thu: 3 awaiting  │ |
+|  └─────────────────────────────────────┘ |
+|                                          |
+|  ┌─ TOMORROW'S PREVIEW ────────────────┐ |
+|  │ 2 tasks scheduled                   │ |
+|  │ • Site Visit - ABC Project          │ |
+|  │ • Earthworks - XYZ Estate           │ |
+|  └─────────────────────────────────────┘ |
+|                                          |
+|  ┌─ INBOX (if items pending) ──────────┐ |
+|  │ Plans (2) | Tests (1) | Dockets (0) │ |
+|  └─────────────────────────────────────┘ |
++------------------------------------------+
 ```
 
-If the takeoff doesn't provide `spacer2WayCount`, it defaults to `0` and is explicitly set in `initialScopeAnswers`.
+### New Components
 
-### 2. WafflePodConfigInput Effect Timing (`WafflePodConfigInput.tsx`)
+#### 1. Pending Subbie Invites Widget (NEW)
+Shows all sub-contractor invites that haven't been accepted/declined for the next 7 days:
 
-The component has a `useEffect` that should auto-calculate spacers:
+| Field | Description |
+|-------|-------------|
+| Subbie name | Recipient name from invite |
+| Role | Laborer, Pump Operator, etc. |
+| Pour date | When they're needed |
+| Job name | Quick reference |
+| Status | `sent`, `viewed` (not yet responded) |
+| Days until | Urgency indicator |
+| Action | Quick resend or call button |
 
-```typescript
-// Lines 63-90
-useEffect(() => {
-  if (lastCalculatedRef.current.podCount === podCount && 
-      lastCalculatedRef.current.perimeter === perimeter) {
-    return;  // ← Skips if values haven't changed
-  }
-  
-  if (podCount > 0) {
-    const spacer2Way = Math.ceil(insidePerimeter / 1.2);
-    onScopeDataChange('spacer_2way_count', spacer2Way);
-  }
-}, [podCount, perimeter, ...]);
+Grouped by:
+- **Tomorrow** - needs immediate attention
+- **This week** - grouped by day with counts
+
+#### 2. Tomorrow's Preview Widget (NEW)
+Compact preview of tomorrow's scheduled tasks:
+- Task count
+- List of pour names with job info
+- Any pending subbie issues flagged
+
+#### 3. Enhanced Summary Cards
+Replace the current 2-card layout with 3 more actionable cards:
+
+| Card | Current | Proposed |
+|------|---------|----------|
+| Card 1 | Pours Today | **Today's Tasks** (count + quick view) |
+| Card 2 | This Week | **Pending Responses** (subbies awaiting reply) |
+| Card 3 | - | **Action Required** (unsigned quotes, pending ITPs, etc.) |
+
+### Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/dashboard/PendingSubbieInvitesWidget.tsx` | **Create** | New widget showing pending subbie responses for the week |
+| `src/components/dashboard/TomorrowPreviewWidget.tsx` | **Create** | Compact tomorrow schedule preview |
+| `src/components/dashboard/SummaryCards.tsx` | **Create** | Enhanced 3-card summary component |
+| `src/pages/admin/AdminDashboard.tsx` | **Modify** | Integrate new widgets in proper order |
+| `src/hooks/useBusinessData.ts` | **Modify** | Add pending subbie invite count to RPC |
+
+### Database Query for Pending Invites
+
+```sql
+SELECT 
+  ei.id,
+  ei.recipient_name,
+  ei.recipient_phone,
+  ei.role,
+  ei.status,
+  ei.sent_at,
+  jp.pour_date,
+  jp.pour_name,
+  j.name as job_name
+FROM external_invites ei
+JOIN job_pours jp ON ei.job_pour_id = jp.id
+JOIN jobs j ON ei.job_id = j.id
+WHERE ei.business_id = $1
+  AND ei.status IN ('sent', 'viewed', 'drafted')
+  AND jp.pour_date >= CURRENT_DATE
+  AND jp.pour_date <= CURRENT_DATE + INTERVAL '7 days'
+ORDER BY jp.pour_date ASC, ei.recipient_name;
 ```
 
-**Issue**: This effect may not re-trigger if:
-- Initial mount has `podCount > 0` but `perimeter = 0`
-- Later when `perimeter` becomes available, the ref check skips because `podCount` didn't change
+### Widget Display Order
 
-### 3. Pods Module Calculation (`pods.ts`)
+1. **Summary Cards** (3 cards in a row)
+2. **Today's Schedule** (existing, enhanced)
+3. **Pending Subbie Invites** (new, priority action item)
+4. **Tomorrow's Preview** (new, planning ahead)
+5. **Inbox** (existing, only if items pending)
 
-The module tries to calculate 2-way spacers with a fallback:
+### Technical Notes
 
-```typescript
-// Lines 243-244 (legacy path)
-const calculated2Way = Math.ceil(Math.max(0, perimeter - 1.6) / 1.2);
-const spacer2WayCount = Number(scopeData?.spacer_2way_count) || calculated2Way;
-```
-
-**Issue**: `Number(0) || calculated2Way` uses `calculated2Way` because `0` is falsy. But if `perimeter` is also `0` or not properly set, `calculated2Way` is also `0`.
-
-### 4. Multi-Zone Path Issue (`pods.ts`)
-
-For multi-zone waffle pods (which the screenshot shows), each zone needs its own perimeter:
-
-```typescript
-// Lines 135-137
-const zonePerimeter = Number(zone._actualPerimeter ?? zone.perimeter) || 0;
-const calculated2Way = Math.ceil(Math.max(0, zonePerimeter - 1.6) / 1.2);
-totalSpacer2Way += Number(zone.spacer_2way_count) || calculated2Way;
-```
-
-**Issue**: `zone.perimeter` is never set because zones are created without perimeter values.
-
-## Solution
-
-### Fix 1: Always Recalculate Spacers When Area Data Exists (`WafflePodConfigInput.tsx`)
-
-Remove the skip condition that prevents recalculation:
-
-```typescript
-useEffect(() => {
-  // Remove the early return check - always recalculate when podCount > 0
-  if (podCount > 0) {
-    const spacer4Way = podCount;
-    const edgeBeamWidth = Number(scopeData?.edgeBeams?.[0]?.width) || 450;
-    const insidePerimeter = Math.max(0, perimeter - (8 * edgeBeamWidth / 1000));
-    const spacer2Way = Math.ceil(insidePerimeter / 1.2);
-    
-    // Only update if values actually differ (prevent infinite loops)
-    if (scopeData?.spacer_4way_count !== spacer4Way) {
-      onScopeDataChange('spacer_4way_count', spacer4Way);
-    }
-    if (scopeData?.spacer_2way_count !== spacer2Way) {
-      onScopeDataChange('spacer_2way_count', spacer2Way);
-    }
-    // ... pod rails
-  }
-}, [podCount, perimeter, scopeData?.edgeBeams, scopeData?.spacer_4way_count, scopeData?.spacer_2way_count, onScopeDataChange]);
-```
-
-### Fix 2: Use Top-Level Perimeter as Fallback in Pods Module (`pods.ts`)
-
-When zones don't have perimeter, fall back to the scope-level perimeter divided by number of zones:
-
-```typescript
-// Multi-zone path - get scope-level perimeter as fallback
-const scopePerimeter = Number(scopeData?._actualPerimeter ?? scopeData?.perimeter) || 0;
-
-podZones.forEach(zone => {
-  // ...
-  // Use zone perimeter if set, otherwise proportionally divide scope perimeter
-  const zonePerimeter = Number(zone._actualPerimeter ?? zone.perimeter) || 
-    (scopePerimeter / podZones.length);
-  // ...
-});
-```
-
-### Fix 3: Remove Explicit Zero Default in EstimateFormDialog (`EstimateFormDialog.tsx`)
-
-Don't explicitly set spacer counts to 0 - let them be undefined so the calculation fallback works:
-
-```typescript
-// Change from:
-const spacer2WayCount = firstArea?.spacer2WayCount ?? 0;
-
-// To:
-const spacer2WayCount = firstArea?.spacer2WayCount; // undefined if not set
-
-initialScopeAnswers = {
-  ...initialScopeAnswers,
-  pod_count: podCount,
-  ...(spacer4WayCount !== undefined && { spacer_4way_count: spacer4WayCount }),
-  ...(spacer2WayCount !== undefined && { spacer_2way_count: spacer2WayCount }),
-  // ...
-};
-```
-
-### Fix 4: Ensure Perimeter Flows to Calculation (`ModularCalculator.tsx`)
-
-Add `_actualPerimeter` at the top level of `derivedScopeAnswers` for waffle pod calculations:
-
-```typescript
-return {
-  ...scopeAnswers,
-  area: totalArea,
-  perimeter: totalPerimeter,
-  _actualPerimeter: totalPerimeter,  // ← Add this for modules that check _actualPerimeter first
-  // ...
-};
-```
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/estimates/calculators/WafflePodConfigInput.tsx` | Remove skip condition, add proper value comparison |
-| `src/lib/estimate-components/modules/pods.ts` | Add scope-level perimeter fallback for zones |
-| `src/components/estimates/EstimateFormDialog.tsx` | Remove explicit zero defaults for spacer counts |
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Add `_actualPerimeter` to top-level derivedScopeAnswers |
-
-## Testing
-
-After implementing the fix:
-1. Create a new waffle pod estimate from takeoff
-2. Verify 2-way spacers appear in the Pods module cost breakdown
-3. Verify count matches formula: `(perimeter / 1.2)` approximately
-4. Test with manual entry (no takeoff) to ensure fallback works
-5. Edit existing estimate with 715 pods and verify 2-way spacers now appear
+- All new widgets will use React Query for data fetching with appropriate cache invalidation
+- The pending subbie widget will include a "Resend" quick action for `sent` status invites
+- Phone number click will trigger native call on mobile
+- Widgets collapse gracefully on mobile (single column layout)
+- Empty states will show helpful prompts rather than blank space
 
