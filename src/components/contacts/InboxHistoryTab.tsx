@@ -264,10 +264,16 @@ export function InboxHistoryTab() {
         </Card>
       ) : (
         <div className="space-y-2">
-          {filteredItems.map((item) => (
+          {filteredItems.map((item) => {
+            const isPending = item.status === "pending";
+            return (
             <Card 
               key={`${item.type}-${item.id}`} 
-              className="overflow-hidden cursor-pointer hover:bg-muted/50 transition-colors"
+              className={`overflow-hidden cursor-pointer transition-colors ${
+                isPending 
+                  ? "border-warning/50 bg-warning/5 hover:bg-warning/10" 
+                  : "hover:bg-muted/50"
+              }`}
               onClick={() => handleItemClick(item)}
             >
               <CardContent className="p-4">
@@ -301,7 +307,8 @@ export function InboxHistoryTab() {
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       )}
 
