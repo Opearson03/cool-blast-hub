@@ -183,6 +183,44 @@ export function PlanTakeoffStep({
     return null;
   }, [isMobile, showPierDimensions, showBollardDimensions, showPadDimensions, showLinearDimensions, showJointDimensions, showMarkupNameDialog]);
 
+  // Get panel title based on active panel type
+  const getPanelTitle = useCallback(() => {
+    switch (activePanelType) {
+      case 'pier': return 'Pier Dimensions';
+      case 'bollard': return 'Bollard Dimensions';
+      case 'pad': return activeScope === 'pit_bases' ? 'Pit Base Dimensions' : 'Pad Footing Dimensions';
+      case 'joint': return pendingJointType === 'expansion_joints' ? 'Expansion Joint' : 'Control Joint';
+      case 'markup-name': return 'Name This Markup';
+      default: return undefined;
+    }
+  }, [activePanelType, activeScope, pendingJointType]);
+
+  // Handle closing the side panel
+  const handlePanelClose = useCallback(() => {
+    if (showPierDimensions) {
+      setShowPierDimensions(false);
+      setPierPoints([]);
+    } else if (showBollardDimensions) {
+      setShowBollardDimensions(false);
+      setPierPoints([]);
+    } else if (showPadDimensions) {
+      setShowPadDimensions(false);
+      setPierPoints([]);
+    } else if (showJointDimensions) {
+      setShowJointDimensions(false);
+      setPolylinePoints([]);
+      setPendingJointType(null);
+    } else if (showMarkupNameDialog) {
+      setShowMarkupNameDialog(false);
+      setPendingMarkupData(null);
+      setDrawingPoints([]);
+    }
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [showPierDimensions, showBollardDimensions, showPadDimensions, showJointDimensions, showMarkupNameDialog]);
+
+  // Render panel content based on active panel type - defined later after handlers are declared
+  // This is a forward reference placeholder that gets the actual implementation below
   const currentFile = files.find(f => f.id === currentFileId);
   const currentPage = takeoff?.current_page || 1;
   const currentScale = currentFileId ? getPageScale(currentFileId, currentPage) : null;
@@ -966,6 +1004,63 @@ export function PlanTakeoffStep({
     // Keep activeTool as 'point' and activeScope as current scope
   }, [activeScope, currentFileId, pierPoints, selectedScopes, addPierMarkups, currentPage]);
 
+  // Handler for completing bollard marking
+  const handleBollardDimensionsConfirm = useCallback(async (diameter: number, height: number, name: string) => {
+    if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    await addBollardMarkups(currentFileId, activeScope, pierPoints, diameter, height, 300, color, currentPage); // 300mm default embedment
+    setPierPoints([]);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [activeScope, currentFileId, pierPoints, selectedScopes, addBollardMarkups, currentPage]);
+
+  // Handler for completing bollard marking AND continuing to add more
+  const handleBollardDimensionsConfirmAndAddAnother = useCallback(async (diameter: number, height: number, name: string) => {
+    if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    await addBollardMarkups(currentFileId, activeScope, pierPoints, diameter, height, 300, color, currentPage);
+    setPierPoints([]);
+  }, [activeScope, currentFileId, pierPoints, selectedScopes, addBollardMarkups, currentPage]);
+
+  // Handler for completing pad footing marking
+  const handlePadDimensionsConfirm = useCallback(async (length: number, width: number, depth: number, name: string) => {
+    if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    const scopeType = activeScope === 'pit_bases' ? 'pit_bases' : 'pad_footings';
+    await addPadMarkups(currentFileId, activeScope, pierPoints, length, width, depth, color, currentPage, scopeType, name);
+    setPierPoints([]);
+    setActiveTool('select');
+    setActiveScope(null);
+  }, [activeScope, currentFileId, pierPoints, selectedScopes, addPadMarkups, currentPage]);
+
+  // Handler for completing pad footing marking AND continuing to add more
+  const handlePadDimensionsConfirmAndAddAnother = useCallback(async (length: number, width: number, depth: number, name: string) => {
+    if (!activeScope || !currentFileId || pierPoints.length === 0) return;
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    const scopeType = activeScope === 'pit_bases' ? 'pit_bases' : 'pad_footings';
+    await addPadMarkups(currentFileId, activeScope, pierPoints, length, width, depth, color, currentPage, scopeType, name);
+    setPierPoints([]);
+  }, [activeScope, currentFileId, pierPoints, selectedScopes, addPadMarkups, currentPage]);
+
+  // Handler for completing joint marking
+  const handleJointConfirm = useCallback(async () => {
+    if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
+    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+    const jointName = `Joint ${markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length + 1}`;
+    
+    await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, 0, 0, color, currentPage, jointName);
+    
+    if (onJointMarkupComplete) {
+      await onJointMarkupComplete(activeScope, pendingPolylineLength);
+    }
+    
+    setPolylinePoints([]);
+    setPendingPolylineLength(0);
+    setActiveTool('select');
+    setActiveScope(null);
+    setPendingJointType(null);
+  }, [activeScope, currentFileId, pendingPolylineLength, polylinePoints, selectedScopes, markups, addPolylineMarkup, currentPage, onJointMarkupComplete]);
+
   // Handler for "Done" button when marking piers/bollards/pads
   const handleDoneMarkingPiers = useCallback(() => {
     if (pierPoints.length > 0) {
@@ -1279,6 +1374,118 @@ export function PlanTakeoffStep({
 
   const completedCount = markups.length + skippedScopes.size;
   const canContinue = completedCount === selectedScopes.length || !hasFiles;
+
+  // Render panel content for split-screen layout (desktop only)
+  const renderPanelContent = useCallback(() => {
+    if (!activePanelType) return null;
+    
+    switch (activePanelType) {
+      case 'pier':
+        return (
+          <PierDimensionsPanel
+            pierCount={pierPoints.length}
+            onConfirm={async (diameter, depth, name) => {
+              await handlePierDimensionsConfirm(diameter, depth, name);
+              setShowPierDimensions(false);
+            }}
+            onConfirmAndAddAnother={async (diameter, depth, name) => {
+              await handlePierDimensionsConfirmAndAddAnother(diameter, depth, name);
+              setShowPierDimensions(false);
+            }}
+            onCancel={handlePanelClose}
+          />
+        );
+      case 'bollard':
+        return (
+          <BollardDimensionsPanel
+            bollardCount={pierPoints.length}
+            onConfirm={async (diameter, height, embedment) => {
+              await handleBollardDimensionsConfirm(diameter, height, 'Bollards');
+              setShowBollardDimensions(false);
+            }}
+            onConfirmAndAddAnother={async (diameter, height, embedment) => {
+              await handleBollardDimensionsConfirmAndAddAnother(diameter, height, 'Bollards');
+              setShowBollardDimensions(false);
+            }}
+            onCancel={handlePanelClose}
+          />
+        );
+      case 'pad':
+        return (
+          <PadFootingDimensionsPanel
+            padCount={pierPoints.length}
+            scopeType={activeScope === 'pit_bases' ? 'pit_bases' : 'pad_footings'}
+            onConfirm={async (length, width, depth, name) => {
+              await handlePadDimensionsConfirm(length, width, depth, name);
+              setShowPadDimensions(false);
+            }}
+            onConfirmAndAddAnother={async (length, width, depth, name) => {
+              await handlePadDimensionsConfirmAndAddAnother(length, width, depth, name);
+              setShowPadDimensions(false);
+            }}
+            onCancel={handlePanelClose}
+          />
+        );
+      case 'joint':
+        return (
+          <JointDimensionsPanel
+            lengthMeters={pendingPolylineLength}
+            segmentCount={polylinePoints.length > 1 ? polylinePoints.length - 1 : 1}
+            jointType={pendingJointType || 'expansion_joints'}
+            onConfirm={async () => {
+              await handleJointConfirm();
+              setShowJointDimensions(false);
+            }}
+            onCancel={handlePanelClose}
+          />
+        );
+      case 'markup-name':
+        return (
+          <MarkupNamePanel
+            defaultName={pendingMarkupName}
+            scopeLabel={pendingMarkupData ? (scopeLabels[pendingMarkupData.scopeId] || pendingMarkupData.scopeId) : ''}
+            shapeType={pendingMarkupData?.shapeType || 'polygon'}
+            stats={pendingMarkupData && currentScale ? {
+              area: pendingMarkupData.shapeType === 'polygon' 
+                ? calculatePolygonArea(pendingMarkupData.points, currentScale)
+                : calculateRectangleArea(pendingMarkupData.points, currentScale)
+            } : undefined}
+            onConfirm={async (name) => {
+              await handleMarkupNameConfirm(name);
+              setShowMarkupNameDialog(false);
+            }}
+            onConfirmAndAddAnother={async (name) => {
+              await handleMarkupNameConfirmAndAddAnother(name);
+              setShowMarkupNameDialog(false);
+            }}
+            onCancel={handlePanelClose}
+          />
+        );
+      default:
+        return null;
+    }
+  }, [
+    activePanelType,
+    pierPoints.length,
+    polylinePoints.length,
+    pendingPolylineLength,
+    pendingJointType,
+    pendingMarkupName,
+    pendingMarkupData,
+    activeScope,
+    currentScale,
+    scopeLabels,
+    handlePierDimensionsConfirm,
+    handlePierDimensionsConfirmAndAddAnother,
+    handleBollardDimensionsConfirm,
+    handleBollardDimensionsConfirmAndAddAnother,
+    handlePadDimensionsConfirm,
+    handlePadDimensionsConfirmAndAddAnother,
+    handleJointConfirm,
+    handleMarkupNameConfirm,
+    handleMarkupNameConfirmAndAddAnother,
+    handlePanelClose,
+  ]);
 
   // Show upload state if no files
   if (!hasFiles && !isLoading) {
