@@ -1,179 +1,199 @@
 
-# Add Waffle Pod Pricing to Standard Price List
+# Split-Screen View for Takeoff Dimension Dialogs
 
 ## Overview
 
-This plan adds the waffle pod items to the master price list and updates the pods calculation module to properly pull prices from the centralized price list. The items include:
+Jay wants to see the building plan alongside dimension input dialogs on the takeoff screen. Currently, dialogs appear as overlays that completely obscure the plan. This change will convert these dialogs to a side panel that appears alongside the plan viewer when users need to enter dimensions.
 
-| Code | Description | Unit | Price |
-|------|-------------|------|-------|
-| POD150 | Waffle Pod 1090 x 1090 x 150 | /pod | $16.00 |
-| POD225 | Waffle Pod 1090 x 1090 x 225 | /pod | $18.70 |
-| POD300 | Waffle Pod 1090 x 1090 x 300 | /pod | $24.30 |
-| POD375 | Waffle Pod 1090 x 1090 x 375 | /pod | $33.00 |
-| POD4 | 4-Way Spacer Bag (25 units) | /bag | $59.00 |
-| POD2 | 2-Way Spacer Bag (20 units) | /bag | $66.00 |
-| PODRAIL | Pod Rail 40mm 550mm Bag (20 units) | /bag | $26.60 |
+## Current Architecture
 
----
+The takeoff screen (`PlanTakeoffStep.tsx`) currently has:
+- A plan viewer with drawing canvas (full width/height)
+- Floating scope panel on the left
+- Traditional Dialog components for dimension inputs that overlay the entire screen
 
-## Changes Required
+**Dimension dialogs affected:**
+- `PierDimensionsDialog` - for piers
+- `BollardDimensionsDialog` - for bollards
+- `PadFootingDimensionsDialog` - for pad footings/pit bases
+- `LinearDimensionsDialog` - for strip footings, kerbs, retaining walls
+- `JointDimensionsDialog` - for expansion/control joints
+- `SlabBeamMarkupDialog` - for slab/beam naming and dimensions
+- `EditBeamDialog` - for editing beam dimensions
+- `MarkupNameDialog` - for naming polygon/rectangle markups
 
-### 1. Add New Category to Price List Structure
+**Not affected (remains modal):**
+- `CalibrationDialog` - this is configuration, not dimension entry during marking
 
-**File:** `src/lib/price-list-defaults.ts`
+## Solution: Resizable Split-Screen Layout
 
-Add a new `waffle_pods` category to `PRICE_LIST_CATEGORIES`:
+When any dimension dialog opens during active takeoff marking:
+1. The layout switches from "full-width plan" to "plan + side panel"
+2. The side panel contains the dimension input form
+3. User can resize the split between plan and form
+4. Plan remains visible and interactive (for reference only, not new drawing while dialog open)
+
+## Technical Approach
+
+### 1. Create New Split Panel Wrapper Component
+
+**New file:** `src/components/estimates/takeoff/TakeoffSplitLayout.tsx`
+
+```text
++-------------------------------------------+
+|  Toolbar                                  |
++-------------------------------------------+
+|                        |                  |
+|                        |  Dimension       |
+|   Plan Viewer          |  Input Panel     |
+|   (resizable)          |  (resizable)     |
+|                        |                  |
+|                        |                  |
++-------------------------------------------+
+|  Footer                                   |
++-------------------------------------------+
+```
+
+This component wraps the plan viewer and conditionally shows a right-side panel when dimension dialogs are active.
+
+### 2. Convert Dialogs to Panel Content Components
+
+For each affected dialog, extract the content (without the Dialog wrapper) into a reusable component:
+
+| Dialog | Panel Component |
+|--------|-----------------|
+| `PierDimensionsDialog` | `PierDimensionsPanel` |
+| `BollardDimensionsDialog` | `BollardDimensionsPanel` |
+| `PadFootingDimensionsDialog` | `PadFootingDimensionsPanel` |
+| `LinearDimensionsDialog` | `LinearDimensionsPanel` |
+| `JointDimensionsDialog` | `JointDimensionsPanel` |
+| `SlabBeamMarkupDialog` | `SlabBeamMarkupPanel` |
+| `EditBeamDialog` | `EditBeamPanel` |
+| `MarkupNameDialog` | `MarkupNamePanel` |
+
+Each panel component exports both:
+- The panel version (for split-screen on desktop/tablet)
+- The original dialog version (fallback for very small screens)
+
+### 3. Update PlanTakeoffStep Layout
+
+Modify `PlanTakeoffStep.tsx` to:
+
+1. Track which panel should be visible (derived from existing show* states)
+2. Use `ResizablePanelGroup` from the existing `react-resizable-panels` library
+3. Show the plan in the left panel (default 65% width)
+4. Show the active dimension panel in the right panel (default 35% width)
+5. Allow resizing with a draggable handle
+
+### 4. Responsive Behavior
+
+| Screen Size | Behavior |
+|-------------|----------|
+| Desktop (>1024px) | Split-screen with resizable panels |
+| Tablet (768-1024px) | Split-screen with fixed 50/50 split |
+| Mobile (<768px) | Traditional full-screen dialog overlay |
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `src/components/estimates/takeoff/TakeoffSplitLayout.tsx` | **Create** - New split layout wrapper |
+| `src/components/estimates/takeoff/panels/PierDimensionsPanel.tsx` | **Create** - Panel version of pier dialog |
+| `src/components/estimates/takeoff/panels/BollardDimensionsPanel.tsx` | **Create** - Panel version of bollard dialog |
+| `src/components/estimates/takeoff/panels/PadFootingDimensionsPanel.tsx` | **Create** - Panel version of pad footing dialog |
+| `src/components/estimates/takeoff/panels/LinearDimensionsPanel.tsx` | **Create** - Panel version of linear dialog |
+| `src/components/estimates/takeoff/panels/JointDimensionsPanel.tsx` | **Create** - Panel version of joint dialog |
+| `src/components/estimates/takeoff/panels/SlabBeamMarkupPanel.tsx` | **Create** - Panel version of slab/beam dialog |
+| `src/components/estimates/takeoff/panels/EditBeamPanel.tsx` | **Create** - Panel version of edit beam dialog |
+| `src/components/estimates/takeoff/panels/MarkupNamePanel.tsx` | **Create** - Panel version of markup name dialog |
+| `src/components/estimates/takeoff/panels/index.ts` | **Create** - Barrel export |
+| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | **Modify** - Integrate split layout |
+
+## Implementation Details
+
+### TakeoffSplitLayout Component
 
 ```typescript
-{ id: 'waffle_pods', label: 'Waffle Pods' },
+interface TakeoffSplitLayoutProps {
+  children: React.ReactNode; // Plan viewer
+  panelContent: React.ReactNode | null; // Active dimension panel
+  panelTitle?: string;
+  onPanelClose?: () => void;
+}
 ```
 
-Add the 7 new items to `DEFAULT_PRICE_LIST`:
+Uses `react-resizable-panels` (already installed):
+- `ResizablePanelGroup` with `direction="horizontal"`
+- Left `ResizablePanel` for plan (min 40%, default 65%)
+- `ResizableHandle` with grip indicator
+- Right `ResizablePanel` for form (min 280px, default 35%)
+
+### Panel Content Pattern
+
+Each panel component follows this pattern:
 
 ```typescript
-// Waffle Pods
-{ category: 'waffle_pods', item_code: 'POD150', item_name: 'Waffle Pod 1090 x 1090 x 150', unit: '/pod', default_price: 16 },
-{ category: 'waffle_pods', item_code: 'POD225', item_name: 'Waffle Pod 1090 x 1090 x 225', unit: '/pod', default_price: 18.70 },
-{ category: 'waffle_pods', item_code: 'POD300', item_name: 'Waffle Pod 1090 x 1090 x 300', unit: '/pod', default_price: 24.30 },
-{ category: 'waffle_pods', item_code: 'POD375', item_name: 'Waffle Pod 1090 x 1090 x 375', unit: '/pod', default_price: 33 },
-{ category: 'waffle_pods', item_code: 'POD4', item_name: '4-Way Spacer Bag 25', unit: '/bag', default_price: 59 },
-{ category: 'waffle_pods', item_code: 'POD2', item_name: '2-Way Spacer Bag 20', unit: '/bag', default_price: 66 },
-{ category: 'waffle_pods', item_code: 'PODRAIL', item_name: 'Pod Rail 40mm 550mm Bag 20', unit: '/bag', default_price: 26.60 },
+interface PanelContentProps {
+  // Same props as dialog, minus open/onOpenChange
+  onConfirm: (...) => void;
+  onCancel: () => void;
+  // ...specific props
+}
+
+export function XxxDimensionsPanel(props: PanelContentProps) {
+  return (
+    <div className="h-full flex flex-col">
+      <div className="p-4 border-b">
+        <h3>Title</h3>
+        <p className="text-sm text-muted-foreground">Description</p>
+      </div>
+      <div className="flex-1 overflow-y-auto p-4">
+        {/* Form content */}
+      </div>
+      <div className="p-4 border-t flex gap-2">
+        <Button onClick={onCancel}>Cancel</Button>
+        <Button onClick={onConfirm}>Confirm</Button>
+      </div>
+    </div>
+  );
+}
 ```
 
----
+### Active Panel Detection
 
-### 2. Update CSV Price List
-
-**File:** `src/data/default-price-list.csv`
-
-Add lines at end (or grouped with other categories):
-
-```csv
-waffle_pods,POD150,Waffle Pod 1090 x 1090 x 150,/pod,16.00
-waffle_pods,POD225,Waffle Pod 1090 x 1090 x 225,/pod,18.70
-waffle_pods,POD300,Waffle Pod 1090 x 1090 x 300,/pod,24.30
-waffle_pods,POD375,Waffle Pod 1090 x 1090 x 375,/pod,33.00
-waffle_pods,POD4,4-Way Spacer Bag 25,/bag,59.00
-waffle_pods,POD2,2-Way Spacer Bag 20,/bag,66.00
-waffle_pods,PODRAIL,Pod Rail 40mm 550mm Bag 20,/bag,26.60
-```
-
----
-
-### 3. Update Pods Module to Use Price List
-
-**File:** `src/lib/estimate-components/modules/pods.ts`
-
-#### A. Update Pod Unit Price Question
-
-Change the `priceListKey` to reference the new category and make it depth-aware:
+In `PlanTakeoffStep`, derive which panel to show:
 
 ```typescript
-{
-  id: 'pod_unit_price',
-  type: 'currency',
-  label: 'Pod Unit Price',
-  defaultValue: 18.70,  // POD225 as default
-  priceListKey: 'waffle_pods.POD225',  // Updated category
-  showIf: (answers) => answers.include_pod_supply === true,
-},
+const activePanelType = useMemo(() => {
+  if (showPierDimensions) return 'pier';
+  if (showBollardDimensions) return 'bollard';
+  if (showPadDimensions) return 'pad';
+  if (showLinearDimensions) return 'linear';
+  if (showJointDimensions) return 'joint';
+  if (showSlabBeamDialog) return 'slab';
+  if (editingBeam) return 'edit-beam';
+  if (showAddBeamDimensionsDialog) return 'add-beam';
+  if (showMarkupNameDialog) return 'markup-name';
+  return null;
+}, [showPierDimensions, showBollardDimensions, ...]);
 ```
 
-#### B. Update Pod Rail Price Question
+## User Experience
 
-```typescript
-{
-  id: 'pod_rail_price',
-  type: 'currency',
-  label: 'Pod Rail Price (per bag of 20)',
-  defaultValue: 26.60,
-  priceListKey: 'waffle_pods.PODRAIL',  // Updated category
-  showIf: (answers) => answers.include_pod_rails === true,
-},
-```
+1. User draws a pier group on the plan
+2. User clicks "Done" in toolbar
+3. **Instead of modal dialog**, the layout splits:
+   - Plan shrinks to ~65% width on left
+   - Pier dimensions panel appears on right (~35%)
+   - User can still see their marked piers on the plan
+   - User can resize the split by dragging the handle
+4. User enters dimensions and clicks "Save Piers"
+5. Panel closes, plan returns to full width
 
-#### C. Add Spacer Price List Keys
+## Benefits
 
-Update the spacer questions to reference the price list:
-
-```typescript
-{
-  id: 'spacer_4way_price',
-  type: 'currency',
-  label: '4-Way Spacer Price (per bag of 25)',
-  defaultValue: 59,
-  priceListKey: 'waffle_pods.POD4',
-  showIf: (answers) => answers.include_spacers === true,
-},
-{
-  id: 'spacer_2way_price',
-  type: 'currency',
-  label: '2-Way Spacer Price (per bag of 20)',
-  defaultValue: 66,
-  priceListKey: 'waffle_pods.POD2',
-  showIf: (answers) => answers.include_spacers === true,
-},
-```
-
-#### D. Update Calculation Logic for Depth-Based Pod Pricing
-
-In the `calculate` function, look up pod price by depth:
-
-```typescript
-// Map pod thickness to price list code
-const getPodPriceCode = (thickness: string): string => {
-  const thicknessNum = parseInt(thickness);
-  if (thicknessNum <= 150) return 'POD150';
-  if (thicknessNum <= 225) return 'POD225';
-  if (thicknessNum <= 300) return 'POD300';
-  return 'POD375';
-};
-
-// In multi-zone calculation
-Object.entries(podsByThickness).forEach(([thickness, data]) => {
-  if (data.count > 0) {
-    const podCode = getPodPriceCode(thickness);
-    const podPrice = getPrice(priceMap, 'waffle_pods', podCode, 18.70);
-    // ... rest of calculation
-  }
-});
-```
-
-#### E. Update Spacer Calculations for Bag Quantities
-
-Currently, spacers are counted individually but priced per bag. Update to calculate bags needed:
-
-```typescript
-// 4-way spacers: 25 per bag
-const spacer4WayBags = Math.ceil(totalSpacer4Way / 25);
-const spacer4WayBagPrice = Number(answers.spacer_4way_price) || getPrice(priceMap, 'waffle_pods', 'POD4', 59);
-const spacer4WayCost = spacer4WayBags * spacer4WayBagPrice;
-
-// 2-way spacers: 20 per bag
-const spacer2WayBags = Math.ceil(totalSpacer2Way / 20);
-const spacer2WayBagPrice = Number(answers.spacer_2way_price) || getPrice(priceMap, 'waffle_pods', 'POD2', 66);
-const spacer2WayCost = spacer2WayBags * spacer2WayBagPrice;
-```
-
----
-
-## Technical Summary
-
-| File | Changes |
-|------|---------|
-| `src/lib/price-list-defaults.ts` | Add `waffle_pods` category and 7 items |
-| `src/data/default-price-list.csv` | Add 7 CSV rows for waffle pod items |
-| `src/lib/estimate-components/modules/pods.ts` | Update questions with priceListKeys, add depth-based pod pricing, convert spacers to bag quantities |
-
----
-
-## Impact
-
-After implementation:
-- Users can customize waffle pod prices in Settings > My Price List
-- Pod prices will vary by depth (150mm, 225mm, 300mm, 375mm)
-- Spacers will be quoted as bags (not individual units)
-- Pod rails will reference the correct bag price
-- Existing users will need to click "Sync" to get the new items
+- Users can reference the plan while entering dimensions
+- Reduces context-switching between dialog and plan
+- Matches modern split-pane UI patterns (CAD software, etc.)
+- Resizable to accommodate different preferences
+- Mobile falls back to familiar modal pattern
