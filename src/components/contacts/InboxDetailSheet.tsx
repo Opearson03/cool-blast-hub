@@ -16,10 +16,7 @@ import {
   AlertCircle,
   ImageIcon
 } from "lucide-react";
-import * as pdfjsLib from "pdfjs-dist";
-
-// Set up PDF.js worker
-pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
+import { pdfjs as pdfjsLib } from "@/lib/pdfjsWorker";
 
 interface InboxItem {
   id: string;

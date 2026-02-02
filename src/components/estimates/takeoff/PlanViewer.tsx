@@ -1,12 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import * as pdfjs from 'pdfjs-dist';
-import { version as pdfjsVersion } from 'pdfjs-dist';
+import { pdfjs } from '@/lib/pdfjsWorker';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-
-// Configure PDF.js worker - version must match installed package
-pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsVersion}/pdf.worker.min.js`;
 
 interface PlanViewerProps {
   planUrl: string;
