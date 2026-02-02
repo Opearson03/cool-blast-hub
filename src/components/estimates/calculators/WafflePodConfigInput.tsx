@@ -48,7 +48,8 @@ export function WafflePodConfigInput({
   const topSlabThickness = numericWithDefault(scopeData?.top_slab_thickness, 85);
   const ribWidth = numericWithDefault(scopeData?.rib_width, 110);
   const podCount = numericWithDefault(scopeData?.pod_count, 0);
-  const perimeter = numericWithDefault(scopeData?.perimeter, 0);
+  // Prefer takeoff-measured perimeter when available so spacer formulas work on plan-based takeoffs.
+  const perimeter = numericWithDefault(scopeData?._actualPerimeter ?? scopeData?.perimeter, 0);
   const fromTakeoff = scopeData?._fromTakeoff;
 
   // Calculate derived values

@@ -131,7 +131,8 @@ export const podsModule: EstimateModule = {
         // Accumulate accessories
         totalSpacer4Way += Number(zone.spacer_4way_count) || podCount;
         // 2-way spacers: use stored value, or calculate from perimeter (1 per 1.2m inside perimeter)
-        const zonePerimeter = Number(zone.perimeter) || 0;
+        // Prefer takeoff-measured perimeter when available.
+        const zonePerimeter = Number(zone._actualPerimeter ?? zone.perimeter) || 0;
         const calculated2Way = Math.ceil(Math.max(0, zonePerimeter - 1.6) / 1.2);
         totalSpacer2Way += Number(zone.spacer_2way_count) || calculated2Way;
         
@@ -233,7 +234,8 @@ export const podsModule: EstimateModule = {
     // LEGACY SINGLE-ZONE CALCULATION (backward compatibility)
     // ═══════════════════════════════════════════════════════════════
     const podCount = Number(scopeData?.pod_count) || 0;
-    const perimeter = Number(scopeData?.perimeter) || 0;
+    // Prefer takeoff-measured perimeter when available.
+    const perimeter = Number(scopeData?._actualPerimeter ?? scopeData?.perimeter) || 0;
     const topSlabThickness = Number(scopeData?.top_slab_thickness) || 85;
     const podThickness = scopeData?.pod_thickness || '225';
     const spacer4WayCount = Number(scopeData?.spacer_4way_count) || podCount;
