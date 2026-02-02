@@ -512,10 +512,8 @@ export function ModularCalculator({
       internalBeamFootprint = Math.max(0, rawInternalFootprint - internalEdgeOverlap);
     }
 
-    // Pod field
-    const podFieldArea = Math.max(0, totalArea - edgeBeamFootprint - internalBeamFootprint);
-    const podVoidVolume = podCount * podSizeM * podSizeM * podThicknessM;
-    const V_pod_field = Math.max(0, (podFieldArea * podThicknessM) - podVoidVolume);
+    // Pod rib volume using boss's formula: pods × 0.2519 × depth
+    const V_pod_field = podCount * 0.2519 * podThicknessM;
 
     // Edge beam volume
     let V_edge_raw = 0;
@@ -555,10 +553,8 @@ export function ModularCalculator({
     return {
       topping_m3: Number(V_topping.toFixed(3)),
       podFieldNet_m3: Number(V_pod_field.toFixed(3)),
-      voidVolume_m3: Number(podVoidVolume.toFixed(3)),
       edgeBeams_m3: Number(V_edge.toFixed(3)),
       internalBeams_m3: Number(V_internal.toFixed(3)),
-      podFieldArea_m2: Number(podFieldArea.toFixed(2)),
       total_m3: Number(V_total.toFixed(3)),
     };
   }, [scope.id, scopeAnswers, derivedScopeAnswers]);

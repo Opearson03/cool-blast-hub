@@ -368,8 +368,10 @@ export const reinforcementRaftModule: EstimateModule = {
           const zonePodCount = Number(zone.pod_count) || 0;
           if (zonePodCount === 0) return;
           
-          // Total rib length per layer = pods × 2.4 metres
-          const ribLengthPerLayerM = zonePodCount * 2.4;
+          // Total rib length per layer = (pods × 2.4) - (perimeter / 2)
+          // Deduct half perimeter as ribs don't extend into edge beams
+          const zonePerimeter = Number(zone.perimeter) || 0;
+          const ribLengthPerLayerM = Math.max(0, (zonePodCount * 2.4) - (zonePerimeter / 2));
           
           // Bottom bars configuration
           const bottomBarsPerRib = Number(zone.rib_bottom_bars) || 2;
@@ -437,8 +439,10 @@ export const reinforcementRaftModule: EstimateModule = {
         const podCount = Number(scopeData?.pod_count) || 0;
         
         if (podCount > 0) {
-          // Total rib length per layer = pods × 2.4 metres
-          const ribLengthPerLayerM = podCount * 2.4;
+          // Total rib length per layer = (pods × 2.4) - (perimeter / 2)
+          // Deduct half perimeter as ribs don't extend into edge beams
+          const perimeter = Number(scopeData?.perimeter) || 0;
+          const ribLengthPerLayerM = Math.max(0, (podCount * 2.4) - (perimeter / 2));
           
           // Bottom bars configuration
           const bottomBarsPerRib = Number(scopeData?.rib_bottom_bars) || 2;

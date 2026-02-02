@@ -817,15 +817,13 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
         const zoneArea = Number(zone.area) || 0;
         const topSlabM = (Number(zone.top_slab_thickness) || 85) / 1000;
         const podThicknessM = (Number(zone.pod_thickness) || 225) / 1000;
-        const podSizeM = (Number(zone.pod_size) || 1090) / 1000;
         const zonePodCount = Number(zone.pod_count) || 0;
         
         // Topping volume for this zone
         totalToppingVolume += zoneArea * topSlabM;
         
-        // Pod field volume = (area × pod height) - pod void volume
-        const podVoidVolume = zonePodCount * podSizeM * podSizeM * podThicknessM;
-        totalPodFieldVolume += Math.max(0, (zoneArea * podThicknessM) - podVoidVolume);
+        // Pod rib volume using boss's formula: pods × 0.2519 × depth
+        totalPodFieldVolume += zonePodCount * 0.2519 * podThicknessM;
       });
       
       // Edge and internal beams are shared across zones (use first zone's height or weighted average)
@@ -934,10 +932,8 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
       internalBeamFootprint = internalLength * internalWidthM;
     }
 
-    // Pod field volume
-    const podFieldArea = Math.max(0, totalArea - edgeBeamFootprint - internalBeamFootprint);
-    const podVoidVolume = podCount * podSizeM * podSizeM * podThicknessM;
-    const V_pod_field = Math.max(0, (podFieldArea * podThicknessM) - podVoidVolume);
+    // Pod rib volume using boss's formula: pods × 0.2519 × depth
+    const V_pod_field = podCount * 0.2519 * podThicknessM;
 
     // Edge beam volume
     let V_edge_raw = 0;
