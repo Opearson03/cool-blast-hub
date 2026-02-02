@@ -44,8 +44,19 @@ interface InboxDetailSheetProps {
 
 type FileType = 'pdf' | 'image' | 'other';
 
-const getFileType = (fileName: string): FileType => {
-  const ext = fileName.toLowerCase().split('.').pop() || '';
+const getFileType = (fileName: string | null, fileUrl: string | null): FileType => {
+  // Try to get extension from filename first
+  let ext = '';
+  if (fileName) {
+    ext = fileName.toLowerCase().split('.').pop() || '';
+  }
+  
+  // If no extension from filename, try from URL (without query params)
+  if (!ext && fileUrl) {
+    const urlPath = fileUrl.split('?')[0];
+    ext = urlPath.toLowerCase().split('.').pop() || '';
+  }
+  
   if (ext === 'pdf') return 'pdf';
   if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) return 'image';
   return 'other';
@@ -100,7 +111,7 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
         setSignedUrl(url);
         
         // If PDF, load the document
-        if (getFileType(item.file_name) === 'pdf') {
+        if (getFileType(item.file_name, item.file_url) === 'pdf') {
           await loadPdf(url);
         }
       } else {
@@ -130,7 +141,7 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
         setSignedUrl(data.signedUrl);
         
         // If PDF, load the document
-        if (getFileType(item.file_name) === 'pdf') {
+        if (getFileType(item.file_name, item.file_url) === 'pdf') {
           await loadPdf(data.signedUrl);
         }
       }
@@ -226,7 +237,7 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
 
   if (!item) return null;
 
-  const fileType = item.file_name ? getFileType(item.file_name) : 'other';
+  const fileType = getFileType(item.file_name, item.file_url);
   const hasAttachment = !!item.file_url;
 
   return (
