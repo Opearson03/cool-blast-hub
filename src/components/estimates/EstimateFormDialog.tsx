@@ -204,7 +204,7 @@ type WizardStep =
   | "conditions" 
   | "summary";
 
-const STEP_ORDER: WizardStep[] = ["scopes", "client", "takeoff", "configure", "margin", "conditions", "summary"];
+const STEP_ORDER: WizardStep[] = ["client", "scopes", "takeoff", "configure", "margin", "conditions", "summary"];
 const STEP_LABELS: Record<WizardStep, string> = {
   scopes: "Scope Selection",
   client: "Client Details",
