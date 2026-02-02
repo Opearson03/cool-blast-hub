@@ -381,7 +381,7 @@ function migrateLegacyScopeData(
 export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinalized }: EstimateFormDialogProps) {
   const hasInitializedOnOpenRef = useRef(false);
   
-  const [currentStep, setCurrentStep] = useState<WizardStep>("scopes");
+  const [currentStep, setCurrentStep] = useState<WizardStep>("client");
   const [estimateType, setEstimateType] = useState<EstimateType>(DEFAULT_ESTIMATE_TYPE);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [selectedInclusions, setSelectedInclusions] = useState<Set<string>>(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
@@ -636,7 +636,7 @@ const {
         setCurrentStep("summary");
       }
     } else {
-      setCurrentStep("scopes");
+      setCurrentStep("client"); // Start at client details for new quotes
       setEstimateType(DEFAULT_ESTIMATE_TYPE);
       setFormData(initialFormData);
       setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
