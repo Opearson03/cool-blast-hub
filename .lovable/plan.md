@@ -1,199 +1,177 @@
 
-# Split-Screen View for Takeoff Dimension Dialogs
 
-## Overview
+# Fix 2-Way Spacers Missing from Waffle Pod Cost Breakdown
 
-Jay wants to see the building plan alongside dimension input dialogs on the takeoff screen. Currently, dialogs appear as overlays that completely obscure the plan. This change will convert these dialogs to a side panel that appears alongside the plan viewer when users need to enter dimensions.
+## Problem Summary
 
-## Current Architecture
+2-way spacers are not appearing in the waffle pod cost breakdown despite the estimate having 715 pods. The cost breakdown shows:
+- Waffle Pods 225mm (715 units) – Zone 1: $13,370.50
+- Pod Rails (72 bags of 20): $3,240.00  
+- 4-Way Spacers (29 bags of 25): $72.50
+- **2-Way Spacers: MISSING**
 
-The takeoff screen (`PlanTakeoffStep.tsx`) currently has:
-- A plan viewer with drawing canvas (full width/height)
-- Floating scope panel on the left
-- Traditional Dialog components for dimension inputs that overlay the entire screen
+## Root Cause Analysis
 
-**Dimension dialogs affected:**
-- `PierDimensionsDialog` - for piers
-- `BollardDimensionsDialog` - for bollards
-- `PadFootingDimensionsDialog` - for pad footings/pit bases
-- `LinearDimensionsDialog` - for strip footings, kerbs, retaining walls
-- `JointDimensionsDialog` - for expansion/control joints
-- `SlabBeamMarkupDialog` - for slab/beam naming and dimensions
-- `EditBeamDialog` - for editing beam dimensions
-- `MarkupNameDialog` - for naming polygon/rectangle markups
+The issue is a multi-level data flow problem:
 
-**Not affected (remains modal):**
-- `CalibrationDialog` - this is configuration, not dimension entry during marking
+### 1. Initial Data Setup Problem (`EstimateFormDialog.tsx`)
 
-## Solution: Resizable Split-Screen Layout
+When waffle pod estimates are created from takeoff data:
 
-When any dimension dialog opens during active takeoff marking:
-1. The layout switches from "full-width plan" to "plan + side panel"
-2. The side panel contains the dimension input form
-3. User can resize the split between plan and form
-4. Plan remains visible and interactive (for reference only, not new drawing while dialog open)
+```typescript
+// Lines 1433-1442
+const spacer4WayCount = firstArea?.spacer4WayCount ?? 0;
+const spacer2WayCount = firstArea?.spacer2WayCount ?? 0;  // ← Defaults to 0
 
-## Technical Approach
-
-### 1. Create New Split Panel Wrapper Component
-
-**New file:** `src/components/estimates/takeoff/TakeoffSplitLayout.tsx`
-
-```text
-+-------------------------------------------+
-|  Toolbar                                  |
-+-------------------------------------------+
-|                        |                  |
-|                        |  Dimension       |
-|   Plan Viewer          |  Input Panel     |
-|   (resizable)          |  (resizable)     |
-|                        |                  |
-|                        |                  |
-+-------------------------------------------+
-|  Footer                                   |
-+-------------------------------------------+
+initialScopeAnswers = {
+  ...initialScopeAnswers,
+  spacer_4way_count: spacer4WayCount,
+  spacer_2way_count: spacer2WayCount,  // ← Explicitly set to 0
 ```
 
-This component wraps the plan viewer and conditionally shows a right-side panel when dimension dialogs are active.
+If the takeoff doesn't provide `spacer2WayCount`, it defaults to `0` and is explicitly set in `initialScopeAnswers`.
 
-### 2. Convert Dialogs to Panel Content Components
+### 2. WafflePodConfigInput Effect Timing (`WafflePodConfigInput.tsx`)
 
-For each affected dialog, extract the content (without the Dialog wrapper) into a reusable component:
+The component has a `useEffect` that should auto-calculate spacers:
 
-| Dialog | Panel Component |
-|--------|-----------------|
-| `PierDimensionsDialog` | `PierDimensionsPanel` |
-| `BollardDimensionsDialog` | `BollardDimensionsPanel` |
-| `PadFootingDimensionsDialog` | `PadFootingDimensionsPanel` |
-| `LinearDimensionsDialog` | `LinearDimensionsPanel` |
-| `JointDimensionsDialog` | `JointDimensionsPanel` |
-| `SlabBeamMarkupDialog` | `SlabBeamMarkupPanel` |
-| `EditBeamDialog` | `EditBeamPanel` |
-| `MarkupNameDialog` | `MarkupNamePanel` |
+```typescript
+// Lines 63-90
+useEffect(() => {
+  if (lastCalculatedRef.current.podCount === podCount && 
+      lastCalculatedRef.current.perimeter === perimeter) {
+    return;  // ← Skips if values haven't changed
+  }
+  
+  if (podCount > 0) {
+    const spacer2Way = Math.ceil(insidePerimeter / 1.2);
+    onScopeDataChange('spacer_2way_count', spacer2Way);
+  }
+}, [podCount, perimeter, ...]);
+```
 
-Each panel component exports both:
-- The panel version (for split-screen on desktop/tablet)
-- The original dialog version (fallback for very small screens)
+**Issue**: This effect may not re-trigger if:
+- Initial mount has `podCount > 0` but `perimeter = 0`
+- Later when `perimeter` becomes available, the ref check skips because `podCount` didn't change
 
-### 3. Update PlanTakeoffStep Layout
+### 3. Pods Module Calculation (`pods.ts`)
 
-Modify `PlanTakeoffStep.tsx` to:
+The module tries to calculate 2-way spacers with a fallback:
 
-1. Track which panel should be visible (derived from existing show* states)
-2. Use `ResizablePanelGroup` from the existing `react-resizable-panels` library
-3. Show the plan in the left panel (default 65% width)
-4. Show the active dimension panel in the right panel (default 35% width)
-5. Allow resizing with a draggable handle
+```typescript
+// Lines 243-244 (legacy path)
+const calculated2Way = Math.ceil(Math.max(0, perimeter - 1.6) / 1.2);
+const spacer2WayCount = Number(scopeData?.spacer_2way_count) || calculated2Way;
+```
 
-### 4. Responsive Behavior
+**Issue**: `Number(0) || calculated2Way` uses `calculated2Way` because `0` is falsy. But if `perimeter` is also `0` or not properly set, `calculated2Way` is also `0`.
 
-| Screen Size | Behavior |
-|-------------|----------|
-| Desktop (>1024px) | Split-screen with resizable panels |
-| Tablet (768-1024px) | Split-screen with fixed 50/50 split |
-| Mobile (<768px) | Traditional full-screen dialog overlay |
+### 4. Multi-Zone Path Issue (`pods.ts`)
 
-## Files to Create/Modify
+For multi-zone waffle pods (which the screenshot shows), each zone needs its own perimeter:
 
-| File | Action |
+```typescript
+// Lines 135-137
+const zonePerimeter = Number(zone._actualPerimeter ?? zone.perimeter) || 0;
+const calculated2Way = Math.ceil(Math.max(0, zonePerimeter - 1.6) / 1.2);
+totalSpacer2Way += Number(zone.spacer_2way_count) || calculated2Way;
+```
+
+**Issue**: `zone.perimeter` is never set because zones are created without perimeter values.
+
+## Solution
+
+### Fix 1: Always Recalculate Spacers When Area Data Exists (`WafflePodConfigInput.tsx`)
+
+Remove the skip condition that prevents recalculation:
+
+```typescript
+useEffect(() => {
+  // Remove the early return check - always recalculate when podCount > 0
+  if (podCount > 0) {
+    const spacer4Way = podCount;
+    const edgeBeamWidth = Number(scopeData?.edgeBeams?.[0]?.width) || 450;
+    const insidePerimeter = Math.max(0, perimeter - (8 * edgeBeamWidth / 1000));
+    const spacer2Way = Math.ceil(insidePerimeter / 1.2);
+    
+    // Only update if values actually differ (prevent infinite loops)
+    if (scopeData?.spacer_4way_count !== spacer4Way) {
+      onScopeDataChange('spacer_4way_count', spacer4Way);
+    }
+    if (scopeData?.spacer_2way_count !== spacer2Way) {
+      onScopeDataChange('spacer_2way_count', spacer2Way);
+    }
+    // ... pod rails
+  }
+}, [podCount, perimeter, scopeData?.edgeBeams, scopeData?.spacer_4way_count, scopeData?.spacer_2way_count, onScopeDataChange]);
+```
+
+### Fix 2: Use Top-Level Perimeter as Fallback in Pods Module (`pods.ts`)
+
+When zones don't have perimeter, fall back to the scope-level perimeter divided by number of zones:
+
+```typescript
+// Multi-zone path - get scope-level perimeter as fallback
+const scopePerimeter = Number(scopeData?._actualPerimeter ?? scopeData?.perimeter) || 0;
+
+podZones.forEach(zone => {
+  // ...
+  // Use zone perimeter if set, otherwise proportionally divide scope perimeter
+  const zonePerimeter = Number(zone._actualPerimeter ?? zone.perimeter) || 
+    (scopePerimeter / podZones.length);
+  // ...
+});
+```
+
+### Fix 3: Remove Explicit Zero Default in EstimateFormDialog (`EstimateFormDialog.tsx`)
+
+Don't explicitly set spacer counts to 0 - let them be undefined so the calculation fallback works:
+
+```typescript
+// Change from:
+const spacer2WayCount = firstArea?.spacer2WayCount ?? 0;
+
+// To:
+const spacer2WayCount = firstArea?.spacer2WayCount; // undefined if not set
+
+initialScopeAnswers = {
+  ...initialScopeAnswers,
+  pod_count: podCount,
+  ...(spacer4WayCount !== undefined && { spacer_4way_count: spacer4WayCount }),
+  ...(spacer2WayCount !== undefined && { spacer_2way_count: spacer2WayCount }),
+  // ...
+};
+```
+
+### Fix 4: Ensure Perimeter Flows to Calculation (`ModularCalculator.tsx`)
+
+Add `_actualPerimeter` at the top level of `derivedScopeAnswers` for waffle pod calculations:
+
+```typescript
+return {
+  ...scopeAnswers,
+  area: totalArea,
+  perimeter: totalPerimeter,
+  _actualPerimeter: totalPerimeter,  // ← Add this for modules that check _actualPerimeter first
+  // ...
+};
+```
+
+## Files to Modify
+
+| File | Change |
 |------|--------|
-| `src/components/estimates/takeoff/TakeoffSplitLayout.tsx` | **Create** - New split layout wrapper |
-| `src/components/estimates/takeoff/panels/PierDimensionsPanel.tsx` | **Create** - Panel version of pier dialog |
-| `src/components/estimates/takeoff/panels/BollardDimensionsPanel.tsx` | **Create** - Panel version of bollard dialog |
-| `src/components/estimates/takeoff/panels/PadFootingDimensionsPanel.tsx` | **Create** - Panel version of pad footing dialog |
-| `src/components/estimates/takeoff/panels/LinearDimensionsPanel.tsx` | **Create** - Panel version of linear dialog |
-| `src/components/estimates/takeoff/panels/JointDimensionsPanel.tsx` | **Create** - Panel version of joint dialog |
-| `src/components/estimates/takeoff/panels/SlabBeamMarkupPanel.tsx` | **Create** - Panel version of slab/beam dialog |
-| `src/components/estimates/takeoff/panels/EditBeamPanel.tsx` | **Create** - Panel version of edit beam dialog |
-| `src/components/estimates/takeoff/panels/MarkupNamePanel.tsx` | **Create** - Panel version of markup name dialog |
-| `src/components/estimates/takeoff/panels/index.ts` | **Create** - Barrel export |
-| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | **Modify** - Integrate split layout |
+| `src/components/estimates/calculators/WafflePodConfigInput.tsx` | Remove skip condition, add proper value comparison |
+| `src/lib/estimate-components/modules/pods.ts` | Add scope-level perimeter fallback for zones |
+| `src/components/estimates/EstimateFormDialog.tsx` | Remove explicit zero defaults for spacer counts |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Add `_actualPerimeter` to top-level derivedScopeAnswers |
 
-## Implementation Details
+## Testing
 
-### TakeoffSplitLayout Component
+After implementing the fix:
+1. Create a new waffle pod estimate from takeoff
+2. Verify 2-way spacers appear in the Pods module cost breakdown
+3. Verify count matches formula: `(perimeter / 1.2)` approximately
+4. Test with manual entry (no takeoff) to ensure fallback works
+5. Edit existing estimate with 715 pods and verify 2-way spacers now appear
 
-```typescript
-interface TakeoffSplitLayoutProps {
-  children: React.ReactNode; // Plan viewer
-  panelContent: React.ReactNode | null; // Active dimension panel
-  panelTitle?: string;
-  onPanelClose?: () => void;
-}
-```
-
-Uses `react-resizable-panels` (already installed):
-- `ResizablePanelGroup` with `direction="horizontal"`
-- Left `ResizablePanel` for plan (min 40%, default 65%)
-- `ResizableHandle` with grip indicator
-- Right `ResizablePanel` for form (min 280px, default 35%)
-
-### Panel Content Pattern
-
-Each panel component follows this pattern:
-
-```typescript
-interface PanelContentProps {
-  // Same props as dialog, minus open/onOpenChange
-  onConfirm: (...) => void;
-  onCancel: () => void;
-  // ...specific props
-}
-
-export function XxxDimensionsPanel(props: PanelContentProps) {
-  return (
-    <div className="h-full flex flex-col">
-      <div className="p-4 border-b">
-        <h3>Title</h3>
-        <p className="text-sm text-muted-foreground">Description</p>
-      </div>
-      <div className="flex-1 overflow-y-auto p-4">
-        {/* Form content */}
-      </div>
-      <div className="p-4 border-t flex gap-2">
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button onClick={onConfirm}>Confirm</Button>
-      </div>
-    </div>
-  );
-}
-```
-
-### Active Panel Detection
-
-In `PlanTakeoffStep`, derive which panel to show:
-
-```typescript
-const activePanelType = useMemo(() => {
-  if (showPierDimensions) return 'pier';
-  if (showBollardDimensions) return 'bollard';
-  if (showPadDimensions) return 'pad';
-  if (showLinearDimensions) return 'linear';
-  if (showJointDimensions) return 'joint';
-  if (showSlabBeamDialog) return 'slab';
-  if (editingBeam) return 'edit-beam';
-  if (showAddBeamDimensionsDialog) return 'add-beam';
-  if (showMarkupNameDialog) return 'markup-name';
-  return null;
-}, [showPierDimensions, showBollardDimensions, ...]);
-```
-
-## User Experience
-
-1. User draws a pier group on the plan
-2. User clicks "Done" in toolbar
-3. **Instead of modal dialog**, the layout splits:
-   - Plan shrinks to ~65% width on left
-   - Pier dimensions panel appears on right (~35%)
-   - User can still see their marked piers on the plan
-   - User can resize the split by dragging the handle
-4. User enters dimensions and clicks "Save Piers"
-5. Panel closes, plan returns to full width
-
-## Benefits
-
-- Users can reference the plan while entering dimensions
-- Reduces context-switching between dialog and plan
-- Matches modern split-pane UI patterns (CAD software, etc.)
-- Resizable to accommodate different preferences
-- Mobile falls back to familiar modal pattern
