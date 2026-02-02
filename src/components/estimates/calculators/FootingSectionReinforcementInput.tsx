@@ -50,11 +50,12 @@ const BAR_SIZE_OPTIONS = [
 ];
 
 const CHAIR_TYPE_OPTIONS = [
-  { value: '2540C', label: '25-40mm' },
-  { value: '5065C', label: '50-65mm' },
-  { value: '7590C', label: '75-90mm' },
-  { value: '100120C', label: '100-120mm' },
-  { value: '125150C', label: '125-150mm' },
+  { value: 'TMCHAIR', label: 'TM Chair', bagsOf: 25 },
+  { value: '2540C', label: '25-40mm', bagsOf: 100 },
+  { value: '5065C', label: '50-65mm', bagsOf: 100 },
+  { value: '7590C', label: '75-90mm', bagsOf: 100 },
+  { value: '100120C', label: '100-120mm', bagsOf: 100 },
+  { value: '125150C', label: '125-150mm', bagsOf: 100 },
 ];
 
 // Get TM price from price map
@@ -63,10 +64,29 @@ function getTmPrice(tmType: string, priceMap?: PriceMap): number | undefined {
   return priceMap['trench_mesh']?.[tmType];
 }
 
-// Get chair price from price map
+// Get chair price from price map with proper category handling
 function getChairPrice(chairType: string, priceMap?: PriceMap): number | undefined {
   if (!priceMap) return undefined;
+  // TMCHAIR is in consumables, bar chairs are also in consumables
   return priceMap['consumables']?.[chairType];
+}
+
+// Get chair option by value
+function getChairOption(chairType: string) {
+  return CHAIR_TYPE_OPTIONS.find(opt => opt.value === chairType) || CHAIR_TYPE_OPTIONS[1]; // Default to 5065C
+}
+
+// Get price per bag of 25 for consistent pricing (TMCHAIR is already per 25, bar chairs need division)
+function getChairPricePerBag25(chairType: string, priceMap?: PriceMap): number {
+  const catalogPrice = getChairPrice(chairType, priceMap);
+  const option = getChairOption(chairType);
+  
+  if (catalogPrice === undefined) {
+    return chairType === 'TMCHAIR' ? 12.50 : 12.50; // Default fallbacks
+  }
+  
+  // TMCHAIR is already per bag of 25, bar chairs are per bag of 100
+  return option.bagsOf === 25 ? catalogPrice : catalogPrice / 4;
 }
 
 interface FootingSectionReinforcementInputProps {
@@ -408,23 +428,17 @@ export function FootingSectionReinforcementInput({
       // Initialize chair prices if chairs enabled and price undefined
       if (section.chairs_enabled && section.chair_price_per_bag === undefined) {
         const chairType = section.chair_type || '5065C';
-        const catalogPrice = getChairPrice(chairType, priceMap);
-        if (catalogPrice !== undefined) {
-          // Bar chairs are priced per bag of 100, divide by 4 to get per-25 price
-          updates.chair_price_per_bag = catalogPrice / 4;
-          hasChanges = true;
-        }
+        const pricePerBag25 = getChairPricePerBag25(chairType, priceMap);
+        updates.chair_price_per_bag = pricePerBag25;
+        hasChanges = true;
       }
       
       // Initialize layer chair prices if layer chairs enabled and price undefined
       if (section.layer_chairs_enabled && section.layer_chair_price === undefined) {
         const layerChairType = section.layer_chair_type || '2540C';
-        const catalogPrice = getChairPrice(layerChairType, priceMap);
-        if (catalogPrice !== undefined) {
-          // Bar chairs are priced per bag of 100, divide by 4 to get per-25 price
-          updates.layer_chair_price = catalogPrice / 4;
-          hasChanges = true;
-        }
+        const pricePerBag25 = getChairPricePerBag25(layerChairType, priceMap);
+        updates.layer_chair_price = pricePerBag25;
+        hasChanges = true;
       }
       
       return Object.keys(updates).length > 0 ? { ...section, ...updates } : section;
@@ -963,7 +977,7 @@ export function FootingSectionReinforcementInput({
                     {/* Bar Chairs Section */}
                     <div className="space-y-3 pt-3 border-t">
                       <div className="flex items-center justify-between">
-                        <Label className="text-xs font-medium">TM Chairs</Label>
+                        <Label className="text-xs font-medium">Chairs</Label>
                         <div className="flex items-center gap-3 px-3 py-1.5 rounded-md border bg-background">
                           <Switch
                             checked={group.segments[0]?.chairs_enabled ?? false}
@@ -987,9 +1001,7 @@ export function FootingSectionReinforcementInput({
                               value={group.segments[0]?.chair_type || '5065C'}
                               onValueChange={(val) => {
                                 // Use helper function for consistent price lookups
-                                // Bar chairs are priced per bag of 100, divide by 4 to get per-25 price
-                                const catalogPrice = getChairPrice(val, priceMap);
-                                const pricePerBagOf25 = catalogPrice !== undefined ? catalogPrice / 4 : 12.50;
+                                const pricePerBagOf25 = getChairPricePerBag25(val, priceMap);
                                 updateGroupReinforcement(group, { 
                                   chair_type: val,
                                   chair_price_per_bag: pricePerBagOf25
@@ -999,7 +1011,7 @@ export function FootingSectionReinforcementInput({
                               <SelectTrigger className="h-8 text-sm">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="z-[150]">
                                 {CHAIR_TYPE_OPTIONS.map(opt => (
                                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                                 ))}
@@ -1064,10 +1076,10 @@ export function FootingSectionReinforcementInput({
                                 <Select
                                   value={group.segments[0]?.layer_chair_type || '2540C'}
                                   onValueChange={(val) => {
-                                    const catalogPrice = getChairPrice(val, priceMap);
+                                    const pricePerBag25 = getChairPricePerBag25(val, priceMap);
                                     updateGroupReinforcement(group, { 
                                       layer_chair_type: val,
-                                      layer_chair_price: catalogPrice ?? 12.50
+                                      layer_chair_price: pricePerBag25
                                     });
                                   }}
                                 >
@@ -1075,11 +1087,9 @@ export function FootingSectionReinforcementInput({
                                     <SelectValue />
                                   </SelectTrigger>
                                   <SelectContent className="z-[150]">
-                                    <SelectItem value="2540C">25-40mm</SelectItem>
-                                    <SelectItem value="5065C">50-65mm</SelectItem>
-                                    <SelectItem value="7590C">75-90mm</SelectItem>
-                                    <SelectItem value="100120C">100-120mm</SelectItem>
-                                    <SelectItem value="125150C">125-150mm</SelectItem>
+                                    {CHAIR_TYPE_OPTIONS.map(opt => (
+                                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                    ))}
                                   </SelectContent>
                                 </Select>
                               </div>
