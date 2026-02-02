@@ -119,11 +119,10 @@
 
 /* Print styles for estimate documents */
 @media print {
-  /* Reset everything for clean print */
-  *, *::before, *::after {
-    background: transparent !important;
-    box-shadow: none !important;
-  }
+  /* 
+   * IMPORTANT: No blanket background-stripping rule here!
+   * We preserve all colors inside print containers.
+   */
   
   html, body {
     margin: 0 !important;
@@ -171,7 +170,7 @@
     overflow: visible !important;
   }
   
-  /* Ensure print container has white background */
+  /* Ensure print container preserves ALL colors and backgrounds */
   .print-container {
     display: block !important;
     visibility: visible !important;
@@ -181,14 +180,16 @@
     width: 100% !important;
     margin: 0 !important;
     padding: 15mm 20mm !important;
-  }
-  
-  /* Allow specific backgrounds for styling */
-  .print-container .bg-gray-50,
-  .print-container .bg-gray-800 {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
-    background-color: inherit !important;
+  }
+  
+  /* Preserve ALL colors inside print container - this is the key fix */
+  .print-container *,
+  .print-container *::before,
+  .print-container *::after {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
   
   /* Hide no-print elements */
