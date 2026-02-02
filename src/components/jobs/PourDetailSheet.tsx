@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { Calendar, Clock, MapPin, Droplets, Truck, Pencil, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Droplets, Truck, Pencil, Users, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { SubTradesList } from "@/components/jobs/SubTradesList";
 import { PourFormDialog } from "@/components/jobs/PourFormDialog";
@@ -64,6 +64,23 @@ const statusLabels: Record<string, string> = {
 export function PourDetailSheet({ pour, open, onOpenChange, jobAddress }: PourDetailSheetProps) {
   const [editOpen, setEditOpen] = useState(false);
   const queryClient = useQueryClient();
+
+  // Fetch linked approved dockets for this pour
+  const { data: linkedDockets } = useQuery({
+    queryKey: ["pour-dockets", pour?.id],
+    queryFn: async () => {
+      if (!pour?.id) return [];
+      const { data, error } = await supabase
+        .from("pending_documents")
+        .select("id, file_name, extracted_data")
+        .eq("linked_pour_id", pour.id)
+        .eq("status", "approved")
+        .eq("document_type", "delivery_docket");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!pour?.id && open,
+  });
 
   const updateStatus = useMutation({
     mutationFn: async (newStatus: string) => {
@@ -159,6 +176,33 @@ export function PourDetailSheet({ pour, open, onOpenChange, jobAddress }: PourDe
                   </CardContent>
                 </Card>
               </div>
+
+              {/* Docket Breakdown */}
+              {linkedDockets && linkedDockets.length > 0 && (
+                <div className="mt-3 rounded-md border bg-muted/30 p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                    <p className="text-xs font-medium text-muted-foreground">Docket Breakdown</p>
+                  </div>
+                  <div className="space-y-1 text-sm font-mono">
+                    {linkedDockets.map((docket, index) => {
+                      const extractedData = docket.extracted_data as Record<string, unknown> | null;
+                      const volume = extractedData?.volume_m3;
+                      const docketNum = extractedData?.docket_number || docket.file_name;
+                      const isLast = index === linkedDockets.length - 1;
+                      return (
+                        <div key={docket.id} className="flex items-center text-muted-foreground">
+                          <span className="mr-2">{isLast ? "└─" : "├─"}</span>
+                          <span className="flex-1 truncate">#{String(docketNum)}</span>
+                          <span className="font-medium text-foreground">
+                            {volume != null ? `${volume} m³` : "—"}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {pour.concrete_supplier && (
                 <div className="flex items-start gap-3 mt-3">
