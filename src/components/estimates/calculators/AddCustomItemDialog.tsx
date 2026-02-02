@@ -95,8 +95,8 @@ export function AddCustomItemDialog({
                 type="number"
                 inputMode="decimal"
                 placeholder="1"
-                value={quantity || ""}
-                onChange={(e) => setQuantity(Number(e.target.value) || 0)}
+                value={quantity ?? ""}
+                onChange={(e) => setQuantity(e.target.value === "" ? 0 : Number(e.target.value))}
                 className="h-10"
                 min={0}
                 step="any"
@@ -122,8 +122,8 @@ export function AddCustomItemDialog({
               type="number"
               inputMode="decimal"
               placeholder="0.00"
-              value={rate || ""}
-              onChange={(e) => setRate(Number(e.target.value) || 0)}
+              value={rate ?? ""}
+              onChange={(e) => setRate(e.target.value === "" ? 0 : Number(e.target.value))}
               className="h-10"
               min={0}
               step="any"

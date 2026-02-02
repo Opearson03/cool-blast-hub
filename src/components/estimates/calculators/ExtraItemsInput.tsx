@@ -102,12 +102,12 @@ export function ExtraItemsInput({ items, onChange }: ExtraItemsInputProps) {
                     type="number"
                     inputMode="decimal"
                     placeholder="1"
-                    value={item.quantity || ""}
+                    value={item.quantity ?? ""}
                     onChange={(e) =>
                       handleUpdate(
                         item.id,
                         "quantity",
-                        Number(e.target.value) || 0
+                        e.target.value === "" ? 0 : Number(e.target.value)
                       )
                     }
                     className="h-8 text-sm text-center"
@@ -136,9 +136,9 @@ export function ExtraItemsInput({ items, onChange }: ExtraItemsInputProps) {
                     type="number"
                     inputMode="decimal"
                     placeholder="0.00"
-                    value={item.rate || ""}
+                    value={item.rate ?? ""}
                     onChange={(e) =>
-                      handleUpdate(item.id, "rate", Number(e.target.value) || 0)
+                      handleUpdate(item.id, "rate", e.target.value === "" ? 0 : Number(e.target.value))
                     }
                     className="h-8 text-sm text-center"
                     min={0}

@@ -321,7 +321,7 @@ export function MultiBeamTypeInput({
                       <Input
                         type="number"
                         inputMode="numeric"
-                        value={group.width || ""}
+                        value={group.width ?? ""}
                         onChange={(e) =>
                           updateGroupDimensions(group, 'width', 
                             e.target.value === "" ? 0 : Number(e.target.value)
@@ -343,7 +343,7 @@ export function MultiBeamTypeInput({
                       <Input
                         type="number"
                         inputMode="numeric"
-                        value={group.depth || ""}
+                        value={group.depth ?? ""}
                         onChange={(e) =>
                           updateGroupDimensions(group, 'depth',
                             e.target.value === "" ? 0 : Number(e.target.value)
@@ -412,7 +412,7 @@ export function MultiBeamTypeInput({
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                value={segment.length || ""}
+                                value={segment.length ?? ""}
                                 onChange={(e) =>
                                   updateSegmentLength(segment.id,
                                     e.target.value === "" ? 0 : Number(e.target.value)

@@ -281,7 +281,7 @@ export function MultiPierGroupInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={group.quantity || ""}
+                            value={group.quantity ?? ""}
                             onChange={(e) =>
                               updateGroup(
                                 group.id,
@@ -303,7 +303,7 @@ export function MultiPierGroupInput({
                             <Input
                               type="number"
                               inputMode="numeric"
-                              value={group.diameter || ""}
+                              value={group.diameter ?? ""}
                               onChange={(e) =>
                                 updateGroup(
                                   group.id,
@@ -329,7 +329,7 @@ export function MultiPierGroupInput({
                             <Input
                               type="number"
                               inputMode="numeric"
-                              value={group.depth || ""}
+                              value={group.depth ?? ""}
                               onChange={(e) =>
                                 updateGroup(
                                   group.id,

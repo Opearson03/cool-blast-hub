@@ -349,7 +349,7 @@ export function MultiLinearInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={section.length || ""}
+                            value={section.length ?? ""}
                             onChange={(e) =>
                               updateSection(section.id, "length", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -369,7 +369,7 @@ export function MultiLinearInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={section.dimension1 || ""}
+                            value={section.dimension1 ?? ""}
                             onChange={(e) =>
                               updateSection(section.id, "dimension1", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -389,7 +389,7 @@ export function MultiLinearInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={section.dimension2 || ""}
+                            value={section.dimension2 ?? ""}
                             onChange={(e) =>
                               updateSection(section.id, "dimension2", e.target.value === "" ? 0 : Number(e.target.value))
                             }
