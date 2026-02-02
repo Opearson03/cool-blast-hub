@@ -56,7 +56,7 @@ export function SubbiesTab() {
             <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search subbies..."
+                placeholder="Search sub-contractors..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -65,7 +65,7 @@ export function SubbiesTab() {
           )}
           <Button onClick={() => setInviteDialogOpen(true)}>
             <UserPlus className="h-4 w-4 mr-2" />
-            Invite Subbie
+            Invite Sub-Contractor
           </Button>
         </div>
 
@@ -79,14 +79,14 @@ export function SubbiesTab() {
               <Users className="h-12 w-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">No subcontractors yet</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Invite subbies to jobs to build your contact list
+                Invite sub-contractors to jobs to build your contact list
               </p>
             </CardContent>
           </Card>
         ) : groupedSubbies.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No subbies match your search
+              No sub-contractors match your search
             </CardContent>
           </Card>
         ) : (

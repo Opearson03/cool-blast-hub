@@ -222,14 +222,14 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
             <Check className="w-8 h-8 mx-auto mb-2 text-primary" />
             <p className="font-medium text-foreground">No worries!</p>
             <p className="text-sm mt-1">
-              You can always invite sub-contractors later from the job details.
+            You can always invite sub-contractors later from the job details.
             </p>
             <Button
               variant="link"
               className="mt-2"
               onClick={() => setWantsToAddSubbies(true)}
             >
-              Changed your mind? Add subbies now
+              Changed your mind? Add sub-contractors now
             </Button>
           </CardContent>
         </Card>
@@ -244,7 +244,7 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
         <Input
-          placeholder="Search subbies by name, trade, phone or email..."
+          placeholder="Search sub-contractors by name, trade, phone or email..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-9"
@@ -273,7 +273,7 @@ export function SubbieSelectionStep({ pours, pourDates, jobId }: SubbieSelection
               <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
               <p>
                 {searchQuery
-                  ? "No subbies match your search."
+                  ? "No sub-contractors match your search."
                   : "No previous sub-contractors found."}
               </p>
               <p className="text-xs mt-2">

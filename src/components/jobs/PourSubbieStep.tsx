@@ -59,19 +59,19 @@ export function PourSubbieStep({
       <div className="bg-muted/50 rounded-lg p-3 flex items-start gap-3">
         <MessageSquare className="w-5 h-5 text-primary mt-0.5 shrink-0" />
         <p className="text-sm text-muted-foreground">
-          Invite subbies and we'll send them a text with a link to confirm their availability.
+          Invite sub-contractors and we'll send them a text with a link to confirm their availability.
         </p>
       </div>
 
       {/* Past subbies list */}
       <div className="space-y-2">
-        <h4 className="text-sm font-medium">Previously Used Subbies</h4>
+        <h4 className="text-sm font-medium">Previously Used Sub-Contractors</h4>
         
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
         ) : pastSubbies.length === 0 ? (
           <p className="text-sm text-muted-foreground py-4 text-center">
-            No previous subbies found. Add your first one below.
+            No previous sub-contractors found. Add your first one below.
           </p>
         ) : (
           <div className="max-h-[280px] overflow-y-auto space-y-1">
@@ -117,13 +117,13 @@ export function PourSubbieStep({
         onClick={() => setShowNewSubbieDialog(true)}
       >
         <UserPlus className="w-4 h-4 mr-2" />
-        Add New Subbie
+        Add New Sub-Contractor
       </Button>
 
       {/* Selected count */}
       {selectedSubbies.length > 0 && (
         <p className="text-sm text-muted-foreground text-center">
-          {selectedSubbies.length} subbie{selectedSubbies.length !== 1 ? "s" : ""} selected
+          {selectedSubbies.length} sub-contractor{selectedSubbies.length !== 1 ? "s" : ""} selected
         </p>
       )}
 
