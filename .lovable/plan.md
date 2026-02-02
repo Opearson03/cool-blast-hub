@@ -1,108 +1,135 @@
 
 
-# Project Plan Tab & Auto-Create Works from Quote
+# Inbox Tab Enhancement Plan
 
 ## Overview
 
-This plan addresses three connected changes:
-1. Rename the "Pours" tab to "Project Plan" for clarity
-2. Change "Add Pour" button to "Schedule Works" (same UX flow after clicking)
-3. Automatically create prep days and pour entries when a job is created from a quote, based on the labour-prep and labour-place module data in the estimate
+This plan addresses three key improvements to the Inbox functionality:
+1. Make emails clickable to view full details in a side sheet
+2. Add in-app document/attachment viewer instead of opening in a new tab
+3. Rename "Inbox History" to "Inbox" and make it the default (first) tab
 
 ## Current State
 
-- The `JobPoursTab.tsx` component displays a "Pours" tab with an "Add Pour" button
-- The `PourFormDialog.tsx` already supports multiple visit types including: pour, earthworks, formwork_place, formwork_strip, cure, seal, other
-- Jobs created from estimates currently only extract pour info from `raft_slab.pours` array (legacy format)
-- The `labour-place` module stores placement data as a `placements` array with: name, hourly_rate, crew_size, hours
-- The `labour-prep` module stores single-day prep config with: hourly_rate, crew_size, hours_per_day, number_of_days
+- `InboxHistoryTab.tsx` displays a list of inbox items with basic metadata (subject, from, date)
+- Clicking "View" opens attachments in a new browser tab using signed URLs
+- Tab order: Clients | Sub-Contractors | Suppliers | Inbox History
+- Default tab on page load is "clients"
+- No email body content is stored in the database (only subject, from_email, from_name, file metadata)
+- The project has an existing PDF viewer component (`PlanViewer.tsx`) using pdf.js
 
-## Changes Required
+## Proposed Changes
 
-### 1. Tab and Button Renaming (Simple Text Changes)
+### 1. Tab Reordering & Renaming
 
-| File | Current | New |
-|------|---------|-----|
-| `AdminJobDetail.tsx` | Tab label: "Pours" | Tab label: "Project Plan" |
-| `JobPoursTab.tsx` | Button: "Add Pour" | Button: "Schedule Works" |
-| `JobPoursTab.tsx` | Header: "Scheduled Pours" | Header: "Project Plan" |
-| `JobPoursTab.tsx` | Empty state: "No Pours Scheduled" | Empty state: "No Works Scheduled" |
+| Change | Before | After |
+|--------|--------|-------|
+| Default tab | `clients` | `inbox` |
+| Tab order | Clients, Sub-Contractors, Suppliers, Inbox History | **Inbox**, Clients, Sub-Contractors, Suppliers |
+| Tab label | "Inbox History" | "Inbox" |
 
-### 2. Auto-Create Works from Quote Labour Data
+### 2. Clickable Email Cards with Detail Sheet
 
-When a job is created from an estimate (in `JobFormDialog.tsx`), the system will automatically create `job_pours` entries based on:
-
-**From `labour-place` module (placements array):**
-- Each placement becomes a pour visit with `visit_type = 'pour'`
-- Uses the placement name (e.g., "Pour 1", "Slab Pour")
-- Notes include crew size and hours for reference
-
-**From `labour-prep` module:**
-- Creates prep day entries with `visit_type = 'formwork_place'` (represents general prep work)
-- Number of entries = `number_of_days` value
-- Names like "Prep Day 1", "Prep Day 2", etc.
-- Notes include crew size and hours per day
-
-### Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/pages/admin/AdminJobDetail.tsx` | Change tab label "Pours" to "Project Plan" |
-| `src/components/jobs/tabs/JobPoursTab.tsx` | Change button text, header, and empty state messaging |
-| `src/components/jobs/JobFormDialog.tsx` | Add logic to extract placements and prep days from scope_data |
-| `src/pages/admin/AdminEstimates.tsx` | Update `parseEstimateForJob` to include prep_days and placements |
-| `src/pages/admin/AdminSchedule.tsx` | Update drag-drop conversion to include prep_days and placements |
-
-### Data Flow
+When a user clicks on an email row, a detail sheet will slide in from the right showing:
 
 ```text
-Estimate scope_data structure:
-{
-  "driveway": {
-    "moduleAnswers": {
-      "labour-place": {
-        "placements": [
-          { id: "...", name: "Pour 1", crew_size: 4, hours: 8, hourly_rate: 75 },
-          { id: "...", name: "Pour 2", crew_size: 3, hours: 6, hourly_rate: 75 }
-        ]
-      },
-      "labour-prep": {
-        "crew_size": 3,
-        "hours_per_day": 8,
-        "number_of_days": 2,
-        "hourly_rate": 70
-      }
-    }
-  }
++----------------------------------+
+| [X]                              |
+| Subject: RE: Site Plans for 123  |
+| From: john@example.com           |
+| Date: 02 Feb 2026 at 9:30 AM     |
++----------------------------------+
+| Type: Plan       Status: Pending |
++----------------------------------+
+|                                  |
+| [Attachment Viewer Area]         |
+| ┌──────────────────────────────┐ |
+| │                              │ |
+| │    PDF / Image Preview       │ |
+| │                              │ |
+| └──────────────────────────────┘ |
+|                                  |
+| Filename: building_plans.pdf     |
+| [Open in New Tab]                |
+|                                  |
++----------------------------------+
+| [Go to Quote] (if linked)        |
++----------------------------------+
+```
+
+### 3. In-App Document Viewer
+
+The attachment viewer will support:
+- **PDFs**: Rendered using pdf.js (reusing pattern from `PlanViewer.tsx`)
+- **Images**: Displayed directly in an `<img>` tag
+- Page navigation for multi-page PDFs
+- Fallback "Open in New Tab" button for unsupported formats
+
+### Files to Create/Modify
+
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/contacts/InboxDetailSheet.tsx` | **Create** | New component for viewing email/attachment details |
+| `src/components/contacts/InboxHistoryTab.tsx` | **Modify** | Rename to InboxTab, make cards clickable, integrate detail sheet |
+| `src/pages/admin/AdminContacts.tsx` | **Modify** | Reorder tabs, change default to "inbox", rename label |
+
+### InboxDetailSheet Component Design
+
+```typescript
+interface InboxDetailSheetProps {
+  item: InboxItem | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onNavigateToLinked: (item: InboxItem) => void;
 }
 ```
 
-This will be converted to job_pours entries:
+**Key Features:**
+1. **Header Section**: Subject, from email/name, received date, type badge, status badge
+2. **Document Viewer**: 
+   - Uses signed URL from Supabase storage
+   - For PDFs: Canvas-based rendering with page navigation
+   - For images (jpg, png, webp, gif): Direct `<img>` display
+   - Loading state while fetching signed URL and rendering
+3. **File Info**: Filename, file size (if available)
+4. **Actions**: 
+   - "Open in New Tab" button (for fallback/preference)
+   - "Go to Quote/Job" button (if linked)
 
-| pour_name | visit_type | notes |
-|-----------|------------|-------|
-| Prep Day 1 | formwork_place | Crew: 3, 8 hrs/day |
-| Prep Day 2 | formwork_place | Crew: 3, 8 hrs/day |
-| Pour 1 | pour | Crew: 4, 8 hrs |
-| Pour 2 | pour | Crew: 3, 6 hrs |
+### Implementation Details
 
-### Technical Implementation Notes
+**Document Type Detection:**
+```typescript
+const getFileType = (fileName: string): 'pdf' | 'image' | 'other' => {
+  const ext = fileName.toLowerCase().split('.').pop();
+  if (ext === 'pdf') return 'pdf';
+  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) return 'image';
+  return 'other';
+};
+```
 
-1. **Extraction Logic in `parseEstimateForJob`**:
-   - Iterate through all selected scopes in `scope_data`
-   - For each scope, check `moduleAnswers['labour-place'].placements` array
-   - For each scope, check `moduleAnswers['labour-prep']` for prep day config
-   - Combine all extracted works into a unified `pours` array
+**PDF Viewer (simplified from PlanViewer):**
+- Uses pdfjs-dist library already in dependencies
+- Single-page display with page navigation
+- No drawing/markup overlays needed (read-only viewer)
+- Sized to fit within the sheet container
 
-2. **JobFormDialog.tsx changes**:
-   - The existing `initialData.pours` handling already creates `job_pours` entries
-   - Just need to ensure the extracted data includes `visit_type` for each entry
+**Signed URL Handling:**
+- Fetch signed URL when sheet opens
+- Cache URL during sheet session
+- Show loading spinner while URL is being generated
 
-3. **Backward Compatibility**:
-   - Keep existing `raft_slab.pours` extraction logic as fallback
-   - New labour module extraction runs first, only falls back if no data found
+### Mobile Considerations
 
-4. **Empty State Handling**:
-   - If no labour modules configured in quote, no works auto-created
-   - User can still manually add works via "Schedule Works" button
+- Sheet will be full-screen on mobile (`sm:max-w-xl`)
+- Document viewer scales responsively
+- Touch-friendly page navigation buttons
+- Pinch-to-zoom for PDF/images (leverage existing pattern)
+
+### Edge Cases
+
+1. **Unsupported file types**: Show file name with "Open in New Tab" only
+2. **Failed to load**: Show error message with retry option
+3. **Large PDFs**: Show first page with page count, allow navigation
+4. **Missing attachment**: Display "(No attachment)" message
 
