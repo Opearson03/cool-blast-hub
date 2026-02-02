@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,6 +76,7 @@ export default function AdminEstimates() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const location = useLocation();
   const { canCreate, used, limit, resetsAt, tier, refresh: refreshQuota } = useEstimateQuota();
 
   const { data: estimates = [], isLoading } = useQuery({
@@ -102,6 +103,20 @@ export default function AdminEstimates() {
       return data as Estimate[];
     },
   });
+
+  // Handle auto-open from navigation state (e.g., from Inbox "Start Estimate")
+  useEffect(() => {
+    const state = location.state as { editEstimateId?: string } | null;
+    if (state?.editEstimateId && estimates.length > 0) {
+      const estimate = estimates.find(e => e.id === state.editEstimateId);
+      if (estimate) {
+        setEditingEstimate(estimate);
+        setFormOpen(true);
+        // Clear the state to prevent re-opening on refresh
+        navigate(location.pathname, { replace: true, state: {} });
+      }
+    }
+  }, [location.state, estimates, navigate, location.pathname]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {

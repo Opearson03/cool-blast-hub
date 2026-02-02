@@ -34,6 +34,22 @@ interface PendingPlan {
   status: string;
 }
 
+// Helper function to extract storage path from URL
+function extractPathFromUrl(url: string, bucketName: string): string {
+  // Handle both signed URLs and public URLs
+  const bucketMarker = `/${bucketName}/`;
+  const startIndex = url.indexOf(bucketMarker);
+  if (startIndex === -1) return url;
+  
+  let path = url.slice(startIndex + bucketMarker.length);
+  // Remove query params (signed URL tokens)
+  const queryIndex = path.indexOf('?');
+  if (queryIndex !== -1) {
+    path = path.slice(0, queryIndex);
+  }
+  return decodeURIComponent(path);
+}
+
 export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPlansSheetProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -68,7 +84,7 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
     mutationFn: async () => {
       if (!selectedPlan) throw new Error("No plan selected");
 
-      // Create estimate with the plan attached
+      // 1. Create estimate draft
       const { data: estimate, error: estimateError } = await supabase
         .from("estimates")
         .insert({
@@ -78,7 +94,7 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
           client_phone: clientPhone || null,
           site_address: siteAddress || "Address TBD",
           status: "draft",
-          estimate_type: "slab",
+          estimate_type: "commercial_slab",
           notes: `Plan received via email from ${selectedPlan.from_email}`,
         })
         .select()
@@ -86,20 +102,65 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
 
       if (estimateError) throw estimateError;
 
-      // Create takeoff record with the plan file
-      const { error: takeoffError } = await supabase
+      // 2. Create takeoff record
+      const { data: takeoff, error: takeoffError } = await supabase
         .from("estimate_takeoffs")
         .insert({
           estimate_id: estimate.id,
-          plan_url: selectedPlan.file_url,
-          plan_type: "pdf",
-        });
+          plan_url: null,
+          plan_type: null,
+          page_count: 1,
+          current_page: 1
+        })
+        .select()
+        .single();
 
-      if (takeoffError) {
-        console.error("Error creating takeoff:", takeoffError);
+      if (takeoffError) throw takeoffError;
+
+      // 3. Copy file from test-documents to estimate-plans
+      const sourceUrl = selectedPlan.file_url;
+      const sourcePath = extractPathFromUrl(sourceUrl, 'test-documents');
+      
+      // Download the file
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('test-documents')
+        .download(sourcePath);
+      
+      if (downloadError) {
+        console.error("Error downloading file:", downloadError);
+        throw new Error("Failed to copy plan file");
       }
 
-      // Update the pending plan status
+      // Upload to estimate-plans
+      const fileExt = selectedPlan.file_name.split('.').pop()?.toLowerCase() || 'pdf';
+      const destPath = `${businessId}/${estimate.id}/${crypto.randomUUID()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('estimate-plans')
+        .upload(destPath, fileData, { upsert: true });
+      
+      if (uploadError) {
+        console.error("Error uploading file:", uploadError);
+        throw new Error("Failed to store plan file");
+      }
+
+      // 4. Create takeoff_files record with the storage path (not signed URL)
+      const { error: fileRecordError } = await supabase
+        .from('takeoff_files')
+        .insert({
+          takeoff_id: takeoff.id,
+          file_url: destPath,
+          file_type: fileExt === 'pdf' ? 'pdf' : 'image',
+          file_name: selectedPlan.file_name.replace(/\.[^/.]+$/, '') || 'Building Plan',
+          page_count: 1,
+          sort_order: 0
+        });
+
+      if (fileRecordError) {
+        console.error("Error creating takeoff file:", fileRecordError);
+      }
+
+      // 5. Update pending plan status
       const { error: updateError } = await supabase
         .from("pending_plans")
         .update({
@@ -115,12 +176,14 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
     onSuccess: (estimate) => {
       queryClient.invalidateQueries({ queryKey: ["pending-plans"] });
       queryClient.invalidateQueries({ queryKey: ["pending-plans-list"] });
-      toast.success("Estimate created from plan");
+      toast.success("Estimate created - complete the quote setup");
       setShowConvertDialog(false);
       setSelectedPlan(null);
       onOpenChange(false);
-      // Navigate to the new estimate
-      navigate(`/admin/estimates?id=${estimate.id}`);
+      // Navigate with state to auto-open wizard
+      navigate("/admin/estimates", { 
+        state: { editEstimateId: estimate.id } 
+      });
     },
     onError: (error) => {
       console.error("Error creating estimate:", error);
