@@ -5,11 +5,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus, MessageSquareWarning } from 'lucide-react';
 import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
 import { useTakeoffData } from '@/hooks/useTakeoffData';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { PlanUploader } from './PlanUploader';
 import { PlanViewer } from './PlanViewer';
 import { DrawingCanvas } from './DrawingCanvas';
 import { TakeoffToolbar } from './TakeoffToolbar';
 import { ScopeMarkupChecklist } from './ScopeMarkupChecklist';
+import { TakeoffSplitLayout } from './TakeoffSplitLayout';
 import { CalibrationDialog } from './CalibrationDialog';
 import { PierDimensionsDialog } from './PierDimensionsDialog';
 import { BollardDimensionsDialog } from './BollardDimensionsDialog';
@@ -19,6 +21,13 @@ import { JointDimensionsDialog } from './JointDimensionsDialog';
 import { MarkupNameDialog } from './MarkupNameDialog';
 import { SlabBeamMarkupDialog, SlabBeamMarkingBar, type SlabWorkflowStep, type PendingSlabData, type BeamData } from './SlabBeamMarkupDialog';
 import { EditBeamDialog } from './EditBeamDialog';
+import {
+  PierDimensionsPanel,
+  BollardDimensionsPanel,
+  PadFootingDimensionsPanel,
+  JointDimensionsPanel,
+  MarkupNamePanel,
+} from './panels';
 // WafflePodCountDialog and WafflePodFloatingInput removed - counts now auto-calculated in SlabBeamMarkupDialog
 import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea, calculatePolygonPerimeter, calculateRectanglePerimeter, SLAB_WITH_BEAMS_SCOPES, isWafflePodPointScope } from '@/types/takeoff';
 import type { ScopeType } from '../ScopeSelector';
@@ -154,10 +163,25 @@ export function PlanTakeoffStep({
   // These are kept for backward compatibility but counting workflow is removed
   const [wafflePodDepth, setWafflePodDepth] = useState<string>('225');
   
+  const isMobile = useIsMobile();
+  
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
   const isSlabBeamMarking = slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beam' || slabWorkflowStep === 'mark_internal_beam');
   const isAddingBeamToExistingSlab = addingBeamToSlabId !== null && activeTool === 'polyline';
   const isScopePanelCollapsed = (isActivelyMarking || isSlabBeamMarking || isAddingBeamToExistingSlab) && !scopePanelManuallyExpanded;
+
+  // Determine active panel type for split-screen layout (not used on mobile)
+  const activePanelType = useMemo(() => {
+    if (isMobile) return null; // Mobile uses traditional dialogs
+    if (showPierDimensions) return 'pier';
+    if (showBollardDimensions) return 'bollard';
+    if (showPadDimensions) return 'pad';
+    if (showLinearDimensions) return 'linear'; // Keep as dialog for now (complex)
+    if (showJointDimensions) return 'joint';
+    if (showMarkupNameDialog) return 'markup-name';
+    // Slab dialogs, EditBeamDialog, and Calibration remain as dialogs
+    return null;
+  }, [isMobile, showPierDimensions, showBollardDimensions, showPadDimensions, showLinearDimensions, showJointDimensions, showMarkupNameDialog]);
 
   const currentFile = files.find(f => f.id === currentFileId);
   const currentPage = takeoff?.current_page || 1;
@@ -1416,139 +1440,143 @@ export function PlanTakeoffStep({
 
       {/* Main content - plan takes full space, scopes float on left */}
       <div className="relative flex-1 min-h-0">
-        {/* Plan viewer with drawing canvas - takes full width/height */}
-        <div className="h-full w-full">
-          {currentFile?.file_url ? (
-            <PlanViewer
-              planUrl={currentFile.file_url}
-              planType={currentFile.file_type}
-              pageNumber={currentPage}
-              totalPages={totalPages}
-              zoom={zoom}
-              onPageChange={setCurrentPage}
-              onPagesLoaded={handlePagesLoaded}
-              onDimensionsChange={handleDimensionsChange}
-              onZoomChange={setZoom}
-            >
-              <DrawingCanvas
-                width={planDimensions.width}
-                height={planDimensions.height}
-                tool={activeTool}
-                activeScope={activeScope}
-                activeScopeColor={activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6'}
-                markups={currentPageMarkups}
-                selectedMarkupId={selectedMarkupId}
-                isCalibrated={isCalibrated}
-                pixelsPerMeter={currentScale}
-                isCalibrationMode={isCalibrationMode}
-                calibrationPoints={calibrationPoints}
-                pierPoints={pierPoints}
-                polylinePoints={polylinePoints}
-                isContinuousPolylineMode={isSlabBeamMarking}
-                pendingSlabReference={
-                  slabWorkflowActive && pendingSlabData ? {
-                    points: pendingSlabData.slabPoints,
-                    shapeType: pendingSlabData.slabShapeType,
-                    color: activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6',
-                    name: pendingSlabData.slabName || undefined,
-                  } : undefined
-                }
-                existingBeamSegments={
-                  slabWorkflowActive && pendingSlabData ? [
-                    ...pendingSlabData.edgeBeams.map(beam => ({
-                      points: beam.points,
-                      type: 'edge' as const,
-                    })),
-                    ...pendingSlabData.internalBeams.map(beam => ({
-                      points: beam.points,
-                      type: 'internal' as const,
-                    })),
-                  ] : []
-                }
-                discreteInternalBeams={
-                  (slabWorkflowStep === 'mark_internal_beam' || (isAddingBeamToExistingSlab && addingBeamType === 'internal_beam'))
-                    ? discreteInternalBeams
-                    : []
-                }
-                activeBeamType={
-                  slabWorkflowStep === 'mark_edge_beam' || addingBeamType === 'edge_beam' ? 'edge' 
-                  : (slabWorkflowStep === 'mark_internal_beam' || addingBeamType === 'internal_beam') ? 'internal' 
-                  : null
-                }
-                onMarkupComplete={handleMarkupComplete}
-                onPolylineComplete={handlePolylineComplete}
-                onMarkupSelect={setSelectedMarkupId}
-                onMarkupUpdate={() => {}}
-                onPointsChange={setDrawingPoints}
-                onCalibrationPointsChange={handleCalibrationPointsChange}
-                onPierPointsChange={setPierPoints}
-                onPolylinePointsChange={setPolylinePoints}
-              />
-            </PlanViewer>
-          ) : (
-            <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg">
-              <p className="text-sm text-muted-foreground">Loading plan...</p>
-            </div>
-          )}
-          
-          {/* Calibration mode indicator */}
-          {isCalibrationMode && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border z-20">
-              <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
-                Setting Scale: {calibrationPoints.length}/2 points placed
-              </Badge>
-              <span className="text-xs text-muted-foreground">
-                Click two points on the plan that are a known distance apart
-              </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setIsCalibrationMode(false);
-                  setCalibrationPoints([]);
-                }}
-                className="text-xs h-6"
+        <TakeoffSplitLayout
+          panelContent={activePanelType ? renderPanelContent() : null}
+          panelTitle={getPanelTitle()}
+          onPanelClose={handlePanelClose}
+        >
+          {/* Plan viewer with drawing canvas - takes full width/height */}
+          <div className="h-full w-full relative">
+            {currentFile?.file_url ? (
+              <PlanViewer
+                planUrl={currentFile.file_url}
+                planType={currentFile.file_type}
+                pageNumber={currentPage}
+                totalPages={totalPages}
+                zoom={zoom}
+                onPageChange={setCurrentPage}
+                onPagesLoaded={handlePagesLoaded}
+                onDimensionsChange={handleDimensionsChange}
+                onZoomChange={setZoom}
               >
-                Cancel
-              </Button>
-            </div>
-          )}
-          
-          {/* Floating bottom popups removed - waffle pod input moved to sidebar */}
-
-          {/* Floating bottom popups removed - status info is shown in toolbar */}
-        </div>
-
-        {/* Floating scope panel - positioned on left side */}
-        <div className="absolute top-2 left-2 z-20 pointer-events-none">
-          <div className="pointer-events-auto space-y-2">
-            <ScopeMarkupChecklist
-              scopes={scopes}
-              markups={markups}
-              skippedScopes={skippedScopes}
-              activeScope={activeScope}
-              onMarkArea={(scopeId) => {
-                setScopePanelManuallyExpanded(false);
-                handleMarkArea(scopeId);
-              }}
-              onSkipScope={handleSkipScope}
-              onEditMarkup={(id) => setSelectedMarkupId(id)}
-              onEditBeam={handleEditBeam}
-              onDeleteMarkup={handleDeleteMarkup}
-              onAddBeamToSlab={handleAddBeamToExistingSlab}
-              onAddToLinearType={(scopeId, typeName, width, depth) => {
-                setScopePanelManuallyExpanded(false);
-                handleAddToLinearType(scopeId, typeName, width, depth);
-              }}
-              isCalibrated={isCalibrated}
-              isCollapsed={isScopePanelCollapsed}
-              onToggle={() => setScopePanelManuallyExpanded(!scopePanelManuallyExpanded)}
-            />
+                <DrawingCanvas
+                  width={planDimensions.width}
+                  height={planDimensions.height}
+                  tool={activeTool}
+                  activeScope={activeScope}
+                  activeScopeColor={activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6'}
+                  markups={currentPageMarkups}
+                  selectedMarkupId={selectedMarkupId}
+                  isCalibrated={isCalibrated}
+                  pixelsPerMeter={currentScale}
+                  isCalibrationMode={isCalibrationMode}
+                  calibrationPoints={calibrationPoints}
+                  pierPoints={pierPoints}
+                  polylinePoints={polylinePoints}
+                  isContinuousPolylineMode={isSlabBeamMarking}
+                  pendingSlabReference={
+                    slabWorkflowActive && pendingSlabData ? {
+                      points: pendingSlabData.slabPoints,
+                      shapeType: pendingSlabData.slabShapeType,
+                      color: activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6',
+                      name: pendingSlabData.slabName || undefined,
+                    } : undefined
+                  }
+                  existingBeamSegments={
+                    slabWorkflowActive && pendingSlabData ? [
+                      ...pendingSlabData.edgeBeams.map(beam => ({
+                        points: beam.points,
+                        type: 'edge' as const,
+                      })),
+                      ...pendingSlabData.internalBeams.map(beam => ({
+                        points: beam.points,
+                        type: 'internal' as const,
+                      })),
+                    ] : []
+                  }
+                  discreteInternalBeams={
+                    (slabWorkflowStep === 'mark_internal_beam' || (isAddingBeamToExistingSlab && addingBeamType === 'internal_beam'))
+                      ? discreteInternalBeams
+                      : []
+                  }
+                  activeBeamType={
+                    slabWorkflowStep === 'mark_edge_beam' || addingBeamType === 'edge_beam' ? 'edge' 
+                    : (slabWorkflowStep === 'mark_internal_beam' || addingBeamType === 'internal_beam') ? 'internal' 
+                    : null
+                  }
+                  onMarkupComplete={handleMarkupComplete}
+                  onPolylineComplete={handlePolylineComplete}
+                  onMarkupSelect={setSelectedMarkupId}
+                  onMarkupUpdate={() => {}}
+                  onPointsChange={setDrawingPoints}
+                  onCalibrationPointsChange={handleCalibrationPointsChange}
+                  onPierPointsChange={setPierPoints}
+                  onPolylinePointsChange={setPolylinePoints}
+                />
+              </PlanViewer>
+            ) : (
+              <div className="h-full flex items-center justify-center bg-muted/30 rounded-lg">
+                <p className="text-sm text-muted-foreground">Loading plan...</p>
+              </div>
+            )}
             
-            {/* Waffle pod floating input removed - counts are now auto-calculated in dialog */}
+            {/* Calibration mode indicator */}
+            {isCalibrationMode && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border z-20">
+                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
+                  Setting Scale: {calibrationPoints.length}/2 points placed
+                </Badge>
+                <span className="text-xs text-muted-foreground">
+                  Click two points on the plan that are a known distance apart
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setIsCalibrationMode(false);
+                    setCalibrationPoints([]);
+                  }}
+                  className="text-xs h-6"
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+            
+            {/* Floating scope panel - positioned on left side */}
+            <div className="absolute top-2 left-2 z-20 pointer-events-none">
+              <div className="pointer-events-auto space-y-2">
+                <ScopeMarkupChecklist
+                  scopes={scopes}
+                  markups={markups}
+                  skippedScopes={skippedScopes}
+                  activeScope={activeScope}
+                  onMarkArea={(scopeId) => {
+                    setScopePanelManuallyExpanded(false);
+                    handleMarkArea(scopeId);
+                  }}
+                  onSkipScope={handleSkipScope}
+                  onEditMarkup={(id) => setSelectedMarkupId(id)}
+                  onEditBeam={handleEditBeam}
+                  onDeleteMarkup={handleDeleteMarkup}
+                  onAddBeamToSlab={handleAddBeamToExistingSlab}
+                  onAddToLinearType={(scopeId, typeName, width, depth) => {
+                    setScopePanelManuallyExpanded(false);
+                    handleAddToLinearType(scopeId, typeName, width, depth);
+                  }}
+                  isCalibrated={isCalibrated}
+                  isCollapsed={isScopePanelCollapsed}
+                  onToggle={() => setScopePanelManuallyExpanded(!scopePanelManuallyExpanded)}
+                />
+                
+                {/* Waffle pod floating input removed - counts are now auto-calculated in dialog */}
+              </div>
+            </div>
           </div>
-        </div>
+        </TakeoffSplitLayout>
       </div>
+
+
 
       {/* Footer */}
       <div className="space-y-3 pt-4 border-t">
