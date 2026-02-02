@@ -27,6 +27,7 @@ import {
   PadFootingDimensionsPanel,
   JointDimensionsPanel,
   MarkupNamePanel,
+  SlabBeamMarkupPanel,
 } from './panels';
 // WafflePodCountDialog and WafflePodFloatingInput removed - counts now auto-calculated in SlabBeamMarkupDialog
 import { getScopeColor, calculatePolylineLength, calculatePolygonArea, calculateRectangleArea, calculatePolygonPerimeter, calculateRectanglePerimeter, SLAB_WITH_BEAMS_SCOPES, isWafflePodPointScope } from '@/types/takeoff';
@@ -179,9 +180,13 @@ export function PlanTakeoffStep({
     if (showLinearDimensions) return 'linear'; // Keep as dialog for now (complex)
     if (showJointDimensions) return 'joint';
     if (showMarkupNameDialog) return 'markup-name';
-    // Slab dialogs, EditBeamDialog, and Calibration remain as dialogs
+    // Slab beam dialog - show in side panel when visible and not during marking steps
+    if (showSlabBeamDialog && slabWorkflowStep !== 'mark_edge_beam' && slabWorkflowStep !== 'mark_internal_beam' && slabWorkflowStep !== 'complete') {
+      return 'slab-beam';
+    }
+    // EditBeamDialog and Calibration remain as dialogs
     return null;
-  }, [isMobile, showPierDimensions, showBollardDimensions, showPadDimensions, showLinearDimensions, showJointDimensions, showMarkupNameDialog]);
+  }, [isMobile, showPierDimensions, showBollardDimensions, showPadDimensions, showLinearDimensions, showJointDimensions, showMarkupNameDialog, showSlabBeamDialog, slabWorkflowStep]);
 
   // Get panel title based on active panel type
   const getPanelTitle = useCallback(() => {
@@ -191,6 +196,7 @@ export function PlanTakeoffStep({
       case 'pad': return activeScope === 'pit_bases' ? 'Pit Base Dimensions' : 'Pad Footing Dimensions';
       case 'joint': return pendingJointType === 'expansion_joints' ? 'Expansion Joint' : 'Control Joint';
       case 'markup-name': return 'Name This Markup';
+      case 'slab-beam': return undefined; // Panel has its own header
       default: return undefined;
     }
   }, [activePanelType, activeScope, pendingJointType]);
@@ -214,10 +220,22 @@ export function PlanTakeoffStep({
       setShowMarkupNameDialog(false);
       setPendingMarkupData(null);
       setDrawingPoints([]);
+    } else if (showSlabBeamDialog) {
+      // Close slab beam panel - inline reset logic
+      setShowSlabBeamDialog(false);
+      setSlabWorkflowActive(false);
+      setSlabWorkflowStep('name');
+      setPendingSlabData(null);
+      setCurrentBeamPoints([]);
+      setPolylinePoints([]);
+      setCachedBeamLength(0);
+      setCachedBeamSegments([]);
+      setDiscreteInternalBeams([]);
+      setSlabSavedId(null);
     }
     setActiveTool('select');
     setActiveScope(null);
-  }, [showPierDimensions, showBollardDimensions, showPadDimensions, showJointDimensions, showMarkupNameDialog]);
+  }, [showPierDimensions, showBollardDimensions, showPadDimensions, showJointDimensions, showMarkupNameDialog, showSlabBeamDialog]);
 
   // Render panel content based on active panel type - defined later after handlers are declared
   // This is a forward reference placeholder that gets the actual implementation below
@@ -1461,6 +1479,46 @@ export function PlanTakeoffStep({
             onCancel={handlePanelClose}
           />
         );
+      case 'slab-beam':
+        return (
+          <SlabBeamMarkupPanel
+            step={slabWorkflowStep}
+            slabName={pendingSlabData?.slabName || ''}
+            onSlabNameChange={(name) => setPendingSlabData(prev => prev ? { ...prev, slabName: name } : null)}
+            scopeLabel={activeScope ? (scopeLabels[activeScope] || activeScope) : ''}
+            scopeId={activeScope || undefined}
+            slabArea={slabStats.area}
+            slabPerimeter={slabStats.perimeter}
+            currentBeamPoints={currentBeamPoints}
+            currentBeamLength={cachedBeamLength}
+            currentBeamSegments={cachedBeamSegments}
+            discreteInternalBeams={discreteInternalBeams}
+            savedEdgeBeams={pendingSlabData?.edgeBeams || []}
+            savedInternalBeams={pendingSlabData?.internalBeams || []}
+            wafflePodSize={pendingSlabData?.wafflePodSize || '1090x1090'}
+            wafflePodThickness={pendingSlabData?.wafflePodThickness || 225}
+            wafflePodTopThickness={pendingSlabData?.wafflePodTopThickness || 85}
+            wafflePodRibWidth={pendingSlabData?.wafflePodRibWidth || 110}
+            onWafflePodDimensionsChange={(size, podThickness, topThickness, ribWidth) =>
+              setPendingSlabData(prev => prev ? { ...prev, wafflePodSize: size, wafflePodThickness: podThickness, wafflePodTopThickness: topThickness, wafflePodRibWidth: ribWidth } : null)
+            }
+            wafflePodCount={pendingSlabData?.wafflePodCount || 0}
+            spacer4WayCount={pendingSlabData?.spacer4WayCount || 0}
+            spacer2WayCount={pendingSlabData?.spacer2WayCount || 0}
+            wafflePodCountingComplete={false}
+            onStartCountingPods={undefined}
+            onStartEdgeBeams={handleStartEdgeBeams}
+            onUsePerimeterAsEdgeBeam={handleUsePerimeterAsEdgeBeam}
+            onSkipAllBeams={handleSkipAllBeams}
+            onSaveBeam={handleSaveBeam}
+            onAddAnotherEdgeBeam={handleAddAnotherEdgeBeam}
+            onFinishEdgeBeams={handleFinishEdgeBeams}
+            onStartInternalBeams={handleStartInternalBeams}
+            onAddAnotherInternalBeam={handleAddAnotherInternalBeam}
+            onFinishAllBeams={handleFinishAllBeams}
+            onCancel={handleCancelSlabWorkflow}
+          />
+        );
       default:
         return null;
     }
@@ -1485,6 +1543,25 @@ export function PlanTakeoffStep({
     handleMarkupNameConfirm,
     handleMarkupNameConfirmAndAddAnother,
     handlePanelClose,
+    // Slab beam panel dependencies
+    slabWorkflowStep,
+    pendingSlabData,
+    slabStats.area,
+    slabStats.perimeter,
+    currentBeamPoints,
+    cachedBeamLength,
+    cachedBeamSegments,
+    discreteInternalBeams,
+    handleStartEdgeBeams,
+    handleUsePerimeterAsEdgeBeam,
+    handleSkipAllBeams,
+    handleSaveBeam,
+    handleAddAnotherEdgeBeam,
+    handleFinishEdgeBeams,
+    handleStartInternalBeams,
+    handleAddAnotherInternalBeam,
+    handleFinishAllBeams,
+    handleCancelSlabWorkflow,
   ]);
 
   // Show upload state if no files
@@ -2004,9 +2081,9 @@ export function PlanTakeoffStep({
         onConfirmAndAddAnother={handleMarkupNameConfirmAndAddAnother}
       />
 
-      {/* Slab beam workflow dialog */}
+      {/* Slab beam workflow dialog - only on mobile, desktop uses side panel */}
       <SlabBeamMarkupDialog
-        open={showSlabBeamDialog}
+        open={showSlabBeamDialog && isMobile}
         onOpenChange={(open) => {
           setShowSlabBeamDialog(open);
           if (!open && !slabWorkflowActive) {
