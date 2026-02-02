@@ -38,7 +38,6 @@ import { cn } from "@/lib/utils";
 import { ScopeType, SCOPE_OPTIONS, ScopeSelector } from "./ScopeSelector";
 import { ModularCalculator } from "./calculators/ModularCalculator";
 import { PlanTakeoffStep } from "./takeoff/PlanTakeoffStep";
-import { SplitScreenLayout } from "./SplitScreenLayout";
 import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
 import { useTakeoffMarkups } from "@/hooks/useTakeoffMarkups";
@@ -1983,61 +1982,56 @@ const {
             />
           )}
 
-          {/* Step 5: Configure Scopes - Split Screen with Plan Preview */}
+          {/* Step 5: Configure Scopes */}
           {currentStep === "configure" && (
-            <SplitScreenLayout
-              estimateId={draftEstimateId || editEstimate?.id || null}
-              businessId={businessId}
-              activeScope={activeScopeType}
-            >
-              <div className="space-y-4 p-1">
-                {selectedScopesArray.length === 0 ? (
-                  <Card className="p-8 text-center">
-                    <p className="text-muted-foreground">No scopes selected. Go back to select scope of works.</p>
-                  </Card>
-                ) : (
-                  <>
-                    {/* Scope navigation header */}
-                    <div className="bg-muted/50 rounded-lg p-3 space-y-3">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Wrench className="w-4 h-4 text-muted-foreground" />
-                          <span className="font-medium text-sm">
-                            Scope {activeScopeIndex + 1} of {selectedScopesArray.length}: {getScopeLabel(activeScopeType!)}
-                          </span>
-                        </div>
-                        {scopeTotals[activeScopeType!]?.total > 0 && (
-                          <Badge variant="outline" className="font-mono">
-                            {formatCurrency(scopeTotals[activeScopeType!].total)}
-                          </Badge>
-                        )}
+            <div className="space-y-4">
+              {selectedScopesArray.length === 0 ? (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">No scopes selected. Go back to select scope of works.</p>
+                </Card>
+              ) : (
+                <>
+                  {/* Scope navigation header */}
+                  <div className="bg-muted/50 rounded-lg p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Wrench className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium text-sm">
+                          Scope {activeScopeIndex + 1} of {selectedScopesArray.length}: {getScopeLabel(activeScopeType!)}
+                        </span>
                       </div>
-                      
-                      {/* Scope progress dots */}
-                      <div className="flex items-center gap-1.5">
-                        {selectedScopesArray.map((scope, index) => (
-                          <button
-                            key={scope}
-                            type="button"
-                            onClick={() => setActiveScopeIndex(index)}
-                            className={cn(
-                              "h-2 rounded-full transition-all",
-                              index === activeScopeIndex 
-                                ? "w-6 bg-primary" 
-                                : scopeTotals[scope].total > 0 
-                                  ? "w-2 bg-primary/50" 
-                                  : "w-2 bg-muted-foreground/30"
-                            )}
-                            title={getScopeLabel(scope)}
-                          />
-                        ))}
-                      </div>
+                      {scopeTotals[activeScopeType!]?.total > 0 && (
+                        <Badge variant="outline" className="font-mono">
+                          {formatCurrency(scopeTotals[activeScopeType!].total)}
+                        </Badge>
+                      )}
                     </div>
+                    
+                    {/* Scope progress dots */}
+                    <div className="flex items-center gap-1.5">
+                      {selectedScopesArray.map((scope, index) => (
+                        <button
+                          key={scope}
+                          type="button"
+                          onClick={() => setActiveScopeIndex(index)}
+                          className={cn(
+                            "h-2 rounded-full transition-all",
+                            index === activeScopeIndex 
+                              ? "w-6 bg-primary" 
+                              : scopeTotals[scope].total > 0 
+                                ? "w-2 bg-primary/50" 
+                                : "w-2 bg-muted-foreground/30"
+                          )}
+                          title={getScopeLabel(scope)}
+                        />
+                      ))}
+                    </div>
+                  </div>
 
-                    {/* Calculator */}
-                    <div ref={scopeContainerRef} className="min-h-[400px]">
-                      {activeScopeType && renderScopeCalculator(activeScopeType)}
-                    </div>
+                  {/* Calculator */}
+                  <div ref={scopeContainerRef} className="min-h-[400px] overflow-y-auto">
+                    {activeScopeType && renderScopeCalculator(activeScopeType)}
+                  </div>
 
                   {/* Scope navigation footer */}
                   <div className="space-y-3 pt-4 border-t">
@@ -2101,8 +2095,7 @@ const {
                 </>
               )}
             </div>
-          </SplitScreenLayout>
-        )}
+          )}
 
           {/* Step 5: Markup */}
           {currentStep === "margin" && (
