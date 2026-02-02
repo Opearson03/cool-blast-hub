@@ -208,12 +208,13 @@ export function FootingSectionReinforcementInput({
   };
 
   // Update all segments in a group with reinforcement changes
+  // Uses segment IDs for matching instead of dimension comparison for reliability
   const updateGroupReinforcement = useCallback((group: FootingTypeGroup, updates: Partial<LinearSection>) => {
+    // Create a Set of segment IDs from the group for O(1) lookup
+    const segmentIds = new Set(group.segments.map(s => s.id));
+    
     const updatedSections = sections.map(section => {
-      const sectionType = parseFootingTypeName(section.name);
-      const width = section.dimension1 || 0;
-      const depth = section.dimension2 || 0;
-      if (sectionType === group.typeName && width === group.width && depth === group.depth) {
+      if (segmentIds.has(section.id)) {
         return { ...section, ...updates };
       }
       return section;
@@ -985,9 +986,9 @@ export function FootingSectionReinforcementInput({
                             <Select
                               value={group.segments[0]?.chair_type || '5065C'}
                               onValueChange={(val) => {
-                                // Update chair type and reset price from catalog
+                                // Use helper function for consistent price lookups
                                 // Bar chairs are priced per bag of 100, divide by 4 to get per-25 price
-                                const catalogPrice = priceMap?.['consumables']?.[val];
+                                const catalogPrice = getChairPrice(val, priceMap);
                                 const pricePerBagOf25 = catalogPrice !== undefined ? catalogPrice / 4 : 12.50;
                                 updateGroupReinforcement(group, { 
                                   chair_type: val,
