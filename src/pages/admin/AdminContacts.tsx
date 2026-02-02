@@ -8,7 +8,7 @@ import { SuppliersTab } from "@/components/contacts/SuppliersTab";
 import { InboxHistoryTab } from "@/components/contacts/InboxHistoryTab";
 
 export default function AdminContacts() {
-  const [activeTab, setActiveTab] = useState("clients");
+  const [activeTab, setActiveTab] = useState("inbox");
 
   return (
     <AdminLayout>
@@ -17,6 +17,10 @@ export default function AdminContacts() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+            <TabsTrigger value="inbox" className="gap-2">
+              <Inbox className="h-4 w-4 hidden sm:inline" />
+              Inbox
+            </TabsTrigger>
             <TabsTrigger value="clients" className="gap-2">
               <Users className="h-4 w-4 hidden sm:inline" />
               Clients
@@ -29,11 +33,11 @@ export default function AdminContacts() {
               <Truck className="h-4 w-4 hidden sm:inline" />
               Suppliers
             </TabsTrigger>
-            <TabsTrigger value="inbox" className="gap-2">
-              <Inbox className="h-4 w-4 hidden sm:inline" />
-              Inbox History
-            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="inbox" className="mt-6">
+            <InboxHistoryTab />
+          </TabsContent>
 
           <TabsContent value="clients" className="mt-6">
             <ClientsTab />
@@ -45,10 +49,6 @@ export default function AdminContacts() {
 
           <TabsContent value="suppliers" className="mt-6">
             <SuppliersTab />
-          </TabsContent>
-
-          <TabsContent value="inbox" className="mt-6">
-            <InboxHistoryTab />
           </TabsContent>
         </Tabs>
       </div>

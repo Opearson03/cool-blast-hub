@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -18,13 +17,13 @@ import {
   FileText,
   FlaskConical,
   Truck,
-  ExternalLink,
   Calendar
 } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
+import { InboxDetailSheet } from "./InboxDetailSheet";
 
-interface InboxItem {
+export interface InboxItem {
   id: string;
   type: "plan" | "test" | "docket";
   from_email: string;
@@ -42,6 +41,8 @@ export function InboxHistoryTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [selectedItem, setSelectedItem] = useState<InboxItem | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const { data: inboxItems = [], isLoading } = useQuery({
     queryKey: ["inbox-history"],
@@ -185,19 +186,14 @@ export function InboxHistoryTab() {
     }
   };
 
-  const handleViewDocument = async (fileUrl: string) => {
-    // Get signed URL and open in new tab
-    const { data } = await supabase.storage
-      .from("inbox-documents")
-      .createSignedUrl(fileUrl.replace("inbox-documents/", ""), 3600);
-    
-    if (data?.signedUrl) {
-      window.open(data.signedUrl, "_blank");
-    }
+  const handleItemClick = (item: InboxItem) => {
+    setSelectedItem(item);
+    setSheetOpen(true);
   };
 
   const handleNavigateToLinked = (item: InboxItem) => {
     if (!item.linked_id) return;
+    setSheetOpen(false);
     
     if (item.type === "plan") {
       navigate("/admin/estimates");
@@ -266,50 +262,33 @@ export function InboxHistoryTab() {
       ) : (
         <div className="space-y-2">
           {filteredItems.map((item) => (
-            <Card key={`${item.type}-${item.id}`} className="overflow-hidden">
+            <Card 
+              key={`${item.type}-${item.id}`} 
+              className="overflow-hidden cursor-pointer hover:bg-muted/50 transition-colors"
+              onClick={() => handleItemClick(item)}
+            >
               <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                    <div className="mt-0.5">
-                      {getTypeIcon(item.type)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="secondary" className="text-xs">
-                          {getTypeLabel(item.type)}
-                        </Badge>
-                        {getStatusBadge(item.status)}
-                      </div>
-                      <p className="font-medium mt-1 truncate">
-                        {item.subject || item.file_name}
-                      </p>
-                      <p className="text-sm text-muted-foreground truncate">
-                        From: {item.from_name || item.from_email}
-                      </p>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <Calendar className="h-3 w-3" />
-                        {format(new Date(item.received_at), "dd MMM yyyy 'at' h:mm a")}
-                      </div>
-                    </div>
+                <div className="flex items-start gap-3 min-w-0">
+                  <div className="mt-0.5">
+                    {getTypeIcon(item.type)}
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewDocument(item.file_url)}
-                    >
-                      <ExternalLink className="h-4 w-4 mr-1" />
-                      View
-                    </Button>
-                    {item.linked_id && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleNavigateToLinked(item)}
-                      >
-                        Go to {item.type === "plan" ? "Quote" : "Job"}
-                      </Button>
-                    )}
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary" className="text-xs">
+                        {getTypeLabel(item.type)}
+                      </Badge>
+                      {getStatusBadge(item.status)}
+                    </div>
+                    <p className="font-medium mt-1 truncate">
+                      {item.subject || item.file_name}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      From: {item.from_name || item.from_email}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
+                      <Calendar className="h-3 w-3" />
+                      {format(new Date(item.received_at), "dd MMM yyyy 'at' h:mm a")}
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -317,6 +296,14 @@ export function InboxHistoryTab() {
           ))}
         </div>
       )}
+
+      {/* Detail Sheet */}
+      <InboxDetailSheet
+        item={selectedItem}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onNavigateToLinked={handleNavigateToLinked}
+      />
     </div>
   );
 }
