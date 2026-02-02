@@ -55,7 +55,7 @@ export function SubbieContactListWidget() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
               <Users className="h-5 w-5 text-primary" />
-              Subbie Contacts
+              Sub-Contractor Contacts
               {totalSubbies > 0 && (
                 <Badge variant="secondary" className="ml-1">
                   {totalSubbies}
@@ -78,7 +78,7 @@ export function SubbieContactListWidget() {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search subbies..."
+                placeholder="Search sub-contractors..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9 h-9"
@@ -93,12 +93,12 @@ export function SubbieContactListWidget() {
           ) : totalSubbies === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               <Users className="h-10 w-10 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">No subcontractors yet</p>
-              <p className="text-xs mt-1">Invite subbies to jobs to build your contact list</p>
+              <p className="text-sm">No sub-contractors yet</p>
+              <p className="text-xs mt-1">Invite sub-contractors to jobs to build your contact list</p>
             </div>
           ) : groupedSubbies.length === 0 ? (
             <div className="text-center py-6 text-muted-foreground">
-              <p className="text-sm">No subbies match your search</p>
+              <p className="text-sm">No sub-contractors match your search</p>
             </div>
           ) : (
             <div className="space-y-4">

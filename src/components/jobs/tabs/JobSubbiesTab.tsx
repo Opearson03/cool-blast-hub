@@ -43,7 +43,7 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
 
   if (isLoading) {
     return (
-      <div className="text-center py-8 text-muted-foreground">Loading subbies...</div>
+      <div className="text-center py-8 text-muted-foreground">Loading sub-contractors...</div>
     );
   }
 
@@ -83,13 +83,13 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
         <Card>
           <CardContent className="py-12 text-center">
             <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">No Subbies Yet</h3>
+            <h3 className="font-semibold mb-2">No Sub-Contractors Yet</h3>
             <p className="text-muted-foreground mb-4">
-              Invite sub-trades to help coordinate your job
+              Invite sub-contractors to help coordinate your job
             </p>
             <Button onClick={() => setInviteDialogOpen(true)}>
               <UserPlus className="w-4 h-4 mr-2" />
-              Invite First Subbie
+              Invite Sub-Contractor
             </Button>
           </CardContent>
         </Card>
@@ -107,7 +107,7 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
       <div className="flex justify-end mb-4">
         <Button onClick={() => setInviteDialogOpen(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
-          Invite Subbie
+          Invite Sub-Contractor
         </Button>
       </div>
       <div className="space-y-2">

@@ -122,7 +122,7 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
       queryClient.invalidateQueries({ queryKey: ["business-subbies"] });
       toast.success(selectedSubbies.length > 0 
-        ? `Misc job added with ${selectedSubbies.length} subbie(s)` 
+        ? `Misc job added with ${selectedSubbies.length} sub-contractor(s)` 
         : "Misc job added"
       );
       handleClose();
@@ -270,7 +270,7 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
               <div className="space-y-2 border-t pt-4">
                 <Label className="flex items-center gap-2">
                   <UserPlus className="h-4 w-4" />
-                  Allocate Subbies
+                  Allocate Sub-Contractors
                 </Label>
                 
                 {/* Selected Subbies */}
@@ -299,10 +299,10 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
                 {/* Search Past Subbies */}
                 {!showAddNew && (
                   <Command className="border rounded-md">
-                    <CommandInput placeholder="Search past subbies..." />
+                    <CommandInput placeholder="Search past sub-contractors..." />
                     <CommandList className="max-h-32">
                       <CommandEmpty>
-                        <span className="text-muted-foreground text-sm">No subbies found</span>
+                        <span className="text-muted-foreground text-sm">No sub-contractors found</span>
                       </CommandEmpty>
                       <CommandGroup>
                         {pastSubbies.map((subbie, index) => {
@@ -334,7 +334,7 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
                 {showAddNew ? (
                   <div className="space-y-2 border rounded-md p-3 bg-muted/30">
                     <div className="flex justify-between items-center">
-                      <Label className="text-sm font-medium">New Subbie</Label>
+                      <Label className="text-sm font-medium">New Sub-Contractor</Label>
                       <Button
                         type="button"
                         variant="ghost"
@@ -368,7 +368,7 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
                       onClick={handleAddNewSubbie}
                       className="w-full"
                     >
-                      Add Subbie
+                      Add Sub-Contractor
                     </Button>
                   </div>
                 ) : (
@@ -380,7 +380,7 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
                     className="w-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add New Subbie
+                    Add New Sub-Contractor
                   </Button>
                 )}
               </div>

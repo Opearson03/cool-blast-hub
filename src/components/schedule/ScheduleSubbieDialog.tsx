@@ -209,8 +209,8 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
   const createMiscPour = useMutation({
     mutationFn: async (job: Job) => {
       const pourName = job.scheduled_date 
-        ? `Subbie Work - ${format(new Date(job.scheduled_date), "d MMM yyyy")}`
-        : "Subbie Work";
+        ? `Sub-Contractor Work - ${format(new Date(job.scheduled_date), "d MMM yyyy")}`
+        : "Sub-Contractor Work";
 
       const { data, error } = await supabase
         .from("job_pours")
@@ -417,14 +417,14 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
             {step === "select" 
               ? preselectedSubbie 
                 ? `Assign ${preselectedSubbie.recipient_name}` 
-                : "Schedule a Subbie" 
+                : "Schedule a Sub-Contractor" 
               : "Confirm & Send"}
           </DialogTitle>
           <DialogDescription>
             {step === "select"
               ? preselectedSubbie
                 ? `Select jobs and pours to assign ${preselectedSubbie.recipient_name} (${preselectedSubbie.role}) to`
-                : "Select jobs and pours to invite a subcontractor to"
+                : "Select jobs and pours to invite a sub-contractor to"
               : `Sending invite to ${selectedPours.length} pour${selectedPours.length > 1 ? "s" : ""}`}
           </DialogDescription>
         </DialogHeader>
@@ -691,7 +691,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
                 </TabsTrigger>
                 <TabsTrigger value="new" className="flex items-center gap-1.5">
                   <UserPlus className="h-4 w-4" />
-                  <span>New Subbie</span>
+                  <span>New Sub-Contractor</span>
                 </TabsTrigger>
               </TabsList>
 
@@ -700,7 +700,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search subbies..."
+                    placeholder="Search sub-contractors..."
                     value={subbieSearch}
                     onChange={(e) => setSubbieSearch(e.target.value)}
                     className="pl-9"
@@ -716,7 +716,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
                       </div>
                     ) : filteredPastSubbies.length === 0 ? (
                       <p className="text-sm text-muted-foreground text-center py-4">
-                        {subbieSearch ? "No subbies match your search" : "No previous subbies found"}
+                        {subbieSearch ? "No sub-contractors match your search" : "No previous sub-contractors found"}
                       </p>
                     ) : (
                       filteredPastSubbies.map((subbie, idx) => {

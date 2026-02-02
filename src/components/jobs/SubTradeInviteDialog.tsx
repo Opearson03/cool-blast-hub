@@ -196,7 +196,7 @@ export function SubTradeInviteDialog({
             </TabsTrigger>
             <TabsTrigger value="new" className="flex items-center gap-1.5">
               <UserPlus className="h-4 w-4" />
-              <span>New Subbie</span>
+              <span>New Sub-Contractor</span>
             </TabsTrigger>
           </TabsList>
 
@@ -205,7 +205,7 @@ export function SubTradeInviteDialog({
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Search subbies..."
+                placeholder="Search sub-contractors..."
                 value={subbieSearch}
                 onChange={(e) => setSubbieSearch(e.target.value)}
                 className="pl-9"
@@ -221,7 +221,7 @@ export function SubTradeInviteDialog({
                   </div>
                 ) : filteredSubbies.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-4">
-                    {subbieSearch ? "No subbies match your search" : "No previous subbies found"}
+                    {subbieSearch ? "No sub-contractors match your search" : "No previous sub-contractors found"}
                   </p>
                 ) : (
                   filteredSubbies.map((subbie, idx) => {

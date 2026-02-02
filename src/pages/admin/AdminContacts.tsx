@@ -23,7 +23,7 @@ export default function AdminContacts() {
             </TabsTrigger>
             <TabsTrigger value="subbies" className="gap-2">
               <Building2 className="h-4 w-4 hidden sm:inline" />
-              Subbies
+              Sub-Contractors
             </TabsTrigger>
             <TabsTrigger value="suppliers" className="gap-2">
               <Truck className="h-4 w-4 hidden sm:inline" />
