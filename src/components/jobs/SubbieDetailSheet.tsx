@@ -15,7 +15,7 @@ import { Separator } from "@/components/ui/separator";
 import { Phone, Mail, Calendar, Plus, Send } from "lucide-react";
 import { format } from "date-fns";
 import { SubTradeStatusBadge } from "./SubTradeStatusBadge";
-import { useSendSubTradeInvite, type SubTradeInvite } from "@/hooks/useSubTradeInvites";
+import { useSendBatchSubTradeInvite, type SubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { toast } from "sonner";
 
 interface SubbieDetailSheetProps {
@@ -41,7 +41,7 @@ interface Pour {
 export function SubbieDetailSheet({ open, onOpenChange, jobId, subbie }: SubbieDetailSheetProps) {
   const [selectedPours, setSelectedPours] = useState<string[]>([]);
   const [isSending, setIsSending] = useState(false);
-  const sendInvite = useSendSubTradeInvite();
+  const sendBatchInvite = useSendBatchSubTradeInvite();
 
   // Fetch all pours for this job
   const { data: pours = [] } = useQuery({
@@ -103,17 +103,13 @@ export function SubbieDetailSheet({ open, onOpenChange, jobId, subbie }: SubbieD
 
     setIsSending(true);
     try {
-      await Promise.all(
-        selectedPours.map((pourId) =>
-          sendInvite.mutateAsync({
-            job_pour_id: pourId,
-            recipient_name: subbie.recipient_name,
-            role: subbie.role,
-            recipient_phone: subbie.recipient_phone || undefined,
-            recipient_email: subbie.recipient_email || undefined,
-          })
-        )
-      );
+      await sendBatchInvite.mutateAsync({
+        job_pour_ids: selectedPours,
+        recipient_name: subbie.recipient_name,
+        role: subbie.role,
+        recipient_phone: subbie.recipient_phone || undefined,
+        recipient_email: subbie.recipient_email || undefined,
+      });
       toast.success(`Invited ${subbie.recipient_name} to ${selectedPours.length} pour(s)`);
       setSelectedPours([]);
       refetchInvites();
