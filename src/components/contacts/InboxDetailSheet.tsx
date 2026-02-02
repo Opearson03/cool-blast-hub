@@ -27,8 +27,8 @@ interface InboxItem {
   from_email: string;
   from_name: string | null;
   subject: string | null;
-  file_url: string;
-  file_name: string;
+  file_url: string | null;
+  file_name: string | null;
   received_at: string;
   status: string;
   linked_id: string | null;
@@ -83,7 +83,10 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
   }, [pdfDoc, currentPage]);
 
   const fetchSignedUrl = async () => {
-    if (!item) return;
+    if (!item || !item.file_url) {
+      setIsLoading(false);
+      return;
+    }
     
     setIsLoading(true);
     setError(null);
@@ -223,14 +226,15 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
 
   if (!item) return null;
 
-  const fileType = getFileType(item.file_name);
+  const fileType = item.file_name ? getFileType(item.file_name) : 'other';
+  const hasAttachment = !!item.file_url;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="sm:max-w-xl w-full overflow-y-auto">
         <SheetHeader className="space-y-4">
           <SheetTitle className="text-left pr-8">
-            {item.subject || item.file_name}
+            {item.subject || item.file_name || "No subject"}
           </SheetTitle>
           
           {/* From & Date */}
@@ -264,74 +268,76 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
         )}
 
         {/* Document Viewer */}
-        <div className="mt-6 space-y-4">
-          <div 
-            ref={containerRef}
-            className="border rounded-lg bg-muted/30 min-h-[300px] flex items-center justify-center overflow-hidden"
-          >
-            {isLoading ? (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <p className="text-sm">Loading attachment...</p>
-              </div>
-            ) : error ? (
-              <div className="flex flex-col items-center gap-2 text-destructive">
-                <AlertCircle className="h-8 w-8" />
-                <p className="text-sm">{error}</p>
-                <Button variant="outline" size="sm" onClick={fetchSignedUrl}>
-                  Retry
+        {hasAttachment ? (
+          <div className="mt-6 space-y-4">
+            <div 
+              ref={containerRef}
+              className="border rounded-lg bg-muted/30 min-h-[300px] flex items-center justify-center overflow-hidden"
+            >
+              {isLoading ? (
+                <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                  <Loader2 className="h-8 w-8 animate-spin" />
+                  <p className="text-sm">Loading attachment...</p>
+                </div>
+              ) : error ? (
+                <div className="flex flex-col items-center gap-2 text-destructive">
+                  <AlertCircle className="h-8 w-8" />
+                  <p className="text-sm">{error}</p>
+                  <Button variant="outline" size="sm" onClick={fetchSignedUrl}>
+                    Retry
+                  </Button>
+                </div>
+              ) : fileType === 'pdf' && pdfDoc ? (
+                <canvas ref={canvasRef} className="max-w-full" />
+              ) : fileType === 'image' && signedUrl ? (
+                <img 
+                  src={signedUrl} 
+                  alt={item.file_name || "Attachment"}
+                  className="max-w-full max-h-[500px] object-contain"
+                />
+              ) : fileType === 'other' && signedUrl ? (
+                <div className="flex flex-col items-center gap-3 p-8 text-muted-foreground">
+                  <ImageIcon className="h-12 w-12" />
+                  <p className="text-sm text-center">
+                    Preview not available for this file type
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            {/* PDF Page Navigation */}
+            {fileType === 'pdf' && totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage <= 1}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm text-muted-foreground">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
-            ) : fileType === 'pdf' && pdfDoc ? (
-              <canvas ref={canvasRef} className="max-w-full" />
-            ) : fileType === 'image' && signedUrl ? (
-              <img 
-                src={signedUrl} 
-                alt={item.file_name}
-                className="max-w-full max-h-[500px] object-contain"
-              />
-            ) : fileType === 'other' && signedUrl ? (
-              <div className="flex flex-col items-center gap-3 p-8 text-muted-foreground">
-                <ImageIcon className="h-12 w-12" />
-                <p className="text-sm text-center">
-                  Preview not available for this file type
-                </p>
+            )}
+
+            {/* File Info */}
+            {item.file_name && (
+              <div className="text-sm text-muted-foreground">
+                <p>Filename: {item.file_name}</p>
               </div>
-            ) : null}
-          </div>
+            )}
 
-          {/* PDF Page Navigation */}
-          {fileType === 'pdf' && totalPages > 1 && (
-            <div className="flex items-center justify-center gap-4">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                disabled={currentPage <= 1}
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                disabled={currentPage >= totalPages}
-              >
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-
-          {/* File Info */}
-          <div className="text-sm text-muted-foreground">
-            <p>Filename: {item.file_name}</p>
-          </div>
-
-          {/* Actions */}
-          <div className="flex flex-col gap-2">
+            {/* Open in New Tab */}
             <Button
               variant="outline"
               onClick={handleOpenInNewTab}
@@ -341,18 +347,26 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
               <ExternalLink className="h-4 w-4 mr-2" />
               Open in New Tab
             </Button>
-            
-            {item.linked_id && (
-              <Button
-                variant="default"
-                onClick={() => onNavigateToLinked(item)}
-                className="w-full"
-              >
-                Go to {item.type === "plan" ? "Quote" : "Job"}
-              </Button>
-            )}
           </div>
-        </div>
+        ) : (
+          <div className="mt-6 p-6 border rounded-lg bg-muted/30 text-center text-muted-foreground">
+            <FileText className="h-10 w-10 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No attachment</p>
+          </div>
+        )}
+
+        {/* Navigate to linked item */}
+        {item.linked_id && (
+          <div className="mt-4">
+            <Button
+              variant="default"
+              onClick={() => onNavigateToLinked(item)}
+              className="w-full"
+            >
+              Go to {item.type === "plan" ? "Quote" : "Job"}
+            </Button>
+          </div>
+        )}
       </SheetContent>
     </Sheet>
   );

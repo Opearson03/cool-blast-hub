@@ -1737,6 +1737,7 @@ export type Database = {
           approved_by: string | null
           business_id: string
           created_at: string
+          email_body: string | null
           extracted_data: Json | null
           from_email: string
           id: string
@@ -1758,6 +1759,7 @@ export type Database = {
           approved_by?: string | null
           business_id: string
           created_at?: string
+          email_body?: string | null
           extracted_data?: Json | null
           from_email: string
           id?: string
@@ -1779,6 +1781,7 @@ export type Database = {
           approved_by?: string | null
           business_id?: string
           created_at?: string
+          email_body?: string | null
           extracted_data?: Json | null
           from_email?: string
           id?: string
