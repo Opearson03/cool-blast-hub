@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Loader2, CheckCircle2, AlertCircle, FileText, MapPin, DollarSign } from "lucide-react";
+import { Loader2, CheckCircle2, AlertCircle, FileText, MapPin, DollarSign, Phone, Mail } from "lucide-react";
 import { toast } from "sonner";
 
 interface QuoteData {
@@ -274,6 +274,27 @@ export default function SignQuote() {
             <p className="text-sm text-muted-foreground mt-1">
               Quote #{quoteData.estimateNumber}
             </p>
+            
+            {/* Business Contact Details */}
+            {(quoteData.business.address || quoteData.business.phone || quoteData.business.email) && (
+              <div className="mt-4 pt-4 border-t space-y-1.5 text-sm text-muted-foreground">
+                {quoteData.business.address && (
+                  <p>{quoteData.business.address}</p>
+                )}
+                {quoteData.business.phone && (
+                  <p className="flex items-center justify-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5" />
+                    {quoteData.business.phone}
+                  </p>
+                )}
+                {quoteData.business.email && (
+                  <p className="flex items-center justify-center gap-1.5">
+                    <Mail className="h-3.5 w-3.5" />
+                    {quoteData.business.email}
+                  </p>
+                )}
+              </div>
+            )}
           </CardHeader>
           <CardContent className="pt-6">
             <div className="grid gap-4">
