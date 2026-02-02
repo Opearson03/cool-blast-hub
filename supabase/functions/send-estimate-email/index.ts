@@ -77,14 +77,8 @@ const handler = async (req: Request): Promise<Response> => {
     const appUrl = Deno.env.get("APP_URL") || "https://pourhub.au";
     const signingLink = `${appUrl}/sign-quote?token=${signingToken}`;
 
-    // Convert base64 to Uint8Array for email attachment
-    const binaryString = atob(pdfBase64);
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-      bytes[i] = binaryString.charCodeAt(i);
-    }
-
     // Send email with the pre-generated PDF attachment
+    // Resend expects base64 string directly for attachments, not Uint8Array
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: `${businessName} via Pourhub <Hello@pourhub.au>`,
       to: [clientEmail],
@@ -114,7 +108,7 @@ const handler = async (req: Request): Promise<Response> => {
       attachments: [
         {
           filename: `Quote-${estimateNumber}.pdf`,
-          content: bytes,
+          content: pdfBase64,
         },
       ],
     });
