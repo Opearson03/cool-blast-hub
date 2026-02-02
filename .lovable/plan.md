@@ -1,228 +1,175 @@
 
-# Contacts Page - Consolidation of All Contacts & Email History
+# Waffle Pod Calculation Fixes
 
 ## Overview
 
-Create a new `/admin/contacts` page that consolidates:
-1. **All contact types**: Clients, Subbies, Suppliers
-2. **Email inbox history**: A permanent log of all received emails (plans, test results, delivery dockets)
+This plan addresses two calculation issues in the Waffle Pod estimator:
 
-The SubbieContactListWidget will be removed from the dashboard.
+1. **Internal Rib Reinforcement Formula** - Currently uses `pods × 2.4`, should be `(pods × 2.4) - (perimeter / 2)`
+2. **Concrete Volume Formula** - Currently only calculating edge beams correctly; the pod field concrete should use `pods × 0.2519 × pod_depth`
 
 ---
 
-## Page Structure
+## Issue 1: Rib Reinforcement Formula Fix
 
-The page will use tabs to organize the two main sections:
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ Contacts                                                │
-├─────────────────────────────────────────────────────────┤
-│ [Clients] [Subbies] [Suppliers]  │  [Inbox History]     │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│  Search: [_______________]                              │
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ Contact Card 1                                   │   │
-│  └─────────────────────────────────────────────────┘   │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │ Contact Card 2                                   │   │
-│  └─────────────────────────────────────────────────┘   │
-│                                                         │
-└─────────────────────────────────────────────────────────┘
+### Current Behavior
+The rib reinforcement length per layer is calculated as:
+```
+ribLengthPerLayerM = pods × 2.4
 ```
 
----
+### Corrected Formula
+```
+ribLengthPerLayerM = (pods × 2.4) - (perimeter / 2)
+```
 
-## Tab 1: People Contacts
+This accounts for the fact that ribs don't run all the way to the edge - the perimeter is occupied by edge beams, so half the perimeter's worth of rib length should be deducted.
 
-### 1.1 Clients Tab
-- Source: `estimates` table (unique by `client_name` + `client_email`)
-- Display: Client name, company, email, phone
-- Details sheet: Shows all quotes/jobs for this client
-- Click to call/email actions
+### Files to Update
 
-### 1.2 Subbies Tab
-- Source: `external_invites` table (existing `useBusinessSubbies` hook)
-- Display: Name, role, phone, email
-- Grouped by role (Laborer, Formworker, etc.)
-- Reuse existing `SubbieContactDetailSheet` for viewing history
-- "Invite to Job" action
-
-### 1.3 Suppliers Tab
-- Source: `supplier_contacts` table (created for BOQ/PO feature)
-- Display: Name, company, category, phone, email
-- Grouped by category (Concrete, Reinforcement, etc.)
-- Edit/delete actions
-- "Send PO" quick action
+| File | Change |
+|------|--------|
+| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Update rib length formula in both multi-zone and legacy single-zone calculations |
+| `src/components/estimates/calculators/WafflePodRibsInput.tsx` | Update the UI summary calculation to show the corrected formula |
 
 ---
 
-## Tab 2: Inbox History
+## Issue 2: Concrete Volume Formula Fix
 
-A permanent log of ALL emails received at the business inbox address, regardless of status.
+### Current Behavior
+The pod field concrete volume uses a complex geometric subtraction:
+```
+V_pod_field = (podFieldArea × podThickness) - (pods × podSize³)
+```
 
-### Data Sources
-Query all three pending tables with all statuses (not just pending):
-- `pending_plans` - Quote request plans
-- `pending_test_results` - Concrete test reports
-- `pending_documents` - Delivery dockets
+This approach calculates the gross volume minus the void created by pods, but it's producing incorrect results.
 
-### Display
-- Unified list sorted by `received_at` (newest first)
-- Each row shows:
-  - Document type icon (Plan/Test/Docket)
-  - Subject/file name
-  - From email/name
-  - Received date
-  - Status badge (Pending, Approved, Rejected, Converted)
-  - Link to view document
-  - Link to associated estimate/job if approved
+### Corrected Formula (Boss's Empirical Formula)
+```
+V_pod_ribs = pods × 0.2519 × pod_depth_in_metres
+```
 
-### Filters
-- Document type filter (All, Plans, Tests, Dockets)
-- Status filter (All, Pending, Processed)
-- Date range (optional)
-- Search by subject/sender
+This is a simplified empirical formula that directly calculates the concrete volume in the rib grid based on pod count and pod depth.
+
+The total waffle pod concrete volume becomes:
+```
+V_total = V_topping + V_pod_ribs + V_edge_beams + V_internal_beams
+```
+
+Where:
+- `V_topping = total_area × topping_thickness` (unchanged)
+- `V_pod_ribs = pods × 0.2519 × pod_depth` (new simplified formula)
+- `V_edge_beams` and `V_internal_beams` remain calculated from beam dimensions
+
+### Files to Update
+
+| File | Change |
+|------|--------|
+| `src/lib/estimate-components/scopes.ts` | Update `WAFFLE_POD_SCOPE.calculateVolume()` to use new pod rib formula |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Update `wafflePodBreakdown` calculation for consistency |
 
 ---
 
-## Technical Implementation
+## Technical Implementation Details
 
-### 1. Create New Page: `src/pages/admin/AdminContacts.tsx`
+### 1. reinforcement-raft.ts (Lines ~370-500)
 
-Main page component with tabs:
-- Uses `AdminLayout`
-- Tabs: People (with sub-tabs for Clients, Subbies, Suppliers) | Inbox History
-- Search functionality for each section
-
-### 2. Create Contact Components
-
-**New files:**
-- `src/components/contacts/ClientsTab.tsx` - Lists unique clients from estimates
-- `src/components/contacts/ClientDetailSheet.tsx` - Shows client details and history
-- `src/components/contacts/SuppliersTab.tsx` - Lists supplier contacts
-- `src/components/contacts/InboxHistoryTab.tsx` - Unified email log
-
-**Reuse existing:**
-- Move `SubbieContactListWidget` logic into `src/components/contacts/SubbiesTab.tsx`
-- Keep `SubbieContactDetailSheet` (already full-featured)
-- Keep `SupplierContactDialog` for add/edit
-
-### 3. Add Navigation
-
-Update `AdminLayout.tsx` to add "Contacts" nav item:
+**Multi-zone calculation (line ~372):**
 ```typescript
-{ href: "/admin/contacts", label: "Contacts", icon: Users }
+// Current:
+const ribLengthPerLayerM = zonePodCount * 2.4;
+
+// Change to:
+const zonePerimeter = Number(zone.perimeter) || 0;
+const ribLengthPerLayerM = Math.max(0, (zonePodCount * 2.4) - (zonePerimeter / 2));
 ```
 
-### 4. Add Route
-
-Update `App.tsx`:
+**Legacy single-zone calculation (line ~441):**
 ```typescript
-<Route path="/admin/contacts" element={<ProtectedRoute allowedRole="admin"><AdminContacts /></ProtectedRoute>} />
+// Current:
+const ribLengthPerLayerM = podCount * 2.4;
+
+// Change to:
+const perimeter = Number(scopeData?.perimeter) || 0;
+const ribLengthPerLayerM = Math.max(0, (podCount * 2.4) - (perimeter / 2));
 ```
 
-### 5. Update Dashboard
+### 2. WafflePodRibsInput.tsx (Line ~50)
 
-Modify `AdminDashboard.tsx`:
-- Remove `<SubbieContactListWidget />` component
-- Remove import
+```typescript
+// Current:
+const ribLengthPerLayer = podCount * 2.4;
 
----
+// Change to:
+const perimeter = numericWithDefault(scopeData?.perimeter, 0);
+const ribLengthPerLayer = Math.max(0, (podCount * 2.4) - (perimeter / 2));
+```
 
-## Inbox History Query
+Also update the display text:
+```typescript
+// Current display:
+({podCount} pods × 2.4m)
 
-```sql
--- Unified inbox history view (conceptual)
-SELECT 
-  id,
-  'plan' as type,
-  from_email,
-  from_name,
-  subject,
-  file_url,
-  received_at,
-  status,
-  linked_estimate_id as linked_id
-FROM pending_plans
-WHERE business_id = ?
+// New display:
+({podCount} × 2.4 - {perimeter/2}m edge)
+```
 
-UNION ALL
+### 3. scopes.ts - WAFFLE_POD_SCOPE.calculateVolume()
 
-SELECT 
-  id,
-  'test' as type,
-  from_email,
-  NULL as from_name,
-  subject,
-  lab_report_url as file_url,
-  received_at,
-  status::text,
-  linked_job_id as linked_id
-FROM pending_test_results
-WHERE business_id = ?
+**Multi-zone calculation (lines ~816-829):**
+```typescript
+// Replace pod field calculation with:
+podZones.forEach((zone: any) => {
+  const zoneArea = Number(zone.area) || 0;
+  const topSlabM = (Number(zone.top_slab_thickness) || 85) / 1000;
+  const podThicknessM = (Number(zone.pod_thickness) || 225) / 1000;
+  const zonePodCount = Number(zone.pod_count) || 0;
+  
+  // Topping volume for this zone
+  totalToppingVolume += zoneArea * topSlabM;
+  
+  // Pod rib volume using boss's formula: pods × 0.2519 × depth
+  totalPodFieldVolume += zonePodCount * 0.2519 * podThicknessM;
+});
+```
 
-UNION ALL
+**Legacy single-zone calculation (lines ~937-940):**
+```typescript
+// Replace:
+const podFieldArea = Math.max(0, totalArea - edgeBeamFootprint - internalBeamFootprint);
+const podVoidVolume = podCount * podSizeM * podSizeM * podThicknessM;
+const V_pod_field = Math.max(0, (podFieldArea * podThicknessM) - podVoidVolume);
 
-SELECT 
-  id,
-  'docket' as type,
-  from_email,
-  NULL as from_name,
-  subject,
-  file_url,
-  received_at,
-  status,
-  linked_job_id as linked_id
-FROM pending_documents
-WHERE business_id = ?
+// With:
+const V_pod_field = podCount * 0.2519 * podThicknessM;
+```
 
-ORDER BY received_at DESC
+### 4. ModularCalculator.tsx - wafflePodBreakdown (Lines ~515-518)
+
+```typescript
+// Replace:
+const podVoidVolume = podCount * podSizeM * podSizeM * podThicknessM;
+const V_pod_field = Math.max(0, (podFieldArea * podThicknessM) - podVoidVolume);
+
+// With:
+const V_pod_field = podCount * 0.2519 * podThicknessM;
 ```
 
 ---
 
-## Files Summary
+## Summary of Formula Changes
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/pages/admin/AdminContacts.tsx` | Create | Main contacts page with tabs |
-| `src/components/contacts/ClientsTab.tsx` | Create | Client contacts list |
-| `src/components/contacts/ClientDetailSheet.tsx` | Create | Client history sheet |
-| `src/components/contacts/SubbiesTab.tsx` | Create | Subbies list (from widget) |
-| `src/components/contacts/SuppliersTab.tsx` | Create | Supplier contacts list |
-| `src/components/contacts/InboxHistoryTab.tsx` | Create | Email inbox history log |
-| `src/components/layout/AdminLayout.tsx` | Modify | Add Contacts nav item |
-| `src/App.tsx` | Modify | Add /admin/contacts route |
-| `src/pages/admin/AdminDashboard.tsx` | Modify | Remove SubbieContactListWidget |
+| Calculation | Current | Corrected |
+|-------------|---------|-----------|
+| Rib reo length per layer | `pods × 2.4` | `(pods × 2.4) - (perimeter ÷ 2)` |
+| Pod rib concrete | `(area × depth) - (pods × pod_size³)` | `pods × 0.2519 × pod_depth` |
 
 ---
 
-## User Flow
+## Testing Considerations
 
-### Viewing Contacts
-1. Navigate to Contacts from sidebar
-2. Default view shows Clients tab
-3. Switch between Clients, Subbies, Suppliers tabs
-4. Search/filter within each tab
-5. Click contact to see detail sheet with history
-
-### Viewing Inbox History
-1. Click "Inbox History" tab
-2. See all received emails in chronological order
-3. Filter by type or status
-4. Click to view document
-5. Click linked job/estimate to navigate there
-
----
-
-## Benefits
-
-1. **Centralized contact management** - One place for all business contacts
-2. **Email audit trail** - Permanent record of all received documents
-3. **Cleaner dashboard** - Focus on daily operations, not contact browsing
-4. **Better organization** - Clients, subbies, suppliers clearly separated
-5. **Quick actions** - Call, email, invite, or send PO directly from contact view
+After implementation:
+1. Create a new waffle pod estimate with a known pod count and perimeter
+2. Verify the rib reinforcement shows the corrected length calculation
+3. Verify the concrete volume properly includes the pod rib concrete (not just edge beams)
+4. Compare totals against manual calculations using the boss's formulas
