@@ -1,135 +1,95 @@
 
+## Diagnosis (what’s happening and why)
+You’re still seeing:
 
-# Inbox Tab Enhancement Plan
+> Setting up fake worker failed: “Failed to fetch dynamically imported module: https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.js?import”
 
-## Overview
+This error means PDF.js is failing to start its Web Worker, then falling back to a “fake worker” (running worker code on the main thread). That fallback uses a dynamic `import()` to load the worker file.
 
-This plan addresses three key improvements to the Inbox functionality:
-1. Make emails clickable to view full details in a side sheet
-2. Add in-app document/attachment viewer instead of opening in a new tab
-3. Rename "Inbox History" to "Inbox" and make it the default (first) tab
+### Why it fails in our current setup
+Right now both of these files configure PDF.js with a CDN worker URL that points to `pdf.worker.min.js`:
 
-## Current State
+- `src/components/estimates/takeoff/PlanViewer.tsx`
+- `src/components/contacts/InboxDetailSheet.tsx`
 
-- `InboxHistoryTab.tsx` displays a list of inbox items with basic metadata (subject, from, date)
-- Clicking "View" opens attachments in a new browser tab using signed URLs
-- Tab order: Clients | Sub-Contractors | Suppliers | Inbox History
-- Default tab on page load is "clients"
-- No email body content is stored in the database (only subject, from_email, from_name, file metadata)
-- The project has an existing PDF viewer component (`PlanViewer.tsx`) using pdf.js
+In PDF.js v4, the worker is expected to be an ES module worker (`.mjs` / module format). The CDN `pdf.worker.min.js` build is not the right module format for that `import()` path. So when PDF.js tries to dynamically import it, it fails, producing the exact `...?import` error.
 
-## Proposed Changes
+Additionally, depending on environment (preview iframe, native shell, etc.), cross-origin + dynamic module import is more fragile than serving the worker from the same origin.
 
-### 1. Tab Reordering & Renaming
+## Fix strategy
+Stop loading the worker from a CDN and instead bundle/serve the worker from our app build (same origin), using the official PDF.js worker module (`pdf.worker.mjs`) and initializing it as a **module worker**.
 
-| Change | Before | After |
-|--------|--------|-------|
-| Default tab | `clients` | `inbox` |
-| Tab order | Clients, Sub-Contractors, Suppliers, Inbox History | **Inbox**, Clients, Sub-Contractors, Suppliers |
-| Tab label | "Inbox History" | "Inbox" |
+This avoids:
+- CORS/dynamic import edge cases
+- “wrong worker format” mismatch (`.js` vs `.mjs`)
+- reliance on an external CDN
 
-### 2. Clickable Email Cards with Detail Sheet
+## Implementation Plan
+### 1) Create a single “configure PDF.js worker” utility
+Add a new helper module (example path):
+- `src/lib/pdfjsWorker.ts`
 
-When a user clicks on an email row, a detail sheet will slide in from the right showing:
+Responsibilities:
+- Import PDF.js once
+- Import the worker asset URL from `pdfjs-dist/build/pdf.worker.mjs?url`
+- Configure PDF.js to use a module worker, ideally via `GlobalWorkerOptions.workerPort` (most robust for v4)
 
-```text
-+----------------------------------+
-| [X]                              |
-| Subject: RE: Site Plans for 123  |
-| From: john@example.com           |
-| Date: 02 Feb 2026 at 9:30 AM     |
-+----------------------------------+
-| Type: Plan       Status: Pending |
-+----------------------------------+
-|                                  |
-| [Attachment Viewer Area]         |
-| ┌──────────────────────────────┐ |
-| │                              │ |
-| │    PDF / Image Preview       │ |
-| │                              │ |
-| └──────────────────────────────┘ |
-|                                  |
-| Filename: building_plans.pdf     |
-| [Open in New Tab]                |
-|                                  |
-+----------------------------------+
-| [Go to Quote] (if linked)        |
-+----------------------------------+
-```
+Proposed logic (high level):
+- If `window.Worker` exists and worker isn’t already set:
+  - `const workerUrl = (imported ?url string)`
+  - `GlobalWorkerOptions.workerPort = new Worker(workerUrl, { type: 'module' })`
+- Optionally also set `GlobalWorkerOptions.workerSrc = workerUrl` as a fallback (but `workerPort` should take precedence)
 
-### 3. In-App Document Viewer
+Why `workerPort`:
+- PDF.js itself ships a `webpack.mjs` helper that uses this exact pattern internally:
+  - `GlobalWorkerOptions.workerPort = new Worker(new URL("./build/pdf.worker.mjs", import.meta.url), { type: "module" })`
+- We’ll replicate that approach in a Vite-friendly way.
 
-The attachment viewer will support:
-- **PDFs**: Rendered using pdf.js (reusing pattern from `PlanViewer.tsx`)
-- **Images**: Displayed directly in an `<img>` tag
-- Page navigation for multi-page PDFs
-- Fallback "Open in New Tab" button for unsupported formats
+### 2) Remove all CDN-based worker configuration
+Update both files to stop doing this:
+- `pdfjs.GlobalWorkerOptions.workerSrc = https://cdnjs.../pdf.worker.min.js`
+- `pdfjsLib.GlobalWorkerOptions.workerSrc = //cdnjs.../pdf.worker.min.js`
 
-### Files to Create/Modify
+Specifically:
+- `src/components/estimates/takeoff/PlanViewer.tsx`
+- `src/components/contacts/InboxDetailSheet.tsx`
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/components/contacts/InboxDetailSheet.tsx` | **Create** | New component for viewing email/attachment details |
-| `src/components/contacts/InboxHistoryTab.tsx` | **Modify** | Rename to InboxTab, make cards clickable, integrate detail sheet |
-| `src/pages/admin/AdminContacts.tsx` | **Modify** | Reorder tabs, change default to "inbox", rename label |
+Replace with:
+- `import "@/lib/pdfjsWorker"` (or import a function and call it)
+so the worker is configured consistently everywhere.
 
-### InboxDetailSheet Component Design
+### 3) Ensure configuration runs early enough
+Two safe options:
+- Import the worker config module at the top of each PDF-using component (PlanViewer + InboxDetailSheet), OR
+- Import it once globally in `src/main.tsx` so it’s always configured before any PDF rendering occurs.
 
-```typescript
-interface InboxDetailSheetProps {
-  item: InboxItem | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onNavigateToLinked: (item: InboxItem) => void;
-}
-```
+Preferred: import once in `main.tsx` (reduces risk of multiple Worker instances and prevents order-of-import issues).
 
-**Key Features:**
-1. **Header Section**: Subject, from email/name, received date, type badge, status badge
-2. **Document Viewer**: 
-   - Uses signed URL from Supabase storage
-   - For PDFs: Canvas-based rendering with page navigation
-   - For images (jpg, png, webp, gif): Direct `<img>` display
-   - Loading state while fetching signed URL and rendering
-3. **File Info**: Filename, file size (if available)
-4. **Actions**: 
-   - "Open in New Tab" button (for fallback/preference)
-   - "Go to Quote/Job" button (if linked)
+### 4) Verify the fix in both areas that use PDF.js
+Test flows:
+1. Admin → Estimates → Takeoff viewer
+   - Confirm the PDF loads
+   - Confirm no “Setting up fake worker failed” errors in console
+2. Contacts → Inbox → open an email with a PDF attachment
+   - Confirm PDF preview loads
+   - Confirm page navigation still works
 
-### Implementation Details
+### 5) Add a fallback if a specific device/browser still can’t run module workers
+If some older environments still fail (e.g., older iOS WebView), we’ll implement a controlled fallback:
+- Switch to the PDF.js legacy build worker import (`pdfjs-dist/legacy/build/pdf.worker.mjs?url`) in the worker config file when module workers aren’t supported.
+- If even that fails, show a clear UI message with a single “Open PDF in new tab” action (so users can still access the document).
 
-**Document Type Detection:**
-```typescript
-const getFileType = (fileName: string): 'pdf' | 'image' | 'other' => {
-  const ext = fileName.toLowerCase().split('.').pop();
-  if (ext === 'pdf') return 'pdf';
-  if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) return 'image';
-  return 'other';
-};
-```
+## Files involved (expected changes)
+- Add: `src/lib/pdfjsWorker.ts` (new)
+- Edit: `src/main.tsx` (import the worker config once)
+- Edit: `src/components/estimates/takeoff/PlanViewer.tsx` (remove CDN worker config, rely on shared config)
+- Edit: `src/components/contacts/InboxDetailSheet.tsx` (remove CDN worker config, rely on shared config)
 
-**PDF Viewer (simplified from PlanViewer):**
-- Uses pdfjs-dist library already in dependencies
-- Single-page display with page navigation
-- No drawing/markup overlays needed (read-only viewer)
-- Sized to fit within the sheet container
+## Why this will fix your exact error
+- The failing URL ends with `pdf.worker.min.js?import` — that’s the fake-worker dynamic import path trying to import a non-module worker build.
+- By bundling and initializing the correct module worker (`pdf.worker.mjs`) from the app origin, PDF.js won’t need the fake-worker import path, and the worker will start reliably.
 
-**Signed URL Handling:**
-- Fetch signed URL when sheet opens
-- Cache URL during sheet session
-- Show loading spinner while URL is being generated
-
-### Mobile Considerations
-
-- Sheet will be full-screen on mobile (`sm:max-w-xl`)
-- Document viewer scales responsively
-- Touch-friendly page navigation buttons
-- Pinch-to-zoom for PDF/images (leverage existing pattern)
-
-### Edge Cases
-
-1. **Unsupported file types**: Show file name with "Open in New Tab" only
-2. **Failed to load**: Show error message with retry option
-3. **Large PDFs**: Show first page with page count, allow navigation
-4. **Missing attachment**: Display "(No attachment)" message
-
+## Acceptance criteria (what “done” looks like)
+- Takeoff PDFs render without the “PDF NOT VIEWABLE” screen.
+- Console no longer shows “Setting up fake worker failed…”
+- Inbox PDF previews still work (or improve), using the same worker configuration.
