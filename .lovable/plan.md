@@ -1,266 +1,131 @@
 
-# Fix Inbox "Start Estimate" Workflow
+# Fix Chair Type Selection Not Updating for Strip/Retaining Wall Footings
 
-## Problem Summary
+## Problem Analysis
 
-The "Start Estimate" button in the Inbox's Plans to Quote section fails to create a properly functioning estimate because:
+When selecting a chair type (e.g., 50-65mm) in the retaining wall or strip footing reinforcement section, the selection doesn't update properly. After investigating the code flow, I've identified the root cause.
 
-1. **Wrong file storage**: The `PendingPlansSheet` creates a legacy `estimate_takeoffs` record with `plan_url` field, but the system now uses `takeoff_files` table
-2. **No wizard integration**: After creating, it navigates to the detail sheet (read-only) instead of opening the estimate wizard
-3. **Plan files inaccessible**: The plan file from the inbox is stored in `test-documents` bucket but never copied to `estimate-plans` bucket or linked via `takeoff_files`
+### Root Cause
+
+The issue is in the `FootingSectionReinforcementInput.tsx` component. The `updateGroupReinforcement` callback uses `sections` from its closure, but the matching logic compares against properties from the `group` object that was created during the initial grouping. 
+
+The problem occurs because:
+
+1. The `group` object passed to `updateGroupReinforcement` is from the **current render's** `groups` memo
+2. But the `sections` in the `useCallback` closure may be from a **previous render** if React batches state updates
+3. The matching logic uses `group.typeName`, `group.width`, and `group.depth` - if these don't match the section being iterated (due to stale closure), no update occurs
+
+Additionally, the `priceMap` lookup for chair prices uses the item code directly (e.g., `'5065C'`), but if the price lookup returns `undefined`, the fallback price is applied without any indication to the user.
+
+### Secondary Issue
+
+The `onChange` callback in `ModuleSection.tsx` is an inline function that captures `hasLinearSections` at render time. If this value is stale, the update could go to the wrong data key (`footings` vs `linearSections`).
+
+---
 
 ## Solution
 
-Refactor the conversion flow to:
-1. Copy the plan file from inbox storage to estimate-plans bucket
-2. Create proper `takeoff_files` record (not legacy `plan_url`)
-3. Navigate to the estimate wizard for scope configuration
-4. Add in-app plan viewing (already exists in EstimateDetailSheet)
+### Fix 1: Stabilize the update callback
 
----
+Update `FootingSectionReinforcementInput.tsx` to use a more robust matching approach that doesn't rely on the `group` object's potentially stale properties.
 
-## Technical Changes
-
-### File: `src/components/jobs/PendingPlansSheet.tsx`
-
-#### 1. Refactor `convertMutation` to use proper file storage
-
-Replace the current conversion logic with:
-
-```text
-1. Create estimate with draft status (minimal data)
-2. Create estimate_takeoffs record (empty plan_url/plan_type)
-3. Copy file from test-documents bucket to estimate-plans bucket
-4. Create takeoff_files record with the new file URL
-5. Update pending_plan status to 'converted'
-6. Navigate to wizard with edit mode: /admin/estimates?edit={id}
-```
-
-#### 2. Update the navigation after conversion
-
-Instead of navigating to `?id=${estimate.id}` (which opens detail sheet), navigate to open the estimate form dialog for editing.
-
-Current behavior:
+**Before (current code):**
 ```typescript
-navigate(`/admin/estimates?id=${estimate.id}`);
-```
-
-New behavior - pass state to open wizard:
-```typescript
-navigate(`/admin/estimates`, { 
-  state: { editEstimateId: estimate.id } 
-});
-```
-
-### File: `src/pages/admin/AdminEstimates.tsx`
-
-#### 3. Handle navigation state to auto-open wizard
-
-Add logic to check for `editEstimateId` in location state and automatically open the form dialog for that estimate.
-
----
-
-## Detailed Implementation
-
-### Step 1: Update PendingPlansSheet conversion mutation
-
-```typescript
-const convertMutation = useMutation({
-  mutationFn: async () => {
-    if (!selectedPlan) throw new Error("No plan selected");
-
-    // Get user's business ID
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error("Not authenticated");
-    
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("business_id")
-      .eq("id", user.id)
-      .single();
-    
-    if (!profile?.business_id) throw new Error("No business found");
-
-    // 1. Create estimate draft
-    const { data: estimate, error: estimateError } = await supabase
-      .from("estimates")
-      .insert({
-        business_id: businessId,
-        client_name: clientName || "New Client",
-        client_email: clientEmail || null,
-        client_phone: clientPhone || null,
-        site_address: siteAddress || "Address TBD",
-        status: "draft",
-        estimate_type: "commercial_slab",
-        notes: `Plan received via email from ${selectedPlan.from_email}`,
-      })
-      .select()
-      .single();
-
-    if (estimateError) throw estimateError;
-
-    // 2. Create takeoff record
-    const { data: takeoff, error: takeoffError } = await supabase
-      .from("estimate_takeoffs")
-      .insert({
-        estimate_id: estimate.id,
-        plan_url: null,
-        plan_type: null,
-        page_count: 1,
-        current_page: 1
-      })
-      .select()
-      .single();
-
-    if (takeoffError) throw takeoffError;
-
-    // 3. Copy file from test-documents to estimate-plans
-    // Extract source path from pending_plan file_url
-    const sourceUrl = selectedPlan.file_url;
-    const sourcePath = extractPathFromUrl(sourceUrl, 'test-documents');
-    
-    // Download the file
-    const { data: fileData, error: downloadError } = await supabase.storage
-      .from('test-documents')
-      .download(sourcePath);
-    
-    if (downloadError) throw downloadError;
-
-    // Upload to estimate-plans
-    const fileExt = selectedPlan.file_name.split('.').pop()?.toLowerCase() || 'pdf';
-    const destPath = `${profile.business_id}/${estimate.id}/${crypto.randomUUID()}.${fileExt}`;
-    
-    const { error: uploadError } = await supabase.storage
-      .from('estimate-plans')
-      .upload(destPath, fileData, { upsert: true });
-    
-    if (uploadError) throw uploadError;
-
-    // Get signed URL for the new file
-    const { data: signedUrlData } = await supabase.storage
-      .from('estimate-plans')
-      .createSignedUrl(destPath, 3600 * 24 * 7);
-
-    // 4. Create takeoff_files record
-    const { error: fileRecordError } = await supabase
-      .from('takeoff_files')
-      .insert({
-        takeoff_id: takeoff.id,
-        file_url: signedUrlData?.signedUrl || destPath,
-        file_type: fileExt === 'pdf' ? 'pdf' : 'image',
-        file_name: selectedPlan.file_name.replace(/\.[^/.]+$/, '') || 'Building Plan',
-        page_count: 1,
-        sort_order: 0
-      });
-
-    if (fileRecordError) {
-      console.error("Error creating takeoff file:", fileRecordError);
+const updateGroupReinforcement = useCallback((group: FootingTypeGroup, updates: Partial<LinearSection>) => {
+  const updatedSections = sections.map(section => {
+    const sectionType = parseFootingTypeName(section.name);
+    const width = section.dimension1 || 0;
+    const depth = section.dimension2 || 0;
+    if (sectionType === group.typeName && width === group.width && depth === group.depth) {
+      return { ...section, ...updates };
     }
-
-    // 5. Update pending plan status
-    const { error: updateError } = await supabase
-      .from("pending_plans")
-      .update({
-        status: "converted",
-        linked_estimate_id: estimate.id,
-      })
-      .eq("id", selectedPlan.id);
-
-    if (updateError) throw updateError;
-
-    return estimate;
-  },
-  onSuccess: (estimate) => {
-    queryClient.invalidateQueries({ queryKey: ["pending-plans"] });
-    queryClient.invalidateQueries({ queryKey: ["pending-plans-list"] });
-    toast.success("Estimate created - complete the quote setup");
-    setShowConvertDialog(false);
-    setSelectedPlan(null);
-    onOpenChange(false);
-    // Navigate with state to auto-open wizard
-    navigate("/admin/estimates", { 
-      state: { editEstimateId: estimate.id } 
-    });
-  },
-  // ... error handler unchanged
-});
+    return section;
+  });
+  onChange(updatedSections);
+}, [sections, onChange]);
 ```
 
-### Step 2: Handle auto-open in AdminEstimates
-
+**After (fixed code):**
 ```typescript
-// In AdminEstimates component, add:
-const location = useLocation();
-
-useEffect(() => {
-  // Check if we should auto-open an estimate for editing
-  const state = location.state as { editEstimateId?: string } | null;
-  if (state?.editEstimateId && estimates.length > 0) {
-    const estimate = estimates.find(e => e.id === state.editEstimateId);
-    if (estimate) {
-      setEditingEstimate(estimate);
-      setFormOpen(true);
-      // Clear the state to prevent re-opening on refresh
-      navigate(location.pathname, { replace: true });
-    }
-  }
-}, [location.state, estimates]);
-```
-
-### Step 3: Add helper function for URL path extraction
-
-```typescript
-function extractPathFromUrl(url: string, bucketName: string): string {
-  // Handle both signed URLs and public URLs
-  const bucketMarker = `/${bucketName}/`;
-  const startIndex = url.indexOf(bucketMarker);
-  if (startIndex === -1) return url;
+const updateGroupReinforcement = useCallback((group: FootingTypeGroup, updates: Partial<LinearSection>) => {
+  // Use segment IDs for matching instead of dimension comparison
+  // This is more robust as IDs are unique and don't change
+  const segmentIds = new Set(group.segments.map(s => s.id));
   
-  let path = url.slice(startIndex + bucketMarker.length);
-  // Remove query params (signed URL tokens)
-  const queryIndex = path.indexOf('?');
-  if (queryIndex !== -1) {
-    path = path.slice(0, queryIndex);
-  }
-  return decodeURIComponent(path);
-}
+  const updatedSections = sections.map(section => {
+    if (segmentIds.has(section.id)) {
+      return { ...section, ...updates };
+    }
+    return section;
+  });
+  onChange(updatedSections);
+}, [sections, onChange]);
 ```
+
+### Fix 2: Use stable section ID matching
+
+The current matching uses `typeName + width + depth` which can be unreliable if sections have the same dimensions. Using segment IDs (which are unique) provides more reliable matching.
+
+### Fix 3: Add explicit dependency tracking
+
+Ensure the `onChange` callback has access to the latest `priceMap` value for price lookups during selection:
+
+```typescript
+// In the Select onValueChange handler
+onValueChange={(val) => {
+  // Use the helper function which is already scoped correctly
+  const catalogPrice = getChairPrice(val, priceMap);
+  const pricePerBagOf25 = catalogPrice !== undefined ? catalogPrice / 4 : 12.50;
+  updateGroupReinforcement(group, { 
+    chair_type: val,
+    chair_price_per_bag: pricePerBagOf25
+  });
+}}
+```
+
+The current inline access `priceMap?.['consumables']?.[val]` should be replaced with the already-defined `getChairPrice` helper function for consistency.
 
 ---
 
-## Files Modified
+## Technical Implementation
+
+### File: `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx`
+
+#### Change 1: Update `updateGroupReinforcement` to use segment IDs (lines 211-222)
+
+Replace dimension-based matching with ID-based matching:
+- Create a Set of segment IDs from `group.segments`
+- Match sections by ID instead of by typeName + dimensions
+- This ensures the correct sections are updated even if the group object has stale dimension values
+
+#### Change 2: Use `getChairPrice` helper in onValueChange (line 990)
+
+Replace direct priceMap access with the helper function for consistency:
+- Current: `const catalogPrice = priceMap?.['consumables']?.[val];`
+- Fixed: `const catalogPrice = getChairPrice(val, priceMap);`
+
+This applies to both:
+- Chair type selection (line 990)
+- Layer chair type selection (line 1066)
+
+---
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/jobs/PendingPlansSheet.tsx` | Refactor conversion to use takeoff_files, copy file between buckets, navigate to wizard |
-| `src/pages/admin/AdminEstimates.tsx` | Add useEffect to handle auto-open from navigation state |
+| `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx` | Fix matching logic in `updateGroupReinforcement`, use helper for price lookups |
 
 ---
 
-## Plan Viewing (Already Implemented)
+## Testing Checklist
 
-The `EstimateDetailSheet` already supports viewing plans:
-- Lines 822-853: "Building Plans" section with View button
-- Lines 856-920: Full plan viewer dialog with PDF iframe and image support
-- Supports multiple files with Previous/Next navigation
-
-No changes needed for viewing - just ensure files are properly stored in `takeoff_files` table.
-
----
-
-## Implementation Sequence
-
-1. Add the URL path extraction helper function to PendingPlansSheet
-2. Refactor the `convertMutation` to properly copy files and create `takeoff_files` record
-3. Update navigation to pass state for auto-opening wizard
-4. Add useEffect in AdminEstimates to handle the auto-open state
-5. Test the full flow: Inbox → Start Estimate → Wizard opens with plan attached
-
----
-
-## Why This Works
-
-1. **Proper file storage**: Plans are copied to the same bucket/structure used by the standard estimate creation
-2. **takeoff_files table**: Using the new architecture ensures plans appear in the wizard and detail sheet
-3. **Wizard integration**: Opening the wizard allows users to configure scopes, markup plans, and finalize the quote
-4. **Backward compatible**: Existing estimates and viewing functionality remain unchanged
+After implementation:
+1. Create a new strip footing estimate with multiple footing sections
+2. Enable TM Chairs in the reinforcement section
+3. Change the chair type from 50-65mm to 75-90mm
+4. Verify the dropdown shows the new selection
+5. Verify the price per bag updates correctly
+6. Verify the cost summary reflects the new chair price
+7. Save the estimate and reload - verify the selection persists
+8. Repeat for retaining wall footings
