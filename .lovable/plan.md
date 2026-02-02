@@ -1,260 +1,266 @@
 
-# Multi-Zone Waffle Pod Support
+# Fix Inbox "Start Estimate" Workflow
 
-## Overview
+## Problem Summary
 
-Adding support for multiple waffle pod zones within a single estimate, where each zone can have different pod specifications (e.g., 100m² of 225mm pods + 100m² of 300mm pods). This is more complex than per-area thickness in regular slabs because different pod depths require different:
-- Pod types/sizes
-- Rib reinforcement configurations
-- Spacer and accessory quantities
-- Volume calculations
+The "Start Estimate" button in the Inbox's Plans to Quote section fails to create a properly functioning estimate because:
+
+1. **Wrong file storage**: The `PendingPlansSheet` creates a legacy `estimate_takeoffs` record with `plan_url` field, but the system now uses `takeoff_files` table
+2. **No wizard integration**: After creating, it navigates to the detail sheet (read-only) instead of opening the estimate wizard
+3. **Plan files inaccessible**: The plan file from the inbox is stored in `test-documents` bucket but never copied to `estimate-plans` bucket or linked via `takeoff_files`
+
+## Solution
+
+Refactor the conversion flow to:
+1. Copy the plan file from inbox storage to estimate-plans bucket
+2. Create proper `takeoff_files` record (not legacy `plan_url`)
+3. Navigate to the estimate wizard for scope configuration
+4. Add in-app plan viewing (already exists in EstimateDetailSheet)
 
 ---
 
-## Data Architecture
+## Technical Changes
 
-### New Type: `WafflePodZone`
+### File: `src/components/jobs/PendingPlansSheet.tsx`
 
-Each zone represents a distinct area with its own pod specifications:
+#### 1. Refactor `convertMutation` to use proper file storage
+
+Replace the current conversion logic with:
 
 ```text
-interface WafflePodZone {
-  id: string;
-  name: string;                    // e.g., "Zone A - Living Areas"
+1. Create estimate with draft status (minimal data)
+2. Create estimate_takeoffs record (empty plan_url/plan_type)
+3. Copy file from test-documents bucket to estimate-plans bucket
+4. Create takeoff_files record with the new file URL
+5. Update pending_plan status to 'converted'
+6. Navigate to wizard with edit mode: /admin/estimates?edit={id}
+```
+
+#### 2. Update the navigation after conversion
+
+Instead of navigating to `?id=${estimate.id}` (which opens detail sheet), navigate to open the estimate form dialog for editing.
+
+Current behavior:
+```typescript
+navigate(`/admin/estimates?id=${estimate.id}`);
+```
+
+New behavior - pass state to open wizard:
+```typescript
+navigate(`/admin/estimates`, { 
+  state: { editEstimateId: estimate.id } 
+});
+```
+
+### File: `src/pages/admin/AdminEstimates.tsx`
+
+#### 3. Handle navigation state to auto-open wizard
+
+Add logic to check for `editEstimateId` in location state and automatically open the form dialog for that estimate.
+
+---
+
+## Detailed Implementation
+
+### Step 1: Update PendingPlansSheet conversion mutation
+
+```typescript
+const convertMutation = useMutation({
+  mutationFn: async () => {
+    if (!selectedPlan) throw new Error("No plan selected");
+
+    // Get user's business ID
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) throw new Error("Not authenticated");
+    
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("business_id")
+      .eq("id", user.id)
+      .single();
+    
+    if (!profile?.business_id) throw new Error("No business found");
+
+    // 1. Create estimate draft
+    const { data: estimate, error: estimateError } = await supabase
+      .from("estimates")
+      .insert({
+        business_id: businessId,
+        client_name: clientName || "New Client",
+        client_email: clientEmail || null,
+        client_phone: clientPhone || null,
+        site_address: siteAddress || "Address TBD",
+        status: "draft",
+        estimate_type: "commercial_slab",
+        notes: `Plan received via email from ${selectedPlan.from_email}`,
+      })
+      .select()
+      .single();
+
+    if (estimateError) throw estimateError;
+
+    // 2. Create takeoff record
+    const { data: takeoff, error: takeoffError } = await supabase
+      .from("estimate_takeoffs")
+      .insert({
+        estimate_id: estimate.id,
+        plan_url: null,
+        plan_type: null,
+        page_count: 1,
+        current_page: 1
+      })
+      .select()
+      .single();
+
+    if (takeoffError) throw takeoffError;
+
+    // 3. Copy file from test-documents to estimate-plans
+    // Extract source path from pending_plan file_url
+    const sourceUrl = selectedPlan.file_url;
+    const sourcePath = extractPathFromUrl(sourceUrl, 'test-documents');
+    
+    // Download the file
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('test-documents')
+      .download(sourcePath);
+    
+    if (downloadError) throw downloadError;
+
+    // Upload to estimate-plans
+    const fileExt = selectedPlan.file_name.split('.').pop()?.toLowerCase() || 'pdf';
+    const destPath = `${profile.business_id}/${estimate.id}/${crypto.randomUUID()}.${fileExt}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from('estimate-plans')
+      .upload(destPath, fileData, { upsert: true });
+    
+    if (uploadError) throw uploadError;
+
+    // Get signed URL for the new file
+    const { data: signedUrlData } = await supabase.storage
+      .from('estimate-plans')
+      .createSignedUrl(destPath, 3600 * 24 * 7);
+
+    // 4. Create takeoff_files record
+    const { error: fileRecordError } = await supabase
+      .from('takeoff_files')
+      .insert({
+        takeoff_id: takeoff.id,
+        file_url: signedUrlData?.signedUrl || destPath,
+        file_type: fileExt === 'pdf' ? 'pdf' : 'image',
+        file_name: selectedPlan.file_name.replace(/\.[^/.]+$/, '') || 'Building Plan',
+        page_count: 1,
+        sort_order: 0
+      });
+
+    if (fileRecordError) {
+      console.error("Error creating takeoff file:", fileRecordError);
+    }
+
+    // 5. Update pending plan status
+    const { error: updateError } = await supabase
+      .from("pending_plans")
+      .update({
+        status: "converted",
+        linked_estimate_id: estimate.id,
+      })
+      .eq("id", selectedPlan.id);
+
+    if (updateError) throw updateError;
+
+    return estimate;
+  },
+  onSuccess: (estimate) => {
+    queryClient.invalidateQueries({ queryKey: ["pending-plans"] });
+    queryClient.invalidateQueries({ queryKey: ["pending-plans-list"] });
+    toast.success("Estimate created - complete the quote setup");
+    setShowConvertDialog(false);
+    setSelectedPlan(null);
+    onOpenChange(false);
+    // Navigate with state to auto-open wizard
+    navigate("/admin/estimates", { 
+      state: { editEstimateId: estimate.id } 
+    });
+  },
+  // ... error handler unchanged
+});
+```
+
+### Step 2: Handle auto-open in AdminEstimates
+
+```typescript
+// In AdminEstimates component, add:
+const location = useLocation();
+
+useEffect(() => {
+  // Check if we should auto-open an estimate for editing
+  const state = location.state as { editEstimateId?: string } | null;
+  if (state?.editEstimateId && estimates.length > 0) {
+    const estimate = estimates.find(e => e.id === state.editEstimateId);
+    if (estimate) {
+      setEditingEstimate(estimate);
+      setFormOpen(true);
+      // Clear the state to prevent re-opening on refresh
+      navigate(location.pathname, { replace: true });
+    }
+  }
+}, [location.state, estimates]);
+```
+
+### Step 3: Add helper function for URL path extraction
+
+```typescript
+function extractPathFromUrl(url: string, bucketName: string): string {
+  // Handle both signed URLs and public URLs
+  const bucketMarker = `/${bucketName}/`;
+  const startIndex = url.indexOf(bucketMarker);
+  if (startIndex === -1) return url;
   
-  // Geometry
-  area: number;                    // m² (from takeoff or manual)
-  perimeter: number;               // m (for edge calculations)
-  _fromTakeoff?: boolean;
-  _actualArea?: number;
-  _actualPerimeter?: number;
-  
-  // Pod Specifications
-  pod_size: string;                // '1050' | '1090' | '1110' (mm)
-  pod_thickness: string;           // '225' | '275' | '325' | '375' (mm)
-  top_slab_thickness: number;      // mm (default 85)
-  rib_width: number;               // mm (default 110)
-  
-  // Derived/Calculated
-  pod_count: number;               // Total pods in this zone
-  
-  // Rib Reinforcement (per zone)
-  rib_bottom_bars?: number;
-  rib_bottom_bar_size?: string;
-  rib_top_bars?: number;
-  rib_top_bar_size?: string;
-  
-  // Accessories (auto-derived from pod_count)
-  spacer_4way_count?: number;
-  spacer_2way_count?: number;
-  pod_rail_packs?: number;
+  let path = url.slice(startIndex + bucketMarker.length);
+  // Remove query params (signed URL tokens)
+  const queryIndex = path.indexOf('?');
+  if (queryIndex !== -1) {
+    path = path.slice(0, queryIndex);
+  }
+  return decodeURIComponent(path);
 }
 ```
 
 ---
 
-## UI Design
-
-### Multi-Zone Pod Input Component
-
-New component: `MultiWafflePodZoneInput.tsx`
-
-```text
-+----------------------------------------------------------+
-| Waffle Pod Zones                    [+ Add Zone] [Expand]|
-+----------------------------------------------------------+
-| Summary: 2 zones • 200m² total • 180 pods                |
-+----------------------------------------------------------+
-
-+----------------------------------------------------------+
-| [v] Zone A - Living Areas                    120m² | 108 |
-|----------------------------------------------------------| 
-|   Pod Size       Pod Depth     Topping     Rib Width     |
-|   [1090mm v]     [225mm v]     [85 mm]     [110 mm]      |
-|                                                          |
-|   Pod Count      Total Height                            |
-|   [108    ]      310mm                                   |
-|                                                          |
-|   Rib Reinforcement  [Configure...]                      |
-|   Bottom: 2×N12  Top: 1×N12                              |
-|                                                          |
-|   [Duplicate]  [Remove]                                  |
-+----------------------------------------------------------+
-
-+----------------------------------------------------------+
-| [>] Zone B - Garage                           80m² | 72  |
-+----------------------------------------------------------+
-```
-
-### Key Features
-- Each zone is collapsible with summary in header
-- Pod specifications (size, depth, topping, rib width) per zone
-- Pod count per zone (auto-derived or manual)
-- Rib reinforcement configuration per zone
-- Duplicate/remove actions
-- Summary totals across all zones
-
----
-
-## Calculation Changes
-
-### Volume Calculation (scopes.ts)
-
-The `calculateVolume` function will iterate over zones:
-
-```text
-Total Volume = Σ per zone:
-  - V_topping = zone.area × (zone.top_slab_thickness / 1000)
-  - V_pod_field = (zone.area × zone.pod_thickness/1000) - (zone.pod_count × pod_volume)
-  
-+ Edge Beams (shared across zones, based on total perimeter)
-+ Internal Beams (if any)
-```
-
-### Pods Module (pods.ts)
-
-Aggregate pod counts and accessories across zones:
-
-```text
-for each zone:
-  - Pod supply: zone.pod_count × zone-specific price (if different sizes/depths have different prices)
-  - Spacers: derived from zone.pod_count using standard formulas
-  - Pod rails: zone.pod_count × 2 / 20 packs (if zone.top_slab_thickness >= 100)
-```
-
-### Reinforcement Module (reinforcement-raft.ts)
-
-Rib bar calculations per zone:
-
-```text
-for each zone:
-  - Rib length per layer = zone.pod_count × 2.4m
-  - Bottom bars = rib_length × bottom_bars_per_rib × weight_per_m
-  - Top bars = rib_length × top_bars_per_rib × weight_per_m
-```
-
----
-
-## Scope Data Structure Changes
-
-### Current Structure
-```text
-scopeAnswers: {
-  area: number,
-  perimeter: number,
-  pod_size: '1090',
-  pod_thickness: '225',
-  top_slab_thickness: 85,
-  pod_count: 150,
-  ...
-}
-```
-
-### New Structure
-```text
-scopeAnswers: {
-  // Aggregated totals (for backward compatibility and summary)
-  area: number,           // Sum of all zones
-  perimeter: number,      // Outer perimeter
-  
-  // Zone array
-  podZones: WafflePodZone[],
-  
-  // Aggregated pod count (sum across zones)
-  pod_count: number,
-  
-  // Global settings (shared)
-  edgeBeams: BeamConfig[],
-  beams: BeamConfig[],    // Internal beams
-}
-```
-
----
-
-## Files to Modify
+## Files Modified
 
 | File | Changes |
 |------|---------|
-| `src/lib/estimate-components/types.ts` | Add `WafflePodZone` interface |
-| `src/lib/estimate-components/scopes.ts` | Update `WAFFLE_POD_SCOPE` questions, volume calculation |
-| `src/components/estimates/calculators/MultiWafflePodZoneInput.tsx` | **New component** for multi-zone UI |
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Render new zone input, update derived calculations |
-| `src/lib/estimate-components/modules/pods.ts` | Calculate per-zone pod supply and accessories |
-| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Calculate per-zone rib reinforcement |
-| `src/components/estimates/calculators/WafflePodConfigInput.tsx` | Deprecate or repurpose as single-zone editor |
+| `src/components/jobs/PendingPlansSheet.tsx` | Refactor conversion to use takeoff_files, copy file between buckets, navigate to wizard |
+| `src/pages/admin/AdminEstimates.tsx` | Add useEffect to handle auto-open from navigation state |
 
 ---
 
-## Migration/Backward Compatibility
+## Plan Viewing (Already Implemented)
 
-Existing estimates with single-zone waffle pod data will be automatically migrated:
+The `EstimateDetailSheet` already supports viewing plans:
+- Lines 822-853: "Building Plans" section with View button
+- Lines 856-920: Full plan viewer dialog with PDF iframe and image support
+- Supports multiple files with Previous/Next navigation
 
-```text
-if (!scopeAnswers.podZones && scopeAnswers.pod_count > 0) {
-  // Create single zone from existing data
-  scopeAnswers.podZones = [{
-    id: 'zone-1',
-    name: 'Zone 1',
-    area: scopeAnswers.area,
-    perimeter: scopeAnswers.perimeter,
-    pod_size: scopeAnswers.pod_size,
-    pod_thickness: scopeAnswers.pod_thickness,
-    top_slab_thickness: scopeAnswers.top_slab_thickness,
-    rib_width: scopeAnswers.rib_width,
-    pod_count: scopeAnswers.pod_count,
-    ...
-  }];
-}
-```
-
----
-
-## Takeoff Integration
-
-When marking up waffle pod areas on plans:
-
-1. **Current behavior**: Single slab area markup populates global pod config
-2. **New behavior**: Each slab area markup can become a separate pod zone with its own specifications
-
-The `SlabBeamMarkupDialog` will allow users to specify pod depth for each marked area, which automatically creates a zone with those specifications.
+No changes needed for viewing - just ensure files are properly stored in `takeoff_files` table.
 
 ---
 
 ## Implementation Sequence
 
-1. Add `WafflePodZone` type to `types.ts`
-2. Create `MultiWafflePodZoneInput.tsx` component
-3. Update `ModularCalculator.tsx` to render zone input for waffle pod scope
-4. Update `WAFFLE_POD_SCOPE` in `scopes.ts` with zone-aware volume calculation
-5. Update `pods.ts` module to calculate per-zone accessories
-6. Update `reinforcement-raft.ts` module to calculate per-zone rib bars
-7. Add backward compatibility migration for existing estimates
-8. Test with multiple zones of different pod depths
+1. Add the URL path extraction helper function to PendingPlansSheet
+2. Refactor the `convertMutation` to properly copy files and create `takeoff_files` record
+3. Update navigation to pass state for auto-opening wizard
+4. Add useEffect in AdminEstimates to handle the auto-open state
+5. Test the full flow: Inbox → Start Estimate → Wizard opens with plan attached
 
 ---
 
-## Technical Considerations
+## Why This Works
 
-### Price Differentiation
-Different pod sizes/depths may have different unit prices. The UI should allow:
-- Global pod price (applies to all zones)
-- Or per-zone price override (if pods vary in cost)
-
-### Shared vs Per-Zone Elements
-| Element | Scope |
-|---------|-------|
-| Pod specifications | Per zone |
-| Rib reinforcement | Per zone |
-| Pod count | Per zone |
-| Spacers | Per zone |
-| Edge beams | Shared (outer perimeter) |
-| Internal beams | Shared |
-| Topping mesh | Per zone (may vary with pod depth) |
-| Concrete type | Shared |
-
-### Summary Aggregations
-The cost summary will show:
-- Total pods across all zones
-- Total pod cost (sum of per-zone costs)
-- Rib reinforcement grouped by bar size (across zones)
-
+1. **Proper file storage**: Plans are copied to the same bucket/structure used by the standard estimate creation
+2. **takeoff_files table**: Using the new architecture ensures plans appear in the wizard and detail sheet
+3. **Wizard integration**: Opening the wizard allows users to configure scopes, markup plans, and finalize the quote
+4. **Backward compatible**: Existing estimates and viewing functionality remain unchanged
