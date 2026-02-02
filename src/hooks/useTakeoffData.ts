@@ -80,19 +80,43 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
       if (takeoffData) {
         setTakeoff(takeoffData as unknown as EstimateTakeoff);
         
-        // Extract files from joined data
-        const typedFiles = ((takeoffData as any).takeoff_files || [])
-          .map((f: any) => ({
+        // Extract files from joined data and generate signed URLs for storage paths
+        const rawFiles = ((takeoffData as any).takeoff_files || []) as any[];
+        
+        // Process files and generate signed URLs where needed
+        const processedFiles: TakeoffFile[] = [];
+        for (const f of rawFiles) {
+          let fileUrl = f.file_url;
+          
+          // If file_url is just a storage path (doesn't start with http), generate a signed URL
+          if (fileUrl && !fileUrl.startsWith('http')) {
+            try {
+              const { data: signedUrlData } = await supabase.storage
+                .from('estimate-plans')
+                .createSignedUrl(fileUrl, 3600 * 24 * 7); // 7-day expiry
+              
+              if (signedUrlData?.signedUrl) {
+                fileUrl = signedUrlData.signedUrl;
+              }
+            } catch (e) {
+              console.warn('Failed to generate signed URL for file:', f.id, e);
+            }
+          }
+          
+          processedFiles.push({
             id: f.id,
             takeoff_id: f.takeoff_id,
-            file_url: f.file_url,
+            file_url: fileUrl,
             file_type: f.file_type as 'pdf' | 'image',
             file_name: f.file_name,
             page_count: f.page_count,
             sort_order: f.sort_order,
             created_at: f.created_at,
-          }))
-          .sort((a: TakeoffFile, b: TakeoffFile) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+          });
+        }
+        
+        // Sort files by sort_order
+        const typedFiles = processedFiles.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
         
         setFiles(typedFiles);
         
