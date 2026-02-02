@@ -496,45 +496,43 @@ export function SlabBeamMarkupDialog({
               </div>
 
 
-              {/* Non-waffle pod: Edge beam/thickening options */}
-              {!isWafflePod && (
-                <>
-                  <Separator />
-                  <div className="space-y-3">
-                    <Label className="text-sm font-medium">{getEdgeLabel()}</Label>
-                    <p className="text-xs text-muted-foreground">
-                      {isDriveway 
-                        ? 'Driveways can have thickened edges around the perimeter.'
-                        : 'Raft slabs typically have thickened edge beams around the perimeter.'}
-                    </p>
-                    
-                    {/* Quick option: Full perimeter */}
-                    <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
-                      <p className="text-sm font-medium">
-                        Does the {isDriveway ? 'edge thickening' : 'edge beam'} run the full perimeter?
-                      </p>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <Button 
-                          variant="default"
-                          onClick={onUsePerimeterAsEdgeBeam}
-                          className="flex-1 gap-2"
-                          disabled={!onUsePerimeterAsEdgeBeam}
-                        >
-                          <Check className="h-4 w-4" />
-                          Yes ({slabPerimeter.toFixed(1)}m)
-                        </Button>
-                        <Button 
-                          variant="outline"
-                          onClick={onStartEdgeBeams}
-                          className="flex-1"
-                        >
-                          No, Mark Manually
-                        </Button>
-                      </div>
-                    </div>
+              {/* Edge beam/thickening options - shown for all slab types including waffle pod */}
+              <Separator />
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">{getEdgeLabel()}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {isDriveway 
+                    ? 'Driveways can have thickened edges around the perimeter.'
+                    : isWafflePod
+                      ? 'Waffle pod slabs have edge beams around the perimeter.'
+                      : 'Raft slabs typically have thickened edge beams around the perimeter.'}
+                </p>
+                
+                {/* Quick option: Full perimeter */}
+                <div className="p-3 border rounded-lg bg-muted/30 space-y-3">
+                  <p className="text-sm font-medium">
+                    Does the {isDriveway ? 'edge thickening' : 'edge beam'} run the full perimeter?
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button 
+                      variant="default"
+                      onClick={onUsePerimeterAsEdgeBeam}
+                      className="flex-1 gap-2"
+                      disabled={!onUsePerimeterAsEdgeBeam}
+                    >
+                      <Check className="h-4 w-4" />
+                      Yes ({slabPerimeter.toFixed(1)}m)
+                    </Button>
+                    <Button 
+                      variant="outline"
+                      onClick={onStartEdgeBeams}
+                      className="flex-1"
+                    >
+                      No, Mark Manually
+                    </Button>
                   </div>
-                </>
-              )}
+                </div>
+              </div>
             </div>
           )}
 
