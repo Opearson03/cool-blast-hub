@@ -30,6 +30,7 @@ interface RequestBody {
   deliveryAddress: string;
   notes: string;
   sendMethod: "email" | "sms" | "both";
+  orderType: "quote" | "po";
   saveNewSupplier: {
     name: string;
     email: string;
@@ -77,12 +78,22 @@ serve(async (req) => {
       deliveryAddress,
       notes,
       sendMethod,
+      orderType = "po", // default to PO for backward compatibility
       saveNewSupplier,
     } = body;
 
-    // Validate required fields
-    if (!jobId || !boqId || !items.length || !supplierName || !deliveryAddress) {
+    const isQuoteRequest = orderType === "quote";
+
+    // Validate required fields - delivery address only required for PO
+    if (!jobId || !boqId || !items.length || !supplierName) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!isQuoteRequest && !deliveryAddress) {
+      return new Response(JSON.stringify({ error: "Delivery address required for purchase orders" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -116,13 +127,14 @@ serve(async (req) => {
       .eq("id", jobId)
       .single();
 
-    // Generate PO number
+    // Generate PO/RFQ number
     const { count } = await supabase
       .from("purchase_orders")
       .select("*", { count: "exact", head: true })
       .eq("business_id", profile.business_id);
 
-    const poNumber = `PO-${String((count || 0) + 1).padStart(4, "0")}`;
+    const prefix = isQuoteRequest ? "RFQ" : "PO";
+    const poNumber = `${prefix}-${String((count || 0) + 1).padStart(4, "0")}`;
 
     // Save new supplier if requested
     let finalSupplierContactId = supplierContactId;
@@ -144,7 +156,7 @@ serve(async (req) => {
       }
     }
 
-    // Create purchase order record
+    // Create purchase order record (also used for quote requests)
     const { data: purchaseOrder, error: poError } = await supabase
       .from("purchase_orders")
       .insert({
@@ -156,12 +168,12 @@ serve(async (req) => {
         supplier_name: supplierName,
         supplier_email: supplierEmail,
         supplier_phone: supplierPhone,
-        delivery_address: deliveryAddress,
+        delivery_address: deliveryAddress || "",
         items: items,
         notes: notes || null,
         sent_via: sendMethod,
         sent_at: new Date().toISOString(),
-        status: "sent",
+        status: isQuoteRequest ? "quote_requested" : "sent",
         created_by: user.id,
       })
       .select()
@@ -196,7 +208,60 @@ serve(async (req) => {
       } else {
         const resend = new Resend(resendApiKey);
 
-        const emailHtml = `
+        const emailTitle = isQuoteRequest ? "Request for Quote" : "Purchase Order";
+        const emailSubjectPrefix = isQuoteRequest ? "Quote Request" : "Purchase Order";
+        
+        const emailHtml = isQuoteRequest ? `
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Quote Request ${poNumber}</title>
+          </head>
+          <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            ${business?.logo_url ? `<img src="${business.logo_url}" alt="${businessName}" style="max-height: 60px; margin-bottom: 20px;">` : ""}
+            
+            <h1 style="color: ${primaryColor}; margin-bottom: 5px;">Request for Quote</h1>
+            <p style="color: #666; margin-top: 0;">${poNumber} • ${new Date().toLocaleDateString("en-AU")}</p>
+            
+            <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0 0 10px;"><strong>Attention:</strong> ${supplierName}</p>
+              <p style="margin: 0;"><strong>Reference:</strong> ${jobReference}</p>
+            </div>
+            
+            <p style="color: #333; margin-bottom: 20px;">
+              We are requesting a quote for the following items. Please provide pricing and availability at your earliest convenience.
+            </p>
+            
+            <h3 style="color: #333;">Items</h3>
+            <table style="width: 100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background: ${primaryColor}; color: white;">
+                  <th style="padding: 10px; text-align: left;">Description</th>
+                  <th style="padding: 10px; text-align: right;">Qty</th>
+                  <th style="padding: 10px; text-align: left;">Unit</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${itemsTableRows}
+              </tbody>
+            </table>
+            
+            ${notes ? `
+              <div style="margin-top: 20px;">
+                <h3 style="color: #333;">Additional Information</h3>
+                <p style="color: #666;">${notes.replace(/\n/g, "<br>")}</p>
+              </div>
+            ` : ""}
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; color: #666; font-size: 14px;">
+              <p style="margin: 0 0 5px;"><strong>${businessName}</strong></p>
+              ${business?.phone ? `<p style="margin: 0 0 5px;">Phone: ${business.phone}</p>` : ""}
+              ${business?.email ? `<p style="margin: 0;">Email: ${business.email}</p>` : ""}
+            </div>
+          </body>
+          </html>
+        ` : `
           <!DOCTYPE html>
           <html>
           <head>
@@ -249,7 +314,7 @@ serve(async (req) => {
           await resend.emails.send({
             from: `${businessName} via Pourhub <Hello@pourhub.au>`,
             to: [supplierEmail],
-            subject: `Purchase Order ${poNumber} - ${jobReference}`,
+            subject: `${emailSubjectPrefix} ${poNumber} - ${jobReference}`,
             html: emailHtml,
           });
           console.log(`Email sent to ${supplierEmail}`);
@@ -277,7 +342,9 @@ serve(async (req) => {
         }
 
         const itemCount = items.length;
-        const smsBody = `${poNumber} from ${businessName}\n\nDeliver to: ${deliveryAddress.split("\n")[0]}\n\nItems: ${itemCount} item${itemCount > 1 ? "s" : ""}\n\nReply to confirm.`;
+        const smsBody = isQuoteRequest
+          ? `Quote Request ${poNumber} from ${businessName}\n\n${itemCount} item${itemCount > 1 ? "s" : ""} - please provide pricing.\n\nReply or call to discuss.`
+          : `${poNumber} from ${businessName}\n\nDeliver to: ${deliveryAddress.split("\n")[0]}\n\nItems: ${itemCount} item${itemCount > 1 ? "s" : ""}\n\nReply to confirm.`;
 
         try {
           const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`;
@@ -311,6 +378,7 @@ serve(async (req) => {
         success: true,
         poNumber,
         purchaseOrderId: purchaseOrder.id,
+        orderType,
       }),
       {
         status: 200,
