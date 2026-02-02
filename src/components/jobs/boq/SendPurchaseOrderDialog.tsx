@@ -262,15 +262,16 @@ export function SendPurchaseOrderDialog({
                 <Label className="text-base font-medium">Supplier</Label>
                 
                 <div className="flex gap-2">
-                  <Select value={supplierId} onValueChange={(v) => {
-                    setSupplierId(v);
-                    if (v) setManualSupplier({ name: "", email: "", phone: "" });
+                  <Select value={supplierId || "__manual__"} onValueChange={(v) => {
+                    const newValue = v === "__manual__" ? "" : v;
+                    setSupplierId(newValue);
+                    if (newValue) setManualSupplier({ name: "", email: "", phone: "" });
                   }}>
                     <SelectTrigger className="flex-1">
                       <SelectValue placeholder="Select a saved supplier..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">-- Enter manually --</SelectItem>
+                      <SelectItem value="__manual__">-- Enter manually --</SelectItem>
                       {suppliers.map((supplier) => (
                         <SelectItem key={supplier.id} value={supplier.id}>
                           {supplier.name} {supplier.company && `(${supplier.company})`}
