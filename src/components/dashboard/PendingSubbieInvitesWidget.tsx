@@ -115,9 +115,10 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
     const StatusIcon = statusIcons[invite.status] || Send;
     
     return (
-      <div
+      <Link
         key={invite.id}
-        className="flex items-center justify-between gap-2 py-2 border-b last:border-0"
+        to={`/admin/jobs/${invite.job_id}`}
+        className="flex items-center justify-between gap-2 py-2 border-b last:border-0 hover:bg-muted/50 -mx-2 px-2 rounded transition-colors"
       >
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
@@ -145,14 +146,16 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
               className="h-8 w-8"
               onClick={(e) => {
                 e.preventDefault();
+                e.stopPropagation();
                 handleCall(invite.recipient_phone!);
               }}
             >
               <Phone className="h-4 w-4" />
             </Button>
           )}
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
         </div>
-      </div>
+      </Link>
     );
   };
 
@@ -162,7 +165,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Users className="h-5 w-5 text-amber-500" />
-            Subbie Responses Needed
+            Sub-Contractor Responses Needed
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -180,7 +183,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
-            Subbie Responses Needed
+            Sub-Contractor Responses Needed
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -199,7 +202,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Users className="h-5 w-5 text-amber-500" />
-            Subbie Responses Needed
+            Sub-Contractor Responses Needed
             <Badge variant="secondary" className="ml-1">
               {invites.length}
             </Badge>
