@@ -3,9 +3,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -54,15 +53,8 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [selectedPlan, setSelectedPlan] = useState<PendingPlan | null>(null);
-  const [showConvertDialog, setShowConvertDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
-  
-  // Form state for conversion
-  const [clientName, setClientName] = useState("");
-  const [clientEmail, setClientEmail] = useState("");
-  const [clientPhone, setClientPhone] = useState("");
-  const [siteAddress, setSiteAddress] = useState("");
 
   const { data: pendingPlans = [], isLoading } = useQuery({
     queryKey: ["pending-plans-list", businessId],
@@ -81,21 +73,21 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
   });
 
   const convertMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedPlan) throw new Error("No plan selected");
+    mutationFn: async (plan: PendingPlan) => {
+      const extracted = plan.extracted_data || {};
 
-      // 1. Create estimate draft
+      // 1. Create estimate draft with extracted/email data
       const { data: estimate, error: estimateError } = await supabase
         .from("estimates")
         .insert({
           business_id: businessId,
-          client_name: clientName || "New Client",
-          client_email: clientEmail || null,
-          client_phone: clientPhone || null,
-          site_address: siteAddress || "Address TBD",
+          client_name: extracted.client_name || plan.from_name || "New Client",
+          client_email: plan.from_email || null,
+          client_phone: extracted.phone || null,
+          site_address: extracted.site_address || "Address TBD",
           status: "draft",
           estimate_type: "commercial_slab",
-          notes: `Plan received via email from ${selectedPlan.from_email}`,
+          notes: `Plan received via email from ${plan.from_email}`,
         })
         .select()
         .single();
@@ -118,7 +110,7 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
       if (takeoffError) throw takeoffError;
 
       // 3. Copy file from test-documents to estimate-plans
-      const sourceUrl = selectedPlan.file_url;
+      const sourceUrl = plan.file_url;
       const sourcePath = extractPathFromUrl(sourceUrl, 'test-documents');
       
       // Download the file
@@ -132,7 +124,7 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
       }
 
       // Upload to estimate-plans
-      const fileExt = selectedPlan.file_name.split('.').pop()?.toLowerCase() || 'pdf';
+      const fileExt = plan.file_name.split('.').pop()?.toLowerCase() || 'pdf';
       const destPath = `${businessId}/${estimate.id}/${crypto.randomUUID()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
@@ -161,7 +153,7 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
           takeoff_id: takeoff.id,
           file_url: signedUrlData.signedUrl,
           file_type: fileExt === 'pdf' ? 'pdf' : 'image',
-          file_name: selectedPlan.file_name.replace(/\.[^/.]+$/, '') || 'Building Plan',
+          file_name: plan.file_name.replace(/\.[^/.]+$/, '') || 'Building Plan',
           page_count: 1,
           sort_order: 0
         });
@@ -178,7 +170,7 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
           status: "converted",
           linked_estimate_id: estimate.id,
         })
-        .eq("id", selectedPlan.id);
+        .eq("id", plan.id);
 
       if (updateError) throw updateError;
 
@@ -188,7 +180,6 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
       queryClient.invalidateQueries({ queryKey: ["pending-plans"] });
       queryClient.invalidateQueries({ queryKey: ["pending-plans-list"] });
       toast.success("Estimate created - complete the quote setup");
-      setShowConvertDialog(false);
       setSelectedPlan(null);
       onOpenChange(false);
       // Navigate with state to auto-open wizard
@@ -230,15 +221,9 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
     }
   });
 
-  const openConvertDialog = (plan: PendingPlan) => {
+  const startEstimateFromPlan = (plan: PendingPlan) => {
     setSelectedPlan(plan);
-    // Pre-fill from extracted data
-    const extracted = plan.extracted_data || {};
-    setClientName(extracted.client_name || plan.from_name || "");
-    setClientEmail(plan.from_email || "");
-    setClientPhone(extracted.phone || "");
-    setSiteAddress(extracted.site_address || "");
-    setShowConvertDialog(true);
+    convertMutation.mutate(plan);
   };
 
   const openRejectDialog = (plan: PendingPlan) => {
@@ -334,9 +319,14 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
                           <Button
                             size="sm"
                             className="flex-1"
-                            onClick={() => openConvertDialog(plan)}
+                            onClick={() => startEstimateFromPlan(plan)}
+                            disabled={convertMutation.isPending && selectedPlan?.id === plan.id}
                           >
-                            <Plus className="w-3 h-3 mr-1" />
+                            {convertMutation.isPending && selectedPlan?.id === plan.id ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <Plus className="w-3 h-3 mr-1" />
+                            )}
                             Start Estimate
                           </Button>
                           <Button
@@ -356,67 +346,6 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
           </ScrollArea>
         </SheetContent>
       </Sheet>
-
-      {/* Convert to Estimate Dialog */}
-      <Dialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create Estimate from Plan</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="clientName">Client Name</Label>
-              <Input
-                id="clientName"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="e.g., John Smith"
-              />
-            </div>
-            <div>
-              <Label htmlFor="clientEmail">Client Email</Label>
-              <Input
-                id="clientEmail"
-                type="email"
-                value={clientEmail}
-                onChange={(e) => setClientEmail(e.target.value)}
-                placeholder="e.g., john@example.com"
-              />
-            </div>
-            <div>
-              <Label htmlFor="clientPhone">Client Phone</Label>
-              <Input
-                id="clientPhone"
-                type="tel"
-                value={clientPhone}
-                onChange={(e) => setClientPhone(e.target.value)}
-                placeholder="e.g., 0412 345 678"
-              />
-            </div>
-            <div>
-              <Label htmlFor="siteAddress">Site Address</Label>
-              <Input
-                id="siteAddress"
-                value={siteAddress}
-                onChange={(e) => setSiteAddress(e.target.value)}
-                placeholder="e.g., 123 Main St, Sydney NSW"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConvertDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={() => convertMutation.mutate()}
-              disabled={convertMutation.isPending}
-            >
-              {convertMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-              Create Estimate
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Reject Dialog */}
       <Dialog open={showRejectDialog} onOpenChange={setShowRejectDialog}>
