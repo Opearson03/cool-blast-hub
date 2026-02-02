@@ -73,8 +73,8 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("Failed to prepare estimate for signing");
     }
 
-    // Get the app URL for the signing link
-    const appUrl = Deno.env.get("APP_URL") || "https://pourhub.au";
+    // Get the app URL for the signing link (strip trailing slash if present)
+    const appUrl = (Deno.env.get("APP_URL") || "https://pourhub.au").replace(/\/+$/, '');
     const signingLink = `${appUrl}/sign/quote/${signingToken}`;
 
     // Send email with the pre-generated PDF attachment
