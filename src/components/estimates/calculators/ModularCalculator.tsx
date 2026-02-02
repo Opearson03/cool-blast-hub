@@ -1271,49 +1271,6 @@ export function ModularCalculator({
         />
       )}
 
-      {/* Waffle Pod Zone Input - shown for waffle_pod scope */}
-      {scope.id === 'waffle_pod' && (
-        <MultiWafflePodZoneInput
-          zones={scopeAnswers.podZones || [{
-            id: 'zone-1',
-            name: 'Zone 1',
-            area: scopeAnswers.area || 0,
-            perimeter: scopeAnswers.perimeter || 0,
-            pod_size: scopeAnswers.pod_size || '1090',
-            pod_thickness: scopeAnswers.pod_thickness || '225',
-            top_slab_thickness: scopeAnswers.top_slab_thickness || 85,
-            rib_width: scopeAnswers.rib_width || 110,
-            pod_count: scopeAnswers.pod_count || 0,
-            rib_bottom_bars: scopeAnswers.rib_bottom_bars || 2,
-            rib_bottom_bar_size: scopeAnswers.rib_bottom_bar_size || 'N12',
-            rib_top_bars: scopeAnswers.rib_top_bars || 1,
-            rib_top_bar_size: scopeAnswers.rib_top_bar_size || 'N12',
-          }]}
-          onZonesChange={(zones) => {
-            // Calculate aggregates
-            const totalArea = zones.reduce((sum, z) => sum + (z.area || 0), 0);
-            const totalPerimeter = zones.reduce((sum, z) => sum + (z.perimeter || 0), 0);
-            const totalPodCount = zones.reduce((sum, z) => sum + (z.pod_count || 0), 0);
-            
-            // Update scope answers with zones and aggregated values
-            setScopeAnswers(prev => ({
-              ...prev,
-              podZones: zones,
-              area: totalArea,
-              perimeter: totalPerimeter,
-              pod_count: totalPodCount,
-              // Keep backward compatibility with single-zone values (use first zone's settings)
-              pod_size: zones[0]?.pod_size || prev.pod_size,
-              pod_thickness: zones[0]?.pod_thickness || prev.pod_thickness,
-              top_slab_thickness: zones[0]?.top_slab_thickness || prev.top_slab_thickness,
-              rib_width: zones[0]?.rib_width || prev.rib_width,
-            }));
-          }}
-          onAggregatesChange={(agg) => {
-            // Additional aggregate updates if needed
-          }}
-        />
-      )}
 
       {/* Multi-pier group input */}
       {scope.supportsMultiplePiers && (
