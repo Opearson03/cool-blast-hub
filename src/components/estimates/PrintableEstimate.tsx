@@ -569,7 +569,7 @@ const TermsAndExclusionsPage = ({
   };
 
   return (
-    <div className="page-break-before pt-8">
+    <div data-pdf-section="page-2" className="page-break-before pt-8">
       {renderHeader()}
       {renderTerms()}
       {renderExclusions()}
@@ -692,7 +692,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           {/* PAGE 1 - Quote Content */}
           
           {/* Modern Template - Bold header banner */}
-          <div className="page-break-avoid" style={{ backgroundColor: secondaryColor, padding: "24px 32px", marginBottom: "24px" }}>
+          <div data-pdf-section="header" className="page-break-avoid" style={{ backgroundColor: secondaryColor, padding: "24px 32px", marginBottom: "24px" }}>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-6">
                 {business?.logo_url && (
@@ -716,7 +716,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
 
           {/* Two column client/company info cards */}
-          <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 px-2">
+          <div data-pdf-section="client-info" className="page-break-avoid grid grid-cols-2 gap-8 mb-6 px-2">
             <div style={{ backgroundColor: "#f9fafb", padding: "20px", borderRadius: "8px", borderLeft: `4px solid ${primaryColor}` }}>
               <h3 className="text-sm font-bold uppercase mb-3" style={{ color: primaryColor }}>Client Information</h3>
               <div className="space-y-1 text-sm">
@@ -761,7 +761,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
 
           {/* Project Summary */}
-          <div className="px-2">
+          <div data-pdf-section="project-summary" className="px-2">
             <ProjectSummarySection 
               data={quotePDFData} 
               primaryColor={primaryColor} 
@@ -771,7 +771,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
 
           {/* Scope of Works as Line Items - above totals */}
-          <div className="px-2">
+          <div data-pdf-section="scope-breakdown" className="px-2">
             <ScopeLineItemsSection 
               data={quotePDFData} 
               primaryColor={primaryColor} 
@@ -811,7 +811,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           )}
 
           {/* Total - Modern style */}
-          <div className="page-break-avoid flex justify-end mb-8 px-2">
+          <div data-pdf-section="totals" className="page-break-avoid flex justify-end mb-8 px-2">
             <div className="w-80" style={{ backgroundColor: "#f9fafb", padding: "20px", borderRadius: "8px" }}>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-600">Subtotal (ex GST)</span>
@@ -835,7 +835,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
 
           {/* Notes & Signature */}
-          <div className="page-break-avoid px-2 py-4 border-t border-gray-200">
+          <div data-pdf-section="page-1-footer" className="page-break-avoid px-2 py-4 border-t border-gray-200">
             <div className="flex justify-between items-end">
               <div className="text-sm text-gray-500">
                 <p>Notes: Quote valid for {estimate.quote_validity_days || 14} days</p>
@@ -878,7 +878,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           {/* PAGE 1 - Quote Content */}
 
           {/* Minimal Template - Company info left, logo right */}
-          <div className="page-break-avoid flex items-start justify-between mb-8">
+          <div data-pdf-section="header" className="page-break-avoid flex items-start justify-between mb-8">
             <div>
               <h1 className="text-xl font-semibold text-gray-900">{business?.name || "Company Name"}</h1>
               {business?.address && <p className="text-sm text-gray-500">{business.address}</p>}
@@ -901,7 +901,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
 
           {/* Bill To and Estimate Meta */}
-          <div className="page-break-avoid grid grid-cols-2 gap-12 mb-10">
+          <div data-pdf-section="client-info" className="page-break-avoid grid grid-cols-2 gap-12 mb-10">
             <div>
               <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Bill To</p>
               <p className="font-medium text-gray-900 text-lg">{estimate.client_name}</p>
@@ -932,22 +932,26 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
 
           {/* Project Summary */}
-          <ProjectSummarySection 
-            data={quotePDFData} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="minimal"
-          />
+          <div data-pdf-section="project-summary">
+            <ProjectSummarySection 
+              data={quotePDFData} 
+              primaryColor={primaryColor} 
+              secondaryColor={secondaryColor}
+              template="minimal"
+            />
+          </div>
 
           {/* Scope of Works as Line Items - above totals */}
-          <ScopeLineItemsSection 
-            data={quotePDFData} 
-            primaryColor={primaryColor} 
-            secondaryColor={secondaryColor}
-            template="minimal"
-            formatCurrency={formatCurrency}
-            totalAmount={estimate.total_amount}
-          />
+          <div data-pdf-section="scope-breakdown">
+            <ScopeLineItemsSection 
+              data={quotePDFData} 
+              primaryColor={primaryColor} 
+              secondaryColor={secondaryColor}
+              template="minimal"
+              formatCurrency={formatCurrency}
+              totalAmount={estimate.total_amount}
+            />
+          </div>
 
           {/* Line Items - minimal table */}
           {parsedItems.length > 0 && (
@@ -976,7 +980,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           )}
 
           {/* Total - minimal */}
-          <div className="page-break-avoid flex justify-end mb-12">
+          <div data-pdf-section="totals" className="page-break-avoid flex justify-end mb-12">
             <div className="w-64">
               <div className="flex justify-between items-center mb-1 text-sm">
                 <span className="text-gray-500">Subtotal</span>
@@ -996,24 +1000,26 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
 
           {/* Terms section */}
-          <div className="page-break-avoid mb-8">
-            <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Terms & Conditions</p>
-            <p className="text-sm text-gray-600">Payment due in {estimate.quote_validity_days || 14} days</p>
-          </div>
-
-          {/* Signature line */}
-          <div className="page-break-avoid flex justify-end">
-            <div className="text-center">
-              <div className="w-48 border-b border-gray-400 mb-2"></div>
-              <p className="text-xs text-gray-400">Customer Signature</p>
+          <div data-pdf-section="page-1-footer" className="page-break-avoid">
+            <div className="mb-8">
+              <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Terms & Conditions</p>
+              <p className="text-sm text-gray-600">Payment due in {estimate.quote_validity_days || 14} days</p>
             </div>
-          </div>
 
-          {/* Page 1 Footer - minimal */}
-          <div className="page-break-avoid text-center pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
-            <div className="text-xs text-gray-400 space-x-4">
-              {business?.phone && <span>{business.phone}</span>}
-              {business?.email && <span>{business.email}</span>}
+            {/* Signature line */}
+            <div className="flex justify-end mb-8">
+              <div className="text-center">
+                <div className="w-48 border-b border-gray-400 mb-2"></div>
+                <p className="text-xs text-gray-400">Customer Signature</p>
+              </div>
+            </div>
+
+            {/* Page 1 Footer - minimal */}
+            <div className="text-center pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
+              <div className="text-xs text-gray-400 space-x-4">
+                {business?.phone && <span>{business.phone}</span>}
+                {business?.email && <span>{business.email}</span>}
+              </div>
             </div>
           </div>
 
@@ -1048,7 +1054,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
         {/* PAGE 1 - Quote Content */}
 
         {/* Header Banner with Logo */}
-        <div className="page-break-avoid mb-4" style={{ backgroundColor: secondaryColor, padding: "16px 24px" }}>
+        <div data-pdf-section="header" className="page-break-avoid mb-4" style={{ backgroundColor: secondaryColor, padding: "16px 24px" }}>
           <div className="flex items-center gap-4">
             {business?.logo_url && (
               <img
@@ -1065,72 +1071,74 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
         </div>
 
         {/* Company Details - Form style */}
-        <div className="page-break-avoid mb-4 px-4 py-3 border-b border-gray-200">
-          <div className="space-y-1">
-            <div className="flex">
-              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Company Address:</span>
-              <span className="text-sm text-gray-700">{business?.address || "123 Business Street"}</span>
-            </div>
-            <div className="flex">
-              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Contact Number:</span>
-              <span className="text-sm text-gray-700">{business?.phone || "0400 000 000"}</span>
-            </div>
-            <div className="flex">
-              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Email Address:</span>
-              <span className="text-sm text-gray-700">{business?.email || "email@company.com"}</span>
-            </div>
-            {business?.abn && (
+        <div data-pdf-section="client-info" className="page-break-avoid">
+          <div className="mb-4 px-4 py-3 border-b border-gray-200">
+            <div className="space-y-1">
               <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>ABN:</span>
-                <span className="text-sm text-gray-700">{business.abn}</span>
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Company Address:</span>
+                <span className="text-sm text-gray-700">{business?.address || "123 Business Street"}</span>
               </div>
-            )}
-          </div>
-        </div>
-
-        {/* TO Section - Client Details */}
-        <div className="page-break-avoid mb-6 px-4 py-3 border-b border-gray-200">
-          <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>TO:</h3>
-          <div className="space-y-1">
-            <div className="flex">
-              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Owner Name:</span>
-              <span className="text-sm text-gray-700">{estimate.client_name}</span>
-            </div>
-            {estimate.company_name && (
-              <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Company:</span>
-                <span className="text-sm text-gray-700">{estimate.company_name}</span>
-              </div>
-            )}
-            <div className="flex">
-              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Address:</span>
-              <span className="text-sm text-gray-700">{estimate.site_address}</span>
-            </div>
-            {estimate.client_phone && (
               <div className="flex">
                 <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Contact Number:</span>
-                <span className="text-sm text-gray-700">{estimate.client_phone}</span>
+                <span className="text-sm text-gray-700">{business?.phone || "0400 000 000"}</span>
               </div>
-            )}
-            {estimate.client_email && (
               <div className="flex">
                 <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Email Address:</span>
-                <span className="text-sm text-gray-700">{estimate.client_email}</span>
+                <span className="text-sm text-gray-700">{business?.email || "email@company.com"}</span>
               </div>
-            )}
-            <div className="flex">
-              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Date:</span>
-              <span className="text-sm text-gray-700">{format(new Date(estimate.created_at), "d MMMM yyyy")}</span>
+              {business?.abn && (
+                <div className="flex">
+                  <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>ABN:</span>
+                  <span className="text-sm text-gray-700">{business.abn}</span>
+                </div>
+              )}
             </div>
-            <div className="flex">
-              <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Quote Number:</span>
-              <span className="text-sm text-gray-700">{estimate.estimate_number}</span>
+          </div>
+
+          {/* TO Section - Client Details */}
+          <div className="mb-6 px-4 py-3 border-b border-gray-200">
+            <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>TO:</h3>
+            <div className="space-y-1">
+              <div className="flex">
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Owner Name:</span>
+                <span className="text-sm text-gray-700">{estimate.client_name}</span>
+              </div>
+              {estimate.company_name && (
+                <div className="flex">
+                  <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Company:</span>
+                  <span className="text-sm text-gray-700">{estimate.company_name}</span>
+                </div>
+              )}
+              <div className="flex">
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Address:</span>
+                <span className="text-sm text-gray-700">{estimate.site_address}</span>
+              </div>
+              {estimate.client_phone && (
+                <div className="flex">
+                  <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Contact Number:</span>
+                  <span className="text-sm text-gray-700">{estimate.client_phone}</span>
+                </div>
+              )}
+              {estimate.client_email && (
+                <div className="flex">
+                  <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Email Address:</span>
+                  <span className="text-sm text-gray-700">{estimate.client_email}</span>
+                </div>
+              )}
+              <div className="flex">
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Date:</span>
+                <span className="text-sm text-gray-700">{format(new Date(estimate.created_at), "d MMMM yyyy")}</span>
+              </div>
+              <div className="flex">
+                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Quote Number:</span>
+                <span className="text-sm text-gray-700">{estimate.estimate_number}</span>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Project Summary */}
-        <div className="px-4">
+        <div data-pdf-section="project-summary" className="px-4">
           <ProjectSummarySection 
             data={quotePDFData} 
             primaryColor={primaryColor} 
@@ -1140,7 +1148,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
         </div>
 
         {/* Scope of Works as Line Items - above totals */}
-        <div className="px-4">
+        <div data-pdf-section="scope-breakdown" className="px-4">
           <ScopeLineItemsSection 
             data={quotePDFData} 
             primaryColor={primaryColor} 
@@ -1184,7 +1192,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
         {/* If no line items, show total separately */}
         {parsedItems.length === 0 && (
-          <div className="page-break-avoid flex justify-end mb-8 px-4">
+          <div data-pdf-section="totals" className="page-break-avoid flex justify-end mb-8 px-4">
             <div className="w-72">
               <div style={{ borderTop: `2px solid ${secondaryColor}`, paddingTop: "12px" }}>
                 <div className="flex justify-between items-center mb-2">
@@ -1214,7 +1222,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
         )}
 
         {/* Dual Signature/Date Row */}
-        <div className="page-break-avoid px-4 py-6 border-t border-gray-200">
+        <div data-pdf-section="page-1-footer" className="page-break-avoid px-4 py-6 border-t border-gray-200">
           <div className="flex justify-between items-end">
             <div className="flex-1">
               <div className="w-48 border-b-2 border-gray-400 mb-2"></div>

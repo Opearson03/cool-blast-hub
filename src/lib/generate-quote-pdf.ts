@@ -71,12 +71,23 @@ const waitForImages = (container: HTMLElement): Promise<void> => {
 };
 
 /**
- * Generates a PDF from the PrintableEstimate component
+ * Generates a PDF from the PrintableEstimate component using section-aware rendering.
+ * Each section marked with data-pdf-section is captured individually and placed
+ * intelligently on pages to prevent content from being split across page boundaries.
+ * 
  * Returns the PDF as a base64 string (without the data:... prefix)
  */
 export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<string> => {
   // Dynamically import PrintableEstimate to avoid circular dependencies
   const { PrintableEstimate } = await import('@/components/estimates/PrintableEstimate');
+  
+  // A4 dimensions in mm
+  const A4_WIDTH_MM = 210;
+  const A4_HEIGHT_MM = 297;
+  const MARGIN_MM = 10;
+  const CONTENT_WIDTH_MM = A4_WIDTH_MM - (2 * MARGIN_MM);
+  const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (2 * MARGIN_MM);
+  const SECTION_GAP_MM = 2; // Small gap between sections
   
   // Create a temporary container for rendering
   const container = document.createElement('div');
@@ -85,7 +96,7 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
     position: fixed;
     left: -9999px;
     top: 0;
-    width: 210mm;
+    width: ${A4_WIDTH_MM}mm;
     background: white;
     z-index: -1;
   `;
@@ -114,27 +125,6 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
     // Add some additional time for fonts and styles to apply
     await new Promise(resolve => setTimeout(resolve, 200));
     
-    // Capture the content with html2canvas
-    const canvas = await html2canvas(container, {
-      scale: 2, // Higher quality
-      useCORS: true, // Allow cross-origin images
-      allowTaint: false,
-      backgroundColor: '#ffffff',
-      logging: false,
-      width: container.scrollWidth,
-      height: container.scrollHeight,
-      windowWidth: container.scrollWidth,
-      windowHeight: container.scrollHeight,
-    });
-    
-    // Calculate A4 dimensions in mm
-    const a4Width = 210;
-    const a4Height = 297;
-    
-    // Calculate the aspect ratio and how many pages we need
-    const imgWidth = a4Width;
-    const imgHeight = (canvas.height * a4Width) / canvas.width;
-    
     // Create PDF
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -142,37 +132,74 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
       format: 'a4',
     });
     
-    // Add pages as needed
-    let heightLeft = imgHeight;
-    let position = 0;
-    let page = 0;
+    // Get all sections marked with data-pdf-section
+    const sections = container.querySelectorAll('[data-pdf-section]');
     
-    // Convert canvas to JPEG for smaller file size
-    const imgData = canvas.toDataURL('image/jpeg', 0.92);
+    // If no sections found, fall back to single-canvas approach
+    if (sections.length === 0) {
+      console.warn('No PDF sections found, falling back to single-canvas mode');
+      return await generateSingleCanvasPDF(container, pdf, A4_WIDTH_MM, A4_HEIGHT_MM);
+    }
     
-    while (heightLeft > 0) {
-      if (page > 0) {
+    let currentY = MARGIN_MM;
+    let isFirstPage = true;
+    
+    for (const section of Array.from(sections)) {
+      const sectionElement = section as HTMLElement;
+      const sectionType = sectionElement.getAttribute('data-pdf-section');
+      
+      // Force page break for page-2 sections
+      if (sectionType === 'page-2') {
         pdf.addPage();
+        currentY = MARGIN_MM;
+        isFirstPage = false;
       }
       
-      // Add the image, cropping to fit the page
+      // Capture this section with html2canvas
+      const canvas = await html2canvas(sectionElement, {
+        scale: 2, // Higher quality
+        useCORS: true,
+        allowTaint: false,
+        backgroundColor: '#ffffff',
+        logging: false,
+      });
+      
+      // Calculate the section height in mm
+      const sectionHeightMM = (canvas.height * CONTENT_WIDTH_MM) / canvas.width;
+      
+      // Check if section fits on current page (skip check for page-2 sections as they already got a new page)
+      if (sectionType !== 'page-2' && !isFirstPage) {
+        // If it doesn't fit, add a new page
+        if (currentY + sectionHeightMM > A4_HEIGHT_MM - MARGIN_MM) {
+          pdf.addPage();
+          currentY = MARGIN_MM;
+        }
+      } else if (sectionType !== 'page-2') {
+        // For first page, check if we need to break before this section
+        if (currentY + sectionHeightMM > A4_HEIGHT_MM - MARGIN_MM) {
+          pdf.addPage();
+          currentY = MARGIN_MM;
+          isFirstPage = false;
+        }
+      }
+      
+      // Convert canvas to JPEG for smaller file size
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      
+      // Add the section image to the PDF
       pdf.addImage(
         imgData,
         'JPEG',
-        0,
-        position,
-        imgWidth,
-        imgHeight,
+        MARGIN_MM,
+        currentY,
+        CONTENT_WIDTH_MM,
+        sectionHeightMM,
         undefined,
         'FAST'
       );
       
-      heightLeft -= a4Height;
-      position -= a4Height;
-      page++;
-      
-      // Safety limit to prevent infinite loops
-      if (page > 10) break;
+      // Move Y position for next section
+      currentY += sectionHeightMM + SECTION_GAP_MM;
     }
     
     // Clean up React root
@@ -189,3 +216,68 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
     }
   }
 };
+
+/**
+ * Fallback: Single canvas PDF generation (original approach)
+ * Used when no data-pdf-section markers are found
+ */
+async function generateSingleCanvasPDF(
+  container: HTMLElement, 
+  pdf: jsPDF,
+  a4Width: number,
+  a4Height: number
+): Promise<string> {
+  // Capture the content with html2canvas
+  const canvas = await html2canvas(container, {
+    scale: 2,
+    useCORS: true,
+    allowTaint: false,
+    backgroundColor: '#ffffff',
+    logging: false,
+    width: container.scrollWidth,
+    height: container.scrollHeight,
+    windowWidth: container.scrollWidth,
+    windowHeight: container.scrollHeight,
+  });
+  
+  // Calculate the aspect ratio and how many pages we need
+  const imgWidth = a4Width;
+  const imgHeight = (canvas.height * a4Width) / canvas.width;
+  
+  // Add pages as needed
+  let heightLeft = imgHeight;
+  let position = 0;
+  let page = 0;
+  
+  // Convert canvas to JPEG for smaller file size
+  const imgData = canvas.toDataURL('image/jpeg', 0.92);
+  
+  while (heightLeft > 0) {
+    if (page > 0) {
+      pdf.addPage();
+    }
+    
+    // Add the image, cropping to fit the page
+    pdf.addImage(
+      imgData,
+      'JPEG',
+      0,
+      position,
+      imgWidth,
+      imgHeight,
+      undefined,
+      'FAST'
+    );
+    
+    heightLeft -= a4Height;
+    position -= a4Height;
+    page++;
+    
+    // Safety limit to prevent infinite loops
+    if (page > 10) break;
+  }
+  
+  // Return the PDF as base64 (without the data:application/pdf;base64, prefix)
+  const pdfBase64 = pdf.output('datauristring');
+  return pdfBase64.split(',')[1];
+}
