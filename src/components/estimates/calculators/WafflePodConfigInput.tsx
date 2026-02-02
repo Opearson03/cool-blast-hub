@@ -14,7 +14,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { cn, numericWithDefault } from "@/lib/utils";
 
 interface WafflePodConfigInputProps {
@@ -40,7 +40,6 @@ export function WafflePodConfigInput({
   onScopeDataChange,
 }: WafflePodConfigInputProps) {
   const [isExpanded, setIsExpanded] = useState(true);
-  const lastCalculatedRef = useRef<{ podCount: number; perimeter: number }>({ podCount: 0, perimeter: 0 });
 
   // Extract values from scopeData - using numericWithDefault to preserve 0
   const podSize = String(scopeData?.pod_size || '1090');
@@ -61,13 +60,6 @@ export function WafflePodConfigInput({
   // - 2-Way Spacers: inside perimeter / 1.2
   // - Pod Rails: pods × 2 (then divide by 20 for packs)
   useEffect(() => {
-    // Skip if inputs haven't changed
-    if (lastCalculatedRef.current.podCount === podCount && 
-        lastCalculatedRef.current.perimeter === perimeter) {
-      return;
-    }
-    lastCalculatedRef.current = { podCount, perimeter };
-
     if (podCount > 0) {
       // 4-Way Spacers: pods × 1
       const spacer4Way = podCount;
@@ -76,18 +68,25 @@ export function WafflePodConfigInput({
       // Inside perimeter is approximately perimeter minus edge beam corners
       const edgeBeamWidth = Number(scopeData?.edgeBeams?.[0]?.width) || 450;
       const insidePerimeter = Math.max(0, perimeter - (8 * edgeBeamWidth / 1000));
-      const spacer2Way = Math.ceil(insidePerimeter / 1.2);
+      const spacer2Way = perimeter > 0 ? Math.ceil(insidePerimeter / 1.2) : 0;
       
       // Pod Rails: pods × 2, then packs of 20
       const podRailUnits = podCount * 2;
       const podRailPacks = Math.ceil(podRailUnits / 20);
       
-      onScopeDataChange('spacer_4way_count', spacer4Way);
-      onScopeDataChange('spacer_2way_count', spacer2Way);
-      onScopeDataChange('pod_rail_packs', podRailPacks);
-      onScopeDataChange('pod_rails_required', true);
+      // Only update if values actually differ to prevent infinite loops
+      if (scopeData?.spacer_4way_count !== spacer4Way) {
+        onScopeDataChange('spacer_4way_count', spacer4Way);
+      }
+      if (scopeData?.spacer_2way_count !== spacer2Way && spacer2Way > 0) {
+        onScopeDataChange('spacer_2way_count', spacer2Way);
+      }
+      if (scopeData?.pod_rail_packs !== podRailPacks) {
+        onScopeDataChange('pod_rail_packs', podRailPacks);
+        onScopeDataChange('pod_rails_required', true);
+      }
     }
-  }, [podCount, perimeter, scopeData?.edgeBeams, onScopeDataChange]);
+  }, [podCount, perimeter, scopeData?.edgeBeams, scopeData?.spacer_4way_count, scopeData?.spacer_2way_count, scopeData?.pod_rail_packs, onScopeDataChange]);
 
   const handleChange = (field: string, value: any) => {
     onScopeDataChange(field, value);
