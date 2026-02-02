@@ -23,6 +23,7 @@ import AdminEmployees from "./pages/admin/AdminEmployees";
 import AdminEquipment from "./pages/admin/AdminEquipment";
 import AdminEstimates from "./pages/admin/AdminEstimates";
 import AdminSettings from "./pages/admin/AdminSettings";
+import AdminContacts from "./pages/admin/AdminContacts";
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeSchedule from "./pages/employee/EmployeeSchedule";
 import EmployeeContacts from "./pages/employee/EmployeeContacts";
@@ -81,6 +82,7 @@ const AppContent = () => {
       {/* <Route path="/admin/employees" element={<ProtectedRoute allowedRole="admin"><AdminEmployees /></ProtectedRoute>} /> */}
       {/* <Route path="/admin/equipment" element={<ProtectedRoute allowedRole="admin"><AdminEquipment /></ProtectedRoute>} /> */}
       <Route path="/admin/estimates" element={<ProtectedRoute allowedRole="admin"><AdminEstimates /></ProtectedRoute>} />
+      <Route path="/admin/contacts" element={<ProtectedRoute allowedRole="admin"><AdminContacts /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRole="admin"><AdminSettings /></ProtectedRoute>} />
       
       {/* Employee Routes - Hidden for now - keeping code for future: */}

@@ -6,7 +6,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { useBusinessData } from "@/hooks/useBusinessData";
 import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget";
-import { SubbieContactListWidget } from "@/components/dashboard/SubbieContactListWidget";
 import { InboxWidget } from "@/components/dashboard/InboxWidget";
 
 export default function AdminDashboard() {
@@ -106,7 +105,6 @@ export default function AdminDashboard() {
           <>
             <DailyScheduleWidget businessId={businessId} />
             <InboxWidget businessId={businessId} />
-            <SubbieContactListWidget />
           </>
         )}
       </div>
