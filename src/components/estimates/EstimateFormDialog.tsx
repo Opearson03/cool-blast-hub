@@ -1430,16 +1430,17 @@ const {
               // Use actual counted values from takeoff if available, otherwise use estimates
               const podCount = firstArea?.podCount ?? estimatedPodCount;
               const podThickness = firstArea?.podThicknessMm ?? 225;
-              const spacer4WayCount = firstArea?.spacer4WayCount ?? 0;
-              const spacer2WayCount = firstArea?.spacer2WayCount ?? 0;
+              // Only set spacer counts if explicitly provided from takeoff - let calculation fallback work otherwise
+              const spacer4WayCount = firstArea?.spacer4WayCount;
+              const spacer2WayCount = firstArea?.spacer2WayCount;
               
               initialScopeAnswers = {
                 ...initialScopeAnswers,
                 // Use actual counted pod count if available from takeoff
                 pod_count: podCount,
-                // Spacer counts from takeoff
-                spacer_4way_count: spacer4WayCount,
-                spacer_2way_count: spacer2WayCount,
+                // Spacer counts from takeoff - only include if defined (let auto-calculation work otherwise)
+                ...(spacer4WayCount !== undefined && { spacer_4way_count: spacer4WayCount }),
+                ...(spacer2WayCount !== undefined && { spacer_2way_count: spacer2WayCount }),
                 // Set waffle pod dimensions (use takeoff value or defaults)
                 pod_size: '1090',
                 pod_thickness: podThickness,

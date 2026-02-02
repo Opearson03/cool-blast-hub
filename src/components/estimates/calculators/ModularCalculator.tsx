@@ -438,6 +438,7 @@ export function ModularCalculator({
       ...scopeAnswers,
       area: totalArea,
       perimeter: totalPerimeter,
+      _actualPerimeter: totalPerimeter, // Add for modules that check _actualPerimeter first (pods.ts)
       excavation_volume: excavationVolume,
       excavation_area: excavationArea,
       averageExcavationDepth: averageExcavationDepth,

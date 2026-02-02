@@ -105,6 +105,9 @@ export const podsModule: EstimateModule = {
     // Check for multi-zone support
     const podZones: WafflePodZone[] = scopeData?.podZones || [];
     const hasZones = podZones.length > 0;
+    
+    // Get scope-level perimeter as fallback for zones that don't have perimeter set
+    const scopePerimeter = Number(scopeData?._actualPerimeter ?? scopeData?.perimeter) || 0;
 
     // ═══════════════════════════════════════════════════════════════
     // MULTI-ZONE CALCULATION
@@ -131,8 +134,9 @@ export const podsModule: EstimateModule = {
         // Accumulate accessories
         totalSpacer4Way += Number(zone.spacer_4way_count) || podCount;
         // 2-way spacers: use stored value, or calculate from perimeter (1 per 1.2m inside perimeter)
-        // Prefer takeoff-measured perimeter when available.
-        const zonePerimeter = Number(zone._actualPerimeter ?? zone.perimeter) || 0;
+        // Prefer zone perimeter if set, otherwise proportionally divide scope perimeter
+        const zonePerimeter = Number(zone._actualPerimeter ?? zone.perimeter) || 
+          (scopePerimeter / Math.max(1, podZones.length));
         const calculated2Way = Math.ceil(Math.max(0, zonePerimeter - 1.6) / 1.2);
         totalSpacer2Way += Number(zone.spacer_2way_count) || calculated2Way;
         
