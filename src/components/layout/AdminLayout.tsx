@@ -17,6 +17,7 @@ const navItems = [
   { href: "/admin/jobs", label: "Jobs", icon: Briefcase },
   { href: "/admin/estimates", label: "Quotes", icon: FileText },
   { href: "/admin/schedule", label: "Schedule", icon: Calendar },
+  { href: "/admin/contacts", label: "Contacts", icon: Users },
   // Hidden for now - keeping code for future:
   // { href: "/admin/crews", label: "Crews", icon: Users },
   // { href: "/admin/employees", label: "Employees", icon: UserCheck },
