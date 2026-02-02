@@ -1,11 +1,11 @@
 import { useState } from "react";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -77,20 +77,20 @@ export function PendingInviteActionSheet({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="h-auto max-h-[70vh]">
-          <SheetHeader className="text-left pb-4">
-            <SheetTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              {invite.recipient_name}
-            </SheetTitle>
-            <SheetDescription>
-              <Badge variant="outline" className="mr-2">{invite.role}</Badge>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2">
+              <User className="h-5 w-5 text-muted-foreground" />
+              <DialogTitle>{invite.recipient_name}</DialogTitle>
+            </div>
+            <DialogDescription className="flex items-center gap-2 pt-1">
+              <Badge variant="outline">{invite.role}</Badge>
               <Badge variant="secondary">{statusLabels[invite.status] || invite.status}</Badge>
-            </SheetDescription>
-          </SheetHeader>
+            </DialogDescription>
+          </DialogHeader>
 
-          <div className="space-y-4 pb-6">
+          <div className="space-y-4 py-4">
             {/* Job Details */}
             <div className="space-y-2 p-3 rounded-lg bg-muted">
               <div className="flex items-center gap-2 text-sm">
@@ -149,8 +149,8 @@ export function PendingInviteActionSheet({
               </Button>
             </div>
           </div>
-        </SheetContent>
-      </Sheet>
+        </DialogContent>
+      </Dialog>
 
       <ScheduleSubbieDialog
         open={rescheduleOpen}
