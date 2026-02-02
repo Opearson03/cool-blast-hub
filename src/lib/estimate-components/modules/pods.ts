@@ -110,7 +110,10 @@ export const podsModule: EstimateModule = {
 
         // Accumulate accessories
         totalSpacer4Way += Number(zone.spacer_4way_count) || podCount;
-        totalSpacer2Way += Number(zone.spacer_2way_count) || 0;
+        // 2-way spacers: use stored value, or calculate from perimeter (1 per 1.2m inside perimeter)
+        const zonePerimeter = Number(zone.perimeter) || 0;
+        const calculated2Way = Math.ceil(Math.max(0, zonePerimeter - 1.6) / 1.2);
+        totalSpacer2Way += Number(zone.spacer_2way_count) || calculated2Way;
         
         if (zone.pod_rails_required || (zone.top_slab_thickness || 85) >= 100) {
           anyRailsRequired = true;
@@ -208,10 +211,12 @@ export const podsModule: EstimateModule = {
     const podCount = Number(scopeData?.pod_count) || 0;
     const perimeter = Number(scopeData?.perimeter) || 0;
     const topSlabThickness = Number(scopeData?.top_slab_thickness) || 85;
-    const spacer4WayCount = Number(scopeData?.spacer_4way_count) || 0;
-    const spacer2WayCount = Number(scopeData?.spacer_2way_count) || 0;
-    const podRailsRequired = scopeData?.pod_rails_required === true;
-    const podRailPacks = Number(scopeData?.pod_rail_packs) || 0;
+    const spacer4WayCount = Number(scopeData?.spacer_4way_count) || podCount;
+    // 2-way spacers: use stored value, or calculate from perimeter (1 per 1.2m inside perimeter)
+    const calculated2Way = Math.ceil(Math.max(0, perimeter - 1.6) / 1.2);
+    const spacer2WayCount = Number(scopeData?.spacer_2way_count) || calculated2Way;
+    const podRailsRequired = scopeData?.pod_rails_required === true || topSlabThickness >= 100;
+    const podRailPacks = Number(scopeData?.pod_rail_packs) || Math.ceil((podCount * 2) / 20);
 
     // POD SUPPLY
     if (answers.include_pod_supply !== false && podCount > 0) {
