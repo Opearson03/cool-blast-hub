@@ -1,63 +1,48 @@
-# Quote PDF Line Items Fix
 
-## Status: ✅ COMPLETED
+# Fix: Display Business Details on Quote Signing Page
 
-## Summary of Changes
+## Problem
+The quote signing page receives all business details (name, address, phone, email, logo) from the backend, but the UI only displays the logo/name as a header. The business contact information (address, phone, email) is not being rendered, making it appear like the details are "not prefilling" when they're actually available but hidden.
 
-### Problem 1: Missing Line Items in Quote Body
-**Root Cause:** The `extractScopeBreakdowns` function in `quote-pdf-data.ts` was looking for a `.scopes` wrapper that doesn't exist in the actual database structure. The database stores scope IDs (e.g., `raft_slab`, `retaining_wall_footings`) as top-level keys.
+## Solution
+Update the SignQuote page to display the business contact details in the header section, providing clients with full business context when viewing and signing quotes.
 
-**Solution:** Added `getScopesFromData()` helper function that correctly identifies scope keys by:
-1. Checking for an explicit `.scopes` wrapper (legacy format)
-2. Filtering to find scope-like keys that have `scopeAnswers`, `moduleAnswers`, `calculatedTotal`, or `doneModules`
-3. Skipping non-scope keys like `_globalMargin`, `exclusions`, etc.
+## Technical Changes
 
-### Problem 2: Scope Breakdown Appearing in Terms Page
-**Root Cause:** The full `estimate.notes` field (containing auto-generated SCOPE BREAKDOWN) was being passed to `TermsAndExclusionsPage`.
+### File: `src/pages/public/SignQuote.tsx`
 
-**Solution:** Added `parseNotesContent()` function that extracts user notes separately from auto-generated content, so only genuine user notes appear on Page 2.
+Add a business details section below the logo/name in the header card:
 
-### Problem 3: jsPDF.scale Error
-**Root Cause:** Empty canvas from hidden sections causing scale calculation to fail.
+```text
+Current header structure (lines 261-277):
+┌─────────────────────────────────────┐
+│         [Logo or Name]              │
+│       Quote #EST-2026-0218          │
+└─────────────────────────────────────┘
 
-**Solution:** Added canvas dimension validation in `generate-quote-pdf.ts` to skip empty sections.
+Updated header structure:
+┌─────────────────────────────────────┐
+│         [Logo or Name]              │
+│       Quote #EST-2026-0218          │
+│                                     │
+│   11b Cobbans Close Beresfield      │
+│   📞 0429956767                     │
+│   ✉️ opearson@jefcon.com.au         │
+└─────────────────────────────────────┘
+```
 
-### Problem 4: Fallback for Legacy Estimates
-**Solution:** Added `NotesBasedScopeBreakdown` component that renders scope breakdown from parsed notes when `scope_data` is empty or doesn't contain valid scopes.
+**Specific changes:**
+1. After the quote number (line ~276), add business contact info section
+2. Display business address (if available)
+3. Display business phone with Phone icon (if available)  
+4. Display business email with Mail icon (if available)
+5. Style consistently with the rest of the page using muted text colors
 
----
+## Implementation Details
 
-## Files Modified
+The `quoteData.business` object already contains:
+- `address`: string | null
+- `phone`: string | null  
+- `email`: string | null
 
-| File | Changes |
-|------|---------|
-| `src/lib/quote-pdf-data.ts` | Added `getScopesFromData()` helper, updated all extraction functions to use it |
-| `src/components/estimates/PrintableEstimate.tsx` | Added `parseNotesContent()`, `NotesBasedScopeBreakdown`, updated templates with fallback logic |
-| `src/lib/generate-quote-pdf.ts` | Added canvas dimension validation |
-
----
-
-## Expected Result
-
-**Page 1 (Quote):**
-- Header, client info, dates
-- Project summary (if data exists)
-- Scope breakdown table (from scope_data OR parsed notes fallback)
-- Totals, signature area
-
-**Page 2 (Terms & Conditions):**
-- Header
-- Payment terms (generated from `payment_terms_type`)
-- Exclusions
-- Acceptance block
-- **NO scope breakdown**
-
----
-
-## Verification
-
-Test with:
-1. **Print Estimate** - should show scopes on Page 1
-2. **Email to Client** - PDF attachment should show scopes on Page 1
-3. **Estimates with empty scope_data** - should use notes fallback if available
-4. **Old estimates** - notes-based fallback ensures they still display correctly
+These just need to be rendered in the CardHeader section after the quote number, conditionally showing each field only if it has a value.
