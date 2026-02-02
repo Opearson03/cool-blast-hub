@@ -1,210 +1,191 @@
 
-# Fix Zero Value Handling in Estimate Calculator Inputs
+# Auto-Update Pour Actual Volume from Delivery Dockets
 
-## Problem
+## Overview
 
-Throughout the estimate calculator components, the value `0` is not being accepted correctly in numeric input fields. This affects many type fields and numeric inputs across the calculators.
+When delivery dockets are assigned to a pour, automatically calculate the sum of all docket volumes and update the pour's `actual_m3` field. This provides real-time tracking of delivered concrete vs estimated.
 
-### Root Causes
+---
 
-There are two problematic patterns being used:
+## Current State
 
-1. **Display Pattern**: `value={someValue || ""}` 
-   - When `someValue` is `0`, this evaluates to `""` (empty string) because `0` is falsy in JavaScript
-   - The input appears empty even though the actual value is 0
-
-2. **Change Handler Pattern**: `Number(e.target.value) || defaultValue`
-   - When extracting values from scopeData: `Number(scopeData?.field) || 2` 
-   - If user explicitly sets a value to 0, it falls back to the default instead
-
-### Impact
-
-Users cannot:
-- Set quantity values to 0 (e.g., "0 top bars in rib reinforcement")
-- Clear fields and have them remain at 0
-- See that a value is actually 0 vs empty/undefined
+- **Delivery dockets** are stored in `pending_documents` table with `extracted_data.volume_m3`
+- When approved, dockets get `linked_pour_id` set and `status = 'approved'`
+- The `job_pours` table has an `actual_m3` field that is currently manually edited
+- The docket number is saved to `job_pours.docket_numbers[]` but the volume is not aggregated
 
 ---
 
 ## Solution
 
-Replace falsy-check patterns with explicit nullish coalescing (`??`) and proper empty-vs-zero handling.
+Create a database trigger that fires whenever a delivery docket is approved or updated, and recalculates the total volume for the linked pour.
 
-### Pattern Fixes
+### Approach: Database Trigger
 
-**Fix 1: Input value display**
-```typescript
-// BEFORE (broken - 0 shows as empty)
-value={someValue || ""}
+A trigger-based solution is preferred because:
+1. **Consistency** - Volume updates happen regardless of which UI/API makes changes
+2. **Real-time** - Immediate update after any docket approval
+3. **No UI changes** - Existing approve flow works as-is
+4. **Handles edge cases** - Docket deletions, pour reassignments all handled
 
-// AFTER (works correctly)
-value={someValue ?? ""}
-// OR for explicit 0 handling:
-value={someValue === 0 ? "0" : (someValue || "")}
-// OR for cleaner approach with numbers that should show 0:
-value={typeof someValue === 'number' ? someValue : ""}
+---
+
+## Technical Implementation
+
+### 1. Create Database Function
+
+```sql
+CREATE OR REPLACE FUNCTION update_pour_actual_volume()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  old_pour_id UUID;
+  new_pour_id UUID;
+  total_volume NUMERIC;
+BEGIN
+  -- Determine which pour IDs need updating
+  old_pour_id := NULL;
+  new_pour_id := NULL;
+
+  IF TG_OP = 'DELETE' THEN
+    old_pour_id := OLD.linked_pour_id;
+  ELSIF TG_OP = 'UPDATE' THEN
+    -- If pour changed, update both old and new
+    IF OLD.linked_pour_id IS DISTINCT FROM NEW.linked_pour_id THEN
+      old_pour_id := OLD.linked_pour_id;
+    END IF;
+    -- Only update new pour if document is approved
+    IF NEW.status = 'approved' AND NEW.linked_pour_id IS NOT NULL THEN
+      new_pour_id := NEW.linked_pour_id;
+    END IF;
+    -- If status changed from approved, recalc old pour
+    IF OLD.status = 'approved' AND NEW.status != 'approved' AND OLD.linked_pour_id IS NOT NULL THEN
+      old_pour_id := OLD.linked_pour_id;
+    END IF;
+  ELSIF TG_OP = 'INSERT' THEN
+    IF NEW.status = 'approved' AND NEW.linked_pour_id IS NOT NULL THEN
+      new_pour_id := NEW.linked_pour_id;
+    END IF;
+  END IF;
+
+  -- Update old pour (remove this docket's contribution)
+  IF old_pour_id IS NOT NULL THEN
+    SELECT COALESCE(SUM((extracted_data->>'volume_m3')::NUMERIC), 0)
+    INTO total_volume
+    FROM pending_documents
+    WHERE linked_pour_id = old_pour_id
+      AND status = 'approved'
+      AND extracted_data->>'volume_m3' IS NOT NULL;
+
+    UPDATE job_pours
+    SET actual_m3 = NULLIF(total_volume, 0)
+    WHERE id = old_pour_id;
+  END IF;
+
+  -- Update new pour (add this docket's contribution)
+  IF new_pour_id IS NOT NULL AND new_pour_id IS DISTINCT FROM old_pour_id THEN
+    SELECT COALESCE(SUM((extracted_data->>'volume_m3')::NUMERIC), 0)
+    INTO total_volume
+    FROM pending_documents
+    WHERE linked_pour_id = new_pour_id
+      AND status = 'approved'
+      AND extracted_data->>'volume_m3' IS NOT NULL;
+
+    UPDATE job_pours
+    SET actual_m3 = NULLIF(total_volume, 0)
+    WHERE id = new_pour_id;
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  ELSE
+    RETURN NEW;
+  END IF;
+END;
+$$;
 ```
 
-**Fix 2: Value extraction from scopeData**
-```typescript
-// BEFORE (broken - 0 becomes default)
-const ribTopBars = Number(scopeData?.rib_top_bars) || 1;
+### 2. Create Trigger
 
-// AFTER (preserves 0, only uses default for undefined/null)
-const ribTopBars = scopeData?.rib_top_bars !== undefined 
-  ? Number(scopeData?.rib_top_bars) 
-  : 1;
-// OR using nullish coalescing:
-const ribTopBars = Number(scopeData?.rib_top_bars ?? 1);
-```
-
-**Fix 3: onChange handlers**
-```typescript
-// BEFORE (broken - empty string becomes 0, can't distinguish)  
-onChange={(e) => handleChange('field', Number(e.target.value) || 0)}
-
-// AFTER (empty string becomes undefined/null, 0 stays 0)
-onChange={(e) => handleChange('field', 
-  e.target.value === "" ? undefined : Number(e.target.value)
-)}
-// OR if 0 is a valid empty value:
-onChange={(e) => handleChange('field',
-  e.target.value === "" ? 0 : Number(e.target.value)
-)}
+```sql
+CREATE TRIGGER trg_update_pour_volume
+AFTER INSERT OR UPDATE OR DELETE ON pending_documents
+FOR EACH ROW
+EXECUTE FUNCTION update_pour_actual_volume();
 ```
 
 ---
 
-## Files Requiring Changes
+## Behavior
 
-Based on my search, these files have the problematic patterns:
-
-### High Priority (Reinforcement & Config Inputs)
-| File | Issue Pattern |
-|------|---------------|
-| `WafflePodRibsInput.tsx` | `Number(scopeData?.rib_top_bars) \|\| 1` - can't set top bars to 0 |
-| `WafflePodToppingMeshInput.tsx` | `Number(scopeData?....) \|\| default` patterns |
-| `WafflePodConfigInput.tsx` | `value={...=== 0 ? '' : ...}` and `\|\| default` |
-| `WafflePodConfigCard.tsx` | Multiple `value={x === 0 ? '' : x}` and `\|\|` patterns |
-| `AreaReinforcementInput.tsx` | Value extraction patterns |
-| `FootingSectionReinforcementInput.tsx` | Similar patterns |
-| `PierReinforcementInput.tsx` | `group.quantity \|\| 1` |
-
-### Medium Priority (Measurement Inputs)
-| File | Issue Pattern |
-|------|---------------|
-| `MultiWafflePodZoneInput.tsx` | `value={zone.x === 0 ? '' : zone.x}` + `Number(...) \|\| 0` |
-| `MultiBeamTypeInput.tsx` | `value={group.width \|\| ""}` |
-| `MultiAreaInput.tsx` | `value={area.length \|\| ""}` patterns |
-| `MultiLinearInput.tsx` | Similar patterns |
-| `MultiFootingInput.tsx` | `value={footing.length \|\| ""}` |
-| `MultiPierInput.tsx` | `value={pier.quantity \|\| ""}` |
-| `MultiBeamInput.tsx` | Similar patterns |
-| `ExtraItemsInput.tsx` | `Number(e.target.value) \|\| 0` |
-| `AddCustomItemDialog.tsx` | `setQuantity(Number(e.target.value) \|\| 0)` |
-| `MultiControlJointInput.tsx` | Various patterns |
-| `MultiExpansionJointInput.tsx` | Similar patterns |
-| `MultiLinearTypeInput.tsx` | `value={group.dimension1 \|\| ""}` |
-| `MultiPlacementInput.tsx` | `Number(e.target.value) \|\| 0` |
+| Action | Result |
+|--------|--------|
+| Approve docket → pour A | Pour A's `actual_m3` = sum of all approved dockets for that pour |
+| Approve another docket → pour A | `actual_m3` increases by new docket's volume |
+| Reassign docket from pour A → pour B | Pour A's volume decreases, pour B's increases |
+| Reject/unapprove a docket | Pour's `actual_m3` recalculates without that docket |
+| Delete a docket | Pour's volume recalculates |
+| Docket has no volume | No effect (skipped in sum) |
 
 ---
 
-## Implementation Approach
+## UI Considerations
 
-### Step 1: Create a helper utility for consistent handling
+### Current Display Already Works
 
-Add to `src/lib/utils.ts` or create `src/lib/input-helpers.ts`:
+The `PourDetailSheet` already shows:
+- **Estimated**: `pour.estimated_m3`
+- **Actual**: `pour.actual_m3`
 
-```typescript
-// For input value display - handles 0 correctly
-export function inputValue(val: number | undefined | null): string | number {
-  return val ?? "";
-}
+With this change, the "Actual" field will automatically populate as dockets are approved.
 
-// For numeric onChange - preserves 0, converts empty to undefined
-export function parseNumericInput(
-  value: string, 
-  fallback?: number
-): number | undefined {
-  if (value === "") return fallback;
-  const num = Number(value);
-  return isNaN(num) ? fallback : num;
-}
+### Optional Enhancement: Show Docket Breakdown
 
-// For extracting from scopeData with default
-export function numericWithDefault(
-  value: unknown, 
-  defaultValue: number
-): number {
-  if (value === undefined || value === null) return defaultValue;
-  const num = Number(value);
-  return isNaN(num) ? defaultValue : num;
-}
+Could add a small section in `PourDetailSheet` showing which dockets contributed to the actual volume:
+
+```text
+Actual: 45 m³
+├─ Docket #12345: 7.5 m³
+├─ Docket #12346: 8.0 m³  
+├─ Docket #12347: 7.5 m³
+└─ Docket #12348: 22.0 m³
 ```
 
-### Step 2: Update components systematically
-
-For each file, replace:
-1. `value={x || ""}` → `value={x ?? ""}`
-2. `Number(scopeData?.x) || default` → `numericWithDefault(scopeData?.x, default)`
-3. `Number(e.target.value) || 0` → `parseNumericInput(e.target.value, 0)`
-
-### Step 3: Special handling for fields where 0 should clear
-
-Some fields (like pod count) intentionally show empty when 0:
-```typescript
-value={podCount === 0 ? '' : podCount}
-```
-These are intentional UX decisions and should be preserved.
+This would require a simple query to fetch linked approved dockets. **This is optional - the core feature works without it.**
 
 ---
 
-## Example Fixes
+## Files to Modify
 
-### WafflePodRibsInput.tsx (lines 35-37)
+| Component | Change |
+|-----------|--------|
+| Database migration | Create trigger function and trigger |
+| No UI changes required | Existing displays already show `actual_m3` |
 
-```typescript
-// BEFORE
-const ribBottomBars = Number(scopeData?.rib_bottom_bars) || 2;
-const ribTopBars = Number(scopeData?.rib_top_bars) || 1;
+---
 
-// AFTER
-const ribBottomBars = scopeData?.rib_bottom_bars ?? 2;
-const ribTopBars = scopeData?.rib_top_bars ?? 1;
-```
+## Optional: UI Enhancement for Docket Breakdown
 
-### MultiBeamTypeInput.tsx (line 324)
+If desired, add to `PourDetailSheet.tsx`:
 
-```typescript
-// BEFORE
-value={group.width || ""}
-
-// AFTER  
-value={group.width ?? ""}
-```
-
-### ExtraItemsInput.tsx (line 110)
-
-```typescript
-// BEFORE
-handleUpdate(item.id, "quantity", Number(e.target.value) || 0)
-
-// AFTER
-handleUpdate(item.id, "quantity", 
-  e.target.value === "" ? 0 : Number(e.target.value)
-)
-```
+1. Fetch approved dockets linked to this pour
+2. Display volume breakdown below the "Actual" card
+3. Show docket number → volume for transparency
 
 ---
 
 ## Testing Checklist
 
-After implementing fixes:
-1. Open any Waffle Pod estimate
-2. Set "Top Bars" quantity to 0 in Rib Reinforcement
-3. Verify dropdown shows "0" or "None" (not the default)
-4. Save and reload - verify 0 persists
-5. Test footing inputs - set length to 0
-6. Test area inputs - set dimensions to 0
-7. Test pier inputs - set quantity to 0
-8. Verify calculations still work correctly with 0 values
+1. Create a job with a pour (estimated_m3 = 50)
+2. Email a delivery docket with volume 8.5m³ to inbox
+3. Approve docket → link to pour
+4. Verify pour's `actual_m3` = 8.5
+5. Approve second docket (7.5m³) → same pour
+6. Verify `actual_m3` = 16.0
+7. Reassign first docket to different pour
+8. Verify first pour's `actual_m3` = 7.5, second pour = 8.5
+9. Reject a docket
+10. Verify volume recalculates without rejected docket
