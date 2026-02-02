@@ -152,13 +152,13 @@ export function JobPoursTab({ jobId, jobAddress }: JobPoursTabProps) {
         <Card>
           <CardContent className="py-12 text-center">
             <Droplets className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-            <h3 className="font-semibold mb-2">No Pours Scheduled</h3>
+            <h3 className="font-semibold mb-2">No Works Scheduled</h3>
             <p className="text-muted-foreground mb-4">
-              Add individual pours to this job to track concrete deliveries and testing
+              Add works to this job to track prep days, pours, and other site activities
             </p>
             <Button onClick={() => setFormOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
-              Add Pour
+              Schedule Works
             </Button>
           </CardContent>
         </Card>
@@ -179,10 +179,10 @@ export function JobPoursTab({ jobId, jobAddress }: JobPoursTabProps) {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="font-semibold">Scheduled Pours</h3>
+        <h3 className="font-semibold">Project Plan</h3>
         <Button size="sm" onClick={() => setFormOpen(true)}>
           <Plus className="w-4 h-4 mr-2" />
-          Add Pour
+          Schedule Works
         </Button>
       </div>
 
