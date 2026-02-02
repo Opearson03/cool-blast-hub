@@ -1,31 +1,73 @@
-# Waffle Pod Calculation Fixes - COMPLETED ✓
 
-## Summary
+# Fix Waffle Pod Duplicate Information and Hide Length x Width
 
-Fixed two calculation issues in the Waffle Pod estimator:
+## Problem Summary
 
-1. **Internal Rib Reinforcement Formula** ✓
-   - Changed from `pods × 2.4` to `(pods × 2.4) - (perimeter / 2)`
-   - Updated in `reinforcement-raft.ts` for both multi-zone and legacy calculations
-   - Updated UI display in `WafflePodRibsInput.tsx`
+For Waffle Pod slabs, users are seeing duplicate information because:
+1. **MultiAreaInput** component is rendered (due to `supportsMultipleAreas: true` in scope definition)
+2. **MultiWafflePodZoneInput** component is also rendered (hard-coded check for `scope.id === 'waffle_pod'`)
 
-2. **Concrete Volume Formula** ✓
-   - Changed from geometric subtraction to simplified empirical formula
-   - Now uses: `pods × 0.2519 × pod_depth`
-   - Updated in `scopes.ts` and `ModularCalculator.tsx`
+Both components display area, perimeter, and pod-related information, causing confusion.
 
-## Files Modified
+Additionally, the user wants to hide the "Length × Width" display for waffle pod slab areas and only show the takeoff area (measured from plans).
+
+---
+
+## Solution
+
+### Option A (Recommended): Hide MultiAreaInput for Waffle Pod Scope
+
+Since `MultiWafflePodZoneInput` is the primary input component for waffle pod slabs and contains all necessary fields (area, perimeter, pod specs), we should hide the `MultiAreaInput` component specifically for waffle pod scope.
+
+### Changes Required
 
 | File | Change |
 |------|--------|
-| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Updated rib length formula with perimeter deduction |
-| `src/components/estimates/calculators/WafflePodRibsInput.tsx` | Updated UI summary to show corrected formula |
-| `src/lib/estimate-components/scopes.ts` | Updated calculateVolume() to use pods × 0.2519 × depth |
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Updated wafflePodBreakdown calculation |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Add condition to hide `MultiAreaInput` when `scope.id === 'waffle_pod'` |
 
-## Formula Summary
+**Code Change (Line ~1250):**
 
-| Calculation | Previous | Corrected |
-|-------------|----------|-----------|
-| Rib reo length per layer | `pods × 2.4` | `(pods × 2.4) - (perimeter ÷ 2)` |
-| Pod rib concrete | `(area × depth) - (pods × pod_size³)` | `pods × 0.2519 × pod_depth` |
+Current:
+```tsx
+{scope.supportsMultipleAreas && (
+  <MultiAreaInput
+    ...
+  />
+)}
+```
+
+Updated:
+```tsx
+{scope.supportsMultipleAreas && scope.id !== 'waffle_pod' && (
+  <MultiAreaInput
+    ...
+  />
+)}
+```
+
+This single change:
+- Removes the duplicate "Slab Area" section for waffle pod scopes
+- Keeps `MultiWafflePodZoneInput` as the sole source of truth for area/perimeter/pod data
+- Automatically hides the "Length × Width" fields since they only exist in `MultiAreaInput`
+
+---
+
+## Why This Approach
+
+1. **Single Source of Truth**: `MultiWafflePodZoneInput` is specifically designed for waffle pod slabs with zone-based pod specifications, area, and perimeter fields
+2. **No Breaking Changes**: Other scopes (Raft Slab, Standard Slab, Driveway, etc.) continue using `MultiAreaInput` as before
+3. **Minimal Code Change**: Only one line modification required
+4. **Matches User Intent**: The user explicitly stated "waffle pod zones and slab area contain duplicate information" - removing one fixes this
+
+---
+
+## Technical Details
+
+The `MultiWafflePodZoneInput` component already provides:
+- Zone-based area input (m²)
+- Perimeter input (m)
+- Pod size, depth, topping, rib width selectors
+- Pod count input
+- Aggregate calculations that update `scopeAnswers.area`, `scopeAnswers.perimeter`, and `scopeAnswers.pod_count`
+
+These values flow correctly to volume calculations and all downstream modules, so removing `MultiAreaInput` will not break any calculations.
