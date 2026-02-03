@@ -172,27 +172,6 @@ const ProjectSummarySection = ({
 
   if (summaryItems.length === 0) return null;
 
-  if (template === 'modern') {
-    return (
-      <div className="page-break-avoid mb-6">
-        <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Project Summary</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {summaryItems.map((item, index) => (
-            <div 
-              key={index} 
-              className="p-3 rounded-lg"
-              style={{ backgroundColor: "#f9fafb", borderLeft: `3px solid ${primaryColor}` }}
-            >
-              <p className="text-xs text-gray-500 uppercase">{item.label}</p>
-              <p className="text-lg font-bold text-gray-900">{item.value}</p>
-              {item.sub && <p className="text-xs text-gray-600">{item.sub}</p>}
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
   if (template === 'minimal') {
     return (
       <div className="page-break-avoid mb-10">
@@ -286,39 +265,6 @@ const ScopeLineItemsSection = ({
     );
   }
 
-  if (template === 'modern') {
-    return (
-      <div className="page-break-avoid mb-6">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-              <th className="text-left py-3 px-4 text-sm font-bold">Scope of Works</th>
-              <th className="text-right py-3 px-4 text-sm font-bold w-28">Included</th>
-            </tr>
-          </thead>
-          <tbody>
-            {scopeBreakdowns.map((scope, index) => (
-              <tr key={index} className="border-b border-gray-200" style={{ backgroundColor: index % 2 === 0 ? "#f9fafb" : "white" }}>
-                <td className="py-3 px-4 text-sm">
-                  <span className="font-semibold text-gray-900">{scope.scopeName}</span>
-                  <span className="block text-xs text-gray-600 mt-0.5">
-                    {generateScopeDescription(scope)}
-                  </span>
-                  {scope.areas && scope.areas.length > 0 && (
-                    <span className="block text-xs text-gray-500 mt-1">
-                      {scope.areas.map(a => `${a.name}: ${a.area.toFixed(1)}m²`).join(' • ')}
-                    </span>
-                  )}
-                </td>
-                <td className="py-3 px-4 text-sm text-right font-medium" style={{ color: primaryColor }}>✓</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
   // Classic template
   return (
     <div className="page-break-avoid mb-6">
@@ -383,31 +329,6 @@ const NotesBasedScopeBreakdown = ({
                   <span className="font-medium">{item.name}</span>
                 </td>
                 <td className="py-3 text-sm text-right font-medium text-gray-700">{item.amount}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    );
-  }
-
-  if (template === 'modern') {
-    return (
-      <div className="page-break-avoid mb-6">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-              <th className="text-left py-3 px-4 text-sm font-bold">Scope of Works</th>
-              <th className="text-right py-3 px-4 text-sm font-bold w-28">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, index) => (
-              <tr key={index} className="border-b border-gray-200" style={{ backgroundColor: index % 2 === 0 ? "#f9fafb" : "white" }}>
-                <td className="py-3 px-4 text-sm">
-                  <span className="font-semibold text-gray-900">{item.name}</span>
-                </td>
-                <td className="py-3 px-4 text-sm text-right font-medium" style={{ color: primaryColor }}>{item.amount}</td>
               </tr>
             ))}
           </tbody>
@@ -486,27 +407,6 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    if (template === 'modern') {
-      return (
-        <div className="flex justify-between items-center mb-8 pb-4" style={{ borderBottom: `3px solid ${primaryColor}` }}>
-          <div className="flex items-center gap-4">
-            {business?.logo_url && (
-              <img
-                src={business.logo_url}
-                alt="Company logo"
-                style={{ maxHeight: "40px", maxWidth: "100px", width: "auto", height: "auto", objectFit: "contain" }}
-              />
-            )}
-            <div>
-              <p className="font-bold text-gray-900">{business?.name}</p>
-              <p className="text-xs text-gray-500">Quote: {estimate.estimate_number}</p>
-            </div>
-          </div>
-          <h2 className="text-lg font-bold uppercase" style={{ color: secondaryColor }}>Terms & Conditions</h2>
-        </div>
-      );
-    }
-
     // Classic
     return (
       <div className="flex justify-between items-center mb-6 pb-4" style={{ borderBottom: `2px solid ${secondaryColor}` }}>
@@ -552,33 +452,6 @@ const TermsAndExclusionsPage = ({
                 <p>• Variations may incur additional charges</p>
               </>
             )}
-          </div>
-        </div>
-      );
-    }
-
-    if (template === 'modern') {
-      return (
-        <div className="mb-8">
-          <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Payment Terms</h3>
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-4">
-            <div className="text-sm text-blue-900 space-y-2">
-              {customNotes ? (
-                <p className="whitespace-pre-wrap">{customNotes}</p>
-              ) : paymentTerms ? (
-                paymentTerms.map((term, index) => (
-                  <p key={index}>• {term}</p>
-                ))
-              ) : (
-                <>
-                  <p>• This quote is valid for 14 days from the date of issue.</p>
-                  <p>• A 50% deposit is required before commencement of works.</p>
-                  <p>• Final payment is due upon completion of works.</p>
-                  <p>• Prices include GST unless otherwise stated.</p>
-                  <p>• Any variations to the scope of works may result in additional charges.</p>
-                </>
-              )}
-            </div>
           </div>
         </div>
       );
@@ -631,25 +504,6 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    if (template === 'modern') {
-      return (
-        <div className="mb-8">
-          <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Inclusions</h3>
-          <div className="bg-green-50 border border-green-100 rounded-lg p-4">
-            <p className="text-xs text-green-800 mb-3">This quote includes:</p>
-            <ul className="space-y-1">
-              {inclusions.map((inc, index) => (
-                <li key={index} className="text-sm text-green-700 flex items-start gap-2">
-                  <span className="text-green-500">✓</span>
-                  <span>{inc}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      );
-    }
-
     // Classic
     return (
       <div className="mb-8">
@@ -684,25 +538,6 @@ const TermsAndExclusionsPage = ({
                 <span>{exc}</span>
               </p>
             ))}
-          </div>
-        </div>
-      );
-    }
-
-    if (template === 'modern') {
-      return (
-        <div className="mb-8">
-          <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Exclusions</h3>
-          <div className="bg-red-50 border border-red-100 rounded-lg p-4">
-            <p className="text-xs text-red-800 mb-3">The following items are NOT included in this quote:</p>
-            <ul className="space-y-1">
-              {exclusions.map((exc, index) => (
-                <li key={index} className="text-sm text-red-700 flex items-start gap-2">
-                  <span className="text-red-400">✕</span>
-                  <span>{exc}</span>
-                </li>
-              ))}
-            </ul>
           </div>
         </div>
       );
@@ -743,31 +578,6 @@ const TermsAndExclusionsPage = ({
             <div>
               <div className="border-b border-gray-300 h-12"></div>
               <p className="text-xs text-gray-400 mt-1">Print Name</p>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
-    if (template === 'modern') {
-      return (
-        <div className="p-4" style={{ backgroundColor: "#f9fafb", borderRadius: "8px", border: `2px solid ${primaryColor}` }}>
-          <h3 className="text-sm font-bold mb-3" style={{ color: secondaryColor }}>Acceptance</h3>
-          <p className="text-xs text-gray-600 mb-4">
-            I accept this quote and authorize the commencement of works as described above.
-          </p>
-          <div className="grid grid-cols-3 gap-6">
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Signature</p>
-              <div className="border-b-2 border-gray-400 h-8"></div>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Print Name</p>
-              <div className="border-b-2 border-gray-400 h-8"></div>
-            </div>
-            <div>
-              <p className="text-xs text-gray-500 mb-1">Date</p>
-              <div className="border-b-2 border-gray-400 h-8"></div>
             </div>
           </div>
         </div>
@@ -913,204 +723,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     `;
 
     // Render template based on selection
-    if (template === "modern") {
-      return (
-        <div
-          ref={ref}
-          className="print-container"
-          style={{ 
-            fontFamily: `${fontFamily}, sans-serif`,
-            backgroundColor: "white",
-            color: "black"
-          }}
-        >
-          <style>{printStyles}</style>
-
-          {/* PAGE 1 - Fixed height container for A4 page */}
-          <div 
-            data-pdf-section="page-1"
-            style={{ 
-              minHeight: "277mm", /* A4 height minus margins */
-              display: "flex",
-              flexDirection: "column"
-            }}
-          >
-            {/* Modern Template - Bold header banner */}
-            <div className="page-break-avoid" style={{ backgroundColor: secondaryColor, padding: "24px 32px", marginBottom: "24px" }}>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
-                  {business?.logo_url && (
-                    <img
-                      src={business.logo_url}
-                      alt="Company logo"
-                      style={{ maxHeight: "64px", maxWidth: "140px", width: "auto", height: "auto", objectFit: "contain", backgroundColor: "white", borderRadius: "8px", padding: "8px" }}
-                    />
-                  )}
-                  <div style={{ color: "white" }}>
-                    <h1 className="text-2xl font-bold">{business?.name || "Company Name"}</h1>
-                    {business?.abn && <p className="text-sm opacity-80">ABN: {business.abn}</p>}
-                  </div>
-                </div>
-                <div style={{ color: "white", textAlign: "right" }}>
-                  <h2 className="text-2xl font-black tracking-tight">CONCRETE WORK</h2>
-                  <h3 className="text-xl font-bold">ESTIMATE</h3>
-                </div>
-              </div>
-            </div>
-
-            {/* Client Information - Side by side */}
-            <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 px-2">
-              {/* From */}
-              <div className="p-4 rounded-lg" style={{ backgroundColor: "#f9fafb" }}>
-                <h3 className="text-sm font-bold uppercase mb-2" style={{ color: secondaryColor }}>From</h3>
-                <p className="text-base font-bold text-gray-900">{business?.name || "Company Name"}</p>
-                {business?.address && <p className="text-sm text-gray-600">{business.address}</p>}
-                <div className="flex flex-wrap gap-x-4 mt-2 text-sm text-gray-600">
-                  {business?.phone && <span>{business.phone}</span>}
-                  {business?.email && <span>{business.email}</span>}
-                </div>
-                {business?.abn && <p className="text-xs text-gray-500 mt-1">ABN: {business.abn}</p>}
-              </div>
-              
-              {/* To */}
-              <div className="p-4 rounded-lg" style={{ backgroundColor: "#f9fafb" }}>
-                <h3 className="text-sm font-bold uppercase mb-2" style={{ color: secondaryColor }}>Bill To</h3>
-                <p className="text-base font-bold text-gray-900">{estimate.client_name}</p>
-                {estimate.company_name && <p className="text-sm text-gray-700">{estimate.company_name}</p>}
-                <p className="text-sm text-gray-600">{estimate.site_address}</p>
-                <div className="flex flex-wrap gap-x-4 mt-2 text-sm text-gray-600">
-                  {estimate.client_phone && <span>{estimate.client_phone}</span>}
-                  {estimate.client_email && <span>{estimate.client_email}</span>}
-                </div>
-              </div>
-            </div>
-
-            {/* Quote Meta */}
-            <div className="page-break-avoid flex justify-end mb-6 px-2">
-              <div className="text-right text-sm text-gray-600 space-y-1">
-                <p><span className="font-bold" style={{ color: primaryColor }}>Quote:</span> {estimate.estimate_number}</p>
-                <p><span className="font-bold" style={{ color: primaryColor }}>Date:</span> {format(new Date(estimate.created_at), "d MMMM yyyy")}</p>
-                {estimate.valid_until && (
-                  <p><span className="font-bold" style={{ color: primaryColor }}>Valid Until:</span> {format(new Date(estimate.valid_until), "d MMMM yyyy")}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Flexible content area - grows to fill space */}
-            <div className="flex-grow px-2">
-              {/* Project Summary */}
-              <ProjectSummarySection 
-                data={quotePDFData} 
-                primaryColor={primaryColor} 
-                secondaryColor={secondaryColor}
-                template="modern"
-              />
-
-              {/* Scope of Works as Line Items - above totals */}
-              {quotePDFData.scopeBreakdowns.length > 0 ? (
-                <ScopeLineItemsSection 
-                  data={quotePDFData} 
-                  primaryColor={primaryColor} 
-                  secondaryColor={secondaryColor}
-                  template="modern"
-                  formatCurrency={formatCurrency}
-                  totalAmount={estimate.total_amount}
-                />
-              ) : parsedNotes.scopeBreakdownFromNotes.length > 0 ? (
-                <NotesBasedScopeBreakdown 
-                  items={parsedNotes.scopeBreakdownFromNotes}
-                  template="modern"
-                  primaryColor={primaryColor}
-                  secondaryColor={secondaryColor}
-                />
-              ) : null}
-
-              {/* Line Items */}
-              {parsedItems.length > 0 && (
-                <div className="page-break-avoid mb-6">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-                        <th className="text-left py-3 px-4 text-sm font-bold">No</th>
-                        <th className="text-left py-3 px-4 text-sm font-bold">Description</th>
-                        <th className="text-right py-3 px-4 text-sm font-bold w-20">Qty</th>
-                        <th className="text-center py-3 px-4 text-sm font-bold w-16">Unit</th>
-                        <th className="text-right py-3 px-4 text-sm font-bold w-28">Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedItems.map((item, index) => (
-                        <tr key={index} className="border-b border-gray-200" style={{ backgroundColor: index % 2 === 0 ? "#f9fafb" : "white" }}>
-                          <td className="py-3 px-4 text-sm font-medium">{String(index + 1).padStart(2, '0')}</td>
-                          <td className="py-3 px-4 text-sm">{item.description}</td>
-                          <td className="py-3 px-4 text-sm text-right">{item.quantity}</td>
-                          <td className="py-3 px-4 text-sm text-center">{item.unit}</td>
-                          <td className="py-3 px-4 text-sm text-right font-medium">{formatCurrency(item.total)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Fixed bottom section - Totals & Signature */}
-            <div className="mt-auto px-2">
-              {/* Total - Modern style */}
-              <div className="page-break-avoid flex justify-end mb-6">
-                <div className="w-80" style={{ backgroundColor: "#f9fafb", padding: "20px", borderRadius: "8px" }}>
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm text-gray-600">Subtotal (ex GST)</span>
-                    <span className="text-base font-medium text-gray-700">
-                      {formatCurrency(estimate.total_amount / 1.1)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center mb-3">
-                    <span className="text-sm text-gray-600">GST (10%)</span>
-                    <span className="text-base font-medium text-gray-700">
-                      {formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center pt-3" style={{ borderTop: `2px solid ${primaryColor}` }}>
-                    <span className="text-lg font-bold text-gray-900">TOTAL (inc GST)</span>
-                    <span className="text-2xl font-black" style={{ color: primaryColor }}>
-                      {formatCurrency(estimate.total_amount)}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Notes & Signature */}
-              <div className="page-break-avoid py-4 border-t border-gray-200">
-                <div className="flex justify-between items-end">
-                  <div className="text-sm text-gray-500">
-                    <p>Notes: Quote valid for {estimate.quote_validity_days || 14} days</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-gray-500 mb-2">Signature</p>
-                    <div className="w-48 border-b-2 border-gray-400"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* PAGE 2 - Terms & Exclusions */}
-          <TermsAndExclusionsPage
-            inclusions={[...quotePDFData.inclusions, ...parsedNotes.inclusionsFromNotes.filter(inc => !quotePDFData.inclusions.includes(inc))]}
-            exclusions={quotePDFData.exclusions.length > 0 ? quotePDFData.exclusions : parsedNotes.exclusionsFromNotes}
-            paymentTerms={paymentTerms}
-            customNotes={parsedNotes.userNotes}
-            business={business}
-            estimate={estimate}
-            primaryColor={primaryColor}
-            secondaryColor={secondaryColor}
-            template="modern"
-          />
-        </div>
-      );
-    }
-
     if (template === "minimal") {
       return (
         <div
