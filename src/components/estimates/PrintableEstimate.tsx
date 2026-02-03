@@ -1217,23 +1217,36 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
             {/* Flexible content area - grows to fill space */}
             <div className="flex-grow">
-              {/* Line Items Table with alternating rows */}
+              {/* Line Items Table with alternating rows - markup distributed into each line item */}
               {(() => {
-                // Calculate scope totals sum and adjustment for markup
-                const scopesTotalIncGst = quotePDFData.scopeBreakdowns.reduce(
-                  (sum, scope) => sum + (scope.calculatedTotal || 0), 
-                  0
-                );
-                const adjustmentIncGst = estimate.total_amount - scopesTotalIncGst;
-                const hasAdjustment = Math.abs(adjustmentIncGst) > 0.01;
-                const globalMargin = scopeData?._globalMargin;
-                const adjustmentLabel = globalMargin 
-                  ? `Markup (${globalMargin}%)` 
-                  : (adjustmentIncGst < 0 ? 'Discount' : 'Adjustment');
+                // Calculate markup multiplier from global margin
+                const globalMargin = scopeData?._globalMargin || 0;
+                const markupMultiplier = 1 + (Number(globalMargin) / 100);
                 
-                // Count total data rows for empty row calculation
+                // Calculate marked-up totals for each scope
+                const markedUpScopes = quotePDFData.scopeBreakdowns.map(scope => {
+                  const internalCost = scope.calculatedTotal || 0;
+                  return {
+                    ...scope,
+                    markedUpTotal: internalCost * markupMultiplier
+                  };
+                });
+                
+                // Calculate sum and apply rounding adjustment to largest item
+                const markedUpSum = markedUpScopes.reduce((sum, s) => sum + s.markedUpTotal, 0);
+                const roundingDiff = estimate.total_amount - markedUpSum;
+                
+                // Apply rounding difference to the largest scope (if any scopes exist)
+                if (markedUpScopes.length > 0 && Math.abs(roundingDiff) > 0.001) {
+                  const largestIdx = markedUpScopes.reduce(
+                    (maxIdx, scope, idx, arr) => scope.markedUpTotal > arr[maxIdx].markedUpTotal ? idx : maxIdx, 
+                    0
+                  );
+                  markedUpScopes[largestIdx].markedUpTotal += roundingDiff;
+                }
+                
+                // Count total data rows for empty row calculation (no separate markup row now)
                 const dataRowCount = quotePDFData.scopeBreakdowns.length 
-                  + (hasAdjustment ? 1 : 0) 
                   + (quotePDFData.scopeBreakdowns.length === 0 ? parsedItems.length : 0);
                 
                 return (
@@ -1249,9 +1262,9 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                         </tr>
                       </thead>
                       <tbody>
-                        {/* Scope Items - calculatedTotal IS the inc GST value */}
-                        {quotePDFData.scopeBreakdowns.map((scope, index) => {
-                          const totalIncGst = scope.calculatedTotal || 0;
+                        {/* Scope Items - with markup distributed into each line item */}
+                        {markedUpScopes.map((scope, index) => {
+                          const totalIncGst = scope.markedUpTotal;
                           const priceExGst = totalIncGst / 1.1;
                           return (
                             <tr key={`scope-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
@@ -1267,20 +1280,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                             </tr>
                           );
                         })}
-                        {/* Markup / Adjustment row if needed */}
-                        {hasAdjustment && quotePDFData.scopeBreakdowns.length > 0 && (
-                          <tr style={{ backgroundColor: quotePDFData.scopeBreakdowns.length % 2 === 0 ? "#f3f4f6" : "white" }}>
-                            <td className="py-2 px-2 text-gray-900">{adjustmentLabel}</td>
-                            <td className="py-2 px-2 text-right text-gray-700">
-                              {formatCurrency(adjustmentIncGst / 1.1)}
-                            </td>
-                            <td className="py-2 px-2 text-right text-gray-700">1</td>
-                            <td className="py-2 px-2 text-right text-gray-700">10%</td>
-                            <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                              {formatCurrency(adjustmentIncGst)}
-                            </td>
-                          </tr>
-                        )}
                         {/* Legacy line items if no scope breakdowns */}
                         {quotePDFData.scopeBreakdowns.length === 0 && parsedItems.map((item, index) => (
                           <tr key={`item-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
