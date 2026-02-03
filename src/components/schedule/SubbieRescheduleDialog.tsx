@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Calendar, AlertTriangle, RefreshCw, XCircle, Loader2 } from "lucide-react";
+import { Calendar, AlertTriangle, RefreshCw, XCircle, Loader2, MoveRight } from "lucide-react";
 import { SubTradeInvite } from "@/hooks/useSubTradeInvites";
 
 interface SubbieRescheduleDialogProps {
@@ -20,7 +20,7 @@ interface SubbieRescheduleDialogProps {
   oldDate: string;
   newDate: string;
   invites: SubTradeInvite[];
-  onConfirm: (action: "cancel" | "reschedule") => Promise<void>;
+  onConfirm: (action: "cancel" | "reschedule" | "silent") => Promise<void>;
   onCancel: () => void;
 }
 
@@ -35,13 +35,13 @@ export function SubbieRescheduleDialog({
   onCancel,
 }: SubbieRescheduleDialogProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedAction, setSelectedAction] = useState<"cancel" | "reschedule" | null>(null);
+  const [selectedAction, setSelectedAction] = useState<"cancel" | "reschedule" | "silent" | null>(null);
 
   const activeInvites = invites.filter((i) =>
     ["sent", "viewed", "accepted"].includes(i.status)
   );
 
-  const handleConfirm = async (action: "cancel" | "reschedule") => {
+  const handleConfirm = async (action: "cancel" | "reschedule" | "silent") => {
     setSelectedAction(action);
     setIsLoading(true);
     try {
@@ -124,7 +124,7 @@ export function SubbieRescheduleDialog({
           </div>
         </div>
 
-        <DialogFooter className="flex-col gap-2 sm:flex-row">
+        <DialogFooter className="flex-col gap-2 sm:flex-row sm:flex-wrap">
           <Button
             variant="destructive"
             onClick={() => handleConfirm("cancel")}
@@ -137,6 +137,19 @@ export function SubbieRescheduleDialog({
               <XCircle className="mr-2 h-4 w-4" />
             )}
             Cancel Invitations
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => handleConfirm("silent")}
+            disabled={isLoading}
+            className="w-full sm:w-auto"
+          >
+            {isLoading && selectedAction === "silent" ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <MoveRight className="mr-2 h-4 w-4" />
+            )}
+            Move Only
           </Button>
           <Button
             onClick={() => handleConfirm("reschedule")}

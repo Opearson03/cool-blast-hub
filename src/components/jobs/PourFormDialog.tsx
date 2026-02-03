@@ -31,8 +31,9 @@ import {
 import { toast } from "sonner";
 import { useState, useEffect, useRef } from "react";
 import { PourSubbieStep } from "./PourSubbieStep";
-import { useSendSubTradeInvite } from "@/hooks/useSubTradeInvites";
+import { useSendSubTradeInvite, SubTradeInvite } from "@/hooks/useSubTradeInvites";
 import type { PastSubbie } from "@/hooks/useBusinessSubbies";
+import { SubbieRescheduleDialog } from "@/components/schedule/SubbieRescheduleDialog";
 
 const pourSchema = z.object({
   pour_name: z.string().min(1, "Name is required"),
@@ -92,6 +93,25 @@ export function PourFormDialog({
   const [selectedSubbies, setSelectedSubbies] = useState<PastSubbie[]>([]);
   const [createdPourId, setCreatedPourId] = useState<string | null>(null);
   const sendInvite = useSendSubTradeInvite();
+  
+  // Reschedule dialog state for date changes with existing invites
+  const [showRescheduleDialog, setShowRescheduleDialog] = useState(false);
+  const [pendingDateChange, setPendingDateChange] = useState<{
+    oldDate: string;
+    newDate: string;
+    invites: SubTradeInvite[];
+    formData: PourFormData;
+  } | null>(null);
+  
+  // Track original date when editing
+  const originalDateRef = useRef<string | null>(null);
+  
+  // Set original date when edit pour changes
+  useEffect(() => {
+    if (editPour?.pour_date) {
+      originalDateRef.current = editPour.pour_date;
+    }
+  }, [editPour?.pour_date]);
 
   const form = useForm<PourFormData>({
     resolver: zodResolver(pourSchema),
@@ -135,6 +155,9 @@ export function PourFormDialog({
       setPendingFormData(null);
       setSelectedSubbies([]);
       setCreatedPourId(null);
+      setShowRescheduleDialog(false);
+      setPendingDateChange(null);
+      originalDateRef.current = null;
       form.reset();
     }
   }, [open, form]);
@@ -243,12 +266,86 @@ export function PourFormDialog({
     }
   };
 
-  // For edit mode, skip step 2 and go straight to save
-  const handleFormSubmit = (data: PourFormData) => {
+  // For edit mode, check for date change affecting subbies before saving
+  const handleFormSubmit = async (data: PourFormData) => {
     if (editPour) {
+      const dateChanged = originalDateRef.current && 
+        data.pour_date && 
+        data.pour_date !== originalDateRef.current;
+      
+      if (dateChanged) {
+        // Check for active sub-trade invites
+        const { data: invites } = await supabase
+          .from("external_invites")
+          .select("*")
+          .eq("job_pour_id", editPour.id)
+          .eq("invite_type", "sub_trade")
+          .in("status", ["sent", "viewed", "accepted"]);
+
+        if (invites && invites.length > 0) {
+          // Show reschedule dialog instead of saving directly
+          setPendingDateChange({
+            oldDate: originalDateRef.current!,
+            newDate: data.pour_date,
+            invites: invites as SubTradeInvite[],
+            formData: data,
+          });
+          setShowRescheduleDialog(true);
+          return;
+        }
+      }
+      
+      // No date change or no affected invites - proceed with normal save
       setPendingFormData(data);
       handleFinalSubmit();
     }
+  };
+  
+  // Handle reschedule confirmation from dialog
+  const handleRescheduleConfirm = async (action: "cancel" | "reschedule" | "silent") => {
+    if (!pendingDateChange || !editPour) return;
+
+    // Save the pour with the new date
+    setPendingFormData(pendingDateChange.formData);
+    
+    try {
+      await handleFinalSubmit();
+      
+      // Handle silent move - skip notifications
+      if (action === "silent") {
+        toast.success("Pour moved - sub-trades were not notified");
+      } else {
+        // Call the notification edge function for cancel/reschedule actions
+        const { error: notifyError } = await supabase.functions.invoke("notify-subtrade-reschedule", {
+          body: {
+            pour_id: editPour.id,
+            action,
+            old_date: pendingDateChange.oldDate,
+            new_date: pendingDateChange.newDate,
+          },
+        });
+
+        if (notifyError) {
+          console.error("Notification error:", notifyError);
+          toast.error("Failed to notify some sub-trades");
+        } else {
+          const actionText = action === "cancel" ? "cancelled" : "notified";
+          toast.success(`Pour updated - ${pendingDateChange.invites.length} sub-trade(s) ${actionText}`);
+        }
+        
+        queryClient.invalidateQueries({ queryKey: ["sub-trade-invites"] });
+      }
+    } catch (err) {
+      console.error("Failed to save:", err);
+    }
+    
+    setShowRescheduleDialog(false);
+    setPendingDateChange(null);
+  };
+  
+  const handleRescheduleCancel = () => {
+    setShowRescheduleDialog(false);
+    setPendingDateChange(null);
   };
 
   const isSubmitting = createPourMutation.isPending || sendInvite.isPending;
@@ -488,6 +585,20 @@ export function PourFormDialog({
           />
         )}
       </DialogContent>
+      
+      {/* Reschedule dialog for date changes with existing sub-trade invites */}
+      {pendingDateChange && (
+        <SubbieRescheduleDialog
+          open={showRescheduleDialog}
+          onOpenChange={setShowRescheduleDialog}
+          pourName={editPour?.pour_name || ""}
+          oldDate={pendingDateChange.oldDate}
+          newDate={pendingDateChange.newDate}
+          invites={pendingDateChange.invites}
+          onConfirm={handleRescheduleConfirm}
+          onCancel={handleRescheduleCancel}
+        />
+      )}
     </Dialog>
   );
 }
