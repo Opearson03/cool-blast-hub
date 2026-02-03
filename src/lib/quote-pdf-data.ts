@@ -429,7 +429,7 @@ export function extractScopeBreakdowns(
     });
   }
   
-  return breakdowns.filter(b => b.volume > 0 || (b.area && b.area > 0));
+  return breakdowns.filter(b => b.volume > 0 || (b.area && b.area > 0) || (b.calculatedTotal && b.calculatedTotal > 0));
 }
 
 /**
