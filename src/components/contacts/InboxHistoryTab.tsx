@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +22,9 @@ import {
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { InboxDetailSheet } from "./InboxDetailSheet";
+import { AssignTestDialog } from "./AssignTestDialog";
+import { AssignDocketDialog } from "./AssignDocketDialog";
+import { toast } from "sonner";
 
 export interface InboxItem {
   id: string;
@@ -39,11 +42,20 @@ export interface InboxItem {
 
 export function InboxHistoryTab() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedItem, setSelectedItem] = useState<InboxItem | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  
+  // For test result assignment
+  const [testAssignSheetOpen, setTestAssignSheetOpen] = useState(false);
+  const [selectedTestId, setSelectedTestId] = useState<string | null>(null);
+  
+  // For docket assignment
+  const [docketAssignSheetOpen, setDocketAssignSheetOpen] = useState(false);
+  const [selectedDocketId, setSelectedDocketId] = useState<string | null>(null);
 
   // Helper to extract filename from URL
   const getFileNameFromUrl = (url: string | null): string | null => {
@@ -245,6 +257,155 @@ export function InboxHistoryTab() {
     }
   };
 
+  // Start an estimate from a plan email
+  const handleStartEstimate = async (item: InboxItem) => {
+    if (item.type !== "plan") return;
+    setSheetOpen(false);
+    
+    try {
+      // Get user's business_id
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Not authenticated");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.business_id) {
+        toast.error("Business not found");
+        return;
+      }
+
+      // Get the pending plan data with extracted info
+      const { data: plan } = await supabase
+        .from("pending_plans")
+        .select("*")
+        .eq("id", item.id)
+        .single();
+
+      if (!plan) {
+        toast.error("Plan not found");
+        return;
+      }
+
+      const extractedData = plan.extracted_data as {
+        client_name?: string;
+        site_address?: string;
+        client_email?: string;
+      } | null;
+
+      // Create a new estimate
+      const { data: estimate, error: estimateError } = await supabase
+        .from("estimates")
+        .insert({
+          business_id: profile.business_id,
+          client_name: extractedData?.client_name || "New Client",
+          site_address: extractedData?.site_address || plan.subject || "TBC",
+          client_email: extractedData?.client_email || plan.from_email,
+          status: "draft",
+          estimate_type: "standard",
+          created_by: user.id,
+        })
+        .select()
+        .single();
+
+      if (estimateError || !estimate) {
+        toast.error("Failed to create estimate");
+        console.error(estimateError);
+        return;
+      }
+
+      // Copy the PDF to estimate-plans bucket and create takeoff record
+      if (plan.file_url) {
+        // Copy file from test-documents to estimate-plans
+        const fileName = `${estimate.id}/${plan.file_name || "plan.pdf"}`;
+        
+        // Get source file path
+        let sourcePath = plan.file_url;
+        if (sourcePath.startsWith("http")) {
+          // If it's a full URL, extract the path
+          const url = new URL(sourcePath);
+          sourcePath = url.pathname.replace(/^\/storage\/v1\/object\/public\//, "");
+        }
+
+        // Create takeoff record
+        const { data: takeoff, error: takeoffError } = await supabase
+          .from("estimate_takeoffs")
+          .insert({
+            estimate_id: estimate.id,
+            plan_url: plan.file_url,
+            plan_type: "pdf",
+            page_count: 1,
+          })
+          .select()
+          .single();
+
+        if (!takeoffError && takeoff) {
+          // Create takeoff_files record
+          await supabase.from("takeoff_files").insert({
+            takeoff_id: takeoff.id,
+            file_url: plan.file_url,
+            file_name: plan.file_name || "plan.pdf",
+            file_type: "application/pdf",
+            page_count: 1,
+            sort_order: 0,
+          });
+        }
+      }
+
+      // Update the pending plan to link to this estimate
+      await supabase
+        .from("pending_plans")
+        .update({
+          linked_estimate_id: estimate.id,
+          status: "converted",
+        })
+        .eq("id", item.id);
+
+      // Invalidate queries
+      queryClient.invalidateQueries({ queryKey: ["inbox-history"] });
+
+      toast.success("Estimate created");
+      navigate(`/admin/estimates?id=${estimate.id}`);
+    } catch (error) {
+      console.error("Error starting estimate:", error);
+      toast.error("Failed to start estimate");
+    }
+  };
+
+  // Open assignment sheet for test results
+  const handleAssignTest = (item: InboxItem) => {
+    if (item.type !== "test") return;
+    setSheetOpen(false);
+    setSelectedTestId(item.id);
+    setTestAssignSheetOpen(true);
+  };
+
+  // Open assignment sheet for dockets
+  const handleAssignDocket = (item: InboxItem) => {
+    if (item.type !== "docket") return;
+    setSheetOpen(false);
+    setSelectedDocketId(item.id);
+    setDocketAssignSheetOpen(true);
+  };
+
+  const handleTestAssigned = () => {
+    setTestAssignSheetOpen(false);
+    setSelectedTestId(null);
+    queryClient.invalidateQueries({ queryKey: ["inbox-history"] });
+  };
+
+  const handleDocketAssigned = () => {
+    setDocketAssignSheetOpen(false);
+    setSelectedDocketId(null);
+    queryClient.invalidateQueries({ queryKey: ["inbox-history"] });
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -358,7 +519,36 @@ export function InboxHistoryTab() {
         open={sheetOpen}
         onOpenChange={setSheetOpen}
         onNavigateToLinked={handleNavigateToLinked}
+        onStartEstimate={handleStartEstimate}
+        onAssignTest={handleAssignTest}
+        onAssignDocket={handleAssignDocket}
       />
+
+      {/* Test Result Assignment Dialog */}
+      {selectedTestId && (
+        <AssignTestDialog
+          open={testAssignSheetOpen}
+          onOpenChange={(open) => {
+            setTestAssignSheetOpen(open);
+            if (!open) setSelectedTestId(null);
+          }}
+          testId={selectedTestId}
+          onAssigned={handleTestAssigned}
+        />
+      )}
+
+      {/* Docket Assignment Dialog */}
+      {selectedDocketId && (
+        <AssignDocketDialog
+          open={docketAssignSheetOpen}
+          onOpenChange={(open) => {
+            setDocketAssignSheetOpen(open);
+            if (!open) setSelectedDocketId(null);
+          }}
+          docketId={selectedDocketId}
+          onAssigned={handleDocketAssigned}
+        />
+      )}
     </div>
   );
 }

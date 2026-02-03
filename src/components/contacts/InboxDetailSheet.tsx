@@ -14,7 +14,10 @@ import {
   ChevronRight,
   Loader2,
   AlertCircle,
-  ImageIcon
+  ImageIcon,
+  PenLine,
+  ClipboardList,
+  Link2
 } from "lucide-react";
 import { pdfjs as pdfjsLib } from "@/lib/pdfjsWorker";
 
@@ -37,6 +40,9 @@ interface InboxDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onNavigateToLinked: (item: InboxItem) => void;
+  onStartEstimate?: (item: InboxItem) => void;
+  onAssignTest?: (item: InboxItem) => void;
+  onAssignDocket?: (item: InboxItem) => void;
 }
 
 type FileType = 'pdf' | 'image' | 'other';
@@ -59,7 +65,15 @@ const getFileType = (fileName: string | null, fileUrl: string | null): FileType 
   return 'other';
 };
 
-export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked }: InboxDetailSheetProps) {
+export function InboxDetailSheet({ 
+  item, 
+  open, 
+  onOpenChange, 
+  onNavigateToLinked,
+  onStartEstimate,
+  onAssignTest,
+  onAssignDocket
+}: InboxDetailSheetProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -363,9 +377,10 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
           </div>
         )}
 
-        {/* Navigate to linked item */}
-        {item.linked_id && (
-          <div className="mt-4">
+        {/* Action buttons based on status and type */}
+        <div className="mt-6 space-y-2">
+          {/* For linked items - show navigation */}
+          {item.linked_id && (
             <Button
               variant="default"
               onClick={() => onNavigateToLinked(item)}
@@ -373,8 +388,46 @@ export function InboxDetailSheet({ item, open, onOpenChange, onNavigateToLinked 
             >
               Go to {item.type === "plan" ? "Quote" : "Job"}
             </Button>
-          </div>
-        )}
+          )}
+
+          {/* For unlinked pending items - show action buttons */}
+          {!item.linked_id && item.status === "pending" && (
+            <>
+              {item.type === "plan" && onStartEstimate && (
+                <Button
+                  variant="default"
+                  onClick={() => onStartEstimate(item)}
+                  className="w-full"
+                >
+                  <PenLine className="h-4 w-4 mr-2" />
+                  Start Estimate
+                </Button>
+              )}
+
+              {item.type === "test" && onAssignTest && (
+                <Button
+                  variant="default"
+                  onClick={() => onAssignTest(item)}
+                  className="w-full"
+                >
+                  <ClipboardList className="h-4 w-4 mr-2" />
+                  Assign to Job
+                </Button>
+              )}
+
+              {item.type === "docket" && onAssignDocket && (
+                <Button
+                  variant="default"
+                  onClick={() => onAssignDocket(item)}
+                  className="w-full"
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Assign to Pour
+                </Button>
+              )}
+            </>
+          )}
+        </div>
       </SheetContent>
     </Sheet>
   );
