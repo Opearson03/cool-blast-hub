@@ -1,101 +1,69 @@
-# Plan: Improve Pour Reschedule Communication (Sub-Trades Only)
 
-## Status: ✅ COMPLETED
 
-## Overview
-Enhanced the pour reschedule workflow to better communicate schedule changes to sub-trades. Employee/crew management features are included as commented-out code for future activation.
+# Plan: Fix Duplicate Mesh Calculation in Waffle Pod Scope
 
----
+## Problem Identified
 
-## Implementation Summary
+The `reinforcement-raft.ts` calculation module is adding mesh **twice** for Waffle Pod slabs:
 
-### ✅ 1. Added "Move Only" Option to SubbieRescheduleDialog
-**File:** `src/components/schedule/SubbieRescheduleDialog.tsx`
+1. **Generic Slab Surface Loop (lines 175-248)**: Iterates over all `areas` and calculates mesh per area, generating line items like `mesh_{area.id}_bottom`
 
-- Added third button "Move Only" for silent date moves without notifications
-- Updated `onConfirm` prop to accept `"cancel" | "reschedule" | "silent"` action
-- Added `MoveRight` icon for the new button
+2. **Waffle Pod Specific Block (lines 513-558)**: Separately calculates "Topping Slab Mesh" and generates a line item with ID `waffle_slab_mesh`
 
-### ✅ 2. Updated AdminSchedule to Handle Silent Action
-**File:** `src/pages/admin/AdminSchedule.tsx`
-
-- Updated `handleRescheduleConfirm` to handle new "silent" action
-- Added commented-out code for future employee/crew reschedule detection
-- Silent moves skip notification edge function and show appropriate toast
-
-### ✅ 3. Added Date Change Detection to PourFormDialog
-**File:** `src/components/jobs/PourFormDialog.tsx`
-
-- Added `originalDateRef` to track the pour date when entering edit mode
-- `handleFormSubmit` now detects date changes and checks for active sub-trade invites
-- If invites exist, shows `SubbieRescheduleDialog` before saving
-- Added `handleRescheduleConfirm` and `handleRescheduleCancel` handlers
-- Supports all three actions: cancel, reschedule & notify, and move only
+Both calculations run because there's no guard to skip the generic area loop for waffle pods.
 
 ---
 
-## User Experience
+## Solution
 
-### Drag-and-Drop Reschedule (Calendar)
-```text
-User drags pour to new date
-         ↓
-System detects sub-trade invites exist
-         ↓
-+------------------------------------------+
-| ⚠️ Sub-Trades Affected                   |
-+------------------------------------------+
-| 📅 Wed, 5 Feb → Fri, 7 Feb               |
-|                                          |
-| Affected Sub-Trades:                     |
-| • John - Pump Operator    [Confirmed]    |
-| • Mike - Reo Fixer         [Pending]     |
-+------------------------------------------+
-| [Cancel Invitations]  [Move Only]  [Reschedule & Notify] |
-+------------------------------------------+
-```
-
-### Edit Form Date Change
-```text
-User opens pour edit form
-         ↓
-Changes date field from Feb 5 → Feb 7
-         ↓
-Clicks "Update"
-         ↓
-Same reschedule dialog appears (if invites exist)
-         ↓
-User selects action
-         ↓
-Pour updated, notifications sent (if selected)
-```
+Add a condition to skip the generic per-area mesh calculation when the scope is `waffle_pod`, since waffle pods use a dedicated topping mesh UI and calculation with different coverage options (pod field, full slab, or custom area).
 
 ---
 
-## Future Enhancement (Commented Code)
+## File to Modify
 
-Employee/crew reschedule detection is ready to enable in `AdminSchedule.tsx`:
+| File | Change |
+|------|--------|
+| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Add waffle pod guard to skip generic mesh loop |
 
+---
+
+## Technical Details
+
+**Current code (lines 175-248)**:
 ```typescript
-// ===== FUTURE: Employee reschedule detection =====
-// When employee management is enabled, uncomment this block
-// to also check for assigned crew when rescheduling pours
-//
-// const { data: employees } = await supabase
-//   .from("pour_employees")
-//   .select(`employee_id, profiles!inner(id, full_name, phone)`)
-//   .eq("pour_id", pendingReschedule.pourId);
-//
-// if (employees && employees.length > 0) {
-//   // Send push notifications to employees
-//   await supabase.functions.invoke("notify-crew-reschedule", {
-//     body: {
-//       pour_id: pendingReschedule.pourId,
-//       employee_ids: employees.map(e => e.employee_id),
-//       old_date: pendingReschedule.oldDate,
-//       new_date: pendingReschedule.newDate,
-//     },
-//   });
-// }
-// ===== END FUTURE =====
+if (areas.length > 0) {
+  areas.forEach((area) => {
+    const reoType = area.reo_type || defaultSlabReoType;
+    // ... calculates mesh per area
+  });
+}
 ```
+
+**Fixed code**:
+```typescript
+// Skip generic area mesh for waffle pods - they use dedicated WafflePodToppingMeshInput
+const skipGenericAreaMesh = scopeData?.scopeId === 'waffle_pod';
+
+if (areas.length > 0 && !skipGenericAreaMesh) {
+  areas.forEach((area) => {
+    const reoType = area.reo_type || defaultSlabReoType;
+    // ... calculates mesh per area
+  });
+}
+```
+
+This single-line guard ensures:
+- **Raft Slab, Standard Slab, Driveway, etc.**: Continue using per-area mesh configuration
+- **Waffle Pod**: Only the dedicated topping mesh calculation (lines 513-558) runs, respecting the user's pod field/full slab/custom coverage choice
+
+---
+
+## Verification
+
+After the fix, a Waffle Pod estimate should show only ONE mesh line item in the cost breakdown:
+- `Topping SL82 (X sheets, pod field)` — from the dedicated waffle pod block
+
+Not:
+- `Slab 1 – SL82 (X sheets)` — from the generic loop (this should no longer appear)
+
