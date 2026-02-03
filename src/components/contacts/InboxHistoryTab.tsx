@@ -17,7 +17,8 @@ import {
   FileText,
   FlaskConical,
   Truck,
-  Calendar
+  Calendar,
+  Mail
 } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
@@ -28,7 +29,7 @@ import { toast } from "sonner";
 
 export interface InboxItem {
   id: string;
-  type: "plan" | "test" | "docket";
+  type: "plan" | "test" | "docket" | "general";
   from_email: string;
   from_name: string | null;
   subject: string | null;
@@ -161,6 +162,30 @@ export function InboxHistoryTab() {
         }
       }
 
+      // Fetch general items
+      const { data: generalItems } = await supabase
+        .from("pending_general")
+        .select("id, from_email, from_name, subject, file_url, file_name, received_at, status, email_body")
+        .eq("business_id", profile.business_id);
+
+      if (generalItems) {
+        for (const general of generalItems) {
+          items.push({
+            id: general.id,
+            type: "general",
+            from_email: general.from_email,
+            from_name: general.from_name,
+            subject: general.subject,
+            file_url: general.file_url,
+            file_name: general.file_name,
+            received_at: general.received_at,
+            status: general.status,
+            linked_id: null,
+            email_body: general.email_body,
+          });
+        }
+      }
+
       // Sort by received_at descending
       items.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
 
@@ -208,6 +233,8 @@ export function InboxHistoryTab() {
         return <FlaskConical className="h-4 w-4 text-secondary-foreground" />;
       case "docket":
         return <Truck className="h-4 w-4 text-muted-foreground" />;
+      case "general":
+        return <Mail className="h-4 w-4 text-muted-foreground" />;
       default:
         return <Inbox className="h-4 w-4" />;
     }
@@ -221,6 +248,8 @@ export function InboxHistoryTab() {
         return "Test Result";
       case "docket":
         return "Docket";
+      case "general":
+        return "General";
       default:
         return type;
     }
@@ -428,6 +457,7 @@ export function InboxHistoryTab() {
             <SelectItem value="plan">Plans</SelectItem>
             <SelectItem value="test">Test Results</SelectItem>
             <SelectItem value="docket">Dockets</SelectItem>
+            <SelectItem value="general">General</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -522,6 +552,7 @@ export function InboxHistoryTab() {
         onStartEstimate={handleStartEstimate}
         onAssignTest={handleAssignTest}
         onAssignDocket={handleAssignDocket}
+        onReclassify={() => queryClient.invalidateQueries({ queryKey: ["inbox-history"] })}
       />
 
       {/* Test Result Assignment Dialog */}
