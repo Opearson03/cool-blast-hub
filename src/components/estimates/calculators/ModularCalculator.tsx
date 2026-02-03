@@ -186,6 +186,41 @@ export function ModularCalculator({
     }
   }, [priceListLoading, priceListItems, modules, priceMap, moduleAnswers]);
 
+  // Initialize pod_count for waffle pod scope from takeoff areas on mount
+  // This ensures pod count is calculated from _actualArea values when loading from saved data
+  useEffect(() => {
+    if (scope.id !== 'waffle_pod') return;
+    
+    // Skip if pod_count is already set and non-zero
+    if (scopeAnswers.pod_count && Number(scopeAnswers.pod_count) > 0) return;
+    
+    // Calculate total area from areas array (prefer _actualArea from takeoff)
+    const areas = scopeAnswers.areas || [];
+    if (!Array.isArray(areas) || areas.length === 0) return;
+    
+    const totalArea = areas.reduce((sum: number, a: any) => {
+      const areaValue = a._actualArea && a._actualArea > 0
+        ? a._actualArea
+        : (Number(a.length) || 0) * (Number(a.width) || 0);
+      return sum + areaValue;
+    }, 0);
+    
+    if (totalArea <= 0) return;
+    
+    // Calculate pod count using area-based formula
+    const podSize = Number(scopeAnswers.pod_size) || 1090;
+    const ribWidth = Number(scopeAnswers.rib_width) || 110;
+    const moduleSize = (podSize + ribWidth) / 1000; // Convert mm to m
+    const moduleArea = moduleSize * moduleSize;
+    const estimatedPodCount = Math.ceil(totalArea / moduleArea);
+    
+    setScopeAnswers(prev => ({
+      ...prev,
+      pod_count: estimatedPodCount,
+      area: totalArea,
+    }));
+  }, [scope.id]); // Only run on mount - empty deps would cause issues with state
+
   // Build derived scope answers used for calculations (area/perimeter can come from takeoff)
   const derivedScopeAnswers = useMemo(() => {
     let totalArea = scopeAnswers.area || 0;
