@@ -415,11 +415,12 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    // Classic - letterhead-style with accent bar
+    // Classic - letterhead-style with accent bar - full bleed with negative margins
     return (
-      <div className="mb-6">
+      <div className="mb-4 -mx-5">
         <div style={{ height: "6px", backgroundColor: primaryColor }}></div>
-        <div className="flex justify-between items-center py-4 px-4" style={{ backgroundColor: secondaryColor }}>
+        <div style={{ backgroundColor: secondaryColor }}>
+          <div className="flex justify-between items-center py-3 px-5">
           <div className="flex items-center gap-4">
             {business?.logo_url && (
               <img
@@ -433,7 +434,8 @@ const TermsAndExclusionsPage = ({
               <p className="text-sm opacity-80">Quote: {estimate.estimate_number}</p>
             </div>
           </div>
-          <h2 className="text-xl font-bold text-white uppercase tracking-wide">Terms & Conditions</h2>
+            <h2 className="text-lg font-bold text-white uppercase tracking-wide">Terms & Conditions</h2>
+          </div>
         </div>
       </div>
     );
@@ -470,13 +472,13 @@ const TermsAndExclusionsPage = ({
 
     // Classic - boxed section with colored header
     return (
-      <div className="mb-8">
+      <div className="mb-4">
         <div className="border border-gray-300 rounded overflow-hidden">
-          <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
-            <p className="text-sm font-bold text-white uppercase tracking-wide">Payment Terms</p>
+          <div className="px-3 py-1" style={{ backgroundColor: secondaryColor }}>
+            <p className="text-xs font-bold text-white uppercase tracking-wide">Payment Terms</p>
           </div>
-          <div className="p-4 bg-gray-50">
-            <div className="text-sm text-gray-700 space-y-2">
+          <div className="p-3 bg-gray-50">
+            <div className="text-xs text-gray-700 space-y-1">
               {customNotes ? (
                 <p className="whitespace-pre-wrap">{customNotes}</p>
               ) : paymentTerms ? (
@@ -521,16 +523,16 @@ const TermsAndExclusionsPage = ({
 
     // Classic - boxed section with colored header
     return (
-      <div className="mb-8">
+      <div className="mb-4">
         <div className="border border-gray-300 rounded overflow-hidden">
-          <div className="px-4 py-2" style={{ backgroundColor: "#166534" }}>
-            <p className="text-sm font-bold text-white uppercase tracking-wide">Inclusions</p>
+          <div className="px-3 py-1" style={{ backgroundColor: "#166534" }}>
+            <p className="text-xs font-bold text-white uppercase tracking-wide">Inclusions</p>
           </div>
-          <div className="p-4 bg-green-50">
-            <p className="text-xs text-green-800 mb-3">This quote includes:</p>
-            <ul className="space-y-1">
+          <div className="p-3 bg-green-50">
+            <p className="text-[10px] text-green-800 mb-2">This quote includes:</p>
+            <ul className="space-y-0.5">
               {inclusions.map((inc, index) => (
-                <li key={index} className="text-sm text-green-700 flex items-start gap-2">
+                <li key={index} className="text-xs text-green-700 flex items-start gap-1">
                   <span style={{ color: primaryColor }}>✓</span>
                   <span>{inc}</span>
                 </li>
@@ -564,16 +566,16 @@ const TermsAndExclusionsPage = ({
 
     // Classic - boxed section with colored header
     return (
-      <div className="mb-8">
+      <div className="mb-4">
         <div className="border border-gray-300 rounded overflow-hidden">
-          <div className="px-4 py-2" style={{ backgroundColor: "#c2410c" }}>
-            <p className="text-sm font-bold text-white uppercase tracking-wide">Exclusions</p>
+          <div className="px-3 py-1" style={{ backgroundColor: "#c2410c" }}>
+            <p className="text-xs font-bold text-white uppercase tracking-wide">Exclusions</p>
           </div>
-          <div className="p-4 bg-orange-50">
-            <p className="text-xs text-orange-800 mb-3">The following items are NOT included in this quote:</p>
-            <ul className="space-y-1">
+          <div className="p-3 bg-orange-50">
+            <p className="text-[10px] text-orange-800 mb-2">The following items are NOT included:</p>
+            <ul className="space-y-0.5">
               {exclusions.map((exc, index) => (
-                <li key={index} className="text-sm text-orange-700 flex items-start gap-2">
+                <li key={index} className="text-xs text-orange-700 flex items-start gap-1">
                   <span style={{ color: primaryColor }}>✕</span>
                   <span>{exc}</span>
                 </li>
@@ -610,25 +612,25 @@ const TermsAndExclusionsPage = ({
     // Classic - formal authorization block with colored header
     return (
       <div className="border border-gray-300 rounded overflow-hidden">
-        <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
-          <p className="text-sm font-bold text-white uppercase tracking-wide">Authorization</p>
+        <div className="px-3 py-1" style={{ backgroundColor: secondaryColor }}>
+          <p className="text-xs font-bold text-white uppercase tracking-wide">Authorization</p>
         </div>
-        <div className="p-6 bg-white">
-          <p className="text-xs text-gray-600 mb-6">
+        <div className="p-4 bg-white">
+          <p className="text-xs text-gray-600 mb-3">
             I accept this quotation and authorize commencement of the described works.
           </p>
-          <div className="grid grid-cols-2 gap-8">
+          <div className="grid grid-cols-2 gap-6">
             <div>
-              <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+              <div className="border-b-2 border-gray-400 h-8 mb-1"></div>
               <p className="text-xs text-gray-500">Authorized Signature</p>
             </div>
             <div>
-              <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+              <div className="border-b-2 border-gray-400 h-8 mb-1"></div>
               <p className="text-xs text-gray-500">Date</p>
             </div>
           </div>
-          <div className="mt-4">
-            <div className="border-b border-gray-300 h-8 mb-1"></div>
+          <div className="mt-2">
+            <div className="border-b border-gray-300 h-6 mb-1"></div>
             <p className="text-xs text-gray-500">Print Name</p>
           </div>
         </div>
@@ -637,7 +639,7 @@ const TermsAndExclusionsPage = ({
   };
 
   return (
-    <div data-pdf-section="page-2" className="page-break-before pt-8">
+    <div data-pdf-section="page-2" className="page-break-before">
       {renderHeader()}
       {renderInclusions()}
       {renderExclusions()}
@@ -738,6 +740,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           padding: 20px;
           background: #ffffff !important;
           background-color: #ffffff !important;
+          overflow: visible;
         }
       }
       .page-break-avoid {
