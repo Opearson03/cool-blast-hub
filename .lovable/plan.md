@@ -1,101 +1,102 @@
 
 ## Goal
-Fix the **Minimal (simple) quote template** so the **line items sum to the displayed total** (which you’ve confirmed is correct) and make the **two header tables align perfectly**.
+Distribute the markup proportionally into each scope line item so that:
+- Each line item already includes its share of the global margin
+- No separate "Markup" row appears on the quote
+- Line items naturally sum to the grand total
 
 ---
 
-## What’s happening (root cause)
-From the saved estimate data:
-- Each scope has a `calculatedTotal` stored in `scope_data` (e.g. Raft Slab, Retaining Wall Footings).
-- The estimate also stores a **global markup** percentage in `scope_data._globalMargin` (e.g. 15%).
-- `estimate.total_amount` is effectively:
-  - **(sum of scope calculatedTotal)** + **global markup amount**
-- In the Minimal template right now, the table:
-  - treats each scope `calculatedTotal` as “ex GST” and then multiplies by `1.1` for “Total inc GST”
-  - but the grand total is coming from `estimate.total_amount` (which already includes the markup effect)
-  - so the scope rows won’t add up unless we also show the markup line item (or distribute it across scopes)
+## How the data works (for context)
 
-Net effect: **you aren’t missing “scope” line items — you’re missing the “markup/adjustment” line item** that bridges scope totals to the final quote total.
+| Field | Meaning | Example |
+|-------|---------|---------|
+| `scope.calculatedTotal` | Internal cost (your cost) | $4,039.31 |
+| `_globalMargin` | Markup percentage | 15% |
+| `estimate.total_amount` | Final quoted price to client | $6,132.47 |
 
----
+**Current formula:**
+```
+estimate.total_amount = sum(calculatedTotal) + (sum(calculatedTotal) × margin%)
+```
 
-## Implementation plan (no backend changes)
+**Current display (wrong):**
+- Raft Slab: $4,039.31 (internal cost)
+- Markup (15%): $800.00
+- Total: $6,132.47
 
-### 1) Make the scope rows mathematically consistent
-In `src/components/estimates/PrintableEstimate.tsx` (Minimal template table):
-
-For each scope row:
-- **Total Inc GST** should display: `scope.calculatedTotal` (not `* 1.1`)
-- **Price** should display as ex-GST: `scope.calculatedTotal / 1.1`
-- Keep **GST %** as `10%`
-- Qty stays `1`
-
-This makes each scope row internally consistent:
-- ex-GST price + 10% GST = total inc-GST
-
-### 2) Add the missing “Markup / Adjustment” line item so rows sum to the grand total
-Still inside the Minimal template table:
-
-- Compute:
-  - `scopesTotalIncGst = sum(scopeBreakdowns[].calculatedTotal)`
-  - `adjustmentIncGst = estimate.total_amount - scopesTotalIncGst`
-- If `adjustmentIncGst` is meaningfully non-zero (e.g. absolute value > $0.01), add a row after scopes:
-  - **Description**:
-    - If `scopeData?._globalMargin` exists: `Markup (${_globalMargin}%)`
-    - Otherwise: `Adjustment`
-  - **Price (ex GST)**: `adjustmentIncGst / 1.1`
-  - **GST %**: `10%`
-  - **Total Inc GST**: `adjustmentIncGst`
-
-This guarantees:
-- (sum of “Total Inc GST” column for all rows) == `estimate.total_amount` (within rounding)
-
-Edge cases handled:
-- If markup is 0% (or no difference), the row won’t appear.
-- If it’s negative (discount), it will show as a negative line item.
-
-### 3) Ensure the bottom Subtotal / GST / Total summary matches the table
-Keep the bottom totals driven by `estimate.total_amount`, but ensure they remain consistent:
-- Subtotal (ex GST): `estimate.total_amount / 1.1`
-- GST (10%): `estimate.total_amount - (estimate.total_amount / 1.1)`
-- Total (inc GST): `estimate.total_amount`
-
-After step (2), the **sum of the table** will match this **Total (inc GST)**.
-
-### 4) Fix the header tables alignment (the two top tables)
-In the Minimal template header section:
-
-- Prevent the business name header from wrapping and pushing the table down:
-  - add `whitespace-nowrap` + `truncate` + a fixed height line container so both sides have identical header height
-- Make both tables use the same column sizing:
-  - add `table-fixed` and a matching `<colgroup>` (same first-column width) to both tables
-
-This will align:
-- the top of both tables
-- each row height
-- label/value columns visually
-
-### 5) Quick verification checklist (important)
-1. Open an estimate that has a non-zero markup (e.g. _globalMargin = 15%).
-2. Confirm:
-   - Scope rows show different values for **Price** vs **Total Inc GST**
-   - The table includes a **Markup (15%)** row
-   - The **sum of Total Inc GST** column equals the grand total shown at the bottom
-3. Check a 0% markup estimate:
-   - Markup row should not appear
-4. Confirm the two header tables align on desktop and when printing.
+**Desired display (correct):**
+- Raft Slab: $4,645.21 (internal cost + proportional markup)
+- Retaining Wall Footings: $1,487.26 (internal cost + proportional markup)
+- Total: $6,132.47
 
 ---
 
-## Files to change
+## Implementation
+
+### File: `src/components/estimates/PrintableEstimate.tsx`
+
+**In the Minimal template section (lines ~1220-1330):**
+
+1. **Calculate the markup multiplier** from `_globalMargin`:
+   ```tsx
+   const globalMargin = scopeData?._globalMargin || 0;
+   const markupMultiplier = 1 + (Number(globalMargin) / 100);
+   ```
+
+2. **For each scope row**, apply the markup to the displayed price:
+   - **Price with markup** = `scope.calculatedTotal × markupMultiplier`
+   - **Price (ex GST)** = `priceWithMarkup / 1.1`
+   - **Total Inc GST** = `priceWithMarkup`
+
+3. **Remove the "Markup / Adjustment" row** entirely (lines 1270-1283) since markup is now baked into each line item.
+
+4. **Handle rounding differences** - If there's a small rounding variance between the sum of marked-up line items and `estimate.total_amount`, apply the difference to the largest scope (or last scope) to ensure perfect summation.
+
+---
+
+## Code Changes Summary
+
+### Line item calculation (updated):
+```tsx
+// Current (internal cost only):
+const totalIncGst = scope.calculatedTotal || 0;
+const priceExGst = totalIncGst / 1.1;
+
+// New (with markup baked in):
+const internalCost = scope.calculatedTotal || 0;
+const markedUpTotal = internalCost * markupMultiplier;
+const priceExGst = markedUpTotal / 1.1;
+const totalIncGst = markedUpTotal;
+```
+
+### Remove "Markup" row:
+Delete the conditional block that renders the "Markup (X%)" row.
+
+### Rounding adjustment:
+After calculating all marked-up totals, check if sum equals `estimate.total_amount`. If there's a small difference (due to rounding), add/subtract it from the largest line item.
+
+---
+
+## Result
+
+| Scope | Internal Cost | + 15% Markup | Displayed Price |
+|-------|---------------|--------------|-----------------|
+| Raft Slab | $4,039.31 | +$605.90 | $4,645.21 |
+| Retaining Wall | $1,293.27 | +$193.99 | $1,487.26 |
+| **Total** | | | **$6,132.47** |
+
+Line items now:
+- Show the customer price (not internal costs)
+- Sum exactly to the grand total
+- Hide the markup from the client (as intended)
+
+---
+
+## Files to Change
 - `src/components/estimates/PrintableEstimate.tsx`
-  - Minimal template line item calculations
-  - Add “Markup/Adjustment” row
-  - Header table alignment improvements
+  - Apply markup multiplier to each scope line item
+  - Remove the separate "Markup / Adjustment" row
+  - Add rounding adjustment logic
 
-(No database migrations, no backend changes required.)
-
----
-
-## Notes / options (if you prefer a different look)
-If you don’t want to show a separate “Markup” line, we can alternatively **distribute the markup proportionally across scope totals** so the table still sums perfectly without an extra row. Defaulting to a separate row is the clearest accounting-wise and matches the “missing line item” issue you’re seeing.
+No database changes required.
