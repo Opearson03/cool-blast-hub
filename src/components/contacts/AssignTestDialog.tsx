@@ -3,24 +3,20 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle, FlaskConical, Target, Sparkles } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Loader2, CheckCircle, FlaskConical, Target, Sparkles, Search, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 type ConcreteTestInsert = Database["public"]["Tables"]["concrete_tests"]["Insert"];
 
@@ -49,6 +45,7 @@ export function AssignTestDialog({
   const queryClient = useQueryClient();
   const [selectedJobId, setSelectedJobId] = useState<string>("");
   const [selectedPourId, setSelectedPourId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Fetch the test result
   const { data: testResult, isLoading: isLoadingTest } = useQuery({
@@ -126,8 +123,18 @@ export function AssignTestDialog({
     if (!open) {
       setSelectedJobId("");
       setSelectedPourId("");
+      setSearchQuery("");
     }
   }, [open]);
+
+  // Filter jobs based on search
+  const filteredJobs = jobs.filter(job => {
+    const searchLower = searchQuery.toLowerCase();
+    return (
+      job.name.toLowerCase().includes(searchLower) ||
+      (job.job_number?.toLowerCase().includes(searchLower) ?? false)
+    );
+  });
 
   const assignMutation = useMutation({
     mutationFn: async () => {
@@ -203,6 +210,11 @@ export function AssignTestDialog({
     },
   });
 
+  const handleSelectJob = (jobId: string) => {
+    setSelectedJobId(jobId);
+    setSelectedPourId("");
+  };
+
   const handleApplySuggestion = (match: SuggestedMatch) => {
     setSelectedJobId(match.jobId);
     if (match.pourId) {
@@ -212,27 +224,29 @@ export function AssignTestDialog({
 
   if (isLoadingTest) {
     return (
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="sm:max-w-md">
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent className="w-full sm:max-w-md">
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     );
   }
 
+  const selectedJob = jobs.find(j => j.id === selectedJobId);
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent className="w-full sm:max-w-md flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
             <FlaskConical className="h-5 w-5" />
             Assign Test Result
-          </DialogTitle>
-        </DialogHeader>
+          </SheetTitle>
+        </SheetHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="flex-1 flex flex-col gap-4 py-4 min-h-0">
           {/* Show suggested matches */}
           {suggestedMatches.length > 0 && (
             <div className="space-y-2">
@@ -245,12 +259,13 @@ export function AssignTestDialog({
                   <button
                     key={`${match.jobId}-${match.pourId}`}
                     onClick={() => handleApplySuggestion(match)}
-                    className={`w-full text-left p-2 rounded-md border transition-colors ${
+                    className={cn(
+                      "w-full text-left p-2 rounded-md border transition-colors",
                       selectedJobId === match.jobId && 
                       (match.pourId ? selectedPourId === match.pourId : true)
                         ? "border-primary bg-primary/10"
                         : "border-border hover:bg-muted"
-                    }`}
+                    )}
                   >
                     <div className="flex items-center justify-between">
                       <div className="font-medium text-sm">{match.jobName}</div>
@@ -273,46 +288,79 @@ export function AssignTestDialog({
             </div>
           )}
 
-          {/* Manual selection */}
-          <div className="space-y-2">
-            <Label>Job</Label>
-            <Select value={selectedJobId} onValueChange={(v) => {
-              setSelectedJobId(v);
-              setSelectedPourId("");
-            }}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a job" />
-              </SelectTrigger>
-              <SelectContent>
-                {jobs.map((job) => (
-                  <SelectItem key={job.id} value={job.id}>
-                    {job.job_number ? `${job.job_number} - ` : ""}{job.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+          {/* Job selection */}
+          <div className="flex-1 flex flex-col min-h-0">
+            <Label className="mb-2">Select Job</Label>
+            <div className="relative mb-2">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search jobs..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <ScrollArea className="flex-1 border rounded-md">
+              <div className="p-1">
+                {filteredJobs.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    No jobs found
+                  </div>
+                ) : (
+                  filteredJobs.map((job) => (
+                    <button
+                      key={job.id}
+                      onClick={() => handleSelectJob(job.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-sm text-sm transition-colors flex items-center justify-between",
+                        selectedJobId === job.id
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      )}
+                    >
+                      <span className="truncate">
+                        {job.job_number ? `${job.job_number} - ` : ""}{job.name}
+                      </span>
+                      {selectedJobId === job.id && (
+                        <CheckCircle className="h-4 w-4 shrink-0 ml-2" />
+                      )}
+                    </button>
+                  ))
+                )}
+              </div>
+            </ScrollArea>
           </div>
 
+          {/* Pour selection */}
           {selectedJobId && pours.length > 0 && (
             <div className="space-y-2">
-              <Label>Pour (Optional)</Label>
-              <Select value={selectedPourId} onValueChange={setSelectedPourId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a pour" />
-                </SelectTrigger>
-                <SelectContent>
+              <Label>Select Pour (Optional)</Label>
+              <ScrollArea className="max-h-32 border rounded-md">
+                <div className="p-1">
                   {pours.map((pour) => (
-                    <SelectItem key={pour.id} value={pour.id}>
-                      {pour.pour_name}
-                    </SelectItem>
+                    <button
+                      key={pour.id}
+                      onClick={() => setSelectedPourId(pour.id === selectedPourId ? "" : pour.id)}
+                      className={cn(
+                        "w-full text-left px-3 py-2 rounded-sm text-sm transition-colors flex items-center justify-between",
+                        selectedPourId === pour.id
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-muted"
+                      )}
+                    >
+                      <span className="truncate">{pour.pour_name}</span>
+                      {selectedPourId === pour.id && (
+                        <CheckCircle className="h-4 w-4 shrink-0 ml-2" />
+                      )}
+                    </button>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              </ScrollArea>
             </div>
           )}
         </div>
 
-        <DialogFooter>
+        <SheetFooter className="flex-row gap-2 sm:justify-end">
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
@@ -327,8 +375,8 @@ export function AssignTestDialog({
             )}
             Assign
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
