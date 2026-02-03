@@ -728,14 +728,16 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     // Get dynamic payment terms (pass whether user has custom notes)
     const paymentTerms = getPaymentTermsText(estimate, !!parsedNotes.userNotes);
 
-    // Common styles for print
+    // Common styles for print - no margin auto to avoid gaps in PDF capture
     const printStyles = `
       @media screen {
         .print-container {
+          width: 210mm;
           max-width: 210mm;
-          margin: 0 auto;
+          margin: 0;
           padding: 20px;
-          background: white !important;
+          background: #ffffff !important;
+          background-color: #ffffff !important;
         }
       }
       .page-break-avoid {
