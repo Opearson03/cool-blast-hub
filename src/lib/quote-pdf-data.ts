@@ -45,6 +45,7 @@ export interface QuotePDFData {
   reinforcement: ReinforcementDetails | null;
   scopeBreakdowns: ScopeBreakdown[];
   lineItems: QuoteLineItem[];
+  inclusions: string[];
   exclusions: string[];
 }
 
@@ -462,6 +463,41 @@ export function generateLineItems(
 }
 
 /**
+ * Collect all inclusions from scope data
+ */
+export function collectInclusions(
+  scopeData: Record<string, any> | null
+): string[] {
+  const inclusions: string[] = [];
+  
+  if (!scopeData) return inclusions;
+  
+  // Standard inclusions from the estimate state
+  const stateInclusions = scopeData.inclusions || [];
+  const customInclusions = scopeData.customInclusions || [];
+  
+  for (const inc of [...stateInclusions, ...customInclusions]) {
+    if (inc.text && !inclusions.includes(inc.text)) {
+      inclusions.push(inc.text);
+    }
+  }
+  
+  // Check module-level inclusions in calculated costs
+  const calculatedCosts = scopeData.calculatedCosts || [];
+  for (const moduleCost of calculatedCosts) {
+    if (moduleCost.inclusions && Array.isArray(moduleCost.inclusions)) {
+      for (const inc of moduleCost.inclusions) {
+        if (inc.text && !inclusions.includes(inc.text)) {
+          inclusions.push(inc.text);
+        }
+      }
+    }
+  }
+  
+  return inclusions;
+}
+
+/**
  * Collect all exclusions from scope data
  */
 export function collectExclusions(
@@ -509,6 +545,7 @@ export function extractQuotePDFData(
     reinforcement: extractReinforcementDetails(scopeData),
     scopeBreakdowns: extractScopeBreakdowns(scopeData, selectedScopes),
     lineItems: generateLineItems(scopeData),
+    inclusions: collectInclusions(scopeData),
     exclusions: collectExclusions(scopeData),
   };
 }

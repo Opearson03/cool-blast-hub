@@ -444,6 +444,7 @@ const NotesBasedScopeBreakdown = ({
 
 // Terms and Exclusions Page Component - NEW (Page 2)
 const TermsAndExclusionsPage = ({
+  inclusions,
   exclusions, 
   paymentTerms,
   customNotes,
@@ -453,6 +454,7 @@ const TermsAndExclusionsPage = ({
   secondaryColor,
   template 
 }: { 
+  inclusions: string[];
   exclusions: string[]; 
   paymentTerms: string[] | null;
   customNotes: string | null;
@@ -462,7 +464,7 @@ const TermsAndExclusionsPage = ({
   secondaryColor: string;
   template: string;
 }) => {
-  const hasContent = exclusions.length > 0 || paymentTerms || customNotes;
+  const hasContent = inclusions.length > 0 || exclusions.length > 0 || paymentTerms || customNotes;
   if (!hasContent) return null;
 
   const renderHeader = () => {
@@ -609,6 +611,64 @@ const TermsAndExclusionsPage = ({
     );
   };
 
+  const renderInclusions = () => {
+    if (inclusions.length === 0) return null;
+
+    if (template === 'minimal') {
+      return (
+        <div className="mb-8">
+          <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Inclusions</p>
+          <p className="text-xs text-gray-500 mb-2">This quote includes:</p>
+          <div className="text-sm text-gray-600 space-y-1">
+            {inclusions.map((inc, index) => (
+              <p key={index} className="flex items-start gap-2">
+                <span className="text-green-500">✓</span>
+                <span>{inc}</span>
+              </p>
+            ))}
+          </div>
+        </div>
+      );
+    }
+
+    if (template === 'modern') {
+      return (
+        <div className="mb-8">
+          <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>Inclusions</h3>
+          <div className="bg-green-50 border border-green-100 rounded-lg p-4">
+            <p className="text-xs text-green-800 mb-3">This quote includes:</p>
+            <ul className="space-y-1">
+              {inclusions.map((inc, index) => (
+                <li key={index} className="text-sm text-green-700 flex items-start gap-2">
+                  <span className="text-green-500">✓</span>
+                  <span>{inc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      );
+    }
+
+    // Classic
+    return (
+      <div className="mb-8">
+        <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Inclusions</h3>
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <p className="text-xs text-green-800 mb-3">This quote includes:</p>
+          <ul className="space-y-1">
+            {inclusions.map((inc, index) => (
+              <li key={index} className="text-sm text-green-700 flex items-start gap-2">
+                <span style={{ color: primaryColor }}>✓</span>
+                <span>{inc}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  };
+
   const renderExclusions = () => {
     if (exclusions.length === 0) return null;
 
@@ -742,8 +802,9 @@ const TermsAndExclusionsPage = ({
   return (
     <div data-pdf-section="page-2" className="page-break-before pt-8">
       {renderHeader()}
-      {renderTerms()}
+      {renderInclusions()}
       {renderExclusions()}
+      {renderTerms()}
       {renderAcceptance()}
     </div>
   );
@@ -1034,7 +1095,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           {/* PAGE 2 - Terms & Exclusions */}
           <TermsAndExclusionsPage
-            exclusions={quotePDFData.exclusions}
+            inclusions={[...quotePDFData.inclusions, ...parsedNotes.inclusionsFromNotes.filter(inc => !quotePDFData.inclusions.includes(inc))]}
+            exclusions={quotePDFData.exclusions.length > 0 ? quotePDFData.exclusions : parsedNotes.exclusionsFromNotes}
             paymentTerms={paymentTerms}
             customNotes={parsedNotes.userNotes}
             business={business}
@@ -1219,7 +1281,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           {/* PAGE 2 - Terms & Exclusions */}
           <TermsAndExclusionsPage
-            exclusions={quotePDFData.exclusions}
+            inclusions={[...quotePDFData.inclusions, ...parsedNotes.inclusionsFromNotes.filter(inc => !quotePDFData.inclusions.includes(inc))]}
+            exclusions={quotePDFData.exclusions.length > 0 ? quotePDFData.exclusions : parsedNotes.exclusionsFromNotes}
             paymentTerms={paymentTerms}
             customNotes={parsedNotes.userNotes}
             business={business}
@@ -1440,7 +1503,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
         {/* PAGE 2 - Terms & Exclusions */}
         <TermsAndExclusionsPage
-          exclusions={quotePDFData.exclusions}
+          inclusions={[...quotePDFData.inclusions, ...parsedNotes.inclusionsFromNotes.filter(inc => !quotePDFData.inclusions.includes(inc))]}
+          exclusions={quotePDFData.exclusions.length > 0 ? quotePDFData.exclusions : parsedNotes.exclusionsFromNotes}
           paymentTerms={paymentTerms}
           customNotes={parsedNotes.userNotes}
           business={business}
