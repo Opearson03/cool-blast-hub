@@ -1145,10 +1145,11 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               )}
             </div>
 
-            {/* Two-column info boxes - aligned at top */}
+            {/* Two-column info boxes - aligned at top with matching row count */}
             <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 items-start">
-              {/* Left - Customer/Quote Info */}
+              {/* Left - Customer/Quote Info (4 rows) */}
               <div>
+                <p className="text-sm font-bold text-gray-900 mb-2 uppercase">Customer Details</p>
                 <table className="w-full text-sm border border-gray-300">
                   <tbody>
                     <tr>
@@ -1171,7 +1172,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 </table>
               </div>
 
-              {/* Right - Business Info with matching structure */}
+              {/* Right - Business Info (4 rows to match left side) */}
               <div>
                 <p className="text-sm font-bold text-gray-900 mb-2 uppercase">{business?.name || "Your Business Name"}</p>
                 <table className="w-full text-sm border border-gray-300">
@@ -1214,10 +1215,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                   <thead>
                     <tr className="border-b-2 border-gray-400">
                       <th className="text-left py-2 px-2 text-xs font-bold uppercase text-gray-700">Description</th>
-                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-20">Price</th>
-                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-20">Qty</th>
-                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-24">GST %</th>
-                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-24">Amount</th>
+                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-24">Price</th>
+                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-16">Qty</th>
+                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-16">GST %</th>
+                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-28">Total Inc GST</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1231,7 +1232,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                         <td className="py-2 px-2 text-right text-gray-700">1</td>
                         <td className="py-2 px-2 text-right text-gray-700">10%</td>
                         <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                          {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal) : "-"}
+                          {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal * 1.1) : "-"}
                         </td>
                       </tr>
                     ))}
@@ -1258,22 +1259,32 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                         </tr>
                       );
                     })}
+                    {/* Subtotal, GST, Total rows */}
+                    <tr className="border-t border-gray-300">
+                      <td colSpan={4} className="py-2 px-2 text-right text-gray-700 font-medium">Subtotal (ex GST)</td>
+                      <td className="py-2 px-2 text-right text-gray-900 font-medium">
+                        {formatCurrency(estimate.total_amount ? estimate.total_amount / 1.1 : 0)}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={4} className="py-2 px-2 text-right text-gray-700 font-medium">GST (10%)</td>
+                      <td className="py-2 px-2 text-right text-gray-900 font-medium">
+                        {formatCurrency(estimate.total_amount ? estimate.total_amount - (estimate.total_amount / 1.1) : 0)}
+                      </td>
+                    </tr>
+                    <tr className="bg-gray-100">
+                      <td colSpan={4} className="py-2 px-2 text-right text-gray-900 font-bold">Total (inc GST)</td>
+                      <td className="py-2 px-2 text-right text-gray-900 font-bold text-base">
+                        {formatCurrency(estimate.total_amount)}
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* Fixed bottom section - Total */}
+            {/* Fixed bottom section */}
             <div className="mt-auto">
-              {/* Total Box - Right aligned */}
-              <div className="page-break-avoid flex justify-end mb-8">
-                <div className="flex">
-                  <div className="bg-gray-700 text-white px-4 py-2 text-sm font-bold">TOTAL</div>
-                  <div className="border border-gray-300 px-6 py-2 text-lg font-medium text-gray-900 min-w-[120px] text-right">
-                    {formatCurrency(estimate.total_amount)}
-                  </div>
-                </div>
-              </div>
 
               {/* Terms & Conditions section */}
               <div className="page-break-avoid mb-6">
