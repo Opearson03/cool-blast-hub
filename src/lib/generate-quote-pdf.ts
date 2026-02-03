@@ -97,8 +97,10 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
     left: -9999px;
     top: 0;
     width: ${A4_WIDTH_MM}mm;
-    background: white;
+    background: #ffffff;
+    background-color: #ffffff;
     z-index: -1;
+    overflow: hidden;
   `;
   document.body.appendChild(container);
   
@@ -156,13 +158,25 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
       }
       
       // Capture this section with html2canvas
+      // Temporarily remove any box-shadow or borders that could cause dark edges
+      const originalBoxShadow = sectionElement.style.boxShadow;
+      const originalBorder = sectionElement.style.border;
+      sectionElement.style.boxShadow = 'none';
+      sectionElement.style.border = 'none';
+      
       const canvas = await html2canvas(sectionElement, {
         scale: 2, // Higher quality
         useCORS: true,
         allowTaint: false,
         backgroundColor: '#ffffff',
         logging: false,
+        x: 0,
+        y: 0,
       });
+      
+      // Restore original styles
+      sectionElement.style.boxShadow = originalBoxShadow;
+      sectionElement.style.border = originalBorder;
       
       // Validate canvas dimensions to prevent jsPDF.scale error
       if (canvas.width === 0 || canvas.height === 0) {
