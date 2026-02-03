@@ -1,99 +1,101 @@
 
-# Fix: Minimal Template Price and Amount Pre-filling
+## Goal
+Fix the **Minimal (simple) quote template** so the **line items sum to the displayed total** (which you’ve confirmed is correct) and make the **two header tables align perfectly**.
 
-## Problem Summary
-The Minimal quote template has the following issues:
-1. **Price column showing "-"** instead of actual unit price
-2. **Amount column showing "Included"** instead of the calculated total for each scope
-3. **Tables at top** - The user reports these aren't showing (needs verification, but code shows they exist)
+---
 
-## Root Cause
-Looking at the database data for EST-2026-0218, each scope has a `calculatedTotal` field:
-- `raft_slab.calculatedTotal: 4039.31`
-- `retaining_wall_footings.calculatedTotal: 1293.27`
+## What’s happening (root cause)
+From the saved estimate data:
+- Each scope has a `calculatedTotal` stored in `scope_data` (e.g. Raft Slab, Retaining Wall Footings).
+- The estimate also stores a **global markup** percentage in `scope_data._globalMargin` (e.g. 15%).
+- `estimate.total_amount` is effectively:
+  - **(sum of scope calculatedTotal)** + **global markup amount**
+- In the Minimal template right now, the table:
+  - treats each scope `calculatedTotal` as “ex GST” and then multiplies by `1.1` for “Total inc GST”
+  - but the grand total is coming from `estimate.total_amount` (which already includes the markup effect)
+  - so the scope rows won’t add up unless we also show the markup line item (or distribute it across scopes)
 
-However:
-1. The `ScopeBreakdown` interface in `quote-pdf-data.ts` doesn't include a `calculatedTotal` field
-2. The `extractScopeBreakdowns()` function doesn't extract this value
-3. The Minimal template code (lines 1229-1235) hardcodes "-" for Price and "Included" for Amount
+Net effect: **you aren’t missing “scope” line items — you’re missing the “markup/adjustment” line item** that bridges scope totals to the final quote total.
 
-## Solution
+---
 
-### 1. Update `ScopeBreakdown` Interface
-Add `calculatedTotal` to the interface:
-```typescript
-export interface ScopeBreakdown {
-  scopeName: string;
-  volume: number;
-  area?: number;
-  details: string;
-  areas?: Array<{ name: string; length: number; width: number; area: number }>;
-  concreteStrength?: string;
-  reinforcement?: string;
-  surfaceFinish?: string;
-  thickness?: number;
-  calculatedTotal?: number;  // NEW - The total cost for this scope
-}
-```
+## Implementation plan (no backend changes)
 
-### 2. Update `extractScopeBreakdowns()` Function
-Extract `calculatedTotal` from each scope:
-```typescript
-// Inside the for loop, after extracting other values:
-const calculatedTotal = Number(scope.calculatedTotal) || 0;
+### 1) Make the scope rows mathematically consistent
+In `src/components/estimates/PrintableEstimate.tsx` (Minimal template table):
 
-breakdowns.push({
-  scopeName: formatScopeName(scopeId),
-  volume,
-  area: area > 0 ? area : undefined,
-  details: thickness ? `${thickness}mm thick` : '',
-  areas: individualAreas,
-  concreteStrength: concreteStrength ? ... : undefined,
-  reinforcement,
-  surfaceFinish,
-  thickness: thickness > 0 ? thickness : undefined,
-  calculatedTotal: calculatedTotal > 0 ? calculatedTotal : undefined,  // NEW
-});
-```
+For each scope row:
+- **Total Inc GST** should display: `scope.calculatedTotal` (not `* 1.1`)
+- **Price** should display as ex-GST: `scope.calculatedTotal / 1.1`
+- Keep **GST %** as `10%`
+- Qty stays `1`
 
-### 3. Update Minimal Template Line Items Table
-Update the rendering to use actual values:
+This makes each scope row internally consistent:
+- ex-GST price + 10% GST = total inc-GST
 
-**Current (broken):**
-```tsx
-<td className="py-2 px-2 text-right text-gray-700">-</td>          {/* Price */}
-<td className="py-2 px-2 text-right text-gray-700">1</td>          {/* Qty */}
-<td className="py-2 px-2 text-right text-gray-700">10%</td>        {/* GST */}
-<td className="py-2 px-2 text-right text-gray-900 font-medium">Included</td>  {/* Amount */}
-```
+### 2) Add the missing “Markup / Adjustment” line item so rows sum to the grand total
+Still inside the Minimal template table:
 
-**Fixed:**
-```tsx
-<td className="py-2 px-2 text-right text-gray-700">
-  {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal) : "-"}
-</td>
-<td className="py-2 px-2 text-right text-gray-700">1</td>
-<td className="py-2 px-2 text-right text-gray-700">10%</td>
-<td className="py-2 px-2 text-right text-gray-900 font-medium">
-  {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal) : "-"}
-</td>
-```
+- Compute:
+  - `scopesTotalIncGst = sum(scopeBreakdowns[].calculatedTotal)`
+  - `adjustmentIncGst = estimate.total_amount - scopesTotalIncGst`
+- If `adjustmentIncGst` is meaningfully non-zero (e.g. absolute value > $0.01), add a row after scopes:
+  - **Description**:
+    - If `scopeData?._globalMargin` exists: `Markup (${_globalMargin}%)`
+    - Otherwise: `Adjustment`
+  - **Price (ex GST)**: `adjustmentIncGst / 1.1`
+  - **GST %**: `10%`
+  - **Total Inc GST**: `adjustmentIncGst`
 
-Since Price = Amount when Qty = 1, both will show the same value.
+This guarantees:
+- (sum of “Total Inc GST” column for all rows) == `estimate.total_amount` (within rounding)
 
-### 4. Verify Info Tables Are Displaying
-The code for the two-column info tables at the top (lines 1149-1198) appears correct:
-- Left table: Customer name, Quote number, Date, Quote valid until
-- Right table: Business name, Email, Phone, Address, ABN
+Edge cases handled:
+- If markup is 0% (or no difference), the row won’t appear.
+- If it’s negative (discount), it will show as a negative line item.
 
-If tables aren't showing, it may be a data issue. Ensure `business` object is passed correctly.
+### 3) Ensure the bottom Subtotal / GST / Total summary matches the table
+Keep the bottom totals driven by `estimate.total_amount`, but ensure they remain consistent:
+- Subtotal (ex GST): `estimate.total_amount / 1.1`
+- GST (10%): `estimate.total_amount - (estimate.total_amount / 1.1)`
+- Total (inc GST): `estimate.total_amount`
 
-## Files to Modify
-1. `src/lib/quote-pdf-data.ts` - Add `calculatedTotal` to interface and extraction
-2. `src/components/estimates/PrintableEstimate.tsx` - Update Minimal template to use actual values
+After step (2), the **sum of the table** will match this **Total (inc GST)**.
 
-## Expected Result
-After this fix:
-- **PRICE column**: Shows the scope's calculated total (e.g., "$4,039.31")
-- **AMOUNT column**: Shows the same value since Qty = 1
-- **Info tables**: Will continue to display (verify data is passed correctly)
+### 4) Fix the header tables alignment (the two top tables)
+In the Minimal template header section:
+
+- Prevent the business name header from wrapping and pushing the table down:
+  - add `whitespace-nowrap` + `truncate` + a fixed height line container so both sides have identical header height
+- Make both tables use the same column sizing:
+  - add `table-fixed` and a matching `<colgroup>` (same first-column width) to both tables
+
+This will align:
+- the top of both tables
+- each row height
+- label/value columns visually
+
+### 5) Quick verification checklist (important)
+1. Open an estimate that has a non-zero markup (e.g. _globalMargin = 15%).
+2. Confirm:
+   - Scope rows show different values for **Price** vs **Total Inc GST**
+   - The table includes a **Markup (15%)** row
+   - The **sum of Total Inc GST** column equals the grand total shown at the bottom
+3. Check a 0% markup estimate:
+   - Markup row should not appear
+4. Confirm the two header tables align on desktop and when printing.
+
+---
+
+## Files to change
+- `src/components/estimates/PrintableEstimate.tsx`
+  - Minimal template line item calculations
+  - Add “Markup/Adjustment” row
+  - Header table alignment improvements
+
+(No database migrations, no backend changes required.)
+
+---
+
+## Notes / options (if you prefer a different look)
+If you don’t want to show a separate “Markup” line, we can alternatively **distribute the markup proportionally across scope totals** so the table still sums perfectly without an extra row. Defaulting to a separate row is the clearest accounting-wise and matches the “missing line item” issue you’re seeing.
