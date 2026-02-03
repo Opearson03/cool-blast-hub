@@ -1038,35 +1038,37 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             flexDirection: "column"
           }}
         >
-          {/* Letterhead-style Header with Accent Bar */}
-          <div className="page-break-avoid mb-6">
+          {/* Letterhead-style Header with Accent Bar - Full bleed */}
+          <div className="page-break-avoid mb-4">
             {/* Top accent bar */}
             <div style={{ height: "8px", backgroundColor: primaryColor }}></div>
             
-            {/* Main header area */}
-            <div className="flex justify-between items-center py-4 px-6" style={{ backgroundColor: secondaryColor }}>
-              <div className="flex items-center gap-4">
-                {business?.logo_url && (
-                  <img
-                    src={business.logo_url}
-                    alt="Company logo"
-                    style={{ maxHeight: "60px", maxWidth: "140px", backgroundColor: "white", borderRadius: "4px", padding: "8px" }}
-                  />
-                )}
-                <div className="text-white">
-                  <h1 className="text-2xl font-bold tracking-wide">{business?.name || "Company Name"}</h1>
-                  <p className="text-sm opacity-90">{business?.address || ""}</p>
+            {/* Main header area - background extends full width */}
+            <div style={{ backgroundColor: secondaryColor }}>
+              <div className="flex justify-between items-center py-3 px-6">
+                <div className="flex items-center gap-4">
+                  {business?.logo_url && (
+                    <img
+                      src={business.logo_url}
+                      alt="Company logo"
+                      style={{ maxHeight: "50px", maxWidth: "120px", backgroundColor: "white", borderRadius: "4px", padding: "6px" }}
+                    />
+                  )}
+                  <div className="text-white">
+                    <h1 className="text-xl font-bold tracking-wide">{business?.name || "Company Name"}</h1>
+                    <p className="text-xs opacity-90">{business?.address || ""}</p>
+                  </div>
                 </div>
-              </div>
-              <div className="text-right text-white">
-                <p className="text-3xl font-bold tracking-wider">QUOTE</p>
-                <p className="text-lg font-semibold" style={{ color: primaryColor }}>{estimate.estimate_number}</p>
+                <div className="text-right text-white">
+                  <p className="text-2xl font-bold tracking-wider">QUOTE</p>
+                  <p className="text-base font-semibold" style={{ color: primaryColor }}>{estimate.estimate_number}</p>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Two-column info boxes with colored section headers */}
-          <div className="page-break-avoid grid grid-cols-2 gap-6 mb-6 px-4">
+          <div className="page-break-avoid grid grid-cols-2 gap-4 mb-4 px-6">
             {/* Left - Bill To */}
             <div className="border border-gray-300 rounded overflow-hidden">
               <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
@@ -1109,30 +1111,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             </div>
           </div>
 
-          {/* Project Description (if exists) */}
-          {estimate.description && (
-            <div className="page-break-avoid mb-6 px-4">
-              <div className="border border-gray-300 rounded overflow-hidden">
-                <div className="px-4 py-2" style={{ backgroundColor: primaryColor }}>
-                  <p className="text-sm font-bold text-white uppercase tracking-wide">Project Description</p>
-                </div>
-                <div className="p-4 bg-gray-50">
-                  <p className="text-sm text-gray-700">{estimate.site_address}</p>
-                  <p className="text-sm text-gray-600 mt-1">{estimate.description}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Flexible content area - grows to fill space */}
-          <div className="flex-grow px-4">
-            {/* Project Summary */}
-            <ProjectSummarySection 
-              data={quotePDFData} 
-              primaryColor={primaryColor} 
-              secondaryColor={secondaryColor}
-              template="classic"
-            />
+          <div className="flex-grow px-6">
 
             {/* Scope of Works as Line Items with Markup - matching Minimal template */}
             {quotePDFData.scopeBreakdowns.length > 0 ? (
@@ -1160,15 +1140,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 }
 
                 return (
-                  <div className="page-break-avoid mb-6 border border-gray-300 rounded overflow-hidden">
+                  <div className="page-break-avoid mb-4 border border-gray-300 rounded overflow-hidden">
                     <table className="w-full border-collapse">
                       <thead>
                         <tr style={{ backgroundColor: secondaryColor }}>
-                          <th className="text-left py-3 px-4 text-sm font-bold text-white uppercase tracking-wide">Item Description</th>
-                          <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-24">Unit Price</th>
-                          <th className="text-center py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-16">Qty</th>
-                          <th className="text-center py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-16">GST</th>
-                          <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-28">Amount</th>
+                          <th className="text-left py-2 px-3 text-xs font-bold text-white uppercase tracking-wide">Item Description</th>
+                          <th className="text-right py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-20">Unit Price</th>
+                          <th className="text-center py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-12">Qty</th>
+                          <th className="text-center py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-12">GST</th>
+                          <th className="text-right py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-24">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1177,11 +1157,11 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                           const priceExGst = totalIncGst / 1.1;
                           return (
                             <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                              <td className="py-3 px-4 text-sm border-b border-gray-200 text-gray-900">{scope.scopeName}</td>
-                              <td className="py-3 px-4 text-sm text-right border-b border-gray-200 text-gray-700">{formatCurrency(priceExGst)}</td>
-                              <td className="py-3 px-4 text-sm text-center border-b border-gray-200 text-gray-700">1</td>
-                              <td className="py-3 px-4 text-sm text-center border-b border-gray-200 text-gray-700">10%</td>
-                              <td className="py-3 px-4 text-sm text-right font-medium border-b border-gray-200 text-gray-900">{formatCurrency(totalIncGst)}</td>
+                              <td className="py-2 px-3 text-sm border-b border-gray-200 text-gray-900">{scope.scopeName}</td>
+                              <td className="py-2 px-3 text-sm text-right border-b border-gray-200 text-gray-700">{formatCurrency(priceExGst)}</td>
+                              <td className="py-2 px-3 text-sm text-center border-b border-gray-200 text-gray-700">1</td>
+                              <td className="py-2 px-3 text-sm text-center border-b border-gray-200 text-gray-700">10%</td>
+                              <td className="py-2 px-3 text-sm text-right font-medium border-b border-gray-200 text-gray-900">{formatCurrency(totalIncGst)}</td>
                             </tr>
                           );
                         })}
@@ -1193,16 +1173,16 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                       <table className="w-full">
                         <tbody>
                           <tr className="bg-gray-50">
-                            <td colSpan={4} className="py-2 px-4 text-sm font-medium text-right text-gray-700">Subtotal (ex GST)</td>
-                            <td className="py-2 px-4 text-sm text-right font-medium w-28 text-gray-900">{formatCurrency(estimate.total_amount / 1.1)}</td>
+                            <td colSpan={4} className="py-1 px-3 text-sm font-medium text-right text-gray-700">Subtotal (ex GST)</td>
+                            <td className="py-1 px-3 text-sm text-right font-medium w-24 text-gray-900">{formatCurrency(estimate.total_amount / 1.1)}</td>
                           </tr>
                           <tr className="bg-gray-50">
-                            <td colSpan={4} className="py-2 px-4 text-sm font-medium text-right text-gray-700">GST (10%)</td>
-                            <td className="py-2 px-4 text-sm text-right font-medium w-28 text-gray-900">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</td>
+                            <td colSpan={4} className="py-1 px-3 text-sm font-medium text-right text-gray-700">GST (10%)</td>
+                            <td className="py-1 px-3 text-sm text-right font-medium w-24 text-gray-900">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</td>
                           </tr>
                           <tr style={{ backgroundColor: primaryColor }}>
-                            <td colSpan={4} className="py-3 px-4 text-base font-bold text-right text-white uppercase">Total Due</td>
-                            <td className="py-3 px-4 text-xl text-right font-bold text-white w-28">{formatCurrency(estimate.total_amount)}</td>
+                            <td colSpan={4} className="py-2 px-3 text-sm font-bold text-right text-white uppercase">Total Due</td>
+                            <td className="py-2 px-3 text-lg text-right font-bold text-white w-24">{formatCurrency(estimate.total_amount)}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -1221,23 +1201,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
             {/* Material Description Table with Tax column */}
             {parsedItems.length > 0 && (
-              <div className="page-break-avoid mb-6 border border-gray-300 rounded overflow-hidden">
+              <div className="page-break-avoid mb-4 border border-gray-300 rounded overflow-hidden">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr style={{ backgroundColor: secondaryColor }}>
-                      <th className="text-left py-3 px-4 text-sm font-bold text-white uppercase tracking-wide">Material Description</th>
-                      <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-28">Cost</th>
-                      <th className="text-center py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-20">Tax</th>
-                      <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-28">Amount</th>
+                      <th className="text-left py-2 px-3 text-xs font-bold text-white uppercase tracking-wide">Material Description</th>
+                      <th className="text-right py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-24">Cost</th>
+                      <th className="text-center py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-16">Tax</th>
+                      <th className="text-right py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-24">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {parsedItems.map((item, index) => (
                       <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
-                        <td className="py-3 px-4 text-sm border-b border-gray-200 text-gray-900">{item.description}</td>
-                        <td className="py-3 px-4 text-sm text-right border-b border-gray-200 text-gray-700">{formatCurrency(item.total / 1.1)}</td>
-                        <td className="py-3 px-4 text-sm text-center border-b border-gray-200 text-gray-700">10%</td>
-                        <td className="py-3 px-4 text-sm text-right font-medium border-b border-gray-200 text-gray-900">{formatCurrency(item.total)}</td>
+                        <td className="py-2 px-3 text-sm border-b border-gray-200 text-gray-900">{item.description}</td>
+                        <td className="py-2 px-3 text-sm text-right border-b border-gray-200 text-gray-700">{formatCurrency(item.total / 1.1)}</td>
+                        <td className="py-2 px-3 text-sm text-center border-b border-gray-200 text-gray-700">10%</td>
+                        <td className="py-2 px-3 text-sm text-right font-medium border-b border-gray-200 text-gray-900">{formatCurrency(item.total)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1247,8 +1227,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                   <table className="w-full">
                     <tbody>
                       <tr style={{ backgroundColor: primaryColor }}>
-                        <td className="py-3 px-4 text-base font-bold text-white uppercase" colSpan={3}>Total Due</td>
-                        <td className="py-3 px-4 text-xl text-right font-bold text-white w-28">{formatCurrency(estimate.total_amount)}</td>
+                        <td className="py-2 px-3 text-sm font-bold text-white uppercase" colSpan={3}>Total Due</td>
+                        <td className="py-2 px-3 text-lg text-right font-bold text-white w-24">{formatCurrency(estimate.total_amount)}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -1256,27 +1236,27 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               </div>
             )}
 
-            {/* Formal Signature Block */}
-            <div className="page-break-avoid mt-8 border border-gray-300 rounded overflow-hidden">
-              <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
-                <p className="text-sm font-bold text-white uppercase tracking-wide">Authorization</p>
+            {/* Formal Signature Block - anchored to bottom */}
+            <div className="page-break-avoid mt-auto border border-gray-300 rounded overflow-hidden">
+              <div className="px-3 py-1" style={{ backgroundColor: secondaryColor }}>
+                <p className="text-xs font-bold text-white uppercase tracking-wide">Authorization</p>
               </div>
-              <div className="p-6 bg-white">
-                <p className="text-xs text-gray-600 mb-6">
+              <div className="p-4 bg-white">
+                <p className="text-xs text-gray-600 mb-3">
                   I accept this quotation and authorize commencement of the described works.
                 </p>
-                <div className="grid grid-cols-2 gap-8">
+                <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+                    <div className="border-b-2 border-gray-400 h-8 mb-1"></div>
                     <p className="text-xs text-gray-500">Authorized Signature</p>
                   </div>
                   <div>
-                    <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+                    <div className="border-b-2 border-gray-400 h-8 mb-1"></div>
                     <p className="text-xs text-gray-500">Date</p>
                   </div>
                 </div>
-                <div className="mt-4">
-                  <div className="border-b border-gray-300 h-8 mb-1"></div>
+                <div className="mt-3">
+                  <div className="border-b border-gray-300 h-6 mb-1"></div>
                   <p className="text-xs text-gray-500">Print Name</p>
                 </div>
               </div>
