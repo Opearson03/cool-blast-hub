@@ -1124,12 +1124,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           {/* PAGE 1 - Quote Content */}
 
-          {/* Minimal Template - Company info left, logo right */}
+          {/* Minimal Template - Header with logo */}
           <div data-pdf-section="header" className="page-break-avoid flex items-start justify-between mb-8">
             <div>
               <h1 className="text-xl font-semibold text-gray-900">{business?.name || "Company Name"}</h1>
-              {business?.address && <p className="text-sm text-gray-500">{business.address}</p>}
-              {business?.phone && <p className="text-sm text-gray-500">{business.phone}</p>}
               {business?.abn && <p className="text-xs text-gray-400 mt-1">ABN: {business.abn}</p>}
             </div>
             {business?.logo_url && (
@@ -1145,37 +1143,44 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           <div className="text-center my-10">
             <h2 className="text-4xl font-bold tracking-widest" style={{ color: secondaryColor }}>CONCRETE</h2>
             <h2 className="text-4xl font-bold tracking-widest" style={{ color: secondaryColor }}>ESTIMATE</h2>
+            <p className="text-sm text-gray-500 mt-2">{estimate.estimate_number}</p>
           </div>
 
-          {/* Bill To and Estimate Meta */}
+          {/* From and Bill To - Side by Side */}
           <div data-pdf-section="client-info" className="page-break-avoid grid grid-cols-2 gap-12 mb-10">
             <div>
+              <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">From</p>
+              <p className="font-medium text-gray-900">{business?.name || "Company Name"}</p>
+              {business?.address && <p className="text-sm text-gray-600">{business.address}</p>}
+              {business?.phone && <p className="text-sm text-gray-500">{business.phone}</p>}
+              {business?.email && <p className="text-sm text-gray-500">{business.email}</p>}
+            </div>
+            <div>
               <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Bill To</p>
-              <p className="font-medium text-gray-900 text-lg">{estimate.client_name}</p>
+              <p className="font-medium text-gray-900">{estimate.client_name}</p>
               {estimate.company_name && <p className="text-sm text-gray-600">{estimate.company_name}</p>}
               <p className="text-sm text-gray-600">{estimate.site_address}</p>
+              {estimate.client_phone && <p className="text-sm text-gray-500">{estimate.client_phone}</p>}
               {estimate.client_email && <p className="text-sm text-gray-500">{estimate.client_email}</p>}
             </div>
-            <div className="text-right">
-              <table className="ml-auto text-sm">
-                <tbody>
+          </div>
+
+          {/* Estimate Meta */}
+          <div className="page-break-avoid flex justify-end mb-6">
+            <table className="text-sm">
+              <tbody>
+                <tr>
+                  <td className="text-gray-400 pr-4 py-1">Estimate Date</td>
+                  <td className="text-gray-900">{format(new Date(estimate.created_at), "d MMM yyyy")}</td>
+                </tr>
+                {estimate.valid_until && (
                   <tr>
-                    <td className="text-gray-400 pr-4 py-1">Estimate #</td>
-                    <td className="font-medium text-gray-900">{estimate.estimate_number?.replace('Q-', '') || '0001'}</td>
+                    <td className="text-gray-400 pr-4 py-1">Valid Until</td>
+                    <td className="text-gray-900">{format(new Date(estimate.valid_until), "d MMM yyyy")}</td>
                   </tr>
-                  <tr>
-                    <td className="text-gray-400 pr-4 py-1">Estimate Date</td>
-                    <td className="text-gray-900">{format(new Date(estimate.created_at), "dd-MM")}</td>
-                  </tr>
-                  {estimate.valid_until && (
-                    <tr>
-                      <td className="text-gray-400 pr-4 py-1">Due Date</td>
-                      <td className="text-gray-900">{format(new Date(estimate.valid_until), "dd-MM")}</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                )}
+              </tbody>
+            </table>
           </div>
 
           {/* Project Summary */}
@@ -1327,70 +1332,52 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           </div>
         </div>
 
-        {/* Company Details - Form style */}
-        <div data-pdf-section="client-info" className="page-break-avoid">
-          <div className="mb-4 px-4 py-3 border-b border-gray-200">
-            <div className="space-y-1">
-              <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Company Address:</span>
-                <span className="text-sm text-gray-700">{business?.address || "123 Business Street"}</span>
+        {/* Company & Client Details - Side by Side */}
+        <div data-pdf-section="client-info" className="page-break-avoid mb-6 px-4">
+          <div className="grid grid-cols-2 gap-8 py-3 border-b border-gray-200">
+            {/* FROM - Company Details */}
+            <div>
+              <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>FROM:</h3>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-gray-900">{business?.name || "Company Name"}</p>
+                {business?.address && <p className="text-sm text-gray-700">{business.address}</p>}
+                {business?.phone && <p className="text-sm text-gray-700">{business.phone}</p>}
+                {business?.email && <p className="text-sm text-gray-700">{business.email}</p>}
+                {business?.abn && <p className="text-xs text-gray-500 mt-1">ABN: {business.abn}</p>}
               </div>
-              <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Contact Number:</span>
-                <span className="text-sm text-gray-700">{business?.phone || "0400 000 000"}</span>
+            </div>
+
+            {/* TO - Client Details */}
+            <div>
+              <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>TO:</h3>
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-gray-900">{estimate.client_name}</p>
+                {estimate.company_name && <p className="text-sm text-gray-700">{estimate.company_name}</p>}
+                <p className="text-sm text-gray-700">{estimate.site_address}</p>
+                {estimate.client_phone && <p className="text-sm text-gray-700">{estimate.client_phone}</p>}
+                {estimate.client_email && <p className="text-sm text-gray-700">{estimate.client_email}</p>}
               </div>
-              <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Email Address:</span>
-                <span className="text-sm text-gray-700">{business?.email || "email@company.com"}</span>
-              </div>
-              {business?.abn && (
-                <div className="flex">
-                  <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>ABN:</span>
-                  <span className="text-sm text-gray-700">{business.abn}</span>
-                </div>
-              )}
             </div>
           </div>
 
-          {/* TO Section - Client Details */}
-          <div className="mb-6 px-4 py-3 border-b border-gray-200">
-            <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>TO:</h3>
-            <div className="space-y-1">
-              <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Owner Name:</span>
-                <span className="text-sm text-gray-700">{estimate.client_name}</span>
+          {/* Quote Meta */}
+          <div className="flex justify-between items-center py-3 border-b border-gray-200">
+            <div className="flex gap-8">
+              <div>
+                <span className="text-sm font-semibold" style={{ color: primaryColor }}>Quote Number:</span>
+                <span className="text-sm text-gray-700 ml-2">{estimate.estimate_number}</span>
               </div>
-              {estimate.company_name && (
-                <div className="flex">
-                  <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Company:</span>
-                  <span className="text-sm text-gray-700">{estimate.company_name}</span>
-                </div>
-              )}
-              <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Address:</span>
-                <span className="text-sm text-gray-700">{estimate.site_address}</span>
-              </div>
-              {estimate.client_phone && (
-                <div className="flex">
-                  <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Contact Number:</span>
-                  <span className="text-sm text-gray-700">{estimate.client_phone}</span>
-                </div>
-              )}
-              {estimate.client_email && (
-                <div className="flex">
-                  <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Email Address:</span>
-                  <span className="text-sm text-gray-700">{estimate.client_email}</span>
-                </div>
-              )}
-              <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Date:</span>
-                <span className="text-sm text-gray-700">{format(new Date(estimate.created_at), "d MMMM yyyy")}</span>
-              </div>
-              <div className="flex">
-                <span className="w-40 text-sm font-semibold" style={{ color: primaryColor }}>Quote Number:</span>
-                <span className="text-sm text-gray-700">{estimate.estimate_number}</span>
+              <div>
+                <span className="text-sm font-semibold" style={{ color: primaryColor }}>Date:</span>
+                <span className="text-sm text-gray-700 ml-2">{format(new Date(estimate.created_at), "d MMMM yyyy")}</span>
               </div>
             </div>
+            {estimate.valid_until && (
+              <div>
+                <span className="text-sm font-semibold" style={{ color: primaryColor }}>Valid Until:</span>
+                <span className="text-sm text-gray-700 ml-2">{format(new Date(estimate.valid_until), "d MMMM yyyy")}</span>
+              </div>
+            )}
           </div>
         </div>
 
