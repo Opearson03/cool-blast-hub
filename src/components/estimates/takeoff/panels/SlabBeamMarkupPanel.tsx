@@ -44,6 +44,7 @@ interface SlabBeamMarkupPanelProps {
   onStartCountingPods?: () => void;
   onStartEdgeBeams: () => void;
   onSkipAllBeams: () => void;
+  onSkipEdgeBeams?: () => void;
   onUsePerimeterAsEdgeBeam?: () => void;
   onSaveBeam: (beamData: { name: string; width: number; depth: number }) => void;
   onAddAnotherEdgeBeam: () => void;
@@ -80,6 +81,7 @@ export function SlabBeamMarkupPanel({
   onStartCountingPods,
   onStartEdgeBeams,
   onSkipAllBeams,
+  onSkipEdgeBeams,
   onUsePerimeterAsEdgeBeam,
   onSaveBeam,
   onAddAnotherEdgeBeam,
@@ -396,6 +398,16 @@ export function SlabBeamMarkupPanel({
                   >
                     No, Mark Manually
                   </Button>
+                  {onSkipEdgeBeams && (
+                    <Button 
+                      variant="ghost"
+                      onClick={onSkipEdgeBeams}
+                      className="w-full text-muted-foreground"
+                    >
+                      <SkipForward className="h-4 w-4 mr-2" />
+                      No Edge Beams
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
