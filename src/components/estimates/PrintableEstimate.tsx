@@ -1157,20 +1157,20 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                   </colgroup>
                   <tbody>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Customer name</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate">{estimate.client_name}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Customer name</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.client_name}</td>
                     </tr>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Quote number</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{estimate.estimate_number}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Quote number</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.estimate_number}</td>
                     </tr>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Date</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{format(new Date(estimate.created_at), "d MMM yyyy")}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Date</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{format(new Date(estimate.created_at), "d MMM yyyy")}</td>
                     </tr>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Quote valid until</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{estimate.valid_until ? format(new Date(estimate.valid_until), "d MMM yyyy") : "-"}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Quote valid until</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.valid_until ? format(new Date(estimate.valid_until), "d MMM yyyy") : "-"}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1186,20 +1186,20 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                   </colgroup>
                   <tbody>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Email</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate">{business?.email || "-"}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Email</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.email || "-"}</td>
                     </tr>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Phone</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.phone || "-"}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Phone</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.phone || "-"}</td>
                     </tr>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Address</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate">{business?.address || "-"}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Address</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.address || "-"}</td>
                     </tr>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">ABN</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.abn || "-"}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">ABN</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.abn || "-"}</td>
                     </tr>
                   </tbody>
                 </table>
