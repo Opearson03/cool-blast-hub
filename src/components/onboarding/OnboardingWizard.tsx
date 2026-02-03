@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Building2, Users, Briefcase, CheckCircle, ArrowRight, ArrowLeft, Palette, Upload, FileText, DollarSign } from "lucide-react";
 import { OnboardingPriceList } from "./OnboardingPriceList";
-import { QuoteTemplatePreview } from "./QuoteTemplatePreview";
+import { LivePDFPreview } from "@/components/settings/LivePDFPreview";
 import { DEFAULT_PRICE_LIST } from "@/lib/price-list-defaults";
 
 const FONT_OPTIONS = [
@@ -38,7 +38,7 @@ interface PriceOverride {
 export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
-  const [previewExpanded, setPreviewExpanded] = useState(false);
+  
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -511,29 +511,17 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
               </div>
             </div>
 
-            {/* Preview - Clickable to expand */}
-            <div>
-              <Label className="text-sm font-medium mb-2 block">Preview</Label>
-              <button
-                type="button"
-                onClick={() => setPreviewExpanded(true)}
-                className="w-full border rounded-lg bg-muted/30 p-3 hover:bg-muted/50 transition-colors cursor-pointer group"
-              >
-                <div className="max-w-[200px] mx-auto">
-                  <QuoteTemplatePreview
-                    template={quoteTemplate}
-                    primaryColor={quotePrimaryColor}
-                    secondaryColor={quoteSecondaryColor}
-                    font={quoteFont}
-                    logoUrl={logoUrl}
-                    businessName={businessName || "Your Business"}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-2 group-hover:text-primary transition-colors">
-                  Click to expand preview
-                </p>
-              </button>
-            </div>
+            {/* Live PDF Preview */}
+            <LivePDFPreview
+              quoteTemplate={quoteTemplate}
+              quotePrimaryColor={quotePrimaryColor}
+              quoteSecondaryColor={quoteSecondaryColor}
+              quoteFont={quoteFont}
+              logoUrl={logoUrl}
+              businessName={businessName || "Your Business"}
+              businessAddress={address}
+              businessPhone={phone}
+            />
 
             <div className="flex gap-2 pt-4">
               <Button variant="outline" onClick={() => setStep(1)} disabled={loading}>
@@ -689,24 +677,6 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
       </DialogContent>
     </Dialog>
 
-    {/* Expanded Preview Dialog */}
-    <Dialog open={previewExpanded} onOpenChange={setPreviewExpanded}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Quote Preview</DialogTitle>
-        </DialogHeader>
-        <div className="p-4">
-          <QuoteTemplatePreview
-            template={quoteTemplate}
-            primaryColor={quotePrimaryColor}
-            secondaryColor={quoteSecondaryColor}
-            font={quoteFont}
-            logoUrl={logoUrl}
-            businessName={businessName || "Your Business"}
-          />
-        </div>
-      </DialogContent>
-    </Dialog>
     </>
   );
 }
