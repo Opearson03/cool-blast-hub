@@ -1152,14 +1152,21 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
                 return (
                   <div className="page-break-avoid mb-4 border border-gray-300 rounded overflow-hidden">
-                    <table className="w-full border-collapse">
+                    <table className="w-full border-collapse table-fixed">
+                      <colgroup>
+                        <col style={{ width: "40%" }} />
+                        <col style={{ width: "18%" }} />
+                        <col style={{ width: "10%" }} />
+                        <col style={{ width: "10%" }} />
+                        <col style={{ width: "22%" }} />
+                      </colgroup>
                       <thead>
                         <tr style={{ backgroundColor: secondaryColor }}>
                           <th className="text-left py-2 px-3 text-xs font-bold text-white uppercase tracking-wide">Item Description</th>
-                          <th className="text-right py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-20">Unit Price</th>
-                          <th className="text-center py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-12">Qty</th>
-                          <th className="text-center py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-12">GST</th>
-                          <th className="text-right py-2 px-3 text-xs font-bold text-white uppercase tracking-wide w-24">Amount</th>
+                          <th className="text-right py-2 px-3 text-xs font-bold text-white uppercase tracking-wide">Unit Price</th>
+                          <th className="text-center py-2 px-3 text-xs font-bold text-white uppercase tracking-wide">Qty</th>
+                          <th className="text-center py-2 px-3 text-xs font-bold text-white uppercase tracking-wide">GST</th>
+                          <th className="text-right py-2 px-3 text-xs font-bold text-white uppercase tracking-wide">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1181,19 +1188,23 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                     
                     {/* Totals section with accent bar */}
                     <div className="border-t-2" style={{ borderColor: primaryColor }}>
-                      <table className="w-full">
+                      <table className="w-full table-fixed">
+                        <colgroup>
+                          <col style={{ width: "78%" }} />
+                          <col style={{ width: "22%" }} />
+                        </colgroup>
                         <tbody>
                           <tr className="bg-gray-50">
-                            <td colSpan={4} className="py-1 px-3 text-sm font-medium text-right text-gray-700">Subtotal (ex GST)</td>
-                            <td className="py-1 px-3 text-sm text-right font-medium w-24 text-gray-900">{formatCurrency(estimate.total_amount / 1.1)}</td>
+                            <td className="py-1 px-3 text-sm font-medium text-right text-gray-700">Subtotal (ex GST)</td>
+                            <td className="py-1 px-3 text-sm text-right font-medium text-gray-900">{formatCurrency(estimate.total_amount / 1.1)}</td>
                           </tr>
                           <tr className="bg-gray-50">
-                            <td colSpan={4} className="py-1 px-3 text-sm font-medium text-right text-gray-700">GST (10%)</td>
-                            <td className="py-1 px-3 text-sm text-right font-medium w-24 text-gray-900">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</td>
+                            <td className="py-1 px-3 text-sm font-medium text-right text-gray-700">GST (10%)</td>
+                            <td className="py-1 px-3 text-sm text-right font-medium text-gray-900">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</td>
                           </tr>
                           <tr style={{ backgroundColor: primaryColor }}>
-                            <td colSpan={4} className="py-2 px-3 text-sm font-bold text-right text-white uppercase">Total Due</td>
-                            <td className="py-2 px-3 text-lg text-right font-bold text-white w-24">{formatCurrency(estimate.total_amount)}</td>
+                            <td className="py-2 px-3 text-sm font-bold text-right text-white uppercase">Total Due</td>
+                            <td className="py-2 px-3 text-lg text-right font-bold text-white">{formatCurrency(estimate.total_amount)}</td>
                           </tr>
                         </tbody>
                       </table>
@@ -1249,8 +1260,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
             {/* Formal Signature Block - anchored to bottom */}
             <div className="page-break-avoid mt-auto border border-gray-300 rounded overflow-hidden">
-              <div className="px-3 py-1" style={{ backgroundColor: secondaryColor }}>
-                <p className="text-xs font-bold text-white uppercase tracking-wide">Authorization</p>
+              <div className="px-4 py-2" style={{ backgroundColor: primaryColor }}>
+                <p className="text-sm font-bold text-white uppercase tracking-wide text-center">Authorization</p>
               </div>
               <div className="p-4 bg-white">
                 <p className="text-xs text-gray-600 mb-3">
