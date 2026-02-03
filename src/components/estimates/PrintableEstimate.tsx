@@ -753,6 +753,14 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
       }
     `;
 
+    // Minimal template relies on PDF margins for spacing; keep the DOM layout within the
+    // printable content box to avoid pushing Page 1 slightly over a single page (which
+    // can trigger an extra blank leading page in the section-based renderer).
+    const minimalPrintStyles = printStyles
+      .replace("width: 210mm;", "width: 190mm;")
+      .replace("max-width: 210mm;", "max-width: 190mm;")
+      .replace("padding: 20px;", "padding: 0;");
+
     // Render template based on selection
     if (template === "minimal") {
       return (
@@ -765,7 +773,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             color: "black"
           }}
         >
-          <style>{printStyles.replace('padding: 20px', 'padding: 40px')}</style>
+          <style>{minimalPrintStyles}</style>
 
           {/* PAGE 1 - Fixed height container for A4 page */}
           <div 

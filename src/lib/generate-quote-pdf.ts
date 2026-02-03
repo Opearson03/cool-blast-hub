@@ -88,6 +88,7 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
   const CONTENT_WIDTH_MM = A4_WIDTH_MM - (MARGIN_MM * 2);
   const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (MARGIN_MM * 2);
   const SECTION_GAP_MM = 0; // No gap between sections
+  const PAGE_BREAK_EPSILON_MM = 0.5; // Tolerance to avoid false page breaks from rounding
   
   // Create a temporary container for rendering
   const container = document.createElement('div');
@@ -145,6 +146,7 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
     
     let currentY = MARGIN_MM;
     let isFirstPage = true;
+    let hasAddedContent = false;
     
     for (const section of Array.from(sections)) {
       const sectionElement = section as HTMLElement;
@@ -152,7 +154,11 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
       
       // Force page break for page-2 sections
       if (sectionType === 'page-2') {
-        pdf.addPage();
+        // Only add a new page if we've already placed content.
+        // This avoids creating a blank leading page if page-1 is missing/empty or slightly overflows.
+        if (hasAddedContent) {
+          pdf.addPage();
+        }
         currentY = MARGIN_MM;
         isFirstPage = false;
       }
@@ -190,13 +196,13 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
       // Check if section fits on current page (skip check for page-2 sections as they already got a new page)
       if (sectionType !== 'page-2' && !isFirstPage) {
         // If it doesn't fit, add a new page
-        if (currentY + sectionHeightMM > A4_HEIGHT_MM - MARGIN_MM) {
+        if (currentY + sectionHeightMM > (A4_HEIGHT_MM - MARGIN_MM) + PAGE_BREAK_EPSILON_MM) {
           pdf.addPage();
           currentY = MARGIN_MM;
         }
       } else if (sectionType !== 'page-2') {
         // For first page, check if we need to break before this section
-        if (currentY + sectionHeightMM > A4_HEIGHT_MM - MARGIN_MM) {
+        if (currentY + sectionHeightMM > (A4_HEIGHT_MM - MARGIN_MM) + PAGE_BREAK_EPSILON_MM) {
           pdf.addPage();
           currentY = MARGIN_MM;
           isFirstPage = false;
@@ -217,6 +223,8 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
         undefined,
         'FAST'
       );
+
+      hasAddedContent = true;
       
       // Move Y position for next section
       currentY += sectionHeightMM + SECTION_GAP_MM;
