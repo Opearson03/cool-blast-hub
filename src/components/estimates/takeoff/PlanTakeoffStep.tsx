@@ -1373,13 +1373,15 @@ export function PlanTakeoffStep({
   const dimensionsReady = planDimensions.width > 0 && planDimensions.height > 0;
   
   // Filter markups to only show those on the current page and file
+  // Markups are strictly locked to the page they were drawn on
   // When actively marking a scope, only show markups for that scope to reduce clutter
   const currentPageMarkups = useMemo(() => {
     if (!dimensionsReady || !currentFileId) return [];
     
+    // Strictly filter by file AND page - no fallback for null page_number
     let filtered = markups.filter(m => 
       m.file_id === currentFileId && 
-      (m.page_number === currentPage || m.page_number === null)
+      m.page_number === currentPage
     );
     
     // If actively marking a scope, only show markups for that scope
