@@ -118,8 +118,9 @@ function aggregateItems(items: CostLineItem[]): AggregatedMaterial[] {
  */
 export function aggregateRaftReinforcementItems(lineItems: CostLineItem[]): AggregatedGroup[] {
   // Categorize items
+  // Include waffle pod topping mesh (waffle_slab_mesh) in slab items
   const slabItems = lineItems.filter(item => 
-    item.id.startsWith('mesh_') || item.id.startsWith('bar_')
+    item.id.startsWith('mesh_') || item.id.startsWith('bar_') || item.id === 'waffle_slab_mesh'
   );
   const edgeBeamItems = lineItems.filter(item => 
     item.id.startsWith('edge_tm_') || item.id.startsWith('edge_ligs_') ||
