@@ -189,19 +189,23 @@ const ProjectSummarySection = ({
     );
   }
 
-  // Classic template
+  // Classic template - boxed section with colored header
   return (
     <div className="page-break-avoid mb-6">
-      <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Project Summary</h3>
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {summaryItems.map((item, index) => (
-            <div key={index}>
-              <p className="text-xs text-gray-500">{item.label}</p>
-              <p className="text-base font-semibold text-gray-900">{item.value}</p>
-              {item.sub && <p className="text-xs text-gray-600">{item.sub}</p>}
-            </div>
-          ))}
+      <div className="border border-gray-300 rounded overflow-hidden">
+        <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
+          <p className="text-sm font-bold text-white uppercase tracking-wide">Project Summary</p>
+        </div>
+        <div className="p-4 bg-gray-50">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {summaryItems.map((item, index) => (
+              <div key={index}>
+                <p className="text-xs text-gray-500">{item.label}</p>
+                <p className="text-base font-semibold text-gray-900">{item.value}</p>
+                {item.sub && <p className="text-xs text-gray-600">{item.sub}</p>}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -265,35 +269,37 @@ const ScopeLineItemsSection = ({
     );
   }
 
-  // Classic template
+  // Classic template - boxed section with colored header
   return (
     <div className="page-break-avoid mb-6">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-            <th className="text-left py-2 px-3 text-sm font-semibold">Scope of Works</th>
-            <th className="text-right py-2 px-3 text-sm font-semibold w-28">Included</th>
-          </tr>
-        </thead>
-        <tbody>
-          {scopeBreakdowns.map((scope, index) => (
-            <tr key={index} className="border-b border-gray-200">
-              <td className="py-2 px-3 text-sm">
-                <span className="font-medium text-gray-900">{scope.scopeName}</span>
-                <span className="block text-xs text-gray-600 mt-0.5">
-                  {generateScopeDescription(scope)}
-                </span>
-                {scope.areas && scope.areas.length > 0 && (
-                  <span className="block text-xs text-gray-500 mt-1">
-                    {scope.areas.map(a => `${a.name}: ${a.area.toFixed(1)}m²`).join(' • ')}
-                  </span>
-                )}
-              </td>
-              <td className="py-2 px-3 text-sm text-right font-medium" style={{ color: primaryColor }}>✓</td>
+      <div className="border border-gray-300 rounded overflow-hidden">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr style={{ backgroundColor: secondaryColor }}>
+              <th className="text-left py-3 px-4 text-sm font-bold text-white uppercase tracking-wide">Scope of Works</th>
+              <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-28">Included</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {scopeBreakdowns.map((scope, index) => (
+              <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                <td className="py-3 px-4 text-sm border-b border-gray-200">
+                  <span className="font-medium text-gray-900">{scope.scopeName}</span>
+                  <span className="block text-xs text-gray-600 mt-0.5">
+                    {generateScopeDescription(scope)}
+                  </span>
+                  {scope.areas && scope.areas.length > 0 && (
+                    <span className="block text-xs text-gray-500 mt-1">
+                      {scope.areas.map(a => `${a.name}: ${a.area.toFixed(1)}m²`).join(' • ')}
+                    </span>
+                  )}
+                </td>
+                <td className="py-3 px-4 text-sm text-right font-bold border-b border-gray-200" style={{ color: primaryColor }}>✓</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
@@ -337,27 +343,29 @@ const NotesBasedScopeBreakdown = ({
     );
   }
 
-  // Classic template
+  // Classic template - boxed section with colored header
   return (
     <div className="page-break-avoid mb-6">
-      <table className="w-full border-collapse">
-        <thead>
-          <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-            <th className="text-left py-2 px-3 text-sm font-semibold">Scope of Works</th>
-            <th className="text-right py-2 px-3 text-sm font-semibold w-28">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((item, index) => (
-            <tr key={index} className="border-b border-gray-200">
-              <td className="py-2 px-3 text-sm">
-                <span className="font-medium text-gray-900">{item.name}</span>
-              </td>
-              <td className="py-2 px-3 text-sm text-right font-medium text-gray-700">{item.amount}</td>
+      <div className="border border-gray-300 rounded overflow-hidden">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr style={{ backgroundColor: secondaryColor }}>
+              <th className="text-left py-3 px-4 text-sm font-bold text-white uppercase tracking-wide">Scope of Works</th>
+              <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-28">Amount</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {items.map((item, index) => (
+              <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                <td className="py-3 px-4 text-sm border-b border-gray-200">
+                  <span className="font-medium text-gray-900">{item.name}</span>
+                </td>
+                <td className="py-3 px-4 text-sm text-right font-medium text-gray-700 border-b border-gray-200">{item.amount}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
@@ -407,23 +415,26 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    // Classic
+    // Classic - letterhead-style with accent bar
     return (
-      <div className="flex justify-between items-center mb-6 pb-4" style={{ borderBottom: `2px solid ${secondaryColor}` }}>
-        <div className="flex items-center gap-4">
-          {business?.logo_url && (
-            <img
-              src={business.logo_url}
-              alt="Company logo"
-              style={{ maxHeight: "48px", maxWidth: "100px", width: "auto", height: "auto", objectFit: "contain" }}
-            />
-          )}
-          <div>
-            <p className="font-semibold text-gray-900">{business?.name}</p>
-            <p className="text-sm text-gray-500">Quote: {estimate.estimate_number}</p>
+      <div className="mb-6">
+        <div style={{ height: "6px", backgroundColor: primaryColor }}></div>
+        <div className="flex justify-between items-center py-4 px-4" style={{ backgroundColor: secondaryColor }}>
+          <div className="flex items-center gap-4">
+            {business?.logo_url && (
+              <img
+                src={business.logo_url}
+                alt="Company logo"
+                style={{ maxHeight: "48px", maxWidth: "100px", width: "auto", height: "auto", objectFit: "contain", backgroundColor: "white", borderRadius: "4px", padding: "4px" }}
+              />
+            )}
+            <div className="text-white">
+              <p className="font-bold text-lg">{business?.name}</p>
+              <p className="text-sm opacity-80">Quote: {estimate.estimate_number}</p>
+            </div>
           </div>
+          <h2 className="text-xl font-bold text-white uppercase tracking-wide">Terms & Conditions</h2>
         </div>
-        <h2 className="text-xl font-bold text-gray-700">Terms & Conditions</h2>
       </div>
     );
   };
@@ -457,27 +468,31 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    // Classic
+    // Classic - boxed section with colored header
     return (
       <div className="mb-8">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Payment Terms</h3>
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-          <div className="text-sm text-gray-700 space-y-2">
-            {customNotes ? (
-              <p className="whitespace-pre-wrap">{customNotes}</p>
-            ) : paymentTerms ? (
-              paymentTerms.map((term, index) => (
-                <p key={index}>• {term}</p>
-              ))
-            ) : (
-              <>
-                <p>• This quote is valid for 14 days from the date of issue unless otherwise specified.</p>
-                <p>• A 50% deposit is required before commencement of works.</p>
-                <p>• Final payment is due upon completion of works.</p>
-                <p>• Prices include GST unless otherwise stated.</p>
-                <p>• Any variations to the scope of works may result in additional charges.</p>
-              </>
-            )}
+        <div className="border border-gray-300 rounded overflow-hidden">
+          <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
+            <p className="text-sm font-bold text-white uppercase tracking-wide">Payment Terms</p>
+          </div>
+          <div className="p-4 bg-gray-50">
+            <div className="text-sm text-gray-700 space-y-2">
+              {customNotes ? (
+                <p className="whitespace-pre-wrap">{customNotes}</p>
+              ) : paymentTerms ? (
+                paymentTerms.map((term, index) => (
+                  <p key={index}>• {term}</p>
+                ))
+              ) : (
+                <>
+                  <p>• This quote is valid for 14 days from the date of issue unless otherwise specified.</p>
+                  <p>• A 50% deposit is required before commencement of works.</p>
+                  <p>• Final payment is due upon completion of works.</p>
+                  <p>• Prices include GST unless otherwise stated.</p>
+                  <p>• Any variations to the scope of works may result in additional charges.</p>
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -504,20 +519,24 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    // Classic
+    // Classic - boxed section with colored header
     return (
       <div className="mb-8">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Inclusions</h3>
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <p className="text-xs text-green-800 mb-3">This quote includes:</p>
-          <ul className="space-y-1">
-            {inclusions.map((inc, index) => (
-              <li key={index} className="text-sm text-green-700 flex items-start gap-2">
-                <span style={{ color: primaryColor }}>✓</span>
-                <span>{inc}</span>
-              </li>
-            ))}
-          </ul>
+        <div className="border border-gray-300 rounded overflow-hidden">
+          <div className="px-4 py-2" style={{ backgroundColor: "#166534" }}>
+            <p className="text-sm font-bold text-white uppercase tracking-wide">Inclusions</p>
+          </div>
+          <div className="p-4 bg-green-50">
+            <p className="text-xs text-green-800 mb-3">This quote includes:</p>
+            <ul className="space-y-1">
+              {inclusions.map((inc, index) => (
+                <li key={index} className="text-sm text-green-700 flex items-start gap-2">
+                  <span style={{ color: primaryColor }}>✓</span>
+                  <span>{inc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     );
@@ -543,20 +562,24 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    // Classic
+    // Classic - boxed section with colored header
     return (
       <div className="mb-8">
-        <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Exclusions</h3>
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-          <p className="text-xs text-orange-800 mb-3">The following items are NOT included in this quote:</p>
-          <ul className="space-y-1">
-            {exclusions.map((exc, index) => (
-              <li key={index} className="text-sm text-orange-700 flex items-start gap-2">
-                <span style={{ color: primaryColor }}>✕</span>
-                <span>{exc}</span>
-              </li>
-            ))}
-          </ul>
+        <div className="border border-gray-300 rounded overflow-hidden">
+          <div className="px-4 py-2" style={{ backgroundColor: "#c2410c" }}>
+            <p className="text-sm font-bold text-white uppercase tracking-wide">Exclusions</p>
+          </div>
+          <div className="p-4 bg-orange-50">
+            <p className="text-xs text-orange-800 mb-3">The following items are NOT included in this quote:</p>
+            <ul className="space-y-1">
+              {exclusions.map((exc, index) => (
+                <li key={index} className="text-sm text-orange-700 flex items-start gap-2">
+                  <span style={{ color: primaryColor }}>✕</span>
+                  <span>{exc}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
     );
@@ -584,26 +607,30 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    // Classic
+    // Classic - formal authorization block with colored header
     return (
-      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Acceptance</h3>
-        <p className="text-xs text-gray-600 mb-4">
-          I accept this quote and authorize the commencement of works as described above.
-        </p>
-        <div className="grid grid-cols-2 gap-8">
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Signature</p>
-            <div className="border-b border-gray-400 h-8"></div>
-          </div>
-          <div>
-            <p className="text-xs text-gray-500 mb-1">Date</p>
-            <div className="border-b border-gray-400 h-8"></div>
-          </div>
+      <div className="border border-gray-300 rounded overflow-hidden">
+        <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
+          <p className="text-sm font-bold text-white uppercase tracking-wide">Authorization</p>
         </div>
-        <div className="mt-4">
-          <p className="text-xs text-gray-500 mb-1">Print Name</p>
-          <div className="border-b border-gray-400 h-8"></div>
+        <div className="p-6 bg-white">
+          <p className="text-xs text-gray-600 mb-6">
+            I accept this quotation and authorize commencement of the described works.
+          </p>
+          <div className="grid grid-cols-2 gap-8">
+            <div>
+              <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+              <p className="text-xs text-gray-500">Authorized Signature</p>
+            </div>
+            <div>
+              <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+              <p className="text-xs text-gray-500">Date</p>
+            </div>
+          </div>
+          <div className="mt-4">
+            <div className="border-b border-gray-300 h-8 mb-1"></div>
+            <p className="text-xs text-gray-500">Print Name</p>
+          </div>
         </div>
       </div>
     );
@@ -1010,83 +1037,91 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             flexDirection: "column"
           }}
         >
-          {/* Header Banner with Logo */}
-          <div className="page-break-avoid mb-4" style={{ backgroundColor: secondaryColor, padding: "16px 24px" }}>
-            <div className="flex items-center gap-4">
-              {business?.logo_url && (
-                <img
-                  src={business.logo_url}
-                  alt="Company logo"
-                  style={{ maxHeight: "56px", maxWidth: "120px", width: "auto", height: "auto", objectFit: "contain", backgroundColor: "white", borderRadius: "6px", padding: "6px" }}
-                />
-              )}
-              <div className="text-white">
-                <h1 className="text-xl font-bold">CONSTRUCTION QUOTE</h1>
-                <p className="text-sm opacity-80">({business?.name || "Company Name"})</p>
+          {/* Letterhead-style Header with Accent Bar */}
+          <div className="page-break-avoid mb-6">
+            {/* Top accent bar */}
+            <div style={{ height: "8px", backgroundColor: primaryColor }}></div>
+            
+            {/* Main header area */}
+            <div className="flex justify-between items-center py-4 px-6" style={{ backgroundColor: secondaryColor }}>
+              <div className="flex items-center gap-4">
+                {business?.logo_url && (
+                  <img
+                    src={business.logo_url}
+                    alt="Company logo"
+                    style={{ maxHeight: "60px", maxWidth: "140px", backgroundColor: "white", borderRadius: "4px", padding: "8px" }}
+                  />
+                )}
+                <div className="text-white">
+                  <h1 className="text-2xl font-bold tracking-wide">{business?.name || "Company Name"}</h1>
+                  <p className="text-sm opacity-90">{business?.address || ""}</p>
+                </div>
+              </div>
+              <div className="text-right text-white">
+                <p className="text-3xl font-bold tracking-wider">QUOTE</p>
+                <p className="text-lg font-semibold" style={{ color: primaryColor }}>{estimate.estimate_number}</p>
               </div>
             </div>
           </div>
 
-          {/* Two-column info boxes - aligned at top with matching structure */}
-          <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 items-start px-4">
-            {/* Left - Customer/Quote Info (4 rows) */}
-            <div>
-              <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">Customer Details</p>
-              <table className="w-full text-sm border border-gray-300 table-fixed">
-                <colgroup>
-                  <col style={{ width: "40%" }} />
-                  <col style={{ width: "60%" }} />
-                </colgroup>
-                <tbody>
-                  <tr>
-                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Customer name</td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.client_name}</td>
-                  </tr>
-                  <tr>
-                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Quote number</td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.estimate_number}</td>
-                  </tr>
-                  <tr>
-                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Date</td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{format(new Date(estimate.created_at), "d MMMM yyyy")}</td>
-                  </tr>
-                  <tr>
-                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Quote valid until</td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.valid_until ? format(new Date(estimate.valid_until), "d MMMM yyyy") : "-"}</td>
-                  </tr>
-                </tbody>
-              </table>
+          {/* Two-column info boxes with colored section headers */}
+          <div className="page-break-avoid grid grid-cols-2 gap-6 mb-6 px-4">
+            {/* Left - Bill To */}
+            <div className="border border-gray-300 rounded overflow-hidden">
+              <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
+                <p className="text-sm font-bold text-white uppercase tracking-wide">Bill To</p>
+              </div>
+              <div className="p-4 space-y-2 bg-white">
+                <p className="text-base font-semibold text-gray-900">{estimate.client_name}</p>
+                {estimate.company_name && <p className="text-sm text-gray-600">{estimate.company_name}</p>}
+                <p className="text-sm text-gray-600">{estimate.site_address}</p>
+                {estimate.client_email && <p className="text-sm text-gray-600">{estimate.client_email}</p>}
+                {estimate.client_phone && <p className="text-sm text-gray-600">{estimate.client_phone}</p>}
+              </div>
             </div>
 
-            {/* Right - Business Info (4 rows) */}
-            <div>
-              <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">{business?.name || "Company"}</p>
-              <table className="w-full text-sm border border-gray-300 table-fixed">
-                <colgroup>
-                  <col style={{ width: "40%" }} />
-                  <col style={{ width: "60%" }} />
-                </colgroup>
+            {/* Right - Quote Details */}
+            <div className="border border-gray-300 rounded overflow-hidden">
+              <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
+                <p className="text-sm font-bold text-white uppercase tracking-wide">Quote Details</p>
+              </div>
+              <table className="w-full text-sm">
                 <tbody>
-                  <tr>
-                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Email</td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.email || "-"}</td>
+                  <tr className="border-b border-gray-200">
+                    <td className="px-4 py-2 text-gray-600 font-medium bg-gray-50">Quote #</td>
+                    <td className="px-4 py-2 text-gray-900 text-right font-semibold">{estimate.estimate_number}</td>
+                  </tr>
+                  <tr className="border-b border-gray-200">
+                    <td className="px-4 py-2 text-gray-600 font-medium bg-gray-50">Date</td>
+                    <td className="px-4 py-2 text-gray-900 text-right">{format(new Date(estimate.created_at), "d MMMM yyyy")}</td>
+                  </tr>
+                  <tr className="border-b border-gray-200">
+                    <td className="px-4 py-2 text-gray-600 font-medium bg-gray-50">Valid Until</td>
+                    <td className="px-4 py-2 text-gray-900 text-right">{estimate.valid_until ? format(new Date(estimate.valid_until), "d MMMM yyyy") : "-"}</td>
                   </tr>
                   <tr>
-                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Phone</td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.phone || "-"}</td>
-                  </tr>
-                  <tr>
-                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Address</td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.address || "-"}</td>
-                  </tr>
-                  <tr>
-                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">ABN</td>
-                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.abn || "-"}</td>
+                    <td className="px-4 py-2 text-gray-600 font-medium bg-gray-50">ABN</td>
+                    <td className="px-4 py-2 text-gray-900 text-right">{business?.abn || "-"}</td>
                   </tr>
                 </tbody>
               </table>
             </div>
           </div>
+
+          {/* Project Description (if exists) */}
+          {estimate.description && (
+            <div className="page-break-avoid mb-6 px-4">
+              <div className="border border-gray-300 rounded overflow-hidden">
+                <div className="px-4 py-2" style={{ backgroundColor: primaryColor }}>
+                  <p className="text-sm font-bold text-white uppercase tracking-wide">Project Description</p>
+                </div>
+                <div className="p-4 bg-gray-50">
+                  <p className="text-sm text-gray-700">{estimate.site_address}</p>
+                  <p className="text-sm text-gray-600 mt-1">{estimate.description}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Flexible content area - grows to fill space */}
           <div className="flex-grow px-4">
@@ -1124,15 +1159,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 }
 
                 return (
-                  <div className="page-break-avoid mb-6">
+                  <div className="page-break-avoid mb-6 border border-gray-300 rounded overflow-hidden">
                     <table className="w-full border-collapse">
                       <thead>
-                        <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-                          <th className="text-left py-3 px-4 text-sm font-bold">Description</th>
-                          <th className="text-right py-3 px-4 text-sm font-bold w-28">Price</th>
-                          <th className="text-center py-3 px-4 text-sm font-bold w-16">Qty</th>
-                          <th className="text-center py-3 px-4 text-sm font-bold w-20">GST %</th>
-                          <th className="text-right py-3 px-4 text-sm font-bold w-32">Total Inc GST</th>
+                        <tr style={{ backgroundColor: secondaryColor }}>
+                          <th className="text-left py-3 px-4 text-sm font-bold text-white uppercase tracking-wide">Item Description</th>
+                          <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-24">Unit Price</th>
+                          <th className="text-center py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-16">Qty</th>
+                          <th className="text-center py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-16">GST</th>
+                          <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-28">Amount</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -1140,32 +1175,37 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                           const totalIncGst = scope.markedUpTotal;
                           const priceExGst = totalIncGst / 1.1;
                           return (
-                            <tr key={index} className={index % 2 === 1 ? "bg-gray-50" : ""}>
-                              <td className="py-3 px-4 text-sm border-b border-gray-200">{scope.scopeName}</td>
-                              <td className="py-3 px-4 text-sm text-right border-b border-gray-200">{formatCurrency(priceExGst)}</td>
-                              <td className="py-3 px-4 text-sm text-center border-b border-gray-200">1</td>
-                              <td className="py-3 px-4 text-sm text-center border-b border-gray-200">10%</td>
-                              <td className="py-3 px-4 text-sm text-right font-medium border-b border-gray-200">{formatCurrency(totalIncGst)}</td>
+                            <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                              <td className="py-3 px-4 text-sm border-b border-gray-200 text-gray-900">{scope.scopeName}</td>
+                              <td className="py-3 px-4 text-sm text-right border-b border-gray-200 text-gray-700">{formatCurrency(priceExGst)}</td>
+                              <td className="py-3 px-4 text-sm text-center border-b border-gray-200 text-gray-700">1</td>
+                              <td className="py-3 px-4 text-sm text-center border-b border-gray-200 text-gray-700">10%</td>
+                              <td className="py-3 px-4 text-sm text-right font-medium border-b border-gray-200 text-gray-900">{formatCurrency(totalIncGst)}</td>
                             </tr>
                           );
                         })}
-                        {/* Subtotal Row */}
-                        <tr className="bg-gray-100">
-                          <td colSpan={4} className="py-3 px-4 text-sm font-medium text-right">Subtotal (ex GST)</td>
-                          <td className="py-3 px-4 text-sm text-right font-medium">{formatCurrency(estimate.total_amount / 1.1)}</td>
-                        </tr>
-                        {/* GST Row */}
-                        <tr className="bg-gray-100">
-                          <td colSpan={4} className="py-3 px-4 text-sm font-medium text-right">GST (10%)</td>
-                          <td className="py-3 px-4 text-sm text-right font-medium">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</td>
-                        </tr>
-                        {/* Grand Total Row */}
-                        <tr style={{ backgroundColor: primaryColor, color: "white" }}>
-                          <td colSpan={4} className="py-3 px-4 text-sm font-bold text-right">GRAND TOTAL</td>
-                          <td className="py-3 px-4 text-lg text-right font-bold">{formatCurrency(estimate.total_amount)}</td>
-                        </tr>
                       </tbody>
                     </table>
+                    
+                    {/* Totals section with accent bar */}
+                    <div className="border-t-2" style={{ borderColor: primaryColor }}>
+                      <table className="w-full">
+                        <tbody>
+                          <tr className="bg-gray-50">
+                            <td colSpan={4} className="py-2 px-4 text-sm font-medium text-right text-gray-700">Subtotal (ex GST)</td>
+                            <td className="py-2 px-4 text-sm text-right font-medium w-28 text-gray-900">{formatCurrency(estimate.total_amount / 1.1)}</td>
+                          </tr>
+                          <tr className="bg-gray-50">
+                            <td colSpan={4} className="py-2 px-4 text-sm font-medium text-right text-gray-700">GST (10%)</td>
+                            <td className="py-2 px-4 text-sm text-right font-medium w-28 text-gray-900">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</td>
+                          </tr>
+                          <tr style={{ backgroundColor: primaryColor }}>
+                            <td colSpan={4} className="py-3 px-4 text-base font-bold text-right text-white uppercase">Total Due</td>
+                            <td className="py-3 px-4 text-xl text-right font-bold text-white w-28">{formatCurrency(estimate.total_amount)}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 );
               })()
@@ -1180,45 +1220,63 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
             {/* Material Description Table with Tax column */}
             {parsedItems.length > 0 && (
-              <div className="page-break-avoid mb-6">
+              <div className="page-break-avoid mb-6 border border-gray-300 rounded overflow-hidden">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-                      <th className="text-left py-3 px-4 text-sm font-bold">Material Description</th>
-                      <th className="text-right py-3 px-4 text-sm font-bold w-28">Cost</th>
-                      <th className="text-center py-3 px-4 text-sm font-bold w-20">Tax</th>
-                      <th className="text-right py-3 px-4 text-sm font-bold w-28">Amount</th>
+                    <tr style={{ backgroundColor: secondaryColor }}>
+                      <th className="text-left py-3 px-4 text-sm font-bold text-white uppercase tracking-wide">Material Description</th>
+                      <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-28">Cost</th>
+                      <th className="text-center py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-20">Tax</th>
+                      <th className="text-right py-3 px-4 text-sm font-bold text-white uppercase tracking-wide w-28">Amount</th>
                     </tr>
                   </thead>
                   <tbody>
                     {parsedItems.map((item, index) => (
-                      <tr key={index} className="border-b border-gray-200">
-                        <td className="py-3 px-4 text-sm">{item.description}</td>
-                        <td className="py-3 px-4 text-sm text-right">{formatCurrency(item.total / 1.1)}</td>
-                        <td className="py-3 px-4 text-sm text-center">10%</td>
-                        <td className="py-3 px-4 text-sm text-right font-medium">{formatCurrency(item.total)}</td>
+                      <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+                        <td className="py-3 px-4 text-sm border-b border-gray-200 text-gray-900">{item.description}</td>
+                        <td className="py-3 px-4 text-sm text-right border-b border-gray-200 text-gray-700">{formatCurrency(item.total / 1.1)}</td>
+                        <td className="py-3 px-4 text-sm text-center border-b border-gray-200 text-gray-700">10%</td>
+                        <td className="py-3 px-4 text-sm text-right font-medium border-b border-gray-200 text-gray-900">{formatCurrency(item.total)}</td>
                       </tr>
                     ))}
-                    {/* Grand Total Row */}
-                    <tr style={{ backgroundColor: primaryColor, color: "white" }}>
-                      <td className="py-3 px-4 text-sm font-bold" colSpan={3}>GRAND TOTAL</td>
-                      <td className="py-3 px-4 text-lg text-right font-bold">{formatCurrency(estimate.total_amount)}</td>
-                    </tr>
                   </tbody>
                 </table>
+                {/* Totals section with accent bar */}
+                <div className="border-t-2" style={{ borderColor: primaryColor }}>
+                  <table className="w-full">
+                    <tbody>
+                      <tr style={{ backgroundColor: primaryColor }}>
+                        <td className="py-3 px-4 text-base font-bold text-white uppercase" colSpan={3}>Total Due</td>
+                        <td className="py-3 px-4 text-xl text-right font-bold text-white w-28">{formatCurrency(estimate.total_amount)}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
 
-            {/* Dual Signature/Date Row */}
-            <div className="page-break-avoid py-6 border-t border-gray-200">
-              <div className="flex justify-between items-end">
-                <div className="flex-1">
-                  <div className="w-48 border-b-2 border-gray-400 mb-2"></div>
-                  <p className="text-sm text-gray-500">(Signature)</p>
+            {/* Formal Signature Block */}
+            <div className="page-break-avoid mt-8 border border-gray-300 rounded overflow-hidden">
+              <div className="px-4 py-2" style={{ backgroundColor: secondaryColor }}>
+                <p className="text-sm font-bold text-white uppercase tracking-wide">Authorization</p>
+              </div>
+              <div className="p-6 bg-white">
+                <p className="text-xs text-gray-600 mb-6">
+                  I accept this quotation and authorize commencement of the described works.
+                </p>
+                <div className="grid grid-cols-2 gap-8">
+                  <div>
+                    <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+                    <p className="text-xs text-gray-500">Authorized Signature</p>
+                  </div>
+                  <div>
+                    <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+                    <p className="text-xs text-gray-500">Date</p>
+                  </div>
                 </div>
-                <div className="flex-1 text-right">
-                  <div className="w-48 border-b-2 border-gray-400 mb-2 ml-auto"></div>
-                  <p className="text-sm text-gray-500">(Date)</p>
+                <div className="mt-4">
+                  <div className="border-b border-gray-300 h-8 mb-1"></div>
+                  <p className="text-xs text-gray-500">Print Name</p>
                 </div>
               </div>
             </div>
