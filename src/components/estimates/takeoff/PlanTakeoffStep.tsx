@@ -628,6 +628,42 @@ export function PlanTakeoffStep({
     resetSlabWorkflow();
   }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, currentPage, slabSavedId]);
 
+  // Handler: Skip edge beams and go straight to internal beams
+  const handleSkipEdgeBeams = useCallback(async () => {
+    if (!pendingSlabData || !activeScope || !currentFileId) return;
+    
+    // Save slab if not already saved
+    if (!slabSavedId) {
+      const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+      
+      const slabMarkup = await addSlabWithBeams(
+        currentFileId,
+        activeScope,
+        {
+          points: pendingSlabData.slabPoints,
+          shapeType: pendingSlabData.slabShapeType,
+          name: pendingSlabData.slabName.trim() || 'Slab',
+        },
+        null, // No edge beams
+        null, // No internal beams yet
+        color,
+        currentPage
+      );
+      
+      if (slabMarkup?.id) {
+        setSlabSavedId(slabMarkup.id);
+        // Update pending data with the saved markup ID
+        setPendingSlabData(prev => prev ? { ...prev, slabMarkupId: slabMarkup.id } : null);
+      }
+    }
+    
+    // Go to internal beam marking
+    setShowSlabBeamDialog(false);
+    setSlabWorkflowStep('mark_internal_beam');
+    setPolylinePoints([]);
+    setActiveTool('polyline');
+  }, [pendingSlabData, activeScope, currentFileId, selectedScopes, addSlabWithBeams, currentPage, slabSavedId]);
+
   // Handler: Done marking a single beam (ready for naming/dimensions)
   const handleDoneMarkingSingleBeam = useCallback(() => {
     // For edge beams: use continuous polyline points
@@ -1516,6 +1552,7 @@ export function PlanTakeoffStep({
             onStartEdgeBeams={handleStartEdgeBeams}
             onUsePerimeterAsEdgeBeam={handleUsePerimeterAsEdgeBeam}
             onSkipAllBeams={handleSkipAllBeams}
+            onSkipEdgeBeams={handleSkipEdgeBeams}
             onSaveBeam={handleSaveBeam}
             onAddAnotherEdgeBeam={handleAddAnotherEdgeBeam}
             onFinishEdgeBeams={handleFinishEdgeBeams}
@@ -1561,6 +1598,7 @@ export function PlanTakeoffStep({
     handleStartEdgeBeams,
     handleUsePerimeterAsEdgeBeam,
     handleSkipAllBeams,
+    handleSkipEdgeBeams,
     handleSaveBeam,
     handleAddAnotherEdgeBeam,
     handleFinishEdgeBeams,
@@ -2133,6 +2171,7 @@ export function PlanTakeoffStep({
         onStartEdgeBeams={handleStartEdgeBeams}
         onUsePerimeterAsEdgeBeam={handleUsePerimeterAsEdgeBeam}
         onSkipAllBeams={handleSkipAllBeams}
+        onSkipEdgeBeams={handleSkipEdgeBeams}
         onSaveBeam={handleSaveBeam}
         onAddAnotherEdgeBeam={handleAddAnotherEdgeBeam}
         onFinishEdgeBeams={handleFinishEdgeBeams}

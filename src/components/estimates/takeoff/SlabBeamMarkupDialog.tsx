@@ -125,6 +125,8 @@ interface SlabBeamMarkupDialogProps {
   // Actions for slab naming step
   onStartEdgeBeams: () => void;
   onSkipAllBeams: () => void;
+  /** Skip edge beams entirely (go straight to internal beams) */
+  onSkipEdgeBeams?: () => void;
   /** Quick action: use slab perimeter as edge beam (skip manual marking) */
   onUsePerimeterAsEdgeBeam?: () => void;
   
@@ -169,6 +171,7 @@ export function SlabBeamMarkupDialog({
   onStartCountingPods,
   onStartEdgeBeams,
   onSkipAllBeams,
+  onSkipEdgeBeams,
   onUsePerimeterAsEdgeBeam,
   onSaveBeam,
   onAddAnotherEdgeBeam,
@@ -534,6 +537,16 @@ export function SlabBeamMarkupDialog({
                       No, Mark Manually
                     </Button>
                   </div>
+                  {onSkipEdgeBeams && (
+                    <Button 
+                      variant="ghost"
+                      onClick={onSkipEdgeBeams}
+                      className="w-full text-muted-foreground"
+                    >
+                      <SkipForward className="h-4 w-4 mr-2" />
+                      No Edge Beams
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
