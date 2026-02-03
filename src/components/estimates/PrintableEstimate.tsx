@@ -736,7 +736,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           margin: 0 auto;
           padding: 20px;
           background: white !important;
-          box-shadow: 0 0 10px rgba(0,0,0,0.1);
         }
       }
       .page-break-avoid {
