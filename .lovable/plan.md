@@ -1,208 +1,99 @@
 
-# Fix: Display Inclusions and Exclusions on Quote Template Page 2
+# Fix: Minimal Template Price and Amount Pre-filling
 
-## Problem
-The inclusions and exclusions sections are not appearing on the second page of the generated quote PDF templates. While the data is being collected and stored correctly, it's not being passed through and rendered in the PDF output.
+## Problem Summary
+The Minimal quote template has the following issues:
+1. **Price column showing "-"** instead of actual unit price
+2. **Amount column showing "Included"** instead of the calculated total for each scope
+3. **Tables at top** - The user reports these aren't showing (needs verification, but code shows they exist)
 
-## Root Cause Analysis
-1. **Missing inclusions in data structure**: The `QuotePDFData` interface only includes `exclusions`, not `inclusions`
-2. **No inclusions extraction function**: There's a `collectExclusions()` function but no equivalent `collectInclusions()` function
-3. **`TermsAndExclusionsPage` component missing inclusions prop**: The component only accepts `exclusions` as a prop
-4. **Data source mismatch**: Inclusions/exclusions are stored in two places:
-   - In `scopeData.inclusions` and `scopeData.exclusions` arrays (object format with `text` property)
-   - In `estimate.notes` as text (parsed via `parseNotesContent`)
-   
-   Currently only the `scopeData` source is being used for exclusions, and inclusions aren't extracted at all.
+## Root Cause
+Looking at the database data for EST-2026-0218, each scope has a `calculatedTotal` field:
+- `raft_slab.calculatedTotal: 4039.31`
+- `retaining_wall_footings.calculatedTotal: 1293.27`
+
+However:
+1. The `ScopeBreakdown` interface in `quote-pdf-data.ts` doesn't include a `calculatedTotal` field
+2. The `extractScopeBreakdowns()` function doesn't extract this value
+3. The Minimal template code (lines 1229-1235) hardcodes "-" for Price and "Included" for Amount
 
 ## Solution
 
-### 1. Update `src/lib/quote-pdf-data.ts`
-
-Add `inclusions` to the `QuotePDFData` interface:
+### 1. Update `ScopeBreakdown` Interface
+Add `calculatedTotal` to the interface:
 ```typescript
-export interface QuotePDFData {
-  projectSummary: ProjectSummary;
-  reinforcement: ReinforcementDetails | null;
-  scopeBreakdowns: ScopeBreakdown[];
-  lineItems: QuoteLineItem[];
-  inclusions: string[];  // NEW
-  exclusions: string[];
+export interface ScopeBreakdown {
+  scopeName: string;
+  volume: number;
+  area?: number;
+  details: string;
+  areas?: Array<{ name: string; length: number; width: number; area: number }>;
+  concreteStrength?: string;
+  reinforcement?: string;
+  surfaceFinish?: string;
+  thickness?: number;
+  calculatedTotal?: number;  // NEW - The total cost for this scope
 }
 ```
 
-Add a new `collectInclusions` function (mirrors `collectExclusions`):
+### 2. Update `extractScopeBreakdowns()` Function
+Extract `calculatedTotal` from each scope:
 ```typescript
-export function collectInclusions(
-  scopeData: Record<string, any> | null
-): string[] {
-  const inclusions: string[] = [];
-  
-  if (!scopeData) return inclusions;
-  
-  const stateInclusions = scopeData.inclusions || [];
-  
-  for (const inc of stateInclusions) {
-    if (inc.text && !inclusions.includes(inc.text)) {
-      inclusions.push(inc.text);
-    }
-  }
-  
-  return inclusions;
-}
+// Inside the for loop, after extracting other values:
+const calculatedTotal = Number(scope.calculatedTotal) || 0;
+
+breakdowns.push({
+  scopeName: formatScopeName(scopeId),
+  volume,
+  area: area > 0 ? area : undefined,
+  details: thickness ? `${thickness}mm thick` : '',
+  areas: individualAreas,
+  concreteStrength: concreteStrength ? ... : undefined,
+  reinforcement,
+  surfaceFinish,
+  thickness: thickness > 0 ? thickness : undefined,
+  calculatedTotal: calculatedTotal > 0 ? calculatedTotal : undefined,  // NEW
+});
 ```
 
-Update `extractQuotePDFData` to include inclusions:
-```typescript
-return {
-  projectSummary: extractProjectSummary(scopeData, selectedScopes),
-  reinforcement: extractReinforcementDetails(scopeData),
-  scopeBreakdowns: extractScopeBreakdowns(scopeData, selectedScopes),
-  lineItems: generateLineItems(scopeData),
-  inclusions: collectInclusions(scopeData),  // NEW
-  exclusions: collectExclusions(scopeData),
-};
-```
+### 3. Update Minimal Template Line Items Table
+Update the rendering to use actual values:
 
-### 2. Update `src/components/estimates/PrintableEstimate.tsx`
-
-**Update `TermsAndExclusionsPage` component props:**
-```typescript
-const TermsAndExclusionsPage = ({
-  inclusions,    // NEW
-  exclusions, 
-  paymentTerms,
-  customNotes,
-  business,
-  estimate,
-  primaryColor, 
-  secondaryColor,
-  template 
-}: { 
-  inclusions: string[];  // NEW
-  exclusions: string[]; 
-  paymentTerms: string[] | null;
-  customNotes: string | null;
-  business: PrintableEstimateProps['business'];
-  estimate: PrintableEstimateProps['estimate'];
-  primaryColor: string; 
-  secondaryColor: string;
-  template: string;
-}) => {
-```
-
-**Add `renderInclusions` function** (styled similar to exclusions but with green/positive colors):
-- Modern template: green background box with checkmark icons
-- Minimal template: simple list with bullet points  
-- Classic template: green tinted box with checkmark icons
-
-**Update the component render order:**
+**Current (broken):**
 ```tsx
-return (
-  <div data-pdf-section="page-2" className="page-break-before pt-8">
-    {renderHeader()}
-    {renderInclusions()}   {/* NEW - before exclusions */}
-    {renderExclusions()}
-    {renderTerms()}
-    {renderAcceptance()}
-  </div>
-);
+<td className="py-2 px-2 text-right text-gray-700">-</td>          {/* Price */}
+<td className="py-2 px-2 text-right text-gray-700">1</td>          {/* Qty */}
+<td className="py-2 px-2 text-right text-gray-700">10%</td>        {/* GST */}
+<td className="py-2 px-2 text-right text-gray-900 font-medium">Included</td>  {/* Amount */}
 ```
 
-**Update all template usages** (lines ~1036, ~1221, ~1442) to pass inclusions:
-
-Merge inclusions from both `quotePDFData.inclusions` and `parsedNotes.inclusionsFromNotes`:
-```typescript
-const allInclusions = [
-  ...quotePDFData.inclusions,
-  ...parsedNotes.inclusionsFromNotes.filter(
-    inc => !quotePDFData.inclusions.includes(inc)
-  )
-];
-```
-
-Pass to component:
+**Fixed:**
 ```tsx
-<TermsAndExclusionsPage
-  inclusions={allInclusions}
-  exclusions={quotePDFData.exclusions.length > 0 
-    ? quotePDFData.exclusions 
-    : parsedNotes.exclusionsFromNotes}
-  paymentTerms={paymentTerms}
-  customNotes={parsedNotes.userNotes}
-  business={business}
-  estimate={estimate}
-  primaryColor={primaryColor}
-  secondaryColor={secondaryColor}
-  template="modern"  // or "minimal" or "classic"
-/>
+<td className="py-2 px-2 text-right text-gray-700">
+  {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal) : "-"}
+</td>
+<td className="py-2 px-2 text-right text-gray-700">1</td>
+<td className="py-2 px-2 text-right text-gray-700">10%</td>
+<td className="py-2 px-2 text-right text-gray-900 font-medium">
+  {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal) : "-"}
+</td>
 ```
 
-### 3. Inclusions Section Styling
+Since Price = Amount when Qty = 1, both will show the same value.
 
-**Modern Template:**
-```tsx
-<div className="mb-8">
-  <h3 className="text-sm font-bold uppercase mb-3" style={{ color: secondaryColor }}>
-    Inclusions
-  </h3>
-  <div className="bg-green-50 border border-green-100 rounded-lg p-4">
-    <p className="text-xs text-green-800 mb-3">This quote includes:</p>
-    <ul className="space-y-1">
-      {inclusions.map((inc, index) => (
-        <li key={index} className="text-sm text-green-700 flex items-start gap-2">
-          <span className="text-green-500">✓</span>
-          <span>{inc}</span>
-        </li>
-      ))}
-    </ul>
-  </div>
-</div>
-```
+### 4. Verify Info Tables Are Displaying
+The code for the two-column info tables at the top (lines 1149-1198) appears correct:
+- Left table: Customer name, Quote number, Date, Quote valid until
+- Right table: Business name, Email, Phone, Address, ABN
 
-**Minimal Template:**
-```tsx
-<div className="mb-8">
-  <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Inclusions</p>
-  <p className="text-xs text-gray-500 mb-2">This quote includes:</p>
-  <div className="text-sm text-gray-600 space-y-1">
-    {inclusions.map((inc, index) => (
-      <p key={index} className="flex items-start gap-2">
-        <span className="text-green-500">✓</span>
-        <span>{inc}</span>
-      </p>
-    ))}
-  </div>
-</div>
-```
-
-**Classic Template:**
-```tsx
-<div className="mb-8">
-  <h3 className="text-sm font-semibold text-gray-500 uppercase mb-2">Inclusions</h3>
-  <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-    <p className="text-xs text-green-800 mb-3">This quote includes:</p>
-    <ul className="space-y-1">
-      {inclusions.map((inc, index) => (
-        <li key={index} className="text-sm text-green-700 flex items-start gap-2">
-          <span style={{ color: primaryColor }}>✓</span>
-          <span>{inc}</span>
-        </li>
-      ))}
-    </ul>
-  </div>
-</div>
-```
+If tables aren't showing, it may be a data issue. Ensure `business` object is passed correctly.
 
 ## Files to Modify
-1. `src/lib/quote-pdf-data.ts` - Add inclusions to interface and extraction function
-2. `src/components/estimates/PrintableEstimate.tsx` - Update component to accept and render inclusions
+1. `src/lib/quote-pdf-data.ts` - Add `calculatedTotal` to interface and extraction
+2. `src/components/estimates/PrintableEstimate.tsx` - Update Minimal template to use actual values
 
 ## Expected Result
-After this fix, the generated quote PDF will show:
-- **Page 1**: Quote header, client info, scope of works, totals
-- **Page 2**: 
-  - Terms & Conditions header
-  - **Inclusions section** (green styling with checkmarks)
-  - **Exclusions section** (red/orange styling with X marks)
-  - Payment terms
-  - Acceptance/signature block
+After this fix:
+- **PRICE column**: Shows the scope's calculated total (e.g., "$4,039.31")
+- **AMOUNT column**: Shows the same value since Qty = 1
+- **Info tables**: Will continue to display (verify data is passed correctly)
