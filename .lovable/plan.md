@@ -1,57 +1,48 @@
 
+
 ## Goal
-1. Fit the Classic template's first page content onto a single A4 page
-2. Remove white margins from the header/letterhead area so colors extend edge-to-edge
+1. Ensure Classic template page 2 fits on a single A4 page
+2. Remove white margins from the page edges so the letterhead color extends edge-to-edge
 
 ---
 
 ## Current Issues Analysis
 
-### Issue 1: Content Overflowing Page 1
-The Classic template currently includes too many sections on page 1:
-- Letterhead header (accent bar + company info)
-- Two-column info boxes (Bill To / Quote Details)
-- Project Description section
-- Project Summary section
-- Line Items table with totals
-- Authorization block
+### Issue 1: Page 2 Content Overflowing
+The Classic template's page 2 (`TermsAndExclusionsPage` component) contains:
+- Letterhead header with accent bar and secondary color background
+- Inclusions section (boxed with green header)
+- Exclusions section (boxed with orange header)
+- Payment Terms section (boxed with secondary color header)
+- Authorization/Acceptance block
 
-This is too much vertical content for 277mm (A4 minus margins).
+With large inclusion/exclusion lists, this content may exceed A4 height.
 
-### Issue 2: White Margins in Header
-The header currently has:
-```tsx
-<div className="px-6" style={{ backgroundColor: secondaryColor }}>
-```
-And content sections use:
-```tsx
-<div className="page-break-avoid grid grid-cols-2 gap-6 mb-6 px-4">
-```
-
-These padding values create white gaps on the sides of the colored areas.
+### Issue 2: White Margins Around Edges
+The `TermsAndExclusionsPage` component has padding that creates white gaps:
+- `pt-8` on the container adds top padding
+- `mb-8` on sections adds spacing that could be reduced
+- Header uses `px-4` padding instead of letting color fill full width
+- The `.print-container` has `padding: 20px` which creates margins
 
 ---
 
 ## Solution
 
-### 1. Simplify the Classic template layout
-- **Remove the Project Summary section** from page 1 (it duplicates information already shown in line items)
-- **Reduce vertical spacing** (mb-6 → mb-4, padding reductions)
-- **Make the Authorization block more compact** (reduce internal padding)
-- **Remove redundant Project Description** since the site address is already in Bill To
+### 1. Full-bleed letterhead on page 2
+- Remove `pt-8` from the page-2 container
+- Make the header background extend full width (no horizontal padding on the background container)
+- Apply internal padding only to the content inside the header
 
-### 2. Full-bleed letterhead header
-- Remove `px-6` padding from the header container
-- Let the accent bar and secondary color header extend full width
-- Add padding only to the inner flex content, not the background container
-- Remove `px-4` from content sections below since print-container already has padding
+### 2. Reduce vertical spacing to fit on one page
+- Reduce `mb-8` to `mb-4` on sections (Inclusions, Exclusions, Payment Terms)
+- Reduce internal padding in boxed sections (`p-4` to `p-3`)
+- Make the Authorization block more compact
+- Reduce font sizes slightly where appropriate
 
-### 3. Cleaner color usage
-- Header: Primary accent bar + secondary color background (full width)
-- Section headers: Keep secondary color for "Bill To", "Quote Details", etc.
-- Line items table header: Use secondary color
-- Total row: Use primary color
-- Remove the separate "Project Description" section header
+### 3. Remove container padding for page 2
+- The print-container padding should not apply to page 2's edge-to-edge elements
+- Use negative margins or restructure to allow the letterhead to "break out" of container padding
 
 ---
 
@@ -59,66 +50,107 @@ These padding values create white gaps on the sides of the colored areas.
 
 ### File: `src/components/estimates/PrintableEstimate.tsx`
 
-#### Change 1: Full-bleed header (lines ~1041-1066)
-Remove px-6 from the header container, apply internal padding to the flex content only:
+#### Change 1: Page 2 container - remove top padding (line ~640)
+```tsx
+// Before
+<div data-pdf-section="page-2" className="page-break-before pt-8">
+
+// After
+<div data-pdf-section="page-2" className="page-break-before">
+```
+
+#### Change 2: Classic header in TermsAndExclusionsPage - full-bleed with negative margins (lines ~418-439)
+Apply negative horizontal margins to break out of container padding, and use smaller spacing:
 
 ```tsx
 // Before
-<div className="page-break-avoid mb-6">
-  <div style={{ height: "8px", backgroundColor: primaryColor }}></div>
-  <div className="flex justify-between items-center py-4 px-6" style={{ backgroundColor: secondaryColor }}>
+return (
+  <div className="mb-6">
+    <div style={{ height: "6px", backgroundColor: primaryColor }}></div>
+    <div className="flex justify-between items-center py-4 px-4" style={{ backgroundColor: secondaryColor }}>
 
 // After
-<div className="page-break-avoid mb-4">
-  <div style={{ height: "8px", backgroundColor: primaryColor }}></div>
-  <div style={{ backgroundColor: secondaryColor }}>
-    <div className="flex justify-between items-center py-3 px-6">
+return (
+  <div className="mb-4 -mx-5"> {/* Negative margin to break out of container padding */}
+    <div style={{ height: "6px", backgroundColor: primaryColor }}></div>
+    <div style={{ backgroundColor: secondaryColor }}>
+      <div className="flex justify-between items-center py-3 px-5">
 ```
 
-#### Change 2: Remove px-4 from content sections (lines ~1069, 1114, 1128)
-The print-container already has padding, so sections don't need additional horizontal padding:
+#### Change 3: Reduce section margins (lines ~473-498, 524-541, 566-584)
+Change all boxed sections from `mb-8` to `mb-4`:
+
+```tsx
+// Inclusions, Exclusions, Payment Terms sections
+// Before
+<div className="mb-8">
+
+// After
+<div className="mb-4">
+```
+
+#### Change 4: Reduce internal padding in sections
+```tsx
+// Before
+<div className="p-4 bg-gray-50">
+
+// After
+<div className="p-3 bg-gray-50">
+```
+
+#### Change 5: Compact Authorization block (lines ~611-636)
+```tsx
+// Before
+<div className="p-6 bg-white">
+  <p className="text-xs text-gray-600 mb-6">
+  ...
+  <div className="border-b-2 border-gray-400 h-10 mb-1"></div>
+
+// After
+<div className="p-4 bg-white">
+  <p className="text-xs text-gray-600 mb-4">
+  ...
+  <div className="border-b-2 border-gray-400 h-8 mb-1"></div>
+```
+
+#### Change 6: Smaller font and reduced line items
+Make inclusion/exclusion list items more compact:
+```tsx
+// Before
+<li key={index} className="text-sm text-green-700 flex items-start gap-2">
+
+// After  
+<li key={index} className="text-xs text-green-700 flex items-start gap-2">
+```
+
+#### Change 7: Print container padding adjustment
+In `printStyles`, change the padding for screen mode to allow full-bleed sections:
 
 ```tsx
 // Before
-<div className="page-break-avoid grid grid-cols-2 gap-6 mb-6 px-4">
+padding: 20px;
 
 // After
-<div className="page-break-avoid grid grid-cols-2 gap-4 mb-4">
+padding: 20px 20px 20px 20px;
 ```
 
-#### Change 3: Remove Project Description section (lines ~1112-1125)
-The site address is already shown in "Bill To", so this is redundant. Remove the entire conditional block.
-
-#### Change 4: Remove Project Summary from page 1 (lines ~1129-1135)
-Remove the `<ProjectSummarySection>` call from the Classic template's page 1 to save vertical space.
-
-#### Change 5: Compact Authorization block (lines ~1259-1283)
-Reduce padding and vertical spacing:
-
+And for page 2, add a class that allows negative margins to work:
 ```tsx
-// Before
-<div className="page-break-avoid mt-8 border...">
-  <div className="p-6 bg-white">
-    <p className="text-xs text-gray-600 mb-6">
-
-// After
-<div className="page-break-avoid mt-auto border...">  {/* mt-auto pushes to bottom */}
-  <div className="p-4 bg-white">
-    <p className="text-xs text-gray-600 mb-4">
+.print-container {
+  overflow: visible; // Allow negative margins to extend
+}
 ```
-
-#### Change 6: Reduce table row padding
-In the line items table, reduce py-3 to py-2 for more compact rows.
 
 ---
 
 ## Visual Result
-- Header accent bar + company name area: Full width colored block, no white gaps
-- Content sections: Properly padded but no horizontal offsets from header
-- All content fits on page 1 with Authorization block at the bottom
-- Cleaner, more professional appearance
+- Page 2 header: Primary accent bar + secondary color background extending to page edges (no white gaps)
+- All sections fit on one page with compact spacing
+- Professional appearance with consistent letterhead across both pages
+- Content is still readable but uses space more efficiently
 
 ---
 
 ## Files to Change
-- `src/components/estimates/PrintableEstimate.tsx` (Classic template section, lines 1019-1285)
+- `src/components/estimates/PrintableEstimate.tsx` (TermsAndExclusionsPage component, lines 374-648)
+
