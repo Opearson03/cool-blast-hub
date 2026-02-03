@@ -323,10 +323,10 @@ export function PlanViewer({
         </div>
       )}
 
-      {/* Main viewer container */}
+      {/* Main viewer container - uses absolute positioning to prevent centering shifts on resize */}
       <div
         ref={containerRef}
-        className="aspect-[4/3] flex items-center justify-center overflow-hidden relative"
+        className="aspect-[4/3] overflow-hidden relative"
         style={{ cursor: isDragging ? 'grabbing' : 'default' }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -349,9 +349,9 @@ export function PlanViewer({
           </div>
         )}
 
-        {/* Plan content with transform */}
+        {/* Plan content with transform - anchored at top-left to prevent shift on container resize */}
         <div
-          className="relative"
+          className="absolute top-0 left-0"
           style={{
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
             transformOrigin: 'top left',
@@ -361,14 +361,12 @@ export function PlanViewer({
           {planType === 'pdf' ? (
             <canvas
               ref={canvasRef}
-              className="max-w-full max-h-full"
               style={{ display: isLoading && !naturalDimensions.width ? 'none' : 'block' }}
             />
           ) : (
             <img
               src={planUrl}
               alt="Building plan"
-              className="max-w-full max-h-full"
               onLoad={handleImageLoad}
               onError={() => {
                 setError('Failed to load image');
