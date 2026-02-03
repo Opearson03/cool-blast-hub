@@ -1145,8 +1145,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               )}
             </div>
 
-            {/* Two-column info boxes */}
-            <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6">
+            {/* Two-column info boxes - aligned at top */}
+            <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 items-start">
               {/* Left - Customer/Quote Info */}
               <div>
                 <table className="w-full text-sm border border-gray-300">
@@ -1171,7 +1171,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 </table>
               </div>
 
-              {/* Right - Business Info */}
+              {/* Right - Business Info with matching structure */}
               <div>
                 <p className="text-sm font-bold text-gray-900 mb-2 uppercase">{business?.name || "Your Business Name"}</p>
                 <table className="w-full text-sm border border-gray-300">
@@ -1188,12 +1188,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                       <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Address</td>
                       <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.address || "-"}</td>
                     </tr>
-                    {business?.abn && (
-                      <tr>
-                        <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">ABN</td>
-                        <td className="border border-gray-300 px-3 py-2 text-gray-900">{business.abn}</td>
-                      </tr>
-                    )}
+                    <tr>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">ABN</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.abn || "-"}</td>
+                    </tr>
                   </tbody>
                 </table>
               </div>
@@ -1368,10 +1366,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>FROM:</h3>
                 <div className="space-y-1">
                   <p className="text-sm font-semibold text-gray-900">{business?.name || "Company Name"}</p>
-                  {business?.address && <p className="text-sm text-gray-700">{business.address}</p>}
-                  {business?.phone && <p className="text-sm text-gray-700">{business.phone}</p>}
-                  {business?.email && <p className="text-sm text-gray-700">{business.email}</p>}
-                  {business?.abn && <p className="text-xs text-gray-500 mt-1">ABN: {business.abn}</p>}
+                  <p className="text-sm text-gray-700">{business?.address || "-"}</p>
+                  <p className="text-sm text-gray-700">{business?.phone || "-"}</p>
+                  <p className="text-sm text-gray-700">{business?.email || "-"}</p>
+                  <p className="text-xs text-gray-500 mt-1">ABN: {business?.abn || "-"}</p>
                 </div>
               </div>
 
@@ -1392,17 +1390,17 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             <div className="flex justify-between items-center py-3 border-b border-gray-200">
               <div className="flex gap-8">
                 <div>
-                  <span className="text-sm font-semibold" style={{ color: primaryColor }}>Quote Number:</span>
+                  <span className="text-sm font-semibold" style={{ color: secondaryColor }}>Quote Number:</span>
                   <span className="text-sm text-gray-700 ml-2">{estimate.estimate_number}</span>
                 </div>
                 <div>
-                  <span className="text-sm font-semibold" style={{ color: primaryColor }}>Date:</span>
+                  <span className="text-sm font-semibold" style={{ color: secondaryColor }}>Date:</span>
                   <span className="text-sm text-gray-700 ml-2">{format(new Date(estimate.created_at), "d MMMM yyyy")}</span>
                 </div>
               </div>
               {estimate.valid_until && (
                 <div>
-                  <span className="text-sm font-semibold" style={{ color: primaryColor }}>Valid Until:</span>
+                  <span className="text-sm font-semibold" style={{ color: secondaryColor }}>Valid Until:</span>
                   <span className="text-sm text-gray-700 ml-2">{format(new Date(estimate.valid_until), "d MMMM yyyy")}</span>
                 </div>
               )}
