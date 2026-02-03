@@ -51,7 +51,7 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
 
   // Branding
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
-  const [quoteTemplate, setQuoteTemplate] = useState("classic");
+  const [quoteTemplate, setQuoteTemplate] = useState("minimal");
   const [quotePrimaryColor, setQuotePrimaryColor] = useState("#f97316");
   const [quoteSecondaryColor, setQuoteSecondaryColor] = useState("#1f2937");
   const [quoteFont, setQuoteFont] = useState("Arial");
@@ -425,19 +425,24 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
               <Label className="text-sm font-medium mb-2 block">Template</Label>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { id: "classic", name: "Classic" },
-                  { id: "minimal", name: "Minimal" },
+                  { id: "minimal", name: "Simple", recommended: true },
+                  { id: "classic", name: "Classic", recommended: false },
                 ].map((template) => (
                   <button
                     key={template.id}
                     type="button"
                     onClick={() => setQuoteTemplate(template.id)}
-                    className={`p-3 border rounded-lg text-center transition-all ${
+                    className={`p-3 border rounded-lg text-center transition-all relative ${
                       quoteTemplate === template.id
                         ? "border-primary bg-primary/10 ring-2 ring-primary"
                         : "border-border hover:border-primary/50"
                     }`}
                   >
+                    {template.recommended && (
+                      <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-medium">
+                        Recommended
+                      </span>
+                    )}
                     <FileText className="w-4 h-4 mx-auto mb-1" />
                     <span className="font-medium text-sm">{template.name}</span>
                   </button>
