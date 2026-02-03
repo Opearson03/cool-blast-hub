@@ -792,7 +792,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 items-start">
               {/* Left - Customer/Quote Info (4 rows) */}
               <div>
-                <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">Customer Details</p>
+                <p className="text-sm font-bold text-gray-900 mb-2 uppercase">CUSTOMER DETAILS</p>
                 <table className="w-full text-sm border border-gray-300 table-fixed">
                   <colgroup>
                     <col style={{ width: "40%" }} />
@@ -821,7 +821,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
               {/* Right - Business Info (4 rows to match left side) */}
               <div>
-                <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">{business?.name || "Your Business Name"}</p>
+                <p className="text-sm font-bold text-gray-900 mb-2 uppercase">{business?.name || "Your Business Name"}</p>
                 <table className="w-full text-sm border border-gray-300 table-fixed">
                   <colgroup>
                     <col style={{ width: "40%" }} />
