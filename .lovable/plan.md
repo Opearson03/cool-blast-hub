@@ -1,203 +1,224 @@
 
 
 ## Goal
-Update the **Classic** quote template to match the core features of the **Minimal** template:
-1. Use secondary color as header (already done)
-2. Add properly structured client details with aligned tables
-3. Show pricing broken into line items with markup distributed (not just checkmarks)
+1. **Remove the "Modern" template option** from all template selection UIs
+2. **Replace the static preview thumbnail** with an interactive in-app PDF viewer that shows a real-time preview of the selected template
 
 ---
 
-## Current State Analysis
+## Current State
 
-### Classic Template Issues
-| Feature | Current Classic | Target (Match Minimal) |
-|---------|-----------------|------------------------|
-| Header | Uses secondary color banner | Keep as-is (already matches) |
-| Client/Business Info | Side-by-side free-form text | Structured tables with fixed heights |
-| Line Items | Shows "Scope of Works" with checkmarks only | Table with Price, Qty, GST%, Total Inc GST |
-| Markup | Not distributed - only shows "Included" checkmarks | Distribute markup into each line item |
-| Grand Total | Shows at bottom when no parsedItems | Show in table footer |
+### Template Selection Locations
+| Location | Current Behavior |
+|----------|------------------|
+| `AdminSettings.tsx` (lines 569-592) | Shows 3 template buttons: Classic, Modern, Minimal |
+| `OnboardingWizard.tsx` (lines 426-446) | Shows 3 template buttons: Classic, Modern, Minimal |
+| `QuoteTemplatePreview.tsx` | Renders static HTML previews for all 3 templates |
+| `PrintableEstimate.tsx` | Contains full PDF rendering logic for all 3 templates |
+
+### Preview System
+Currently, the "Live Preview" in settings displays a tiny static HTML thumbnail (`QuoteTemplatePreview` component) that simulates what the quote looks like, but it's not an actual PDF preview.
 
 ---
 
 ## Implementation Plan
 
-### File: `src/components/estimates/PrintableEstimate.tsx`
+### Phase 1: Remove "Modern" Template Option
 
-### 1. Replace the FROM/TO free-form section with structured tables (like Minimal)
+#### File: `src/pages/admin/AdminSettings.tsx`
+- **Line 572**: Remove the "Modern" entry from the template array
+- Change from:
+  ```tsx
+  [
+    { id: "classic", name: "Classic", desc: "Traditional professional layout" },
+    { id: "modern", name: "Modern", desc: "Clean, bold design" },
+    { id: "minimal", name: "Minimal", desc: "Simple and elegant" },
+  ]
+  ```
+- To:
+  ```tsx
+  [
+    { id: "classic", name: "Classic", desc: "Traditional professional layout" },
+    { id: "minimal", name: "Minimal", desc: "Simple and elegant" },
+  ]
+  ```
+- Update grid to `grid-cols-2` (from `grid-cols-3`)
 
-**Current (lines 1419-1464):**
-- Two columns with free-form `<p>` tags for FROM (business) and TO (client)
-- Quote meta shown separately below
+#### File: `src/components/onboarding/OnboardingWizard.tsx`
+- **Lines 426-431**: Remove "Modern" from template options
+- Update grid to `grid-cols-2`
 
-**New approach:**
-- Two side-by-side `<table>` elements matching Minimal's structure
-- Left table: Customer Details (4 rows: Name, Quote #, Date, Valid Until)
-- Right table: Business Details (4 rows: Email, Phone, Address, ABN)
-- Use fixed row heights (`h-[36px]`), `whitespace-nowrap` on labels, `truncate` on values
-- Title headers with fixed height (`h-5`)
+#### File: `src/components/onboarding/QuoteTemplatePreview.tsx`
+- **Lines 22-163**: Remove the entire "Modern" template conditional block
 
-### 2. Replace ScopeLineItemsSection with a pricing table (like Minimal)
-
-**Current behavior:**
-The Classic template calls `ScopeLineItemsSection` which renders scopes with just a checkmark ("Included") - no pricing
-
-**New behavior:**
-Replace with a custom table that:
-- Calculates `markupMultiplier = 1 + (globalMargin / 100)`
-- Shows each scope as a row with:
-  - Description: scope name
-  - Price (ex GST): `(calculatedTotal * markupMultiplier) / 1.1`
-  - Qty: 1
-  - GST %: 10%
-  - Total Inc GST: `calculatedTotal * markupMultiplier`
-- Applies rounding adjustment to largest item
-- Alternating row colors
-- Summary rows for Subtotal, GST, Grand Total at bottom
-
-### 3. Update table styling to match Classic aesthetic
-
-- Header row uses `secondaryColor` background
-- Grand total row uses `primaryColor` background
-- Border styling consistent with Classic template
+#### File: `src/components/estimates/PrintableEstimate.tsx`
+- **Lines 916-1111**: Remove the entire `if (template === "modern")` block
+- **Lines 175-285**: Remove "modern" branch from `ProjectSummarySection`
+- **Lines 289-391**: Remove "modern" branch from helper sections
+- **Lines 394-485**: Remove "modern" branch from additional sections
+- **Lines 489-555**: Remove "modern" branch from `ClientInfoHeader`
+- **Lines 560-630**: Remove "modern" branch from `ScopeLineItemsSection`
+- **Lines 634-688**: Remove "modern" branch from other sections
+- **Lines 692-748**: Remove "modern" branch from `NotesBasedScopeBreakdown`
+- **Lines 752-847**: Remove "modern" branch from `TermsAndExclusionsPage`
 
 ---
 
-## Code Changes Summary
+### Phase 2: Add In-App PDF Preview
 
-### Section 1: Header Tables (replaces lines 1419-1464)
+#### Approach
+Replace the static `QuoteTemplatePreview` component with an embedded PDF viewer that:
+1. Generates a real PDF blob using the existing `generateQuotePDF` function
+2. Displays it in an `<iframe>` or using PDF.js for in-app viewing
+3. Updates in real-time when template/colors/font settings change
 
-Replace the FROM/TO divs with structured tables:
+#### File: `src/pages/admin/AdminSettings.tsx`
 
+**New state variables:**
 ```tsx
-{/* Two-column info boxes - aligned at top with matching structure */}
-<div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 items-start px-4">
-  {/* Left - Customer/Quote Info (4 rows) */}
-  <div>
-    <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">Customer Details</p>
-    <table className="w-full text-sm border border-gray-300 table-fixed">
-      <colgroup>
-        <col style={{ width: "40%" }} />
-        <col style={{ width: "60%" }} />
-      </colgroup>
-      <tbody>
-        <tr>
-          <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Customer name</td>
-          <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.client_name}</td>
-        </tr>
-        {/* ... 3 more rows for Quote #, Date, Valid Until */}
-      </tbody>
-    </table>
-  </div>
+const [pdfPreviewUrl, setPdfPreviewUrl] = useState<string | null>(null);
+const [generatingPreview, setGeneratingPreview] = useState(false);
+```
 
-  {/* Right - Business Info (4 rows) */}
-  <div>
-    <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">{business?.name}</p>
-    <table className="w-full text-sm border border-gray-300 table-fixed">
-      {/* ... matching structure with Email, Phone, Address, ABN */}
-    </table>
+**New effect to generate preview PDF:**
+```tsx
+// Debounced PDF preview generation
+useEffect(() => {
+  const timer = setTimeout(async () => {
+    if (!business) return;
+    
+    setGeneratingPreview(true);
+    try {
+      // Generate a sample PDF using current branding settings
+      const sampleEstimate = {
+        estimate_number: "Q-PREVIEW",
+        client_name: "Sample Customer",
+        company_name: null,
+        client_email: "customer@example.com",
+        client_phone: "0400 000 000",
+        site_address: "123 Example Street, Sydney NSW 2000",
+        description: "Sample concrete work",
+        total_amount: 12500,
+        valid_until: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        notes: null,
+        created_at: new Date().toISOString(),
+      };
+      
+      const tempBusiness = {
+        name: name || "Your Business",
+        logo_url: logoUrl,
+        address: address || "123 Business Street",
+        phone: phone || "0400 000 000",
+        email: email || "email@company.com",
+        abn: abn,
+        quote_template: quoteTemplate,
+        quote_primary_color: quotePrimaryColor,
+        quote_secondary_color: quoteSecondaryColor,
+        quote_font: quoteFont,
+      };
+      
+      const pdfBase64 = await generateQuotePDF({
+        estimate: sampleEstimate,
+        business: tempBusiness,
+        scopeData: { _selectedScopes: ["Raft Slab"], _globalMargin: 15 },
+      });
+      
+      // Convert base64 to blob URL
+      const byteCharacters = atob(pdfBase64);
+      const byteNumbers = new Uint8Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const blob = new Blob([byteNumbers], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      
+      // Revoke previous URL to prevent memory leaks
+      if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+      setPdfPreviewUrl(url);
+    } catch (error) {
+      console.error("Failed to generate preview:", error);
+    } finally {
+      setGeneratingPreview(false);
+    }
+  }, 500); // 500ms debounce
+  
+  return () => clearTimeout(timer);
+}, [quoteTemplate, quotePrimaryColor, quoteSecondaryColor, quoteFont, logoUrl, name, business]);
+```
+
+**Replace the Live Preview section (lines 665-682):**
+```tsx
+{/* Live Preview - Embedded PDF */}
+<div>
+  <Label className="text-sm font-medium mb-3 flex items-center gap-2">
+    <Eye className="w-4 h-4" />
+    Live Preview
+  </Label>
+  <div className="border rounded-lg overflow-hidden bg-gray-100" style={{ height: "400px" }}>
+    {generatingPreview ? (
+      <div className="flex items-center justify-center h-full">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        <span className="ml-2 text-sm text-muted-foreground">Generating preview...</span>
+      </div>
+    ) : pdfPreviewUrl ? (
+      <iframe
+        src={pdfPreviewUrl}
+        className="w-full h-full"
+        title="Quote Preview"
+      />
+    ) : (
+      <div className="flex items-center justify-center h-full text-muted-foreground">
+        <p className="text-sm">Preview will appear here</p>
+      </div>
+    )}
   </div>
+  <p className="text-xs text-muted-foreground mt-2">
+    This is a live preview of your quote template with sample data.
+  </p>
 </div>
 ```
 
-### Section 2: Line Items Table with Markup (replaces ScopeLineItemsSection call ~lines 1477-1494)
-
-Replace the `ScopeLineItemsSection` call with inline table logic matching Minimal:
-
+**Add cleanup on unmount:**
 ```tsx
-{(() => {
-  // Calculate markup multiplier from global margin
-  const globalMargin = scopeData?._globalMargin || 0;
-  const markupMultiplier = 1 + (Number(globalMargin) / 100);
-  
-  // Calculate marked-up totals for each scope
-  const markedUpScopes = quotePDFData.scopeBreakdowns.map(scope => ({
-    ...scope,
-    markedUpTotal: (scope.calculatedTotal || 0) * markupMultiplier
-  }));
-  
-  // Apply rounding adjustment to largest item
-  const markedUpSum = markedUpScopes.reduce((sum, s) => sum + s.markedUpTotal, 0);
-  const roundingDiff = estimate.total_amount - markedUpSum;
-  
-  if (markedUpScopes.length > 0 && Math.abs(roundingDiff) > 0.001) {
-    const largestIdx = markedUpScopes.reduce(
-      (maxIdx, scope, idx, arr) => scope.markedUpTotal > arr[maxIdx].markedUpTotal ? idx : maxIdx, 
-      0
-    );
-    markedUpScopes[largestIdx].markedUpTotal += roundingDiff;
-  }
-
-  return markedUpScopes.length > 0 ? (
-    <table className="w-full text-sm border-collapse">
-      <thead>
-        <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
-          <th>Description</th>
-          <th>Price</th>
-          <th>Qty</th>
-          <th>GST %</th>
-          <th>Total Inc GST</th>
-        </tr>
-      </thead>
-      <tbody>
-        {markedUpScopes.map((scope, index) => {
-          const totalIncGst = scope.markedUpTotal;
-          const priceExGst = totalIncGst / 1.1;
-          return (
-            <tr key={index}>
-              <td>{scope.scopeName}</td>
-              <td>{formatCurrency(priceExGst)}</td>
-              <td>1</td>
-              <td>10%</td>
-              <td>{formatCurrency(totalIncGst)}</td>
-            </tr>
-          );
-        })}
-        {/* Subtotal, GST, Grand Total rows */}
-        <tr>
-          <td colSpan={4}>Subtotal (ex GST)</td>
-          <td>{formatCurrency(estimate.total_amount / 1.1)}</td>
-        </tr>
-        <tr>
-          <td colSpan={4}>GST (10%)</td>
-          <td>{formatCurrency(estimate.total_amount - estimate.total_amount / 1.1)}</td>
-        </tr>
-        <tr style={{ backgroundColor: primaryColor, color: "white" }}>
-          <td colSpan={4}>GRAND TOTAL</td>
-          <td>{formatCurrency(estimate.total_amount)}</td>
-        </tr>
-      </tbody>
-    </table>
-  ) : null;
-})()}
+useEffect(() => {
+  return () => {
+    if (pdfPreviewUrl) URL.revokeObjectURL(pdfPreviewUrl);
+  };
+}, [pdfPreviewUrl]);
 ```
 
-### Section 3: Remove duplicate totals section
-
-Since the pricing table now includes Subtotal/GST/Grand Total rows, remove the standalone totals section at lines 1531-1558 (the "If no line items, show total separately" block).
-
----
-
-## Result
-
-The Classic template will now display:
-
-| Before | After |
-|--------|-------|
-| Free-form FROM/TO text blocks | Structured aligned tables (matching Minimal) |
-| Scope of Works with checkmarks | Pricing table with ex-GST price, Qty, GST%, Total Inc GST |
-| Markup hidden/not visible | Markup distributed into each line item |
-| Separate totals section | Integrated Subtotal/GST/Total in table footer |
+**Add import:**
+```tsx
+import { generateQuotePDF } from "@/lib/generate-quote-pdf";
+```
 
 ---
 
 ## Files to Change
 
-- `src/components/estimates/PrintableEstimate.tsx`
-  - Lines ~1419-1464: Replace FROM/TO section with structured tables
-  - Lines ~1477-1525: Replace ScopeLineItemsSection with pricing table including markup
-  - Lines ~1531-1558: Remove redundant totals section (now in table)
+| File | Changes |
+|------|---------|
+| `src/pages/admin/AdminSettings.tsx` | Remove "Modern" option, replace preview with PDF iframe |
+| `src/components/onboarding/OnboardingWizard.tsx` | Remove "Modern" option from template selection |
+| `src/components/onboarding/QuoteTemplatePreview.tsx` | Remove "Modern" template code block |
+| `src/components/estimates/PrintableEstimate.tsx` | Remove all "modern" template branches |
 
-No backend changes required.
+---
+
+## Technical Notes
+
+### PDF Preview Approach
+- Uses the existing `generateQuotePDF` function which returns a base64-encoded PDF
+- Converts to a Blob URL for embedding in an `<iframe>`
+- Debounced (500ms) to prevent excessive regeneration during rapid color/font changes
+- Memory-safe with proper `URL.revokeObjectURL()` cleanup
+
+### Why iframe instead of PDF.js?
+- Native browser PDF viewer is sufficient for preview purposes
+- No additional library code needed
+- Works reliably across modern browsers
+- PDF.js is already used elsewhere in the app if needed for fallback
+
+### Data Migration Note
+Users who previously had "modern" as their saved template will fall back to "classic" (the default) since the "modern" rendering code will be removed and `template || "classic"` is used throughout.
 
