@@ -354,7 +354,7 @@ export function PlanViewer({
           className="relative"
           style={{
             transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`,
-            transformOrigin: 'center',
+            transformOrigin: 'top left',
             transition: isPanning ? 'none' : 'transform 0.1s ease-out',
           }}
         >
