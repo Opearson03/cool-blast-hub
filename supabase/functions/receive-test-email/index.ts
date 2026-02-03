@@ -33,13 +33,15 @@ type ResolvedAttachment = {
   source: 'payload' | 'resend_download';
 };
 
-type DocumentType = 'building_plan' | 'test_result' | 'delivery_docket';
+type DocumentType = 'building_plan' | 'test_result' | 'delivery_docket' | 'general';
 type MatchStatus = 'pending' | 'job_matched' | 'auto_matched';
 
 // Keywords for document type detection
 const TEST_RESULT_KEYWORDS = ['test', 'lab', 'result', 'mpa', 'strength', 'cylinder', 'slump', '7 day', '28 day', '7-day', '28-day', 'compressive', 'laboratory'];
 const DELIVERY_DOCKET_KEYWORDS = ['docket', 'delivery', 'cartage', 'truck', 'load', 'batch', 'dispatch', 'concrete delivery', 'ticket'];
 const BUILDING_PLAN_KEYWORDS = ['plan', 'plans', 'drawing', 'drawings', 'quote', 'quote request', 'estimate', 'pricing', 'price', 'architectural', 'engineering', 'structural', 'floor plan', 'site plan', 'blueprint', 'specs', 'specification', 'tender', 'rfq', 'request for quote', 'footing', 'slab'];
+// Keywords that indicate an email is NOT a work document (general/misc)
+const GENERAL_EXCLUSION_KEYWORDS = ['invoice', 'statement', 'account', 'payment', 'receipt', 'subscription', 'newsletter', 'unsubscribe', 'marketing', 'promo', 'promotion', 'sale', 'discount', 'offer', 'advertisement'];
 
 function isLikelyPdfAttachment(meta: { filename?: string; content_type?: string }): boolean {
   const ct = meta.content_type?.toLowerCase() || '';
@@ -165,6 +167,13 @@ async function resolvePdfAttachments(event: ResendEmailEvent): Promise<ResolvedA
 function detectDocumentType(subject: string, filename: string, fromEmail: string): DocumentType {
   const searchText = `${subject} ${filename} ${fromEmail}`.toLowerCase();
   
+  // First check if it's clearly a general/misc email (invoices, marketing, etc)
+  for (const keyword of GENERAL_EXCLUSION_KEYWORDS) {
+    if (searchText.includes(keyword)) {
+      return 'general';
+    }
+  }
+  
   // Check for delivery docket keywords first (most specific)
   for (const keyword of DELIVERY_DOCKET_KEYWORDS) {
     if (searchText.includes(keyword)) {
@@ -186,9 +195,9 @@ function detectDocumentType(subject: string, filename: string, fromEmail: string
     }
   }
   
-  // Default to building_plan for PDFs without clear categorization
-  // (most emailed PDFs to a concreter are likely plans for quoting)
-  return 'building_plan';
+  // Default to 'general' for emails without clear categorization
+  // Users can manually reclassify if needed
+  return 'general';
 }
 
 function normalizeAddress(addr: string): string {
@@ -512,23 +521,26 @@ serve(async (req) => {
     if (resolvedPdfAttachments.length === 0) {
       console.log('No PDF attachments could be resolved');
       
-      // Still create a pending plan record even without PDF (might be just an inquiry)
+      // Get email body for context
+      const emailBody = payload.data.text || payload.data.html?.replace(/<[^>]*>/g, ' ').slice(0, 2000) || null;
+      
+      // Create a pending_general record for emails without PDF attachments
       const { error: insertError } = await supabase
-        .from('pending_plans')
+        .from('pending_general')
         .insert({
           business_id: business.id,
           from_email: from,
           from_name: null,
           subject: subject || '(No subject)',
           received_at: new Date().toISOString(),
-          file_url: '',
-          file_name: 'No attachment',
-          extracted_data: { note: 'No PDF attachment in email' },
+          file_url: null,
+          file_name: null,
+          email_body: emailBody,
           status: 'pending'
         });
 
       if (insertError) {
-        console.error('Failed to insert pending plan:', insertError);
+        console.error('Failed to insert pending general:', insertError);
       }
 
       return new Response(
@@ -560,6 +572,7 @@ serve(async (req) => {
         let folderPrefix = 'plans';
         if (documentType === 'test_result') folderPrefix = 'tests';
         else if (documentType === 'delivery_docket') folderPrefix = 'dockets';
+        else if (documentType === 'general') folderPrefix = 'general';
         
         const storagePath = `${business.id}/inbound/${folderPrefix}/${timestamp}_${safeFilename}`;
 
@@ -719,6 +732,40 @@ serve(async (req) => {
           });
 
           console.log('Created pending document:', pendingDoc.id);
+
+        } else if (documentType === 'general') {
+          // Process as general/misc document
+          const emailBody = payload.data.text || payload.data.html?.replace(/<[^>]*>/g, ' ').slice(0, 2000) || null;
+          
+          const { data: pendingGeneral, error: insertError } = await supabase
+            .from('pending_general')
+            .insert({
+              business_id: business.id,
+              from_email: from,
+              from_name: null,
+              subject: subject || '(No subject)',
+              received_at: new Date().toISOString(),
+              file_url: fileUrl,
+              file_name: attachment.filename,
+              email_body: emailBody,
+              status: 'pending'
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Failed to insert pending general:', insertError);
+            continue;
+          }
+
+          results.push({
+            filename: attachment.filename,
+            id: pendingGeneral.id,
+            type: 'general',
+            success: true
+          });
+
+          console.log('Created pending general:', pendingGeneral.id);
 
         } else {
           // Process as test result

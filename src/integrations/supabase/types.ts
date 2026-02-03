@@ -1632,6 +1632,65 @@ export type Database = {
           },
         ]
       }
+      pending_general: {
+        Row: {
+          business_id: string
+          created_at: string
+          email_body: string | null
+          file_name: string | null
+          file_url: string | null
+          from_email: string
+          from_name: string | null
+          id: string
+          notes: string | null
+          received_at: string
+          rejection_reason: string | null
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          email_body?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          from_email: string
+          from_name?: string | null
+          id?: string
+          notes?: string | null
+          received_at?: string
+          rejection_reason?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          email_body?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          notes?: string | null
+          received_at?: string
+          rejection_reason?: string | null
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_general_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_invites: {
         Row: {
           accepted_at: string | null

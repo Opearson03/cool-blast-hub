@@ -17,13 +17,23 @@ import {
   ImageIcon,
   PenLine,
   ClipboardList,
-  Link2
+  Link2,
+  Mail,
+  RefreshCw
 } from "lucide-react";
 import { pdfjs as pdfjsLib } from "@/lib/pdfjsWorker";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
 
 interface InboxItem {
   id: string;
-  type: "plan" | "test" | "docket";
+  type: "plan" | "test" | "docket" | "general";
   from_email: string;
   from_name: string | null;
   subject: string | null;
@@ -43,6 +53,7 @@ interface InboxDetailSheetProps {
   onStartEstimate?: (item: InboxItem) => void;
   onAssignTest?: (item: InboxItem) => void;
   onAssignDocket?: (item: InboxItem) => void;
+  onReclassify?: () => void;
 }
 
 type FileType = 'pdf' | 'image' | 'other';
@@ -72,7 +83,8 @@ export function InboxDetailSheet({
   onNavigateToLinked,
   onStartEstimate,
   onAssignTest,
-  onAssignDocket
+  onAssignDocket,
+  onReclassify
 }: InboxDetailSheetProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -80,6 +92,7 @@ export function InboxDetailSheet({
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null);
+  const [isReclassifying, setIsReclassifying] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -217,6 +230,8 @@ export function InboxDetailSheet({
         return <FlaskConical className="h-4 w-4 text-secondary-foreground" />;
       case "docket":
         return <Truck className="h-4 w-4 text-muted-foreground" />;
+      case "general":
+        return <Mail className="h-4 w-4 text-muted-foreground" />;
       default:
         return <FileText className="h-4 w-4" />;
     }
@@ -227,7 +242,124 @@ export function InboxDetailSheet({
       case "plan": return "Plan";
       case "test": return "Test Result";
       case "docket": return "Docket";
+      case "general": return "General";
       default: return type;
+    }
+  };
+
+  // Handle reclassifying an inbox item to a different type
+  const handleReclassify = async (newType: string) => {
+    if (!item || newType === item.type) return;
+    
+    setIsReclassifying(true);
+    try {
+      // Get current table and target table
+      const sourceTable = getTableForType(item.type);
+      const targetTable = getTableForType(newType as InboxItem["type"]);
+      
+      if (!sourceTable || !targetTable) {
+        toast.error("Invalid reclassification");
+        return;
+      }
+
+      // Get the full record from the source table
+      const { data: sourceRecord, error: fetchError } = await supabase
+        .from(sourceTable as any)
+        .select("*")
+        .eq("id", item.id)
+        .single();
+
+      if (fetchError || !sourceRecord) {
+        throw new Error("Failed to fetch original record");
+      }
+
+      // Create the new record in the target table
+      const newRecord = buildRecordForType(newType as InboxItem["type"], sourceRecord);
+      
+      const { error: insertError } = await supabase
+        .from(targetTable as any)
+        .insert(newRecord);
+
+      if (insertError) {
+        throw new Error("Failed to create reclassified record");
+      }
+
+      // Delete the original record
+      const { error: deleteError } = await supabase
+        .from(sourceTable as any)
+        .delete()
+        .eq("id", item.id);
+
+      if (deleteError) {
+        console.error("Failed to delete original record:", deleteError);
+      }
+
+      toast.success(`Reclassified as ${getTypeLabel(newType)}`);
+      onOpenChange(false);
+      onReclassify?.();
+    } catch (err) {
+      console.error("Reclassification error:", err);
+      toast.error("Failed to reclassify");
+    } finally {
+      setIsReclassifying(false);
+    }
+  };
+
+  const getTableForType = (type: InboxItem["type"]): string | null => {
+    switch (type) {
+      case "plan": return "pending_plans";
+      case "test": return "pending_test_results";
+      case "docket": return "pending_documents";
+      case "general": return "pending_general";
+      default: return null;
+    }
+  };
+
+  const buildRecordForType = (type: InboxItem["type"], source: any): any => {
+    const base = {
+      business_id: source.business_id,
+      from_email: source.from_email,
+      subject: source.subject,
+      received_at: source.received_at,
+      status: "pending",
+    };
+
+    switch (type) {
+      case "plan":
+        return {
+          ...base,
+          from_name: source.from_name || null,
+          file_url: source.file_url || source.lab_report_url || "",
+          file_name: source.file_name || "Reclassified document",
+          extracted_data: source.extracted_data || {},
+          email_body: source.email_body || null,
+        };
+      case "test":
+        return {
+          ...base,
+          lab_report_url: source.file_url || source.lab_report_url || "",
+          extracted_data: source.extracted_data || {},
+          email_body: source.email_body || null,
+        };
+      case "docket":
+        return {
+          ...base,
+          file_url: source.file_url || source.lab_report_url || "",
+          file_name: source.file_name || "Reclassified document",
+          document_type: "delivery_docket",
+          extracted_data: source.extracted_data || {},
+          email_body: source.email_body || null,
+        };
+      case "general":
+        return {
+          ...base,
+          from_name: source.from_name || null,
+          file_url: source.file_url || source.lab_report_url || null,
+          file_name: source.file_name || null,
+          email_body: source.email_body || null,
+        };
+      default:
+        return base;
     }
   };
 
@@ -378,7 +510,7 @@ export function InboxDetailSheet({
         )}
 
         {/* Action buttons based on status and type */}
-        <div className="mt-6 space-y-2">
+        <div className="mt-6 space-y-3">
           {/* For linked items - show navigation */}
           {item.linked_id && (
             <Button
@@ -426,6 +558,59 @@ export function InboxDetailSheet({
                 </Button>
               )}
             </>
+          )}
+
+          {/* Reclassify option for pending items */}
+          {item.status === "pending" && (
+            <div className="pt-2 border-t">
+              <p className="text-xs text-muted-foreground mb-2">Wrong category? Reclassify as:</p>
+              <div className="flex gap-2 flex-wrap">
+                {item.type !== "plan" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReclassify("plan")}
+                    disabled={isReclassifying}
+                  >
+                    {isReclassifying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <FileText className="h-3 w-3 mr-1" />}
+                    Plan
+                  </Button>
+                )}
+                {item.type !== "test" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReclassify("test")}
+                    disabled={isReclassifying}
+                  >
+                    {isReclassifying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <FlaskConical className="h-3 w-3 mr-1" />}
+                    Test Result
+                  </Button>
+                )}
+                {item.type !== "docket" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReclassify("docket")}
+                    disabled={isReclassifying}
+                  >
+                    {isReclassifying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Truck className="h-3 w-3 mr-1" />}
+                    Docket
+                  </Button>
+                )}
+                {item.type !== "general" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReclassify("general")}
+                    disabled={isReclassifying}
+                  >
+                    {isReclassifying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mail className="h-3 w-3 mr-1" />}
+                    General
+                  </Button>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </SheetContent>
