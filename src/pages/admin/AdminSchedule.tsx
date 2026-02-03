@@ -452,7 +452,7 @@ export default function AdminSchedule() {
     }
   };
 
-  const handleRescheduleConfirm = async (action: "cancel" | "reschedule") => {
+  const handleRescheduleConfirm = async (action: "cancel" | "reschedule" | "silent") => {
     if (!pendingReschedule) return;
 
     // Update the pour date first
@@ -466,7 +466,41 @@ export default function AdminSchedule() {
       return;
     }
 
-    // Call the notification edge function
+    // ===== FUTURE: Employee reschedule detection =====
+    // When employee management is enabled, uncomment this block
+    // to also check for assigned crew when rescheduling pours
+    //
+    // const { data: employees } = await supabase
+    //   .from("pour_employees")
+    //   .select(`employee_id, profiles!inner(id, full_name, phone)`)
+    //   .eq("pour_id", pendingReschedule.pourId);
+    //
+    // if (employees && employees.length > 0) {
+    //   // Send push notifications to employees
+    //   await supabase.functions.invoke("notify-crew-reschedule", {
+    //     body: {
+    //       pour_id: pendingReschedule.pourId,
+    //       employee_ids: employees.map(e => e.employee_id),
+    //       old_date: pendingReschedule.oldDate,
+    //       new_date: pendingReschedule.newDate,
+    //     },
+    //   });
+    // }
+    // ===== END FUTURE =====
+
+    // Handle silent move - skip notifications
+    if (action === "silent") {
+      toast({
+        title: "Pour moved",
+        description: "Sub-trades were not notified",
+      });
+      queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
+      setRescheduleDialogOpen(false);
+      setPendingReschedule(null);
+      return;
+    }
+
+    // Call the notification edge function for cancel/reschedule actions
     try {
       const { error: notifyError } = await supabase.functions.invoke("notify-subtrade-reschedule", {
         body: {
