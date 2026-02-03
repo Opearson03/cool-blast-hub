@@ -172,7 +172,10 @@ export const reinforcementRaftModule: EstimateModule = {
     const sheetArea = 14.4;
     const pricePerTonne = getPrice(priceMap, 'rebar', `${defaultBarSize} CB`, 2100);
 
-    if (areas.length > 0) {
+    // Skip generic area mesh for waffle pods - they use dedicated WafflePodToppingMeshInput
+    const skipGenericAreaMesh = scopeData?.scopeId === 'waffle_pod';
+
+    if (areas.length > 0 && !skipGenericAreaMesh) {
       areas.forEach((area) => {
         const reoType = area.reo_type || defaultSlabReoType;
         const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
