@@ -1128,170 +1128,179 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
           <div 
             data-pdf-section="page-1"
             style={{ 
-              minHeight: "277mm", /* A4 height minus margins */
+              minHeight: "277mm",
               display: "flex",
               flexDirection: "column"
             }}
           >
-            {/* Minimal Template - Header with logo */}
-            <div className="page-break-avoid flex items-start justify-between mb-8">
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">{business?.name || "Company Name"}</h1>
-                {business?.abn && <p className="text-xs text-gray-400 mt-1">ABN: {business.abn}</p>}
-              </div>
+            {/* Header - QUOTE title with logo */}
+            <div className="page-break-avoid flex items-start justify-between mb-6">
+              <h1 className="text-3xl font-light tracking-wide" style={{ color: primaryColor }}>QUOTE</h1>
               {business?.logo_url && (
                 <img
                   src={business.logo_url}
                   alt="Company logo"
-                  style={{ maxHeight: "60px", maxWidth: "140px", width: "auto", height: "auto", objectFit: "contain" }}
+                  style={{ maxHeight: "50px", maxWidth: "120px", width: "auto", height: "auto", objectFit: "contain" }}
                 />
               )}
             </div>
 
-            {/* Large centered title */}
-            <div className="text-center my-10">
-              <h2 className="text-4xl font-bold tracking-widest" style={{ color: secondaryColor }}>CONCRETE</h2>
-              <h2 className="text-4xl font-bold tracking-widest" style={{ color: secondaryColor }}>ESTIMATE</h2>
-              <p className="text-sm text-gray-500 mt-2">{estimate.estimate_number}</p>
-            </div>
-
-            {/* From and Bill To - Side by Side */}
-            <div className="page-break-avoid grid grid-cols-2 gap-12 mb-10">
+            {/* Two-column info boxes */}
+            <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6">
+              {/* Left - Customer/Quote Info */}
               <div>
-                <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">From</p>
-                <p className="font-medium text-gray-900">{business?.name || "Company Name"}</p>
-                {business?.address && <p className="text-sm text-gray-600">{business.address}</p>}
-                {business?.phone && <p className="text-sm text-gray-500">{business.phone}</p>}
-                {business?.email && <p className="text-sm text-gray-500">{business.email}</p>}
-              </div>
-              <div>
-                <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Bill To</p>
-                <p className="font-medium text-gray-900">{estimate.client_name}</p>
-                {estimate.company_name && <p className="text-sm text-gray-600">{estimate.company_name}</p>}
-                <p className="text-sm text-gray-600">{estimate.site_address}</p>
-                {estimate.client_phone && <p className="text-sm text-gray-500">{estimate.client_phone}</p>}
-                {estimate.client_email && <p className="text-sm text-gray-500">{estimate.client_email}</p>}
-              </div>
-            </div>
-
-            {/* Estimate Meta */}
-            <div className="page-break-avoid flex justify-end mb-6">
-              <table className="text-sm">
-                <tbody>
-                  <tr>
-                    <td className="text-gray-400 pr-4 py-1">Estimate Date</td>
-                    <td className="text-gray-900">{format(new Date(estimate.created_at), "d MMM yyyy")}</td>
-                  </tr>
-                  {estimate.valid_until && (
+                <table className="w-full text-sm border border-gray-300">
+                  <tbody>
                     <tr>
-                      <td className="text-gray-400 pr-4 py-1">Valid Until</td>
-                      <td className="text-gray-900">{format(new Date(estimate.valid_until), "d MMM yyyy")}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 w-32">Customer name</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{estimate.client_name}</td>
                     </tr>
-                  )}
-                </tbody>
-              </table>
+                    <tr>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Quote number</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{estimate.estimate_number}</td>
+                    </tr>
+                    <tr>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Date</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{format(new Date(estimate.created_at), "d MMM yyyy")}</td>
+                    </tr>
+                    <tr>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Quote valid until</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{estimate.valid_until ? format(new Date(estimate.valid_until), "d MMM yyyy") : "-"}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Right - Business Info */}
+              <div>
+                <p className="text-sm font-bold text-gray-900 mb-2 uppercase">{business?.name || "Your Business Name"}</p>
+                <table className="w-full text-sm border border-gray-300">
+                  <tbody>
+                    <tr>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 w-20">Email</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.email || "-"}</td>
+                    </tr>
+                    <tr>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Phone</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.phone || "-"}</td>
+                    </tr>
+                    <tr>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Address</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.address || "-"}</td>
+                    </tr>
+                    {business?.abn && (
+                      <tr>
+                        <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">ABN</td>
+                        <td className="border border-gray-300 px-3 py-2 text-gray-900">{business.abn}</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Summary of Customer Requirements */}
+            <div className="page-break-avoid mb-6">
+              <p className="text-xs font-bold uppercase tracking-wide text-gray-700 mb-2">Summary of Customer Requirements</p>
+              <div className="bg-gray-100 border border-gray-300 p-4 min-h-[60px]">
+                <p className="text-sm text-gray-700">{estimate.site_address}</p>
+                {estimate.description && <p className="text-sm text-gray-600 mt-1">{estimate.description}</p>}
+              </div>
             </div>
 
             {/* Flexible content area - grows to fill space */}
             <div className="flex-grow">
-              {/* Project Summary */}
-              <ProjectSummarySection 
-                data={quotePDFData} 
-                primaryColor={primaryColor} 
-                secondaryColor={secondaryColor}
-                template="minimal"
-              />
-
-              {/* Scope of Works as Line Items - above totals */}
-              {quotePDFData.scopeBreakdowns.length > 0 ? (
-                <ScopeLineItemsSection 
-                  data={quotePDFData} 
-                  primaryColor={primaryColor} 
-                  secondaryColor={secondaryColor}
-                  template="minimal"
-                  formatCurrency={formatCurrency}
-                  totalAmount={estimate.total_amount}
-                />
-              ) : parsedNotes.scopeBreakdownFromNotes.length > 0 ? (
-                <NotesBasedScopeBreakdown 
-                  items={parsedNotes.scopeBreakdownFromNotes}
-                  template="minimal"
-                  primaryColor={primaryColor}
-                  secondaryColor={secondaryColor}
-                />
-              ) : null}
-
-              {/* Line Items - minimal table */}
-              {parsedItems.length > 0 && (
-                <div className="page-break-avoid mb-10">
-                  <table className="w-full">
-                    <thead>
-                      <tr style={{ borderBottom: `1px solid ${secondaryColor}` }}>
-                        <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Qty</th>
-                        <th className="text-left py-2 text-xs uppercase tracking-wider text-gray-400 font-normal">Description</th>
-                        <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-24">Unit</th>
-                        <th className="text-right py-2 text-xs uppercase tracking-wider text-gray-400 font-normal w-28">Amount</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedItems.map((item, index) => (
-                        <tr key={index} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                          <td className="py-3 text-sm text-gray-600">{item.quantity}</td>
-                          <td className="py-3 text-sm text-gray-700">{item.description}</td>
-                          <td className="py-3 text-sm text-right text-gray-600">{formatCurrency(item.unitPrice)}</td>
-                          <td className="py-3 text-sm text-right text-gray-900">{formatCurrency(item.total)}</td>
+              {/* Line Items Table with alternating rows */}
+              <div className="page-break-avoid mb-6">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-gray-400">
+                      <th className="text-left py-2 px-2 text-xs font-bold uppercase text-gray-700">Description</th>
+                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-20">Price</th>
+                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-20">Qty</th>
+                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-24">GST %</th>
+                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-24">Amount</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* Scope Items */}
+                    {quotePDFData.scopeBreakdowns.map((scope, index) => {
+                      // Calculate proportional amount if we have total
+                      const scopeAmount = estimate.total_amount ? estimate.total_amount / quotePDFData.scopeBreakdowns.length : 0;
+                      return (
+                        <tr key={`scope-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
+                          <td className="py-2 px-2 text-gray-900">{scope.scopeName}</td>
+                          <td className="py-2 px-2 text-right text-gray-700">-</td>
+                          <td className="py-2 px-2 text-right text-gray-700">1</td>
+                          <td className="py-2 px-2 text-right text-gray-700">10%</td>
+                          <td className="py-2 px-2 text-right text-gray-900 font-medium">Included</td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      );
+                    })}
+                    {/* Legacy line items if no scope breakdowns */}
+                    {quotePDFData.scopeBreakdowns.length === 0 && parsedItems.map((item, index) => (
+                      <tr key={`item-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
+                        <td className="py-2 px-2 text-gray-900">{item.description}</td>
+                        <td className="py-2 px-2 text-right text-gray-700">{formatCurrency(item.unitPrice)}</td>
+                        <td className="py-2 px-2 text-right text-gray-700">{item.quantity}</td>
+                        <td className="py-2 px-2 text-right text-gray-700">10%</td>
+                        <td className="py-2 px-2 text-right text-gray-900 font-medium">{formatCurrency(item.total)}</td>
+                      </tr>
+                    ))}
+                    {/* Empty rows for visual consistency */}
+                    {Array.from({ length: Math.max(0, 8 - quotePDFData.scopeBreakdowns.length - parsedItems.length) }).map((_, index) => {
+                      const rowIndex = quotePDFData.scopeBreakdowns.length + parsedItems.length + index;
+                      return (
+                        <tr key={`empty-${index}`} style={{ backgroundColor: rowIndex % 2 === 0 ? "#f3f4f6" : "white" }}>
+                          <td className="py-2 px-2">&nbsp;</td>
+                          <td className="py-2 px-2"></td>
+                          <td className="py-2 px-2"></td>
+                          <td className="py-2 px-2"></td>
+                          <td className="py-2 px-2 text-right text-gray-400">0.00</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
-            {/* Fixed bottom section - Totals & Signature */}
+            {/* Fixed bottom section - Total */}
             <div className="mt-auto">
-              {/* Total - minimal */}
+              {/* Total Box - Right aligned */}
               <div className="page-break-avoid flex justify-end mb-8">
-                <div className="w-64">
-                  <div className="flex justify-between items-center mb-1 text-sm">
-                    <span className="text-gray-500">Subtotal</span>
-                    <span className="text-gray-700">{formatCurrency(estimate.total_amount / 1.1)}</span>
-                  </div>
-                  <div className="flex justify-between items-center mb-3 text-sm">
-                    <span className="text-gray-500">GST (10%)</span>
-                    <span className="text-gray-700">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</span>
-                  </div>
-                  <div className="flex justify-between items-center pt-3" style={{ borderTop: `2px solid ${primaryColor}` }}>
-                    <span className="text-gray-900 font-medium">Total</span>
-                    <span className="text-2xl font-light" style={{ color: primaryColor }}>
-                      {formatCurrency(estimate.total_amount)}
-                    </span>
+                <div className="flex">
+                  <div className="bg-gray-700 text-white px-4 py-2 text-sm font-bold">TOTAL</div>
+                  <div className="border border-gray-300 px-6 py-2 text-lg font-medium text-gray-900 min-w-[120px] text-right">
+                    {formatCurrency(estimate.total_amount)}
                   </div>
                 </div>
               </div>
 
-              {/* Terms section */}
-              <div className="page-break-avoid">
-                <div className="mb-8">
-                  <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Terms & Conditions</p>
-                  <p className="text-sm text-gray-600">Payment due in {estimate.quote_validity_days || 14} days</p>
+              {/* Terms & Conditions section */}
+              <div className="page-break-avoid mb-6">
+                <p className="text-xs font-bold uppercase tracking-wide text-gray-700 mb-2 border-b border-gray-400 pb-1">Terms & Conditions</p>
+                <div className="text-sm text-gray-600 py-2">
+                  <p>• Quote valid for {estimate.quote_validity_days || 14} days from date of issue</p>
+                  <p>• Prices include GST</p>
                 </div>
+              </div>
 
-                {/* Signature line */}
-                <div className="flex justify-end mb-8">
-                  <div className="text-center">
-                    <div className="w-48 border-b border-gray-400 mb-2"></div>
-                    <p className="text-xs text-gray-400">Customer Signature</p>
-                  </div>
+              {/* Signature line */}
+              <div className="page-break-avoid flex justify-between items-end mb-4">
+                <div>
+                  <div className="w-56 border-b border-gray-400 mb-1"></div>
+                  <p className="text-xs text-gray-500">Customer Signature</p>
                 </div>
+                <div>
+                  <div className="w-40 border-b border-gray-400 mb-1"></div>
+                  <p className="text-xs text-gray-500">Date</p>
+                </div>
+              </div>
 
-                {/* Page 1 Footer - minimal */}
-                <div className="text-center pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
-                  <div className="text-xs text-gray-400 space-x-4">
-                    {business?.phone && <span>{business.phone}</span>}
-                    {business?.email && <span>{business.email}</span>}
-                  </div>
-                </div>
+              {/* Footer */}
+              <div className="text-center pt-4 border-t border-gray-200">
+                <p className="text-xs text-gray-400">{business?.name} • {business?.phone} • {business?.email}</p>
               </div>
             </div>
           </div>
