@@ -437,6 +437,8 @@ export function PlanTakeoffStep({
         slabName: defaultName,
         edgeBeams: [],
         internalBeams: [],
+        pageNumber: currentPage,
+        fileId: currentFileId,
       });
       setSlabWorkflowActive(true);
       setSlabWorkflowStep('name');
@@ -1279,6 +1281,8 @@ export function PlanTakeoffStep({
                 slabName: defaultName,
                 edgeBeams: [],
                 internalBeams: [],
+                pageNumber: currentPage,
+                fileId: currentFileId,
               });
               setSlabWorkflowActive(true);
               setSlabWorkflowStep('name');
@@ -1761,7 +1765,10 @@ export function PlanTakeoffStep({
                   polylinePoints={polylinePoints}
                   isContinuousPolylineMode={isSlabBeamMarking}
                   pendingSlabReference={
-                    slabWorkflowActive && pendingSlabData ? {
+                    // Only show pending slab when on the same page it was drawn on
+                    slabWorkflowActive && pendingSlabData && 
+                    pendingSlabData.fileId === currentFileId && 
+                    pendingSlabData.pageNumber === currentPage ? {
                       points: pendingSlabData.slabPoints,
                       shapeType: pendingSlabData.slabShapeType,
                       color: activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6',
@@ -1769,7 +1776,10 @@ export function PlanTakeoffStep({
                     } : undefined
                   }
                   existingBeamSegments={
-                    slabWorkflowActive && pendingSlabData ? [
+                    // Only show beam segments when on the same page as the slab
+                    slabWorkflowActive && pendingSlabData && 
+                    pendingSlabData.fileId === currentFileId && 
+                    pendingSlabData.pageNumber === currentPage ? [
                       ...pendingSlabData.edgeBeams.map(beam => ({
                         points: beam.points,
                         type: 'edge' as const,
@@ -1781,7 +1791,9 @@ export function PlanTakeoffStep({
                     ] : []
                   }
                   discreteInternalBeams={
-                    (slabWorkflowStep === 'mark_internal_beam' || (isAddingBeamToExistingSlab && addingBeamType === 'internal_beam'))
+                    // Only show discrete beams when on the same page as the slab being worked on
+                    (slabWorkflowStep === 'mark_internal_beam' || (isAddingBeamToExistingSlab && addingBeamType === 'internal_beam')) &&
+                    pendingSlabData && pendingSlabData.fileId === currentFileId && pendingSlabData.pageNumber === currentPage
                       ? discreteInternalBeams
                       : []
                   }
