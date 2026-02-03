@@ -1,45 +1,71 @@
-# ✅ COMPLETED
 
 ## Goal
-Distribute the markup proportionally into each scope line item so that:
-- Each line item already includes its share of the global margin
-- No separate "Markup" row appears on the quote
-- Line items naturally sum to the grand total
+Ensure the Customer Details and Business Details tables in the Minimal quote template have identical dimensions and align perfectly horizontally (row-for-row).
 
 ---
 
-## Implementation Summary
+## Current Issue
+From the screenshot, both tables have 4 rows but they don't align horizontally because:
+1. **Text wrapping** - Labels like "Quote valid until" wrap to two lines while "ABN" stays on one line
+2. **No fixed row heights** - Rows expand based on content, causing misalignment
+3. **Cell content overflow** - Long values can push row heights inconsistently
+
+---
+
+## Implementation Plan
 
 ### File: `src/components/estimates/PrintableEstimate.tsx`
 
-**Changes made to the Minimal template section:**
+**Changes to the Minimal template header section (lines ~1148-1207):**
 
-1. **Calculate the markup multiplier** from `_globalMargin`:
-   ```tsx
-   const globalMargin = scopeData?._globalMargin || 0;
-   const markupMultiplier = 1 + (Number(globalMargin) / 100);
-   ```
+1. **Add fixed row heights to all table cells**
+   - Add explicit height and vertical alignment to ensure all rows match
+   - Use `h-[36px]` or similar fixed height on each `<td>`
+   - Add `align-top` to keep content aligned at top of cell
 
-2. **For each scope row**, apply the markup to the displayed price:
-   - Created `markedUpScopes` array with `markedUpTotal = internalCost * markupMultiplier`
-   - **Price (ex GST)** = `markedUpTotal / 1.1`
-   - **Total Inc GST** = `markedUpTotal`
+2. **Prevent text wrapping in label cells**
+   - Add `whitespace-nowrap` to the label (first column) cells
+   - This ensures "Quote valid until" stays on one line
 
-3. **Removed the "Markup / Adjustment" row** entirely since markup is now baked into each line item.
+3. **Add truncation for long values**
+   - Ensure value cells have `truncate` class to prevent overflow
 
-4. **Rounding adjustment** - Applied rounding difference to the largest scope item to ensure perfect summation with `estimate.total_amount`.
+4. **Apply consistent styling to both tables**
+   - Both tables use identical cell classes
+   - Both have matching `colgroup` widths (already 40%/60%)
+
+### Code Changes
+
+**Left table (Customer Details) - update each row's cells:**
+```tsx
+<tr>
+  <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Customer name</td>
+  <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">...</td>
+</tr>
+```
+
+**Right table (Business Details) - update each row's cells:**
+```tsx
+<tr>
+  <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Email</td>
+  <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">...</td>
+</tr>
+```
 
 ---
 
 ## Result
+- Both tables will have exactly 4 rows
+- Each row will be exactly 36px tall
+- Labels won't wrap (preventing "Quote valid until" from becoming two lines)
+- Long values will truncate with ellipsis instead of wrapping
+- Tables will align perfectly side-by-side, row-for-row
 
-| Scope | Internal Cost | + 15% Markup | Displayed Price |
-|-------|---------------|--------------|-----------------|
-| Raft Slab | $4,039.31 | +$605.90 | $4,645.21 |
-| Retaining Wall | $1,293.27 | +$193.99 | $1,487.26 |
-| **Total** | | | **$6,132.47** |
+---
 
-Line items now:
-- Show the customer price (not internal costs)
-- Sum exactly to the grand total
-- Hide the markup from the client (as intended)
+## Files to Change
+- `src/components/estimates/PrintableEstimate.tsx`
+  - Add fixed heights and `whitespace-nowrap` to all 8 rows (4 per table)
+  - Ensure `truncate` is on all value cells
+
+No backend changes required.
