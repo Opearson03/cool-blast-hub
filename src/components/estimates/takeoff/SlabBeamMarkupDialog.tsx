@@ -48,6 +48,9 @@ export interface PendingSlabData {
   slabMarkupId?: string; // Set after slab is saved
   edgeBeams: BeamData[];
   internalBeams: BeamData[];
+  // Page/file the slab was drawn on - ensures markup stays locked to its page
+  pageNumber: number;
+  fileId: string;
   // Waffle pod specific
   wafflePodSize?: string;
   wafflePodThickness?: number;
