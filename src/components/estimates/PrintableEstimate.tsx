@@ -1222,19 +1222,19 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                   </thead>
                   <tbody>
                     {/* Scope Items */}
-                    {quotePDFData.scopeBreakdowns.map((scope, index) => {
-                      // Calculate proportional amount if we have total
-                      const scopeAmount = estimate.total_amount ? estimate.total_amount / quotePDFData.scopeBreakdowns.length : 0;
-                      return (
-                        <tr key={`scope-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
-                          <td className="py-2 px-2 text-gray-900">{scope.scopeName}</td>
-                          <td className="py-2 px-2 text-right text-gray-700">-</td>
-                          <td className="py-2 px-2 text-right text-gray-700">1</td>
-                          <td className="py-2 px-2 text-right text-gray-700">10%</td>
-                          <td className="py-2 px-2 text-right text-gray-900 font-medium">Included</td>
-                        </tr>
-                      );
-                    })}
+                    {quotePDFData.scopeBreakdowns.map((scope, index) => (
+                      <tr key={`scope-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
+                        <td className="py-2 px-2 text-gray-900">{scope.scopeName}</td>
+                        <td className="py-2 px-2 text-right text-gray-700">
+                          {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal) : "-"}
+                        </td>
+                        <td className="py-2 px-2 text-right text-gray-700">1</td>
+                        <td className="py-2 px-2 text-right text-gray-700">10%</td>
+                        <td className="py-2 px-2 text-right text-gray-900 font-medium">
+                          {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal) : "-"}
+                        </td>
+                      </tr>
+                    ))}
                     {/* Legacy line items if no scope breakdowns */}
                     {quotePDFData.scopeBreakdowns.length === 0 && parsedItems.map((item, index) => (
                       <tr key={`item-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
