@@ -81,13 +81,13 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
   // Dynamically import PrintableEstimate to avoid circular dependencies
   const { PrintableEstimate } = await import('@/components/estimates/PrintableEstimate');
   
-  // A4 dimensions in mm
+  // A4 dimensions in mm - no margin to fill full page width
   const A4_WIDTH_MM = 210;
   const A4_HEIGHT_MM = 297;
-  const MARGIN_MM = 10;
-  const CONTENT_WIDTH_MM = A4_WIDTH_MM - (2 * MARGIN_MM);
-  const CONTENT_HEIGHT_MM = A4_HEIGHT_MM - (2 * MARGIN_MM);
-  const SECTION_GAP_MM = 2; // Small gap between sections
+  const MARGIN_MM = 0; // No margin - content fills full page width
+  const CONTENT_WIDTH_MM = A4_WIDTH_MM;
+  const CONTENT_HEIGHT_MM = A4_HEIGHT_MM;
+  const SECTION_GAP_MM = 0; // No gap between sections
   
   // Create a temporary container for rendering
   const container = document.createElement('div');
