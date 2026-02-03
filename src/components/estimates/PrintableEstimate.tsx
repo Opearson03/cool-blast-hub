@@ -1415,52 +1415,64 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             </div>
           </div>
 
-          {/* Company & Client Details - Side by Side */}
-          <div className="page-break-avoid mb-6 px-4">
-            <div className="grid grid-cols-2 gap-8 py-3 border-b border-gray-200">
-              {/* FROM - Company Details */}
-              <div>
-                <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>FROM:</h3>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-gray-900">{business?.name || "Company Name"}</p>
-                  <p className="text-sm text-gray-700">{business?.address || "-"}</p>
-                  <p className="text-sm text-gray-700">{business?.phone || "-"}</p>
-                  <p className="text-sm text-gray-700">{business?.email || "-"}</p>
-                  <p className="text-xs text-gray-500 mt-1">ABN: {business?.abn || "-"}</p>
-                </div>
-              </div>
-
-              {/* TO - Client Details */}
-              <div>
-                <h3 className="text-base font-bold mb-2" style={{ color: secondaryColor }}>TO:</h3>
-                <div className="space-y-1">
-                  <p className="text-sm font-semibold text-gray-900">{estimate.client_name}</p>
-                  {estimate.company_name && <p className="text-sm text-gray-700">{estimate.company_name}</p>}
-                  <p className="text-sm text-gray-700">{estimate.site_address}</p>
-                  {estimate.client_phone && <p className="text-sm text-gray-700">{estimate.client_phone}</p>}
-                  {estimate.client_email && <p className="text-sm text-gray-700">{estimate.client_email}</p>}
-                </div>
-              </div>
+          {/* Two-column info boxes - aligned at top with matching structure */}
+          <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 items-start px-4">
+            {/* Left - Customer/Quote Info (4 rows) */}
+            <div>
+              <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">Customer Details</p>
+              <table className="w-full text-sm border border-gray-300 table-fixed">
+                <colgroup>
+                  <col style={{ width: "40%" }} />
+                  <col style={{ width: "60%" }} />
+                </colgroup>
+                <tbody>
+                  <tr>
+                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Customer name</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.client_name}</td>
+                  </tr>
+                  <tr>
+                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Quote number</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.estimate_number}</td>
+                  </tr>
+                  <tr>
+                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Date</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{format(new Date(estimate.created_at), "d MMMM yyyy")}</td>
+                  </tr>
+                  <tr>
+                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Quote valid until</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.valid_until ? format(new Date(estimate.valid_until), "d MMMM yyyy") : "-"}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
 
-            {/* Quote Meta */}
-            <div className="flex justify-between items-center py-3 border-b border-gray-200">
-              <div className="flex gap-8">
-                <div>
-                  <span className="text-sm font-semibold" style={{ color: secondaryColor }}>Quote Number:</span>
-                  <span className="text-sm text-gray-700 ml-2">{estimate.estimate_number}</span>
-                </div>
-                <div>
-                  <span className="text-sm font-semibold" style={{ color: secondaryColor }}>Date:</span>
-                  <span className="text-sm text-gray-700 ml-2">{format(new Date(estimate.created_at), "d MMMM yyyy")}</span>
-                </div>
-              </div>
-              {estimate.valid_until && (
-                <div>
-                  <span className="text-sm font-semibold" style={{ color: secondaryColor }}>Valid Until:</span>
-                  <span className="text-sm text-gray-700 ml-2">{format(new Date(estimate.valid_until), "d MMMM yyyy")}</span>
-                </div>
-              )}
+            {/* Right - Business Info (4 rows) */}
+            <div>
+              <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">{business?.name || "Company"}</p>
+              <table className="w-full text-sm border border-gray-300 table-fixed">
+                <colgroup>
+                  <col style={{ width: "40%" }} />
+                  <col style={{ width: "60%" }} />
+                </colgroup>
+                <tbody>
+                  <tr>
+                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Email</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.email || "-"}</td>
+                  </tr>
+                  <tr>
+                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Phone</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.phone || "-"}</td>
+                  </tr>
+                  <tr>
+                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Address</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.address || "-"}</td>
+                  </tr>
+                  <tr>
+                    <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">ABN</td>
+                    <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{business?.abn || "-"}</td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
@@ -1474,16 +1486,77 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               template="classic"
             />
 
-            {/* Scope of Works as Line Items - above totals */}
+            {/* Scope of Works as Line Items with Markup - matching Minimal template */}
             {quotePDFData.scopeBreakdowns.length > 0 ? (
-              <ScopeLineItemsSection 
-                data={quotePDFData} 
-                primaryColor={primaryColor} 
-                secondaryColor={secondaryColor}
-                template="classic"
-                formatCurrency={formatCurrency}
-                totalAmount={estimate.total_amount}
-              />
+              (() => {
+                // Calculate markup multiplier from global margin
+                const globalMargin = scopeData?._globalMargin || 0;
+                const markupMultiplier = 1 + (Number(globalMargin) / 100);
+                
+                // Calculate marked-up totals for each scope
+                const markedUpScopes = quotePDFData.scopeBreakdowns.map(scope => ({
+                  ...scope,
+                  markedUpTotal: (scope.calculatedTotal || 0) * markupMultiplier
+                }));
+                
+                // Apply rounding adjustment to largest item to match estimate.total_amount
+                const markedUpSum = markedUpScopes.reduce((sum, s) => sum + s.markedUpTotal, 0);
+                const roundingDiff = estimate.total_amount - markedUpSum;
+                
+                if (markedUpScopes.length > 0 && Math.abs(roundingDiff) > 0.001) {
+                  const largestIdx = markedUpScopes.reduce(
+                    (maxIdx, scope, idx, arr) => scope.markedUpTotal > arr[maxIdx].markedUpTotal ? idx : maxIdx, 
+                    0
+                  );
+                  markedUpScopes[largestIdx].markedUpTotal += roundingDiff;
+                }
+
+                return (
+                  <div className="page-break-avoid mb-6">
+                    <table className="w-full border-collapse">
+                      <thead>
+                        <tr style={{ backgroundColor: secondaryColor, color: "white" }}>
+                          <th className="text-left py-3 px-4 text-sm font-bold">Description</th>
+                          <th className="text-right py-3 px-4 text-sm font-bold w-28">Price</th>
+                          <th className="text-center py-3 px-4 text-sm font-bold w-16">Qty</th>
+                          <th className="text-center py-3 px-4 text-sm font-bold w-20">GST %</th>
+                          <th className="text-right py-3 px-4 text-sm font-bold w-32">Total Inc GST</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {markedUpScopes.map((scope, index) => {
+                          const totalIncGst = scope.markedUpTotal;
+                          const priceExGst = totalIncGst / 1.1;
+                          return (
+                            <tr key={index} className={index % 2 === 1 ? "bg-gray-50" : ""}>
+                              <td className="py-3 px-4 text-sm border-b border-gray-200">{scope.scopeName}</td>
+                              <td className="py-3 px-4 text-sm text-right border-b border-gray-200">{formatCurrency(priceExGst)}</td>
+                              <td className="py-3 px-4 text-sm text-center border-b border-gray-200">1</td>
+                              <td className="py-3 px-4 text-sm text-center border-b border-gray-200">10%</td>
+                              <td className="py-3 px-4 text-sm text-right font-medium border-b border-gray-200">{formatCurrency(totalIncGst)}</td>
+                            </tr>
+                          );
+                        })}
+                        {/* Subtotal Row */}
+                        <tr className="bg-gray-100">
+                          <td colSpan={4} className="py-3 px-4 text-sm font-medium text-right">Subtotal (ex GST)</td>
+                          <td className="py-3 px-4 text-sm text-right font-medium">{formatCurrency(estimate.total_amount / 1.1)}</td>
+                        </tr>
+                        {/* GST Row */}
+                        <tr className="bg-gray-100">
+                          <td colSpan={4} className="py-3 px-4 text-sm font-medium text-right">GST (10%)</td>
+                          <td className="py-3 px-4 text-sm text-right font-medium">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</td>
+                        </tr>
+                        {/* Grand Total Row */}
+                        <tr style={{ backgroundColor: primaryColor, color: "white" }}>
+                          <td colSpan={4} className="py-3 px-4 text-sm font-bold text-right">GRAND TOTAL</td>
+                          <td className="py-3 px-4 text-lg text-right font-bold">{formatCurrency(estimate.total_amount)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()
             ) : parsedNotes.scopeBreakdownFromNotes.length > 0 ? (
               <NotesBasedScopeBreakdown 
                 items={parsedNotes.scopeBreakdownFromNotes}
@@ -1521,40 +1594,6 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                     </tr>
                   </tbody>
                 </table>
-              </div>
-            )}
-          </div>
-
-          {/* Fixed bottom section - Totals & Signature */}
-          <div className="mt-auto px-4">
-            {/* If no line items, show total separately */}
-            {parsedItems.length === 0 && (
-              <div className="page-break-avoid flex justify-end mb-6">
-                <div className="w-72">
-                  <div style={{ borderTop: `2px solid ${secondaryColor}`, paddingTop: "12px" }}>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-600">Subtotal (ex GST)</span>
-                      <span className="text-base font-medium text-gray-700">
-                        {formatCurrency(estimate.total_amount / 1.1)}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm text-gray-600">GST (10%)</span>
-                      <span className="text-base font-medium text-gray-700">
-                        {formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}
-                      </span>
-                    </div>
-                    <div 
-                      className="flex justify-between items-center pt-3 text-white"
-                      style={{ backgroundColor: primaryColor, margin: "-4px", padding: "12px", borderRadius: "4px" }}
-                    >
-                      <span className="text-base font-bold">GRAND TOTAL</span>
-                      <span className="text-xl font-bold">
-                        {formatCurrency(estimate.total_amount)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
               </div>
             )}
 
