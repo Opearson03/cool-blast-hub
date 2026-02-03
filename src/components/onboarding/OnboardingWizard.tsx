@@ -423,10 +423,9 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
             {/* Quote Template Selection */}
             <div>
               <Label className="text-sm font-medium mb-2 block">Template</Label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {[
                   { id: "classic", name: "Classic" },
-                  { id: "modern", name: "Modern" },
                   { id: "minimal", name: "Minimal" },
                 ].map((template) => (
                   <button

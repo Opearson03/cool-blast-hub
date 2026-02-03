@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,8 +11,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Building2, Save, Plus, X, Upload, CreditCard, ExternalLink, Lock, Palette, FileText, Eye, DollarSign, MessageSquare, Truck, Mail } from "lucide-react";
-import { QuoteTemplatePreview } from "@/components/onboarding/QuoteTemplatePreview";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
+import { LivePDFPreview } from "@/components/settings/LivePDFPreview";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { PriceListSection } from "@/components/settings/PriceListSection";
@@ -566,10 +566,9 @@ export default function AdminSettings() {
                 {/* Quote Template Selection */}
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Quote Template</Label>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-2 gap-3">
                     {[
                       { id: "classic", name: "Classic", desc: "Traditional professional layout" },
-                      { id: "modern", name: "Modern", desc: "Clean, bold design" },
                       { id: "minimal", name: "Minimal", desc: "Simple and elegant" },
                     ].map((template) => (
                       <button
@@ -662,24 +661,19 @@ export default function AdminSettings() {
 
                 <Separator />
 
-                {/* Live Preview */}
-                <div>
-                  <Label className="text-sm font-medium mb-3 flex items-center gap-2">
-                    <Eye className="w-4 h-4" />
-                    Live Preview
-                  </Label>
-                  <QuoteTemplatePreview
-                    template={quoteTemplate}
-                    primaryColor={quotePrimaryColor}
-                    secondaryColor={quoteSecondaryColor}
-                    font={quoteFont}
-                    logoUrl={logoUrl}
-                    businessName={name || "Your Business"}
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    This is a preview. Your actual quotes will include full details and line items.
-                  </p>
-                </div>
+                {/* Live Preview - Embedded PDF */}
+                <LivePDFPreview
+                  quoteTemplate={quoteTemplate}
+                  quotePrimaryColor={quotePrimaryColor}
+                  quoteSecondaryColor={quoteSecondaryColor}
+                  quoteFont={quoteFont}
+                  logoUrl={logoUrl}
+                  businessName={name || "Your Business"}
+                  businessAddress={address}
+                  businessPhone={phone}
+                  businessEmail={email}
+                  businessAbn={abn}
+                />
               </div>
             </SettingsAccordionItem>
 
