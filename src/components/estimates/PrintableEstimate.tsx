@@ -1145,16 +1145,20 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
               )}
             </div>
 
-            {/* Two-column info boxes - aligned at top with matching row count */}
+            {/* Two-column info boxes - aligned at top with matching structure */}
             <div className="page-break-avoid grid grid-cols-2 gap-8 mb-6 items-start">
               {/* Left - Customer/Quote Info (4 rows) */}
               <div>
-                <p className="text-sm font-bold text-gray-900 mb-2 uppercase">Customer Details</p>
-                <table className="w-full text-sm border border-gray-300">
+                <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">Customer Details</p>
+                <table className="w-full text-sm border border-gray-300 table-fixed">
+                  <colgroup>
+                    <col style={{ width: "40%" }} />
+                    <col style={{ width: "60%" }} />
+                  </colgroup>
                   <tbody>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 w-32">Customer name</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{estimate.client_name}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Customer name</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate">{estimate.client_name}</td>
                     </tr>
                     <tr>
                       <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Quote number</td>
@@ -1174,12 +1178,16 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
               {/* Right - Business Info (4 rows to match left side) */}
               <div>
-                <p className="text-sm font-bold text-gray-900 mb-2 uppercase">{business?.name || "Your Business Name"}</p>
-                <table className="w-full text-sm border border-gray-300">
+                <p className="text-sm font-bold text-gray-900 mb-2 uppercase truncate whitespace-nowrap h-5 leading-5">{business?.name || "Your Business Name"}</p>
+                <table className="w-full text-sm border border-gray-300 table-fixed">
+                  <colgroup>
+                    <col style={{ width: "40%" }} />
+                    <col style={{ width: "60%" }} />
+                  </colgroup>
                   <tbody>
                     <tr>
-                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 w-20">Email</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.email || "-"}</td>
+                      <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Email</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate">{business?.email || "-"}</td>
                     </tr>
                     <tr>
                       <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Phone</td>
@@ -1187,7 +1195,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                     </tr>
                     <tr>
                       <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">Address</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900">{business?.address || "-"}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate">{business?.address || "-"}</td>
                     </tr>
                     <tr>
                       <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600">ABN</td>
@@ -1210,77 +1218,116 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             {/* Flexible content area - grows to fill space */}
             <div className="flex-grow">
               {/* Line Items Table with alternating rows */}
-              <div className="page-break-avoid mb-6">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-gray-400">
-                      <th className="text-left py-2 px-2 text-xs font-bold uppercase text-gray-700">Description</th>
-                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-24">Price</th>
-                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-16">Qty</th>
-                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-16">GST %</th>
-                      <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-28">Total Inc GST</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* Scope Items */}
-                    {quotePDFData.scopeBreakdowns.map((scope, index) => (
-                      <tr key={`scope-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
-                        <td className="py-2 px-2 text-gray-900">{scope.scopeName}</td>
-                        <td className="py-2 px-2 text-right text-gray-700">
-                          {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal) : "-"}
-                        </td>
-                        <td className="py-2 px-2 text-right text-gray-700">1</td>
-                        <td className="py-2 px-2 text-right text-gray-700">10%</td>
-                        <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                          {scope.calculatedTotal ? formatCurrency(scope.calculatedTotal * 1.1) : "-"}
-                        </td>
-                      </tr>
-                    ))}
-                    {/* Legacy line items if no scope breakdowns */}
-                    {quotePDFData.scopeBreakdowns.length === 0 && parsedItems.map((item, index) => (
-                      <tr key={`item-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
-                        <td className="py-2 px-2 text-gray-900">{item.description}</td>
-                        <td className="py-2 px-2 text-right text-gray-700">{formatCurrency(item.unitPrice)}</td>
-                        <td className="py-2 px-2 text-right text-gray-700">{item.quantity}</td>
-                        <td className="py-2 px-2 text-right text-gray-700">10%</td>
-                        <td className="py-2 px-2 text-right text-gray-900 font-medium">{formatCurrency(item.total)}</td>
-                      </tr>
-                    ))}
-                    {/* Empty rows for visual consistency */}
-                    {Array.from({ length: Math.max(0, 8 - quotePDFData.scopeBreakdowns.length - parsedItems.length) }).map((_, index) => {
-                      const rowIndex = quotePDFData.scopeBreakdowns.length + parsedItems.length + index;
-                      return (
-                        <tr key={`empty-${index}`} style={{ backgroundColor: rowIndex % 2 === 0 ? "#f3f4f6" : "white" }}>
-                          <td className="py-2 px-2">&nbsp;</td>
-                          <td className="py-2 px-2"></td>
-                          <td className="py-2 px-2"></td>
-                          <td className="py-2 px-2"></td>
-                          <td className="py-2 px-2 text-right text-gray-400">0.00</td>
+              {(() => {
+                // Calculate scope totals sum and adjustment for markup
+                const scopesTotalIncGst = quotePDFData.scopeBreakdowns.reduce(
+                  (sum, scope) => sum + (scope.calculatedTotal || 0), 
+                  0
+                );
+                const adjustmentIncGst = estimate.total_amount - scopesTotalIncGst;
+                const hasAdjustment = Math.abs(adjustmentIncGst) > 0.01;
+                const globalMargin = scopeData?._globalMargin;
+                const adjustmentLabel = globalMargin 
+                  ? `Markup (${globalMargin}%)` 
+                  : (adjustmentIncGst < 0 ? 'Discount' : 'Adjustment');
+                
+                // Count total data rows for empty row calculation
+                const dataRowCount = quotePDFData.scopeBreakdowns.length 
+                  + (hasAdjustment ? 1 : 0) 
+                  + (quotePDFData.scopeBreakdowns.length === 0 ? parsedItems.length : 0);
+                
+                return (
+                  <div className="page-break-avoid mb-6">
+                    <table className="w-full text-sm border-collapse">
+                      <thead>
+                        <tr className="border-b-2 border-gray-400">
+                          <th className="text-left py-2 px-2 text-xs font-bold uppercase text-gray-700">Description</th>
+                          <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-24">Price</th>
+                          <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-16">Qty</th>
+                          <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-16">GST %</th>
+                          <th className="text-right py-2 px-2 text-xs font-bold uppercase text-gray-700 w-28">Total Inc GST</th>
                         </tr>
-                      );
-                    })}
-                    {/* Subtotal, GST, Total rows */}
-                    <tr className="border-t border-gray-300">
-                      <td colSpan={4} className="py-2 px-2 text-right text-gray-700 font-medium">Subtotal (ex GST)</td>
-                      <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                        {formatCurrency(estimate.total_amount ? estimate.total_amount / 1.1 : 0)}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td colSpan={4} className="py-2 px-2 text-right text-gray-700 font-medium">GST (10%)</td>
-                      <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                        {formatCurrency(estimate.total_amount ? estimate.total_amount - (estimate.total_amount / 1.1) : 0)}
-                      </td>
-                    </tr>
-                    <tr className="bg-gray-100">
-                      <td colSpan={4} className="py-2 px-2 text-right text-gray-900 font-bold">Total (inc GST)</td>
-                      <td className="py-2 px-2 text-right text-gray-900 font-bold text-base">
-                        {formatCurrency(estimate.total_amount)}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+                      </thead>
+                      <tbody>
+                        {/* Scope Items - calculatedTotal IS the inc GST value */}
+                        {quotePDFData.scopeBreakdowns.map((scope, index) => {
+                          const totalIncGst = scope.calculatedTotal || 0;
+                          const priceExGst = totalIncGst / 1.1;
+                          return (
+                            <tr key={`scope-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
+                              <td className="py-2 px-2 text-gray-900">{scope.scopeName}</td>
+                              <td className="py-2 px-2 text-right text-gray-700">
+                                {totalIncGst ? formatCurrency(priceExGst) : "-"}
+                              </td>
+                              <td className="py-2 px-2 text-right text-gray-700">1</td>
+                              <td className="py-2 px-2 text-right text-gray-700">10%</td>
+                              <td className="py-2 px-2 text-right text-gray-900 font-medium">
+                                {totalIncGst ? formatCurrency(totalIncGst) : "-"}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                        {/* Markup / Adjustment row if needed */}
+                        {hasAdjustment && quotePDFData.scopeBreakdowns.length > 0 && (
+                          <tr style={{ backgroundColor: quotePDFData.scopeBreakdowns.length % 2 === 0 ? "#f3f4f6" : "white" }}>
+                            <td className="py-2 px-2 text-gray-900">{adjustmentLabel}</td>
+                            <td className="py-2 px-2 text-right text-gray-700">
+                              {formatCurrency(adjustmentIncGst / 1.1)}
+                            </td>
+                            <td className="py-2 px-2 text-right text-gray-700">1</td>
+                            <td className="py-2 px-2 text-right text-gray-700">10%</td>
+                            <td className="py-2 px-2 text-right text-gray-900 font-medium">
+                              {formatCurrency(adjustmentIncGst)}
+                            </td>
+                          </tr>
+                        )}
+                        {/* Legacy line items if no scope breakdowns */}
+                        {quotePDFData.scopeBreakdowns.length === 0 && parsedItems.map((item, index) => (
+                          <tr key={`item-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
+                            <td className="py-2 px-2 text-gray-900">{item.description}</td>
+                            <td className="py-2 px-2 text-right text-gray-700">{formatCurrency(item.unitPrice)}</td>
+                            <td className="py-2 px-2 text-right text-gray-700">{item.quantity}</td>
+                            <td className="py-2 px-2 text-right text-gray-700">10%</td>
+                            <td className="py-2 px-2 text-right text-gray-900 font-medium">{formatCurrency(item.total)}</td>
+                          </tr>
+                        ))}
+                        {/* Empty rows for visual consistency */}
+                        {Array.from({ length: Math.max(0, 8 - dataRowCount) }).map((_, index) => {
+                          const rowIndex = dataRowCount + index;
+                          return (
+                            <tr key={`empty-${index}`} style={{ backgroundColor: rowIndex % 2 === 0 ? "#f3f4f6" : "white" }}>
+                              <td className="py-2 px-2">&nbsp;</td>
+                              <td className="py-2 px-2"></td>
+                              <td className="py-2 px-2"></td>
+                              <td className="py-2 px-2"></td>
+                              <td className="py-2 px-2 text-right text-gray-400">0.00</td>
+                            </tr>
+                          );
+                        })}
+                        {/* Subtotal, GST, Total rows */}
+                        <tr className="border-t border-gray-300">
+                          <td colSpan={4} className="py-2 px-2 text-right text-gray-700 font-medium">Subtotal (ex GST)</td>
+                          <td className="py-2 px-2 text-right text-gray-900 font-medium">
+                            {formatCurrency(estimate.total_amount ? estimate.total_amount / 1.1 : 0)}
+                          </td>
+                        </tr>
+                        <tr>
+                          <td colSpan={4} className="py-2 px-2 text-right text-gray-700 font-medium">GST (10%)</td>
+                          <td className="py-2 px-2 text-right text-gray-900 font-medium">
+                            {formatCurrency(estimate.total_amount ? estimate.total_amount - (estimate.total_amount / 1.1) : 0)}
+                          </td>
+                        </tr>
+                        <tr className="bg-gray-100">
+                          <td colSpan={4} className="py-2 px-2 text-right text-gray-900 font-bold">Total (inc GST)</td>
+                          <td className="py-2 px-2 text-right text-gray-900 font-bold text-base">
+                            {formatCurrency(estimate.total_amount)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Fixed bottom section */}
