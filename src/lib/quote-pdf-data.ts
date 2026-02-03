@@ -29,6 +29,7 @@ export interface ScopeBreakdown {
   reinforcement?: string;        // e.g., "SL82 mesh"
   surfaceFinish?: string;        // e.g., "Exposed aggregate, sealed"
   thickness?: number;            // mm
+  calculatedTotal?: number;      // The calculated total cost for this scope
 }
 
 export interface QuoteLineItem {
@@ -409,6 +410,9 @@ export function extractScopeBreakdowns(
     // Extract surface finish
     const surfaceFinish = extractSurfaceFinish(moduleAnswers);
     
+    // Extract calculated total for this scope
+    const calculatedTotal = Number(scope.calculatedTotal) || 0;
+    
     breakdowns.push({
       scopeName: formatScopeName(scopeId),
       volume,
@@ -421,6 +425,7 @@ export function extractScopeBreakdowns(
       reinforcement,
       surfaceFinish,
       thickness: thickness > 0 ? thickness : undefined,
+      calculatedTotal: calculatedTotal > 0 ? calculatedTotal : undefined,
     });
   }
   
