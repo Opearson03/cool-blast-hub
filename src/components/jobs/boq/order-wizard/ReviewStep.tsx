@@ -184,7 +184,7 @@ export function ReviewStep({
       </Card>
 
       {/* Send Method */}
-      <div className="space-y-3">
+      <div className="space-y-3 pb-4">
         <Label className="text-base font-medium">Send via</Label>
         <RadioGroup
           value={sendMethod}

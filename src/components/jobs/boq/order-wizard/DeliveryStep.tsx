@@ -26,7 +26,6 @@ interface DeliveryStepProps {
   manualSiteContact: { name: string; phone: string };
   onManualSiteContactChange: (contact: { name: string; phone: string }) => void;
   internalContacts: InternalContact[];
-  employees: { id: string; full_name: string | null; phone: string | null }[];
   notes: string;
   onNotesChange: (notes: string) => void;
   isQuote: boolean;
@@ -42,15 +41,10 @@ export function DeliveryStep({
   manualSiteContact,
   onManualSiteContactChange,
   internalContacts,
-  employees,
   notes,
   onNotesChange,
   isQuote,
 }: DeliveryStepProps) {
-  const siteContactOptions: SiteContactOption[] = [
-    ...internalContacts.map(c => ({ id: c.id, name: c.name, phone: c.phone, type: "internal" as const })),
-    ...employees.map(e => ({ id: e.id, name: e.full_name || "Unknown", phone: e.phone, type: "employee" as const })),
-  ];
 
   return (
     <div className="space-y-5">
@@ -101,7 +95,7 @@ export function DeliveryStep({
         </Popover>
       </div>
 
-      {/* Site Contact */}
+      {/* Site Contact - Internal contacts only */}
       <div className="space-y-2">
         <Label className="flex items-center gap-1.5">
           <UserCircle className="w-4 h-4" />
@@ -123,30 +117,11 @@ export function DeliveryStep({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__manual__">-- Enter manually --</SelectItem>
-            {internalContacts.length > 0 && (
-              <>
-                <SelectItem value="__header_internal__" disabled className="text-xs font-semibold text-muted-foreground">
-                  Internal Contacts
-                </SelectItem>
-                {internalContacts.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.name} {c.role && `(${c.role})`}
-                  </SelectItem>
-                ))}
-              </>
-            )}
-            {employees.length > 0 && (
-              <>
-                <SelectItem value="__header_employees__" disabled className="text-xs font-semibold text-muted-foreground">
-                  Employees
-                </SelectItem>
-                {employees.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.full_name}
-                  </SelectItem>
-                ))}
-              </>
-            )}
+            {internalContacts.map((c) => (
+              <SelectItem key={c.id} value={c.id}>
+                {c.name} {c.role && `(${c.role})`}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
 
@@ -174,7 +149,7 @@ export function DeliveryStep({
       </div>
 
       {/* Notes */}
-      <div className="space-y-2">
+      <div className="space-y-2 pb-4">
         <Label>{isQuote ? "Message (optional)" : "Notes (optional)"}</Label>
         <Textarea
           value={notes}
@@ -183,7 +158,7 @@ export function DeliveryStep({
             ? "Any requirements or questions for the supplier..."
             : "Delivery instructions, special requirements..."
           }
-          rows={2}
+          rows={3}
         />
       </div>
     </div>
