@@ -1,5 +1,5 @@
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Layers, Grid3X3 } from "lucide-react";
+import { inputValue, parseNumericInput } from "@/lib/utils";
 import { numericWithDefault } from "@/lib/utils";
 
 interface WafflePodRibsInputProps {
@@ -38,6 +39,7 @@ export function WafflePodRibsInput({
   const ribTopBars = numericWithDefault(scopeData?.rib_top_bars, 1);
   const ribTopBarSize = String(scopeData?.rib_top_bar_size || 'N12');
   const stockLength = String(scopeData?.stock_length || '6');
+  const ribLapPercent = numericWithDefault(scopeData?.rib_lap_percent, 12.5);
   
   // Pod count and perimeter for summary
   const podCount = numericWithDefault(scopeData?.pod_count, 0);
@@ -163,23 +165,45 @@ export function WafflePodRibsInput({
             </div>
           </div>
           
-          {/* Stock Length Row */}
+          {/* Stock Length & Lap % Row */}
           <div className="pt-2 border-t space-y-2">
-            <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
-              Stock Length
-            </Label>
-            <RadioGroup
-              value={stockLength}
-              onValueChange={(v) => handleChange('stock_length', v)}
-              className="flex gap-4"
-            >
-              {STOCK_LENGTH_OPTIONS.map((opt) => (
-                <div key={opt.value} className="flex items-center gap-1.5">
-                  <RadioGroupItem value={opt.value} id={`stock-${opt.value}`} className="h-3.5 w-3.5" />
-                  <Label htmlFor={`stock-${opt.value}`} className="text-sm cursor-pointer">{opt.label}</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  Stock Length
+                </Label>
+                <RadioGroup
+                  value={stockLength}
+                  onValueChange={(v) => handleChange('stock_length', v)}
+                  className="flex gap-4"
+                >
+                  {STOCK_LENGTH_OPTIONS.map((opt) => (
+                    <div key={opt.value} className="flex items-center gap-1.5">
+                      <RadioGroupItem value={opt.value} id={`stock-${opt.value}`} className="h-3.5 w-3.5" />
+                      <Label htmlFor={`stock-${opt.value}`} className="text-sm cursor-pointer">{opt.label}</Label>
+                    </div>
+                  ))}
+                </RadioGroup>
+              </div>
+              
+              <div className="space-y-2">
+                <Label className="text-[10px] text-muted-foreground uppercase tracking-wide">
+                  Lap %
+                </Label>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    type="number"
+                    value={inputValue(ribLapPercent)}
+                    onChange={(e) => handleChange('rib_lap_percent', parseNumericInput(e.target.value, 12.5))}
+                    className="h-8 w-20 text-sm"
+                    min={0}
+                    max={50}
+                    step={0.5}
+                  />
+                  <span className="text-sm text-muted-foreground">%</span>
                 </div>
-              ))}
-            </RadioGroup>
+              </div>
+            </div>
           </div>
         </div>
       </div>

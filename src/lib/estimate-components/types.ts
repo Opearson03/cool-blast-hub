@@ -800,6 +800,7 @@ export interface WafflePodZone {
   rib_bottom_bar_size?: string;
   rib_top_bars?: number;
   rib_top_bar_size?: string;
+  rib_lap_percent?: number;          // Default 12.5%
   
   // Accessories (auto-derived from pod_count)
   spacer_4way_count?: number;
