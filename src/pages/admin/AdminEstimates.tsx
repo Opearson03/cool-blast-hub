@@ -630,10 +630,6 @@ export default function AdminEstimates() {
                                 <StatusIcon className="w-3 h-3" />
                                 {statusConfig[estimate.status].label}
                               </Badge>
-                              <Badge variant="outline" className="text-xs" title={typeLabel}>
-                                <TypeIcon className="w-3 h-3 mr-1" />
-                                {typeLabel}
-                              </Badge>
                             </div>
                             <h3 className="font-semibold truncate">
                               {estimate.client_name} - {estimate.site_address.split(",")[0]}
