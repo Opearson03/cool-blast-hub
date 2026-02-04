@@ -373,7 +373,7 @@ export function InboxHistoryTab() {
           site_address: extractedData?.site_address || plan.subject || "TBC",
           client_email: extractedData?.client_email || plan.from_email,
           status: "draft",
-          estimate_type: "standard",
+          estimate_type: "driveway", // Must match check constraint: driveway, house_slab, commercial_slab
           created_by: user.id,
         })
         .select()
