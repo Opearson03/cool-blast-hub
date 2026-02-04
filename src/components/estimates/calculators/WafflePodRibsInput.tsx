@@ -34,9 +34,9 @@ export function WafflePodRibsInput({
   onScopeDataChange,
 }: WafflePodRibsInputProps) {
   // Extract values from scopeData - using numericWithDefault to preserve 0
-  const ribBottomBars = numericWithDefault(scopeData?.rib_bottom_bars, 2);
+  const ribBottomBars = numericWithDefault(scopeData?.rib_bottom_bars, 1);
   const ribBottomBarSize = String(scopeData?.rib_bottom_bar_size || 'N12');
-  const ribTopBars = numericWithDefault(scopeData?.rib_top_bars, 1);
+  const ribTopBars = numericWithDefault(scopeData?.rib_top_bars, 0);
   const ribTopBarSize = String(scopeData?.rib_top_bar_size || 'N12');
   const stockLength = String(scopeData?.stock_length || '6');
   const ribLapPercent = numericWithDefault(scopeData?.rib_lap_percent, 12.5);
