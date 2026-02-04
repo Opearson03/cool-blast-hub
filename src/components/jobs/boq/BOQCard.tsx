@@ -4,7 +4,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-
 import {
   Collapsible,
   CollapsibleContent,
@@ -13,7 +12,6 @@ import {
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
@@ -22,9 +20,12 @@ import { ClipboardList, ChevronDown, ChevronUp, Printer, Pencil, Plus, Send } fr
 import { useToast } from "@/hooks/use-toast";
 import { BOQItem, BOQ_CATEGORIES, JobBOQ } from "./BOQTypes";
 import { BOQEditDialog } from "./BOQEditDialog";
+import { BOQTableRow } from "./BOQTableRow";
+import { BOQInlineItemRow } from "./BOQInlineItemRow";
 import { PrintableBOQ } from "./PrintableBOQ";
 import { SendPurchaseOrderDialog } from "./SendPurchaseOrderDialog";
 import { createPortal } from "react-dom";
+import { formatCurrency } from "@/lib/format-currency";
 
 interface BOQCardProps {
   jobId: string;
@@ -38,6 +39,8 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
   const [isSendPOOpen, setIsSendPOOpen] = useState(false);
+  const [selectedForOrder, setSelectedForOrder] = useState<string[]>([]);
+  const [isAddingItem, setIsAddingItem] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -84,7 +87,6 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
       if (error) throw error;
       if (!data) return null;
       
-      // Parse the JSONB items field
       const parsedItems = Array.isArray(data.items) ? data.items : [];
       
       return {
@@ -113,10 +115,59 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
     },
   });
 
+  const updateItemMutation = useMutation({
+    mutationFn: async ({ itemId, updates }: { itemId: string; updates: Partial<BOQItem> }) => {
+      if (!boq) throw new Error("No BOQ found");
+      
+      const updatedItems = boq.items.map(item =>
+        item.id === itemId ? { ...item, ...updates } : item
+      );
+      
+      const { error } = await supabase
+        .from("job_boq")
+        .update({ items: JSON.parse(JSON.stringify(updatedItems)) })
+        .eq("id", boq.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job-boq", jobId] });
+    },
+    onError: (error) => {
+      toast({ title: "Error saving", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const addItemMutation = useMutation({
+    mutationFn: async (newItem: Omit<BOQItem, 'id'>) => {
+      if (!boq) throw new Error("No BOQ found");
+      
+      const item: BOQItem = {
+        ...newItem,
+        id: Date.now().toString(),
+      };
+      
+      const updatedItems = [...boq.items, item];
+      
+      const { error } = await supabase
+        .from("job_boq")
+        .update({ items: JSON.parse(JSON.stringify(updatedItems)) })
+        .eq("id", boq.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["job-boq", jobId] });
+      setIsAddingItem(false);
+      toast({ title: "Item added" });
+    },
+    onError: (error) => {
+      toast({ title: "Error adding item", description: error.message, variant: "destructive" });
+    },
+  });
 
   const handlePrint = () => {
     setIsPrinting(true);
-    // Small delay to render, then wait for images, then print
     setTimeout(async () => {
       const { waitForPrintImages } = await import("@/lib/wait-for-print-images");
       await waitForPrintImages();
@@ -125,12 +176,20 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
     }, 100);
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-AU", {
-      style: "currency",
-      currency: "AUD",
-      minimumFractionDigits: 2,
-    }).format(amount);
+  const toggleSelection = (itemId: string) => {
+    setSelectedForOrder(prev =>
+      prev.includes(itemId)
+        ? prev.filter(id => id !== itemId)
+        : [...prev, itemId]
+    );
+  };
+
+  const handleUpdateItem = (itemId: string, updates: Partial<BOQItem>) => {
+    updateItemMutation.mutate({ itemId, updates });
+  };
+
+  const handleOpenOrder = () => {
+    setIsSendPOOpen(true);
   };
 
   const groupedItems = boq?.items.reduce((acc, item) => {
@@ -141,6 +200,9 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
 
   const totalValue = boq?.items.reduce((sum, item) => sum + (item.totalPrice || 0), 0) || 0;
   const unorderedCount = boq?.items.filter(item => !item.ordered).length || 0;
+  const selectedCount = selectedForOrder.filter(id => 
+    boq?.items.find(item => item.id === id && !item.ordered)
+  ).length;
 
   if (isLoading) {
     return (
@@ -201,11 +263,13 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
                 <Button 
                   variant="default" 
                   size="sm" 
-                  onClick={() => setIsSendPOOpen(true)}
+                  onClick={handleOpenOrder}
                   disabled={unorderedCount === 0}
                 >
                   <Send className="w-4 h-4 sm:mr-2" />
-                  <span className="hidden sm:inline">Order{unorderedCount > 0 ? ` (${unorderedCount})` : ''}</span>
+                  <span className="hidden sm:inline">
+                    Order{selectedCount > 0 ? ` (${selectedCount})` : unorderedCount > 0 ? ` (${unorderedCount})` : ''}
+                  </span>
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => setIsEditOpen(true)}>
                   <Pencil className="w-4 h-4 sm:mr-2" />
@@ -221,10 +285,16 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
 
           <CollapsibleContent>
             <CardContent>
-              {boq.items.length === 0 ? (
-                <p className="text-sm text-muted-foreground text-center py-4">
-                  No items in the Bill of Quantities. Click Edit to add items.
-                </p>
+              {boq.items.length === 0 && !isAddingItem ? (
+                <div className="text-center py-4">
+                  <p className="text-sm text-muted-foreground mb-3">
+                    No items in the Bill of Quantities.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => setIsAddingItem(true)}>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add First Item
+                  </Button>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {Object.entries(groupedItems).map(([category, items]) => (
@@ -238,6 +308,7 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="w-10"></TableHead>
                               <TableHead>Description</TableHead>
                               <TableHead className="text-right w-24">Qty</TableHead>
                               <TableHead className="w-20">Unit</TableHead>
@@ -248,36 +319,43 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
                           </TableHeader>
                           <TableBody>
                             {items.map((item) => (
-                              <TableRow key={item.id} className={item.ordered ? "opacity-60" : ""}>
-                                <TableCell className={item.ordered ? "line-through text-muted-foreground" : ""}>
-                                  {item.description}
-                                </TableCell>
-                                <TableCell className="text-right">{item.quantity}</TableCell>
-                                <TableCell>{item.unit}</TableCell>
-                                <TableCell className="text-right">
-                                  {item.unitPrice ? formatCurrency(item.unitPrice) : '-'}
-                                </TableCell>
-                                <TableCell className="text-right font-medium">
-                                  {item.totalPrice ? formatCurrency(item.totalPrice) : '-'}
-                                </TableCell>
-                                <TableCell className="text-center">
-                                  {item.ordered ? (
-                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 text-xs dark:bg-green-950 dark:text-green-400 dark:border-green-800">
-                                      Ordered
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="outline" className="text-xs">
-                                      Pending
-                                    </Badge>
-                                  )}
-                                </TableCell>
-                              </TableRow>
+                              <BOQTableRow
+                                key={item.id}
+                                item={item}
+                                isSelected={selectedForOrder.includes(item.id)}
+                                onToggleSelect={() => toggleSelection(item.id)}
+                                onUpdateItem={(updates) => handleUpdateItem(item.id, updates)}
+                              />
                             ))}
                           </TableBody>
                         </Table>
                       </div>
                     </div>
                   ))}
+
+                  {/* Add Item Row */}
+                  {isAddingItem ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableBody>
+                          <BOQInlineItemRow
+                            onSave={(item) => addItemMutation.mutate(item)}
+                            onCancel={() => setIsAddingItem(false)}
+                          />
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setIsAddingItem(true)}
+                      className="w-full"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add Item
+                    </Button>
+                  )}
 
                   <div className="flex justify-end pt-4 border-t">
                     <div className="text-right">
@@ -312,6 +390,7 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
         boq={boq}
         jobId={jobId}
         siteAddress={siteAddress}
+        preSelectedItems={selectedCount > 0 ? selectedForOrder : undefined}
       />
 
       {isPrinting && createPortal(
