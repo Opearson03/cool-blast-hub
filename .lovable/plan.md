@@ -1,158 +1,206 @@
 
-
-# BOQ Click-to-Select and Inline Editing Improvements
+# Supplier Quote Replies in Inbox
 
 ## Overview
-This plan transforms the Bill of Quantities (BOQ) interface from a dialog-based editing model to a more intuitive click-to-interact pattern. Users will be able to click items directly to add them to orders, click totals for inline editing, and add new items without opening a separate dialog.
+This plan adds a new "Quote" category to the inbox system for handling supplier quote replies. When a supplier responds to an RFQ email with their pricing, users can directly action it by converting to a Purchase Order with job allocation, delivery date, and onsite contact details.
 
-## Current Issues
-1. **Order Selection**: Users must open a separate dialog and check boxes to select items for ordering
-2. **Editing**: The edit popup requires navigating through many form fields for each item - overly complex for quick edits
-3. **Adding Items**: No way to add items directly from the main BOQ view
+## Current Architecture
+- Inbox currently supports 4 types: `plan`, `test`, `docket`, `general`
+- Each type has its own database table (`pending_plans`, `pending_test_results`, `pending_documents`, `pending_general`)
+- Inbound emails are processed by `receive-test-email` edge function which detects document type and routes accordingly
+- RFQs are stored in `purchase_orders` table with status `quote_requested`
+- When suppliers reply, these need to be linked back to the original RFQ
 
-## Proposed Changes
+## Solution Design
 
-### 1. Click-to-Select for Ordering
-Transform table rows into selectable items that can be added to the order list with a simple click:
+### 1. New Database Table: `pending_quotes`
+Create a table to store incoming quote responses from suppliers:
 
-- Add a checkbox column (leftmost) to each row
-- Clicking anywhere on the row toggles selection
-- Selected items get a highlight/border style
-- "Order" button count updates in real-time based on selection
-- Clicking "Order" opens the dialog with pre-selected items
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| business_id | uuid | Business reference |
+| from_email | text | Supplier's email |
+| from_name | text | Supplier name (if detected) |
+| subject | text | Email subject |
+| received_at | timestamp | When received |
+| file_url | text | Attached quote PDF |
+| file_name | text | Filename |
+| email_body | text | Email content |
+| status | text | pending/converted |
+| linked_rfq_id | uuid | Matched purchase_orders.id |
+| linked_job_id | uuid | Job to assign PO to |
 
-**Visual feedback:**
-- Selected rows: Left border highlight + subtle background color
-- Hover state: Row highlights to indicate clickability
+### 2. Update Email Routing
+Modify `receive-test-email` edge function to detect quote responses:
 
-### 2. Inline Editing for Unit Price and Total
-Replace the dialog-based editing with click-to-edit functionality on price columns:
+**Detection Logic:**
+- Check if sender email matches any `supplier_email` in `purchase_orders` where `status = 'quote_requested'`
+- Look for keywords: "quote", "pricing", "RFQ", "quotation", "price list"
+- Match email subject containing RFQ numbers (e.g., "RE: RFQ-0002")
+- Auto-link to the matching RFQ record
 
-- **Unit Price column**: Clicking reveals an inline input field
-- **Total column**: Clicking reveals an inline input field (auto-calculates if unit price x qty)
-- Use the existing inline edit pattern from `PriceListTable.tsx` (edit icon appears on hover, Enter to save, Escape to cancel)
-- Changes save immediately to the database on confirm
+### 3. Frontend Changes
 
-**Edit mode UI:**
-- Small input field replaces the text
-- Check/X buttons for confirm/cancel
-- Enter key to save, Escape to cancel
+**InboxHistoryTab.tsx:**
+- Add "quote" type to the `InboxItem` interface
+- Fetch from new `pending_quotes` table
+- Add filter option for "Quotes"
+- Add dollar sign icon for quote type
 
-### 3. Quick Add Item
-Add an "Add Item" row at the bottom of each category or at the table footer:
+**InboxDetailSheet.tsx:**
+- Show quote-specific action button: "Convert to PO"
+- Display linked RFQ information if available
+- Add reclassify option for quote type
 
-- A persistent "+" button or "Add Item" row at the bottom of the BOQ
-- Clicking opens an inline row with empty fields for:
-  - Category dropdown
-  - Description input
-  - Quantity input
-  - Unit dropdown
-  - Unit Price input
-- Pressing Enter or clicking a confirm button adds the item
-- Total auto-calculates from Qty x Unit Price
+**New Component: ActionQuoteDialog.tsx**
+A dialog that allows users to convert a quote into a Purchase Order:
+- Job selection (pre-filled if linked RFQ has job_id)
+- Delivery date picker
+- Onsite contact (employee dropdown or manual entry)
+- Delivery address (pre-filled from job site address)
+- Notes field
+- Shows original RFQ items with ability to update prices from quote
 
-### 4. Simplified Edit Button
-The "Edit" button will now only open a simplified dialog for:
-- General notes editing
-- Bulk delete functionality
-- Re-ordering items (if needed in future)
+### 4. User Flow
+
+```text
+1. Supplier receives RFQ email for materials
+2. Supplier replies with quote (PDF attachment with pricing)
+3. Email arrives → detected as "quote" → stored in pending_quotes
+4. If sender matches existing RFQ supplier email, auto-link to RFQ
+5. User sees quote in Inbox with "Pending" status
+6. User clicks quote → detail sheet shows quote info + linked RFQ
+7. User clicks "Convert to PO" button
+8. Dialog opens with:
+   - Pre-filled job (from linked RFQ)
+   - Items from original RFQ with editable prices
+   - Delivery date picker
+   - Onsite contact selector
+   - Delivery address
+9. User confirms → PO created and sent to supplier
+10. Quote marked as "converted"
+```
 
 ---
 
 ## Technical Implementation
 
-### File Changes
+### Database Migration
 
-**1. `src/components/jobs/boq/BOQCard.tsx`**
-- Add `selectedForOrder` state: `useState<string[]>([])` to track selected item IDs
-- Add `editingItemId` state: `useState<string | null>(null)` to track inline editing
-- Add `editingField` state to track which field is being edited (unitPrice or totalPrice)
-- Modify `TableRow` to be clickable for selection toggle
-- Add checkbox column to table
-- Add click handler on price/total cells to enable inline edit mode
-- Add inline input components for editing (following PriceListTable pattern)
-- Pass `selectedForOrder` to `SendPurchaseOrderDialog` as initial selection
-- Add mutation for updating individual items in-place
-
-**2. `src/components/jobs/boq/BOQInlineItemRow.tsx` (new file)**
-A reusable component for inline item editing/creation:
-- Category dropdown
-- Description text input
-- Quantity number input
-- Unit dropdown
-- Unit Price number input
-- Total (auto-calculated or manual override)
-- Save/Cancel action buttons
-
-**3. `src/components/jobs/boq/SendPurchaseOrderDialog.tsx`**
-- Accept optional `preSelectedItems` prop for items already selected from BOQCard
-- Initialize `selectedItems` from this prop if provided
-
-**4. `src/components/jobs/boq/BOQEditDialog.tsx`**
-- Simplify to focus on general notes and bulk operations
-- Remove individual item editing (now handled inline)
-- Keep item deletion and reordering if needed
-
----
-
-## User Flow
-
-### Selecting Items for Order
-```text
-1. User views BOQ card
-2. Clicks on row(s) they want to order
-3. Checkbox toggles, row highlights, Order button count updates
-4. Clicks "Order (3)" button
-5. Dialog opens with those 3 items pre-selected
-```
-
-### Editing a Price
-```text
-1. User hovers over Unit Price or Total column
-2. Cell shows edit indicator (pencil icon or cursor change)
-3. User clicks the cell
-4. Inline input appears with current value
-5. User types new value
-6. Presses Enter or clicks checkmark
-7. Value saves immediately, input reverts to text display
-```
-
-### Adding a New Item
-```text
-1. User clicks "+ Add Item" row at bottom
-2. New inline row appears with empty fields
-3. User fills in Description, Qty, Unit, Unit Price
-4. Presses Enter or clicks Save
-5. Item appears in the BOQ list
-```
-
----
-
-## UI/UX Considerations
-
-- **Selection visual**: Use a left border accent color + subtle background tint for selected rows
-- **Ordered items**: Keep current styling (opacity-60, line-through) and disable selection
-- **Mobile-friendly**: Ensure touch targets are adequate; consider swipe-to-select on mobile
-- **Keyboard navigation**: Support Tab to move between inline fields, Enter to save
-- **Error handling**: Show toast for save errors, keep edit mode open on failure
-
----
-
-## Database Interaction
-
-All inline edits will update the `job_boq` table's `items` JSONB column:
-
-```typescript
-// Update single item inline
-const updatedItems = boq.items.map(item => 
-  item.id === editingItemId ? { ...item, unitPrice: newPrice, totalPrice: newTotal } : item
+```sql
+-- Create pending_quotes table
+CREATE TABLE pending_quotes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id UUID NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
+  from_email TEXT NOT NULL,
+  from_name TEXT,
+  subject TEXT,
+  received_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  file_url TEXT,
+  file_name TEXT,
+  email_body TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  linked_rfq_id UUID REFERENCES purchase_orders(id) ON DELETE SET NULL,
+  linked_job_id UUID REFERENCES jobs(id) ON DELETE SET NULL,
+  extracted_data JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-await supabase.from("job_boq").update({ items: updatedItems }).eq("id", boq.id);
+
+-- RLS policies
+ALTER TABLE pending_quotes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can manage pending quotes" ON pending_quotes
+  FOR ALL USING (
+    has_role(auth.uid(), 'admin'::app_role) 
+    AND business_id = get_user_business_id(auth.uid())
+  );
+
+CREATE POLICY "Users can view pending quotes for their business" ON pending_quotes
+  FOR SELECT USING (business_id = get_user_business_id(auth.uid()));
 ```
 
-For adding new items:
+### Edge Function Updates
+
+**receive-test-email/index.ts:**
+
+Add quote detection keywords:
 ```typescript
-const newItem: BOQItem = { id: Date.now().toString(), category, description, quantity, unit, unitPrice, totalPrice };
-await supabase.from("job_boq").update({ items: [...boq.items, newItem] }).eq("id", boq.id);
+const QUOTE_RESPONSE_KEYWORDS = [
+  'quote', 'quotation', 'pricing', 'price list', 
+  'rfq', 'request for quote', 'attached quote',
+  'here is our quote', 'please find attached', 'as requested'
+];
 ```
 
+Add RFQ matching logic:
+```typescript
+async function matchQuoteToRFQ(
+  supabase: any,
+  businessId: string,
+  fromEmail: string,
+  subject: string
+): Promise<{ rfqId: string | null; jobId: string | null }> {
+  // Try to match by supplier email
+  const { data: rfqs } = await supabase
+    .from('purchase_orders')
+    .select('id, job_id, po_number, supplier_email')
+    .eq('business_id', businessId)
+    .eq('status', 'quote_requested')
+    .ilike('supplier_email', fromEmail);
+
+  if (rfqs && rfqs.length > 0) {
+    // Check if subject contains RFQ number
+    const subjectLower = subject?.toLowerCase() || '';
+    const matchedRfq = rfqs.find(rfq => 
+      subjectLower.includes(rfq.po_number.toLowerCase())
+    ) || rfqs[0];
+    
+    return { rfqId: matchedRfq.id, jobId: matchedRfq.job_id };
+  }
+  
+  return { rfqId: null, jobId: null };
+}
+```
+
+### Frontend Components
+
+**Files to modify:**
+1. `src/components/contacts/InboxHistoryTab.tsx` - Add quote type handling
+2. `src/components/contacts/InboxDetailSheet.tsx` - Add quote action button
+
+**New files:**
+1. `src/components/contacts/ActionQuoteDialog.tsx` - Convert quote to PO dialog
+
+**ActionQuoteDialog.tsx structure:**
+- Pre-fetch linked RFQ details
+- Display original RFQ items with editable unit prices
+- Job selector (disabled if linked to RFQ)
+- Delivery date picker (required)
+- Onsite contact selector (employees from the business)
+- Delivery address input (pre-filled from job)
+- Notes textarea
+- Submit creates new PO via `send-purchase-order` function
+
+---
+
+## Visual Changes
+
+**Inbox List:**
+- New icon: `DollarSign` from lucide-react
+- Badge: "Quote" in green color
+- Shows supplier name and linked RFQ number if available
+
+**Quote Detail Sheet:**
+- Shows email body and attached PDF
+- Displays linked RFQ info box if matched
+- "Convert to PO" primary action button
+- Reclassify options include quote type
+
+**Action Quote Dialog:**
+- Two-column layout on desktop
+- Left: Quote preview (PDF)
+- Right: PO form fields
+- Items table with editable prices
+- Calculate totals dynamically
