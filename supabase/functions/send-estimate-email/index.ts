@@ -28,6 +28,36 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    // Validate JWT authentication
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const token = authHeader.replace("Bearer ", "");
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+    // Create user-scoped client to validate JWT
+    const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+    if (authError || !user) {
+      console.error("Auth validation failed:", authError);
+      return new Response(
+        JSON.stringify({ error: "Invalid authentication" }),
+        { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    console.log(`Authenticated user: ${user.id}`);
+
     const { 
       estimateId, 
       clientEmail, 
@@ -50,10 +80,45 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error("PDF content is required");
     }
 
-    // Initialize Supabase client
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    // Initialize service role client for DB operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify estimate belongs to user's business
+    const { data: estimate, error: estimateError } = await supabase
+      .from("estimates")
+      .select("id, business_id")
+      .eq("id", estimateId)
+      .single();
+
+    if (estimateError || !estimate) {
+      console.error("Estimate lookup failed:", estimateError);
+      return new Response(
+        JSON.stringify({ error: "Estimate not found" }),
+        { status: 404, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("business_id")
+      .eq("id", user.id)
+      .single();
+
+    if (profileError || !profile) {
+      console.error("Profile lookup failed:", profileError);
+      return new Response(
+        JSON.stringify({ error: "User profile not found" }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    if (estimate.business_id !== profile.business_id) {
+      console.error(`Access denied: estimate business ${estimate.business_id} != user business ${profile.business_id}`);
+      return new Response(
+        JSON.stringify({ error: "Access denied - estimate belongs to different business" }),
+        { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
 
     // Generate a signing token for the accept link
     const signingToken = crypto.randomUUID();
