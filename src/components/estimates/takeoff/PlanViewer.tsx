@@ -172,8 +172,9 @@ export function PlanViewer({
   // Helper to get center point between two touches
   const getTouchCenter = (touches: React.TouchList, rect: DOMRect): { x: number; y: number } => {
     return {
-      x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left - rect.width / 2,
-      y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top - rect.height / 2,
+      // Coordinates in the same space as panOffset (container top-left)
+      x: (touches[0].clientX + touches[1].clientX) / 2 - rect.left,
+      y: (touches[0].clientY + touches[1].clientY) / 2 - rect.top,
     };
   };
 
@@ -270,9 +271,9 @@ export function PlanViewer({
       e.preventDefault();
       
       const rect = container.getBoundingClientRect();
-      // Mouse position relative to container center
-      const mouseX = e.clientX - rect.left - rect.width / 2;
-      const mouseY = e.clientY - rect.top - rect.height / 2;
+      // Mouse position in the same space as panOffset (container top-left)
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
 
       const zoomFactor = 0.15;
       const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
