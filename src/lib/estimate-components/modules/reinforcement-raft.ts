@@ -380,13 +380,13 @@ export const reinforcementRaftModule: EstimateModule = {
           const ribLengthPerLayerM = Math.max(0, (zonePodCount * 2.4) - (zonePerimeter / 2));
           
           // Bottom bars configuration
-          const bottomBarsPerRib = Number(zone.rib_bottom_bars) || 2;
+          const bottomBarsPerRib = Number(zone.rib_bottom_bars) || 1;
           const bottomBarSize = String(zone.rib_bottom_bar_size || 'N12');
           const bottomBarWeight = REBAR_WEIGHTS[bottomBarSize] || 0.888;
           
           // Top bars configuration (support 0 for no top bars)
           const topBarsPerRib = zone.rib_top_bars !== undefined && zone.rib_top_bars !== null 
-            ? Number(zone.rib_top_bars) : 1;
+            ? Number(zone.rib_top_bars) : 0;
           const topBarSize = String(zone.rib_top_bar_size || 'N12');
           const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
           
@@ -453,13 +453,13 @@ export const reinforcementRaftModule: EstimateModule = {
           const ribLengthPerLayerM = Math.max(0, (podCount * 2.4) - (perimeter / 2));
           
           // Bottom bars configuration
-          const bottomBarsPerRib = Number(scopeData?.rib_bottom_bars) || 2;
+          const bottomBarsPerRib = Number(scopeData?.rib_bottom_bars) || 1;
           const bottomBarSize = String(scopeData?.rib_bottom_bar_size || 'N12');
           const bottomBarWeight = REBAR_WEIGHTS[bottomBarSize] || 0.888;
           
           // Top bars configuration (support 0 for no top bars)
           const topBarsPerRib = scopeData?.rib_top_bars !== undefined && scopeData?.rib_top_bars !== null 
-            ? Number(scopeData.rib_top_bars) : 1;
+            ? Number(scopeData.rib_top_bars) : 0;
           const topBarSize = String(scopeData?.rib_top_bar_size || 'N12');
           const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
           
@@ -523,7 +523,7 @@ export const reinforcementRaftModule: EstimateModule = {
       // ═══════════════════════════════════════════════════════════════
       const meshType = String(scopeData?.topping_mesh_type || 'SL82');
       const meshLayers = Number(scopeData?.topping_mesh_layers) || 1;
-      const meshAreaMode = String(scopeData?.topping_mesh_area_mode || 'pod_field');
+      const meshAreaMode = String(scopeData?.topping_mesh_area_mode || 'full_slab');
       const meshLapPercent = 1 + (Number(scopeData?.topping_mesh_lap_percent) || 12.5) / 100;
       // Use volumeBreakdown if available, otherwise fall back to full area (no 0.85 reduction)
       const podFieldArea = Number(scopeData?.volumeBreakdown?.podFieldArea_m2) || totalArea;
