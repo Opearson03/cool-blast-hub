@@ -610,7 +610,8 @@ export const reinforcementRaftModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     // EDGE BEAM CHAIRS (per-beam configuration)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.edge_beam_reo && edgeBeams.length > 0) {
+    // Auto-include edge beam chairs if edge beams exist from takeoff
+    if ((answers.edge_beam_reo || edgeBeams.length > 0) && edgeBeams.length > 0) {
       let totalChairs = 0;
       let totalLayerChairs = 0;
       let chairPrice = 12.50;
@@ -669,7 +670,8 @@ export const reinforcementRaftModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     // INTERNAL BEAM CHAIRS (per-beam configuration)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.internal_beam_reo && internalBeams.length > 0) {
+    // Auto-include internal beam chairs if internal beams exist from takeoff
+    if ((answers.internal_beam_reo || internalBeams.length > 0) && internalBeams.length > 0) {
       let totalChairs = 0;
       let totalLayerChairs = 0;
       let chairPrice = 12.50;
@@ -748,7 +750,9 @@ export const reinforcementRaftModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     // EDGE BEAMS (per beam - all config stored on beam object)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.edge_beam_reo && edgeBeams.length > 0) {
+    // Auto-include edge beams if they exist from takeoff (bypass toggle)
+    const hasEdgeBeamsFromTakeoff = edgeBeams.length > 0;
+    if ((answers.edge_beam_reo || hasEdgeBeamsFromTakeoff) && edgeBeams.length > 0) {
       // Hardcoded defaults for beams that don't have explicit settings
       const DEFAULT_TM_TYPE = 'L11TM4';
       const DEFAULT_ADD_LIGS = false;
@@ -909,7 +913,9 @@ export const reinforcementRaftModule: EstimateModule = {
     // ═══════════════════════════════════════════════════════════════
     // INTERNAL BEAMS (per beam - all config stored on beam object)
     // ═══════════════════════════════════════════════════════════════
-    if (answers.internal_beam_reo && internalBeams.length > 0) {
+    // Auto-include internal beams if they exist from takeoff (bypass toggle)
+    const hasInternalBeamsFromTakeoff = internalBeams.length > 0;
+    if ((answers.internal_beam_reo || hasInternalBeamsFromTakeoff) && internalBeams.length > 0) {
       // Hardcoded defaults for beams that don't have explicit settings
       const DEFAULT_TM_TYPE = 'L11TM4';
       const DEFAULT_ADD_LIGS = false;
