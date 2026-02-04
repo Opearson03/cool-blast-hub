@@ -40,11 +40,11 @@ export function InternalContactsTab() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: contacts = [], isLoading } = useQuery({
-    queryKey: ["internal-contacts"],
+  const { data: businessData } = useQuery({
+    queryKey: ["user-business"],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return [];
+      if (!user) return null;
 
       const { data: profile } = await supabase
         .from("profiles")
@@ -52,17 +52,33 @@ export function InternalContactsTab() {
         .eq("id", user.id)
         .maybeSingle();
 
-      if (!profile?.business_id) return [];
+      if (!profile?.business_id) return null;
+
+      const { data: business } = await supabase
+        .from("businesses")
+        .select("id, name")
+        .eq("id", profile.business_id)
+        .maybeSingle();
+
+      return business;
+    },
+  });
+
+  const { data: contacts = [], isLoading } = useQuery({
+    queryKey: ["internal-contacts", businessData?.id],
+    queryFn: async () => {
+      if (!businessData?.id) return [];
 
       const { data, error } = await supabase
         .from("internal_contacts")
         .select("*")
-        .eq("business_id", profile.business_id)
+        .eq("business_id", businessData.id)
         .order("name");
 
       if (error) throw error;
       return data as InternalContact[];
     },
+    enabled: !!businessData?.id,
   });
 
   const saveMutation = useMutation({
@@ -74,16 +90,7 @@ export function InternalContactsTab() {
       trade?: string; // maps to role
       notes?: string;
     }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (!profile?.business_id) throw new Error("No business found");
+      if (!businessData?.id) throw new Error("No business found");
 
       const contactData = {
         name: formData.name,
@@ -102,7 +109,7 @@ export function InternalContactsTab() {
       } else {
         const { error } = await supabase
           .from("internal_contacts")
-          .insert({ ...contactData, business_id: profile.business_id });
+          .insert({ ...contactData, business_id: businessData.id });
         if (error) throw error;
       }
     },
@@ -300,7 +307,11 @@ export function InternalContactsTab() {
           phone: editingContact.phone || "",
           trade: editingContact.role || "",
           notes: editingContact.notes || "",
-        } : undefined}
+          company_name: businessData?.name || "",
+        } : {
+          name: "",
+          company_name: businessData?.name || "",
+        }}
         onSave={async (data) => {
           await saveMutation.mutateAsync(data);
         }}
