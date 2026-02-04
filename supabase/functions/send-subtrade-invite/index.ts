@@ -119,7 +119,8 @@ const handler = async (req: Request): Promise<Response> => {
             id,
             name,
             logo_url,
-            email
+            email,
+            inbound_email_alias
           )
         )
       `)
@@ -411,8 +412,13 @@ const handler = async (req: Request): Promise<Response> => {
 </body>
 </html>`;
 
+          // Use business-specific alias if available
+          const fromEmail = business.inbound_email_alias 
+            ? `${business.inbound_email_alias}@pourhub.au`
+            : 'Hello@pourhub.au';
+          
           const emailResponse = await resend.emails.send({
-            from: `${business.name} via Pourhub <Hello@pourhub.au>`,
+            from: `${business.name} <${fromEmail}>`,
             to: [body.recipient_email],
             subject: `${business.name} - Work Invite for ${pourDateFormatted}`,
             html: emailHtml,

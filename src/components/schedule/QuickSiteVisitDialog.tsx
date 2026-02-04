@@ -73,7 +73,7 @@ export function QuickSiteVisitDialog({
       // Get business details for the email
       const { data: business } = await supabase
         .from("businesses")
-        .select("name, phone, email")
+        .select("name, phone, email, inbound_email_alias")
         .eq("id", profile.business_id)
         .single();
 
@@ -109,6 +109,7 @@ export function QuickSiteVisitDialog({
               businessName: business.name,
               businessPhone: business.phone,
               businessEmail: business.email,
+              businessEmailAlias: business.inbound_email_alias || null,
             },
           });
         } catch (emailError) {

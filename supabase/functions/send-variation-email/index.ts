@@ -528,10 +528,12 @@ const handler = async (req: Request): Promise<Response> => {
 
       console.log("PDF generated, sending email...");
 
-      const senderName = businessName ? `${businessName} via Pourhub` : "Pourhub";
+      // TODO: To fully implement business alias for variations, businessEmailAlias needs to be passed to this function
+      // For now, using the Hello@pourhub.au address - this should be updated when client code is updated
+      const fromEmail = 'Hello@pourhub.au';
 
       const emailResponse = await resend.emails.send({
-        from: `${senderName} <Hello@pourhub.au>`,
+        from: `${businessName} <${fromEmail}>`,
         to: [clientEmail],
         cc: businessEmail ? [businessEmail] : undefined,
         subject: `Variation ${variationNumber} - ${jobName}`,

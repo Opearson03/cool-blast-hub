@@ -1282,7 +1282,8 @@ serve(async (req: Request) => {
             abn,
             logo_url,
             quote_primary_color,
-            quote_secondary_color
+            quote_secondary_color,
+            inbound_email_alias
           )
         `)
         .eq('signing_token', token)
@@ -1576,10 +1577,13 @@ serve(async (req: Request) => {
       // Send signed PDF to client
       if (resend && estimate.client_email && signedPdfBase64) {
         try {
-          const senderName = business?.name ? `${business.name} via Pourhub` : "Pourhub";
+          // Use business-specific alias if available
+          const fromEmail = business?.inbound_email_alias 
+            ? `${business.inbound_email_alias}@pourhub.au`
+            : 'Hello@pourhub.au';
           
           await resend.emails.send({
-            from: `${senderName} <Hello@pourhub.au>`,
+            from: `${business?.name || 'Pourhub'} <${fromEmail}>`,
             to: estimate.client_email,
             cc: business?.email ? [business.email] : undefined,
             subject: `Your Signed Quote ${estimate.estimate_number} - Confirmed`,
@@ -1711,7 +1715,8 @@ serve(async (req: Request) => {
               abn,
               logo_url,
               quote_primary_color,
-              quote_secondary_color
+              quote_secondary_color,
+              inbound_email_alias
             )
           )
         `)
@@ -1827,11 +1832,14 @@ serve(async (req: Request) => {
       const clientEmail = variation.submitted_to_email;
       if (resend && clientEmail && signedPdfBase64) {
         try {
-          const senderName = business?.name ? `${business.name} via Pourhub` : "Pourhub";
+          // Use business-specific alias if available
+          const fromEmail = business?.inbound_email_alias 
+            ? `${business.inbound_email_alias}@pourhub.au`
+            : 'Hello@pourhub.au';
           const totalAmount = (Number(variation.amount) * 1.1);
           
           await resend.emails.send({
-            from: `${senderName} <Hello@pourhub.au>`,
+            from: `${business?.name || 'Pourhub'} <${fromEmail}>`,
             to: clientEmail,
             cc: business?.email ? [business.email] : undefined,
             subject: `Approved: Variation ${variation.variation_number} - ${job?.name || 'Job'}`,
