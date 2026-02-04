@@ -1790,6 +1790,82 @@ export type Database = {
           },
         ]
       }
+      pending_quotes: {
+        Row: {
+          business_id: string
+          created_at: string
+          email_body: string | null
+          extracted_data: Json | null
+          file_name: string | null
+          file_url: string | null
+          from_email: string
+          from_name: string | null
+          id: string
+          linked_job_id: string | null
+          linked_rfq_id: string | null
+          received_at: string
+          status: string
+          subject: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          email_body?: string | null
+          extracted_data?: Json | null
+          file_name?: string | null
+          file_url?: string | null
+          from_email: string
+          from_name?: string | null
+          id?: string
+          linked_job_id?: string | null
+          linked_rfq_id?: string | null
+          received_at?: string
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          email_body?: string | null
+          extracted_data?: Json | null
+          file_name?: string | null
+          file_url?: string | null
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          linked_job_id?: string | null
+          linked_rfq_id?: string | null
+          received_at?: string
+          status?: string
+          subject?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_quotes_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_quotes_linked_job_id_fkey"
+            columns: ["linked_job_id"]
+            isOneToOne: false
+            referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pending_quotes_linked_rfq_id_fkey"
+            columns: ["linked_rfq_id"]
+            isOneToOne: false
+            referencedRelation: "purchase_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_test_results: {
         Row: {
           approved_at: string | null
