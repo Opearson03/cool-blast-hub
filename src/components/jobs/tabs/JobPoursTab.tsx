@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { SCOPE_LABELS } from "@/lib/scope-labels";
 import {
   Table,
   TableBody,
@@ -45,6 +46,7 @@ interface JobPour {
   notes: string | null;
   status: string | null;
   created_at: string | null;
+  scopes?: string[] | null;
 }
 
 interface JobPoursTabProps {
@@ -240,6 +242,16 @@ export function JobPoursTab({ jobId, jobAddress }: JobPoursTabProps) {
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
               </div>
+              {/* Scopes badges */}
+              {pour.scopes && pour.scopes.length > 0 && (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {(pour.scopes as string[]).map((scope) => (
+                    <Badge key={scope} variant="secondary" className="text-xs px-1.5 py-0">
+                      {SCOPE_LABELS[scope] || scope}
+                    </Badge>
+                  ))}
+                </div>
+              )}
               <div className="flex items-center justify-between mt-2">
                 <div className="flex gap-4 text-sm">
                   <span className="text-muted-foreground">
@@ -279,7 +291,20 @@ export function JobPoursTab({ jobId, jobAddress }: JobPoursTabProps) {
                 className="cursor-pointer hover:bg-muted/50"
                 onClick={() => handlePourClick(pour)}
               >
-                <TableCell className="font-medium">{pour.pour_name}</TableCell>
+                <TableCell>
+                  <div className="space-y-1">
+                    <span className="font-medium">{pour.pour_name}</span>
+                    {pour.scopes && pour.scopes.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(pour.scopes as string[]).map((scope) => (
+                          <Badge key={scope} variant="secondary" className="text-xs px-1.5 py-0">
+                            {SCOPE_LABELS[scope] || scope}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </TableCell>
                 <TableCell>
                   {pour.pour_date ? format(new Date(pour.pour_date), "d MMM yyyy") : "—"}
                   {pour.scheduled_time && ` @ ${pour.scheduled_time.slice(0, 5)}`}

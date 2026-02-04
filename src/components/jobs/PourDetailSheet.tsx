@@ -19,10 +19,11 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
-import { Calendar, Clock, MapPin, Droplets, Truck, Pencil, Users, FileText } from "lucide-react";
+import { Calendar, Clock, MapPin, Droplets, Truck, Pencil, Users, FileText, Tag } from "lucide-react";
 import { toast } from "sonner";
 import { SubTradesList } from "@/components/jobs/SubTradesList";
 import { PourFormDialog } from "@/components/jobs/PourFormDialog";
+import { SCOPE_LABELS } from "@/lib/scope-labels";
 
 interface JobPour {
   id: string;
@@ -38,6 +39,7 @@ interface JobPour {
   slump: string | null;
   notes: string | null;
   status: string | null;
+  scopes?: string[] | null;
 }
 
 interface PourDetailSheetProps {
@@ -116,6 +118,23 @@ export function PourDetailSheet({ pour, open, onOpenChange, jobAddress }: PourDe
           </SheetHeader>
 
           <div className="mt-6 space-y-6">
+            {/* Scopes */}
+            {pour.scopes && (pour.scopes as string[]).length > 0 && (
+              <div className="flex items-start gap-3">
+                <Tag className="w-4 h-4 mt-0.5 text-muted-foreground shrink-0" />
+                <div>
+                  <p className="text-sm font-medium mb-1.5">Scopes</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(pour.scopes as string[]).map((scope) => (
+                      <Badge key={scope} variant="secondary" className="text-xs">
+                        {SCOPE_LABELS[scope] || scope}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Quick Info */}
             <div className="space-y-3">
               {pour.pour_date && (

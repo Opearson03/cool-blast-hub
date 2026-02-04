@@ -1204,6 +1204,7 @@ export type Database = {
           pour_date: string | null
           pour_name: string
           scheduled_time: string | null
+          scopes: Json | null
           slump: string | null
           status: string | null
           updated_at: string | null
@@ -1223,6 +1224,7 @@ export type Database = {
           pour_date?: string | null
           pour_name: string
           scheduled_time?: string | null
+          scopes?: Json | null
           slump?: string | null
           status?: string | null
           updated_at?: string | null
@@ -1242,6 +1244,7 @@ export type Database = {
           pour_date?: string | null
           pour_name?: string
           scheduled_time?: string | null
+          scopes?: Json | null
           slump?: string | null
           status?: string | null
           updated_at?: string | null
