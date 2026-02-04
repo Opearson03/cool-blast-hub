@@ -1,174 +1,268 @@
 
-# Plan: Add Optional Scopes to Scheduled Works (Project Plan Events)
+# Plan: Fix Cross-Business Security Vulnerabilities
 
 ## Overview
 
-Allow users to assign specific scopes (e.g., "Raft Slab", "Driveway", "Piers") to individual project plan events when scheduling works. This helps clarify exactly what work is being done on each site visit.
+This plan addresses security issues that could allow one business to access or modify another business's data. I've identified vulnerabilities in both RLS policies and edge functions.
+
+---
+
+## Issues Identified
+
+### Critical RLS Policy Gaps
+
+| Table | Policy Name | Issue |
+|-------|-------------|-------|
+| `pending_invites` | Admins can manage invites | Checks for admin role but **no business_id check** - an admin from Business A could modify invites for Business B |
+| `employee_tickets` | Admins can manage tickets | Checks for admin role but **no business_id check** - cross-business access possible |
+| `documents` | Admins can delete documents | Checks for admin role but **no business_id check** |
+| `documents` | Staff can upload documents | Checks for staff/admin role but **no business_id check** |
+| `itp_templates` | Admins can manage itp templates | Checks for admin role but **no business_id check** - admin could modify another business's templates |
+| `swms_templates` | Admins can manage swms templates | Checks for admin role but **no business_id check** |
+| `business_subscriptions` | Admins can manage subscriptions | Checks for admin role but **no business_id check** - admin could modify other businesses' subscriptions |
+| `user_roles` | Admins can view all roles | Checks for admin role but **no business_id check** - could view roles from other businesses |
+| `waiting_list` | Users can view waitlist entries | Public SELECT with `USING (true)` exposes all email addresses to anyone |
+
+### Edge Function Authentication Gaps
+
+| Function | Issue |
+|----------|-------|
+| `send-estimate-email` | No JWT validation - anyone with an estimate ID could trigger emails and modify estimate status |
+| `scan-test-document` | No authentication - allows unauthorized AI credit consumption |
 
 ---
 
 ## Changes Required
 
-### 1. Database: Add `scopes` Column to `job_pours` Table
+### 1. Database Migration: Fix RLS Policies
 
-Add a new JSONB column to store an array of scope keys for each scheduled work event.
+Update all vulnerable policies to include proper `business_id` validation.
 
+#### Fix `pending_invites` Policy
 ```sql
-ALTER TABLE job_pours ADD COLUMN scopes JSONB DEFAULT '[]';
+DROP POLICY "Admins can manage invites" ON pending_invites;
+CREATE POLICY "Admins can manage invites for their business" ON pending_invites
+FOR ALL TO authenticated
+USING (
+  has_role(auth.uid(), 'admin') AND 
+  invited_by IN (SELECT id FROM profiles WHERE business_id = get_user_business_id(auth.uid()))
+)
+WITH CHECK (
+  has_role(auth.uid(), 'admin') AND 
+  invited_by = auth.uid()
+);
 ```
 
-This will store values like `["raft_slab", "piers"]` - matching the existing scope key format used in estimates.
+#### Fix `employee_tickets` Policy
+```sql
+DROP POLICY "Admins can manage tickets" ON employee_tickets;
+CREATE POLICY "Admins can manage tickets for their business" ON employee_tickets
+FOR ALL TO authenticated
+USING (
+  has_role(auth.uid(), 'admin') AND 
+  employee_id IN (SELECT id FROM profiles WHERE business_id = get_user_business_id(auth.uid()))
+)
+WITH CHECK (
+  has_role(auth.uid(), 'admin') AND 
+  employee_id IN (SELECT id FROM profiles WHERE business_id = get_user_business_id(auth.uid()))
+);
+```
+
+#### Fix `documents` Policies
+```sql
+DROP POLICY "Admins can delete documents" ON documents;
+CREATE POLICY "Admins can delete documents in their business" ON documents
+FOR DELETE TO authenticated
+USING (
+  has_role(auth.uid(), 'admin') AND 
+  business_id = get_user_business_id(auth.uid())
+);
+
+DROP POLICY "Staff can upload documents" ON documents;
+CREATE POLICY "Staff can upload documents to their business" ON documents
+FOR INSERT TO authenticated
+WITH CHECK (
+  (has_role(auth.uid(), 'admin') OR has_role(auth.uid(), 'staff')) AND 
+  business_id = get_user_business_id(auth.uid())
+);
+```
+
+#### Fix `itp_templates` Policy
+```sql
+DROP POLICY "Admins can manage itp templates" ON itp_templates;
+CREATE POLICY "Admins can manage their business itp templates" ON itp_templates
+FOR ALL TO authenticated
+USING (
+  has_role(auth.uid(), 'admin') AND 
+  (business_id IS NULL OR business_id = get_user_business_id(auth.uid()))
+)
+WITH CHECK (
+  has_role(auth.uid(), 'admin') AND 
+  business_id = get_user_business_id(auth.uid())
+);
+```
+
+#### Fix `swms_templates` Policy
+```sql
+DROP POLICY "Admins can manage swms templates" ON swms_templates;
+CREATE POLICY "Admins can manage their business swms templates" ON swms_templates
+FOR ALL TO authenticated
+USING (
+  has_role(auth.uid(), 'admin') AND 
+  (business_id IS NULL OR business_id = get_user_business_id(auth.uid()))
+)
+WITH CHECK (
+  has_role(auth.uid(), 'admin') AND 
+  business_id = get_user_business_id(auth.uid())
+);
+```
+
+#### Fix `business_subscriptions` Policy
+```sql
+DROP POLICY "Admins can manage subscriptions" ON business_subscriptions;
+CREATE POLICY "Admins can manage their own subscription" ON business_subscriptions
+FOR ALL TO authenticated
+USING (
+  has_role(auth.uid(), 'admin') AND 
+  business_id = get_user_business_id(auth.uid())
+)
+WITH CHECK (
+  has_role(auth.uid(), 'admin') AND 
+  business_id = get_user_business_id(auth.uid())
+);
+```
+
+#### Fix `user_roles` Policy
+```sql
+DROP POLICY "Admins can view all roles" ON user_roles;
+CREATE POLICY "Admins can view roles in their business" ON user_roles
+FOR SELECT TO authenticated
+USING (
+  has_role(auth.uid(), 'admin') AND 
+  user_id IN (SELECT id FROM profiles WHERE business_id = get_user_business_id(auth.uid()))
+);
+```
+
+#### Fix `waiting_list` Policy (Restrict Public Access)
+```sql
+DROP POLICY "Users can view waitlist entries" ON waiting_list;
+-- Only PourHub staff can view the full waitlist
+CREATE POLICY "Staff can view waitlist" ON waiting_list
+FOR SELECT TO authenticated
+USING (is_pourhub_staff(auth.uid()));
+```
 
 ---
 
-### 2. UI: Add Scope Selector to PourFormDialog
+### 2. Edge Function: Add Authentication to `send-estimate-email`
 
-Update the form to include an optional multi-select for scopes:
+**File:** `supabase/functions/send-estimate-email/index.ts`
 
-**File:** `src/components/jobs/PourFormDialog.tsx`
-
-**Changes:**
-- Add `scopes` field to the form schema (optional array of strings)
-- Fetch available scopes from the parent job's source estimate (if exists) or show all available scopes
-- Add a multi-select UI component using badges/checkboxes
-- Save selected scopes when creating/updating the pour
-
-**UI Design:**
-```
-┌─────────────────────────────────────┐
-│ Scopes (optional)                   │
-├─────────────────────────────────────┤
-│ [Raft Slab ✓] [Piers] [Driveway]    │
-│ [Crossover] [Paths & Surrounds]     │
-└─────────────────────────────────────┘
-```
-
-- Displayed as clickable badges that toggle on/off
-- Pre-populate with job's available scopes from the source estimate
-- Allow selecting multiple scopes per event
-
----
-
-### 3. Display Scopes in Project Plan UI
-
-**Files to update:**
-- `src/components/jobs/tabs/JobPoursTab.tsx` - Show scope badges in the list
-- `src/components/jobs/PourDetailSheet.tsx` - Display assigned scopes in the detail view
-- `src/components/schedule/PourDetailSheet.tsx` - Display scopes in schedule view
-
-**Display format:**
-- Small badges under the event name showing assigned scopes
-- E.g., `[Raft Slab] [Piers]` in muted style
-
----
-
-### 4. Update TypeScript Types
-
-Update the `JobPour` interface across all relevant files to include the new `scopes` field:
+Add JWT validation and verify the estimate belongs to the caller's business:
 
 ```typescript
-interface JobPour {
-  // ... existing fields
-  scopes?: string[] | null;
+// Add at the start of the handler after CORS check
+const authHeader = req.headers.get("Authorization");
+if (!authHeader?.startsWith("Bearer ")) {
+  return new Response(
+    JSON.stringify({ error: "Missing authorization" }),
+    { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+  );
+}
+
+const token = authHeader.replace("Bearer ", "");
+
+// Create user-scoped client to validate JWT
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { headers: { Authorization: authHeader } },
+});
+
+const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+if (authError || !user) {
+  return new Response(
+    JSON.stringify({ error: "Invalid authentication" }),
+    { status: 401, headers: { "Content-Type": "application/json", ...corsHeaders } }
+  );
+}
+
+// Verify estimate belongs to user's business
+const { data: estimate } = await supabase
+  .from("estimates")
+  .select("id, business_id")
+  .eq("id", estimateId)
+  .single();
+
+const { data: profile } = await supabase
+  .from("profiles")
+  .select("business_id")
+  .eq("id", user.id)
+  .single();
+
+if (!estimate || !profile || estimate.business_id !== profile.business_id) {
+  return new Response(
+    JSON.stringify({ error: "Estimate not found or access denied" }),
+    { status: 403, headers: { "Content-Type": "application/json", ...corsHeaders } }
+  );
 }
 ```
 
 ---
 
-## Scope Labels Reference
+### 3. Edge Function: Add Authentication to `scan-test-document`
 
-Using the existing scope labels already defined in `JobOverviewTab.tsx`:
+**File:** `supabase/functions/scan-test-document/index.ts`
 
-| Key | Label |
-|-----|-------|
-| `standard_slab` | Slab on Ground |
-| `raft_slab` | Raft Slab |
-| `waffle_pod` | Waffle Pod |
-| `strip_footings` | Strip Footings |
-| `piers` | Piers |
-| `suspended_slab` | Suspended Slab |
-| `crossovers` | Crossover |
-| `driveway` | Driveway |
-| `paths_surrounds` | Paths & Surrounds |
-| `retaining_wall` | Retaining Wall |
-| `architectural` | Architectural Concrete |
+Add JWT validation to prevent unauthorized AI credit consumption:
+
+```typescript
+// Add after CORS check
+const authHeader = req.headers.get("Authorization");
+if (!authHeader?.startsWith("Bearer ")) {
+  return new Response(
+    JSON.stringify({ success: false, error: "Missing authorization" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+const token = authHeader.replace("Bearer ", "");
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
+  global: { headers: { Authorization: authHeader } },
+});
+
+const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
+if (authError || !user) {
+  return new Response(
+    JSON.stringify({ success: false, error: "Invalid authentication" }),
+    { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+  );
+}
+
+console.log(`User ${user.id} scanning document:`, pdfUrl);
+```
 
 ---
 
-## User Flow After Implementation
-
-1. User navigates to a job's **Project Plan** tab
-2. User clicks **Schedule Works** to add a new event
-3. In the form dialog, user sees an optional **Scopes** section with available scopes as toggleable badges
-4. User selects relevant scopes (e.g., "Raft Slab" for a slab pour)
-5. Event is saved with the scope assignments
-6. The project plan list shows the scopes as small badges next to each event
-7. When viewing event details, the assigned scopes are clearly displayed
-
----
-
-## Summary of File Changes
+## Summary of Changes
 
 | File | Change |
 |------|--------|
-| **Migration** | Add `scopes` JSONB column to `job_pours` table |
-| `src/components/jobs/PourFormDialog.tsx` | Add scope selector UI and form field |
-| `src/components/jobs/tabs/JobPoursTab.tsx` | Display scope badges in list view |
-| `src/components/jobs/PourDetailSheet.tsx` | Display scopes in job detail sheet |
-| `src/components/schedule/PourDetailSheet.tsx` | Display scopes in schedule detail sheet |
+| **New Migration** | Fix 9 vulnerable RLS policies to add `business_id` checks |
+| `send-estimate-email/index.ts` | Add JWT validation + business ownership verification |
+| `scan-test-document/index.ts` | Add JWT validation to prevent unauthorized access |
 
 ---
 
-## Technical Details
+## Security Impact
 
-### Form Schema Addition
-```typescript
-const pourSchema = z.object({
-  // ... existing fields
-  scopes: z.array(z.string()).optional().default([]),
-});
-```
+After implementing these changes:
 
-### Scope Selector Component
-```tsx
-<div className="space-y-2">
-  <FormLabel>Scopes (optional)</FormLabel>
-  <div className="flex flex-wrap gap-2">
-    {availableScopes.map((scopeKey) => (
-      <Badge
-        key={scopeKey}
-        variant={selectedScopes.includes(scopeKey) ? "default" : "outline"}
-        className="cursor-pointer"
-        onClick={() => toggleScope(scopeKey)}
-      >
-        {SCOPE_LABELS[scopeKey]}
-      </Badge>
-    ))}
-  </div>
-</div>
-```
+- Admins from Business A can no longer modify invites, tickets, documents, or templates belonging to Business B
+- Subscription manipulation attacks will be blocked
+- Email enumeration via waiting_list will be prevented
+- Unauthorized API credit consumption will be blocked
+- Estimate email sending will require proper authentication and ownership
 
-### Fetching Available Scopes
-```typescript
-// Get scopes from the job's source estimate
-const { data: jobScopes } = useQuery({
-  queryKey: ["job-available-scopes", jobId],
-  queryFn: async () => {
-    const { data: job } = await supabase
-      .from("jobs")
-      .select("source_estimate_id")
-      .eq("id", jobId)
-      .maybeSingle();
-    
-    if (!job?.source_estimate_id) return ALL_SCOPES;
-    
-    const { data: estimate } = await supabase
-      .from("estimates")
-      .select("selected_scopes")
-      .eq("id", job.source_estimate_id)
-      .maybeSingle();
-    
-    return (estimate?.selected_scopes as string[]) || ALL_SCOPES;
-  },
-});
-```
