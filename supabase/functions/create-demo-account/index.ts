@@ -50,7 +50,7 @@ Deno.serve(async (req) => {
 
     const userId = authData.user.id;
 
-    // Create the business (subscription exempt for demo)
+    // Create the business (subscription exempt for demo, but require onboarding)
     const { data: business, error: businessError } = await supabaseAdmin
       .from("businesses")
       .insert({
@@ -59,7 +59,7 @@ Deno.serve(async (req) => {
         phone,
         email,
         subscription_exempt: true,
-        onboarding_completed: true
+        onboarding_completed: false
       })
       .select()
       .single();
