@@ -173,99 +173,102 @@ export const reinforcementRaftModule: EstimateModule = {
     const pricePerTonne = getPrice(priceMap, 'rebar', `${defaultBarSize} CB`, 2100);
 
     // Skip generic area mesh for waffle pods - they use dedicated WafflePodToppingMeshInput
+    // This skips BOTH the per-area mesh loop AND the fallback mesh_slab item
     const skipGenericAreaMesh = scopeData?.scopeId === 'waffle_pod';
 
-    if (areas.length > 0 && !skipGenericAreaMesh) {
-      areas.forEach((area) => {
-        const reoType = area.reo_type || defaultSlabReoType;
-        const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
-        
-        if (areaValue <= 0 || reoType === 'none' || reoType === 'fiber') return;
+    if (!skipGenericAreaMesh) {
+      if (areas.length > 0) {
+        areas.forEach((area) => {
+          const reoType = area.reo_type || defaultSlabReoType;
+          const areaValue = area._actualArea || (Number(area.length) || 0) * (Number(area.width) || 0);
+          
+          if (areaValue <= 0 || reoType === 'none' || reoType === 'fiber') return;
 
-        if (reoType === 'mesh') {
-          const meshType = area.mesh_type || defaultMeshType;
-          const meshLayers = Number(area.mesh_layers) || 1;
-          const meshTypeTop = area.mesh_type_top || meshType;
-          const totalMeshArea = areaValue * lapPercent;
-          const sheetsPerLayer = Math.ceil(totalMeshArea / sheetArea);
-          
-          // Bottom layer (always present)
-          const pricePerSheetBottom = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', meshType, 95);
-          const bottomCost = sheetsPerLayer * pricePerSheetBottom;
-          
-          lineItems.push({
-            id: `mesh_${area.id}_bottom`,
-            description: meshLayers > 1 
-              ? `${area.name} – ${meshType} (${sheetsPerLayer} sheets) – Bottom`
-              : `${area.name} – ${meshType} (${sheetsPerLayer} sheets)`,
-            quantity: sheetsPerLayer,
-            unit: 'sheets',
-            unitPrice: pricePerSheetBottom,
-            total: Math.round(bottomCost * 100) / 100,
-            category: 'materials',
-          });
-          subtotal += bottomCost;
-          
-          // Top layer (only if 2 layers)
-          if (meshLayers > 1) {
-            const pricePerSheetTop = getPrice(priceMap, 'mesh', meshTypeTop, 95);
-            const topCost = sheetsPerLayer * pricePerSheetTop;
+          if (reoType === 'mesh') {
+            const meshType = area.mesh_type || defaultMeshType;
+            const meshLayers = Number(area.mesh_layers) || 1;
+            const meshTypeTop = area.mesh_type_top || meshType;
+            const totalMeshArea = areaValue * lapPercent;
+            const sheetsPerLayer = Math.ceil(totalMeshArea / sheetArea);
+            
+            // Bottom layer (always present)
+            const pricePerSheetBottom = Number(answers.mesh_price_per_sheet) || getPrice(priceMap, 'mesh', meshType, 95);
+            const bottomCost = sheetsPerLayer * pricePerSheetBottom;
             
             lineItems.push({
-              id: `mesh_${area.id}_top`,
-              description: `${area.name} – ${meshTypeTop} (${sheetsPerLayer} sheets) – Top`,
+              id: `mesh_${area.id}_bottom`,
+              description: meshLayers > 1 
+                ? `${area.name} – ${meshType} (${sheetsPerLayer} sheets) – Bottom`
+                : `${area.name} – ${meshType} (${sheetsPerLayer} sheets)`,
               quantity: sheetsPerLayer,
               unit: 'sheets',
-              unitPrice: pricePerSheetTop,
-              total: Math.round(topCost * 100) / 100,
+              unitPrice: pricePerSheetBottom,
+              total: Math.round(bottomCost * 100) / 100,
               category: 'materials',
             });
-            subtotal += topCost;
+            subtotal += bottomCost;
+            
+            // Top layer (only if 2 layers)
+            if (meshLayers > 1) {
+              const pricePerSheetTop = getPrice(priceMap, 'mesh', meshTypeTop, 95);
+              const topCost = sheetsPerLayer * pricePerSheetTop;
+              
+              lineItems.push({
+                id: `mesh_${area.id}_top`,
+                description: `${area.name} – ${meshTypeTop} (${sheetsPerLayer} sheets) – Top`,
+                quantity: sheetsPerLayer,
+                unit: 'sheets',
+                unitPrice: pricePerSheetTop,
+                total: Math.round(topCost * 100) / 100,
+                category: 'materials',
+              });
+              subtotal += topCost;
+            }
           }
-        }
 
-        if (reoType === 'bar') {
-          const barSize = area.bar_size || defaultBarSize;
-          const spacing = Number(area.bar_spacing || defaultBarSpacing);
-          const layers = Number(area.bar_layers || defaultBarLayers);
-          const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
+          if (reoType === 'bar') {
+            const barSize = area.bar_size || defaultBarSize;
+            const spacing = Number(area.bar_spacing || defaultBarSpacing);
+            const layers = Number(area.bar_layers || defaultBarLayers);
+            const weightPerMetre = REBAR_WEIGHTS[barSize] || 0.888;
 
-          const barsPerMetre = 1000 / spacing;
-          const sideLength = Math.sqrt(areaValue);
-          const barsPerDirection = Math.ceil(sideLength * barsPerMetre);
-          const totalBarLength = barsPerDirection * sideLength * 2 * layers * LAP_ALLOWANCE;
-          const totalWeight = totalBarLength * weightPerMetre;
-          const cost = (totalWeight / 1000) * pricePerTonne;
+            const barsPerMetre = 1000 / spacing;
+            const sideLength = Math.sqrt(areaValue);
+            const barsPerDirection = Math.ceil(sideLength * barsPerMetre);
+            const totalBarLength = barsPerDirection * sideLength * 2 * layers * LAP_ALLOWANCE;
+            const totalWeight = totalBarLength * weightPerMetre;
+            const cost = (totalWeight / 1000) * pricePerTonne;
 
-          lineItems.push({
-            id: `bar_${area.id}`,
-            description: `${area.name} – ${barSize} @ ${spacing}mm (${layers}L, ${Math.round(totalWeight)}kg)`,
-            quantity: Math.round(totalWeight),
-            unit: 'kg',
-            unitPrice: pricePerTonne / 1000,
-            total: Math.round(cost * 100) / 100,
-            category: 'materials',
-          });
-          subtotal += cost;
-        }
-      });
-    } else if (totalArea > 0) {
-      // Fallback for single area without per-area breakdown - default to mesh
-      const pricePerSheet = getPrice(priceMap, 'mesh', defaultMeshType, 95);
-      const totalMeshArea = totalArea * lapPercent;
-      const sheets = Math.ceil(totalMeshArea / sheetArea);
-      const cost = sheets * pricePerSheet;
+            lineItems.push({
+              id: `bar_${area.id}`,
+              description: `${area.name} – ${barSize} @ ${spacing}mm (${layers}L, ${Math.round(totalWeight)}kg)`,
+              quantity: Math.round(totalWeight),
+              unit: 'kg',
+              unitPrice: pricePerTonne / 1000,
+              total: Math.round(cost * 100) / 100,
+              category: 'materials',
+            });
+            subtotal += cost;
+          }
+        });
+      } else if (totalArea > 0) {
+        // Fallback for single area without per-area breakdown - default to mesh
+        const pricePerSheet = getPrice(priceMap, 'mesh', defaultMeshType, 95);
+        const totalMeshArea = totalArea * lapPercent;
+        const sheets = Math.ceil(totalMeshArea / sheetArea);
+        const cost = sheets * pricePerSheet;
 
-      lineItems.push({
-        id: 'mesh_slab',
-        description: `Slab ${defaultMeshType} (${sheets} sheets)`,
-        quantity: sheets,
-        unit: 'sheets',
-        unitPrice: pricePerSheet,
-        total: Math.round(cost * 100) / 100,
-        category: 'materials',
-      });
-      subtotal += cost;
+        lineItems.push({
+          id: 'mesh_slab',
+          description: `Slab ${defaultMeshType} (${sheets} sheets)`,
+          quantity: sheets,
+          unit: 'sheets',
+          unitPrice: pricePerSheet,
+          total: Math.round(cost * 100) / 100,
+          category: 'materials',
+        });
+        subtotal += cost;
+      }
     }
 
     // ═══════════════════════════════════════════════════════════════
