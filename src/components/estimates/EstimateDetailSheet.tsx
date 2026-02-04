@@ -73,6 +73,7 @@ interface EstimateDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onConvertToJob?: (estimate: Estimate) => void;
+  onEdit?: (estimate: Estimate) => void;
 }
 
 const statusConfig: Record<EstimateStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -83,7 +84,7 @@ const statusConfig: Record<EstimateStatus, { label: string; variant: "default" |
   declined: { label: "Declined", variant: "destructive" },
 };
 
-export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange, onConvertToJob }: EstimateDetailSheetProps) {
+export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange, onConvertToJob, onEdit }: EstimateDetailSheetProps) {
   const [isPrinting, setIsPrinting] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [siteVisitOpen, setSiteVisitOpen] = useState(false);
@@ -660,10 +661,10 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
           </div>
 
           {/* Actions - Central prominent buttons */}
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
             <Button onClick={handlePrint} variant="outline" className="gap-2 h-12">
               <Printer className="w-4 h-4" />
-              Print Estimate
+              Print
             </Button>
             <Button 
               onClick={handleSendEmail} 
@@ -675,7 +676,20 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
               ) : (
                 <Send className="w-4 h-4" />
               )}
-              Email to Client
+              Email
+            </Button>
+            <Button 
+              onClick={() => {
+                if (onEdit && estimate) {
+                  onEdit(estimate);
+                  onOpenChange(false);
+                }
+              }}
+              variant="outline"
+              className="gap-2 h-12"
+            >
+              <Pencil className="w-4 h-4" />
+              Revise
             </Button>
           </div>
 
