@@ -81,7 +81,7 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
 
   if (isLoading) {
     return (
-      <div className="text-xs text-muted-foreground py-2">Loading sub-trades...</div>
+      <div className="text-xs text-muted-foreground py-2">Loading sub-contractors...</div>
     );
   }
 
@@ -97,7 +97,7 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
             >
               <span className="flex items-center gap-2">
                 <UserPlus className="h-3.5 w-3.5 text-muted-foreground" />
-                <span>Sub-Trades</span>
+                <span>Sub-Contractors</span>
                 {totalActive > 0 && (
                   <Badge variant="secondary" className="text-xs px-1.5 py-0">
                     {confirmedCount}/{totalActive} confirmed
@@ -122,7 +122,7 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
           <CollapsibleContent className="pt-2 space-y-2">
             {invites.length === 0 ? (
               <p className="text-xs text-muted-foreground px-2">
-                No sub-trades invited yet
+                No sub-contractors invited yet
               </p>
             ) : (
               <div className="space-y-1">
@@ -196,7 +196,7 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
               onClick={() => setInviteDialogOpen(true)}
             >
               <Plus className="h-3 w-3 mr-1" />
-              Invite Sub-Trade
+              Invite Sub-Contractor
             </Button>
           </CollapsibleContent>
         </div>

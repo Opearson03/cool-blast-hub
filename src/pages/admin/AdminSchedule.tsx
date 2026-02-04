@@ -266,7 +266,7 @@ export default function AdminSchedule() {
                 }
               }}
             >
-              Add Subbie
+              Add Sub-Contractor
             </Button>
           ),
         });
