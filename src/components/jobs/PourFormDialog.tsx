@@ -3,6 +3,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
+import { SCOPE_LABELS, ALL_SCOPE_KEYS } from "@/lib/scope-labels";
 import {
   Dialog,
   DialogContent,
@@ -47,6 +49,7 @@ const pourSchema = z.object({
   slump: z.string().optional(),
   notes: z.string().optional(),
   status: z.string().default("scheduled"),
+  scopes: z.array(z.string()).optional().default([]),
 });
 
 type PourFormData = z.infer<typeof pourSchema>;
@@ -68,6 +71,7 @@ interface PourFormDialogProps {
     slump: string | null;
     notes: string | null;
     status: string | null;
+    scopes?: string[] | null;
   } | null;
 }
 
@@ -113,6 +117,29 @@ export function PourFormDialog({
     }
   }, [editPour?.pour_date]);
 
+  // Fetch available scopes from job's source estimate
+  const { data: availableScopes = ALL_SCOPE_KEYS } = useQuery({
+    queryKey: ["job-available-scopes", jobId],
+    queryFn: async () => {
+      const { data: job } = await supabase
+        .from("jobs")
+        .select("source_estimate_id")
+        .eq("id", jobId)
+        .maybeSingle();
+      
+      if (!job?.source_estimate_id) return ALL_SCOPE_KEYS;
+      
+      const { data: estimate } = await supabase
+        .from("estimates")
+        .select("selected_scopes")
+        .eq("id", job.source_estimate_id)
+        .maybeSingle();
+      
+      const scopes = estimate?.selected_scopes as string[] | null;
+      return scopes && scopes.length > 0 ? scopes : ALL_SCOPE_KEYS;
+    },
+  });
+
   const form = useForm<PourFormData>({
     resolver: zodResolver(pourSchema),
     defaultValues: {
@@ -127,6 +154,7 @@ export function PourFormDialog({
       slump: "",
       notes: "",
       status: "scheduled",
+      scopes: [],
     },
     values: editPour
       ? {
@@ -141,9 +169,21 @@ export function PourFormDialog({
           slump: editPour.slump || "",
           notes: editPour.notes || "",
           status: editPour.status || "scheduled",
+          scopes: (editPour.scopes as string[]) || [],
         }
       : undefined,
   });
+
+  const selectedScopes = form.watch("scopes") || [];
+
+  const toggleScope = (scopeKey: string) => {
+    const current = form.getValues("scopes") || [];
+    if (current.includes(scopeKey)) {
+      form.setValue("scopes", current.filter((s) => s !== scopeKey));
+    } else {
+      form.setValue("scopes", [...current, scopeKey]);
+    }
+  };
 
   const visitType = form.watch("visit_type");
   const isPour = visitType === "pour";
@@ -178,6 +218,7 @@ export function PourFormDialog({
         slump: data.slump || null,
         notes: data.notes || null,
         status: data.status,
+        scopes: data.scopes || [],
       };
 
       if (editPour) {
@@ -521,6 +562,28 @@ export function PourFormDialog({
                     />
                   </div>
                 </>
+              )}
+
+              {/* Scopes Section */}
+              {availableScopes.length > 0 && (
+                <div className="space-y-2">
+                  <FormLabel>Scopes (optional)</FormLabel>
+                  <div className="flex flex-wrap gap-2">
+                    {availableScopes.map((scopeKey) => (
+                      <Badge
+                        key={scopeKey}
+                        variant={selectedScopes.includes(scopeKey) ? "default" : "outline"}
+                        className="cursor-pointer transition-colors hover:bg-primary/80"
+                        onClick={() => toggleScope(scopeKey)}
+                      >
+                        {SCOPE_LABELS[scopeKey] || scopeKey}
+                      </Badge>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Select which scopes this work covers
+                  </p>
+                </div>
               )}
 
               <FormField

@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { MapPin, Clock, Building2, Calendar, UserPlus, Plus, X, Loader2, ChevronDown, ChevronUp } from "lucide-react";
+import { MapPin, Clock, Building2, Calendar, UserPlus, Plus, X, Loader2, ChevronDown, ChevronUp, Tag } from "lucide-react";
+import { SCOPE_LABELS } from "@/lib/scope-labels";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { SubTradeStatusBadge, SubTradeStatusDot } from "@/components/jobs/SubTradeStatusBadge";
@@ -46,6 +47,7 @@ type Pour = {
   mpa_strength?: string | null;
   slump?: string | null;
   notes?: string | null;
+  scopes?: string[] | null;
   job?: {
     id: string;
     name: string;
@@ -215,6 +217,23 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
               {visitTypeLabels[visitType]}
             </Badge>
           </div>
+
+          {/* Scopes */}
+          {details.scopes && (details.scopes as string[]).length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Tag className="h-4 w-4 text-muted-foreground" />
+                <span className="font-medium">Scopes</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 pl-6">
+                {(details.scopes as string[]).map((scope) => (
+                  <Badge key={scope} variant="secondary" className="text-xs">
+                    {SCOPE_LABELS[scope] || scope}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Date and Time */}
           {(pour.pour_date || pour.scheduled_time) && (
