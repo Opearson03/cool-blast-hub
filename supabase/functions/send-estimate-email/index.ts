@@ -15,6 +15,7 @@ interface SendEstimateRequest {
   clientName: string;
   estimateNumber: string;
   businessName: string;
+  businessEmailAlias: string | null; // e.g. "jefconptyltd" for alias@pourhub.au
   totalAmount: string;
   siteAddress: string;
   pdfBase64: string; // Pre-generated PDF from client
@@ -33,6 +34,7 @@ const handler = async (req: Request): Promise<Response> => {
       clientName,
       estimateNumber,
       businessName,
+      businessEmailAlias,
       totalAmount,
       siteAddress,
       pdfBase64,
@@ -79,8 +81,13 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email with the pre-generated PDF attachment
     // Resend expects base64 string directly for attachments, not Uint8Array
+    // Use business-specific alias if available, otherwise fallback to generic address
+    const fromEmail = businessEmailAlias 
+      ? `${businessEmailAlias}@pourhub.au`
+      : 'Hello@pourhub.au';
+    
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: `${businessName} via Pourhub <Hello@pourhub.au>`,
+      from: `${businessName} <${fromEmail}>`,
       to: [clientEmail],
       subject: `Quote ${estimateNumber} from ${businessName}`,
       html: `

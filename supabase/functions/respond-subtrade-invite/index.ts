@@ -143,7 +143,8 @@ const handler = async (req: Request): Promise<Response> => {
               id,
               name,
               email,
-              logo_url
+              logo_url,
+              inbound_email_alias
             )
           )
         )
@@ -316,14 +317,15 @@ async function handleBatchResponses(
           name,
           site_address,
           business_id,
-          businesses (
-            id,
-            name,
-            email,
-            logo_url
+            businesses (
+              id,
+              name,
+              email,
+              logo_url,
+              inbound_email_alias
+            )
           )
         )
-      )
     `)
     .eq("batch_token_hash", tokenHash);
 
@@ -492,8 +494,13 @@ async function sendSubbieConfirmation(
       const statusEmoji = response === "accepted" ? "✅" : "❌";
       const statusText = response === "accepted" ? "Booking Confirmed" : "Response Recorded";
 
+      // Use business-specific alias if available for subbie confirmation
+      const fromEmail = business?.inbound_email_alias 
+        ? `${business.inbound_email_alias}@pourhub.au`
+        : 'Hello@pourhub.au';
+      
       await resend.emails.send({
-        from: `PourHub <Hello@pourhub.au>`,
+        from: `${business?.name || 'PourHub'} <${fromEmail}>`,
         to: [invite.recipient_email],
         subject: `${statusEmoji} ${statusText} - ${pour?.pour_name || "Work Invite"}`,
         html: `<p>Hi ${invite.recipient_name}, your response has been recorded. ${business?.name} has been notified.</p>`,
@@ -521,8 +528,13 @@ async function sendBusinessNotification(
       const statusEmoji = response === "accepted" ? "✅" : "❌";
       const statusText = response === "accepted" ? "ACCEPTED" : "DECLINED";
 
+      // Use business-specific alias if available for business notification
+      const fromEmail = business?.inbound_email_alias 
+        ? `${business.inbound_email_alias}@pourhub.au`
+        : 'Hello@pourhub.au';
+      
       await resend.emails.send({
-        from: `PourHub <Hello@pourhub.au>`,
+        from: `${business?.name || 'PourHub'} <${fromEmail}>`,
         to: [business.email],
         subject: `${statusEmoji} ${invite.recipient_name} ${response} - ${invite.role} for ${pour?.pour_name}`,
         html: `<p><strong>${invite.recipient_name}</strong> has <strong>${response}</strong> the invite for ${pour?.pour_name} on ${pourDateFormatted}.</p>`,
@@ -598,8 +610,13 @@ async function sendBatchConfirmation(
         subject = `✅ ${acceptedCount} accepted, ❌ ${declinedCount} declined - ${business?.name}`;
       }
 
+      // Use business-specific alias if available
+      const fromEmail = business?.inbound_email_alias 
+        ? `${business.inbound_email_alias}@pourhub.au`
+        : 'Hello@pourhub.au';
+      
       await resend.emails.send({
-        from: `PourHub <Hello@pourhub.au>`,
+        from: `${business?.name || 'PourHub'} <${fromEmail}>`,
         to: [firstInvite.recipient_email],
         subject,
         html: `<p>Hi ${firstInvite.recipient_name}, your responses have been recorded. ${business?.name} has been notified.</p>`,
@@ -649,8 +666,13 @@ async function sendBatchBusinessNotification(
       htmlContent += `<p>❌ <strong>Declined:</strong> ${declinedPours}</p>`;
     }
 
+    // Use business-specific alias if available
+    const fromEmail = business?.inbound_email_alias 
+      ? `${business.inbound_email_alias}@pourhub.au`
+      : 'Hello@pourhub.au';
+    
     await resend.emails.send({
-      from: `PourHub <Hello@pourhub.au>`,
+      from: `${business?.name || 'PourHub'} <${fromEmail}>`,
       to: [business.email],
       subject,
       html: htmlContent,

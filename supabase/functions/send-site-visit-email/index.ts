@@ -17,6 +17,7 @@ interface SiteVisitEmailRequest {
   businessName: string;
   businessPhone: string | null;
   businessEmail: string | null;
+  businessEmailAlias: string | null; // e.g. "jefconptyltd" for alias@pourhub.au
   isFollowUp?: boolean;
 }
 
@@ -26,17 +27,21 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
+    const body = await req.json();
+    // Support both param names for backwards compatibility
     const { 
       clientEmail, 
       clientName,
       siteAddress,
-      visitDate,
       siteVisitTime,
       businessName,
       businessPhone,
       businessEmail,
+      businessEmailAlias,
       isFollowUp,
-    }: SiteVisitEmailRequest = await req.json();
+    } = body;
+    // Support both visitDate and siteVisitDate
+    const visitDate = body.visitDate || body.siteVisitDate;
 
     const eventType = isFollowUp ? 'follow-up call' : 'site visit';
     console.log(`Sending ${eventType} confirmation to ${clientEmail} for ${visitDate} at ${siteVisitTime || 'TBC'}`);
@@ -90,8 +95,13 @@ const handler = async (req: Request): Promise<Response> => {
       ? `We'll be calling you on the scheduled date. Please ensure you're available to take our call.`
       : `Please ensure access to the site is available on the scheduled date. If you have any specific requirements or concerns, feel free to let us know beforehand.`;
 
+    // Use business-specific alias if available, otherwise fallback to generic address
+    const fromEmail = businessEmailAlias 
+      ? `${businessEmailAlias}@pourhub.au`
+      : 'Hello@pourhub.au';
+    
     const emailResponse = await resend.emails.send({
-      from: "PourHub <Hello@pourhub.au>",
+      from: `${businessName} <${fromEmail}>`,
       to: [clientEmail],
       subject: emailSubject,
       html: `

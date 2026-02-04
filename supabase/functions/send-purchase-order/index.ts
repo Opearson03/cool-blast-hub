@@ -116,7 +116,7 @@ serve(async (req) => {
     // Get business details for branding
     const { data: business } = await supabase
       .from("businesses")
-      .select("name, logo_url, quote_primary_color, email, phone")
+      .select("name, logo_url, quote_primary_color, email, phone, inbound_email_alias")
       .eq("id", profile.business_id)
       .single();
 
@@ -311,8 +311,13 @@ serve(async (req) => {
         `;
 
         try {
+          // Use business-specific alias if available
+          const fromEmail = business?.inbound_email_alias 
+            ? `${business.inbound_email_alias}@pourhub.au`
+            : 'Hello@pourhub.au';
+          
           await resend.emails.send({
-            from: `${businessName} via Pourhub <Hello@pourhub.au>`,
+            from: `${businessName} <${fromEmail}>`,
             to: [supplierEmail],
             subject: `${emailSubjectPrefix} ${poNumber} - ${jobReference}`,
             html: emailHtml,

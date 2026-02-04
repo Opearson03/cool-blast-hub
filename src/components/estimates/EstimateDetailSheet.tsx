@@ -130,7 +130,7 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
 
       const { data: businessData } = await supabase
         .from("businesses")
-        .select("name, logo_url, address, phone, email, abn, quote_template, quote_primary_color, quote_secondary_color, quote_font")
+        .select("name, logo_url, address, phone, email, abn, quote_template, quote_primary_color, quote_secondary_color, quote_font, inbound_email_alias")
         .eq("id", profile.business_id)
         .single();
 
@@ -283,6 +283,7 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
           clientName: estimate.client_name,
           estimateNumber: estimate.estimate_number,
           businessName: business?.name || "PourHub",
+          businessEmailAlias: business?.inbound_email_alias || null,
           totalAmount: formatCurrency(estimate.total_amount),
           siteAddress: estimate.site_address,
           pdfBase64: pdfBase64,
@@ -460,6 +461,7 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
           businessName: business?.name || "PourHub",
           businessPhone: business?.phone || null,
           businessEmail: business?.email || null,
+          businessEmailAlias: business?.inbound_email_alias || null,
         },
       });
       toast({
@@ -510,6 +512,7 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
           businessName: business?.name || "PourHub",
           businessPhone: business?.phone || null,
           businessEmail: business?.email || null,
+          businessEmailAlias: business?.inbound_email_alias || null,
           isFollowUp: true,
         },
       });
