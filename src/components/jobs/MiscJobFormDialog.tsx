@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useBusinessSubbies, PastSubbie } from "@/hooks/useBusinessSubbies";
+import { useSendSubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { Badge } from "@/components/ui/badge";
 import {
   Command,
@@ -54,6 +55,8 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
   const [newSubbieRole, setNewSubbieRole] = useState("");
 
   const { data: pastSubbies = [], isLoading: subbiesLoading } = useBusinessSubbies();
+  const sendInvite = useSendSubTradeInvite();
+  const [isSendingInvites, setIsSendingInvites] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -82,7 +85,7 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
 
       if (jobError) throw jobError;
 
-      // If there are subbies to invite and we have a date, create a pour and invites
+      // If there are subbies to invite and we have a date, create a pour and send invites
       if (selectedSubbies.length > 0 && date) {
         // Create a pour for the misc job
         const { data: pour, error: pourError } = await supabase.from("job_pours").insert({
@@ -95,36 +98,48 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
 
         if (pourError) throw pourError;
 
-        // Create invites for each subbie
-        for (const subbie of selectedSubbies) {
-          const token = crypto.randomUUID();
-          const tokenHash = await hashToken(token);
-
-          await supabase.from("external_invites").insert({
-            business_id: profile.business_id,
-            job_id: job.id,
-            job_pour_id: pour.id,
-            recipient_name: subbie.recipient_name,
-            recipient_phone: subbie.recipient_phone,
-            recipient_email: subbie.recipient_email,
-            role: subbie.role,
-            token_hash: tokenHash,
-            status: "drafted",
-            created_by: user.id,
-          });
-        }
+        return { job, pour };
       }
 
-      return job;
+      return { job, pour: null };
     },
-    onSuccess: () => {
+    onSuccess: async (result) => {
+      // Send invites to sub-contractors after job/pour is created
+      if (result.pour && selectedSubbies.length > 0) {
+        setIsSendingInvites(true);
+        let sentCount = 0;
+        
+        for (const subbie of selectedSubbies) {
+          if (subbie.recipient_phone || subbie.recipient_email) {
+            try {
+              await sendInvite.mutateAsync({
+                job_pour_id: result.pour.id,
+                recipient_name: subbie.recipient_name,
+                role: subbie.role,
+                recipient_phone: subbie.recipient_phone || undefined,
+                recipient_email: subbie.recipient_email || undefined,
+              });
+              sentCount++;
+            } catch (error) {
+              console.error("Failed to send invite to", subbie.recipient_name, error);
+            }
+          }
+        }
+        
+        setIsSendingInvites(false);
+        
+        if (sentCount > 0) {
+          toast.success(`Misc job added, ${sentCount} invite(s) sent`);
+        } else {
+          toast.success("Misc job added (no invites sent - missing contact info)");
+        }
+      } else {
+        toast.success("Misc job added");
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["jobs"] });
       queryClient.invalidateQueries({ queryKey: ["schedule-pours"] });
       queryClient.invalidateQueries({ queryKey: ["business-subbies"] });
-      toast.success(selectedSubbies.length > 0 
-        ? `Misc job added with ${selectedSubbies.length} sub-contractor(s)` 
-        : "Misc job added"
-      );
       handleClose();
     },
     onError: (error) => {
@@ -132,13 +147,7 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
     },
   });
 
-  const hashToken = async (token: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(token);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  };
+  // Remove the old hashToken function as it's no longer needed
 
   const handleClose = () => {
     setName("");
@@ -397,13 +406,13 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending}
+              disabled={createMutation.isPending || isSendingInvites}
               className="flex-1 touch-target"
             >
-              {createMutation.isPending && (
+              {(createMutation.isPending || isSendingInvites) && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              Add Job
+              {isSendingInvites ? "Sending Invites..." : "Add Job"}
             </Button>
           </div>
         </form>

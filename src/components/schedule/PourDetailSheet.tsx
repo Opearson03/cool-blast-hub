@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Sheet,
@@ -16,6 +16,7 @@ import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { SubTradeStatusBadge, SubTradeStatusDot } from "@/components/jobs/SubTradeStatusBadge";
 import { useBusinessSubbies, PastSubbie } from "@/hooks/useBusinessSubbies";
+import { useSendSubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { toast } from "sonner";
 import {
   Command,
@@ -120,6 +121,7 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
 
   const queryClient = useQueryClient();
   const { data: pastSubbies = [] } = useBusinessSubbies();
+  const sendInvite = useSendSubTradeInvite();
   
   const [addSubbieOpen, setAddSubbieOpen] = useState(false);
   const [showAddNew, setShowAddNew] = useState(false);
@@ -127,58 +129,32 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
   const [newSubbiePhone, setNewSubbiePhone] = useState("");
   const [newSubbieRole, setNewSubbieRole] = useState("");
 
-  const hashToken = async (token: string): Promise<string> => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(token);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
-  };
-
-  const addSubbieMutation = useMutation({
-    mutationFn: async (subbie: { recipient_name: string; recipient_phone: string | null; recipient_email: string | null; role: string }) => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Not authenticated");
-
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("business_id")
-        .eq("id", user.id)
-        .single();
-
-      if (!profile?.business_id) throw new Error("No business found");
-
-      const token = crypto.randomUUID();
-      const tokenHash = await hashToken(token);
-
-      const { error } = await supabase.from("external_invites").insert({
-        business_id: profile.business_id,
-        job_id: pour!.job_id,
+  const handleSendInvite = async (subbie: { recipient_name: string; recipient_phone: string | null; recipient_email: string | null; role: string }) => {
+    if (!subbie.recipient_phone && !subbie.recipient_email) {
+      toast.error("Phone or email is required to send an invite");
+      return;
+    }
+    
+    try {
+      await sendInvite.mutateAsync({
         job_pour_id: pour!.id,
         recipient_name: subbie.recipient_name,
-        recipient_phone: subbie.recipient_phone,
-        recipient_email: subbie.recipient_email,
         role: subbie.role,
-        token_hash: tokenHash,
-        status: "drafted",
-        created_by: user.id,
+        recipient_phone: subbie.recipient_phone || undefined,
+        recipient_email: subbie.recipient_email || undefined,
       });
-
-      if (error) throw error;
-    },
-    onSuccess: () => {
+      
       queryClient.invalidateQueries({ queryKey: ["sub-trade-invites", pour?.id] });
       queryClient.invalidateQueries({ queryKey: ["business-subbies"] });
-      toast.success("Subbie added");
+      toast.success("Invite sent to " + subbie.recipient_name);
       setShowAddNew(false);
       setNewSubbieName("");
       setNewSubbiePhone("");
       setNewSubbieRole("");
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send invite");
+    }
+  };
 
   const handleSelectSubbie = (subbie: PastSubbie) => {
     // Check if already added
@@ -186,10 +162,10 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
       (i: any) => i.recipient_name.toLowerCase() === subbie.recipient_name.toLowerCase() && i.role.toLowerCase() === subbie.role.toLowerCase()
     );
     if (exists) {
-      toast.error("This subbie is already allocated to this pour");
+      toast.error("This sub-contractor is already allocated to this pour");
       return;
     }
-    addSubbieMutation.mutate(subbie);
+    handleSendInvite(subbie);
   };
 
   const handleAddNewSubbie = () => {
@@ -197,7 +173,11 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
       toast.error("Name and role are required");
       return;
     }
-    addSubbieMutation.mutate({
+    if (!newSubbiePhone.trim()) {
+      toast.error("Phone number is required to send an invite");
+      return;
+    }
+    handleSendInvite({
       recipient_name: newSubbieName,
       recipient_phone: newSubbiePhone || null,
       recipient_email: null,
@@ -318,7 +298,7 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium flex items-center gap-2">
                 <UserPlus className="h-4 w-4" />
-                Sub-Trades {invites.length > 0 && `(${invites.filter((i: any) => i.status === "accepted").length}/${invites.length})`}
+                Sub-Contractors {invites.length > 0 && `(${invites.filter((i: any) => i.status === "accepted").length}/${invites.length})`}
               </h4>
             </div>
             
@@ -338,25 +318,25 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
               </div>
             )}
 
-            {/* Add Subbie Section */}
+            {/* Add Sub-Contractor Section */}
             <Collapsible open={addSubbieOpen} onOpenChange={setAddSubbieOpen}>
               <CollapsibleTrigger asChild>
                 <Button variant="outline" size="sm" className="w-full justify-between">
                   <span className="flex items-center gap-2">
                     <Plus className="h-4 w-4" />
-                    Add Subbie
+                    Add Sub-Contractor
                   </span>
                   {addSubbieOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2 space-y-2">
-                {/* Search Past Subbies */}
+                {/* Search Past Sub-Contractors */}
                 {!showAddNew && (
                   <Command className="border rounded-md">
-                    <CommandInput placeholder="Search past subbies..." />
+                    <CommandInput placeholder="Search past sub-contractors..." />
                     <CommandList className="max-h-32">
                       <CommandEmpty>
-                        <span className="text-muted-foreground text-sm">No subbies found</span>
+                        <span className="text-muted-foreground text-sm">No sub-contractors found</span>
                       </CommandEmpty>
                       <CommandGroup>
                         {pastSubbies.map((subbie, index) => {
@@ -367,7 +347,7 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
                             <CommandItem
                               key={index}
                               onSelect={() => handleSelectSubbie(subbie)}
-                              disabled={isAllocated || addSubbieMutation.isPending}
+                              disabled={isAllocated || sendInvite.isPending}
                               className={cn(isAllocated && "opacity-50")}
                             >
                               <div className="flex flex-col">
@@ -384,11 +364,11 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
                   </Command>
                 )}
 
-                {/* Add New Subbie Form */}
+                {/* Add New Sub-Contractor Form */}
                 {showAddNew ? (
                   <div className="space-y-2 border rounded-md p-3 bg-muted/30">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-medium">New Subbie</span>
+                      <span className="text-sm font-medium">New Sub-Contractor</span>
                       <Button
                         type="button"
                         variant="ghost"
@@ -405,7 +385,7 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
                       className="h-9"
                     />
                     <Input
-                      placeholder="Phone"
+                      placeholder="Phone *"
                       value={newSubbiePhone}
                       onChange={(e) => setNewSubbiePhone(e.target.value)}
                       className="h-9"
@@ -420,11 +400,11 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
                       type="button"
                       size="sm"
                       onClick={handleAddNewSubbie}
-                      disabled={addSubbieMutation.isPending}
+                      disabled={sendInvite.isPending}
                       className="w-full"
                     >
-                      {addSubbieMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-                      Add Subbie
+                      {sendInvite.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                      Send Invite
                     </Button>
                   </div>
                 ) : (
@@ -436,7 +416,7 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
                     className="w-full"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add New Subbie
+                    Add New Sub-Contractor
                   </Button>
                 )}
               </CollapsibleContent>
