@@ -104,19 +104,31 @@ export default function AdminEstimates() {
     },
   });
 
-  // Handle auto-open from navigation state (e.g., from Inbox "Start Estimate")
+  // Handle auto-open from navigation state or URL query param (e.g., from Inbox "Start Estimate")
   useEffect(() => {
-    const state = location.state as { editEstimateId?: string } | null;
-    if (state?.editEstimateId && estimates.length > 0) {
-      const estimate = estimates.find(e => e.id === state.editEstimateId);
+    if (estimates.length === 0) return;
+    
+    const state = location.state as { editEstimateId?: string; forceStartStep?: boolean } | null;
+    const searchParams = new URLSearchParams(location.search);
+    const urlEstimateId = searchParams.get("id");
+    const forceStart = searchParams.get("forceStart") === "true";
+    
+    const estimateIdToOpen = state?.editEstimateId || urlEstimateId;
+    
+    if (estimateIdToOpen) {
+      const estimate = estimates.find(e => e.id === estimateIdToOpen);
       if (estimate) {
         setEditingEstimate(estimate);
+        // Store the forceStartStep flag to pass to the dialog
+        if (forceStart || state?.forceStartStep) {
+          (estimate as any)._forceStartStep = true;
+        }
         setFormOpen(true);
-        // Clear the state to prevent re-opening on refresh
+        // Clear the state and URL params to prevent re-opening on refresh
         navigate(location.pathname, { replace: true, state: {} });
       }
     }
-  }, [location.state, estimates, navigate, location.pathname]);
+  }, [location.state, location.search, estimates, navigate, location.pathname]);
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {

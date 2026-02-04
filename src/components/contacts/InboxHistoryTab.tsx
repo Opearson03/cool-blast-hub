@@ -436,7 +436,7 @@ export function InboxHistoryTab() {
       queryClient.invalidateQueries({ queryKey: ["inbox-history"] });
 
       toast.success("Estimate created");
-      navigate(`/admin/estimates?id=${estimate.id}`);
+      navigate(`/admin/estimates?id=${estimate.id}&forceStart=true`);
     } catch (error) {
       console.error("Error starting estimate:", error);
       toast.error("Failed to start estimate");
