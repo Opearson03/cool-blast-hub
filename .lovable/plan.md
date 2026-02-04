@@ -1,63 +1,55 @@
 
-# Plan: Set "Simple" (Minimal) Template as Default and Recommended
+Goal
+- Stop waffle pod slabs from counting topping mesh twice in the Reinforcement cost breakdown and totals.
 
-## Current Behavior
-- The default template is set to `"classic"` on initialization
-- The template options are ordered: Classic first, Minimal second
-- No visual indicator shows which template is recommended
+What’s happening (root cause)
+- The waffle pod reinforcement logic correctly intends to “skip generic slab mesh” (per-area mesh items) when scopeId === "waffle_pod".
+- However, the current control flow in `src/lib/estimate-components/modules/reinforcement-raft.ts` is:
 
-## Changes Required
+  - If `(areas.length > 0 && !skipGenericAreaMesh)` → do per-area mesh
+  - Else if `(totalArea > 0)` → add fallback slab mesh item (`id: "mesh_slab"`)
 
-### File: `src/components/onboarding/OnboardingWizard.tsx`
+- For waffle pod:
+  - `skipGenericAreaMesh` is true, so the per-area mesh block is skipped
+  - But the `else if (totalArea > 0)` fallback still runs, adding `mesh_slab`
+  - Later in the waffle pod-specific section, the module also adds `waffle_slab_mesh`
+  - Result: two mesh line items (often the same mesh type, e.g. SL85/SL82), doubling cost/quantity.
 
-| Change | Details |
-|--------|---------|
-| Update default state | Change `useState("classic")` to `useState("minimal")` |
-| Reorder template options | Move "minimal" (Simple) first in the list |
-| Add "Recommended" badge | Show a visual indicator on the Simple template |
-| Rename "Minimal" to "Simple" | Match the terminology the user is using |
+Implementation changes (code)
+1) Fix the conditional so the fallback mesh is also skipped for waffle pods
+- File: `src/lib/estimate-components/modules/reinforcement-raft.ts`
+- Update the “SLAB SURFACE REINFORCEMENT” section to ensure BOTH the per-area block AND the fallback block only run when `!skipGenericAreaMesh`.
 
-## Technical Details
+Recommended refactor (clear and safe):
+- Keep:
+  - `const skipGenericAreaMesh = scopeData?.scopeId === 'waffle_pod';`
+- Change the slab reinforcement section to:
 
-### 1. Change Default Template (Line 54)
-```typescript
-// Before
-const [quoteTemplate, setQuoteTemplate] = useState("classic");
+  - If `!skipGenericAreaMesh`:
+    - If `areas.length > 0` → run current per-area mesh/bar logic
+    - Else if `totalArea > 0` → run current fallback `mesh_slab` logic
+  - Else (waffle pod):
+    - Do nothing here (topping mesh is handled later by `waffle_slab_mesh`)
 
-// After
-const [quoteTemplate, setQuoteTemplate] = useState("minimal");
-```
+This ensures waffle pods never add `mesh_slab` (or any generic slab-surface mesh items).
 
-### 2. Update Template Options (Lines 427-444)
-```typescript
-{[
-  { id: "minimal", name: "Simple", recommended: true },
-  { id: "classic", name: "Classic", recommended: false },
-].map((template) => (
-  <button
-    key={template.id}
-    type="button"
-    onClick={() => setQuoteTemplate(template.id)}
-    className={`p-3 border rounded-lg text-center transition-all relative ${
-      quoteTemplate === template.id
-        ? "border-primary bg-primary/10 ring-2 ring-primary"
-        : "border-border hover:border-primary/50"
-    }`}
-  >
-    {template.recommended && (
-      <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[10px] bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full font-medium">
-        Recommended
-      </span>
-    )}
-    <FileText className="w-4 h-4 mx-auto mb-1" />
-    <span className="font-medium text-sm">{template.name}</span>
-  </button>
-))}
-```
+2) (Optional but recommended) Tighten/clarify the inline comment
+- Update the existing comment near `skipGenericAreaMesh` to explicitly mention the fallback is also skipped, to prevent regressions.
 
-## Expected Result
+Validation plan (manual)
+1) Open an existing waffle pod estimate that currently shows duplicated mesh.
+2) Go to Reinforcement → Cost breakdown.
+3) Expected after fix:
+   - Only one topping mesh line item exists: `waffle_slab_mesh` (e.g. “Topping SL85 …”)
+   - The generic fallback item `mesh_slab` is gone
+   - Totals/subtotals decrease accordingly (by exactly the removed duplicate mesh cost).
+4) Regression check:
+   - Create/open a non-waffle scope without per-area breakdown (where `areas.length === 0` but `totalArea > 0`, e.g. a simple slab scenario).
+   - Confirm the fallback `mesh_slab` still appears and pricing remains unchanged.
 
-The onboarding wizard will now:
-- Pre-select the "Simple" template by default
-- Display "Simple" as the first option with a "Recommended" badge
-- Keep "Classic" available as an alternative choice
+Notes / why this won’t break other scopes
+- This change only affects the slab-surface mesh calculation path when scopeId is waffle_pod.
+- Waffle pod mesh is already intentionally handled by the dedicated topping mesh calculation (`waffle_slab_mesh`), so removing the fallback is the correct behavior.
+
+Files to change
+- `src/lib/estimate-components/modules/reinforcement-raft.ts`
