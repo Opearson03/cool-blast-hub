@@ -1,90 +1,139 @@
 
-# Plan: Add Editable Lap % to All Waffle Pod Reinforcement Sections
+# Plan: Add Standard Industry Exclusions with Auto-Generation Logic
 
-## Goal
-Make lap percentage editable for each reinforcement section in waffle pod slabs to ensure consistency across Ribs, Topping Mesh, and Beams.
+## Overview
+Add the following exclusions to the estimator system with intelligent auto-generation based on user selections:
 
-## Current State vs. Proposed
+| Exclusion | Auto-Add Trigger |
+|-----------|------------------|
+| Dewatering | Always (default scope exclusion) |
+| Blinding concrete, soft spots or unsuitable ground | Always (default scope exclusion) |
+| Rock excavation | When any excavation is enabled |
+| Back filling or compaction | When detailed excavation is enabled |
+| Subgrade preparation | When road base OR crusher dust is NOT included |
+| Temporary shoring or structures | Always (default scope exclusion) |
+| Surveyor costs | Always (default scope exclusion) |
+| Traffic control | Always (default scope exclusion) |
+| Overhead services | Always (default scope exclusion) |
 
-| Section | Current | Proposed |
-|---------|---------|----------|
-| Topping Slab Mesh | Has editable `topping_mesh_lap_percent` (12.5% default) | No change - already correct |
-| Rib Reinforcement | Hardcoded `1.125` (12.5%) | Add `rib_lap_percent` field (12.5% default) |
-| Edge Beams | Hardcoded `1.125` (12.5%) | Add `beam_lap_percent` per beam group |
-| Internal Beams | Hardcoded `1.125` (12.5%) | Uses same beam lap from edge beams |
+## Current Exclusion System Architecture
 
-## Implementation Changes
+The exclusion system works at two levels:
+1. **Scope-level defaults** (`defaultExclusions` in each scope definition) - always added
+2. **Module-level dynamic** (`getExclusions()` function in each module) - conditional based on user answers
 
-### 1. Add Lap % Input to WafflePodRibsInput
-**File:** `src/components/estimates/calculators/WafflePodRibsInput.tsx`
+## Implementation Details
 
-- Add a new input field for `rib_lap_percent` (default 12.5%)
-- Place it in the "Stock Length" section or as a separate row
-- Update the summary calculation to use the editable value
+### 1. Add Global Exclusions to All Scopes
+**File:** `src/lib/estimate-components/scopes.ts`
 
-```text
-┌─────────────────────────────────────────────┐
-│ Rib Reinforcement                           │
-├─────────────────────────────────────────────┤
-│ Bottom Bars                                 │
-│ [Quantity: 2 ▼] [Bar Size: N12 ▼]          │
-├─────────────────────────────────────────────┤
-│ Top Bars                                    │
-│ [Quantity: 1 ▼] [Bar Size: N12 ▼]          │
-├─────────────────────────────────────────────┤
-│ Stock Length        Lap %                   │
-│ (○) 6m  (○) 12m    [12.5____] %            │  ← NEW FIELD
-└─────────────────────────────────────────────┘
+Add these exclusions to the `defaultExclusions` array for all relevant scopes (slabs, footings, piers, driveways, etc.):
+
+```typescript
+defaultExclusions: [
+  // Existing exclusions...
+  { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+  { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+  { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+  { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+  { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+  { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
+]
 ```
 
-### 2. Update Rib Calculation Logic
-**File:** `src/lib/estimate-components/modules/reinforcement-raft.ts`
+### 2. Add Excavation-Related Exclusions to Excavation Module
+**File:** `src/lib/estimate-components/modules/excavation.ts`
 
-- Read `rib_lap_percent` from scopeData instead of using hardcoded `LAP_ALLOWANCE`
-- Apply the editable lap percentage to rib bar length calculations
-- Default to 12.5% if not set
+Update the `getExclusions` function to add conditional exclusions:
 
-### 3. Add Lap % to Beam Reinforcement (Optional Enhancement)
-**File:** `src/components/estimates/calculators/BeamReinforcementInput.tsx`
+```typescript
+getExclusions: (answers, scopeData): ExclusionItem[] => {
+  const exclusions: ExclusionItem[] = [];
+  // ... existing logic ...
 
-This is a larger change that would affect all beam types. If desired, we can:
-- Add a `lap_percent` field per beam group
-- Update the beam calculation logic in `reinforcement-raft.ts`
+  // Add rock excavation exclusion when any excavation is enabled
+  if (bulkEnabled || detailedEnabled) {
+    exclusions.push({
+      id: 'rock_excavation',
+      text: 'Rock excavation or rock breaking',
+      moduleId: 'excavation',
+    });
+  }
 
-**Recommendation:** Start with just the Rib Lap % for now, as the Topping Mesh already has it. Beam lap % can be added in a follow-up if needed.
+  // Add backfill exclusion when detailed excavation is enabled
+  if (detailedEnabled) {
+    exclusions.push({
+      id: 'backfill',
+      text: 'Backfilling or compaction of excavations',
+      moduleId: 'excavation',
+    });
+  }
 
-## Files to Change
+  return exclusions;
+}
+```
+
+### 3. Add Subgrade Preparation Exclusion to Base Preparation Module
+**File:** `src/lib/estimate-components/modules/base-preparation.ts`
+
+Update the `getExclusions` function:
+
+```typescript
+getExclusions: (answers): ExclusionItem[] => {
+  const exclusions: ExclusionItem[] = [];
+  
+  // If neither crusher dust nor road base is included, add subgrade exclusion
+  if (!answers.crusher_dust_required && !answers.road_base_required) {
+    exclusions.push({
+      id: 'subgrade_preparation',
+      text: 'Subgrade preparation, levelling and compaction',
+      moduleId: 'base-preparation',
+    });
+  }
+
+  // ... existing exclusions ...
+  return exclusions;
+}
+```
+
+## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/calculators/WafflePodRibsInput.tsx` | Add `rib_lap_percent` input field with 12.5% default |
-| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Read `rib_lap_percent` from scopeData; use in rib bar length calculation |
+| `src/lib/estimate-components/scopes.ts` | Add 6 new default exclusions to: PIERS_SCOPE, STANDARD_SLAB_SCOPE, RAFT_SLAB_SCOPE, WAFFLE_POD_SCOPE, DRIVEWAY_SCOPE, CROSSOVERS_SCOPE, PATHS_SURROUNDS_SCOPE, STRIP_FOOTINGS_SCOPE, RETAINING_WALL_FOOTINGS_SCOPE, PAD_FOOTINGS_SCOPE, BOLLARDS_SCOPE |
+| `src/lib/estimate-components/modules/excavation.ts` | Add rock excavation and backfill exclusions when excavation is enabled |
+| `src/lib/estimate-components/modules/base-preparation.ts` | Add subgrade preparation exclusion when no base materials are included |
 
-## Technical Details
+## Exclusion Trigger Summary
 
-### WafflePodRibsInput.tsx Changes
-```typescript
-// Add to extracted values
-const ribLapPercent = numericWithDefault(scopeData?.rib_lap_percent, 12.5);
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ ALWAYS INCLUDED (Scope Defaults)                                │
+├─────────────────────────────────────────────────────────────────┤
+│ • Dewatering of excavations                                     │
+│ • Blinding concrete, soft spots or unsuitable ground            │
+│ • Temporary shoring or support structures                       │
+│ • Surveyor costs and site setout                                │
+│ • Traffic control and management                                │
+│ • Protection or relocation of overhead services                 │
+└─────────────────────────────────────────────────────────────────┘
 
-// Update handleChange to include lap percent
-// Add new Input field in the "Stock Length Row" section
+┌─────────────────────────────────────────────────────────────────┐
+│ CONDITIONAL (Module-Based)                                      │
+├─────────────────────────────────────────────────────────────────┤
+│ Excavation Module:                                              │
+│ • Rock excavation → when bulk OR detailed excavation ON         │
+│ • Backfilling/compaction → when detailed excavation ON          │
+│                                                                 │
+│ Base Preparation Module:                                        │
+│ • Subgrade preparation → when crusher dust AND road base OFF    │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-### reinforcement-raft.ts Changes
-```typescript
-// In waffle pod rib calculation (lines ~390 and ~465):
-// Replace:
-const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
+## Expected Behaviour
 
-// With:
-const ribLapMultiplier = 1 + (Number(scopeData?.rib_lap_percent) || 12.5) / 100;
-const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * ribLapMultiplier;
-```
-
-## Expected Result
-
-1. **Ribs Section** will have an editable "Lap %" input (matching Topping Mesh)
-2. The lap percentage will be applied to rib bar length calculations
-3. Consistency across all waffle pod reinforcement sections
-4. Default behavior unchanged (12.5% lap if not edited)
+1. **New Estimate Created**: User sees 6 default exclusions automatically
+2. **Excavation Module Opened**: When user enables excavation, rock excavation exclusion auto-adds
+3. **Detailed Excavation Enabled**: Backfill exclusion auto-adds
+4. **Base Prep Module**: If user doesn't include crusher dust or road base, subgrade preparation exclusion appears
+5. **All Exclusions**: Visible in the Exclusions Summary card and printed on PDF quotes
