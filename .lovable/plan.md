@@ -1,132 +1,109 @@
 
-# Plan: Add Start Time to Sub-Contractor Invites
+# Plan: Add Optional Scopes to Scheduled Works (Project Plan Events)
 
 ## Overview
 
-You want to specify what time a sub-contractor should arrive for a job. Currently, the invite inherits the pour's `scheduled_time`, but sub-contractors (like pump operators) often need to arrive at different times than the main pour starts.
-
-This plan adds a dedicated `start_time` field to the invite itself, allowing you to specify arrival times per sub-contractor.
+Allow users to assign specific scopes (e.g., "Raft Slab", "Driveway", "Piers") to individual project plan events when scheduling works. This helps clarify exactly what work is being done on each site visit.
 
 ---
 
 ## Changes Required
 
-### 1. Database: Add `start_time` Column to `external_invites`
+### 1. Database: Add `scopes` Column to `job_pours` Table
 
-Add a new `start_time` column (time without time zone, nullable) to store the subbie's expected arrival time. Falls back to the pour's `scheduled_time` if not specified.
+Add a new JSONB column to store an array of scope keys for each scheduled work event.
 
-```text
-ALTER TABLE external_invites ADD COLUMN start_time TIME;
+```sql
+ALTER TABLE job_pours ADD COLUMN scopes JSONB DEFAULT '[]';
+```
+
+This will store values like `["raft_slab", "piers"]` - matching the existing scope key format used in estimates.
+
+---
+
+### 2. UI: Add Scope Selector to PourFormDialog
+
+Update the form to include an optional multi-select for scopes:
+
+**File:** `src/components/jobs/PourFormDialog.tsx`
+
+**Changes:**
+- Add `scopes` field to the form schema (optional array of strings)
+- Fetch available scopes from the parent job's source estimate (if exists) or show all available scopes
+- Add a multi-select UI component using badges/checkboxes
+- Save selected scopes when creating/updating the pour
+
+**UI Design:**
+```
+┌─────────────────────────────────────┐
+│ Scopes (optional)                   │
+├─────────────────────────────────────┤
+│ [Raft Slab ✓] [Piers] [Driveway]    │
+│ [Crossover] [Paths & Surrounds]     │
+└─────────────────────────────────────┘
+```
+
+- Displayed as clickable badges that toggle on/off
+- Pre-populate with job's available scopes from the source estimate
+- Allow selecting multiple scopes per event
+
+---
+
+### 3. Display Scopes in Project Plan UI
+
+**Files to update:**
+- `src/components/jobs/tabs/JobPoursTab.tsx` - Show scope badges in the list
+- `src/components/jobs/PourDetailSheet.tsx` - Display assigned scopes in the detail view
+- `src/components/schedule/PourDetailSheet.tsx` - Display scopes in schedule view
+
+**Display format:**
+- Small badges under the event name showing assigned scopes
+- E.g., `[Raft Slab] [Piers]` in muted style
+
+---
+
+### 4. Update TypeScript Types
+
+Update the `JobPour` interface across all relevant files to include the new `scopes` field:
+
+```typescript
+interface JobPour {
+  // ... existing fields
+  scopes?: string[] | null;
+}
 ```
 
 ---
 
-### 2. UI: Add Time Picker to Invite Dialogs
+## Scope Labels Reference
 
-Update the invite forms to include a time input field:
+Using the existing scope labels already defined in `JobOverviewTab.tsx`:
 
-**Files to modify:**
-- `src/components/jobs/SubTradeInviteDialog.tsx` - Add start time field to new subbie form and existing subbie selection
-- `src/components/schedule/ScheduleSubbieDialog.tsx` - Add start time field to both tabs
-
-**UI Design:**
-- Simple time input field using a text input with type="time" (e.g., "07:30")
-- Label: "Start Time (optional)"
-- Placed near the notes field
-- Pre-populate with pour's scheduled_time if available
-
----
-
-### 3. Hook: Pass Start Time to Mutation
-
-Update the invite mutation to accept `start_time`:
-
-**File:** `src/hooks/useSubTradeInvites.ts`
-
-Add `start_time?: string` to the mutation function parameters.
-
----
-
-### 4. Edge Functions: Accept and Store Start Time
-
-Update both edge functions to handle the new field:
-
-**Files:**
-- `supabase/functions/send-subtrade-invite/index.ts`
-- `supabase/functions/send-batch-subtrade-invite/index.ts`
-
-Changes:
-- Add `start_time` to the request interface
-- Store `start_time` in the database insert
-- Display the invite-specific `start_time` in SMS/email (fallback to pour's `scheduled_time` if not set)
-
----
-
-### 5. Public Response Page: Display Start Time
-
-Update the subbie-facing response page to show the invite's start time:
-
-**File:** `src/pages/public/RespondInvite.tsx`
-
-Display the `start_time` from the invite (or fall back to pour's `scheduled_time`).
-
----
-
-### 6. Validate Token Edge Function: Return Start Time
-
-Ensure the token validation returns the `start_time` field:
-
-**File:** `supabase/functions/validate-subtrade-token/index.ts`
-
-Include `start_time` in the response so the public page can display it.
+| Key | Label |
+|-----|-------|
+| `standard_slab` | Slab on Ground |
+| `raft_slab` | Raft Slab |
+| `waffle_pod` | Waffle Pod |
+| `strip_footings` | Strip Footings |
+| `piers` | Piers |
+| `suspended_slab` | Suspended Slab |
+| `crossovers` | Crossover |
+| `driveway` | Driveway |
+| `paths_surrounds` | Paths & Surrounds |
+| `retaining_wall` | Retaining Wall |
+| `architectural` | Architectural Concrete |
 
 ---
 
 ## User Flow After Implementation
 
-1. User opens invite dialog for a pour
-2. User selects or enters subbie details
-3. User optionally sets a "Start Time" (e.g., "6:30 AM" for pump operator)
-4. Invite is sent with the specified time
-5. Subbie receives SMS/email showing the arrival time
-6. Subbie opens invite link and sees the time clearly displayed
-7. Calendar download includes the correct start time
-
----
-
-## Technical Details
-
-### Form Schema Update
-```typescript
-const formSchema = z.object({
-  // ... existing fields
-  start_time: z.string().optional(), // Format: "HH:mm"
-});
-```
-
-### Time Input Component
-```tsx
-<FormField
-  name="start_time"
-  render={({ field }) => (
-    <FormItem>
-      <FormLabel className="flex items-center gap-1">
-        <Clock className="h-3.5 w-3.5" />
-        Start Time (optional)
-      </FormLabel>
-      <FormControl>
-        <Input type="time" {...field} />
-      </FormControl>
-    </FormItem>
-  )}
-/>
-```
-
-### SMS Message Update
-```text
-Before: "You're invited to work as Pump Operator on Monday, 3 Feb."
-After:  "You're invited to work as Pump Operator on Monday, 3 Feb at 6:30am."
-```
+1. User navigates to a job's **Project Plan** tab
+2. User clicks **Schedule Works** to add a new event
+3. In the form dialog, user sees an optional **Scopes** section with available scopes as toggleable badges
+4. User selects relevant scopes (e.g., "Raft Slab" for a slab pour)
+5. Event is saved with the scope assignments
+6. The project plan list shows the scopes as small badges next to each event
+7. When viewing event details, the assigned scopes are clearly displayed
 
 ---
 
@@ -134,12 +111,64 @@ After:  "You're invited to work as Pump Operator on Monday, 3 Feb at 6:30am."
 
 | File | Change |
 |------|--------|
-| **Migration** | Add `start_time` column to `external_invites` |
-| `SubTradeInviteDialog.tsx` | Add time input field |
-| `ScheduleSubbieDialog.tsx` | Add time input field |
-| `useSubTradeInvites.ts` | Add `start_time` to mutation params |
-| `send-subtrade-invite/index.ts` | Accept and store start_time, include in messages |
-| `send-batch-subtrade-invite/index.ts` | Accept and store start_time, include in messages |
-| `validate-subtrade-token/index.ts` | Return start_time in response |
-| `RespondInvite.tsx` | Display invite's start_time |
+| **Migration** | Add `scopes` JSONB column to `job_pours` table |
+| `src/components/jobs/PourFormDialog.tsx` | Add scope selector UI and form field |
+| `src/components/jobs/tabs/JobPoursTab.tsx` | Display scope badges in list view |
+| `src/components/jobs/PourDetailSheet.tsx` | Display scopes in job detail sheet |
+| `src/components/schedule/PourDetailSheet.tsx` | Display scopes in schedule detail sheet |
 
+---
+
+## Technical Details
+
+### Form Schema Addition
+```typescript
+const pourSchema = z.object({
+  // ... existing fields
+  scopes: z.array(z.string()).optional().default([]),
+});
+```
+
+### Scope Selector Component
+```tsx
+<div className="space-y-2">
+  <FormLabel>Scopes (optional)</FormLabel>
+  <div className="flex flex-wrap gap-2">
+    {availableScopes.map((scopeKey) => (
+      <Badge
+        key={scopeKey}
+        variant={selectedScopes.includes(scopeKey) ? "default" : "outline"}
+        className="cursor-pointer"
+        onClick={() => toggleScope(scopeKey)}
+      >
+        {SCOPE_LABELS[scopeKey]}
+      </Badge>
+    ))}
+  </div>
+</div>
+```
+
+### Fetching Available Scopes
+```typescript
+// Get scopes from the job's source estimate
+const { data: jobScopes } = useQuery({
+  queryKey: ["job-available-scopes", jobId],
+  queryFn: async () => {
+    const { data: job } = await supabase
+      .from("jobs")
+      .select("source_estimate_id")
+      .eq("id", jobId)
+      .maybeSingle();
+    
+    if (!job?.source_estimate_id) return ALL_SCOPES;
+    
+    const { data: estimate } = await supabase
+      .from("estimates")
+      .select("selected_scopes")
+      .eq("id", job.source_estimate_id)
+      .maybeSingle();
+    
+    return (estimate?.selected_scopes as string[]) || ALL_SCOPES;
+  },
+});
+```
