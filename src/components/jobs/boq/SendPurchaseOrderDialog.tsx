@@ -36,6 +36,7 @@ interface SendPurchaseOrderDialogProps {
   boq: JobBOQ;
   jobId: string;
   siteAddress: string;
+  preSelectedItems?: string[];
 }
 
 interface SupplierContact {
@@ -55,6 +56,7 @@ export function SendPurchaseOrderDialog({
   boq,
   jobId,
   siteAddress,
+  preSelectedItems,
 }: SendPurchaseOrderDialogProps) {
   const [orderType, setOrderType] = useState<OrderType>("po");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
@@ -78,8 +80,12 @@ export function SendPurchaseOrderDialog({
   // Reset form when dialog opens
   useEffect(() => {
     if (open) {
+      // Use pre-selected items if provided, otherwise default to all unordered items
       const unorderedIds = boq.items.filter(item => !item.ordered).map(item => item.id);
-      setSelectedItems(unorderedIds);
+      const initialSelection = preSelectedItems && preSelectedItems.length > 0
+        ? preSelectedItems.filter(id => unorderedIds.includes(id))
+        : unorderedIds;
+      setSelectedItems(initialSelection);
       setDeliveryAddress(siteAddress);
       setSupplierId("");
       setSelectedSupplierIds([]);
@@ -89,7 +95,7 @@ export function SendPurchaseOrderDialog({
       setSaveSupplier(false);
       setOrderType("po");
     }
-  }, [open, boq.items, siteAddress]);
+  }, [open, boq.items, siteAddress, preSelectedItems]);
 
   // Fetch supplier contacts
   const { data: suppliers = [] } = useQuery({
