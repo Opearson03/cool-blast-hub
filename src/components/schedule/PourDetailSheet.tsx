@@ -152,19 +152,26 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
       setNewSubbiePhone("");
       setNewSubbieRole("");
     } catch (error: any) {
-      toast.error(error.message || "Failed to send invite");
+      // Handle duplicate invite error gracefully
+      if (error.code === "DUPLICATE_INVITE") {
+        toast.error(`${subbie.recipient_name} already has an invite for this pour`);
+      } else {
+        toast.error(error.message || "Failed to send invite");
+      }
     }
   };
 
-  const handleSelectSubbie = (subbie: PastSubbie) => {
-    // Check if already added
-    const exists = invites.some(
-      (i: any) => i.recipient_name.toLowerCase() === subbie.recipient_name.toLowerCase() && i.role.toLowerCase() === subbie.role.toLowerCase()
+  // Filter out sub-contractors who already have active invites
+  const availableSubbies = pastSubbies.filter((subbie) => {
+    const nameLower = subbie.recipient_name.toLowerCase().trim();
+    return !invites.some(
+      (i: any) => 
+        i.recipient_name.toLowerCase().trim() === nameLower &&
+        ["drafted", "sent", "viewed", "accepted"].includes(i.status)
     );
-    if (exists) {
-      toast.error("This sub-contractor is already allocated to this pour");
-      return;
-    }
+  });
+
+  const handleSelectSubbie = (subbie: PastSubbie) => {
     handleSendInvite(subbie);
   };
 
@@ -333,32 +340,30 @@ export function PourDetailSheet({ pour, open, onOpenChange }: PourDetailSheetPro
                 {/* Search Past Sub-Contractors */}
                 {!showAddNew && (
                   <Command className="border rounded-md">
-                    <CommandInput placeholder="Search past sub-contractors..." />
+                    <CommandInput placeholder="Search sub-contractors..." />
                     <CommandList className="max-h-32">
                       <CommandEmpty>
-                        <span className="text-muted-foreground text-sm">No sub-contractors found</span>
+                        <span className="text-muted-foreground text-sm">
+                          {availableSubbies.length === 0 && pastSubbies.length > 0 
+                            ? "All sub-contractors already invited" 
+                            : "No sub-contractors found"}
+                        </span>
                       </CommandEmpty>
                       <CommandGroup>
-                        {pastSubbies.map((subbie, index) => {
-                          const isAllocated = invites.some(
-                            (i: any) => i.recipient_name.toLowerCase() === subbie.recipient_name.toLowerCase() && i.role.toLowerCase() === subbie.role.toLowerCase()
-                          );
-                          return (
-                            <CommandItem
-                              key={index}
-                              onSelect={() => handleSelectSubbie(subbie)}
-                              disabled={isAllocated || sendInvite.isPending}
-                              className={cn(isAllocated && "opacity-50")}
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-medium">{subbie.recipient_name}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {subbie.role} {subbie.recipient_phone && `• ${subbie.recipient_phone}`}
-                                </span>
-                              </div>
-                            </CommandItem>
-                          );
-                        })}
+                        {availableSubbies.map((subbie, index) => (
+                          <CommandItem
+                            key={index}
+                            onSelect={() => handleSelectSubbie(subbie)}
+                            disabled={sendInvite.isPending}
+                          >
+                            <div className="flex flex-col">
+                              <span className="font-medium">{subbie.recipient_name}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {subbie.role} {subbie.recipient_phone && `• ${subbie.recipient_phone}`}
+                              </span>
+                            </div>
+                          </CommandItem>
+                        ))}
                       </CommandGroup>
                     </CommandList>
                   </Command>
