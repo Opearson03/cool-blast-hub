@@ -481,7 +481,6 @@ export function OrderWizardDialog({
                   manualSiteContact={manualSiteContact}
                   onManualSiteContactChange={setManualSiteContact}
                   internalContacts={internalContacts}
-                  employees={employees}
                   notes={notes}
                   onNotesChange={setNotes}
                   isQuote={orderType === "quote"}

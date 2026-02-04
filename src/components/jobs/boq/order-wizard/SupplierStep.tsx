@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -5,13 +6,14 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Plus, X, Users } from "lucide-react";
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { Plus, X, Users, Search, Check } from "lucide-react";
 import { OrderType, SupplierContact } from "./types";
 
 interface SupplierStepProps {
@@ -47,9 +49,20 @@ export function SupplierStep({
   onSaveSupplierChange,
   onAddNewSupplier,
 }: SupplierStepProps) {
+  const [searchQuery, setSearchQuery] = useState("");
   const isQuote = orderType === "quote";
   const selectedSuppliers = suppliers.filter(s => selectedSupplierIds.includes(s.id));
   const showManualEntry = isQuote ? selectedSupplierIds.length === 0 : !supplierId;
+
+  // Filter suppliers by search query
+  const filteredSuppliers = suppliers.filter(s => {
+    const query = searchQuery.toLowerCase();
+    return (
+      s.name.toLowerCase().includes(query) ||
+      (s.company?.toLowerCase().includes(query) ?? false) ||
+      (s.email?.toLowerCase().includes(query) ?? false)
+    );
+  });
 
   return (
     <div className="space-y-4">
@@ -70,7 +83,7 @@ export function SupplierStep({
         </div>
       )}
 
-      {/* Quote: Multi-select suppliers */}
+      {/* Quote: Multi-select suppliers with search */}
       {isQuote && (
         <>
           {selectedSuppliers.length > 0 && (
@@ -99,61 +112,96 @@ export function SupplierStep({
           )}
 
           {suppliers.length > 0 && (
-            <Card>
-              <CardContent className="p-2 max-h-48 overflow-y-auto space-y-1">
-                {suppliers
-                  .filter(s => !selectedSupplierIds.includes(s.id))
-                  .map((supplier) => (
-                    <label
-                      key={supplier.id}
-                      className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer"
-                    >
-                      <Checkbox
-                        checked={selectedSupplierIds.includes(supplier.id)}
-                        onCheckedChange={() => onToggleSupplier(supplier.id)}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm">
-                          {supplier.name}
-                          {supplier.company && (
-                            <span className="text-muted-foreground ml-1">({supplier.company})</span>
-                          )}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {[supplier.email, supplier.phone].filter(Boolean).join(" • ") || "No contact info"}
-                        </p>
-                      </div>
-                    </label>
-                  ))}
-                {suppliers.filter(s => !selectedSupplierIds.includes(s.id)).length === 0 && (
-                  <p className="text-sm text-muted-foreground text-center py-2">
-                    All suppliers selected
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+            <Command className="border rounded-lg">
+              <CommandInput 
+                placeholder="Search suppliers..." 
+                value={searchQuery}
+                onValueChange={setSearchQuery}
+              />
+              <CommandList className="max-h-48">
+                <CommandEmpty>No suppliers found</CommandEmpty>
+                <CommandGroup>
+                  {filteredSuppliers
+                    .filter(s => !selectedSupplierIds.includes(s.id))
+                    .map((supplier) => (
+                      <CommandItem
+                        key={supplier.id}
+                        value={`${supplier.name} ${supplier.company || ""}`}
+                        onSelect={() => onToggleSupplier(supplier.id)}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">
+                            {supplier.name}
+                            {supplier.company && (
+                              <span className="text-muted-foreground ml-1">({supplier.company})</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {[supplier.email, supplier.phone].filter(Boolean).join(" • ") || "No contact info"}
+                          </p>
+                        </div>
+                      </CommandItem>
+                    ))}
+                  {filteredSuppliers.filter(s => !selectedSupplierIds.includes(s.id)).length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-2">
+                      {searchQuery ? "No matching suppliers" : "All suppliers selected"}
+                    </p>
+                  )}
+                </CommandGroup>
+              </CommandList>
+            </Command>
           )}
         </>
       )}
 
-      {/* PO: Single supplier select */}
+      {/* PO: Single supplier select with search */}
       {!isQuote && (
-        <Select
-          value={supplierId || "__manual__"}
-          onValueChange={(v) => onSupplierIdChange(v === "__manual__" ? "" : v)}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Select a supplier..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__manual__">-- Enter manually --</SelectItem>
-            {suppliers.map((supplier) => (
-              <SelectItem key={supplier.id} value={supplier.id}>
-                {supplier.name} {supplier.company && `(${supplier.company})`}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Command className="border rounded-lg">
+          <CommandInput 
+            placeholder="Search suppliers..." 
+            value={searchQuery}
+            onValueChange={setSearchQuery}
+          />
+          <CommandList className="max-h-48">
+            <CommandEmpty>No suppliers found</CommandEmpty>
+            <CommandGroup>
+              <CommandItem
+                value="__manual__"
+                onSelect={() => {
+                  onSupplierIdChange("");
+                  setSearchQuery("");
+                }}
+                className="cursor-pointer"
+              >
+                <span className="text-muted-foreground">-- Enter manually --</span>
+              </CommandItem>
+              {filteredSuppliers.map((supplier) => (
+                <CommandItem
+                  key={supplier.id}
+                  value={`${supplier.name} ${supplier.company || ""}`}
+                  onSelect={() => {
+                    onSupplierIdChange(supplier.id);
+                    setSearchQuery("");
+                  }}
+                  className="cursor-pointer"
+                >
+                  <div className="flex-1 min-w-0 flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">
+                        {supplier.name} {supplier.company && `(${supplier.company})`}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {[supplier.email, supplier.phone].filter(Boolean).join(" • ") || "No contact info"}
+                      </p>
+                    </div>
+                    {supplierId === supplier.id && <Check className="w-4 h-4 text-primary" />}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
       )}
 
       {/* Manual entry */}
