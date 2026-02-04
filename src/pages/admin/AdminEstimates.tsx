@@ -233,6 +233,13 @@ export default function AdminEstimates() {
     setFormOpen(true);
   };
 
+  // Handler for editing from the detail sheet (Revise Quote button)
+  const handleEditFromSheet = (estimate: Estimate) => {
+    setEditingEstimate(estimate);
+    setFormOpen(true);
+    setViewingEstimate(null);
+  };
+
   const handleFormClose = () => {
     setFormOpen(false);
     setEditingEstimate(null);
@@ -724,6 +731,7 @@ export default function AdminEstimates() {
         open={!!viewingEstimate}
         onOpenChange={(open) => !open && setViewingEstimate(null)}
         onConvertToJob={handleConvertToJob}
+        onEdit={handleEditFromSheet}
       />
 
       <EstimateQuotaDialog
