@@ -56,7 +56,8 @@ import {
   X,
   UserPlus,
   Users,
-  Check
+  Check,
+  Clock
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -109,6 +110,7 @@ const formSchema = z
     recipient_phone: z.string().optional(),
     recipient_email: z.string().email("Invalid email").optional().or(z.literal("")),
     notes: z.string().max(500).optional(),
+    start_time: z.string().optional(),
   })
   .refine(
     (data) => data.recipient_phone || data.recipient_email,
@@ -128,6 +130,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
   const [detailsTab, setDetailsTab] = useState<"existing" | "new">("existing");
   const [selectedPastSubbie, setSelectedPastSubbie] = useState<PastSubbie | null>(preselectedSubbie || null);
   const [subbieSearch, setSubbieSearch] = useState("");
+  const [startTime, setStartTime] = useState("");
   
   const sendInvite = useSendSubTradeInvite();
   const { data: pastSubbies = [], isLoading: isLoadingSubbies } = useBusinessSubbies();
@@ -141,6 +144,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
       recipient_phone: "",
       recipient_email: "",
       notes: "",
+      start_time: "",
     },
   });
   // Fetch jobs with scheduled/in-progress pours (including misc jobs)
@@ -254,6 +258,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
       setDetailsTab("existing");
       setSelectedPastSubbie(preselectedSubbie || null);
       setSubbieSearch("");
+      setStartTime("");
       form.reset();
     }
   }, [open, form, preselectedSubbie]);
@@ -360,6 +365,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
             recipient_phone: selectedPastSubbie.recipient_phone || undefined,
             recipient_email: selectedPastSubbie.recipient_email || undefined,
             notes: form.getValues("notes") || undefined,
+            start_time: startTime || form.getValues("start_time") || undefined,
           })
         )
       );
@@ -389,6 +395,7 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
             recipient_phone: data.recipient_phone || undefined,
             recipient_email: data.recipient_email || undefined,
             notes: data.notes || undefined,
+            start_time: data.start_time || undefined,
           })
         )
       );
@@ -640,11 +647,25 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
               </div>
             </div>
 
+            {/* Start time for preselected subbie */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                Start Time (optional)
+              </label>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full"
+              />
+            </div>
+
             {/* Notes */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Notes (optional)</label>
               <Textarea
-                placeholder="Access instructions, timing, site constraints..."
+                placeholder="Access instructions, site constraints..."
                 className="resize-none"
                 rows={2}
                 value={form.watch("notes") || ""}
@@ -752,11 +773,25 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
                   </div>
                 </ScrollArea>
 
+                {/* Start time for existing subbie */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" />
+                    Start Time (optional)
+                  </label>
+                  <Input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
                 {/* Notes for existing subbie */}
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Notes (optional)</label>
                   <Textarea
-                    placeholder="Access instructions, timing, site constraints..."
+                    placeholder="Access instructions, site constraints..."
                     className="resize-none"
                     rows={2}
                     value={form.watch("notes") || ""}
@@ -899,13 +934,30 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
 
                         <FormField
                           control={form.control}
+                          name="start_time"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                Start Time (optional)
+                              </FormLabel>
+                              <FormControl>
+                                <Input type="time" {...field} />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+
+                        <FormField
+                          control={form.control}
                           name="notes"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Notes (optional)</FormLabel>
                               <FormControl>
                                 <Textarea
-                                  placeholder="Access instructions, timing, site constraints..."
+                                  placeholder="Access instructions, site constraints..."
                                   className="resize-none"
                                   rows={3}
                                   {...field}

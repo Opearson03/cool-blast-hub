@@ -75,6 +75,7 @@ export function useSendSubTradeInvite() {
       recipient_phone?: string;
       recipient_email?: string;
       notes?: string;
+      start_time?: string;
     }) => {
       const { data: result, error } = await supabase.functions.invoke("send-subtrade-invite", {
         body: data,
@@ -106,6 +107,7 @@ export function useSendBatchSubTradeInvite() {
       recipient_phone?: string;
       recipient_email?: string;
       notes?: string;
+      start_time?: string;
     }) => {
       const { data: result, error } = await supabase.functions.invoke("send-batch-subtrade-invite", {
         body: data,

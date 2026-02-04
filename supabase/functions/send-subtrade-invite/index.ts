@@ -15,6 +15,7 @@ interface SubTradeInviteRequest {
   recipient_phone?: string;
   recipient_email?: string;
   notes?: string;
+  start_time?: string;
 }
 
 // Generate URL-safe base64 token
@@ -249,6 +250,7 @@ const handler = async (req: Request): Promise<Response> => {
         recipient_phone: body.recipient_phone || null,
         recipient_email: body.recipient_email || null,
         notes: body.notes || null,
+        start_time: body.start_time || null,
         status: "sent",
         token_hash: tokenHash,
         token_expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
@@ -281,6 +283,10 @@ const handler = async (req: Request): Promise<Response> => {
         })
       : "TBA";
 
+    // Use invite-specific start_time, fallback to pour's scheduled_time
+    const displayTime = body.start_time || pourData.scheduled_time?.slice(0, 5) || null;
+    const timeFormatted = displayTime ? ` at ${displayTime}` : "";
+
     // Delivery tracking variables
     let smsDeliveryStatus: string | null = null;
     let smsMessageSid: string | null = null;
@@ -298,7 +304,7 @@ const handler = async (req: Request): Promise<Response> => {
       if (twilioAccountSid && twilioAuthToken && twilioPhoneNumber) {
         try {
           const formattedPhone = formatPhoneE164(body.recipient_phone);
-          const smsMessage = `${business.name}: You're invited to work as ${body.role} on a pour ${pourDateFormatted}.\nView & respond: ${inviteUrl}`;
+          const smsMessage = `${business.name}: You're invited to work as ${body.role} on ${pourDateFormatted}${timeFormatted}.\nView & respond: ${inviteUrl}`;
 
           const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
           const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
@@ -371,11 +377,11 @@ const handler = async (req: Request): Promise<Response> => {
             <td style="padding: 32px 24px;">
               <h2 style="color: #1f2937; margin: 0 0 24px 0; font-size: 20px;">You've been invited to work on a pour</h2>
               
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
                 <tr>
                   <td>
                     <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">📅 <strong style="color: #1f2937;">${pourDateFormatted}</strong></p>
-                    ${pourData.scheduled_time ? `<p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">⏰ <strong style="color: #1f2937;">${pourData.scheduled_time.slice(0, 5)}</strong></p>` : ""}
+                    ${displayTime ? `<p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">⏰ <strong style="color: #1f2937;">${displayTime}</strong></p>` : ""}
                     <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">📍 <strong style="color: #1f2937;">${job.site_address}</strong></p>
                     <p style="margin: 0; color: #6b7280; font-size: 14px;">🔧 Role: <strong style="color: #1f2937;">${body.role}</strong></p>
                   </td>

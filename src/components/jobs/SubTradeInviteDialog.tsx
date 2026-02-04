@@ -32,7 +32,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Loader2, Send, Phone, Mail, Users, UserPlus, Check, Search } from "lucide-react";
+import { Loader2, Send, Phone, Mail, Users, UserPlus, Check, Search, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -52,6 +52,7 @@ const formSchema = z
     recipient_phone: z.string().optional(),
     recipient_email: z.string().email("Invalid email").optional().or(z.literal("")),
     notes: z.string().max(500).optional(),
+    start_time: z.string().optional(),
   })
   .refine(
     (data) => data.recipient_phone || data.recipient_email,
@@ -70,6 +71,7 @@ interface SubTradeInviteDialogProps {
   pourId: string;
   pourName: string;
   pourDate: string | null;
+  pourScheduledTime?: string | null;
 }
 
 export function SubTradeInviteDialog({
@@ -79,11 +81,13 @@ export function SubTradeInviteDialog({
   pourId,
   pourName,
   pourDate,
+  pourScheduledTime,
 }: SubTradeInviteDialogProps) {
   const [activeTab, setActiveTab] = useState<"existing" | "new">("existing");
   const [selectedSubbie, setSelectedSubbie] = useState<PastSubbie | null>(null);
   const [subbieSearch, setSubbieSearch] = useState("");
   const [notes, setNotes] = useState("");
+  const [startTime, setStartTime] = useState("");
   
   const sendInvite = useSendSubTradeInvite();
   const { data: pastSubbies = [], isLoading: isLoadingSubbies } = useBusinessSubbies();
@@ -97,19 +101,26 @@ export function SubTradeInviteDialog({
       recipient_phone: "",
       recipient_email: "",
       notes: "",
+      start_time: pourScheduledTime?.slice(0, 5) || "",
     },
   });
 
-  // Reset state when dialog closes
+  // Reset state when dialog closes, set default start time when opening
   useEffect(() => {
     if (!open) {
       setActiveTab("existing");
       setSelectedSubbie(null);
       setSubbieSearch("");
       setNotes("");
+      setStartTime("");
       form.reset();
+    } else {
+      // Set default start time from pour's scheduled time
+      const defaultTime = pourScheduledTime?.slice(0, 5) || "";
+      setStartTime(defaultTime);
+      form.setValue("start_time", defaultTime);
     }
-  }, [open, form]);
+  }, [open, form, pourScheduledTime]);
 
   // Filter subbies by search
   const filteredSubbies = pastSubbies.filter((subbie) => {
@@ -144,6 +155,7 @@ export function SubTradeInviteDialog({
         recipient_phone: selectedSubbie.recipient_phone || undefined,
         recipient_email: selectedSubbie.recipient_email || undefined,
         notes: notes || undefined,
+        start_time: startTime || undefined,
       });
 
       toast.success("Invite sent successfully");
@@ -164,6 +176,7 @@ export function SubTradeInviteDialog({
         recipient_phone: data.recipient_phone || undefined,
         recipient_email: data.recipient_email || undefined,
         notes: data.notes || undefined,
+        start_time: data.start_time || undefined,
       });
 
       toast.success("Invite sent successfully");
@@ -257,11 +270,25 @@ export function SubTradeInviteDialog({
               </div>
             </ScrollArea>
 
+            {/* Start time for existing subbie */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" />
+                Start Time (optional)
+              </label>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full"
+              />
+            </div>
+
             {/* Notes for existing subbie */}
             <div className="space-y-2">
               <label className="text-sm font-medium">Notes (optional)</label>
               <Textarea
-                placeholder="Access instructions, timing, site constraints..."
+                placeholder="Access instructions, site constraints..."
                 className="resize-none"
                 rows={2}
                 value={notes}
@@ -400,13 +427,30 @@ export function SubTradeInviteDialog({
 
                     <FormField
                       control={form.control}
+                      name="start_time"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="flex items-center gap-1">
+                            <Clock className="h-3.5 w-3.5" />
+                            Start Time (optional)
+                          </FormLabel>
+                          <FormControl>
+                            <Input type="time" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+
+                    <FormField
+                      control={form.control}
                       name="notes"
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Notes (optional)</FormLabel>
                           <FormControl>
                             <Textarea
-                              placeholder="Access instructions, timing, site constraints..."
+                              placeholder="Access instructions, site constraints..."
                               className="resize-none"
                               rows={3}
                               {...field}

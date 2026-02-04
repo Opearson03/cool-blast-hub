@@ -14,6 +14,7 @@ interface SingleInviteDetails {
   pour_name: string;
   pour_date: string | null;
   scheduled_time: string | null;
+  start_time: string | null;
   site_address: string;
   job_name: string;
   role: string;
@@ -28,6 +29,7 @@ interface BatchInviteItem {
   pour_name: string;
   pour_date: string | null;
   scheduled_time: string | null;
+  start_time: string | null;
   site_address: string;
   job_name: string;
   status: string;
@@ -40,6 +42,7 @@ interface BatchInviteDetails {
   batch_id: string;
   role: string;
   notes: string | null;
+  start_time: string | null;
   business_name: string;
   business_logo: string | null;
   recipient_name: string;

@@ -15,6 +15,7 @@ interface BatchInviteRequest {
   recipient_phone?: string;
   recipient_email?: string;
   notes?: string;
+  start_time?: string;
 }
 
 // Generate URL-safe base64 token
@@ -256,6 +257,7 @@ const handler = async (req: Request): Promise<Response> => {
         recipient_phone: body.recipient_phone || null,
         recipient_email: body.recipient_email || null,
         notes: body.notes || null,
+        start_time: body.start_time || null,
         status: "sent",
         token_hash: batchTokenHash, // Same hash for all
         batch_id: batchId,
@@ -319,10 +321,13 @@ const handler = async (req: Request): Promise<Response> => {
         try {
           const formattedPhone = formatPhoneE164(body.recipient_phone);
           
+          // Format time if provided
+          const timeFormatted = body.start_time ? ` at ${body.start_time}` : "";
+          
           // Compose batch SMS message
           const smsMessage = pourCount === 1
-            ? `${business.name}: You're invited to work as ${body.role} on ${pourDatesFormatted}.\nView & respond: ${inviteUrl}`
-            : `${business.name}: You're invited to ${pourCount} pours as ${body.role} (${pourDatesFormatted}).\nView & respond: ${inviteUrl}`;
+            ? `${business.name}: You're invited to work as ${body.role} on ${pourDatesFormatted}${timeFormatted}.\nView & respond: ${inviteUrl}`
+            : `${business.name}: You're invited to ${pourCount} pours as ${body.role} (${pourDatesFormatted})${timeFormatted}.\nView & respond: ${inviteUrl}`;
 
           const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
           const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);

@@ -761,6 +761,7 @@ export type Database = {
           sms_delivery_status: string | null
           sms_error_message: string | null
           sms_message_sid: string | null
+          start_time: string | null
           status: string
           token_expires_at: string
           token_hash: string
@@ -791,6 +792,7 @@ export type Database = {
           sms_delivery_status?: string | null
           sms_error_message?: string | null
           sms_message_sid?: string | null
+          start_time?: string | null
           status?: string
           token_expires_at?: string
           token_hash: string
@@ -821,6 +823,7 @@ export type Database = {
           sms_delivery_status?: string | null
           sms_error_message?: string | null
           sms_message_sid?: string | null
+          start_time?: string | null
           status?: string
           token_expires_at?: string
           token_hash?: string
