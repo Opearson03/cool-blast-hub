@@ -430,15 +430,15 @@ export function OrderWizardDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col">
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
           <StepIndicator
             currentStep={currentStep}
             orderType={orderType}
             completedSteps={completedSteps}
           />
 
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            <div className="min-h-[300px]">
+          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
+            <div className="min-h-[200px] pb-4">
               {currentStep === "type" && (
                 <TypeStep orderType={orderType} onSelect={setOrderType} />
               )}
