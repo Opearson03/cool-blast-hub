@@ -390,8 +390,9 @@ export const reinforcementRaftModule: EstimateModule = {
           const topBarSize = String(zone.rib_top_bar_size || 'N12');
           const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
           
-          // Calculate bottom bar totals with lap allowance
-          const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
+          // Calculate bottom bar totals with editable lap allowance
+          const zoneLapMultiplier = 1 + (Number(zone.rib_lap_percent) || 12.5) / 100;
+          const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * zoneLapMultiplier;
           const bottomWeightKg = bottomTotalLength * bottomBarWeight;
           
           // Aggregate bottom bars
@@ -403,9 +404,9 @@ export const reinforcementRaftModule: EstimateModule = {
           ribBarsBySize[bottomKey].weight += bottomWeightKg;
           ribBarsBySize[bottomKey].zones.push(zone.name);
           
-          // Calculate top bar totals with lap allowance
+          // Calculate top bar totals with editable lap allowance
           if (topBarsPerRib > 0) {
-            const topTotalLength = ribLengthPerLayerM * topBarsPerRib * LAP_ALLOWANCE;
+            const topTotalLength = ribLengthPerLayerM * topBarsPerRib * zoneLapMultiplier;
             const topWeightKg = topTotalLength * topBarWeight;
             
             // Aggregate top bars
@@ -462,13 +463,14 @@ export const reinforcementRaftModule: EstimateModule = {
           const topBarSize = String(scopeData?.rib_top_bar_size || 'N12');
           const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
           
-          // Calculate bottom bar totals with lap allowance
-          const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
+          // Calculate bottom bar totals with editable lap allowance
+          const ribLapMultiplier = 1 + (Number(scopeData?.rib_lap_percent) || 12.5) / 100;
+          const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * ribLapMultiplier;
           const bottomWeightKg = bottomTotalLength * bottomBarWeight;
           const bottomStockQty = Math.ceil(bottomTotalLength / stockLength);
           
-          // Calculate top bar totals with lap allowance
-          const topTotalLength = ribLengthPerLayerM * topBarsPerRib * LAP_ALLOWANCE;
+          // Calculate top bar totals with editable lap allowance
+          const topTotalLength = ribLengthPerLayerM * topBarsPerRib * ribLapMultiplier;
           const topWeightKg = topTotalLength * topBarWeight;
           const topStockQty = Math.ceil(topTotalLength / stockLength);
           
