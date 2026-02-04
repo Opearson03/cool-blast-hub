@@ -513,6 +513,24 @@ export const excavationModule: EstimateModule = {
       });
     }
 
+    // Add rock excavation exclusion when any excavation is enabled
+    if (bulkEnabled || detailedEnabled) {
+      exclusions.push({
+        id: 'rock_excavation',
+        text: 'Rock excavation or rock breaking',
+        moduleId: 'excavation',
+      });
+    }
+
+    // Add backfill exclusion when detailed excavation is enabled
+    if (detailedEnabled) {
+      exclusions.push({
+        id: 'backfill',
+        text: 'Backfilling or compaction of excavations',
+        moduleId: 'excavation',
+      });
+    }
+
     return exclusions;
   },
 
