@@ -41,7 +41,7 @@ import { PlanTakeoffStep } from "./takeoff/PlanTakeoffStep";
 import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
 import { useTakeoffMarkups } from "@/hooks/useTakeoffMarkups";
-import { ScopeBreakdownItem } from "./InternalBreakdownSection";
+import { SimplifiedScopeSummary } from "./SimplifiedScopeSummary";
 import { ClientAutocomplete } from "@/components/contacts/ClientAutocomplete";
 import type { Client } from "@/hooks/useClients";
 // EstimateType kept for backwards compatibility with existing database values
@@ -2425,29 +2425,19 @@ const {
                     </div>
                   </div>
 
-                  {/* Collapsible Scope breakdown */}
+                  {/* Simplified Scope breakdown with key metrics */}
                   <div className="space-y-2">
                     {selectedScopesArray.map((scope) => {
                       const scopeState = modularScopeStates[scope];
-                      if (!scopeState) {
-                        // Fallback for scopes without full state
-                        return (
-                          <div key={scope} className="flex justify-between text-sm bg-muted/50 px-3 py-2 rounded-lg">
-                            <span className="text-muted-foreground">
-                              {getScopeLabel(scope)} ({scopeTotals[scope].description})
-                            </span>
-                            <span className="font-medium font-mono">{formatCurrency(scopeTotals[scope].total)}</span>
-                          </div>
-                        );
-                      }
                       return (
-                        <ScopeBreakdownItem
+                        <SimplifiedScopeSummary
                           key={scope}
                           scopeId={scope}
+                          scopeLabel={getScopeLabel(scope)}
                           scopeEntry={{
-                            scopeAnswers: scopeState.scopeAnswers,
-                            moduleAnswers: scopeState.moduleAnswers,
-                            calculatedTotal: scopeState.calculatedTotal,
+                            scopeAnswers: scopeState?.scopeAnswers,
+                            moduleAnswers: scopeState?.moduleAnswers,
+                            calculatedTotal: scopeState?.calculatedTotal || scopeTotals[scope]?.total || 0,
                           }}
                         />
                       );
