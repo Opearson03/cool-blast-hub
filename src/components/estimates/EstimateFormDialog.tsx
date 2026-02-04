@@ -611,7 +611,13 @@ const {
       setQuoteValidityDays(editEstimate.quote_validity_days ?? 14);
 
       // Determine starting step based on draft progress
-      if (editEstimate.status === "draft") {
+      // Check if forceStartStep flag is set (from Inbox "Start Estimate")
+      const forceStartStep = (editEstimate as any)?._forceStartStep === true;
+      
+      if (forceStartStep) {
+        // Force start at client step to allow review of auto-filled details
+        setCurrentStep("client");
+      } else if (editEstimate.status === "draft") {
         // Check how much data we have to determine where to resume
         const hasClientInfo = editEstimate.client_name && editEstimate.site_address;
         const hasScopeData = editEstimate.scope_data && Object.keys(editEstimate.scope_data).length > 0;
