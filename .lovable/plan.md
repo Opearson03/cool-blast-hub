@@ -1,55 +1,90 @@
 
-Goal
-- Stop waffle pod slabs from counting topping mesh twice in the Reinforcement cost breakdown and totals.
+# Plan: Add Editable Lap % to All Waffle Pod Reinforcement Sections
 
-What’s happening (root cause)
-- The waffle pod reinforcement logic correctly intends to “skip generic slab mesh” (per-area mesh items) when scopeId === "waffle_pod".
-- However, the current control flow in `src/lib/estimate-components/modules/reinforcement-raft.ts` is:
+## Goal
+Make lap percentage editable for each reinforcement section in waffle pod slabs to ensure consistency across Ribs, Topping Mesh, and Beams.
 
-  - If `(areas.length > 0 && !skipGenericAreaMesh)` → do per-area mesh
-  - Else if `(totalArea > 0)` → add fallback slab mesh item (`id: "mesh_slab"`)
+## Current State vs. Proposed
 
-- For waffle pod:
-  - `skipGenericAreaMesh` is true, so the per-area mesh block is skipped
-  - But the `else if (totalArea > 0)` fallback still runs, adding `mesh_slab`
-  - Later in the waffle pod-specific section, the module also adds `waffle_slab_mesh`
-  - Result: two mesh line items (often the same mesh type, e.g. SL85/SL82), doubling cost/quantity.
+| Section | Current | Proposed |
+|---------|---------|----------|
+| Topping Slab Mesh | Has editable `topping_mesh_lap_percent` (12.5% default) | No change - already correct |
+| Rib Reinforcement | Hardcoded `1.125` (12.5%) | Add `rib_lap_percent` field (12.5% default) |
+| Edge Beams | Hardcoded `1.125` (12.5%) | Add `beam_lap_percent` per beam group |
+| Internal Beams | Hardcoded `1.125` (12.5%) | Uses same beam lap from edge beams |
 
-Implementation changes (code)
-1) Fix the conditional so the fallback mesh is also skipped for waffle pods
-- File: `src/lib/estimate-components/modules/reinforcement-raft.ts`
-- Update the “SLAB SURFACE REINFORCEMENT” section to ensure BOTH the per-area block AND the fallback block only run when `!skipGenericAreaMesh`.
+## Implementation Changes
 
-Recommended refactor (clear and safe):
-- Keep:
-  - `const skipGenericAreaMesh = scopeData?.scopeId === 'waffle_pod';`
-- Change the slab reinforcement section to:
+### 1. Add Lap % Input to WafflePodRibsInput
+**File:** `src/components/estimates/calculators/WafflePodRibsInput.tsx`
 
-  - If `!skipGenericAreaMesh`:
-    - If `areas.length > 0` → run current per-area mesh/bar logic
-    - Else if `totalArea > 0` → run current fallback `mesh_slab` logic
-  - Else (waffle pod):
-    - Do nothing here (topping mesh is handled later by `waffle_slab_mesh`)
+- Add a new input field for `rib_lap_percent` (default 12.5%)
+- Place it in the "Stock Length" section or as a separate row
+- Update the summary calculation to use the editable value
 
-This ensures waffle pods never add `mesh_slab` (or any generic slab-surface mesh items).
+```text
+┌─────────────────────────────────────────────┐
+│ Rib Reinforcement                           │
+├─────────────────────────────────────────────┤
+│ Bottom Bars                                 │
+│ [Quantity: 2 ▼] [Bar Size: N12 ▼]          │
+├─────────────────────────────────────────────┤
+│ Top Bars                                    │
+│ [Quantity: 1 ▼] [Bar Size: N12 ▼]          │
+├─────────────────────────────────────────────┤
+│ Stock Length        Lap %                   │
+│ (○) 6m  (○) 12m    [12.5____] %            │  ← NEW FIELD
+└─────────────────────────────────────────────┘
+```
 
-2) (Optional but recommended) Tighten/clarify the inline comment
-- Update the existing comment near `skipGenericAreaMesh` to explicitly mention the fallback is also skipped, to prevent regressions.
+### 2. Update Rib Calculation Logic
+**File:** `src/lib/estimate-components/modules/reinforcement-raft.ts`
 
-Validation plan (manual)
-1) Open an existing waffle pod estimate that currently shows duplicated mesh.
-2) Go to Reinforcement → Cost breakdown.
-3) Expected after fix:
-   - Only one topping mesh line item exists: `waffle_slab_mesh` (e.g. “Topping SL85 …”)
-   - The generic fallback item `mesh_slab` is gone
-   - Totals/subtotals decrease accordingly (by exactly the removed duplicate mesh cost).
-4) Regression check:
-   - Create/open a non-waffle scope without per-area breakdown (where `areas.length === 0` but `totalArea > 0`, e.g. a simple slab scenario).
-   - Confirm the fallback `mesh_slab` still appears and pricing remains unchanged.
+- Read `rib_lap_percent` from scopeData instead of using hardcoded `LAP_ALLOWANCE`
+- Apply the editable lap percentage to rib bar length calculations
+- Default to 12.5% if not set
 
-Notes / why this won’t break other scopes
-- This change only affects the slab-surface mesh calculation path when scopeId is waffle_pod.
-- Waffle pod mesh is already intentionally handled by the dedicated topping mesh calculation (`waffle_slab_mesh`), so removing the fallback is the correct behavior.
+### 3. Add Lap % to Beam Reinforcement (Optional Enhancement)
+**File:** `src/components/estimates/calculators/BeamReinforcementInput.tsx`
 
-Files to change
-- `src/lib/estimate-components/modules/reinforcement-raft.ts`
+This is a larger change that would affect all beam types. If desired, we can:
+- Add a `lap_percent` field per beam group
+- Update the beam calculation logic in `reinforcement-raft.ts`
+
+**Recommendation:** Start with just the Rib Lap % for now, as the Topping Mesh already has it. Beam lap % can be added in a follow-up if needed.
+
+## Files to Change
+
+| File | Changes |
+|------|---------|
+| `src/components/estimates/calculators/WafflePodRibsInput.tsx` | Add `rib_lap_percent` input field with 12.5% default |
+| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Read `rib_lap_percent` from scopeData; use in rib bar length calculation |
+
+## Technical Details
+
+### WafflePodRibsInput.tsx Changes
+```typescript
+// Add to extracted values
+const ribLapPercent = numericWithDefault(scopeData?.rib_lap_percent, 12.5);
+
+// Update handleChange to include lap percent
+// Add new Input field in the "Stock Length Row" section
+```
+
+### reinforcement-raft.ts Changes
+```typescript
+// In waffle pod rib calculation (lines ~390 and ~465):
+// Replace:
+const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * LAP_ALLOWANCE;
+
+// With:
+const ribLapMultiplier = 1 + (Number(scopeData?.rib_lap_percent) || 12.5) / 100;
+const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * ribLapMultiplier;
+```
+
+## Expected Result
+
+1. **Ribs Section** will have an editable "Lap %" input (matching Topping Mesh)
+2. The lap percentage will be applied to rib bar length calculations
+3. Consistency across all waffle pod reinforcement sections
+4. Default behavior unchanged (12.5% lap if not edited)
