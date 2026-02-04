@@ -33,13 +33,14 @@ type ResolvedAttachment = {
   source: 'payload' | 'resend_download';
 };
 
-type DocumentType = 'building_plan' | 'test_result' | 'delivery_docket' | 'general';
+type DocumentType = 'building_plan' | 'test_result' | 'delivery_docket' | 'general' | 'quote_response';
 type MatchStatus = 'pending' | 'job_matched' | 'auto_matched';
 
 // Keywords for document type detection
 const TEST_RESULT_KEYWORDS = ['test', 'lab', 'result', 'mpa', 'strength', 'cylinder', 'slump', '7 day', '28 day', '7-day', '28-day', 'compressive', 'laboratory'];
 const DELIVERY_DOCKET_KEYWORDS = ['docket', 'delivery', 'cartage', 'truck', 'load', 'batch', 'dispatch', 'concrete delivery', 'ticket'];
-const BUILDING_PLAN_KEYWORDS = ['plan', 'plans', 'drawing', 'drawings', 'quote', 'quote request', 'estimate', 'pricing', 'price', 'architectural', 'engineering', 'structural', 'floor plan', 'site plan', 'blueprint', 'specs', 'specification', 'tender', 'rfq', 'request for quote', 'footing', 'slab'];
+const BUILDING_PLAN_KEYWORDS = ['plan', 'plans', 'drawing', 'drawings', 'quote request', 'estimate', 'pricing request', 'architectural', 'engineering', 'structural', 'floor plan', 'site plan', 'blueprint', 'specs', 'specification', 'tender', 'footing', 'slab'];
+const QUOTE_RESPONSE_KEYWORDS = ['quote', 'quotation', 'price list', 'pricing', 'attached quote', 'here is our quote', 'please find attached', 'as requested', 'our pricing', 'cost breakdown', 'unit rates'];
 // Keywords that indicate an email is NOT a work document (general/misc)
 const GENERAL_EXCLUSION_KEYWORDS = ['invoice', 'statement', 'account', 'payment', 'receipt', 'subscription', 'newsletter', 'unsubscribe', 'marketing', 'promo', 'promotion', 'sale', 'discount', 'offer', 'advertisement'];
 
@@ -188,6 +189,13 @@ function detectDocumentType(subject: string, filename: string, fromEmail: string
     }
   }
   
+  // Check for quote response keywords (supplier responding with pricing)
+  for (const keyword of QUOTE_RESPONSE_KEYWORDS) {
+    if (searchText.includes(keyword)) {
+      return 'quote_response';
+    }
+  }
+  
   // Check for building plan keywords
   for (const keyword of BUILDING_PLAN_KEYWORDS) {
     if (searchText.includes(keyword)) {
@@ -198,6 +206,45 @@ function detectDocumentType(subject: string, filename: string, fromEmail: string
   // Default to 'general' for emails without clear categorization
   // Users can manually reclassify if needed
   return 'general';
+}
+
+// Match quote response to an existing RFQ
+async function matchQuoteToRFQ(
+  supabase: any,
+  businessId: string,
+  fromEmail: string,
+  subject: string
+): Promise<{ rfqId: string | null; jobId: string | null }> {
+  // Try to match by supplier email
+  const { data: rfqs } = await supabase
+    .from('purchase_orders')
+    .select('id, job_id, po_number, supplier_email')
+    .eq('business_id', businessId)
+    .eq('status', 'quote_requested')
+    .not('supplier_email', 'is', null);
+
+  if (rfqs && rfqs.length > 0) {
+    // First try exact email match
+    const emailMatch = rfqs.find((rfq: any) => 
+      rfq.supplier_email?.toLowerCase() === fromEmail.toLowerCase()
+    );
+
+    if (emailMatch) {
+      return { rfqId: emailMatch.id, jobId: emailMatch.job_id };
+    }
+
+    // Try to match by RFQ number in subject (e.g., "RE: RFQ-0002")
+    const subjectLower = subject?.toLowerCase() || '';
+    const matchedRfq = rfqs.find((rfq: any) => 
+      subjectLower.includes(rfq.po_number.toLowerCase())
+    );
+    
+    if (matchedRfq) {
+      return { rfqId: matchedRfq.id, jobId: matchedRfq.job_id };
+    }
+  }
+  
+  return { rfqId: null, jobId: null };
 }
 
 function normalizeAddress(addr: string): string {
@@ -732,6 +779,47 @@ serve(async (req) => {
           });
 
           console.log('Created pending document:', pendingDoc.id);
+
+        } else if (documentType === 'quote_response') {
+          // Process as supplier quote response
+          const emailBody = payload.data.text || payload.data.html?.replace(/<[^>]*>/g, ' ').slice(0, 2000) || null;
+          
+          // Try to match to an existing RFQ
+          const rfqMatch = await matchQuoteToRFQ(supabase, business.id, from, subject || '');
+          
+          const { data: pendingQuote, error: insertError } = await supabase
+            .from('pending_quotes')
+            .insert({
+              business_id: business.id,
+              from_email: from,
+              from_name: null,
+              subject: subject || '(No subject)',
+              received_at: new Date().toISOString(),
+              file_url: fileUrl,
+              file_name: attachment.filename,
+              email_body: emailBody,
+              status: 'pending',
+              linked_rfq_id: rfqMatch.rfqId,
+              linked_job_id: rfqMatch.jobId,
+              extracted_data: {}
+            })
+            .select()
+            .single();
+
+          if (insertError) {
+            console.error('Failed to insert pending quote:', insertError);
+            continue;
+          }
+
+          results.push({
+            filename: attachment.filename,
+            id: pendingQuote.id,
+            type: 'quote_response',
+            linkedRfqId: rfqMatch.rfqId,
+            success: true
+          });
+
+          console.log('Created pending quote:', pendingQuote.id, 'linked to RFQ:', rfqMatch.rfqId);
 
         } else if (documentType === 'general') {
           // Process as general/misc document

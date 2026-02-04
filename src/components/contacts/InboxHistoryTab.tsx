@@ -18,18 +18,20 @@ import {
   FlaskConical,
   Truck,
   Calendar,
-  Mail
+  Mail,
+  DollarSign
 } from "lucide-react";
 import { format } from "date-fns";
 import { useNavigate } from "react-router-dom";
 import { InboxDetailSheet } from "./InboxDetailSheet";
 import { AssignTestDialog } from "./AssignTestDialog";
 import { AssignDocketDialog } from "./AssignDocketDialog";
+import { ActionQuoteDialog } from "./ActionQuoteDialog";
 import { toast } from "sonner";
 
 export interface InboxItem {
   id: string;
-  type: "plan" | "test" | "docket" | "general";
+  type: "plan" | "test" | "docket" | "general" | "quote";
   from_email: string;
   from_name: string | null;
   subject: string | null;
@@ -39,6 +41,7 @@ export interface InboxItem {
   status: string;
   linked_id: string | null;
   email_body?: string | null;
+  linked_rfq_id?: string | null;
 }
 
 export function InboxHistoryTab() {
@@ -57,6 +60,10 @@ export function InboxHistoryTab() {
   // For docket assignment
   const [docketAssignSheetOpen, setDocketAssignSheetOpen] = useState(false);
   const [selectedDocketId, setSelectedDocketId] = useState<string | null>(null);
+
+  // For quote conversion
+  const [quoteDialogOpen, setQuoteDialogOpen] = useState(false);
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
 
   // Helper to extract filename from URL
   const getFileNameFromUrl = (url: string | null): string | null => {
@@ -186,6 +193,31 @@ export function InboxHistoryTab() {
         }
       }
 
+      // Fetch quotes
+      const { data: quotes } = await supabase
+        .from("pending_quotes")
+        .select("id, from_email, from_name, subject, file_url, file_name, received_at, status, linked_rfq_id, linked_job_id, email_body")
+        .eq("business_id", profile.business_id);
+
+      if (quotes) {
+        for (const quote of quotes) {
+          items.push({
+            id: quote.id,
+            type: "quote",
+            from_email: quote.from_email,
+            from_name: quote.from_name,
+            subject: quote.subject,
+            file_url: quote.file_url,
+            file_name: quote.file_name,
+            received_at: quote.received_at,
+            status: quote.status,
+            linked_id: quote.linked_job_id,
+            email_body: quote.email_body,
+            linked_rfq_id: quote.linked_rfq_id,
+          });
+        }
+      }
+
       // Sort by received_at descending
       items.sort((a, b) => new Date(b.received_at).getTime() - new Date(a.received_at).getTime());
 
@@ -235,6 +267,8 @@ export function InboxHistoryTab() {
         return <Truck className="h-4 w-4 text-muted-foreground" />;
       case "general":
         return <Mail className="h-4 w-4 text-muted-foreground" />;
+      case "quote":
+        return <DollarSign className="h-4 w-4 text-primary" />;
       default:
         return <Inbox className="h-4 w-4" />;
     }
@@ -250,6 +284,8 @@ export function InboxHistoryTab() {
         return "Docket";
       case "general":
         return "General";
+      case "quote":
+        return "Quote";
       default:
         return type;
     }
@@ -435,6 +471,20 @@ export function InboxHistoryTab() {
     queryClient.invalidateQueries({ queryKey: ["inbox-history"] });
   };
 
+  // Open quote conversion dialog
+  const handleConvertQuote = (item: InboxItem) => {
+    if (item.type !== "quote") return;
+    setSheetOpen(false);
+    setSelectedQuoteId(item.id);
+    setQuoteDialogOpen(true);
+  };
+
+  const handleQuoteConverted = () => {
+    setQuoteDialogOpen(false);
+    setSelectedQuoteId(null);
+    queryClient.invalidateQueries({ queryKey: ["inbox-history"] });
+  };
+
   return (
     <div className="space-y-4">
       {/* Filters */}
@@ -458,6 +508,7 @@ export function InboxHistoryTab() {
             <SelectItem value="test">Test Results</SelectItem>
             <SelectItem value="docket">Dockets</SelectItem>
             <SelectItem value="general">General</SelectItem>
+            <SelectItem value="quote">Quotes</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -552,6 +603,7 @@ export function InboxHistoryTab() {
         onStartEstimate={handleStartEstimate}
         onAssignTest={handleAssignTest}
         onAssignDocket={handleAssignDocket}
+        onConvertQuote={handleConvertQuote}
         onReclassify={() => queryClient.invalidateQueries({ queryKey: ["inbox-history"] })}
       />
 
@@ -578,6 +630,19 @@ export function InboxHistoryTab() {
           }}
           docketId={selectedDocketId}
           onAssigned={handleDocketAssigned}
+        />
+      )}
+
+      {/* Quote Conversion Dialog */}
+      {selectedQuoteId && (
+        <ActionQuoteDialog
+          open={quoteDialogOpen}
+          onOpenChange={(open) => {
+            setQuoteDialogOpen(open);
+            if (!open) setSelectedQuoteId(null);
+          }}
+          quoteId={selectedQuoteId}
+          onConverted={handleQuoteConverted}
         />
       )}
     </div>

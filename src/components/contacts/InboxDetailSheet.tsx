@@ -33,7 +33,7 @@ import { toast } from "sonner";
 
 interface InboxItem {
   id: string;
-  type: "plan" | "test" | "docket" | "general";
+  type: "plan" | "test" | "docket" | "general" | "quote";
   from_email: string;
   from_name: string | null;
   subject: string | null;
@@ -43,6 +43,7 @@ interface InboxItem {
   status: string;
   linked_id: string | null;
   email_body?: string | null;
+  linked_rfq_id?: string | null;
 }
 
 interface InboxDetailSheetProps {
@@ -53,6 +54,7 @@ interface InboxDetailSheetProps {
   onStartEstimate?: (item: InboxItem) => void;
   onAssignTest?: (item: InboxItem) => void;
   onAssignDocket?: (item: InboxItem) => void;
+  onConvertQuote?: (item: InboxItem) => void;
   onReclassify?: () => void;
 }
 
@@ -84,6 +86,7 @@ export function InboxDetailSheet({
   onStartEstimate,
   onAssignTest,
   onAssignDocket,
+  onConvertQuote,
   onReclassify
 }: InboxDetailSheetProps) {
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
@@ -232,6 +235,8 @@ export function InboxDetailSheet({
         return <Truck className="h-4 w-4 text-muted-foreground" />;
       case "general":
         return <Mail className="h-4 w-4 text-muted-foreground" />;
+      case "quote":
+        return <span className="h-4 w-4 text-primary font-bold">$</span>;
       default:
         return <FileText className="h-4 w-4" />;
     }
@@ -243,6 +248,7 @@ export function InboxDetailSheet({
       case "test": return "Test Result";
       case "docket": return "Docket";
       case "general": return "General";
+      case "quote": return "Quote";
       default: return type;
     }
   };
@@ -311,6 +317,7 @@ export function InboxDetailSheet({
       case "test": return "pending_test_results";
       case "docket": return "pending_documents";
       case "general": return "pending_general";
+      case "quote": return "pending_quotes";
       default: return null;
     }
   };
@@ -357,6 +364,15 @@ export function InboxDetailSheet({
           file_url: source.file_url || source.lab_report_url || null,
           file_name: source.file_name || null,
           email_body: source.email_body || null,
+        };
+      case "quote":
+        return {
+          ...base,
+          from_name: source.from_name || null,
+          file_url: source.file_url || source.lab_report_url || null,
+          file_name: source.file_name || null,
+          email_body: source.email_body || null,
+          extracted_data: source.extracted_data || {},
         };
       default:
         return base;
@@ -557,6 +573,17 @@ export function InboxDetailSheet({
                   Assign to Pour
                 </Button>
               )}
+
+              {item.type === "quote" && onConvertQuote && (
+                <Button
+                  variant="default"
+                  onClick={() => onConvertQuote(item)}
+                  className="w-full"
+                >
+                  <Link2 className="h-4 w-4 mr-2" />
+                  Convert to Purchase Order
+                </Button>
+              )}
             </>
           )}
 
@@ -607,6 +634,17 @@ export function InboxDetailSheet({
                   >
                     {isReclassifying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <Mail className="h-3 w-3 mr-1" />}
                     General
+                  </Button>
+                )}
+                {item.type !== "quote" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleReclassify("quote")}
+                    disabled={isReclassifying}
+                  >
+                    {isReclassifying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <span className="mr-1 font-bold">$</span>}
+                    Quote
                   </Button>
                 )}
               </div>
