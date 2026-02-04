@@ -23,7 +23,7 @@ import { BOQEditDialog } from "./BOQEditDialog";
 import { BOQTableRow } from "./BOQTableRow";
 import { BOQInlineItemRow } from "./BOQInlineItemRow";
 import { PrintableBOQ } from "./PrintableBOQ";
-import { SendPurchaseOrderDialog } from "./SendPurchaseOrderDialog";
+import { OrderWizardDialog } from "./order-wizard";
 import { createPortal } from "react-dom";
 import { formatCurrency } from "@/lib/format-currency";
 
@@ -384,7 +384,7 @@ export function BOQCard({ jobId, jobName, jobNumber, siteAddress }: BOQCardProps
         jobId={jobId}
       />
 
-      <SendPurchaseOrderDialog
+      <OrderWizardDialog
         open={isSendPOOpen}
         onOpenChange={setIsSendPOOpen}
         boq={boq}
