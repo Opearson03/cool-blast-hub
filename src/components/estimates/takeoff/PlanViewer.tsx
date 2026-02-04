@@ -258,31 +258,39 @@ export function PlanViewer({
   };
 
   // Scroll wheel zoom handler - requires Shift key, zooms toward cursor
-  const handleWheel = (e: React.WheelEvent) => {
-    // Only zoom when Shift is held
-    if (!e.shiftKey) return;
-    
-    e.preventDefault();
+  // Must be added as non-passive listener via useEffect to allow preventDefault
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    const rect = container.getBoundingClientRect();
-    // Mouse position relative to container center
-    const mouseX = e.clientX - rect.left - rect.width / 2;
-    const mouseY = e.clientY - rect.top - rect.height / 2;
+    const handleWheel = (e: WheelEvent) => {
+      // Only zoom when Shift is held
+      if (!e.shiftKey) return;
+      
+      e.preventDefault();
+      
+      const rect = container.getBoundingClientRect();
+      // Mouse position relative to container center
+      const mouseX = e.clientX - rect.left - rect.width / 2;
+      const mouseY = e.clientY - rect.top - rect.height / 2;
 
-    const zoomFactor = 0.15;
-    const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
-    const newZoom = Math.min(Math.max(zoom + delta, 0.25), 5);
-    const zoomRatio = newZoom / zoom;
+      const zoomFactor = 0.15;
+      const delta = e.deltaY > 0 ? -zoomFactor : zoomFactor;
+      const newZoom = Math.min(Math.max(zoom + delta, 0.25), 5);
+      const zoomRatio = newZoom / zoom;
 
-    // Adjust pan offset so the point under the cursor stays fixed
-    const newPanX = mouseX - (mouseX - panOffset.x) * zoomRatio;
-    const newPanY = mouseY - (mouseY - panOffset.y) * zoomRatio;
+      // Adjust pan offset so the point under the cursor stays fixed
+      const newPanX = mouseX - (mouseX - panOffset.x) * zoomRatio;
+      const newPanY = mouseY - (mouseY - panOffset.y) * zoomRatio;
 
-    setPanOffset({ x: newPanX, y: newPanY });
-    onZoomChange?.(newZoom);
-  };
+      setPanOffset({ x: newPanX, y: newPanY });
+      onZoomChange?.(newZoom);
+    };
+
+    // Add as non-passive to allow preventDefault
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [zoom, panOffset, onZoomChange]);
 
   // Reset pan when zoom changes
   useEffect(() => {
@@ -335,7 +343,6 @@ export function PlanViewer({
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
-        onWheel={handleWheel}
       >
         {isLoading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-20">
