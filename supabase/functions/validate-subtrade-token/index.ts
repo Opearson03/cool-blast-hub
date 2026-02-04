@@ -50,6 +50,7 @@ const handler = async (req: Request): Promise<Response> => {
         role,
         recipient_name,
         notes,
+        start_time,
         token_expires_at,
         responded_at,
         viewed_at,
@@ -143,11 +144,14 @@ const handler = async (req: Request): Promise<Response> => {
       const invitesResponse = batchInvites.map(invite => {
         const pour = invite.job_pours as any;
         const inviteJob = pour?.jobs as any;
+        // Use invite's start_time if set, otherwise fall back to pour's scheduled_time
+        const displayTime = invite.start_time || pour?.scheduled_time || null;
         return {
           invite_id: invite.id,
           pour_name: pour?.pour_name || "Pour",
           pour_date: pour?.pour_date || null,
-          scheduled_time: pour?.scheduled_time || null,
+          scheduled_time: displayTime,
+          start_time: invite.start_time || null,
           site_address: inviteJob?.site_address || "",
           job_name: inviteJob?.name || "",
           status: invite.status,
@@ -161,6 +165,7 @@ const handler = async (req: Request): Promise<Response> => {
         batch_id: firstInvite.batch_id,
         role: firstInvite.role,
         notes: firstInvite.notes || null,
+        start_time: firstInvite.start_time || null,
         business_name: business?.name || "",
         business_logo: business?.logo_url || null,
         recipient_name: firstInvite.recipient_name,
@@ -183,6 +188,7 @@ const handler = async (req: Request): Promise<Response> => {
         role,
         recipient_name,
         notes,
+        start_time,
         token_expires_at,
         responded_at,
         viewed_at,
@@ -268,6 +274,9 @@ const handler = async (req: Request): Promise<Response> => {
     const pour = invite.job_pours as any;
     const job = pour?.jobs as any;
     const business = job?.businesses as any;
+    
+    // Use invite's start_time if set, otherwise fall back to pour's scheduled_time
+    const displayTime = invite.start_time || pour?.scheduled_time || null;
 
     // Return single invite format (backwards compatible)
     const response = {
@@ -275,7 +284,8 @@ const handler = async (req: Request): Promise<Response> => {
       is_batch: false,
       pour_name: pour?.pour_name || "Pour",
       pour_date: pour?.pour_date || null,
-      scheduled_time: pour?.scheduled_time || null,
+      scheduled_time: displayTime,
+      start_time: invite.start_time || null,
       site_address: job?.site_address || "",
       job_name: job?.name || "",
       role: invite.role,
