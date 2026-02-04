@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Building2, Truck, Inbox } from "lucide-react";
+import { Users, Building2, Truck, Inbox, UserCircle } from "lucide-react";
 import { ClientsTab } from "@/components/contacts/ClientsTab";
 import { SubbiesTab } from "@/components/contacts/SubbiesTab";
 import { SuppliersTab } from "@/components/contacts/SuppliersTab";
 import { InboxHistoryTab } from "@/components/contacts/InboxHistoryTab";
+import { InternalContactsTab } from "@/components/contacts/InternalContactsTab";
 
 export default function AdminContacts() {
   const [activeTab, setActiveTab] = useState("inbox");
@@ -16,7 +17,7 @@ export default function AdminContacts() {
         <h1 className="text-2xl font-bold">Contact</h1>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4 lg:w-auto lg:inline-flex">
+          <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
             <TabsTrigger value="inbox" className="gap-2">
               <Inbox className="h-4 w-4 hidden sm:inline" />
               Inbox
@@ -32,6 +33,10 @@ export default function AdminContacts() {
             <TabsTrigger value="suppliers" className="gap-2">
               <Truck className="h-4 w-4 hidden sm:inline" />
               Suppliers
+            </TabsTrigger>
+            <TabsTrigger value="internal" className="gap-2">
+              <UserCircle className="h-4 w-4 hidden sm:inline" />
+              Internal
             </TabsTrigger>
           </TabsList>
 
@@ -49,6 +54,10 @@ export default function AdminContacts() {
 
           <TabsContent value="suppliers" className="mt-6">
             <SuppliersTab />
+          </TabsContent>
+
+          <TabsContent value="internal" className="mt-6">
+            <InternalContactsTab />
           </TabsContent>
         </Tabs>
       </div>

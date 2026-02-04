@@ -28,6 +28,10 @@ interface RequestBody {
   supplierEmail: string | null;
   supplierPhone: string | null;
   deliveryAddress: string;
+  deliveryDate?: string;
+  siteContactId?: string | null;
+  siteContactName?: string | null;
+  siteContactPhone?: string | null;
   notes: string;
   sendMethod: "email" | "sms" | "both";
   orderType: "quote" | "po";
@@ -76,6 +80,10 @@ serve(async (req) => {
       supplierEmail,
       supplierPhone,
       deliveryAddress,
+      deliveryDate,
+      siteContactId,
+      siteContactName,
+      siteContactPhone,
       notes,
       sendMethod,
       orderType = "po", // default to PO for backward compatibility
@@ -169,6 +177,10 @@ serve(async (req) => {
         supplier_email: supplierEmail,
         supplier_phone: supplierPhone,
         delivery_address: deliveryAddress || "",
+        delivery_date: deliveryDate ? deliveryDate.split("T")[0] : null,
+        site_contact_id: siteContactId || null,
+        site_contact_name: siteContactName || null,
+        site_contact_phone: siteContactPhone || null,
         items: items,
         notes: notes || null,
         sent_via: sendMethod,
@@ -277,7 +289,9 @@ serve(async (req) => {
             <div style="background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0;">
               <p style="margin: 0 0 10px;"><strong>Attention:</strong> ${supplierName}</p>
               <p style="margin: 0 0 10px;"><strong>Reference:</strong> ${jobReference}</p>
-              <p style="margin: 0;"><strong>Deliver to:</strong><br>${deliveryAddress.replace(/\n/g, "<br>")}</p>
+              ${deliveryDate ? `<p style="margin: 0 0 10px;"><strong>Required Date:</strong> ${new Date(deliveryDate).toLocaleDateString("en-AU")}</p>` : ""}
+              <p style="margin: 0 0 10px;"><strong>Deliver to:</strong><br>${deliveryAddress.replace(/\n/g, "<br>")}</p>
+              ${siteContactName ? `<p style="margin: 0;"><strong>Site Contact:</strong> ${siteContactName}${siteContactPhone ? ` - ${siteContactPhone}` : ""}</p>` : ""}
             </div>
             
             <h3 style="color: #333;">Order Items</h3>
