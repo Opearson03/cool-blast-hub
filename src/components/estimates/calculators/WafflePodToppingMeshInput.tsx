@@ -32,7 +32,7 @@ export function WafflePodToppingMeshInput({
   // Extract values from scopeData - using numericWithDefault to preserve 0
   const toppingMeshType = String(scopeData?.topping_mesh_type || 'SL82');
   const toppingMeshLayers = numericWithDefault(scopeData?.topping_mesh_layers, 1);
-  const toppingMeshAreaMode = String(scopeData?.topping_mesh_area_mode || 'pod_field');
+  const toppingMeshAreaMode = String(scopeData?.topping_mesh_area_mode || 'full_slab');
   const toppingMeshCustomArea = numericWithDefault(scopeData?.topping_mesh_custom_area, 0);
   const toppingMeshLapPercent = numericWithDefault(scopeData?.topping_mesh_lap_percent, 12.5);
   const totalArea = numericWithDefault(scopeData?.area, 0);
