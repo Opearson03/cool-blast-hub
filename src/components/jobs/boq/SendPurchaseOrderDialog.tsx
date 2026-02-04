@@ -25,10 +25,14 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, Plus, Send, Mail, MessageSquare, FileQuestion, X, Users } from "lucide-react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Loader2, Plus, Send, Mail, MessageSquare, FileQuestion, X, Users, CalendarIcon, UserCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { BOQItem, BOQ_CATEGORIES, JobBOQ } from "./BOQTypes";
 import { SupplierContactDialog } from "./SupplierContactDialog";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 interface SendPurchaseOrderDialogProps {
   open: boolean;
@@ -46,6 +50,14 @@ interface SupplierContact {
   phone: string | null;
   email: string | null;
   category: string | null;
+}
+
+interface InternalContact {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  role: string | null;
 }
 
 type OrderType = "quote" | "po";
@@ -70,6 +82,9 @@ export function SendPurchaseOrderDialog({
     phone: "",
   });
   const [deliveryAddress, setDeliveryAddress] = useState(siteAddress);
+  const [deliveryDate, setDeliveryDate] = useState<Date | undefined>(undefined);
+  const [siteContactId, setSiteContactId] = useState<string>("");
+  const [manualSiteContact, setManualSiteContact] = useState({ name: "", phone: "" });
   const [notes, setNotes] = useState("");
   const [sendMethod, setSendMethod] = useState<"email" | "sms" | "both">("email");
   const [isAddingSupplier, setIsAddingSupplier] = useState(false);
@@ -87,6 +102,9 @@ export function SendPurchaseOrderDialog({
         : unorderedIds;
       setSelectedItems(initialSelection);
       setDeliveryAddress(siteAddress);
+      setDeliveryDate(undefined);
+      setSiteContactId("");
+      setManualSiteContact({ name: "", phone: "" });
       setSupplierId("");
       setSelectedSupplierIds([]);
       setManualSupplier({ name: "", email: "", phone: "" });
@@ -123,6 +141,67 @@ export function SendPurchaseOrderDialog({
     },
     enabled: open,
   });
+
+  // Fetch internal contacts for site contact selector
+  const { data: internalContacts = [] } = useQuery({
+    queryKey: ["internal-contacts"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profile?.business_id) return [];
+
+      const { data, error } = await supabase
+        .from("internal_contacts")
+        .select("*")
+        .eq("business_id", profile.business_id)
+        .order("name");
+
+      if (error) throw error;
+      return data as InternalContact[];
+    },
+    enabled: open,
+  });
+
+  // Fetch employees as potential site contacts too
+  const { data: employees = [] } = useQuery({
+    queryKey: ["employees-for-contact"],
+    queryFn: async (): Promise<{ id: string; full_name: string | null; phone: string | null }[]> => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profile?.business_id) return [];
+
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name, phone")
+        .eq("business_id", profile.business_id);
+
+      if (error) throw error;
+      return (data || []).filter((p: { id: string; full_name: string | null; phone: string | null }) => p.full_name);
+    },
+    enabled: open,
+  });
+
+  // Combine internal contacts and employees for site contact selector
+  const siteContactOptions = [
+    ...internalContacts.map(c => ({ id: c.id, name: c.name, phone: c.phone, type: "internal" as const })),
+    ...employees.map(e => ({ id: e.id, name: e.full_name || "Unknown", phone: e.phone, type: "employee" as const })),
+  ];
+
+  const selectedSiteContact = siteContactOptions.find(c => c.id === siteContactId);
 
   const selectedSupplier = suppliers.find(s => s.id === supplierId);
   const recipientEmail = supplierId ? selectedSupplier?.email : manualSupplier.email;
@@ -162,9 +241,26 @@ export function SendPurchaseOrderDialog({
   // Get selected suppliers for display
   const selectedSuppliers = suppliers.filter(s => selectedSupplierIds.includes(s.id));
 
+  // Get site contact info for the request
+  const getSiteContactInfo = () => {
+    if (siteContactId && selectedSiteContact) {
+      return {
+        siteContactId: selectedSiteContact.type === "employee" ? selectedSiteContact.id : null,
+        siteContactName: selectedSiteContact.name,
+        siteContactPhone: selectedSiteContact.phone,
+      };
+    }
+    return {
+      siteContactId: null,
+      siteContactName: manualSiteContact.name || null,
+      siteContactPhone: manualSiteContact.phone || null,
+    };
+  };
+
   const sendMutation = useMutation({
     mutationFn: async () => {
       const selectedBOQItems = boq.items.filter(item => selectedItems.includes(item.id));
+      const siteContactInfo = getSiteContactInfo();
       
       if (orderType === "quote" && selectedSupplierIds.length > 0) {
         // Send quote requests to multiple suppliers in parallel
@@ -183,6 +279,8 @@ export function SendPurchaseOrderDialog({
                 supplierEmail: supplier.email,
                 supplierPhone: supplier.phone,
                 deliveryAddress,
+                deliveryDate: deliveryDate?.toISOString(),
+                ...siteContactInfo,
                 notes,
                 sendMethod,
                 orderType: "quote",
@@ -208,6 +306,8 @@ export function SendPurchaseOrderDialog({
             supplierEmail: recipientEmail,
             supplierPhone: recipientPhone,
             deliveryAddress,
+            deliveryDate: deliveryDate?.toISOString(),
+            ...siteContactInfo,
             notes,
             sendMethod,
             orderType,
@@ -608,10 +708,13 @@ export function SendPurchaseOrderDialog({
                 </div>
               )}
 
-              {/* Delivery Address - only show for PO */}
-              {!isQuote && (
+              {/* Delivery Details - show for both PO and Quote */}
+              <div className="space-y-4">
+                <Label className="text-base font-medium">Delivery Details</Label>
+                
+                {/* Delivery Address */}
                 <div className="space-y-2">
-                  <Label className="text-base font-medium">Delivery Address</Label>
+                  <Label className="text-sm">Delivery Address</Label>
                   <Textarea
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
@@ -619,7 +722,111 @@ export function SendPurchaseOrderDialog({
                     rows={2}
                   />
                 </div>
-              )}
+
+                {/* Delivery Date */}
+                <div className="space-y-2">
+                  <Label className="text-sm">Delivery Date</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !deliveryDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {deliveryDate ? format(deliveryDate, "PPP") : "Select delivery date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={deliveryDate}
+                        onSelect={setDeliveryDate}
+                        initialFocus
+                        disabled={(date) => date < new Date()}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                {/* Site Contact */}
+                <div className="space-y-2">
+                  <Label className="text-sm flex items-center gap-1">
+                    <UserCircle className="h-4 w-4" />
+                    Site Contact
+                  </Label>
+                  <Select
+                    value={siteContactId || "__manual__"}
+                    onValueChange={(v) => {
+                      if (v === "__manual__") {
+                        setSiteContactId("");
+                      } else {
+                        setSiteContactId(v);
+                        setManualSiteContact({ name: "", phone: "" });
+                      }
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select site contact..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__manual__">-- Enter manually --</SelectItem>
+                      {siteContactOptions.length > 0 && (
+                        <>
+                          {internalContacts.length > 0 && (
+                            <>
+                              <SelectItem value="__header_internal__" disabled className="text-xs font-semibold text-muted-foreground">
+                                Internal Contacts
+                              </SelectItem>
+                              {internalContacts.map((c) => (
+                                <SelectItem key={c.id} value={c.id}>
+                                  {c.name} {c.role && `(${c.role})`}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                          {employees.length > 0 && (
+                            <>
+                              <SelectItem value="__header_employees__" disabled className="text-xs font-semibold text-muted-foreground">
+                                Employees
+                              </SelectItem>
+                              {employees.map((e) => (
+                                <SelectItem key={e.id} value={e.id}>
+                                  {e.full_name}
+                                </SelectItem>
+                              ))}
+                            </>
+                          )}
+                        </>
+                      )}
+                    </SelectContent>
+                  </Select>
+
+                  {!siteContactId && (
+                    <div className="grid grid-cols-2 gap-3 pl-4 border-l-2">
+                      <div>
+                        <Label className="text-xs">Contact Name</Label>
+                        <Input
+                          value={manualSiteContact.name}
+                          onChange={(e) => setManualSiteContact(prev => ({ ...prev, name: e.target.value }))}
+                          placeholder="Site supervisor name"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Phone</Label>
+                        <Input
+                          type="tel"
+                          value={manualSiteContact.phone}
+                          onChange={(e) => setManualSiteContact(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="0400 000 000"
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
 
               {/* Notes */}
               <div className="space-y-2">

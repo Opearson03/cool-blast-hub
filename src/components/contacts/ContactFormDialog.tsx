@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, UserPlus, Users, Building2, Truck } from "lucide-react";
 
-export type ContactType = "client" | "subcontractor" | "supplier";
+export type ContactType = "client" | "subcontractor" | "supplier" | "internal";
 
 interface ContactFormData {
   id?: string;
@@ -69,6 +69,7 @@ const TYPE_CONFIG = {
     showAddress: true,
     showTrade: false,
     showCategory: false,
+    showRole: false,
   },
   subcontractor: {
     title: "Subcontractor",
@@ -76,6 +77,7 @@ const TYPE_CONFIG = {
     showAddress: false,
     showTrade: true,
     showCategory: false,
+    showRole: false,
   },
   supplier: {
     title: "Supplier",
@@ -83,6 +85,15 @@ const TYPE_CONFIG = {
     showAddress: false,
     showTrade: false,
     showCategory: true,
+    showRole: false,
+  },
+  internal: {
+    title: "Internal Contact",
+    icon: Users,
+    showAddress: false,
+    showTrade: false,
+    showCategory: false,
+    showRole: true,
   },
 };
 
@@ -239,6 +250,17 @@ export function ContactFormDialog({
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {config.showRole && (
+            <div>
+              <Label>Role</Label>
+              <Input
+                value={formData.trade || ""}
+                onChange={(e) => setFormData({ ...formData, trade: e.target.value })}
+                placeholder="e.g. Site Supervisor, Project Manager"
+              />
             </div>
           )}
 

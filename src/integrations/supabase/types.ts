@@ -899,6 +899,50 @@ export type Database = {
           },
         ]
       }
+      internal_contacts: {
+        Row: {
+          business_id: string
+          created_at: string
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          role: string | null
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          role?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "internal_contacts_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       itp_templates: {
         Row: {
           business_id: string | null
@@ -2269,6 +2313,7 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           delivery_address: string
+          delivery_date: string | null
           id: string
           items: Json
           job_id: string
@@ -2276,6 +2321,9 @@ export type Database = {
           po_number: string
           sent_at: string | null
           sent_via: string | null
+          site_contact_id: string | null
+          site_contact_name: string | null
+          site_contact_phone: string | null
           status: string | null
           supplier_contact_id: string | null
           supplier_email: string | null
@@ -2289,6 +2337,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           delivery_address: string
+          delivery_date?: string | null
           id?: string
           items?: Json
           job_id: string
@@ -2296,6 +2345,9 @@ export type Database = {
           po_number: string
           sent_at?: string | null
           sent_via?: string | null
+          site_contact_id?: string | null
+          site_contact_name?: string | null
+          site_contact_phone?: string | null
           status?: string | null
           supplier_contact_id?: string | null
           supplier_email?: string | null
@@ -2309,6 +2361,7 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           delivery_address?: string
+          delivery_date?: string | null
           id?: string
           items?: Json
           job_id?: string
@@ -2316,6 +2369,9 @@ export type Database = {
           po_number?: string
           sent_at?: string | null
           sent_via?: string | null
+          site_contact_id?: string | null
+          site_contact_name?: string | null
+          site_contact_phone?: string | null
           status?: string | null
           supplier_contact_id?: string | null
           supplier_email?: string | null
@@ -2343,6 +2399,13 @@ export type Database = {
             columns: ["job_id"]
             isOneToOne: false
             referencedRelation: "jobs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_orders_site_contact_id_fkey"
+            columns: ["site_contact_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
           {
