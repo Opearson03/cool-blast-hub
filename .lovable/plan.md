@@ -1,69 +1,145 @@
 
-# Analysis: Quote Total Changes on "Revise" Click
+# Plan: Add Start Time to Sub-Contractor Invites
 
-## Problem Identified
+## Overview
 
-When you click "Revise" on a finalized quote, the total amount changes because the system recalculates derived values that weren't previously persisted.
+You want to specify what time a sub-contractor should arrive for a job. Currently, the invite inherits the pour's `scheduled_time`, but sub-contractors (like pump operators) often need to arrive at different times than the main pour starts.
 
-## Root Cause
-
-The `ModularCalculator` component tracks manual user edits in a state variable called `userOverrides`. This prevents the system from overwriting values you've manually adjusted with auto-calculated defaults.
-
-**The problem:** `userOverrides` is **not saved to the database**. When you reopen a quote:
-
-1. The calculator mounts with `userOverrides = {}` (empty)
-2. The auto-calculation logic (`deriveFrom`) runs on all visible fields
-3. Since no fields are marked as "manually overridden", the system recalculates prices, quantities, or rates based on:
-   - Current price list values (which may have changed)
-   - Derived formulas (e.g., concrete volume from area × thickness)
-4. Any values that differ from the saved values get overwritten
-5. The total changes
-
-## Technical Location
-
-- **File:** `src/components/estimates/calculators/ModularCalculator.tsx`
-- **Issue:** Line 132 initializes `userOverrides` as empty `{}`
-- **Effect:** Lines 609-686 run the `deriveFrom` auto-calculation which overwrites saved values
-
-## Proposed Solution
-
-### Option A: Persist User Overrides (Recommended)
-
-Save which fields were manually edited alongside the module answers so they can be restored when the quote is reopened.
-
-**Changes required:**
-1. **Extend the saved scope data structure** to include a `moduleUserOverrides` object
-2. **Accept initial overrides as a prop** in `ModularCalculator`
-3. **Save overrides** when the estimate is saved
-4. **Restore overrides** when loading an existing estimate
-
-**Files to modify:**
-- `src/components/estimates/calculators/ModularCalculator.tsx` - Add `initialUserOverrides` prop
-- `src/components/estimates/EstimateFormDialog.tsx` - Pass and persist the overrides
-
-### Option B: Skip Derived Recalculation for Existing Data
-
-Mark saved module answers as "user data" and skip `deriveFrom` calculations entirely when values already exist.
-
-**Changes required:**
-1. If a value already exists in `moduleAnswers`, treat it as a manual override
-2. Only run `deriveFrom` for fields with no existing value
-
-This is simpler but less precise - it prevents any auto-updates when reopening quotes.
+This plan adds a dedicated `start_time` field to the invite itself, allowing you to specify arrival times per sub-contractor.
 
 ---
 
-## Recommendation
+## Changes Required
 
-**Option A (Persist User Overrides)** is the cleaner solution because:
-- It preserves the auto-calculation behavior for fields the user didn't touch
-- It correctly handles price list updates for non-adjusted values
-- It follows the existing architecture pattern for `doneModules` persistence
+### 1. Database: Add `start_time` Column to `external_invites`
 
-## Implementation Steps
+Add a new `start_time` column (time without time zone, nullable) to store the subbie's expected arrival time. Falls back to the pour's `scheduled_time` if not specified.
 
-1. Add `moduleUserOverrides` to the `ModularScopeState` interface
-2. Add `initialUserOverrides` prop to `ModularCalculator`
-3. Update `handleModularStateChange` to include overrides in the state
-4. Update `buildScopeDataForSave` to save overrides
-5. Update `migrateLegacyScopeData` to handle missing overrides gracefully
+```text
+ALTER TABLE external_invites ADD COLUMN start_time TIME;
+```
+
+---
+
+### 2. UI: Add Time Picker to Invite Dialogs
+
+Update the invite forms to include a time input field:
+
+**Files to modify:**
+- `src/components/jobs/SubTradeInviteDialog.tsx` - Add start time field to new subbie form and existing subbie selection
+- `src/components/schedule/ScheduleSubbieDialog.tsx` - Add start time field to both tabs
+
+**UI Design:**
+- Simple time input field using a text input with type="time" (e.g., "07:30")
+- Label: "Start Time (optional)"
+- Placed near the notes field
+- Pre-populate with pour's scheduled_time if available
+
+---
+
+### 3. Hook: Pass Start Time to Mutation
+
+Update the invite mutation to accept `start_time`:
+
+**File:** `src/hooks/useSubTradeInvites.ts`
+
+Add `start_time?: string` to the mutation function parameters.
+
+---
+
+### 4. Edge Functions: Accept and Store Start Time
+
+Update both edge functions to handle the new field:
+
+**Files:**
+- `supabase/functions/send-subtrade-invite/index.ts`
+- `supabase/functions/send-batch-subtrade-invite/index.ts`
+
+Changes:
+- Add `start_time` to the request interface
+- Store `start_time` in the database insert
+- Display the invite-specific `start_time` in SMS/email (fallback to pour's `scheduled_time` if not set)
+
+---
+
+### 5. Public Response Page: Display Start Time
+
+Update the subbie-facing response page to show the invite's start time:
+
+**File:** `src/pages/public/RespondInvite.tsx`
+
+Display the `start_time` from the invite (or fall back to pour's `scheduled_time`).
+
+---
+
+### 6. Validate Token Edge Function: Return Start Time
+
+Ensure the token validation returns the `start_time` field:
+
+**File:** `supabase/functions/validate-subtrade-token/index.ts`
+
+Include `start_time` in the response so the public page can display it.
+
+---
+
+## User Flow After Implementation
+
+1. User opens invite dialog for a pour
+2. User selects or enters subbie details
+3. User optionally sets a "Start Time" (e.g., "6:30 AM" for pump operator)
+4. Invite is sent with the specified time
+5. Subbie receives SMS/email showing the arrival time
+6. Subbie opens invite link and sees the time clearly displayed
+7. Calendar download includes the correct start time
+
+---
+
+## Technical Details
+
+### Form Schema Update
+```typescript
+const formSchema = z.object({
+  // ... existing fields
+  start_time: z.string().optional(), // Format: "HH:mm"
+});
+```
+
+### Time Input Component
+```tsx
+<FormField
+  name="start_time"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel className="flex items-center gap-1">
+        <Clock className="h-3.5 w-3.5" />
+        Start Time (optional)
+      </FormLabel>
+      <FormControl>
+        <Input type="time" {...field} />
+      </FormControl>
+    </FormItem>
+  )}
+/>
+```
+
+### SMS Message Update
+```text
+Before: "You're invited to work as Pump Operator on Monday, 3 Feb."
+After:  "You're invited to work as Pump Operator on Monday, 3 Feb at 6:30am."
+```
+
+---
+
+## Summary of File Changes
+
+| File | Change |
+|------|--------|
+| **Migration** | Add `start_time` column to `external_invites` |
+| `SubTradeInviteDialog.tsx` | Add time input field |
+| `ScheduleSubbieDialog.tsx` | Add time input field |
+| `useSubTradeInvites.ts` | Add `start_time` to mutation params |
+| `send-subtrade-invite/index.ts` | Accept and store start_time, include in messages |
+| `send-batch-subtrade-invite/index.ts` | Accept and store start_time, include in messages |
+| `validate-subtrade-token/index.ts` | Return start_time in response |
+| `RespondInvite.tsx` | Display invite's start_time |
+
