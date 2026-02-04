@@ -192,6 +192,7 @@ export interface ModularScopeState {
   customExclusions: ExclusionItem[];
   calculatedTotal: number;
   doneModules?: string[];  // Array of module IDs marked as done
+  userOverrides?: Record<string, string[]>;  // Module ID -> array of field IDs that were manually overridden
 }
 
 // Step definitions for clarity
@@ -276,6 +277,7 @@ function migrateLegacyScopeData(
         customExclusions: legacyData.customExclusions || [],
         calculatedTotal: legacyData.calculatedTotal || 0,
         doneModules: legacyData.doneModules || [],
+        userOverrides: legacyData.userOverrides || {},  // Restore saved user overrides
       };
       continue;
     }
@@ -1051,6 +1053,7 @@ const {
           customExclusions: state.customExclusions,
           calculatedTotal: state.calculatedTotal,
           doneModules: state.doneModules || [],
+          userOverrides: state.userOverrides || {},  // Persist user overrides
         };
       }
     }
@@ -1281,6 +1284,7 @@ const {
     customExclusions: ExclusionItem[];
     total: number;
     doneModules?: string[];
+    userOverrides?: Record<string, string[]>;
   }) => {
     setModularScopeStates(prev => ({
       ...prev,
@@ -1290,6 +1294,7 @@ const {
         customExclusions: state.customExclusions,
         calculatedTotal: state.total,
         doneModules: state.doneModules || [],
+        userOverrides: state.userOverrides || {},  // Persist user overrides
       },
     }));
   }, []);
@@ -1707,6 +1712,7 @@ const {
         initialModuleAnswers={initialModuleAnswers}
         initialCustomExclusions={currentState?.customExclusions}
         initialDoneModules={currentState?.doneModules}
+        initialUserOverrides={currentState?.userOverrides}
         onStateChange={(state) => handleModularStateChange(scope, state)}
         onModuleDone={() => {
           // Auto-save when a module is marked as done (do not close dialog)

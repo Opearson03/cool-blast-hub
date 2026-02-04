@@ -53,6 +53,7 @@ interface ModularCalculatorProps {
   initialModuleAnswers?: Record<string, Record<string, any>>;
   initialCustomExclusions?: ExclusionItem[];
   initialDoneModules?: string[];  // Array of module IDs to restore as done
+  initialUserOverrides?: Record<string, string[]>;  // Module ID -> array of field IDs that were manually overridden
   onStateChange?: (state: {
     scopeAnswers: Record<string, any>;
     moduleAnswers: Record<string, Record<string, any>>;
@@ -65,6 +66,7 @@ interface ModularCalculatorProps {
     gst: number;
     total: number;
     doneModules: string[];  // Array of done module IDs
+    userOverrides: Record<string, string[]>;  // Module ID -> array of field IDs that were manually overridden
   }) => void;
   onModuleDone?: () => void;
   // Markup prompt support - identifier format: "scopeId" or "scopeId:beamType:typeName"
@@ -80,6 +82,7 @@ export function ModularCalculator({
   initialModuleAnswers = {},
   initialCustomExclusions = [],
   initialDoneModules = [],
+  initialUserOverrides = {},
   onStateChange,
   onModuleDone,
   onRequestMarkup,
@@ -129,7 +132,14 @@ export function ModularCalculator({
   );
 
   // Track which fields have been manually overridden by user (module-level)
-  const [userOverrides, setUserOverrides] = useState<Record<string, Set<string>>>({});
+  // Initialize from props to restore overrides when reopening a quote
+  const [userOverrides, setUserOverrides] = useState<Record<string, Set<string>>>(() => {
+    const restored: Record<string, Set<string>> = {};
+    for (const [moduleId, fieldIds] of Object.entries(initialUserOverrides)) {
+      restored[moduleId] = new Set(fieldIds);
+    }
+    return restored;
+  });
 
   // Track which scope-level fields have been manually overridden by user
   const [scopeUserOverrides, setScopeUserOverrides] = useState<Set<string>>(new Set());
@@ -755,6 +765,12 @@ export function ModularCalculator({
   // Notify parent of state changes
   const notifyStateChange = useCallback(() => {
     if (onStateChange) {
+      // Convert userOverrides Sets to arrays for serialization
+      const serializedOverrides: Record<string, string[]> = {};
+      for (const [moduleId, fieldSet] of Object.entries(userOverrides)) {
+        serializedOverrides[moduleId] = Array.from(fieldSet);
+      }
+      
       onStateChange({
         scopeAnswers,
         moduleAnswers,
@@ -767,6 +783,7 @@ export function ModularCalculator({
         gst: totals.gst,
         total: totals.total,
         doneModules: Array.from(doneModules),  // Convert Set to Array for persistence
+        userOverrides: serializedOverrides,  // Include user overrides for persistence
       });
     }
   }, [
@@ -778,7 +795,8 @@ export function ModularCalculator({
     customExclusions,
     marginPercent,
     totals,
-    doneModules,  // Include doneModules in dependencies
+    doneModules,
+    userOverrides,  // Include userOverrides in dependencies
   ]);
 
   // Notify on changes
