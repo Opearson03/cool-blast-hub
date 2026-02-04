@@ -302,6 +302,15 @@ export const basePreparationModule: EstimateModule = {
   getExclusions: (answers): ExclusionItem[] => {
     const exclusions: ExclusionItem[] = [];
     
+    // If neither crusher dust nor road base is included, add subgrade exclusion
+    if (!answers.crusher_dust_required && !answers.road_base_required) {
+      exclusions.push({
+        id: 'subgrade_preparation',
+        text: 'Subgrade preparation, levelling and compaction',
+        moduleId: 'base-preparation',
+      });
+    }
+    
     if (!answers.crusher_dust_required) {
       exclusions.push({
         id: 'no_crusher_dust',

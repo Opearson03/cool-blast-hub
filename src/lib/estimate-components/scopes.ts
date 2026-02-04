@@ -100,6 +100,12 @@ export const PIERS_SCOPE: ScopeDefinition = {
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'piers' },
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'piers' },
     { id: 'soil_testing', text: 'Soil testing and geotechnical reports', moduleId: 'piers' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -220,6 +226,12 @@ export const STANDARD_SLAB_SCOPE: ScopeDefinition = {
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'standard_slab' },
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'standard_slab' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -381,6 +393,12 @@ export const RAFT_SLAB_SCOPE: ScopeDefinition = {
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'raft_slab' },
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'raft_slab' },
     { id: 'termite', text: 'Termite treatment and barriers', moduleId: 'raft_slab' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -984,6 +1002,12 @@ export const WAFFLE_POD_SCOPE: ScopeDefinition = {
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'waffle_pod' },
     { id: 'termite', text: 'Termite treatment and barriers', moduleId: 'waffle_pod' },
     { id: 'pods', text: 'Supply of waffle pods (by others)', moduleId: 'waffle_pod' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -1143,6 +1167,12 @@ export const DRIVEWAY_SCOPE: ScopeDefinition = {
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'driveway' },
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'driveway' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -1288,6 +1318,12 @@ export const CROSSOVERS_SCOPE: ScopeDefinition = {
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and crossover applications', moduleId: 'crossovers' },
     { id: 'kerb', text: 'Kerb and gutter modifications', moduleId: 'crossovers' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -1432,6 +1468,12 @@ export const PATHS_SURROUNDS_SCOPE: ScopeDefinition = {
   },
   defaultExclusions: [
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'paths_surrounds' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -1506,6 +1548,12 @@ export const STRIP_FOOTINGS_SCOPE: ScopeDefinition = {
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'strip_footings' },
     { id: 'permits', text: 'Council permits and approvals', moduleId: 'strip_footings' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -1566,6 +1614,12 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
   defaultExclusions: [
     { id: 'engineering', text: 'Engineering design and certification', moduleId: 'retaining_wall_footings' },
     { id: 'wall', text: 'Retaining wall construction (footing only)', moduleId: 'retaining_wall_footings' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -1803,7 +1857,12 @@ export const PAD_FOOTINGS_SCOPE: ScopeDefinition = {
     { id: 'engineering', text: 'Structural engineering design and certification', moduleId: 'pad_footings' },
     { id: 'setout', text: 'Survey setout of footing locations', moduleId: 'pad_footings' },
     { id: 'soil_testing', text: 'Soil bearing capacity testing', moduleId: 'pad_footings' },
-    { id: 'dewatering', text: 'Dewatering if groundwater encountered', moduleId: 'pad_footings' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
@@ -2487,6 +2546,12 @@ export const BOLLARDS_SCOPE: ScopeDefinition = {
     { id: 'paint', text: 'Safety painting and line marking', moduleId: 'bollards' },
     { id: 'sleeves', text: 'Removable bollard sleeves', moduleId: 'bollards' },
     { id: 'reflectors', text: 'Reflective tape or caps', moduleId: 'bollards' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'unsuitable_ground', text: 'Blinding concrete, soft spots or unsuitable ground conditions', moduleId: 'scope' },
+    { id: 'temporary_shoring', text: 'Temporary shoring or support structures', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+    { id: 'traffic_control', text: 'Traffic control and management', moduleId: 'scope' },
+    { id: 'overhead_services', text: 'Protection or relocation of overhead services', moduleId: 'scope' },
   ],
 };
 
