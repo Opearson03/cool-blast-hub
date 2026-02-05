@@ -1,152 +1,150 @@
 
-# Fix: Takeoff Option Not Working for Control Joints and Expansion Joints [COMPLETED]
+# Fix: Include Retaining Wall Footing Toe Concrete Volume
 
 ## Problem Summary
 
-When a user clicks "Mark on Plans" for an expansion joint or control joint configuration, the takeoff flow has several issues that prevent proper functionality:
+The concrete volume calculation for retaining wall footings is missing the toe portion. When a user enables "Has Toe" and sets toe dimensions (width and depth), this additional concrete is not being included in the volume calculation - resulting in an underestimate of concrete requirements.
 
-1. **Scope color calculation fails** - Joint scope IDs (`expansion_joints`, `control_joints`) are not in `selectedScopes`, causing `getScopeColor()` to receive index `-1`
-2. **Joint markup return flow has a logic gap** - After marking, the system can't find the right parent scope to update because it looks for joint configs in the wrong place
-3. **The auto-activate useEffect may not trigger** - If conditions aren't met (e.g., user hasn't calibrated yet), the joint marking tool won't auto-start
+## Technical Root Cause
 
-## Root Cause
+The toe is a horizontal projection at the base of a retaining wall footing (typically extending towards the retained soil). It has its own width and depth dimensions that run the full length of the footing. 
 
-The joint markup workflow treats `expansion_joints` and `control_joints` as scope IDs when they are actually module identifiers. The system needs to:
-- Handle the color lookup gracefully when scope isn't in the selected list
-- Properly track which parent scope (e.g., `driveway`, `standard_slab`) contains the joint being marked
-- Ensure the markup is stored and retrieved correctly
-
-## Technical Fix
-
-### 1. Fix Scope Color Lookup for Joint Scopes
-
-**File:** `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
-
-The `getScopeColor()` function receives `-1` when joint scopes aren't in `selectedScopes`. Add fallback color handling:
-
-```typescript
-// Line 1104 in handleJointConfirm
-const scopeIndex = selectedScopes.indexOf(activeScope as ScopeType);
-const color = scopeIndex >= 0 
-  ? getScopeColor(scopeIndex) 
-  : '#8B5CF6'; // Purple fallback for joint markups
+```text
+                  ┌─────────────────┐
+                  │   Main Footing  │
+                  │   (width × depth)│
+                  │                 │
+  ┌───────────────┼─────────────────┤
+  │     TOE       │                 │
+  │ (toe_width ×  │                 │
+  │  toe_depth)   │                 │
+  └───────────────┴─────────────────┘
+        ← toe →   ← main footing →
 ```
 
-Similar fix needed at line 1795 in DrawingCanvas props.
-
-### 2. Store Parent Scope in markedTakeoffScopeRef
-
-**File:** `src/components/estimates/EstimateFormDialog.tsx`
-
-When navigating to takeoff for joint marking, include the parent scope in the identifier so we can properly update the right scope's module answers when returning.
-
-Update the `onRequestMarkup` handler in `ModularCalculator` (lines 1603-1610) to include the current scope:
-
+**Current Calculation:**
 ```typescript
-// Current:
-onRequestJointMarkup={(jointId) => {
-  onRequestMarkup?.(`expansion_joints:joint:${jointId}`);
-}}
-
-// Fixed - include parent scope:
-onRequestJointMarkup={(jointId) => {
-  onRequestMarkup?.(`${scope.id}:expansion_joints:joint:${jointId}`);
-}}
+volume = length × (width/1000) × (depth/1000)
 ```
 
-Then update `handleJointMarkupComplete` to parse the new format:
-- Format: `{parentScope}:expansion_joints:joint:{jointId}` or `{parentScope}:control_joints:joint:{jointId}`
-
-### 3. Update handleJointMarkupComplete Parsing Logic
-
-**File:** `src/components/estimates/EstimateFormDialog.tsx`
-
+**Required Calculation:**
 ```typescript
-const handleJointMarkupComplete = useCallback(async (scopeId: string, lengthMeters: number) => {
-  const markedScope = markedTakeoffScopeRef.current;
-  
-  // Parse new format: "{parentScope}:{jointType}:joint:{jointId}"
-  if (markedScope && typeof markedScope === 'string' && markedScope.includes(':joint:')) {
-    const parts = markedScope.split(':');
-    // New format: [parentScope, jointType, 'joint', jointId]
-    if (parts.length >= 4) {
-      const parentScopeId = parts[0];
-      const jointModuleType = parts[1]; // 'expansion_joints' or 'control_joints'
-      const jointId = parts[3];
-      
-      // Use parentScopeId directly instead of searching
-      if (selectedScopesArray.includes(parentScopeId)) {
-        // ... update logic using parentScopeId
-      }
-    }
-  }
-  // ... rest of function
-}, [/* deps */]);
+mainVolume = length × (width/1000) × (depth/1000)
+toeVolume = has_toe ? length × (toe_width/1000) × (toe_depth/1000) : 0
+totalVolume = mainVolume + toeVolume
 ```
 
-### 4. Ensure Proper useEffect Trigger for Auto-Activation
-
-**File:** `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
-
-The current auto-activation logic requires `hasFiles && isCalibrated`. For joint marking via "Mark on Plans", we should still activate the scope even if not calibrated - the user will just see the calibration prompt first.
-
-```typescript
-// Lines 343-362: Modify conditions
-useEffect(() => {
-  if (
-    initialScope &&
-    !initialScopeHandledRef.current &&
-    hasFiles &&
-    !isLoading
-  ) {
-    initialScopeHandledRef.current = true;
-    const scopeToActivate = /* parse scope from identifier */;
-    
-    // Call handleMarkArea which will show calibration dialog if needed
-    handleMarkArea(scopeToActivate);
-    onInitialScopeHandled?.();
-  }
-}, [/* deps */]);
-```
-
-### 5. Update ModularCalculator to Pass Parent Scope
-
-**File:** `src/components/estimates/calculators/ModularCalculator.tsx`
-
-```typescript
-// Lines 1603-1610
-onRequestJointMarkup={(jointId) => {
-  // Include parent scope ID in the identifier
-  onRequestMarkup?.(`${scope.id}:expansion_joints:joint:${jointId}`);
-}}
-onRequestControlJointMarkup={(jointId) => {
-  // Include parent scope ID in the identifier
-  onRequestMarkup?.(`${scope.id}:control_joints:joint:${jointId}`);
-}}
-```
+---
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Update joint markup identifiers to include parent scope ID |
-| `src/components/estimates/EstimateFormDialog.tsx` | Update `handleJointMarkupComplete` to parse new identifier format |
-| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Add fallback color for joint scopes; relax auto-activation conditions |
+| `src/components/estimates/calculators/MultiLinearTypeInput.tsx` | Add toe volume to `groupLinearByType` (line 82) and segment display (line 552) |
+| `src/lib/estimate-components/scopes.ts` | Add toe volume to `RETAINING_WALL_FOOTINGS_SCOPE.calculateVolume` (line 1599-1603) |
 
-## Expected Behavior After Fix
+---
 
-1. User adds an expansion/control joint config in the calculator
-2. User clicks "Mark on Plans" button next to joint length field
-3. User is navigated to takeoff with polyline tool auto-activated
-4. User draws the joint path on the plan
-5. User confirms in the joint dimensions panel
-6. Length is automatically populated in the joint config
-7. User is returned to the configure step with the joint module open
+## Implementation Details
+
+### 1. Fix Volume in `groupLinearByType` Function
+
+**File:** `src/components/estimates/calculators/MultiLinearTypeInput.tsx`
+
+Update line 82:
+
+```typescript
+// Current (line 82):
+const volume = length * (section.dimension1 / 1000) * (section.dimension2 / 1000);
+
+// Fixed - include toe volume:
+const mainVolume = length * (section.dimension1 / 1000) * (section.dimension2 / 1000);
+const toeVolume = section.has_toe 
+  ? length * ((section.toe_width || 0) / 1000) * ((section.toe_depth || 0) / 1000)
+  : 0;
+const volume = mainVolume + toeVolume;
+```
+
+### 2. Fix Volume in Segment Display
+
+**File:** `src/components/estimates/calculators/MultiLinearTypeInput.tsx`
+
+Update line 552:
+
+```typescript
+// Current (line 552):
+const segmentVolume = segmentLength * (segment.dimension1 / 1000) * (segment.dimension2 / 1000);
+
+// Fixed - include toe volume:
+const mainVolume = segmentLength * (segment.dimension1 / 1000) * (segment.dimension2 / 1000);
+const toeVolume = segment.has_toe 
+  ? segmentLength * ((segment.toe_width || 0) / 1000) * ((segment.toe_depth || 0) / 1000)
+  : 0;
+const segmentVolume = mainVolume + toeVolume;
+```
+
+### 3. Fix Scope Volume Calculation
+
+**File:** `src/lib/estimate-components/scopes.ts`
+
+Update `RETAINING_WALL_FOOTINGS_SCOPE.calculateVolume` (lines 1595-1612):
+
+```typescript
+calculateVolume: (answers) => {
+  const footings = answers.footings || [];
+  if (footings.length > 0) {
+    const volume = footings.reduce((sum: number, footing: any) => {
+      const length = Number(footing.length) || 0;
+      const widthM = (Number(footing.width) || 0) / 1000;
+      const depthM = (Number(footing.depth) || 0) / 1000;
+      
+      // Main footing volume
+      const mainVolume = length * widthM * depthM;
+      
+      // Toe volume (if has_toe is enabled)
+      const hasToe = footing.has_toe === true;
+      const toeWidthM = hasToe ? (Number(footing.toe_width) || 0) / 1000 : 0;
+      const toeDepthM = hasToe ? (Number(footing.toe_depth) || 0) / 1000 : 0;
+      const toeVolume = length * toeWidthM * toeDepthM;
+      
+      return sum + mainVolume + toeVolume;
+    }, 0);
+    return safeVolume(volume);
+  }
+  // Fallback to total_length with default dimensions
+  const length = Number(answers.total_length) || 0;
+  const widthM = 600 / 1000;
+  const depthM = 400 / 1000;
+  return safeVolume(length * widthM * depthM);
+},
+```
+
+---
+
+## Expected Behaviour After Fix
+
+**Example:** Retaining wall footing with:
+- Length: 10m
+- Width: 600mm, Depth: 400mm
+- Toe: 300mm wide × 300mm deep
+
+**Before (incorrect):**
+- Volume = 10 × 0.6 × 0.4 = **2.4 m³**
+
+**After (correct):**
+- Main = 10 × 0.6 × 0.4 = 2.4 m³
+- Toe = 10 × 0.3 × 0.3 = 0.9 m³
+- **Total = 3.3 m³**
+
+The fix adds 37.5% more concrete in this example - a significant underestimation that was previously occurring.
+
+---
 
 ## Testing Checklist
 
-- [x] ModularCalculator updated to include parent scope ID in joint markup identifiers
-- [x] handleJointMarkupComplete updated to parse new 4-part format with legacy fallback
-- [x] PlanTakeoffStep updated with fallback color for joint scopes
-- [x] Auto-activation useEffect relaxed to not require calibration (shows dialog instead)
-- [x] Joint scope parsing added to extract correct tool type from identifier
+- Create a new estimate with retaining wall footings scope
+- Add a footing section (e.g., RF1) with 10m length, 600mm width, 400mm depth
+- Enable "Has Toe" with 300mm width and 300mm depth
+- Verify the displayed volume shows approximately 3.3 m³ (not 2.4 m³)
+- Check that the concrete supply module uses this corrected volume
+- Verify excavation volume also includes the toe width (already handled in ModularCalculator lines 333-339)
