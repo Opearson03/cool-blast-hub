@@ -285,7 +285,7 @@ export function InboxHistoryTab() {
       case "general":
         return "General";
       case "quote":
-        return "Quote";
+        return "Supplier";
       default:
         return type;
     }
@@ -508,7 +508,7 @@ export function InboxHistoryTab() {
             <SelectItem value="test">Test Results</SelectItem>
             <SelectItem value="docket">Dockets</SelectItem>
             <SelectItem value="general">General</SelectItem>
-            <SelectItem value="quote">Quotes</SelectItem>
+            <SelectItem value="quote">Suppliers</SelectItem>
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
