@@ -1154,17 +1154,29 @@ export function PlanTakeoffStep({
   const handleJointConfirm = useCallback(async () => {
     if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
     
-   // Use fallback color for joint scopes (which aren't in selectedScopes)
-   const scopeIndex = selectedScopes.indexOf(activeScope as ScopeType);
-   const color = scopeIndex >= 0 ? getScopeColor(scopeIndex) : '#8B5CF6';
-    const jointName = `Joint ${markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length + 1}`;
+    // Use fallback color for joint scopes (which aren't in selectedScopes)
+    const scopeIndex = selectedScopes.indexOf(activeScope as ScopeType);
+    const color = scopeIndex >= 0 ? getScopeColor(scopeIndex) : '#8B5CF6';
+    const existingJointCount = markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length;
     
-    // Convert discrete segments back to points array for storage
-    const allPoints = discreteJointSegments.length > 0
-      ? discreteJointSegments.flatMap(seg => [seg.startPoint, seg.endPoint])
-      : polylinePoints;
-    
-    await addPolylineMarkup(currentFileId, activeScope, allPoints, pendingPolylineLength, 0, 0, color, currentPage, jointName);
+    // Save each discrete segment as a separate markup record
+    for (let i = 0; i < discreteJointSegments.length; i++) {
+      const segment = discreteJointSegments[i];
+      const segmentPoints = [segment.startPoint, segment.endPoint];
+      const segmentName = `Joint ${existingJointCount + i + 1}`;
+      
+      await addPolylineMarkup(
+        currentFileId,
+        activeScope,
+        segmentPoints,
+        segment.length,
+        0,
+        0,
+        color,
+        currentPage,
+        segmentName
+      );
+    }
     
     if (onJointMarkupComplete) {
       await onJointMarkupComplete(activeScope, pendingPolylineLength);
@@ -1176,7 +1188,7 @@ export function PlanTakeoffStep({
     setActiveTool('select');
     setActiveScope(null);
     setPendingJointType(null);
-  }, [activeScope, currentFileId, pendingPolylineLength, polylinePoints, selectedScopes, markups, addPolylineMarkup, currentPage, onJointMarkupComplete, discreteJointSegments]);
+  }, [activeScope, currentFileId, pendingPolylineLength, selectedScopes, markups, addPolylineMarkup, currentPage, onJointMarkupComplete, discreteJointSegments]);
 
   // Dedicated handler for joint "Done" button - saves immediately and returns to module
   const handleDoneMarkingJoints = useCallback(async () => {
@@ -1201,21 +1213,34 @@ export function PlanTakeoffStep({
       return;
     }
     
-    // Calculate total length
+    // Calculate total length for the callback
     const totalLength = finalSegments.reduce((sum, seg) => sum + seg.length, 0);
-    
-    // Build allPoints from all discrete segments
-    const allPoints = finalSegments.flatMap(seg => [seg.startPoint, seg.endPoint]);
     
     // Use fallback color for joint scopes (which aren't in selectedScopes)
     const scopeIndex = selectedScopes.indexOf(activeScope as ScopeType);
     const color = scopeIndex >= 0 ? getScopeColor(scopeIndex) : '#8B5CF6';
-    const jointName = `Joint ${markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length + 1}`;
+    const existingJointCount = markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length;
     
-    // Save the markup (widthMm=0, heightMm=0 for joints)
-    await addPolylineMarkup(currentFileId, activeScope, allPoints, totalLength, 0, 0, color, currentPage, jointName);
+    // Save each discrete segment as a separate markup record
+    for (let i = 0; i < finalSegments.length; i++) {
+      const segment = finalSegments[i];
+      const segmentPoints = [segment.startPoint, segment.endPoint];
+      const segmentName = `Joint ${existingJointCount + i + 1}`;
+      
+      await addPolylineMarkup(
+        currentFileId,
+        activeScope,
+        segmentPoints,
+        segment.length,
+        0,
+        0,
+        color,
+        currentPage,
+        segmentName
+      );
+    }
     
-    // Call the joint completion callback to update module answers and navigate back
+    // Call the joint completion callback with TOTAL length to update module answers and navigate back
     if (onJointMarkupComplete) {
       await onJointMarkupComplete(activeScope, totalLength);
     }
