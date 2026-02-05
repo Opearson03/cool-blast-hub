@@ -1,6 +1,7 @@
 # Change Joints Measurement to Discrete Point-Pair Mode (Like Internal Beams)
 
 **STATUS: ✅ IMPLEMENTED**
+**UI FIX: ✅ COMPLETE** - Added joint-specific toolbar mode with correct labels and Done button functionality.
 
 ## Current Behaviour
 ~~When measuring expansion joints, control joints, or cuts on plans:~~

@@ -15,6 +15,7 @@ import {
   CircleDot,
   Minus
 } from 'lucide-react';
+import { Scissors } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { DrawingTool, TakeoffFile } from '@/types/takeoff';
 import {
@@ -65,6 +66,13 @@ interface TakeoffToolbarProps {
   onDoneMarkingBeams?: () => void;
   onCancelBeamMarking?: () => void;
   scopeId?: string; // For scope-aware labeling (internal thickening vs internal beam)
+  // Joint marking mode props (expansion joints, control joints, saw cuts)
+  isJointMode?: boolean;
+  jointLabel?: string; // e.g. "expansion joint", "control joint"
+  jointSegmentCount?: number; // Number of discrete joint segments
+  jointTotalLength?: number; // Total length of all joint segments
+  onDoneMarkingJoints?: () => void;
+  onCancelJointMarking?: () => void;
 }
 
 export function TakeoffToolbar({
@@ -103,6 +111,12 @@ export function TakeoffToolbar({
   onDoneMarkingBeams,
   onCancelBeamMarking,
   scopeId,
+  isJointMode = false,
+  jointLabel = 'joint',
+  jointSegmentCount = 0,
+  jointTotalLength = 0,
+  onDoneMarkingJoints,
+  onCancelJointMarking,
 }: TakeoffToolbarProps) {
   const tools: { type: ToolbarToolType; icon: React.ReactNode; label: string }[] = [
     { type: 'select', icon: <MousePointer2 className="h-4 w-4" />, label: 'Select' },
@@ -148,6 +162,55 @@ export function TakeoffToolbar({
             onClick={onDoneMarkingPoints}
             disabled={pointCount === 0}
             className="flex-1 sm:flex-none h-11 sm:h-8"
+          >
+            Done
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If in joint marking mode (expansion joints, control joints, saw cuts), show joint-specific UI
+  if (isJointMode) {
+    return (
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 p-3 sm:p-2 bg-primary/10 border border-primary/30 rounded-lg">
+        <div className="flex items-center gap-2 flex-1">
+          <Scissors className="h-5 w-5 text-primary shrink-0" />
+          <span className="text-sm font-medium">
+            {jointSegmentCount === 0 
+              ? `Tap to mark ${jointLabel} lines`
+              : `Continue marking ${jointLabel} lines`}
+          </span>
+          {jointTotalLength > 0 && (
+            <Badge variant="default" className="ml-auto sm:ml-2">
+              {jointSegmentCount} {jointSegmentCount === 1 ? 'line' : 'lines'} • {jointTotalLength.toFixed(1)}m
+            </Badge>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onUndo}
+            disabled={!canUndo}
+            className="h-11 sm:h-8 px-3"
+          >
+            <Undo2 className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Undo</span>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onCancelJointMarking}
+            className="h-11 sm:h-8"
+          >
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={onDoneMarkingJoints}
+            disabled={jointSegmentCount === 0}
+            className="h-11 sm:h-8"
           >
             Done
           </Button>
