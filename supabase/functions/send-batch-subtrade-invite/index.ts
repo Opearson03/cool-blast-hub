@@ -284,8 +284,11 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log(`Created ${invites.length} batch invites with batch_id:`, batchId);
 
+    // Get APP_URL for building links
+    const appUrl = (Deno.env.get("APP_URL") || "https://pourhub.com.au").replace(/\/+$/, "");
+
     // Build invite URL
-    const inviteUrl = `https://pourhub.com.au/i/${rawToken}`;
+    const inviteUrl = `${appUrl}/i/${rawToken}`;
 
     // Format pour dates for messaging
     const sortedPours = [...poursData]
