@@ -1182,18 +1182,19 @@ export function PlanTakeoffStep({
 
   // Handler for completing polyline drawing - called when user clicks "Done" on polyline toolbar
   const handleDoneMarkingPolyline = useCallback(() => {
-    // If in slab beam workflow, handle differently
-    if (slabWorkflowActive) {
-      handleDoneMarkingSingleBeam();
-      return;
-    }
-    
     // For joint scopes, use discrete segments (like internal beams)
+    // Check this FIRST before slab workflow to ensure joints are handled correctly
     if (isJointScope && discreteJointSegments.length > 0) {
       const totalLength = discreteJointSegments.reduce((sum, seg) => sum + seg.length, 0);
       setPendingPolylineLength(totalLength);
       setPendingJointType(activeScope as 'expansion_joints' | 'control_joints');
       setShowJointDimensions(true);
+      return;
+    }
+    
+    // If in slab beam workflow, handle differently
+    if (slabWorkflowActive) {
+      handleDoneMarkingSingleBeam();
       return;
     }
     
@@ -1207,21 +1208,22 @@ export function PlanTakeoffStep({
 
   // Handler called by DrawingCanvas when polyline is completed (double-click alternative)
   const handlePolylineComplete = useCallback((points: TakeoffPoint[], lengthMeters: number) => {
+    // For joint scopes, use discrete segments (double-click would complete after 2 points)
+    // Check this FIRST before slab workflow to ensure joints are handled correctly
+    if (isJointScope && discreteJointSegments.length > 0) {
+      const totalLength = discreteJointSegments.reduce((sum, seg) => sum + seg.length, 0);
+      setPendingPolylineLength(totalLength);
+      setPendingJointType(activeScope as 'expansion_joints' | 'control_joints');
+      setShowJointDimensions(true);
+      return;
+    }
+    
     // If in slab beam workflow, complete the current beam
     if (slabWorkflowActive) {
       if (points.length >= 2) {
         setPolylinePoints(points);
         handleDoneMarkingSingleBeam();
       }
-      return;
-    }
-    
-    // For joint scopes, use discrete segments (double-click would complete after 2 points)
-    if (isJointScope && discreteJointSegments.length > 0) {
-      const totalLength = discreteJointSegments.reduce((sum, seg) => sum + seg.length, 0);
-      setPendingPolylineLength(totalLength);
-      setPendingJointType(activeScope as 'expansion_joints' | 'control_joints');
-      setShowJointDimensions(true);
       return;
     }
     
