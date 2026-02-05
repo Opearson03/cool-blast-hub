@@ -155,7 +155,7 @@ export default function AdminCrews() {
         ) : crews.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center text-muted-foreground">
-              No crews yet. Create your first crew to organize your team.
+              No crews yet. Create your first crew to organise your team.
             </CardContent>
           </Card>
         ) : (

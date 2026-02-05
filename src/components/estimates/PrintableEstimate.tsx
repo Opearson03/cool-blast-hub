@@ -593,7 +593,7 @@ const TermsAndExclusionsPage = ({
         <div className="pt-8" style={{ borderTop: "1px solid #e5e7eb" }}>
           <p className="text-xs uppercase tracking-wider text-gray-400 mb-4">Acceptance</p>
           <p className="text-xs text-gray-500 mb-6">
-            By signing below, I accept this quote and authorize commencement of works.
+            By signing below, I accept this quote and authorise commencement of works.
           </p>
           <div className="grid grid-cols-2 gap-12">
             <div>
@@ -609,20 +609,20 @@ const TermsAndExclusionsPage = ({
       );
     }
 
-    // Classic - formal authorization block with colored header
+    // Classic - formal authorisation block with coloured header
     return (
       <div className="border border-gray-300 rounded overflow-hidden">
         <div className="px-3 py-1" style={{ backgroundColor: secondaryColor }}>
-          <p className="text-xs font-bold text-white uppercase tracking-wide">Authorization</p>
+          <p className="text-xs font-bold text-white uppercase tracking-wide">Authorisation</p>
         </div>
         <div className="p-4 bg-white">
           <p className="text-xs text-gray-600 mb-3">
-            I accept this quotation and authorize commencement of the described works.
+            I accept this quotation and authorise commencement of the described works.
           </p>
           <div className="grid grid-cols-2 gap-6">
             <div>
               <div className="border-b-2 border-gray-400 h-8 mb-1"></div>
-              <p className="text-xs text-gray-500">Authorized Signature</p>
+              <p className="text-xs text-gray-500">Authorised Signature</p>
             </div>
             <div>
               <div className="border-b-2 border-gray-400 h-8 mb-1"></div>
@@ -1261,16 +1261,16 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             {/* Formal Signature Block - anchored to bottom */}
             <div className="page-break-avoid mt-auto border border-gray-300 rounded overflow-hidden">
               <div className="px-4 py-2" style={{ backgroundColor: primaryColor }}>
-                <p className="text-sm font-bold text-white uppercase tracking-wide text-center">Authorization</p>
+                <p className="text-sm font-bold text-white uppercase tracking-wide text-center">Authorisation</p>
               </div>
               <div className="p-4 bg-white">
                 <p className="text-xs text-gray-600 mb-3">
-                  I accept this quotation and authorize commencement of the described works.
+                  I accept this quotation and authorise commencement of the described works.
                 </p>
                 <div className="grid grid-cols-2 gap-6">
                   <div>
                     <div className="border-b-2 border-gray-400 h-8 mb-1"></div>
-                    <p className="text-xs text-gray-500">Authorized Signature</p>
+                    <p className="text-xs text-gray-500">Authorised Signature</p>
                   </div>
                   <div>
                     <div className="border-b-2 border-gray-400 h-8 mb-1"></div>

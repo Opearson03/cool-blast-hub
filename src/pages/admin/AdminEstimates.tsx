@@ -60,7 +60,7 @@ const estimateTypeConfig: Record<EstimateType, { label: string; icon: typeof Squ
 
 const statusConfig: Record<EstimateStatus, { label: string; docType: string; variant: "default" | "secondary" | "destructive" | "outline"; icon: typeof Clock }> = {
   draft: { label: "Draft", docType: "Estimate", variant: "secondary", icon: FileText },
-  pending: { label: "Finalized", docType: "Quote", variant: "outline", icon: Clock },
+  pending: { label: "Finalised", docType: "Quote", variant: "outline", icon: Clock },
   sent: { label: "Sent", docType: "Quote", variant: "default", icon: Send },
   accepted: { label: "Accepted", docType: "Quote", variant: "default", icon: CheckCircle },
   declined: { label: "Declined", docType: "Quote", variant: "destructive", icon: XCircle },

@@ -1344,7 +1344,7 @@ const {
     onSuccess: (estimateId: string) => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
       toast({ 
-        title: "Quote finalized", 
+        title: "Quote finalised", 
         description: "Ready to send to the client when you're ready." 
       });
       onOpenChange(false);
@@ -1354,7 +1354,7 @@ const {
       }
     },
     onError: (error: Error) => {
-      toast({ title: "Error finalizing quote", description: error.message, variant: "destructive" });
+      toast({ title: "Error finalising quote", description: error.message, variant: "destructive" });
     },
   });
 

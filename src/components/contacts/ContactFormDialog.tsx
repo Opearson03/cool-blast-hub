@@ -43,7 +43,7 @@ interface ContactFormDialogProps {
 }
 
 const TRADE_OPTIONS = [
-  "Laborer",
+  "Labourer",
   "Formworker",
   "Steel Fixer",
   "Concrete Finisher",

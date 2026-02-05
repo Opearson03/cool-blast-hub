@@ -81,7 +81,7 @@ export function SubscribersTable() {
     }
     
     if (subscriber.status === "canceled" || subscriber.status === "past_due") {
-      return { label: subscriber.status === "canceled" ? "Canceled" : "Past Due", variant: "destructive" as const };
+      return { label: subscriber.status === "canceled" ? "Cancelled" : "Past Due", variant: "destructive" as const };
     }
     
     // No subscription record

@@ -273,7 +273,7 @@ const Index = () => {
                 </li>
                 <li className="flex items-center gap-3 text-primary-foreground/80">
                   <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
-                  <span>Customizable price lists</span>
+                  <span>Customisable price lists</span>
                 </li>
                 <li className="flex items-center gap-3 text-primary-foreground/80">
                   <CheckCircle className="w-5 h-5 text-primary flex-shrink-0" />
@@ -334,7 +334,7 @@ const Index = () => {
       <div className="bg-primary py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h3 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4">
-            Ready to Get Organized?
+            Ready to Get Organised?
           </h3>
           <p className="text-primary-foreground/90 mb-8 max-w-xl mx-auto">
             Join {waitlistCount} other concreters on the waiting list. Be first in line when we launch.

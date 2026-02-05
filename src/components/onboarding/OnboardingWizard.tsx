@@ -372,7 +372,7 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
               </div>
               <div>
                 <h3 className="font-semibold">Brand Your Quotes</h3>
-                <p className="text-sm text-muted-foreground">Customize how your estimates look</p>
+                <p className="text-sm text-muted-foreground">Customise how your estimates look</p>
               </div>
             </div>
 

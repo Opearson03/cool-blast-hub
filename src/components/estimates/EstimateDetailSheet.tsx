@@ -78,7 +78,7 @@ interface EstimateDetailSheetProps {
 
 const statusConfig: Record<EstimateStatus, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   draft: { label: "Draft", variant: "secondary" },
-  pending: { label: "Finalized", variant: "outline" },
+  pending: { label: "Finalised", variant: "outline" },
   sent: { label: "Sent", variant: "default" },
   accepted: { label: "Accepted", variant: "default" },
   declined: { label: "Declined", variant: "destructive" },
