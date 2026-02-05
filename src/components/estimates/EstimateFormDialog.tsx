@@ -162,28 +162,50 @@ function validateClientForm(data: FormData): FormErrors {
   return errors;
 }
 
-const DEFAULT_INCLUSIONS = [
-  { id: "concrete_supply", label: "Supply of concrete to site" },
-  { id: "labour", label: "All labour for concrete placement and finishing" },
-  { id: "reo_supply", label: "Supply and installation of reinforcement mesh" },
-  { id: "finishing", label: "Power floating / finishing to specified standard" },
-  { id: "curing", label: "Curing compound application" },
-  { id: "site_cleanup", label: "Site cleanup on completion" },
-  { id: "pump_hire", label: "Concrete pump hire" },
-  { id: "formwork", label: "Edge formwork supply and installation" },
-];
+ interface InclusionExclusionItem {
+   id: string;
+   label: string;
+   relevantModules?: string[]; // If undefined or empty, item is always shown (global)
+ }
+ 
+ const DEFAULT_INCLUSIONS: InclusionExclusionItem[] = [
+   // Concrete-related inclusions
+   { id: "concrete_supply", label: "Supply of concrete to site", relevantModules: ["concrete-supply"] },
+   { id: "labour", label: "All labour for concrete placement and finishing", relevantModules: ["labour-prep", "labour-place"] },
+   { id: "reo_supply", label: "Supply and installation of reinforcement mesh", relevantModules: ["reinforcement-slab", "reinforcement-raft", "reinforcement-piers", "reinforcement-footing", "reinforcement-pad"] },
+   { id: "finishing", label: "Power floating / finishing to specified standard", relevantModules: ["surface-finishing", "architectural-finishing"] },
+   { id: "curing", label: "Curing compound application", relevantModules: ["surface-finishing"] },
+   { id: "site_cleanup", label: "Site cleanup on completion", relevantModules: ["cleanup"] },
+   { id: "pump_hire", label: "Concrete pump hire", relevantModules: ["concrete-pumping"] },
+   { id: "formwork", label: "Edge formwork supply and installation", relevantModules: ["formwork"] },
+   // Demolition-specific inclusions
+   { id: "demo_removal", label: "Removal and disposal of demolished concrete", relevantModules: ["demolition"] },
+   { id: "demo_saw_cutting", label: "Saw cutting as required", relevantModules: ["demolition"] },
+   // Base preparation inclusions
+   { id: "base_prep", label: "Base preparation and compaction", relevantModules: ["base-preparation"] },
+   // Excavation inclusions
+   { id: "excavation", label: "Excavation works as required", relevantModules: ["excavation"] },
+ ];
 
-const DEFAULT_EXCLUSIONS = [
-  { id: "exc_excavation", label: "Excavation and site preparation" },
-  { id: "exc_soil_removal", label: "Removal of excavated material" },
-  { id: "exc_boxing", label: "Boxing and formwork beyond edge forms" },
-  { id: "exc_waterproofing", label: "Waterproofing membrane" },
-  { id: "exc_drainage", label: "Drainage and stormwater works" },
-  { id: "exc_saw_cutting", label: "Saw cutting control joints" },
-  { id: "exc_sealing", label: "Concrete sealing" },
-  { id: "exc_permits", label: "Council permits and inspections" },
-  { id: "exc_engineering", label: "Engineering certification" },
-];
+ const DEFAULT_EXCLUSIONS: InclusionExclusionItem[] = [
+   // Global exclusions (always available regardless of scope)
+   { id: "exc_permits", label: "Council permits and inspections" }, // Global
+   { id: "exc_engineering", label: "Engineering certification" }, // Global
+   { id: "exc_waterproofing", label: "Waterproofing membrane" }, // Global
+   // Excavation-related exclusions (show when excavation NOT enabled or when relevant)
+   { id: "exc_excavation", label: "Excavation and site preparation", relevantModules: ["base-preparation", "formwork"] }, // Shown when no excavation module
+   { id: "exc_soil_removal", label: "Removal of excavated material", relevantModules: ["excavation", "demolition"] },
+   // Formwork-related exclusions
+   { id: "exc_boxing", label: "Boxing and formwork beyond edge forms", relevantModules: ["formwork", "architectural-formwork"] },
+   // Plumbing/drainage exclusions
+   { id: "exc_drainage", label: "Drainage and stormwater works", relevantModules: ["plumbing"] },
+   // Finishing-related exclusions
+   { id: "exc_saw_cutting", label: "Saw cutting control joints", relevantModules: ["joints-control", "surface-finishing"] },
+   { id: "exc_sealing", label: "Concrete sealing", relevantModules: ["surface-finishing", "architectural-finishing"] },
+   // Demolition-specific exclusions
+   { id: "exc_service_scanning", label: "Service scanning and locating", relevantModules: ["demolition"] },
+   { id: "exc_asbestos", label: "Asbestos removal or handling", relevantModules: ["demolition"] },
+ ];
 
 // Modular calculator state type
 export interface ModularScopeState {
@@ -230,6 +252,22 @@ const PAYMENT_TERMS_OPTIONS: { value: PaymentTermsType; label: string; descripti
 
 // Default estimate type for new estimates (commercial includes all scopes)
 const DEFAULT_ESTIMATE_TYPE: EstimateType = "commercial_slab";
+ 
+ /**
+  * Get all active module IDs from the selected scopes
+  */
+ function getActiveModulesFromScopes(selectedScopes: Set<ScopeType>): Set<string> {
+   const activeModules = new Set<string>();
+   
+   for (const scopeId of selectedScopes) {
+     const scopeDef = SCOPE_REGISTRY[scopeId];
+     if (scopeDef?.moduleIds) {
+       scopeDef.moduleIds.forEach(m => activeModules.add(m));
+     }
+   }
+   
+   return activeModules;
+ }
 
 /**
  * Extract only user-entered notes, stripping out generated content
@@ -647,8 +685,9 @@ const {
       setCurrentStep("client"); // Start at client details for new quotes
       setEstimateType(DEFAULT_ESTIMATE_TYPE);
       setFormData(initialFormData);
-      setSelectedInclusions(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
-      setSelectedExclusions(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
+       // Don't pre-select inclusions/exclusions here - they'll be set when scopes are selected
+       setSelectedInclusions(new Set());
+       setSelectedExclusions(new Set());
       setSelectedScopes(new Set());
       setModularScopeStates({} as Record<ScopeType, ModularScopeState>);
       setActiveScopeIndex(0);
@@ -713,6 +752,46 @@ const {
       });
     }
   }, [modularScopeStates, selectedScopes, selectedInclusions, selectedExclusions]);
+ 
+   // Auto-select relevant inclusions/exclusions when scopes change
+   // Only runs when scopes array length changes (add/remove scope)
+   const prevScopeCountRef = useRef(0);
+   useEffect(() => {
+     const currentCount = selectedScopes.size;
+     const prevCount = prevScopeCountRef.current;
+     prevScopeCountRef.current = currentCount;
+     
+     // Don't auto-select on initial render if editing an existing estimate
+     if (currentCount === 0) return;
+     
+     // If scopes changed, auto-select all visible inclusions and global exclusions
+     // We need to update the selections to match what's relevant for the current scopes
+     const currentActiveModules = getActiveModulesFromScopes(selectedScopes);
+     
+     // For inclusions: select all that are relevant to active modules
+     const relevantInclusionIds = DEFAULT_INCLUSIONS
+       .filter(item => {
+         if (!item.relevantModules || item.relevantModules.length === 0) return true;
+         return item.relevantModules.some(m => currentActiveModules.has(m));
+       })
+       .map(item => item.id);
+     
+     // For exclusions: select global ones (no module mapping) plus relevant ones
+     const relevantExclusionIds = DEFAULT_EXCLUSIONS
+       .filter(item => {
+         // Always select global exclusions
+         if (!item.relevantModules || item.relevantModules.length === 0) return true;
+         return item.relevantModules.some(m => currentActiveModules.has(m));
+       })
+       .map(item => item.id);
+     
+     // Only auto-update if this is the first time selecting scopes (new estimate)
+     // or if coming from 0 scopes
+     if (prevCount === 0 && currentCount > 0) {
+       setSelectedInclusions(new Set(relevantInclusionIds));
+       setSelectedExclusions(new Set(relevantExclusionIds));
+     }
+   }, [selectedScopes]);
 
   const currentStepIndex = STEP_ORDER.indexOf(currentStep);
   const progressPercent = ((currentStepIndex + 1) / STEP_ORDER.length) * 100;
@@ -729,6 +808,31 @@ const {
       default: return false;
     }
   }, [currentStep, formData.client_name, formData.site_address, selectedScopes.size, globalMarginPercent]);
+ 
+   // Get active modules from selected scopes for filtering inclusions/exclusions
+   const activeModules = useMemo(() => {
+     return getActiveModulesFromScopes(selectedScopes);
+   }, [selectedScopes]);
+ 
+   // Filter inclusions based on active modules
+   const visibleInclusions = useMemo(() => {
+     return DEFAULT_INCLUSIONS.filter(item => {
+       // Items with no module mapping are always shown (global items)
+       if (!item.relevantModules || item.relevantModules.length === 0) return true;
+       // Show only if at least one relevant module is active
+       return item.relevantModules.some(m => activeModules.has(m));
+     });
+   }, [activeModules]);
+ 
+   // Filter exclusions based on active modules
+   const visibleExclusions = useMemo(() => {
+     return DEFAULT_EXCLUSIONS.filter(item => {
+       // Items with no module mapping are always shown (global items)
+       if (!item.relevantModules || item.relevantModules.length === 0) return true;
+       // Show only if at least one relevant module is active
+       return item.relevantModules.some(m => activeModules.has(m));
+     });
+   }, [activeModules]);
 
   // Create a draft estimate for takeoff step (needed for file uploads)
   // Uses a promise lock to prevent duplicate inserts from concurrent calls
@@ -2269,7 +2373,11 @@ const {
                 </CardHeader>
                 <CardContent>
                   <div className="grid sm:grid-cols-2 gap-2">
-                    {DEFAULT_INCLUSIONS.map((item) => (
+                     {visibleInclusions.length === 0 ? (
+                       <p className="text-sm text-muted-foreground col-span-2 py-2">
+                         No standard inclusions apply to this scope. Add custom notes if needed.
+                       </p>
+                     ) : visibleInclusions.map((item) => (
                       <label key={item.id} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-muted/50">
                         <Checkbox
                           checked={selectedInclusions.has(item.id)}
@@ -2296,7 +2404,11 @@ const {
                 </CardHeader>
                 <CardContent>
                   <div className="grid sm:grid-cols-2 gap-2">
-                    {DEFAULT_EXCLUSIONS.map((item) => (
+                     {visibleExclusions.length === 0 ? (
+                       <p className="text-sm text-muted-foreground col-span-2 py-2">
+                         No standard exclusions apply to this scope.
+                       </p>
+                     ) : visibleExclusions.map((item) => (
                       <label key={item.id} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-muted/50">
                         <Checkbox
                           checked={selectedExclusions.has(item.id)}

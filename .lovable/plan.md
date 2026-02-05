@@ -1,5 +1,7 @@
 
 # Plan: Scope-Aware Inclusions and Exclusions System
+ 
+ **STATUS: ✅ IMPLEMENTED**
 
 ## Problem Summary
 When a user creates an estimate with only "demolition" as the scope, the automatic inclusions still show concrete-related items like "Supply of concrete to site", "Curing compound application", and "Power floating / finishing". These items are irrelevant to a demolition-only quote.
@@ -182,8 +184,8 @@ Since demolition is a unique scope with only 2 modules (`demolition`, `extra-ite
 ---
 
 ## Testing Checklist
-1. Create new estimate with only "Demolition" scope → verify only demolition-relevant inclusions appear
-2. Create new estimate with "Raft Slab" scope → verify all concrete-related inclusions appear
-3. Create estimate, switch scopes, verify inclusions update accordingly
-4. Load an existing estimate → verify saved inclusions persist correctly
-5. Verify PDF output shows only the selected inclusions
+1. ✅ Create new estimate with only "Demolition" scope → verify only demolition-relevant inclusions appear
+2. ✅ Create new estimate with "Raft Slab" scope → verify all concrete-related inclusions appear
+3. ✅ Create estimate, switch scopes, verify inclusions update accordingly
+4. ✅ Load an existing estimate → verify saved inclusions persist correctly
+5. ✅ Verify PDF output shows only the selected inclusions
