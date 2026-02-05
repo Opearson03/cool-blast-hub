@@ -1600,7 +1600,17 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
         const length = Number(footing.length) || 0;
         const widthM = (Number(footing.width) || 0) / 1000;
         const depthM = (Number(footing.depth) || 0) / 1000;
-        return sum + length * widthM * depthM;
+        
+        // Main footing volume
+        const mainVolume = length * widthM * depthM;
+        
+        // Toe volume (if has_toe is enabled)
+        const hasToe = footing.has_toe === true;
+        const toeWidthM = hasToe ? (Number(footing.toe_width) || 0) / 1000 : 0;
+        const toeDepthM = hasToe ? (Number(footing.toe_depth) || 0) / 1000 : 0;
+        const toeVolume = length * toeWidthM * toeDepthM;
+        
+        return sum + mainVolume + toeVolume;
       }, 0);
       return safeVolume(volume);
     }
