@@ -1780,7 +1780,15 @@ export function PlanTakeoffStep({
         onZoomIn={() => setZoom(z => Math.min(z * 1.25, 5))}
         onZoomOut={() => setZoom(z => Math.max(z / 1.25, 0.25))}
         onFitToScreen={() => setZoom(1)}
-        canUndo={activeTool === 'polyline' ? polylinePoints.length > 0 : activeTool === 'point' ? pierPoints.length > 0 : drawingPoints.length > 0}
+        canUndo={
+          isJointScope 
+            ? discreteJointSegments.length > 0 || polylinePoints.length > 0
+            : activeTool === 'polyline' 
+              ? polylinePoints.length > 0 
+              : activeTool === 'point' 
+                ? pierPoints.length > 0 
+                : drawingPoints.length > 0
+        }
         canDelete={!!selectedMarkupId}
         isCalibrated={isCalibrated}
         currentScale={currentScale}
@@ -1800,6 +1808,12 @@ export function PlanTakeoffStep({
         polylineSegmentCount={polylinePoints.length > 1 ? polylinePoints.length - 1 : 0}
         polylineLabel={activeScope === 'kerbs_channels' ? 'kerb' : activeScope === 'retaining_walls' ? 'wall' : 'footing'}
         onDoneMarkingPolyline={handleDoneMarkingPolyline}
+        isJointMode={activeTool === 'polyline' && isJointScope}
+        jointLabel={activeScope === 'expansion_joints' ? 'expansion joint' : activeScope === 'control_joints' ? 'control joint' : 'cut'}
+        jointSegmentCount={discreteJointSegments.length}
+        jointTotalLength={discreteJointSegments.reduce((sum, seg) => sum + seg.length, 0)}
+        onDoneMarkingJoints={handleDoneMarkingPolyline}
+        onCancelJointMarking={handleCancelCurrentMarkup}
         isBeamMarkingMode={isSlabBeamMarking || (isAddingBeamToExistingSlab && addingBeamType !== null)}
         beamType={slabWorkflowStep === 'mark_edge_beam' || addingBeamType === 'edge_beam' ? 'edge' : 'internal'}
         beamSlabName={pendingSlabData?.slabName || (addingBeamToSlabId ? markups.find(m => m.id === addingBeamToSlabId)?.name || 'Slab' : 'Slab')}
