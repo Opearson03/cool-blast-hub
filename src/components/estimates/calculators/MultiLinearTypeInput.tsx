@@ -79,7 +79,13 @@ function groupLinearByType(sections: LinearSection[], includeToe: boolean = fals
     const length = section._actualLength && section._actualLength > 0 
       ? section._actualLength 
       : (section.length || 0);
-    const volume = length * (section.dimension1 / 1000) * (section.dimension2 / 1000);
+    // Calculate main footing volume
+    const mainVolume = length * (section.dimension1 / 1000) * (section.dimension2 / 1000);
+    // Calculate toe volume if has_toe is enabled
+    const toeVolume = section.has_toe 
+      ? length * ((section.toe_width || 0) / 1000) * ((section.toe_depth || 0) / 1000)
+      : 0;
+    const volume = mainVolume + toeVolume;
     
     if (!groupMap.has(key)) {
       groupMap.set(key, {
@@ -549,7 +555,13 @@ export function MultiLinearTypeInput({
                       const segmentLength = segment._actualLength && segment._actualLength > 0 
                         ? segment._actualLength 
                         : (segment.length || 0);
-                      const segmentVolume = segmentLength * (segment.dimension1 / 1000) * (segment.dimension2 / 1000);
+                      // Calculate main footing volume
+                      const mainVolume = segmentLength * (segment.dimension1 / 1000) * (segment.dimension2 / 1000);
+                      // Calculate toe volume if has_toe is enabled
+                      const toeVolume = segment.has_toe 
+                        ? segmentLength * ((segment.toe_width || 0) / 1000) * ((segment.toe_depth || 0) / 1000)
+                        : 0;
+                      const segmentVolume = mainVolume + toeVolume;
                       return (
                         <div 
                           key={segment.id}
