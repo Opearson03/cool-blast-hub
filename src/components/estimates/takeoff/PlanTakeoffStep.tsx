@@ -341,25 +341,38 @@ export function PlanTakeoffStep({
 
   // Auto-activate the initial scope when component mounts and files are loaded
   useEffect(() => {
-    // Only trigger once, when we have files, calibration, and a pending scope
+   // Only trigger once, when we have files and a pending scope
+   // Note: We don't require calibration here - handleMarkArea will show calibration dialog if needed
     if (
       initialScope &&
       !initialScopeHandledRef.current &&
       hasFiles &&
-      isCalibrated &&
       !isLoading
     ) {
       initialScopeHandledRef.current = true;
-      // Extract base scope from identifier (e.g., "raft_slab:edge_beam:EB1" -> "raft_slab")
-      const scopeToActivate = (typeof initialScope === 'string' && initialScope.includes(':'))
-        ? initialScope.split(':')[0]
-        : initialScope;
+     // Extract scope to activate from identifier
+     // New joint format: "{parentScope}:expansion_joints:joint:{jointId}" -> activate "expansion_joints"
+     // Beam format: "raft_slab:edge_beam:EB1" -> activate "raft_slab"
+     // Simple format: "driveway" -> activate "driveway"
+     let scopeToActivate: string;
+     
+     if (typeof initialScope === 'string' && initialScope.includes(':joint:')) {
+       // Joint format: extract the joint type (expansion_joints or control_joints)
+       const parts = initialScope.split(':');
+       scopeToActivate = parts.length >= 4 ? parts[1] : parts[0];
+     } else if (typeof initialScope === 'string' && initialScope.includes(':')) {
+       // Beam format: extract base scope
+       scopeToActivate = initialScope.split(':')[0];
+     } else {
+       scopeToActivate = initialScope as string;
+     }
+     
       // Use handleMarkArea to activate the scope with proper tool selection
       handleMarkArea(scopeToActivate);
       // Notify parent that we've handled it
       onInitialScopeHandled?.();
     }
-  }, [initialScope, hasFiles, isCalibrated, isLoading, handleMarkArea, onInitialScopeHandled]);
+ }, [initialScope, hasFiles, isLoading, handleMarkArea, onInitialScopeHandled]);
 
   const handleSkipScope = (scopeId: string) => {
     setSkippedScopes(prev => new Set([...prev, scopeId]));
@@ -1101,7 +1114,9 @@ export function PlanTakeoffStep({
   // Handler for completing joint marking
   const handleJointConfirm = useCallback(async () => {
     if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
-    const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+   // Use fallback color for joint scopes (which aren't in selectedScopes)
+   const scopeIndex = selectedScopes.indexOf(activeScope as ScopeType);
+   const color = scopeIndex >= 0 ? getScopeColor(scopeIndex) : '#8B5CF6';
     const jointName = `Joint ${markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length + 1}`;
     
     await addPolylineMarkup(currentFileId, activeScope, polylinePoints, pendingPolylineLength, 0, 0, color, currentPage, jointName);
@@ -1792,7 +1807,10 @@ export function PlanTakeoffStep({
                   height={planDimensions.height}
                   tool={activeTool}
                   activeScope={activeScope}
-                  activeScopeColor={activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6'}
+                 activeScopeColor={activeScope ? (() => {
+                   const idx = selectedScopes.indexOf(activeScope as ScopeType);
+                   return idx >= 0 ? getScopeColor(idx) : '#8B5CF6';
+                 })() : '#3b82f6'}
                   markups={currentPageMarkups}
                   selectedMarkupId={selectedMarkupId}
                   isCalibrated={isCalibrated}
@@ -1809,7 +1827,10 @@ export function PlanTakeoffStep({
                     pendingSlabData.pageNumber === currentPage ? {
                       points: pendingSlabData.slabPoints,
                       shapeType: pendingSlabData.slabShapeType,
-                      color: activeScope ? getScopeColor(selectedScopes.indexOf(activeScope as ScopeType)) : '#3b82f6',
+                     color: activeScope ? (() => {
+                       const idx = selectedScopes.indexOf(activeScope as ScopeType);
+                       return idx >= 0 ? getScopeColor(idx) : '#8B5CF6';
+                     })() : '#3b82f6',
                       name: pendingSlabData.slabName || undefined,
                     } : undefined
                   }

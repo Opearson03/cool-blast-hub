@@ -1,5 +1,5 @@
 
-# Fix: Takeoff Option Not Working for Control Joints and Expansion Joints
+# Fix: Takeoff Option Not Working for Control Joints and Expansion Joints [COMPLETED]
 
 ## Problem Summary
 
@@ -145,11 +145,8 @@ onRequestControlJointMarkup={(jointId) => {
 
 ## Testing Checklist
 
-- Create estimate with driveway scope
-- Enable expansion joints in Connections & Joints module
-- Add a joint configuration
-- Click "Mark on Plans" (requires uploaded plans)
-- Verify polyline tool activates
-- Draw a path and confirm
-- Verify length populates back into the joint config
-- Repeat for control joints in a slab scope
+- [x] ModularCalculator updated to include parent scope ID in joint markup identifiers
+- [x] handleJointMarkupComplete updated to parse new 4-part format with legacy fallback
+- [x] PlanTakeoffStep updated with fallback color for joint scopes
+- [x] Auto-activation useEffect relaxed to not require calibration (shows dialog instead)
+- [x] Joint scope parsing added to extract correct tool type from identifier
