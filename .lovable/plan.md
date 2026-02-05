@@ -1,249 +1,142 @@
 
 
-# Comprehensive Review: Scope-Aware Inclusions and Exclusions System
+# Plan: Convert American English Spellings to British/Australian English
 
-## Executive Summary
+## Summary
 
-The implementation is **mostly working correctly**, but I found several gaps in the module mappings that could cause unexpected behavior in certain scenarios. The demolition-only scenario should now work properly, but there are missing mappings for some modules that exist in the codebase.
-
----
-
-## Current Implementation Status
-
-### How It Works (Correctly Implemented)
-
-1. **`getActiveModulesFromScopes()`** (Line 259-270) correctly extracts module IDs from `SCOPE_REGISTRY`
-2. **`visibleInclusions`** (Line 818-825) correctly filters based on `relevantModules`
-3. **`visibleExclusions`** (Line 828-835) correctly filters based on `relevantModules`
-4. **Auto-selection on scope change** (Line 756-794) correctly auto-selects when going from 0 → N scopes
+I've scanned the PourHub codebase and identified all instances of American English spelling that should be changed to British/Australian English. The changes affect user-facing text only - technical terms (like CSS classes, component names, and code comments) are excluded.
 
 ---
 
-## Scope → Module Mappings (Current State)
+## Findings
 
-| Scope | Module IDs |
-|-------|-----------|
-| **demolition** | `demolition`, `extra-items` |
-| **piers** | `excavation`, `formwork`, `reinforcement-piers`, `labour-prep`, `concrete-supply`, `concrete-pumping`, `labour-place`, `cleanup`, `sundries`, `extra-items` |
-| **standard_slab** | `excavation`, `base-preparation`, `formwork`, `reinforcement-raft`, `connections-joints`, `labour-prep`, `concrete-supply`, `concrete-pumping`, `labour-place`, `surface-finishing`, `joints-control`, `cleanup`, `sundries`, `extra-items` |
-| **raft_slab** | `excavation`, `base-preparation`, `formwork`, `reinforcement-raft`, `labour-prep`, `concrete-supply`, `concrete-pumping`, `labour-place`, `surface-finishing`, `cleanup`, `sundries`, `extra-items` |
-| **waffle_pod** | `excavation`, `base-preparation`, `formwork`, `pods`, `reinforcement-raft`, `labour-prep`, `concrete-supply`, `concrete-pumping`, `labour-place`, `surface-finishing`, `cleanup`, `sundries`, `extra-items` |
-| **driveway** | `excavation`, `base-preparation`, `formwork`, `reinforcement-raft`, `connections-joints`, `plumbing`, `labour-prep`, `concrete-supply`, `concrete-pumping`, `labour-place`, `surface-finishing`, `joints-control`, `cleanup`, `sundries`, `extra-items` |
-| **crossovers** | Same as driveway |
-| **paths_surrounds** | Same as driveway |
-| **strip_footings** | `excavation`, `formwork`, `reinforcement-footing`, `labour-prep`, `concrete-supply`, `concrete-pumping`, `labour-place`, `cleanup`, `sundries`, `extra-items` |
-| **retaining_wall_footings** | Same as strip_footings |
-| **pad_footings** | `excavation`, `formwork`, `reinforcement-pad`, `labour-prep`, `concrete-supply`, `concrete-pumping`, `labour-place`, `cleanup`, `sundries`, `extra-items` |
+### Definite Changes Required (User-Facing Text)
 
----
-
-## Issues Found
-
-### Issue 1: Missing Module Mappings in DEFAULT_INCLUSIONS
-
-The following modules exist in scope definitions but have no corresponding inclusions:
-
-| Module | Missing Inclusion |
-|--------|-------------------|
-| `pods` | "Supply and placement of waffle pods and accessories" |
-| `sundries` | "Sundries and consumables" |
-| `connections-joints` | "Dowels, tie bars, and connection accessories" |
-| `joints-control` | "Control joint cutting" |
-| `plumbing` | "Plumbing penetrations and pip-eyes" |
-
-### Issue 2: Incomplete Exclusion Mappings
-
-| Exclusion | Current Modules | Should Also Include |
-|-----------|-----------------|---------------------|
-| `exc_excavation` | `base-preparation`, `formwork` | Should NOT be shown when `excavation` IS enabled (inverted logic missing) |
-| `exc_soil_removal` | `excavation`, `demolition` | Correct |
-| `exc_saw_cutting` | `joints-control`, `surface-finishing` | Should also include `demolition` (already correct) |
-
-### Issue 3: Logic Gap for "Exclude When Module NOT Present"
-
-Some exclusions should appear when a module is **not** in the active set. For example:
-- "Excavation works" exclusion should show when `excavation` module is NOT active
-- "Subgrade preparation" exclusion should show when `base-preparation` is NOT active
-
-The current implementation only shows exclusions when modules ARE active, but doesn't handle the inverse case.
+| File | Current (American) | Change To (British/Australian) | Line |
+|------|-------------------|-------------------------------|------|
+| `src/pages/Index.tsx` | "Ready to Get Organized?" | "Ready to Get Organised?" | 337 |
+| `src/pages/admin/AdminCrews.tsx` | "organize your team" | "organise your team" | 158 |
+| `src/pages/Index.tsx` | "Customizable price lists" | "Customisable price lists" | 276 |
+| `src/components/onboarding/OnboardingWizard.tsx` | "Customize how your estimates look" | "Customise how your estimates look" | 375 |
+| `src/pages/admin/AdminSettings.tsx` | "Customize your logo, colors, and quote template style" | "Customise your logo, colours, and quote template style" | 512 |
+| `src/components/estimates/PrintableEstimate.tsx` | "authorize commencement" (x3) | "authorise commencement" (x3) | 596, 620, 1268 |
+| `src/components/estimates/PrintableEstimate.tsx` | "Authorization" (header text, x2) | "Authorisation" (x2) | 612, 616, 1264 |
+| `src/components/estimates/PrintableEstimate.tsx` | "Authorized Signature" | "Authorised Signature" | 625, 1273 |
+| `src/pages/public/SignVariation.tsx` | "authorizes the additional works" | "authorises the additional works" | 459 |
+| `src/components/contacts/ContactFormDialog.tsx` | "Laborer" | "Labourer" | 46 |
+| `src/hooks/usePriceList.ts` | "catalog" (in toast message) | "catalogue" | 121 |
+| `src/pages/PrivacyPolicy.tsx` | "optimize our services" | "optimise our services" | 47 |
+| `src/lib/estimate-components/modules/architectural-formwork.ts` | "Specialized formwork" | "Specialised formwork" | 1, 7 |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | "summarized line items" | "summarised line items" | 1299 |
+| `src/components/staff/SubscribersTable.tsx` | "Canceled" (status label) | "Cancelled" | 84 |
 
 ---
 
-## Recommended Fixes
+### Items NOT Changed (With Reasoning)
 
-### Fix 1: Add Missing Inclusions
-
-Add these to `DEFAULT_INCLUSIONS`:
-
-```typescript
-// Waffle pod specific
-{ id: "pods_supply", label: "Supply and placement of waffle pods and accessories", relevantModules: ["pods"] },
-
-// Sundries (present in most scopes)
-{ id: "sundries", label: "Sundries and consumables (pegs, plastic, etc.)", relevantModules: ["sundries"] },
-
-// Connections/joints
-{ id: "connections", label: "Dowels, tie bars, and connection accessories", relevantModules: ["connections-joints"] },
-
-// Control joints
-{ id: "control_joints", label: "Control joint cutting", relevantModules: ["joints-control"] },
-
-// Plumbing penetrations
-{ id: "plumbing", label: "Plumbing penetrations and pip-eyes", relevantModules: ["plumbing"] },
-```
-
-### Fix 2: Add "Inverse Logic" for Exclusions
-
-Some exclusions should appear when a module is **absent**. Add a new property `excludeWhenModulesActive`:
-
-```typescript
-interface InclusionExclusionItem {
-  id: string;
-  label: string;
-  relevantModules?: string[];         // Show when ANY of these modules are active
-  excludeWhenModulesActive?: string[]; // Hide when ANY of these modules are active
-}
-
-// Example: Show "Excavation not included" only when excavation module is NOT present
-{ 
-  id: "exc_no_excavation", 
-  label: "Excavation and site preparation not included", 
-  excludeWhenModulesActive: ["excavation"]  // Hide this if excavation IS active
-},
-```
-
-### Fix 3: Update Filtering Logic
-
-Modify `visibleExclusions` to handle inverse logic:
-
-```typescript
-const visibleExclusions = useMemo(() => {
-  return DEFAULT_EXCLUSIONS.filter(item => {
-    // If excludeWhenModulesActive is set, hide when those modules are active
-    if (item.excludeWhenModulesActive?.length) {
-      if (item.excludeWhenModulesActive.some(m => activeModules.has(m))) {
-        return false; // Hide - the work IS included
-      }
-      return true; // Show - the work is NOT included
-    }
-    
-    // Standard relevantModules logic
-    if (!item.relevantModules || item.relevantModules.length === 0) return true;
-    return item.relevantModules.some(m => activeModules.has(m));
-  });
-}, [activeModules]);
-```
+| Pattern | Reason for Exclusion |
+|---------|---------------------|
+| `color` in CSS classes (`bg-gray-100`, `text-primary-foreground`) | Tailwind CSS framework classes - cannot be changed |
+| `center` in CSS classes (`items-center`, `justify-center`) | Tailwind CSS framework classes - cannot be changed |
+| `Dialog` component names | React component naming convention - technical, not user-facing |
+| `behavior` in code comments | Technical comments, not user-facing |
+| `canceled` in function names (`handleCancelEdit`, `cancelEditing`) | JavaScript function names - technical, not user-facing |
+| `catalogue` variable names | Internal variable naming is acceptable as-is |
+| `meter` / `perimeter` | These are correct technical/mathematical terms (not the same as "metre" for unit of length) |
+| `finalize` / `finalizeMutation` | Technical function names, though the toast message "Quote finalized" should be changed |
+| `grey` (in product names) | Already British spelling - correct! |
+| `cancelled` (in statuses) | Already British spelling - correct! |
 
 ---
 
-## Demolition Scope Verification
+### Additional Finding: Quote Finalized Message
 
-For a **demolition-only estimate**, the active modules are:
-- `demolition`
-- `extra-items`
-
-**Current visible inclusions** (after the previous fix):
-- "Removal and disposal of demolished concrete" (maps to `demolition`)
-- "Saw cutting as required" (maps to `demolition`)
-
-**Excluded (correctly hidden)**:
-- "Supply of concrete to site" (maps to `concrete-supply`)
-- "Curing compound application" (maps to `surface-finishing`)
-- "Power floating / finishing" (maps to `surface-finishing`, `architectural-finishing`)
-- All other concrete-related items
-
-**This is working correctly.**
+| File | Current | Change To |
+|------|---------|-----------|
+| `src/components/estimates/EstimateFormDialog.tsx` | "Quote finalized" (toast) | "Quote finalised" | 1347 |
+| `src/pages/admin/AdminEstimates.tsx` | "Finalized" (status label) | "Finalised" | 63, 251 |
+| `src/components/estimates/EstimateDetailSheet.tsx` | "Finalized" (status label) | "Finalised" | 81 |
 
 ---
 
-## Complete Updated DEFAULT_INCLUSIONS
+## Technical Details
 
-```typescript
-const DEFAULT_INCLUSIONS: InclusionExclusionItem[] = [
-  // Concrete-related inclusions
-  { id: "concrete_supply", label: "Supply of concrete to site", relevantModules: ["concrete-supply"] },
-  { id: "labour", label: "All labour for concrete placement and finishing", relevantModules: ["labour-prep", "labour-place"] },
-  { id: "reo_supply", label: "Supply and installation of reinforcement", relevantModules: ["reinforcement-slab", "reinforcement-raft", "reinforcement-piers", "reinforcement-footing", "reinforcement-pad"] },
-  { id: "finishing", label: "Power floating / finishing to specified standard", relevantModules: ["surface-finishing", "architectural-finishing"] },
-  { id: "curing", label: "Curing compound application", relevantModules: ["surface-finishing"] },
-  { id: "site_cleanup", label: "Site cleanup on completion", relevantModules: ["cleanup"] },
-  { id: "pump_hire", label: "Concrete pump hire", relevantModules: ["concrete-pumping"] },
-  { id: "formwork", label: "Edge formwork supply and installation", relevantModules: ["formwork"] },
-  
-  // Demolition-specific inclusions
-  { id: "demo_removal", label: "Removal and disposal of demolished concrete", relevantModules: ["demolition"] },
-  { id: "demo_saw_cutting", label: "Saw cutting as required", relevantModules: ["demolition"] },
-  
-  // Base preparation inclusions
-  { id: "base_prep", label: "Base preparation and compaction", relevantModules: ["base-preparation"] },
-  
-  // Excavation inclusions
-  { id: "excavation", label: "Excavation works as required", relevantModules: ["excavation"] },
-  
-  // NEW - Missing module mappings
-  { id: "pods_supply", label: "Supply and placement of waffle pods and accessories", relevantModules: ["pods"] },
-  { id: "sundries", label: "Sundries and consumables", relevantModules: ["sundries"] },
-  { id: "connections", label: "Dowels, tie bars, and connection accessories", relevantModules: ["connections-joints"] },
-  { id: "control_joints", label: "Control joint cutting", relevantModules: ["joints-control"] },
-  { id: "plumbing_penetrations", label: "Plumbing penetrations and pip-eyes", relevantModules: ["plumbing"] },
-];
-```
+### Files to Modify
 
----
+1. **`src/pages/Index.tsx`** (2 changes)
+   - Line 337: "Organized" → "Organised"
+   - Line 276: "Customizable" → "Customisable"
 
-## Complete Updated DEFAULT_EXCLUSIONS
+2. **`src/pages/admin/AdminCrews.tsx`** (1 change)
+   - Line 158: "organize" → "organise"
 
-```typescript
-const DEFAULT_EXCLUSIONS: InclusionExclusionItem[] = [
-  // Global exclusions (always available regardless of scope)
-  { id: "exc_permits", label: "Council permits and inspections" },
-  { id: "exc_engineering", label: "Engineering certification" },
-  { id: "exc_waterproofing", label: "Waterproofing membrane" },
-  
-  // Excavation-related exclusions
-  { id: "exc_excavation", label: "Excavation and site preparation", relevantModules: ["base-preparation", "formwork"] },
-  { id: "exc_soil_removal", label: "Removal of excavated material", relevantModules: ["excavation", "demolition"] },
-  
-  // Formwork-related exclusions
-  { id: "exc_boxing", label: "Boxing and formwork beyond edge forms", relevantModules: ["formwork", "architectural-formwork"] },
-  
-  // Plumbing/drainage exclusions
-  { id: "exc_drainage", label: "Drainage and stormwater works", relevantModules: ["plumbing"] },
-  
-  // Finishing-related exclusions
-  { id: "exc_saw_cutting", label: "Saw cutting control joints", relevantModules: ["joints-control", "surface-finishing"] },
-  { id: "exc_sealing", label: "Concrete sealing", relevantModules: ["surface-finishing", "architectural-finishing"] },
-  
-  // Demolition-specific exclusions
-  { id: "exc_service_scanning", label: "Service scanning and locating", relevantModules: ["demolition"] },
-  { id: "exc_asbestos", label: "Asbestos removal or handling", relevantModules: ["demolition"] },
-  
-  // NEW - Base preparation exclusion (show when base-prep IS active, in case user declines)
-  { id: "exc_subgrade", label: "Subgrade preparation and compaction", relevantModules: ["base-preparation"] },
-];
-```
+3. **`src/components/onboarding/OnboardingWizard.tsx`** (1 change)
+   - Line 375: "Customize" → "Customise"
+
+4. **`src/pages/admin/AdminSettings.tsx`** (1 change)
+   - Line 512: "Customize your logo, colors" → "Customise your logo, colours"
+
+5. **`src/components/estimates/PrintableEstimate.tsx`** (7 changes)
+   - Lines 596, 620, 1268: "authorize" → "authorise"
+   - Lines 612, 616, 1264: "Authorization" → "Authorisation"
+   - Lines 625, 1273: "Authorized" → "Authorised"
+
+6. **`src/pages/public/SignVariation.tsx`** (1 change)
+   - Line 459: "authorizes" → "authorises"
+
+7. **`src/components/contacts/ContactFormDialog.tsx`** (1 change)
+   - Line 46: "Laborer" → "Labourer"
+
+8. **`src/hooks/usePriceList.ts`** (1 change)
+   - Line 121: "catalog" → "catalogue"
+
+9. **`src/pages/PrivacyPolicy.tsx`** (1 change)
+   - Line 47: "optimize" → "optimise"
+
+10. **`src/lib/estimate-components/modules/architectural-formwork.ts`** (2 changes)
+    - Lines 1, 7: "Specialized" → "Specialised"
+
+11. **`src/components/estimates/calculators/ModularCalculator.tsx`** (1 change)
+    - Line 1299: "summarized" → "summarised"
+
+12. **`src/components/staff/SubscribersTable.tsx`** (1 change)
+    - Line 84: "Canceled" → "Cancelled"
+
+13. **`src/components/estimates/EstimateFormDialog.tsx`** (1 change)
+    - Line 1347: "finalized" → "finalised"
+
+14. **`src/pages/admin/AdminEstimates.tsx`** (1 change)
+    - Line 63: "Finalized" → "Finalised"
+
+15. **`src/components/estimates/EstimateDetailSheet.tsx`** (1 change)
+    - Line 81: "Finalized" → "Finalised"
 
 ---
 
-## Files to Modify
+## What's Already Correct
 
-| File | Changes |
-|------|---------|
-| `src/components/estimates/EstimateFormDialog.tsx` | Add missing inclusions for `pods`, `sundries`, `connections-joints`, `joints-control`, `plumbing` |
-
----
-
-## Testing Checklist
-
-1. **Demolition-only scope** → Should show only "Removal and disposal", "Saw cutting", and global exclusions
-2. **Waffle Pod scope** → Should show "Supply of waffle pods" inclusion
-3. **Driveway scope** → Should show plumbing and control joints inclusions
-4. **Strip Footings scope** → Should NOT show surface finishing or curing inclusions
-5. **Mixed scopes (Demolition + Raft Slab)** → Should show combined relevant items
+The codebase already uses British spelling in many places:
+- "cancelled" for job/booking statuses
+- "grey" for product colour names
+- "enquiries" in Privacy Policy
+- "metre" for units of measurement in calculations
+- "labour" in module names (`labour-prep`, `labour-place`)
 
 ---
 
-## Risk Assessment
+## Summary of Changes
 
-**Low Risk**: The existing implementation is fundamentally sound. The missing mappings are minor gaps that may cause some inclusions to be missing from certain scope combinations, but won't show irrelevant items (which was the original reported issue).
+| Category | Count |
+|----------|-------|
+| organize → organise | 2 |
+| customize → customise | 3 |
+| authorize → authorise | 8 |
+| labor → labour | 1 |
+| catalog → catalogue | 1 |
+| optimize → optimise | 1 |
+| specialized → specialised | 2 |
+| summarized → summarised | 1 |
+| canceled → cancelled | 1 |
+| finalized → finalised | 3 |
+| **Total changes** | **23** |
 
