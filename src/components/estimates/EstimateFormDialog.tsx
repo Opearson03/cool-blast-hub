@@ -474,6 +474,9 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
   // Ref to track the marked scope for use in navigation (state may be cleared before goNext runs)
   const markedTakeoffScopeRef = useRef<ScopeType | string | null>(null);
   
+  // Track which module to force open when returning from takeoff (for joints)
+  const [forceOpenModuleId, setForceOpenModuleId] = useState<string | null>(null);
+  
   // Form validation errors
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   
@@ -1132,10 +1135,15 @@ const {
         });
         
         // Set the active scope index to show the correct scope when returning
-      const scopeIndex = selectedScopesArray.indexOf(targetScope as ScopeType);
+        const scopeIndex = selectedScopesArray.indexOf(targetScope as ScopeType);
         if (scopeIndex >= 0) {
           setActiveScopeIndex(scopeIndex);
         }
+        
+        // Set the module to force open when returning
+        // expansion joints → connections-joints, control joints → joints-control
+        const returnModuleId = jointModuleType === 'expansion_joints' ? 'connections-joints' : 'joints-control';
+        setForceOpenModuleId(returnModuleId);
       }
     }
     
@@ -1144,6 +1152,9 @@ const {
     setPendingTakeoffScope(null);
     await refetchMarkups();
     setCurrentStep('configure');
+    
+    // Clear forceOpenModuleId after a short delay so it doesn't persist
+    setTimeout(() => setForceOpenModuleId(null), 500);
   }, [selectedScopesArray, modularScopeStates, refetchMarkups]);
 
   const getScopeLabel = (scope: ScopeType) => {
@@ -1853,6 +1864,7 @@ const {
         initialCustomExclusions={currentState?.customExclusions}
         initialDoneModules={currentState?.doneModules}
         initialUserOverrides={currentState?.userOverrides}
+        forceOpenModuleId={forceOpenModuleId}
         onStateChange={(state) => handleModularStateChange(scope, state)}
         onModuleDone={() => {
           // Auto-save when a module is marked as done (do not close dialog)
