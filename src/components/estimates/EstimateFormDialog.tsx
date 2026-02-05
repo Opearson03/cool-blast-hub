@@ -185,6 +185,16 @@ function validateClientForm(data: FormData): FormErrors {
    { id: "base_prep", label: "Base preparation and compaction", relevantModules: ["base-preparation"] },
    // Excavation inclusions
    { id: "excavation", label: "Excavation works as required", relevantModules: ["excavation"] },
+   // Waffle pod specific
+   { id: "pods_supply", label: "Supply and placement of waffle pods and accessories", relevantModules: ["pods"] },
+   // Sundries (present in most scopes)
+   { id: "sundries", label: "Sundries and consumables", relevantModules: ["sundries"] },
+   // Connections/joints
+   { id: "connections", label: "Dowels, tie bars, and connection accessories", relevantModules: ["connections-joints"] },
+   // Control joints
+   { id: "control_joints", label: "Control joint cutting", relevantModules: ["joints-control"] },
+   // Plumbing penetrations
+   { id: "plumbing_penetrations", label: "Plumbing penetrations and pip-eyes", relevantModules: ["plumbing"] },
  ];
 
  const DEFAULT_EXCLUSIONS: InclusionExclusionItem[] = [
@@ -205,6 +215,8 @@ function validateClientForm(data: FormData): FormErrors {
    // Demolition-specific exclusions
    { id: "exc_service_scanning", label: "Service scanning and locating", relevantModules: ["demolition"] },
    { id: "exc_asbestos", label: "Asbestos removal or handling", relevantModules: ["demolition"] },
+   // Base preparation exclusion (show when base-prep IS active, in case user declines)
+   { id: "exc_subgrade", label: "Subgrade preparation and compaction", relevantModules: ["base-preparation"] },
  ];
 
 // Modular calculator state type
