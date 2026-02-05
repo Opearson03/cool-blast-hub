@@ -1,142 +1,155 @@
 
+# Fix: Takeoff Option Not Working for Control Joints and Expansion Joints
 
-# Plan: Convert American English Spellings to British/Australian English
+## Problem Summary
 
-## Summary
+When a user clicks "Mark on Plans" for an expansion joint or control joint configuration, the takeoff flow has several issues that prevent proper functionality:
 
-I've scanned the PourHub codebase and identified all instances of American English spelling that should be changed to British/Australian English. The changes affect user-facing text only - technical terms (like CSS classes, component names, and code comments) are excluded.
+1. **Scope color calculation fails** - Joint scope IDs (`expansion_joints`, `control_joints`) are not in `selectedScopes`, causing `getScopeColor()` to receive index `-1`
+2. **Joint markup return flow has a logic gap** - After marking, the system can't find the right parent scope to update because it looks for joint configs in the wrong place
+3. **The auto-activate useEffect may not trigger** - If conditions aren't met (e.g., user hasn't calibrated yet), the joint marking tool won't auto-start
 
----
+## Root Cause
 
-## Findings
+The joint markup workflow treats `expansion_joints` and `control_joints` as scope IDs when they are actually module identifiers. The system needs to:
+- Handle the color lookup gracefully when scope isn't in the selected list
+- Properly track which parent scope (e.g., `driveway`, `standard_slab`) contains the joint being marked
+- Ensure the markup is stored and retrieved correctly
 
-### Definite Changes Required (User-Facing Text)
+## Technical Fix
 
-| File | Current (American) | Change To (British/Australian) | Line |
-|------|-------------------|-------------------------------|------|
-| `src/pages/Index.tsx` | "Ready to Get Organized?" | "Ready to Get Organised?" | 337 |
-| `src/pages/admin/AdminCrews.tsx` | "organize your team" | "organise your team" | 158 |
-| `src/pages/Index.tsx` | "Customizable price lists" | "Customisable price lists" | 276 |
-| `src/components/onboarding/OnboardingWizard.tsx` | "Customize how your estimates look" | "Customise how your estimates look" | 375 |
-| `src/pages/admin/AdminSettings.tsx` | "Customize your logo, colors, and quote template style" | "Customise your logo, colours, and quote template style" | 512 |
-| `src/components/estimates/PrintableEstimate.tsx` | "authorize commencement" (x3) | "authorise commencement" (x3) | 596, 620, 1268 |
-| `src/components/estimates/PrintableEstimate.tsx` | "Authorization" (header text, x2) | "Authorisation" (x2) | 612, 616, 1264 |
-| `src/components/estimates/PrintableEstimate.tsx` | "Authorized Signature" | "Authorised Signature" | 625, 1273 |
-| `src/pages/public/SignVariation.tsx` | "authorizes the additional works" | "authorises the additional works" | 459 |
-| `src/components/contacts/ContactFormDialog.tsx` | "Laborer" | "Labourer" | 46 |
-| `src/hooks/usePriceList.ts` | "catalog" (in toast message) | "catalogue" | 121 |
-| `src/pages/PrivacyPolicy.tsx` | "optimize our services" | "optimise our services" | 47 |
-| `src/lib/estimate-components/modules/architectural-formwork.ts` | "Specialized formwork" | "Specialised formwork" | 1, 7 |
-| `src/components/estimates/calculators/ModularCalculator.tsx` | "summarized line items" | "summarised line items" | 1299 |
-| `src/components/staff/SubscribersTable.tsx` | "Canceled" (status label) | "Cancelled" | 84 |
+### 1. Fix Scope Color Lookup for Joint Scopes
 
----
+**File:** `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
 
-### Items NOT Changed (With Reasoning)
+The `getScopeColor()` function receives `-1` when joint scopes aren't in `selectedScopes`. Add fallback color handling:
 
-| Pattern | Reason for Exclusion |
-|---------|---------------------|
-| `color` in CSS classes (`bg-gray-100`, `text-primary-foreground`) | Tailwind CSS framework classes - cannot be changed |
-| `center` in CSS classes (`items-center`, `justify-center`) | Tailwind CSS framework classes - cannot be changed |
-| `Dialog` component names | React component naming convention - technical, not user-facing |
-| `behavior` in code comments | Technical comments, not user-facing |
-| `canceled` in function names (`handleCancelEdit`, `cancelEditing`) | JavaScript function names - technical, not user-facing |
-| `catalogue` variable names | Internal variable naming is acceptable as-is |
-| `meter` / `perimeter` | These are correct technical/mathematical terms (not the same as "metre" for unit of length) |
-| `finalize` / `finalizeMutation` | Technical function names, though the toast message "Quote finalized" should be changed |
-| `grey` (in product names) | Already British spelling - correct! |
-| `cancelled` (in statuses) | Already British spelling - correct! |
+```typescript
+// Line 1104 in handleJointConfirm
+const scopeIndex = selectedScopes.indexOf(activeScope as ScopeType);
+const color = scopeIndex >= 0 
+  ? getScopeColor(scopeIndex) 
+  : '#8B5CF6'; // Purple fallback for joint markups
+```
 
----
+Similar fix needed at line 1795 in DrawingCanvas props.
 
-### Additional Finding: Quote Finalized Message
+### 2. Store Parent Scope in markedTakeoffScopeRef
 
-| File | Current | Change To |
-|------|---------|-----------|
-| `src/components/estimates/EstimateFormDialog.tsx` | "Quote finalized" (toast) | "Quote finalised" | 1347 |
-| `src/pages/admin/AdminEstimates.tsx` | "Finalized" (status label) | "Finalised" | 63, 251 |
-| `src/components/estimates/EstimateDetailSheet.tsx` | "Finalized" (status label) | "Finalised" | 81 |
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
 
----
+When navigating to takeoff for joint marking, include the parent scope in the identifier so we can properly update the right scope's module answers when returning.
 
-## Technical Details
+Update the `onRequestMarkup` handler in `ModularCalculator` (lines 1603-1610) to include the current scope:
 
-### Files to Modify
+```typescript
+// Current:
+onRequestJointMarkup={(jointId) => {
+  onRequestMarkup?.(`expansion_joints:joint:${jointId}`);
+}}
 
-1. **`src/pages/Index.tsx`** (2 changes)
-   - Line 337: "Organized" → "Organised"
-   - Line 276: "Customizable" → "Customisable"
+// Fixed - include parent scope:
+onRequestJointMarkup={(jointId) => {
+  onRequestMarkup?.(`${scope.id}:expansion_joints:joint:${jointId}`);
+}}
+```
 
-2. **`src/pages/admin/AdminCrews.tsx`** (1 change)
-   - Line 158: "organize" → "organise"
+Then update `handleJointMarkupComplete` to parse the new format:
+- Format: `{parentScope}:expansion_joints:joint:{jointId}` or `{parentScope}:control_joints:joint:{jointId}`
 
-3. **`src/components/onboarding/OnboardingWizard.tsx`** (1 change)
-   - Line 375: "Customize" → "Customise"
+### 3. Update handleJointMarkupComplete Parsing Logic
 
-4. **`src/pages/admin/AdminSettings.tsx`** (1 change)
-   - Line 512: "Customize your logo, colors" → "Customise your logo, colours"
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
 
-5. **`src/components/estimates/PrintableEstimate.tsx`** (7 changes)
-   - Lines 596, 620, 1268: "authorize" → "authorise"
-   - Lines 612, 616, 1264: "Authorization" → "Authorisation"
-   - Lines 625, 1273: "Authorized" → "Authorised"
+```typescript
+const handleJointMarkupComplete = useCallback(async (scopeId: string, lengthMeters: number) => {
+  const markedScope = markedTakeoffScopeRef.current;
+  
+  // Parse new format: "{parentScope}:{jointType}:joint:{jointId}"
+  if (markedScope && typeof markedScope === 'string' && markedScope.includes(':joint:')) {
+    const parts = markedScope.split(':');
+    // New format: [parentScope, jointType, 'joint', jointId]
+    if (parts.length >= 4) {
+      const parentScopeId = parts[0];
+      const jointModuleType = parts[1]; // 'expansion_joints' or 'control_joints'
+      const jointId = parts[3];
+      
+      // Use parentScopeId directly instead of searching
+      if (selectedScopesArray.includes(parentScopeId)) {
+        // ... update logic using parentScopeId
+      }
+    }
+  }
+  // ... rest of function
+}, [/* deps */]);
+```
 
-6. **`src/pages/public/SignVariation.tsx`** (1 change)
-   - Line 459: "authorizes" → "authorises"
+### 4. Ensure Proper useEffect Trigger for Auto-Activation
 
-7. **`src/components/contacts/ContactFormDialog.tsx`** (1 change)
-   - Line 46: "Laborer" → "Labourer"
+**File:** `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
 
-8. **`src/hooks/usePriceList.ts`** (1 change)
-   - Line 121: "catalog" → "catalogue"
+The current auto-activation logic requires `hasFiles && isCalibrated`. For joint marking via "Mark on Plans", we should still activate the scope even if not calibrated - the user will just see the calibration prompt first.
 
-9. **`src/pages/PrivacyPolicy.tsx`** (1 change)
-   - Line 47: "optimize" → "optimise"
+```typescript
+// Lines 343-362: Modify conditions
+useEffect(() => {
+  if (
+    initialScope &&
+    !initialScopeHandledRef.current &&
+    hasFiles &&
+    !isLoading
+  ) {
+    initialScopeHandledRef.current = true;
+    const scopeToActivate = /* parse scope from identifier */;
+    
+    // Call handleMarkArea which will show calibration dialog if needed
+    handleMarkArea(scopeToActivate);
+    onInitialScopeHandled?.();
+  }
+}, [/* deps */]);
+```
 
-10. **`src/lib/estimate-components/modules/architectural-formwork.ts`** (2 changes)
-    - Lines 1, 7: "Specialized" → "Specialised"
+### 5. Update ModularCalculator to Pass Parent Scope
 
-11. **`src/components/estimates/calculators/ModularCalculator.tsx`** (1 change)
-    - Line 1299: "summarized" → "summarised"
+**File:** `src/components/estimates/calculators/ModularCalculator.tsx`
 
-12. **`src/components/staff/SubscribersTable.tsx`** (1 change)
-    - Line 84: "Canceled" → "Cancelled"
+```typescript
+// Lines 1603-1610
+onRequestJointMarkup={(jointId) => {
+  // Include parent scope ID in the identifier
+  onRequestMarkup?.(`${scope.id}:expansion_joints:joint:${jointId}`);
+}}
+onRequestControlJointMarkup={(jointId) => {
+  // Include parent scope ID in the identifier
+  onRequestMarkup?.(`${scope.id}:control_joints:joint:${jointId}`);
+}}
+```
 
-13. **`src/components/estimates/EstimateFormDialog.tsx`** (1 change)
-    - Line 1347: "finalized" → "finalised"
+## Files to Modify
 
-14. **`src/pages/admin/AdminEstimates.tsx`** (1 change)
-    - Line 63: "Finalized" → "Finalised"
+| File | Changes |
+|------|---------|
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Update joint markup identifiers to include parent scope ID |
+| `src/components/estimates/EstimateFormDialog.tsx` | Update `handleJointMarkupComplete` to parse new identifier format |
+| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Add fallback color for joint scopes; relax auto-activation conditions |
 
-15. **`src/components/estimates/EstimateDetailSheet.tsx`** (1 change)
-    - Line 81: "Finalized" → "Finalised"
+## Expected Behavior After Fix
 
----
+1. User adds an expansion/control joint config in the calculator
+2. User clicks "Mark on Plans" button next to joint length field
+3. User is navigated to takeoff with polyline tool auto-activated
+4. User draws the joint path on the plan
+5. User confirms in the joint dimensions panel
+6. Length is automatically populated in the joint config
+7. User is returned to the configure step with the joint module open
 
-## What's Already Correct
+## Testing Checklist
 
-The codebase already uses British spelling in many places:
-- "cancelled" for job/booking statuses
-- "grey" for product colour names
-- "enquiries" in Privacy Policy
-- "metre" for units of measurement in calculations
-- "labour" in module names (`labour-prep`, `labour-place`)
-
----
-
-## Summary of Changes
-
-| Category | Count |
-|----------|-------|
-| organize → organise | 2 |
-| customize → customise | 3 |
-| authorize → authorise | 8 |
-| labor → labour | 1 |
-| catalog → catalogue | 1 |
-| optimize → optimise | 1 |
-| specialized → specialised | 2 |
-| summarized → summarised | 1 |
-| canceled → cancelled | 1 |
-| finalized → finalised | 3 |
-| **Total changes** | **23** |
-
+- Create estimate with driveway scope
+- Enable expansion joints in Connections & Joints module
+- Add a joint configuration
+- Click "Mark on Plans" (requires uploaded plans)
+- Verify polyline tool activates
+- Draw a path and confirm
+- Verify length populates back into the joint config
+- Repeat for control joints in a slab scope
