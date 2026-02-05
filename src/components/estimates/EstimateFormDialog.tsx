@@ -1045,27 +1045,51 @@ const {
   const handleJointMarkupComplete = useCallback(async (scopeId: string, lengthMeters: number) => {
     const markedScope = markedTakeoffScopeRef.current;
     
-    // Check if this is a specific joint markup (format: "expansion_joints:joint:{jointId}" or "control_joints:joint:{jointId}")
+   // Check if this is a specific joint markup
+   // New format: "{parentScope}:{jointType}:joint:{jointId}" (e.g., "driveway:expansion_joints:joint:abc123")
+   // Legacy format: "{jointType}:joint:{jointId}" (e.g., "expansion_joints:joint:abc123")
     if (markedScope && typeof markedScope === 'string' && markedScope.includes(':joint:')) {
       const parts = markedScope.split(':');
-      const jointModuleType = parts[0]; // 'expansion_joints' or 'control_joints'
-      const jointId = parts[2];
+     
+     // Parse both formats
+     let parentScopeId: string | null = null;
+     let jointModuleType: string;
+     let jointId: string;
+     
+     if (parts.length >= 4) {
+       // New format: [parentScope, jointType, 'joint', jointId]
+       parentScopeId = parts[0];
+       jointModuleType = parts[1]; // 'expansion_joints' or 'control_joints'
+       jointId = parts[3];
+     } else {
+       // Legacy format: [jointType, 'joint', jointId]
+       jointModuleType = parts[0];
+       jointId = parts[2];
+     }
       
-      // Find the scope that contains this joint module
-      const targetScope = selectedScopesArray.find(s => {
-        const state = modularScopeStates[s];
-        if (!state?.moduleAnswers) return false;
-        
-        // Check if this scope has the joint module with matching joint ID
-        if (jointModuleType === 'expansion_joints') {
-          const joints = state.moduleAnswers['connections-joints']?.expansion_joints || [];
-          return joints.some((j: any) => j.id === jointId);
-        } else if (jointModuleType === 'control_joints') {
-          const joints = state.moduleAnswers['joints-control']?.control_joints || [];
-          return joints.some((j: any) => j.id === jointId);
-        }
-        return false;
-      });
+     // Find the target scope - use parentScopeId directly if available, otherwise search
+     let targetScope: string | undefined;
+     
+    if (parentScopeId && selectedScopesArray.includes(parentScopeId as ScopeType)) {
+       // New format: use the parent scope directly
+       targetScope = parentScopeId;
+     } else {
+       // Legacy format: search for the scope containing this joint
+       targetScope = selectedScopesArray.find(s => {
+         const state = modularScopeStates[s];
+         if (!state?.moduleAnswers) return false;
+         
+         // Check if this scope has the joint module with matching joint ID
+         if (jointModuleType === 'expansion_joints') {
+           const joints = state.moduleAnswers['connections-joints']?.expansion_joints || [];
+           return joints.some((j: any) => j.id === jointId);
+         } else if (jointModuleType === 'control_joints') {
+           const joints = state.moduleAnswers['joints-control']?.control_joints || [];
+           return joints.some((j: any) => j.id === jointId);
+         }
+         return false;
+       });
+     }
       
       if (targetScope) {
         // Update the specific joint's total_length_m in module answers
@@ -1108,7 +1132,7 @@ const {
         });
         
         // Set the active scope index to show the correct scope when returning
-        const scopeIndex = selectedScopesArray.indexOf(targetScope);
+      const scopeIndex = selectedScopesArray.indexOf(targetScope as ScopeType);
         if (scopeIndex >= 0) {
           setActiveScopeIndex(scopeIndex);
         }

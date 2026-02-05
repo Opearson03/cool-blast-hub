@@ -1601,12 +1601,12 @@ export function ModularCalculator({
                 priceMap={priceMap}
                 scopeId={scope.id}
                 onRequestJointMarkup={(jointId) => {
-                  // Request markup for expansion joints using format: "expansion_joints:joint:{jointId}"
-                  onRequestMarkup?.(`expansion_joints:joint:${jointId}`);
+                  // Request markup for expansion joints using format: "{parentScope}:expansion_joints:joint:{jointId}"
+                  onRequestMarkup?.(`${scope.id}:expansion_joints:joint:${jointId}`);
                 }}
                 onRequestControlJointMarkup={(jointId) => {
-                  // Request markup for control joints using format: "control_joints:joint:{jointId}"
-                  onRequestMarkup?.(`control_joints:joint:${jointId}`);
+                  // Request markup for control joints using format: "{parentScope}:control_joints:joint:{jointId}"
+                  onRequestMarkup?.(`${scope.id}:control_joints:joint:${jointId}`);
                 }}
                 hasPlans={hasPlans}
               />
