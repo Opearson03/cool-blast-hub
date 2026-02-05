@@ -1,84 +1,171 @@
 
-## Goal
-Make joint marking (expansion joints + control joints/saw cuts) behave like the internal-beam "2 clicks = 1 line, 3rd click starts a new line" workflow, and ensure:
-1) The takeoff toolbar shows the *joint* instructions (not "footing path").
-2) Clicking **Done** reliably saves the joint measurement and returns the user back to the exact joint module they came from.
+
+# Fix: Joint Segments Connecting Into One Continuous Line
+
+## Problem Identified
+
+When the user marks multiple discrete joint lines (2 clicks = 1 line, 3rd click starts new line), they appear correctly **during drawing** as separate segments. However, when clicking "Done", all lines merge into one continuous path.
+
+### Root Cause Analysis
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  DURING DRAWING (Correct)                                       │
+│                                                                 │
+│  discreteJointSegments array:                                   │
+│  [                                                              │
+│    { startPoint: A, endPoint: B, length: 5 },                   │
+│    { startPoint: C, endPoint: D, length: 3 },                   │
+│    { startPoint: E, endPoint: F, length: 4 }                    │
+│  ]                                                              │
+│                                                                 │
+│  Visual:  A────B   C────D   E────F  (3 separate lines)          │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  AFTER CLICKING "DONE" (Broken)                                 │
+│                                                                 │
+│  handleDoneMarkingJoints flattens segments:                     │
+│  allPoints = [A, B, C, D, E, F]                                 │
+│                                                                 │
+│  Saved to database as single polyline markup                    │
+│                                                                 │
+│  DrawingCanvas renders with Konva Line:                         │
+│  <Line points={[Ax,Ay, Bx,By, Cx,Cy, Dx,Dy, Ex,Ey, Fx,Fy]} />   │
+│                                                                 │
+│  Visual:  A────B────C────D────E────F  (one continuous line!)    │
+│           └──────┬──────┘                                       │
+│           Unwanted connections                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+The `flatMap` in `handleDoneMarkingJoints` creates a flat array that Konva's `<Line>` component interprets as a single continuous path.
 
 ---
 
-## Status: ✅ IMPLEMENTED
+## Solution: Save Each Segment as a Separate Markup
 
-All fixes have been implemented:
+The cleanest fix is to save **each discrete segment as its own database record** rather than combining them into one markup. This matches how the data should logically be stored and rendered.
 
-### 1) Joint toolbar mode exclusivity ✅
-- `isPolylineMode` now explicitly excludes joint scopes: `isPolylineMode={activeTool === 'polyline' && isLinearScope && !isSlabBeamMarking && !isJointScope}`
-- This ensures the toolbar shows the joint UI (with Scissors icon and "Tap to mark [jointLabel] lines") instead of the generic polyline/footing UI.
-
-### 2) Dedicated `handleDoneMarkingJoints` handler ✅
-- Created a new handler that:
-  - Finalizes any pending 2-point segment
-  - Calculates total length from all discrete segments
-  - Saves the markup via `addPolylineMarkup` with widthMm=0, heightMm=0 (joints don't need dimensions)
-  - Calls `onJointMarkupComplete` to update module answers and navigate back
-  - Resets all joint-related state
-- Wired to toolbar's `onDoneMarkingJoints` prop
-
-### 3) Clear slab state when entering joint mode ✅
-- In `handleMarkArea`, when activating a joint scope, aggressively clears:
-  - `slabWorkflowActive = false`
-  - `slabWorkflowStep = 'name'`
-  - `addingBeamToSlabId = null`
-  - `addingBeamType = null`
-  - `discreteJointSegments = []`
-- This prevents joints from being misrouted as beams
-
-### 4) Auto-open module on return ✅
-- Added `forceOpenModuleId` state to `EstimateFormDialog`
-- Added `forceOpenModuleId` prop to `ModularCalculator` with useEffect to open the module
-- In `handleJointMarkupComplete`, sets `forceOpenModuleId` based on joint type:
-  - expansion_joints → 'connections-joints'
-  - control_joints → 'joints-control'
-- Clears after 500ms to prevent persistence
-
-### 5) Fixed segment counting ✅
-- Updated toolbar props to include pending segment in count and length:
-  - `jointSegmentCount={discreteJointSegments.length + (polylinePoints.length === 2 ? 1 : 0)}`
-  - `jointTotalLength` includes the current pending segment if 2 points are placed
-- This ensures "Done" button works even immediately after placing the second point
+### Why This Approach?
+1. **Renders correctly** - Each segment is an independent `<Line>` in the canvas
+2. **Easier to edit/delete** - User can select and delete individual segments
+3. **Consistent with existing patterns** - Other discrete elements (piers, bollards) save as separate records
+4. **No schema changes required** - Uses existing polyline markup type
 
 ---
 
-## Files Changed
-1. `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
-   - Added slab state cleanup in `handleMarkArea` for joint scopes
-   - Created `handleDoneMarkingJoints` handler
-   - Fixed `isPolylineMode` to exclude joints
-   - Updated toolbar props for accurate segment counting
+## Technical Changes
 
-2. `src/components/estimates/calculators/ModularCalculator.tsx`
-   - Added `forceOpenModuleId` prop
-   - Added useEffect to open module when prop changes
+### File: `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
 
-3. `src/components/estimates/EstimateFormDialog.tsx`
-   - Added `forceOpenModuleId` state
-   - Updated `handleJointMarkupComplete` to set the return module
-   - Passed prop to ModularCalculator
+**Modify `handleDoneMarkingJoints` (lines ~1182-1230):**
+
+Instead of:
+```typescript
+const allPoints = finalSegments.flatMap(seg => [seg.startPoint, seg.endPoint]);
+await addPolylineMarkup(currentFileId, activeScope, allPoints, totalLength, 0, 0, color, currentPage, jointName);
+```
+
+Change to:
+```typescript
+// Save each discrete segment as a separate markup
+for (let i = 0; i < finalSegments.length; i++) {
+  const segment = finalSegments[i];
+  const segmentPoints = [segment.startPoint, segment.endPoint];
+  const segmentName = `Joint ${existingJointCount + i + 1}`;
+  
+  await addPolylineMarkup(
+    currentFileId, 
+    activeScope, 
+    segmentPoints,        // Only 2 points per segment
+    segment.length,       // Individual segment length
+    0,                    // widthMm = 0 for joints
+    0,                    // heightMm = 0 for joints
+    color, 
+    currentPage, 
+    segmentName
+  );
+}
+```
+
+**Update logic for callback:**
+```typescript
+// After saving all segments, call completion callback with TOTAL length
+if (onJointMarkupComplete) {
+  await onJointMarkupComplete(activeScope, totalLength);
+}
+```
 
 ---
 
-## Test Plan (for verification)
-1. Open an estimate → go to Configure scopes.
-2. In a scope that has **Expansion Joints**:
-   - open the "Connections & Joints" module
-   - click **Mark on Plans** on a specific expansion joint row
-3. In Takeoff:
-   - verify toolbar text says "Tap to mark expansion joint lines" (not footing path)
-   - click 2 points → a line forms; click a 3rd point → it starts a new line segment
-   - after at least 1 segment, press **Done**
-   - confirm it immediately returns you to the same module (Connections & Joints), with:
-     - the joint length populated
-     - "Measured" badge set
-4. Repeat for **Control Joints / Saw Cuts**:
-   - ensure it returns to the "Control Joints / Saw Cuts" module and updates that joint config
-5. Regression: Mark a driveway slab + beams, then jump to joint marking:
-   - verify joint marking does not save any markup as `edge_beam` / does not open beam dialogs.
+### Also Update: Joint Confirm Handler (legacy path)
+
+There's also a `handleJointConfirm` function that has similar logic. Update it to match:
+
+**Lines ~1155-1179:**
+```typescript
+const handleJointConfirm = useCallback(async () => {
+  if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
+  
+  const color = getScopeColor(selectedScopes.indexOf(activeScope as ScopeType));
+  const existingJointCount = markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length;
+  
+  // Save each discrete segment as a separate markup
+  for (let i = 0; i < discreteJointSegments.length; i++) {
+    const segment = discreteJointSegments[i];
+    const segmentPoints = [segment.startPoint, segment.endPoint];
+    const segmentName = `Joint ${existingJointCount + i + 1}`;
+    
+    await addPolylineMarkup(
+      currentFileId,
+      activeScope,
+      segmentPoints,
+      segment.length,
+      0,
+      0,
+      color,
+      currentPage,
+      segmentName
+    );
+  }
+  
+  // ... rest of reset logic
+}, [...]);
+```
+
+---
+
+## Expected Behavior After Fix
+
+1. User clicks 2 points → segment A-B forms
+2. User clicks 2 more points → segment C-D forms  
+3. User clicks "Done"
+4. **Two separate markup records** are saved:
+   - Markup 1: `points: [A, B]`, `length_m: 5`
+   - Markup 2: `points: [C, D]`, `length_m: 3`
+5. Both render as **independent lines** on the canvas
+6. Total length (8m) is passed to `onJointMarkupComplete` for the estimate calculator
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Modify `handleDoneMarkingJoints` and `handleJointConfirm` to save each segment as a separate markup record |
+
+---
+
+## Test Plan
+
+1. Create an estimate with expansion joints
+2. Go to takeoff → activate joint marking
+3. Draw 3 separate line segments (6 clicks total)
+4. Click "Done"
+5. Verify:
+   - 3 separate lines appear on the plan (not connected)
+   - Each line can be individually selected/deleted
+   - Total length in the estimate calculator = sum of all 3 segments
+6. Repeat for control joints/saw cuts
+
