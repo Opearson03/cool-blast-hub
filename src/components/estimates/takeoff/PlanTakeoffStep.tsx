@@ -314,6 +314,17 @@ export function PlanTakeoffStep({
       return;
     }
     
+    // Clear any slab/beam workflow state when entering joint mode
+    // This prevents joints from being misrouted as beams
+    const isJointType = JOINT_SCOPES.includes(scopeId);
+    if (isJointType) {
+      setSlabWorkflowActive(false);
+      setSlabWorkflowStep('name');
+      setAddingBeamToSlabId(null);
+      setAddingBeamType(null);
+      setDiscreteJointSegments([]); // Clear any previous joint segments
+    }
+    
     setActiveScope(scopeId);
     
     // Check scope type and set appropriate tool
@@ -325,7 +336,7 @@ export function PlanTakeoffStep({
       setPierPoints([]);
       setActiveTool('point');
     } else if (isLinearType) {
-      // Use polyline tool for linear elements
+      // Use polyline tool for linear elements (including joints)
       setPolylinePoints([]);
       setPendingPolylineLength(0);
       const existingForScope = markups.filter(m => m.scope_id === scopeId);
@@ -1139,7 +1150,7 @@ export function PlanTakeoffStep({
     setPierPoints([]);
   }, [activeScope, currentFileId, pierPoints, selectedScopes, addPadMarkups, currentPage]);
 
-  // Handler for completing joint marking
+  // Handler for completing joint marking - called from JointDimensionsPanel confirm
   const handleJointConfirm = useCallback(async () => {
     if (!activeScope || !currentFileId || pendingPolylineLength === 0) return;
     
@@ -1166,6 +1177,57 @@ export function PlanTakeoffStep({
     setActiveScope(null);
     setPendingJointType(null);
   }, [activeScope, currentFileId, pendingPolylineLength, polylinePoints, selectedScopes, markups, addPolylineMarkup, currentPage, onJointMarkupComplete, discreteJointSegments]);
+
+  // Dedicated handler for joint "Done" button - saves immediately and returns to module
+  const handleDoneMarkingJoints = useCallback(async () => {
+    if (!activeScope || !currentFileId || !currentScale) return;
+    
+    // Finalize any pending 2-point segment
+    let finalSegments = [...discreteJointSegments];
+    if (polylinePoints.length === 2) {
+      const dx = polylinePoints[1].x - polylinePoints[0].x;
+      const dy = polylinePoints[1].y - polylinePoints[0].y;
+      const distPx = Math.sqrt(dx * dx + dy * dy);
+      const length = distPx / currentScale;
+      finalSegments.push({
+        startPoint: polylinePoints[0],
+        endPoint: polylinePoints[1],
+        length,
+      });
+    }
+    
+    // If no segments, show toast and stay in drawing mode
+    if (finalSegments.length === 0) {
+      return;
+    }
+    
+    // Calculate total length
+    const totalLength = finalSegments.reduce((sum, seg) => sum + seg.length, 0);
+    
+    // Build allPoints from all discrete segments
+    const allPoints = finalSegments.flatMap(seg => [seg.startPoint, seg.endPoint]);
+    
+    // Use fallback color for joint scopes (which aren't in selectedScopes)
+    const scopeIndex = selectedScopes.indexOf(activeScope as ScopeType);
+    const color = scopeIndex >= 0 ? getScopeColor(scopeIndex) : '#8B5CF6';
+    const jointName = `Joint ${markups.filter(m => m.scope_id === activeScope && m.shape_type === 'polyline').length + 1}`;
+    
+    // Save the markup (widthMm=0, heightMm=0 for joints)
+    await addPolylineMarkup(currentFileId, activeScope, allPoints, totalLength, 0, 0, color, currentPage, jointName);
+    
+    // Call the joint completion callback to update module answers and navigate back
+    if (onJointMarkupComplete) {
+      await onJointMarkupComplete(activeScope, totalLength);
+    }
+    
+    // Reset all joint-related state
+    setPolylinePoints([]);
+    setDiscreteJointSegments([]);
+    setPendingPolylineLength(0);
+    setActiveTool('select');
+    setActiveScope(null);
+    setPendingJointType(null);
+  }, [activeScope, currentFileId, currentScale, discreteJointSegments, polylinePoints, selectedScopes, markups, addPolylineMarkup, currentPage, onJointMarkupComplete]);
 
   // Handler for "Done" button when marking piers/bollards/pads
   const handleDoneMarkingPiers = useCallback(() => {
@@ -1803,16 +1865,16 @@ export function PlanTakeoffStep({
           activeScope === 'bollards' ? 'bollard' : activeScope === 'pad_footings' ? 'pad footing' : activeScope === 'pit_bases' ? 'pit base' : 'pier'
         }
         onDoneMarkingPoints={handleDoneMarkingPiers}
-        isPolylineMode={activeTool === 'polyline' && isLinearScope && !isSlabBeamMarking}
+        isPolylineMode={activeTool === 'polyline' && isLinearScope && !isSlabBeamMarking && !isJointScope}
         polylineLength={currentScale ? calculatePolylineLength(polylinePoints, currentScale) : 0}
         polylineSegmentCount={polylinePoints.length > 1 ? polylinePoints.length - 1 : 0}
         polylineLabel={activeScope === 'kerbs_channels' ? 'kerb' : activeScope === 'retaining_walls' ? 'wall' : 'footing'}
         onDoneMarkingPolyline={handleDoneMarkingPolyline}
         isJointMode={activeTool === 'polyline' && isJointScope}
         jointLabel={activeScope === 'expansion_joints' ? 'expansion joint' : activeScope === 'control_joints' ? 'control joint' : 'cut'}
-        jointSegmentCount={discreteJointSegments.length}
-        jointTotalLength={discreteJointSegments.reduce((sum, seg) => sum + seg.length, 0)}
-        onDoneMarkingJoints={handleDoneMarkingPolyline}
+        jointSegmentCount={discreteJointSegments.length + (polylinePoints.length === 2 ? 1 : 0)}
+        jointTotalLength={discreteJointSegments.reduce((sum, seg) => sum + seg.length, 0) + (polylinePoints.length === 2 && currentScale ? (() => { const dx = polylinePoints[1].x - polylinePoints[0].x; const dy = polylinePoints[1].y - polylinePoints[0].y; return Math.sqrt(dx*dx + dy*dy) / currentScale; })() : 0)}
+        onDoneMarkingJoints={handleDoneMarkingJoints}
         onCancelJointMarking={handleCancelCurrentMarkup}
         isBeamMarkingMode={isSlabBeamMarking || (isAddingBeamToExistingSlab && addingBeamType !== null)}
         beamType={slabWorkflowStep === 'mark_edge_beam' || addingBeamType === 'edge_beam' ? 'edge' : 'internal'}

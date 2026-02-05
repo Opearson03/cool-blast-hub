@@ -54,6 +54,7 @@ interface ModularCalculatorProps {
   initialCustomExclusions?: ExclusionItem[];
   initialDoneModules?: string[];  // Array of module IDs to restore as done
   initialUserOverrides?: Record<string, string[]>;  // Module ID -> array of field IDs that were manually overridden
+  forceOpenModuleId?: string | null;  // Force open a specific module (e.g., after returning from takeoff)
   onStateChange?: (state: {
     scopeAnswers: Record<string, any>;
     moduleAnswers: Record<string, Record<string, any>>;
@@ -83,6 +84,7 @@ export function ModularCalculator({
   initialCustomExclusions = [],
   initialDoneModules = [],
   initialUserOverrides = {},
+  forceOpenModuleId = null,
   onStateChange,
   onModuleDone,
   onRequestMarkup,
@@ -156,6 +158,13 @@ export function ModularCalculator({
   const [doneModules, setDoneModules] = useState<Set<string>>(
     () => new Set(initialDoneModules)
   );
+
+  // Effect to force open a module when returning from takeoff
+  useEffect(() => {
+    if (forceOpenModuleId) {
+      setOpenModuleId(forceOpenModuleId);
+    }
+  }, [forceOpenModuleId]);
 
   // Build price map from price list
   const priceMap = useMemo<PriceMap>(() => {
