@@ -1,20 +1,19 @@
-
 # Change Joints Measurement to Discrete Point-Pair Mode (Like Internal Beams)
 
-## Current Behaviour
-When measuring expansion joints, control joints, or cuts on plans:
-- User clicks to add points continuously to a single polyline
-- All points connect as one long chain
-- User must click "Done" to complete
+**STATUS: ✅ IMPLEMENTED**
 
-## Requested Behaviour
+## Current Behaviour
+~~When measuring expansion joints, control joints, or cuts on plans:~~
+~~- User clicks to add points continuously to a single polyline~~
+~~- All points connect as one long chain~~
+~~- User must click "Done" to complete~~
+
+## New Behaviour (Implemented)
 Use the same discrete point-pair mode as internal beams:
 - Every **2 clicks** form one line segment
 - The 3rd click **starts a new segment** (points reset automatically)
 - All segments accumulate and their total length is summed
 - User clicks "Done" when finished marking all segments
-
-This matches how the internal beam workflow works in the slab takeoff.
 
 ---
 

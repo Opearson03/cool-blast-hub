@@ -46,6 +46,8 @@ interface DrawingCanvasProps {
   existingBeamSegments?: BeamSegmentReference[];
   /** Discrete internal beams (point pairs, not connected) */
   discreteInternalBeams?: Array<{ startPoint: TakeoffPoint; endPoint: TakeoffPoint; length: number }>;
+  /** Discrete joint segments (point pairs, not connected) - for expansion/control joints */
+  discreteJointSegments?: Array<{ startPoint: TakeoffPoint; endPoint: TakeoffPoint; length: number }>;
   /** When true, user is panning the view - don't place points on click */
   isPanning?: boolean;
   /** When true, show individual segment length labels on polyline preview */
@@ -79,6 +81,7 @@ export function DrawingCanvas({
   pendingSlabReference,
   existingBeamSegments = [],
   discreteInternalBeams = [],
+  discreteJointSegments = [],
   isPanning = false,
   showSegmentLabels = true,
   onMarkupComplete,
@@ -663,12 +666,16 @@ export function DrawingCanvas({
     );
   };
 
-  // Render discrete internal beams (separate line segments, not connected)
-  const renderDiscreteInternalBeams = () => {
-    if (discreteInternalBeams.length === 0) return null;
+  // Render discrete segments (internal beams or joint segments - separate line segments, not connected)
+  const renderDiscreteSegments = () => {
+    const hasInternalBeams = discreteInternalBeams.length > 0;
+    const hasJointSegments = discreteJointSegments.length > 0;
+    
+    if (!hasInternalBeams && !hasJointSegments) return null;
 
     return (
       <Group>
+        {/* Internal beams */}
         {discreteInternalBeams.map((beam, index) => {
           return (
             <Group key={`discrete-beam-${index}`}>
@@ -695,6 +702,38 @@ export function DrawingCanvas({
                 radius={3}
                 fill="white"
                 stroke={INTERNAL_BEAM_COLOR}
+                strokeWidth={2}
+              />
+            </Group>
+          );
+        })}
+        {/* Joint segments */}
+        {discreteJointSegments.map((segment, index) => {
+          return (
+            <Group key={`discrete-joint-${index}`}>
+              {/* Joint line */}
+              <Line
+                points={[segment.startPoint.x, segment.startPoint.y, segment.endPoint.x, segment.endPoint.y]}
+                stroke={activeScopeColor}
+                strokeWidth={3}
+                lineCap="round"
+                opacity={0.9}
+              />
+              {/* Vertex points */}
+              <Circle
+                x={segment.startPoint.x}
+                y={segment.startPoint.y}
+                radius={3}
+                fill={activeScopeColor}
+                stroke="#fff"
+                strokeWidth={2}
+              />
+              <Circle
+                x={segment.endPoint.x}
+                y={segment.endPoint.y}
+                radius={3}
+                fill="white"
+                stroke={activeScopeColor}
                 strokeWidth={2}
               />
             </Group>
@@ -1005,8 +1044,8 @@ export function DrawingCanvas({
         {renderPendingSlabReference()}
         {/* Render already-marked beam segments */}
         {renderExistingBeamSegments()}
-        {/* Render discrete internal beams (not connected to each other) */}
-        {renderDiscreteInternalBeams()}
+        {/* Render discrete segments - internal beams and joint segments (not connected to each other) */}
+        {renderDiscreteSegments()}
         {renderMarkups()}
         {renderDrawingPreview()}
         {renderPierPoints()}
