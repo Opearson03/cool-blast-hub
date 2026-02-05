@@ -118,7 +118,7 @@ export function usePriceList() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['price-list', businessId] });
-      toast.success('Price list synced with latest catalog');
+      toast.success('Price list synced with latest catalogue');
     },
     onError: (error) => {
       toast.error('Failed to sync price list: ' + error.message);

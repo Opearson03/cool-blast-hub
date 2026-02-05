@@ -456,7 +456,7 @@ export default function SignVariation() {
                 onCheckedChange={(checked) => setTermsAccepted(checked === true)}
               />
               <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
-                I approve this variation to the original contract. I understand this constitutes a binding agreement and authorizes the additional works described above.
+                I approve this variation to the original contract. I understand this constitutes a binding agreement and authorises the additional works described above.
               </Label>
             </div>
 

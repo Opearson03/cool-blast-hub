@@ -509,7 +509,7 @@ export default function AdminSettings() {
               value="branding"
               icon={Palette}
               title="Branding & Quote Templates"
-              description="Customize your logo, colors, and quote template style"
+              description="Customise your logo, colours, and quote template style"
             >
               <div className="space-y-6 pt-2">
                 {/* Logo Upload */}

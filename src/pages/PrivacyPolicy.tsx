@@ -44,7 +44,7 @@ export default function PrivacyPolicy() {
                 <li>Provide and maintain the PourHub service</li>
                 <li>Process timesheets and job scheduling</li>
                 <li>Send notifications about your work schedule</li>
-                <li>Improve and optimize our services</li>
+                <li>Improve and optimise our services</li>
                 <li>Comply with legal obligations</li>
               </ul>
             </section>

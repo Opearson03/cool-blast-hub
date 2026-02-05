@@ -1,10 +1,10 @@
-// Architectural Formwork Module - specialized formwork for 3D concrete elements
+// Architectural Formwork Module - specialised formwork for 3D concrete elements
 import { EstimateModule, ComponentCost, CostLineItem, ExclusionItem, PriceMap, getPrice } from '../types';
 
 export const architecturalFormworkModule: EstimateModule = {
   id: 'architectural-formwork',
   name: 'Molds & Formwork',
-  description: 'Specialized formwork and molds for architectural concrete elements',
+  description: 'Specialised formwork and molds for architectural concrete elements',
   questions: [
     {
       id: 'formwork_required',
