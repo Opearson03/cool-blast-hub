@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSubTradeInvites, useRevokeSubTradeInvite, useResendSubTradeNotification, SubTradeInvite } from "@/hooks/useSubTradeInvites";
+import { useSubTradeInvites, useRevokeSubTradeInvite, useResendSubTradeNotification, useSendSubTradeInvite, SubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { SubTradeStatusBadge } from "./SubTradeStatusBadge";
 import { SubTradeInviteDialog } from "./SubTradeInviteDialog";
 import { DeliveryStatusIndicator } from "./DeliveryStatusIndicator";
@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { ChevronDown, Plus, UserPlus, X, Clock, AlertTriangle, Send } from "lucide-react";
+import { ChevronDown, Plus, UserPlus, X, Clock, AlertTriangle, Send, RotateCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -49,6 +49,15 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
     (i) => i.sms_delivery_status === "failed" || i.email_delivery_status === "failed"
   ).length;
 
+  // Check if an invite has delivery issues and can be resent
+  const hasDeliveryIssues = (invite: SubTradeInvite) => {
+    return (
+      invite.sms_delivery_status === "failed" ||
+      invite.sms_delivery_status === "rate_limited" ||
+      invite.email_delivery_status === "failed"
+    );
+  };
+
   const handleRevoke = () => {
     if (!revokeInvite) return;
     revokeMutation.mutate(
@@ -69,11 +78,72 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
     resendMutation.mutate(
       { inviteId: invite.id, jobPourId: pourId },
       {
-        onSuccess: () => {
-          toast.success("Invite sent successfully");
+        onSuccess: (data) => {
+          // Show appropriate toast based on delivery results
+          const result = data.result;
+          if (result) {
+            const smsOk = result.sms_status === "sent";
+            const emailOk = result.email_status === "sent";
+            const smsFailed = result.sms_status === "failed";
+            const emailFailed = result.email_status === "failed";
+
+            if (smsOk && emailOk) {
+              toast.success("Invite sent via SMS and email");
+            } else if (smsOk && !result.email_status) {
+              toast.success("Invite sent via SMS");
+            } else if (emailOk && !result.sms_status) {
+              toast.success("Invite sent via email");
+            } else if (emailOk && smsFailed) {
+              toast.warning("Email sent, but SMS delivery failed");
+            } else if (smsOk && emailFailed) {
+              toast.warning("SMS sent, but email delivery failed");
+            } else if (smsFailed && emailFailed) {
+              toast.error("Both SMS and email delivery failed");
+            } else if (smsFailed) {
+              toast.error("SMS delivery failed");
+            } else if (emailFailed) {
+              toast.error("Email delivery failed");
+            } else {
+              toast.success("Invite sent successfully");
+            }
+          } else {
+            toast.success("Invite sent successfully");
+          }
         },
         onError: () => {
           toast.error("Failed to send invite");
+        },
+      }
+    );
+  };
+
+  const handleResendInvite = (invite: SubTradeInvite) => {
+    resendMutation.mutate(
+      { inviteId: invite.id, jobPourId: pourId },
+      {
+        onSuccess: (data) => {
+          const result = data.result;
+          if (result) {
+            const smsOk = result.sms_status === "sent";
+            const emailOk = result.email_status === "sent";
+            const smsFailed = result.sms_status === "failed";
+            const emailFailed = result.email_status === "failed";
+
+            if (smsOk || emailOk) {
+              const channels = [smsOk && "SMS", emailOk && "email"].filter(Boolean).join(" and ");
+              toast.success(`Invite resent via ${channels}`);
+            } else if (smsFailed || emailFailed) {
+              const failedChannels = [smsFailed && "SMS", emailFailed && "email"].filter(Boolean).join(" and ");
+              toast.error(`Resend failed: ${failedChannels} delivery failed`);
+            } else {
+              toast.success("Invite resent successfully");
+            }
+          } else {
+            toast.success("Invite resent successfully");
+          }
+        },
+        onError: () => {
+          toast.error("Failed to resend invite");
         },
       }
     );
@@ -161,6 +231,20 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
                     </div>
                     <div className="flex items-center gap-1">
                       <SubTradeStatusBadge status={invite.status} className="text-xs" />
+                      {/* Resend button for failed deliveries */}
+                      {["sent", "viewed"].includes(invite.status) && hasDeliveryIssues(invite) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-6 px-2 text-xs border-yellow-500/50 text-yellow-600 hover:bg-yellow-50"
+                          onClick={() => handleResendInvite(invite)}
+                          disabled={resendMutation.isPending}
+                        >
+                          <RotateCw className="h-3 w-3 mr-1" />
+                          Resend
+                        </Button>
+                      )}
+                      {/* Send button for drafted invites */}
                       {invite.status === "drafted" && (
                         <Button
                           variant="outline"
@@ -173,6 +257,7 @@ export function SubTradesList({ jobId, pourId, pourName, pourDate, expanded = fa
                           Send
                         </Button>
                       )}
+                      {/* Cancel button for pending invites */}
                       {["sent", "viewed"].includes(invite.status) && (
                         <Button
                           variant="ghost"

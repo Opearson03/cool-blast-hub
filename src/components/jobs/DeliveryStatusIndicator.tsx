@@ -15,6 +15,49 @@ interface DeliveryStatusIndicatorProps {
   className?: string;
 }
 
+// Parse Twilio error messages for friendlier display
+function getFriendlySmsError(errorMessage: string | null | undefined): string {
+  if (!errorMessage) return "SMS delivery failed";
+  
+  // Check for known Twilio error codes
+  if (errorMessage.includes("21608")) {
+    return "Twilio trial accounts can only message verified numbers. Upgrade your Twilio account or verify this phone number.";
+  }
+  if (errorMessage.includes("21211")) {
+    return "Invalid phone number format.";
+  }
+  if (errorMessage.includes("21614")) {
+    return "This phone number is not a valid mobile number for SMS.";
+  }
+  if (errorMessage.includes("21610")) {
+    return "This number has been unsubscribed from receiving SMS.";
+  }
+  if (errorMessage.includes("30003")) {
+    return "Phone is unreachable.";
+  }
+  if (errorMessage.includes("30005")) {
+    return "Unknown destination number.";
+  }
+  if (errorMessage.includes("30006")) {
+    return "Landline or unreachable carrier.";
+  }
+  
+  // Try to extract a message from JSON error
+  try {
+    const parsed = JSON.parse(errorMessage);
+    if (parsed.message) return parsed.message;
+  } catch {
+    // Not JSON, return truncated original
+  }
+  
+  // Truncate long error messages
+  if (errorMessage.length > 100) {
+    return errorMessage.substring(0, 100) + "...";
+  }
+  
+  return errorMessage;
+}
+
 export function DeliveryStatusIndicator({
   smsStatus,
   emailStatus,
@@ -26,6 +69,8 @@ export function DeliveryStatusIndicator({
 
   // If no notifications were attempted, don't show anything
   if (!smsStatus && !emailStatus) return null;
+
+  const friendlySmsError = getFriendlySmsError(smsError);
 
   return (
     <TooltipProvider>
@@ -61,7 +106,7 @@ export function DeliveryStatusIndicator({
               ) : (
                 <div>
                   <p className="text-xs font-medium text-red-500">SMS delivery failed</p>
-                  {smsError && <p className="text-xs text-muted-foreground mt-1">{smsError}</p>}
+                  <p className="text-xs text-muted-foreground mt-1">{friendlySmsError}</p>
                 </div>
               )}
             </TooltipContent>

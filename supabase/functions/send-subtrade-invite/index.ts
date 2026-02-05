@@ -16,6 +16,7 @@ interface SubTradeInviteRequest {
   recipient_email?: string;
   notes?: string;
   start_time?: string;
+  resend_invite_id?: string;
 }
 
 // Generate URL-safe base64 token
@@ -86,6 +87,304 @@ const handler = async (req: Request): Promise<Response> => {
 
     const body: SubTradeInviteRequest = await req.json();
     console.log("Request body:", JSON.stringify(body, null, 2));
+
+    // Get APP_URL for building links
+    const appUrl = (Deno.env.get("APP_URL") || "https://pourhub.com.au").replace(/\/+$/, "");
+
+    // === RESEND FLOW ===
+    // If resend_invite_id is provided, this is a resend request
+    if (body.resend_invite_id) {
+      console.log("Resend request for invite:", body.resend_invite_id);
+
+      // Fetch the existing invite
+      const { data: existingInvite, error: fetchError } = await supabase
+        .from("external_invites")
+        .select(`
+          *,
+          job_pours (
+            id,
+            pour_name,
+            pour_date,
+            scheduled_time,
+            job_id,
+            jobs (
+              id,
+              name,
+              site_address,
+              business_id,
+              businesses (
+                id,
+                name,
+                logo_url,
+                email,
+                inbound_email_alias
+              )
+            )
+          )
+        `)
+        .eq("id", body.resend_invite_id)
+        .eq("invite_type", "sub_trade")
+        .single();
+
+      if (fetchError || !existingInvite) {
+        console.error("Invite not found:", fetchError);
+        return new Response(JSON.stringify({ error: "Invite not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const pour = existingInvite.job_pours as any;
+      const job = pour?.jobs as any;
+      const business = job?.businesses as any;
+
+      if (!business) {
+        return new Response(JSON.stringify({ error: "Business not found" }), {
+          status: 404,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Generate new token
+      const rawToken = generateToken();
+      const tokenHash = await hashToken(rawToken);
+      const now = new Date().toISOString();
+      const expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString();
+
+      // Determine send method from existing invite or override with new values
+      const recipientPhone = body.recipient_phone || existingInvite.recipient_phone;
+      const recipientEmail = body.recipient_email || existingInvite.recipient_email;
+
+      let sentVia: "sms" | "email" | "both" = "email";
+      if (recipientPhone && recipientEmail) {
+        sentVia = "both";
+      } else if (recipientPhone) {
+        sentVia = "sms";
+      }
+
+      // Update the invite with new token and reset delivery status
+      const { error: updateError } = await supabase
+        .from("external_invites")
+        .update({
+          token_hash: tokenHash,
+          token_expires_at: expiresAt,
+          sent_at: now,
+          sent_via: sentVia,
+          status: "sent",
+          sms_delivery_status: null,
+          sms_message_sid: null,
+          sms_error_message: null,
+          email_delivery_status: null,
+          email_message_id: null,
+          email_error_message: null,
+          recipient_phone: recipientPhone,
+          recipient_email: recipientEmail,
+          updated_at: now,
+        })
+        .eq("id", existingInvite.id);
+
+      if (updateError) {
+        console.error("Failed to update invite:", updateError);
+        return new Response(JSON.stringify({ error: "Failed to update invite" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Build invite URL
+      const inviteUrl = `${appUrl}/i/${rawToken}`;
+
+      // Format pour date for messaging
+      const pourDateFormatted = pour.pour_date
+        ? new Date(pour.pour_date).toLocaleDateString("en-AU", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          })
+        : "TBA";
+
+      const displayTime = existingInvite.start_time || pour.scheduled_time?.slice(0, 5) || null;
+      const timeFormatted = displayTime ? ` at ${displayTime}` : "";
+
+      // Delivery tracking
+      let smsDeliveryStatus: string | null = null;
+      let smsMessageSid: string | null = null;
+      let smsErrorMessage: string | null = null;
+      let emailDeliveryStatus: string | null = null;
+      let emailMessageId: string | null = null;
+      let emailErrorMessage: string | null = null;
+
+      // Send SMS
+      if (recipientPhone) {
+        const twilioAccountSid = Deno.env.get("TWILIO_ACCOUNT_SID");
+        const twilioAuthToken = Deno.env.get("TWILIO_AUTH_TOKEN");
+        const twilioPhoneNumber = Deno.env.get("TWILIO_PHONE_NUMBER");
+
+        if (twilioAccountSid && twilioAuthToken && twilioPhoneNumber) {
+          try {
+            const formattedPhone = formatPhoneE164(recipientPhone);
+            const smsMessage = `${business.name}: You're invited to work as ${existingInvite.role} on ${pourDateFormatted}${timeFormatted}.\nView & respond: ${inviteUrl}`;
+
+            const twilioUrl = `https://api.twilio.com/2010-04-01/Accounts/${twilioAccountSid}/Messages.json`;
+            const twilioAuth = btoa(`${twilioAccountSid}:${twilioAuthToken}`);
+
+            const smsResponse = await fetch(twilioUrl, {
+              method: "POST",
+              headers: {
+                Authorization: `Basic ${twilioAuth}`,
+                "Content-Type": "application/x-www-form-urlencoded",
+              },
+              body: new URLSearchParams({
+                To: formattedPhone,
+                From: twilioPhoneNumber,
+                Body: smsMessage,
+              }),
+            });
+
+            if (!smsResponse.ok) {
+              const smsError = await smsResponse.text();
+              console.error("Twilio SMS failed:", smsError);
+              smsDeliveryStatus = "failed";
+              smsErrorMessage = smsError.substring(0, 500);
+            } else {
+              const smsResult = await smsResponse.json();
+              console.log("SMS resent successfully to", formattedPhone);
+              smsDeliveryStatus = "sent";
+              smsMessageSid = smsResult.sid || null;
+            }
+          } catch (smsErr: any) {
+            console.error("SMS sending error:", smsErr);
+            smsDeliveryStatus = "failed";
+            smsErrorMessage = smsErr.message || "Unknown error";
+          }
+        }
+      }
+
+      // Send email
+      if (recipientEmail) {
+        const resendApiKey = Deno.env.get("RESEND_API_KEY");
+        if (resendApiKey) {
+          try {
+            const resend = new Resend(resendApiKey);
+
+            const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f5f5f5; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+          <tr>
+            <td style="background-color: #1f2937; padding: 24px; text-align: center;">
+              ${business.logo_url ? `<img src="${business.logo_url}" alt="${business.name}" style="max-height: 60px; max-width: 200px;">` : `<h1 style="color: #ffffff; margin: 0; font-size: 24px;">${business.name}</h1>`}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 32px 24px;">
+              <h2 style="color: #1f2937; margin: 0 0 24px 0; font-size: 20px;">You've been invited to work on a pour</h2>
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f9fafb; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
+                <tr>
+                  <td>
+                    <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">📅 <strong style="color: #1f2937;">${pourDateFormatted}</strong></p>
+                    ${displayTime ? `<p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">⏰ <strong style="color: #1f2937;">${displayTime}</strong></p>` : ""}
+                    <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px;">📍 <strong style="color: #1f2937;">${job.site_address}</strong></p>
+                    <p style="margin: 0; color: #6b7280; font-size: 14px;">🔧 Role: <strong style="color: #1f2937;">${existingInvite.role}</strong></p>
+                  </td>
+                </tr>
+              </table>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${inviteUrl}" style="display: inline-block; background-color: #f97316; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: 600; font-size: 16px;">View & Respond</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #f9fafb; padding: 20px 24px; text-align: center; border-top: 1px solid #e5e7eb;">
+              <p style="margin: 0; color: #9ca3af; font-size: 12px;">Powered by PourHub</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+            const fromEmail = business.inbound_email_alias 
+              ? `${business.inbound_email_alias}@pourhub.au`
+              : 'Hello@pourhub.au';
+
+            const emailResponse = await resend.emails.send({
+              from: `${business.name} <${fromEmail}>`,
+              to: [recipientEmail],
+              subject: `${business.name} - Work Invite for ${pourDateFormatted}`,
+              html: emailHtml,
+            });
+
+            if (emailResponse.error) {
+              console.error("Email send failed:", emailResponse.error);
+              emailDeliveryStatus = "failed";
+              emailErrorMessage = emailResponse.error.message || "Email delivery failed";
+            } else {
+              console.log("Email resent successfully to", recipientEmail);
+              emailDeliveryStatus = "sent";
+              emailMessageId = emailResponse.data?.id || null;
+            }
+          } catch (emailErr: any) {
+            console.error("Email sending error:", emailErr);
+            emailDeliveryStatus = "failed";
+            emailErrorMessage = emailErr.message || "Unknown error";
+          }
+        }
+      }
+
+      // Update delivery status
+      await supabase
+        .from("external_invites")
+        .update({
+          sms_delivery_status: smsDeliveryStatus,
+          sms_message_sid: smsMessageSid,
+          sms_error_message: smsErrorMessage,
+          email_delivery_status: emailDeliveryStatus,
+          email_message_id: emailMessageId,
+          email_error_message: emailErrorMessage,
+        })
+        .eq("id", existingInvite.id);
+
+      // Log audit event
+      await supabase.from("external_invite_events").insert({
+        external_invite_id: existingInvite.id,
+        event_type: "resent",
+        metadata: {
+          sent_via: sentVia,
+          sent_by: user.id,
+          sms_status: smsDeliveryStatus,
+          email_status: emailDeliveryStatus,
+          token_rotated: true,
+        },
+      });
+
+      console.log("Resend completed successfully");
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          invite_id: existingInvite.id,
+          sent_via: sentVia,
+          sms_status: smsDeliveryStatus,
+          email_status: emailDeliveryStatus,
+        }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // Validate required fields
     if (!body.job_pour_id || !body.recipient_name || !body.role) {
@@ -272,7 +571,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Invite created:", invite.id);
 
     // Build invite URL
-    const inviteUrl = `https://pourhub.com.au/i/${rawToken}`;
+    const inviteUrl = `${appUrl}/i/${rawToken}`;
 
     // Format pour date for messaging
     const pourDateFormatted = pourData.pour_date

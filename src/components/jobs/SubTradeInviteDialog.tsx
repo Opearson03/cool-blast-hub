@@ -148,7 +148,7 @@ export function SubTradeInviteDialog({
     }
 
     try {
-      await sendInvite.mutateAsync({
+      const result = await sendInvite.mutateAsync({
         job_pour_id: pourId,
         recipient_name: selectedSubbie.recipient_name,
         role: selectedSubbie.role,
@@ -158,7 +158,45 @@ export function SubTradeInviteDialog({
         start_time: startTime || undefined,
       });
 
-      toast.success("Invite sent successfully");
+      // Show appropriate toast based on delivery results
+      const smsOk = result.sms_status === "sent";
+      const emailOk = result.email_status === "sent";
+      const smsFailed = result.sms_status === "failed";
+      const emailFailed = result.email_status === "failed";
+
+      if (smsOk && emailOk) {
+        toast.success("Invite sent via SMS and email");
+      } else if (smsOk && !result.email_status) {
+        toast.success("Invite sent via SMS");
+      } else if (emailOk && !result.sms_status) {
+        toast.success("Invite sent via email");
+      } else if (emailOk && smsFailed) {
+        toast.warning("Email sent, but SMS delivery failed", {
+          description: "The contractor received the email but SMS could not be delivered."
+        });
+      } else if (smsOk && emailFailed) {
+        toast.warning("SMS sent, but email delivery failed", {
+          description: "The contractor received the SMS but email could not be delivered."
+        });
+      } else if (smsFailed && emailFailed) {
+        toast.error("Delivery failed", {
+          description: "Both SMS and email delivery failed. Please check the contact details."
+        });
+        return; // Keep dialog open so user can fix
+      } else if (smsFailed) {
+        toast.error("SMS delivery failed", {
+          description: "Could not send SMS. Please check the phone number or use email instead."
+        });
+        return; // Keep dialog open
+      } else if (emailFailed) {
+        toast.error("Email delivery failed", {
+          description: "Could not send email. Please check the email address."
+        });
+        return; // Keep dialog open
+      } else {
+        toast.success("Invite sent successfully");
+      }
+
       onOpenChange(false);
     } catch (error: any) {
       toast.error(error.message || "Failed to send invite");
@@ -169,7 +207,7 @@ export function SubTradeInviteDialog({
     const role = data.role === "Other" && data.custom_role ? data.custom_role : data.role;
 
     try {
-      await sendInvite.mutateAsync({
+      const result = await sendInvite.mutateAsync({
         job_pour_id: pourId,
         recipient_name: data.recipient_name,
         role,
@@ -179,7 +217,45 @@ export function SubTradeInviteDialog({
         start_time: data.start_time || undefined,
       });
 
-      toast.success("Invite sent successfully");
+      // Show appropriate toast based on delivery results
+      const smsOk = result.sms_status === "sent";
+      const emailOk = result.email_status === "sent";
+      const smsFailed = result.sms_status === "failed";
+      const emailFailed = result.email_status === "failed";
+
+      if (smsOk && emailOk) {
+        toast.success("Invite sent via SMS and email");
+      } else if (smsOk && !result.email_status) {
+        toast.success("Invite sent via SMS");
+      } else if (emailOk && !result.sms_status) {
+        toast.success("Invite sent via email");
+      } else if (emailOk && smsFailed) {
+        toast.warning("Email sent, but SMS delivery failed", {
+          description: "The contractor received the email but SMS could not be delivered."
+        });
+      } else if (smsOk && emailFailed) {
+        toast.warning("SMS sent, but email delivery failed", {
+          description: "The contractor received the SMS but email could not be delivered."
+        });
+      } else if (smsFailed && emailFailed) {
+        toast.error("Delivery failed", {
+          description: "Both SMS and email delivery failed. Please check the contact details."
+        });
+        return; // Keep dialog open so user can fix
+      } else if (smsFailed) {
+        toast.error("SMS delivery failed", {
+          description: "Could not send SMS. Please check the phone number or use email instead."
+        });
+        return; // Keep dialog open
+      } else if (emailFailed) {
+        toast.error("Email delivery failed", {
+          description: "Could not send email. Please check the email address."
+        });
+        return; // Keep dialog open
+      } else {
+        toast.success("Invite sent successfully");
+      }
+
       form.reset();
       onOpenChange(false);
     } catch (error: any) {
