@@ -1,182 +1,189 @@
 
-## Goal
-Fix two related problems in the sub-trade invite system:
-1) When a pour date changes and you choose “Reschedule & Notify”, the contractor receives a link but it fails (or they can’t re-confirm).
-2) SMS invites sometimes “fail” (or appear sent when they actually failed), and resending can be blocked.
+# Plan: Scope-Aware Inclusions and Exclusions System
+
+## Problem Summary
+When a user creates an estimate with only "demolition" as the scope, the automatic inclusions still show concrete-related items like "Supply of concrete to site", "Curing compound application", and "Power floating / finishing". These items are irrelevant to a demolition-only quote.
+
+The root cause is that `DEFAULT_INCLUSIONS` and `DEFAULT_EXCLUSIONS` are **static lists** with no awareness of which scopes or modules are actually selected.
 
 ---
 
-## What I found (root causes)
-
-### A) Reschedule links are being generated incorrectly
-In `supabase/functions/notify-subtrade-reschedule/index.ts` the reschedule SMS/email link is built like:
-
-- `https://pourhub.com.au/i/${invite.token_hash.slice(0, 43)}`
-
-But `token_hash` is a SHA-256 hex hash of the real token, not the real token itself. Slicing it produces a string that will never validate in `validate-subtrade-token` (which re-hashes the provided token and compares hashes). So the link can’t work.
-
-### B) Reschedule doesn’t reset “already responded” invites
-Even if the link were correct, `validate-subtrade-token` intentionally blocks invites that are already `accepted`/`declined` and the contractor can’t re-respond. In a reschedule scenario we want them to confirm again.
-
-### C) Some SMS “failures” are real delivery failures (Twilio trial restriction)
-Your database contains SMS failures like Twilio error `21608` (trial accounts can’t send to unverified numbers). So the system may create an invite successfully, but SMS delivery fails. Right now, some UI flows still show “Invite sent successfully” even when `sms_delivery_status = failed`.
-
-### D) Resend workflow is currently broken for sub-trade invites
-`useResendSubTradeNotification()` sends `resend_invite_id`, but `send-subtrade-invite` does not handle it. The duplicate-invite protection then blocks the resend (“Duplicate found by name/phone”), preventing recovery after a failed SMS.
-
-### E) Links are hardcoded to `https://pourhub.com.au`
-Some functions hardcode `pourhub.com.au`. If your environment/published URL differs, recipients may land on the wrong site. You already have an `APP_URL` backend secret; we should use it for all public links.
+## Solution Overview
+Transform the inclusions/exclusions system from a static checklist to a **dynamic, scope-aware system** that:
+1. Maps each inclusion/exclusion to the modules that make it relevant
+2. Only shows and pre-selects items when their associated modules are active
+3. Maintains manual override capability (user can still toggle items on/off)
 
 ---
 
-## Implementation plan
+## Technical Implementation
 
-### 1) Fix reschedule notifications to send a valid working link
-**File:** `supabase/functions/notify-subtrade-reschedule/index.ts`
+### 1. Enhance Inclusion/Exclusion Data Structures
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
 
-For `action === "reschedule"`:
+Update `DEFAULT_INCLUSIONS` and `DEFAULT_EXCLUSIONS` to include module mappings:
 
-1. **Use APP_URL as the base URL**
-   - `const appUrl = (Deno.env.get("APP_URL") || "").replace(/\/+$/, "");`
-   - Build links as `${appUrl}/i/${rawToken}`.
+```text
+Before:
+  { id: "concrete_supply", label: "Supply of concrete to site" }
 
-2. **Generate a fresh token on reschedule (so we can send a real token)**
-   - Create a new `rawToken` (URL-safe base64) and `tokenHash = sha256(rawToken)`.
+After:
+  { 
+    id: "concrete_supply", 
+    label: "Supply of concrete to site",
+    relevantModules: ["concrete-supply"]  // Only show when concrete-supply module is active
+  }
+```
 
-3. **Update the invite(s) in the database to match the new token hash**
-   - **Single invite:** update that invite row’s `token_hash = tokenHash`.
-   - **Batch invite:** update **all rows in that batch** (`batch_id = ...`) to:
-     - `batch_token_hash = tokenHash`
-     - `token_hash = tokenHash`
-     - (keep other pours’ statuses as-is; only reset the rescheduled pour invite status)
+Complete mappings:
+| Inclusion ID | Relevant Modules |
+|-------------|------------------|
+| concrete_supply | concrete-supply |
+| labour | labour-prep, labour-place |
+| reo_supply | reinforcement-slab, reinforcement-raft, reinforcement-piers, reinforcement-footing, reinforcement-pad |
+| finishing | surface-finishing, architectural-finishing |
+| curing | surface-finishing (when curing enabled) |
+| site_cleanup | cleanup |
+| pump_hire | concrete-pumping |
+| formwork | formwork |
 
-4. **Reset invite state so the contractor can re-confirm**
-   - For invites tied to the rescheduled pour:
-     - set `status = "sent"`
-     - set `responded_at = null`
-     - optionally `viewed_at = null`
-     - refresh `token_expires_at` (e.g., +14 days)
+| Exclusion ID | Relevant Modules (invert logic) |
+|-------------|--------------------------------|
+| exc_excavation | excavation (exclude when NOT enabled) |
+| exc_soil_removal | excavation |
+| exc_boxing | formwork |
+| exc_waterproofing | (always available) |
+| exc_drainage | plumbing |
+| exc_saw_cutting | joints-control, demolition |
+| exc_sealing | surface-finishing |
+| exc_permits | (always available - global) |
+| exc_engineering | (always available - global) |
 
-5. **Send ONE notification per recipient (avoid duplicate SMS/email spam)**
-   - Group invites by `(batch_id or invite.id)` and send one message per group.
-   - Message includes old date/new date + correct link using the new `rawToken`.
+### 2. Create Helper Function to Determine Active Modules
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
 
-6. **Return detailed results to the client**
-   - keep/extend existing response: `sms_sent`, `sms_failed`, `emails_sent`, `emails_failed`, plus per-recipient errors.
+Add a function that collects all active modules from selected scopes:
 
-This resolves:
-- invalid reschedule link
-- “already accepted so you can’t confirm again”
-- wrong domain issues via APP_URL
+```typescript
+function getActiveModulesFromScopes(
+  selectedScopes: Set<string>, 
+  modularScopeStates: Record<string, ModularScopeState>
+): Set<string> {
+  const activeModules = new Set<string>();
+  
+  for (const scopeId of selectedScopes) {
+    const scopeDef = SCOPE_REGISTRY[scopeId];
+    if (scopeDef?.moduleIds) {
+      scopeDef.moduleIds.forEach(m => activeModules.add(m));
+    }
+  }
+  
+  return activeModules;
+}
+```
+
+### 3. Filter Visible Inclusions/Exclusions Based on Active Modules
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
+
+In the "conditions" step, filter the displayed inclusions/exclusions:
+
+```typescript
+const visibleInclusions = useMemo(() => {
+  const activeModules = getActiveModulesFromScopes(selectedScopes, modularScopeStates);
+  
+  return DEFAULT_INCLUSIONS.filter(item => {
+    // Items with no module mapping are always shown (global items)
+    if (!item.relevantModules || item.relevantModules.length === 0) return true;
+    // Show only if at least one relevant module is active
+    return item.relevantModules.some(m => activeModules.has(m));
+  });
+}, [selectedScopes, modularScopeStates]);
+
+const visibleExclusions = useMemo(() => {
+  // Similar logic for exclusions
+});
+```
+
+### 4. Smart Pre-Selection Logic
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
+
+Update the initialization logic to only pre-select relevant items:
+
+```typescript
+// When selectedScopes changes, update the pre-selected inclusions
+useEffect(() => {
+  const activeModules = getActiveModulesFromScopes(selectedScopes, modularScopeStates);
+  
+  // Auto-select inclusions that match active modules
+  const newInclusions = new Set<string>();
+  DEFAULT_INCLUSIONS.forEach(item => {
+    const isRelevant = !item.relevantModules || 
+      item.relevantModules.length === 0 || 
+      item.relevantModules.some(m => activeModules.has(m));
+    
+    if (isRelevant) {
+      newInclusions.add(item.id);
+    }
+  });
+  
+  setSelectedInclusions(newInclusions);
+}, [selectedScopes]);
+```
+
+### 5. Update the Conditions UI to Only Show Relevant Items
+**File:** `src/components/estimates/EstimateFormDialog.tsx`
+
+Modify the "conditions" step JSX:
+
+```tsx
+{visibleInclusions.map((item) => (
+  <label key={item.id} ...>
+    {/* existing checkbox logic */}
+  </label>
+))}
+```
+
+Add a helper message when no inclusions are relevant:
+```tsx
+{visibleInclusions.length === 0 && (
+  <p className="text-sm text-muted-foreground">
+    No standard inclusions apply to this scope. Add custom notes if needed.
+  </p>
+)}
+```
+
+### 6. Demolition-Specific Inclusions
+Since demolition is a unique scope with only 2 modules (`demolition`, `extra-items`), we should add demolition-specific inclusion options:
+
+```typescript
+// Add to DEFAULT_INCLUSIONS:
+{ id: "demo_removal", label: "Removal and disposal of demolished concrete", relevantModules: ["demolition"] },
+{ id: "demo_saw_cutting", label: "Saw cutting as required", relevantModules: ["demolition"] },
+```
 
 ---
 
-### 2) Fix invite sending links to use APP_URL everywhere (not hardcoded domain)
-**Files:**
-- `supabase/functions/send-subtrade-invite/index.ts`
-- `supabase/functions/send-batch-subtrade-invite/index.ts`
-- (and any other invite-related function that outputs `/i/...` links)
+## Files to be Modified
 
-Changes:
-- Replace `https://pourhub.com.au/i/...` with `${appUrl}/i/...` using `APP_URL`.
-- Keep the existing token hashing approach (store only hashes), but always send raw token in the link.
-
-This ensures links work in every environment and after any domain change.
+| File | Changes |
+|------|---------|
+| `src/components/estimates/EstimateFormDialog.tsx` | - Update `DEFAULT_INCLUSIONS` and `DEFAULT_EXCLUSIONS` with module mappings<br>- Add `getActiveModulesFromScopes()` helper<br>- Add `visibleInclusions` and `visibleExclusions` memos<br>- Update conditions step UI to use filtered lists<br>- Update initialization and sync logic |
 
 ---
 
-### 3) Repair the resend workflow (so failed SMS can be retried)
-**File:** `supabase/functions/send-subtrade-invite/index.ts`
+## Expected Behavior After Fix
 
-Add support for optional `resend_invite_id`:
-1. If `resend_invite_id` is present:
-   - Load that invite by ID.
-   - Verify it’s a `sub_trade` invite and belongs to the same business as the authenticated user (via the pour → job → business relationship).
-   - Regenerate a new token + hash, update that invite row:
-     - `token_hash`, `token_expires_at`, `sent_at = now()`
-     - reset delivery fields (`sms_delivery_status`, `sms_error_message`, etc.)
-     - keep status as `sent` (or set to `sent`)
-   - Send notifications again.
-   - Skip the duplicate-invite check (because this is explicitly a resend).
-
-2. Update the response so the UI can show whether SMS/email succeeded.
-
-This resolves the current “duplicate blocks resend” behavior shown in logs.
+| Scenario | Before | After |
+|----------|--------|-------|
+| Demolition-only quote | Shows 8 inclusions including "concrete supply", "curing", "finishing" | Shows only "Removal and disposal of demolished concrete", "Site cleanup" |
+| Raft slab quote | Shows all 8 inclusions | Shows all relevant inclusions (concrete, reo, finishing, etc.) |
+| Piers + Demolition | Mixed inclusions | Shows pier-relevant + demolition-relevant items |
 
 ---
 
-### 4) Improve UI feedback: don’t say “Invite sent” when SMS failed
-**Frontend files to update (where invites are sent):**
-- `src/components/jobs/SubTradeInviteDialog.tsx`
-- `src/components/schedule/ScheduleSubbieDialog.tsx`
-- `src/components/schedule/PourDetailSheet.tsx`
-- `src/components/jobs/PourFormDialog.tsx` (the “create & invite” flow)
-- `src/components/jobs/wizard/SubbieSelectionStep.tsx`
-- `src/components/jobs/SubbieDetailSheet.tsx`
-
-Changes:
-- After `mutateAsync()`, inspect returned `{ sms_status, email_status, warning? }`.
-- Show:
-  - `toast.success` only if at least one channel succeeded.
-  - `toast.warning` if email succeeded but SMS failed (or rate-limited).
-  - `toast.error` if both failed.
-- Keep the dialog open when everything failed (so user can adjust phone/email).
-
-Additionally:
-- In `src/components/jobs/SubTradesList.tsx`, show a **Resend** button when:
-  - `sms_delivery_status === "failed" || sms_delivery_status === "rate_limited" || email_delivery_status === "failed"`
-  - and wire it to the existing `useResendSubTradeNotification()`.
-
----
-
-### 5) Make Twilio trial restrictions obvious (optional but recommended)
-When SMS fails with Twilio error code `21608`, improve the surfaced message:
-- Parse JSON-ish `sms_error_message` when possible.
-- Display a friendly tooltip text like:
-  - “SMS failed: Twilio trial accounts can only message verified numbers.”
-
-This can be done in `DeliveryStatusIndicator` (tooltip formatting) and/or in the toast.
-
----
-
-## How we’ll test (end-to-end)
-
-1. **Create an invite** to a test phone/email.
-   - Confirm the invite link opens `/i/:token` and loads the invite details.
-
-2. **Accept the invite** as the contractor.
-
-3. **Change pour date** and choose “Reschedule & Notify”.
-   - Contractor receives a new link.
-   - Link loads successfully (no “invalid/expired”).
-   - Invite is no longer “already responded”; contractor can accept/decline again.
-
-4. **Force an SMS failure** (e.g., known-unverified number in Twilio trial).
-   - Ensure UI shows warning/error (not success).
-   - Ensure delivery indicator shows failure details.
-   - Click “Resend” and confirm the resend is not blocked by duplicate checks.
-
-5. Verify `external_invites` rows update correctly:
-   - token hashes change on reschedule/resend
-   - statuses reset only where intended
-   - delivery status fields populated consistently
-
----
-
-## Deliverables (files likely changed)
-
-### Backend functions
-- `supabase/functions/notify-subtrade-reschedule/index.ts` (main fix)
-- `supabase/functions/send-subtrade-invite/index.ts` (APP_URL + resend_invite_id support + improved delivery status defaults)
-- `supabase/functions/send-batch-subtrade-invite/index.ts` (APP_URL)
-
-### Frontend
-- Invite sending UIs listed above
-- `src/components/jobs/SubTradesList.tsx` (resend button conditions)
-- (Optional) `src/components/jobs/DeliveryStatusIndicator.tsx` (friendlier Twilio error display)
-
----
-
-## Notes / Constraints
-- We will continue storing only hashed tokens in the database (good security practice). For reschedule/resend we generate new tokens and update hashes accordingly.
-- If your SMS provider account is still in trial mode, some “SMS failures” are expected until numbers are verified or the account is upgraded. The UI changes will make this clear instead of silently reporting success.
+## Testing Checklist
+1. Create new estimate with only "Demolition" scope → verify only demolition-relevant inclusions appear
+2. Create new estimate with "Raft Slab" scope → verify all concrete-related inclusions appear
+3. Create estimate, switch scopes, verify inclusions update accordingly
+4. Load an existing estimate → verify saved inclusions persist correctly
+5. Verify PDF output shows only the selected inclusions
