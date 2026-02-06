@@ -950,7 +950,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                               <td className="py-2 px-2"></td>
                               <td className="py-2 px-2"></td>
                               <td className="py-2 px-2"></td>
-                              <td className="py-2 px-2 text-right text-gray-400">0.00</td>
+                              <td className="py-2 px-2">&nbsp;</td>
                             </tr>
                           );
                         })}
