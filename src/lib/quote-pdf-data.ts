@@ -206,20 +206,21 @@ export function extractProjectSummary(
     const scope = scopes[scopeId];
     const scopeAnswers = scope.scopeAnswers || scope;
     
-    // Extract volume
-    if (scopeAnswers.concreteVolume) {
-      summary.totalVolume += Number(scopeAnswers.concreteVolume) || 0;
-    }
-    if (scopeAnswers.total_volume) {
-      summary.totalVolume += Number(scopeAnswers.total_volume) || 0;
-    }
-    if (scopeAnswers.volume) {
-      summary.totalVolume += Number(scopeAnswers.volume) || 0;
-    }
+    // Extract volume - check scopeAnswers first, then fall back to moduleAnswers
+    const moduleAnswers = scope.moduleAnswers || {};
+    const scopeVolume = Number(scopeAnswers.concreteVolume) || 
+                        Number(scopeAnswers.total_volume) || 
+                        Number(scopeAnswers.volume) || 
+                        Number(moduleAnswers['concrete-supply']?.calculated_volume) || 0;
+    summary.totalVolume += scopeVolume;
     
-    // Extract area - check for multi-area format first
+    // Extract area - prefer _actualArea from takeoff, then multi-area, then length x width
     if (scopeAnswers.areas && Array.isArray(scopeAnswers.areas)) {
       summary.totalArea += scopeAnswers.areas.reduce((sum: number, area: any) => {
+        // Prefer _actualArea from takeoff over length * width
+        if (area._actualArea && Number(area._actualArea) > 0) {
+          return sum + Number(area._actualArea);
+        }
         const l = Number(area.length) || 0;
         const w = Number(area.width) || 0;
         return sum + l * w;
@@ -245,12 +246,13 @@ export function extractProjectSummary(
       summary.perimeter += 2 * ((Number(scopeAnswers.length) || 0) + (Number(scopeAnswers.width) || 0));
     }
     
-    // Extract concrete strength (take first non-empty)
+    // Extract concrete strength (take first non-empty) - include moduleAnswers fallback
     if (!summary.concreteStrength) {
       const strength = scopeAnswers.mpa_strength || 
                        scopeAnswers.concreteStrength || 
                        scopeAnswers.concrete_strength ||
-                       scope.moduleAnswers?.['concrete-supply']?.mpa_strength;
+                       moduleAnswers['concrete-supply']?.concrete_type ||
+                       moduleAnswers['concrete-supply']?.mpa_strength;
       if (strength) {
         summary.concreteStrength = String(strength).includes('MPa') ? String(strength) : `${strength}MPa`;
       }
@@ -378,7 +380,9 @@ export function extractScopeBreakdowns(
     const scopeAnswers = scope.scopeAnswers || scope;
     const moduleAnswers = scope.moduleAnswers || {};
     
-    const volume = Number(scopeAnswers.concreteVolume || scopeAnswers.total_volume || scopeAnswers.volume || 0);
+    // Extract volume - fall back to moduleAnswers['concrete-supply'].calculated_volume
+    const volume = Number(scopeAnswers.concreteVolume || scopeAnswers.total_volume || scopeAnswers.volume || 
+                          moduleAnswers['concrete-supply']?.calculated_volume || 0);
     let area = Number(scopeAnswers.area || 0);
     
     if (!area && scopeAnswers.length && scopeAnswers.width) {
@@ -391,19 +395,35 @@ export function extractScopeBreakdowns(
     let individualAreas: Array<{ name: string; length: number; width: number; area: number }> | undefined;
     if (scopeAnswers.areas && Array.isArray(scopeAnswers.areas)) {
       individualAreas = scopeAnswers.areas
-        .filter((a: any) => (Number(a.length) || 0) > 0 && (Number(a.width) || 0) > 0)
-        .map((a: any) => ({
-          name: a.name || 'Unnamed Area',
-          length: Number(a.length) || 0,
-          width: Number(a.width) || 0,
-          area: (Number(a.length) || 0) * (Number(a.width) || 0),
-        }));
+        .filter((a: any) => {
+          // Include areas with _actualArea from takeoff OR with valid length x width
+          const hasActualArea = Number(a._actualArea) > 0;
+          const hasDimensions = (Number(a.length) || 0) > 0 && (Number(a.width) || 0) > 0;
+          return hasActualArea || hasDimensions;
+        })
+        .map((a: any) => {
+          // Prefer _actualArea from takeoff for accuracy
+          const actualArea = Number(a._actualArea) > 0 ? Number(a._actualArea) : 
+                             (Number(a.length) || 0) * (Number(a.width) || 0);
+          return {
+            name: a.name || 'Unnamed Area',
+            length: Number(a.length) || 0,
+            width: Number(a.width) || 0,
+            area: actualArea,
+          };
+        });
+      
+      // If no top-level area was found, sum from individual areas
+      if (!area && individualAreas.length > 0) {
+        area = individualAreas.reduce((sum, a) => sum + a.area, 0);
+      }
     }
     
-    // Extract concrete strength
+    // Extract concrete strength - fall back to moduleAnswers
     const concreteStrength = scopeAnswers.mpa_strength || 
                               scopeAnswers.concreteStrength || 
                               scopeAnswers.concrete_strength ||
+                              moduleAnswers['concrete-supply']?.concrete_type ||
                               moduleAnswers['concrete-supply']?.mpa_strength;
     
     // Extract reinforcement details
