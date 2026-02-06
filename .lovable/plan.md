@@ -1,118 +1,145 @@
 
-# Fix: Duplicate Scope Names in PDF Quote Summary
 
-## Problem
+# Plan: Add m³ Rate Pricing Option for Demolition Excavation
 
-In the PDF Quote "Summary of Customer Requirements" section, scopes are being displayed with duplicated names like "Piers: Piers" instead of showing meaningful scope details.
+## Overview
+
+Add a toggle to allow users to choose between **hourly rate** pricing (current default) and **m³ rate** pricing for excavation in the demolition scope. This gives flexibility for different quoting scenarios.
+
+## Current Implementation
 
 ```text
-┌────────────────────────────────────────────────┐
-│  SUMMARY OF CUSTOMER REQUIREMENTS              │
-├────────────────────────────────────────────────┤
-│  28 John Street South Melbourne                │
-│  Piers: Piers                        ← Bug!    │
-└────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  Is an excavator required?                    [Toggle]  │
+├─────────────────────────────────────────────────────────┤
+│  Excavator Type:     [3.2T Excavator ▼]                 │
+│  Hourly Rate:        [$150 /hr]                         │
+│  Hours:              [4 hrs]                            │
+│  Float Charge:       [$150]                             │
+│                                                         │
+│  Total: $750 ($600 hire + $150 float)                   │
+└─────────────────────────────────────────────────────────┘
 ```
 
-## Root Cause
+**Current calculation:**
+`Excavator Cost = (Hours × Hourly Rate) + Float Charge`
 
-The issue originates in `EstimateFormDialog.tsx` where the `estimate.description` field is built:
+## Proposed UI
 
-1. **Line 559-573**: When calculating `scopeTotals`, if no specific measurements exist (area, num_piers, total_length), the description defaults to the scope name:
-   ```typescript
-   let desc = scopeDef?.name || scopeType;  // e.g., "Piers"
-   ```
-
-2. **Lines 1242-1245**: The estimate description is built by combining label + description:
-   ```typescript
-   `${label}: ${description || 'Not configured'}`
-   // Results in: "Piers: Piers"
-   ```
-
-3. **PrintableEstimate.tsx line 842**: The PDF directly renders `estimate.description`, showing the duplicate.
-
-## Solution
-
-Fix the description building logic in `EstimateFormDialog.tsx` to avoid duplication. When the scope description equals the scope name, use a more meaningful fallback or skip the redundant label.
-
-### Technical Changes
-
-**File: `src/components/estimates/EstimateFormDialog.tsx`**
-
-**Change 1: Fix scopeTotals description building (~lines 559-573)**
-
-Instead of defaulting to the scope name, set description to empty string or a meaningful placeholder when no measurements are available:
-
-```typescript
-// Before
-let desc = scopeDef?.name || scopeType;
-if (state.scopeAnswers) {
-  if (state.scopeAnswers.area) {
-    desc = `${state.scopeAnswers.area}m²`;
-  } else if (state.scopeAnswers.num_piers) {
-    desc = `${state.scopeAnswers.num_piers} piers`;
-  } else if (state.scopeAnswers.total_length) {
-    desc = `${state.scopeAnswers.total_length}m`;
-  }
-}
-
-// After
-let desc = "";
-if (state.scopeAnswers) {
-  if (state.scopeAnswers.area) {
-    desc = `${state.scopeAnswers.area}m²`;
-  } else if (state.scopeAnswers.num_piers) {
-    desc = `${state.scopeAnswers.num_piers} piers`;
-  } else if (state.scopeAnswers.total_length) {
-    desc = `${state.scopeAnswers.total_length}m`;
-  }
-  // Could also add more measurement fallbacks here if needed
-}
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Is an excavator required?                    [Toggle]  │
+├─────────────────────────────────────────────────────────┤
+│  Pricing Method:     [ Hourly Rate ▼ ]                  │
+│                      ┌─────────────────┐                │
+│                      │ Hourly Rate     │ ← Current      │
+│                      │ m³ Rate         │ ← New option   │
+│                      └─────────────────┘                │
+├─────────────────────────────────────────────────────────┤
+│  IF Hourly Rate selected:                               │
+│    Excavator Type:   [3.2T Excavator ▼]                 │
+│    Hourly Rate:      [$150 /hr]                         │
+│    Hours:            [4 hrs]                            │
+│    Float Charge:     [$150]                             │
+│    Total: $750 ($600 hire + $150 float)                 │
+├─────────────────────────────────────────────────────────┤
+│  IF m³ Rate selected:                                   │
+│    Rate per m³:      [$60 /m³]                          │
+│    Volume:           2.40 m³ (auto-calculated)          │
+│    Float Charge:     [$150]                             │
+│    Total: $294 ($144 excavation + $150 float)           │
+└─────────────────────────────────────────────────────────┘
 ```
 
-**Change 2: Fix description assembly (~lines 1242-1246)**
+## Technical Changes
 
-When the description is empty or matches the scope name, only show the label:
+### File 1: `src/lib/estimate-components/modules/demolition.ts`
 
+**Add new question fields:**
+- `excavator_pricing_method`: select with options 'hourly' (default) and 'm3'
+- `excavator_m3_rate`: currency field with default $60/m³
+
+**Update calculate function:**
+- Check `excavator_pricing_method`
+- If 'hourly': use existing logic (hours × rate)
+- If 'm3': calculate as `totalVolume × m3Rate`
+
+**Add price list key:**
+- Add `priceListKey: 'excavation.EXC_M3'` for the m³ rate
+
+---
+
+### File 2: `src/lib/price-list-defaults.ts`
+
+**Add new price list item:**
 ```typescript
-// Before
-const descriptionParts = selectedScopesArray.map(scope => {
-  const label = getScopeLabel(scope);
-  const { description } = scopeTotals[scope];
-  return `${label}: ${description || 'Not configured'}`;
-});
+{ category: 'excavation', item_code: 'EXC_M3', item_name: 'Excavation Rate per m³', unit: '/m³', default_price: 60 },
+```
 
-// After
-const descriptionParts = selectedScopesArray.map(scope => {
-  const label = getScopeLabel(scope);
-  const { description } = scopeTotals[scope];
-  // If no meaningful description, just show the label
-  return description ? `${label}: ${description}` : label;
-});
+---
+
+### File 3: `src/components/estimates/calculators/MultiDemolitionInput.tsx`
+
+**Add new props:**
+- `excavatorPricingMethod?: string`
+- `onExcavatorPricingMethodChange?: (method: string) => void`
+- `excavatorM3Rate?: number`
+- `onExcavatorM3RateChange?: (rate: number) => void`
+- `totalVolume: number` (pass calculated volume for display)
+
+**Update UI:**
+- Add "Pricing Method" select dropdown
+- Conditionally show hourly inputs OR m³ inputs based on selection
+- Display calculated volume when m³ method is selected
+- Update total calculation display
+
+---
+
+### File 4: `src/components/estimates/calculators/ModuleSection.tsx`
+
+**Update component wiring:**
+- Pass new props to MultiDemolitionInput
+- Read/write new answer fields
+
+---
+
+## Calculation Logic
+
+### Hourly Method (existing)
+```
+Excavator Cost = (excavator_hours × excavator_rate) + excavator_float
+```
+
+### m³ Method (new)
+```
+Volume = sum of all demolition areas (length × width × thickness)
+Excavator Cost = (totalVolume × excavator_m3_rate) + excavator_float
+```
+
+## Line Item Display
+
+### Hourly Method
+```
+EXC 3.2T Excavator (4 hrs @ $150/hr)    4 hrs    $150    $600
+```
+
+### m³ Method  
+```
+Excavation (2.4 m³ @ $60/m³)            2.4 m³   $60     $144
 ```
 
 ## Files to Change
 
 | File | Change |
 |------|--------|
-| `src/components/estimates/EstimateFormDialog.tsx` | Fix description fallback logic in scopeTotals (~line 560) and description assembly (~line 1245) |
+| `src/lib/estimate-components/modules/demolition.ts` | Add pricing method toggle, m³ rate field, update calculate() |
+| `src/lib/price-list-defaults.ts` | Add EXC_M3 price list item |
+| `src/components/estimates/calculators/MultiDemolitionInput.tsx` | Add pricing method UI and m³ rate input |
+| `src/components/estimates/calculators/ModuleSection.tsx` | Wire new props to MultiDemolitionInput |
 
-## Expected Result
+## Default Behavior
 
-After the fix:
-- Scopes with measurements will show: "Piers: 12 piers"
-- Scopes without measurements will show: "Piers" (no duplication)
+- Default pricing method: **Hourly Rate** (maintains backward compatibility)
+- Default m³ rate: **$60/m³** (as requested)
+- Float charge applies to both methods
 
-```text
-┌────────────────────────────────────────────────┐
-│  SUMMARY OF CUSTOMER REQUIREMENTS              │
-├────────────────────────────────────────────────┤
-│  28 John Street South Melbourne                │
-│  Piers                               ← Fixed!  │
-└────────────────────────────────────────────────┘
-```
-
-Or with measurements:
-```text
-│  Piers: 12 piers                     ← Better! │
-```
