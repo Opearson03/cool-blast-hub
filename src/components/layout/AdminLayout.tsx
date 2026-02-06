@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Briefcase, Calendar, Users, FileText, Settings, LogOut, Menu, X, Lock, Crown } from "lucide-react";
+import { LayoutDashboard, Briefcase, Calendar, Users, FileText, Settings, LogOut, Menu, X, Lock, Crown, Loader2 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
@@ -33,6 +33,7 @@ const navItems: NavItem[] = [
 
 export function AdminLayout({ children }: { children: ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -41,6 +42,30 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   
   // Set dark mode as default for authenticated users
   useThemeOnAuth();
+
+  const handleUpgrade = async () => {
+    setIsUpgrading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: { upgrade: true, tier: "pro" },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, "_blank");
+      }
+    } catch (error) {
+      console.error("Upgrade error:", error);
+      toast({
+        title: "Upgrade failed",
+        description: "Please try again or contact support.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
 
   const handleLogout = async () => {
     // Clear all cached queries before signing out to prevent cross-business data leakage
@@ -163,11 +188,18 @@ export function AdminLayout({ children }: { children: ReactNode }) {
                 <p className="text-sm text-muted-foreground mb-3">
                   Unlock jobs, scheduling, and full business management.
                 </p>
-                <Link to="/admin/estimates" onClick={() => setMobileMenuOpen(false)}>
-                  <Button size="sm" className="w-full">
-                    View Plans
-                  </Button>
-                </Link>
+                <Button 
+                  size="sm" 
+                  className="w-full" 
+                  onClick={() => {
+                    setMobileMenuOpen(false);
+                    handleUpgrade();
+                  }}
+                  disabled={isUpgrading}
+                >
+                  {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Upgrade Now
+                </Button>
               </div>
             )}
           </nav>
@@ -203,11 +235,15 @@ export function AdminLayout({ children }: { children: ReactNode }) {
               <p className="text-xs text-muted-foreground mb-2">
                 Unlock all features
               </p>
-              <Link to="/admin/estimates">
-                <Button size="sm" className="w-full text-xs">
-                  View Plans
-                </Button>
-              </Link>
+              <Button 
+                size="sm" 
+                className="w-full text-xs" 
+                onClick={handleUpgrade}
+                disabled={isUpgrading}
+              >
+                {isUpgrading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                Upgrade Now
+              </Button>
             </div>
           </div>
         )}
