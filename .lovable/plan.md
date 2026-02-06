@@ -1,112 +1,95 @@
 
-# Plan: Attach Building Plans to Quote Requests
+# Plan: Fix RFQ Popup Content Overflow Issue
 
-## Overview
-Add the ability to include building plans when sending a Quote Request (RFQ) to suppliers. This is essential for items like waffle pods, reo cages, and fabricated steel where suppliers need to see the plans to provide accurate pricing.
+## Problem
+Content throughout the Order Wizard dialog is being cut off and hidden beneath the footer buttons ("Back", "Cancel", "Send PO/Request Quote"). The ScrollArea is not properly containing the content within the available space, causing content to fall off the bottom.
 
-## Current State
-- Jobs can have building plans stored in two places:
-  1. **documents table** (category: "job") - Plans copied from estimates when job is created
-  2. **estimate_takeoffs + takeoff_files** - Original plans linked to the source estimate
-- The Order Wizard supports Quote Requests (RFQ) and Purchase Orders (PO)
-- Email sending is handled by the `send-purchase-order` edge function
-- Resend API is used for sending emails and supports attachments
+## Root Cause Analysis
 
-## User Experience
-
-### Flow
-1. User selects "Request Quote" in the BOQ Order Wizard
-2. User proceeds through Type → Items → Supplier → Delivery steps
-3. **NEW**: In the Delivery step (or a new step), a toggle appears:
-   - "Include building plans for supplier to quote from"
-4. If toggled ON:
-   - If job has plans attached: Show the list of available plans with checkboxes
-   - If no plans exist: Show an upload area to add plans now
-5. Selected plans are sent as email attachments with the RFQ
-
-### UI Mockup (Delivery Step Addition)
+The layout structure is:
 ```
-┌──────────────────────────────────────────┐
-│ ☐ Include building plans                 │
-│                                          │
-│   Some items require suppliers to see    │
-│   the plans for accurate pricing.        │
-│                                          │
-│   ┌──────────────────────────────────┐   │
-│   │ ☑ Floor Plan - Page 1.pdf        │   │
-│   │ ☑ Foundation Plan.pdf            │   │
-│   │ ☐ Elevation Drawing.pdf          │   │
-│   └──────────────────────────────────┘   │
-│                                          │
-│   [+ Upload additional plan]             │
-└──────────────────────────────────────────┘
+DialogContent (max-h-[85vh], flex flex-col, overflow-hidden)
+  ├── StepIndicator (fixed height)
+  ├── ScrollArea (flex-1, min-h-0)  <-- ISSUE HERE
+  │     └── Viewport (needs explicit overflow control)
+  │           └── div (min-h-[200px], pb-4)
+  │                 └── Step content
+  └── DialogFooter (fixed height, pt-4 border-t)
 ```
 
----
+**Issues identified:**
+1. The Radix ScrollArea Viewport needs `!overflow-y-auto` to ensure scrolling works in flexbox
+2. The inner content wrapper doesn't have enough bottom padding to clear the footer
+3. The ScrollArea negative margins (`-mx-6 px-6`) can interfere with scroll behavior
 
-## Technical Implementation
+## Solution
 
-### 1. Update Types
-**File: `src/components/jobs/boq/order-wizard/types.ts`**
+### 1. Fix ScrollArea Viewport Styling
+Update the ScrollArea component to add proper overflow handling for the viewport, or override it in OrderWizardDialog.
 
-Add new state fields:
-```typescript
-export interface OrderWizardData {
-  // ... existing fields
-  includePlans: boolean;
-  selectedPlanIds: string[];
-}
+### 2. Update OrderWizardDialog Layout
+- Remove the negative margin hack on ScrollArea
+- Add proper padding/margin management
+- Ensure content has adequate bottom spacing
 
-export interface JobPlan {
-  id: string;
-  file_name: string;
-  file_url: string;
-  file_type: string;
-}
+## Technical Changes
+
+### File: `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx`
+
+**Current (line 462-470):**
+```tsx
+<DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+  <StepIndicator ... />
+  
+  <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
+    <div className="min-h-[200px] pb-4">
+      {/* Step content */}
+    </div>
+  </ScrollArea>
+  
+  <DialogFooter className="flex-row justify-between gap-2 pt-4 border-t">
 ```
 
-### 2. Update OrderWizardDialog
-**File: `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx`**
+**Fix:**
+1. Remove `-mx-6 px-6` from ScrollArea (this hack causes scroll issues)
+2. Add `[&_[data-radix-scroll-area-viewport]]:!overflow-y-auto` to force proper scrolling
+3. Add `pr-2` for scrollbar clearance
+4. Increase bottom padding inside the content wrapper to ensure content clears the footer area
 
-- Add state for `includePlans` (boolean, default false) and `selectedPlanIds` (string[])
-- Add query to fetch job's building plans from `documents` table
-- Pass these to DeliveryStep (for RFQ only)
-- Include selected plan URLs in the edge function call when `orderType === "quote"`
-- Add mutation for uploading new plans if needed
-
-### 3. Update DeliveryStep
-**File: `src/components/jobs/boq/order-wizard/DeliveryStep.tsx`**
-
-Add a new section (only shown when `isQuote === true`):
-- Switch toggle: "Include building plans"
-- When enabled, show:
-  - List of existing plans with checkboxes
-  - Button to upload additional plans
-- File upload uses the existing `documents` bucket pattern
-
-### 4. Update ReviewStep
-**File: `src/components/jobs/boq/order-wizard/ReviewStep.tsx`**
-
-- Add props for `includePlans` and selected plan count
-- Show "Attachments: X building plan(s)" in the review summary when plans are included
-
-### 5. Update Edge Function
-**File: `supabase/functions/send-purchase-order/index.ts`**
-
-- Accept new `planUrls` array parameter in request body
-- For Quote Requests, download each plan file and attach to the email
-- Resend supports attachments via the `attachments` array:
-```typescript
-await resend.emails.send({
-  // ...existing config
-  attachments: [
-    {
-      filename: 'Building-Plans.pdf',
-      content: base64Content,
-    }
-  ]
-});
+```tsx
+<DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden p-0">
+  <div className="p-6 pb-0">
+    <StepIndicator ... />
+  </div>
+  
+  <ScrollArea className="flex-1 min-h-0 px-6 [&_[data-radix-scroll-area-viewport]]:!overflow-y-auto">
+    <div className="min-h-[200px] pb-6">
+      {/* Step content */}
+    </div>
+  </ScrollArea>
+  
+  <DialogFooter className="flex-row justify-between gap-2 p-6 pt-4 border-t mt-auto flex-shrink-0">
 ```
+
+Key changes:
+- **DialogContent**: `p-0` to manage padding manually per section
+- **StepIndicator wrapper**: `p-6 pb-0` for top/side padding
+- **ScrollArea**: Remove margin hack, add explicit viewport overflow control
+- **Content div**: `pb-6` for proper bottom clearance
+- **DialogFooter**: `p-6 pt-4 flex-shrink-0` to ensure it never shrinks and has proper padding
+
+### Alternative simpler fix:
+If the above restructuring is too invasive, a simpler fix:
+
+```tsx
+<ScrollArea className="flex-1 min-h-0 -mx-6 px-6 [&>div]:!overflow-y-auto">
+  <div className="min-h-[200px] pb-8">
+    {/* Step content - increased bottom padding */}
+  </div>
+</ScrollArea>
+```
+
+This targets the Radix viewport div and forces vertical scrolling, plus adds more bottom padding.
 
 ---
 
@@ -114,30 +97,20 @@ await resend.emails.send({
 
 | File | Change |
 |------|--------|
-| `src/components/jobs/boq/order-wizard/types.ts` | Add `includePlans`, `selectedPlanIds`, `JobPlan` interface |
-| `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx` | Add plan state, fetch plans query, upload mutation, pass to steps |
-| `src/components/jobs/boq/order-wizard/DeliveryStep.tsx` | Add "Include building plans" section with toggle, checklist, and upload |
-| `src/components/jobs/boq/order-wizard/ReviewStep.tsx` | Display attachment summary |
-| `supabase/functions/send-purchase-order/index.ts` | Handle plan attachments in RFQ emails |
-
----
-
-## Edge Cases
-
-1. **No existing plans**: Show upload area with message "No plans uploaded yet - add one now"
-2. **Large files**: Limit total attachment size (Resend has 40MB limit per email)
-3. **Private bucket files**: Generate signed URLs for downloading files in edge function
-4. **Multiple suppliers**: Same plans attached to all supplier emails
+| `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx` | Fix ScrollArea layout and padding to prevent content overflow |
 
 ---
 
 ## Testing Checklist
 
-1. Open BOQ → Order → Request Quote
-2. Proceed to Delivery step
-3. Verify "Include building plans" toggle appears (not for PO)
-4. Toggle ON → see list of existing plans (if any)
-5. Select plans and proceed to Review
-6. Verify Review shows attachment count
-7. Send RFQ → verify email arrives with PDF attachments
-8. Test with no existing plans → upload new plan → verify it's saved and attached
+1. Open BOQ Order Wizard and select "Request Quote"
+2. Proceed through all 5 steps
+3. Verify ALL content is visible and scrollable on each step:
+   - Type step: Both options visible
+   - Items step: All items scrollable, no cutoff
+   - Supplier step: All suppliers visible, search works
+   - Delivery step: All fields visible including Notes textarea at bottom
+   - Review step: All sections visible including "Include building plans" toggle and "Will be sent via email" footer
+4. Verify footer buttons (Back, Cancel, Send) are always visible and not covering content
+5. Test on mobile viewport to ensure scrolling works on smaller screens
+6. Test with many items/suppliers to ensure long lists scroll properly
