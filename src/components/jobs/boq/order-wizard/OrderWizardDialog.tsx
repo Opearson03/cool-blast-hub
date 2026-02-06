@@ -277,11 +277,12 @@ export function OrderWizardDialog({
     };
   };
 
-  // Get selected plan URLs for attachments
+  // Get selected plan URLs for attachments - PDFs only
   const getSelectedPlanUrls = () => {
     if (!includePlans || selectedPlanIds.length === 0) return [];
     return jobPlans
       .filter(p => selectedPlanIds.includes(p.id))
+      .filter(p => p.file_type === 'application/pdf' || p.file_name.toLowerCase().endsWith('.pdf'))
       .map(p => ({ fileName: p.file_name, fileUrl: p.file_url }));
   };
 
