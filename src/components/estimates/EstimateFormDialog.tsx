@@ -1362,7 +1362,7 @@ const {
         ? descriptionParts.join(" | ") 
         : formData.description || null,
       total_amount: combinedTotal,
-      valid_until: formData.valid_until || null,
+      valid_until: formData.valid_until || (quoteValidityDays ? new Date(Date.now() + quoteValidityDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0] : null),
       notes: fullNotes || null,
       estimate_type: estimateType || "driveway",
       status,
