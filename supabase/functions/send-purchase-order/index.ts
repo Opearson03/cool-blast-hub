@@ -19,6 +19,11 @@ interface BOQItem {
   notes?: string;
 }
 
+interface PlanAttachment {
+  fileName: string;
+  fileUrl: string;
+}
+
 interface RequestBody {
   jobId: string;
   boqId: string;
@@ -40,6 +45,7 @@ interface RequestBody {
     email: string;
     phone: string;
   } | null;
+  planAttachments?: PlanAttachment[];
 }
 
 serve(async (req) => {
@@ -71,26 +77,27 @@ serve(async (req) => {
     }
 
     const body: RequestBody = await req.json();
-    const {
-      jobId,
-      boqId,
-      items,
-      supplierContactId,
-      supplierName,
-      supplierEmail,
-      supplierPhone,
-      deliveryAddress,
-      deliveryDate,
-      siteContactId,
-      siteContactName,
-      siteContactPhone,
-      notes,
-      sendMethod,
-      orderType = "po", // default to PO for backward compatibility
-      saveNewSupplier,
-    } = body;
+  const {
+    jobId,
+    boqId,
+    items,
+    supplierContactId,
+    supplierName,
+    supplierEmail,
+    supplierPhone,
+    deliveryAddress,
+    deliveryDate,
+    siteContactId,
+    siteContactName,
+    siteContactPhone,
+    notes,
+    sendMethod,
+    orderType = "po", // default to PO for backward compatibility
+    saveNewSupplier,
+    planAttachments = [],
+  } = body;
 
-    const isQuoteRequest = orderType === "quote";
+  const isQuoteRequest = orderType === "quote";
 
     // Validate required fields - delivery address only required for PO
     if (!jobId || !boqId || !items.length || !supplierName) {
@@ -223,6 +230,54 @@ serve(async (req) => {
         const emailTitle = isQuoteRequest ? "Request for Quote" : "Purchase Order";
         const emailSubjectPrefix = isQuoteRequest ? "Quote Request" : "Purchase Order";
         
+        // Build attachments array for quote requests with plans
+        const emailAttachments: { filename: string; content: string }[] = [];
+        
+        if (isQuoteRequest && planAttachments.length > 0) {
+          console.log(`Processing ${planAttachments.length} plan attachments`);
+          
+          for (const plan of planAttachments) {
+            try {
+              // Download the file from the URL
+              const response = await fetch(plan.fileUrl);
+              if (!response.ok) {
+                console.error(`Failed to fetch plan: ${plan.fileName}`, response.statusText);
+                continue;
+              }
+              
+              const arrayBuffer = await response.arrayBuffer();
+              const uint8Array = new Uint8Array(arrayBuffer);
+              
+              // Convert to base64
+              let binary = '';
+              const chunkSize = 8192;
+              for (let i = 0; i < uint8Array.length; i += chunkSize) {
+                const chunk = uint8Array.subarray(i, i + chunkSize);
+                binary += String.fromCharCode(...chunk);
+              }
+              const base64Content = btoa(binary);
+              
+              emailAttachments.push({
+                filename: plan.fileName,
+                content: base64Content,
+              });
+              
+              console.log(`Attached: ${plan.fileName} (${Math.round(arrayBuffer.byteLength / 1024)}KB)`);
+            } catch (attachError) {
+              console.error(`Error attaching file ${plan.fileName}:`, attachError);
+            }
+          }
+        }
+        
+        // Check total attachment size (Resend has 40MB limit)
+        const totalSize = emailAttachments.reduce((sum, att) => sum + att.content.length, 0);
+        const maxSize = 30 * 1024 * 1024; // 30MB to be safe (base64 is ~33% larger)
+        
+        if (totalSize > maxSize) {
+          console.warn(`Attachments too large (${Math.round(totalSize / 1024 / 1024)}MB), skipping attachments`);
+          emailAttachments.length = 0;
+        }
+        
         const emailHtml = isQuoteRequest ? `
           <!DOCTYPE html>
           <html>
@@ -244,6 +299,12 @@ serve(async (req) => {
             <p style="color: #333; margin-bottom: 20px;">
               We are requesting a quote for the following items. Please provide pricing and availability at your earliest convenience.
             </p>
+            
+            ${emailAttachments.length > 0 ? `
+              <div style="background: #e0f2fe; padding: 10px 15px; border-radius: 8px; margin-bottom: 20px;">
+                <p style="margin: 0; color: #0369a1;">📎 ${emailAttachments.length} building plan${emailAttachments.length > 1 ? 's' : ''} attached for reference</p>
+              </div>
+            ` : ""}
             
             <h3 style="color: #333;">Items</h3>
             <table style="width: 100%; border-collapse: collapse;">
@@ -330,13 +391,26 @@ serve(async (req) => {
             ? `${business.inbound_email_alias}@pourhub.au`
             : 'Hello@pourhub.au';
           
-          await resend.emails.send({
+          const emailPayload: {
+            from: string;
+            to: string[];
+            subject: string;
+            html: string;
+            attachments?: { filename: string; content: string }[];
+          } = {
             from: `${businessName} <${fromEmail}>`,
             to: [supplierEmail],
             subject: `${emailSubjectPrefix} ${poNumber} - ${jobReference}`,
             html: emailHtml,
-          });
-          console.log(`Email sent to ${supplierEmail}`);
+          };
+          
+          // Add attachments if any
+          if (emailAttachments.length > 0) {
+            emailPayload.attachments = emailAttachments;
+          }
+          
+          await resend.emails.send(emailPayload);
+          console.log(`Email sent to ${supplierEmail}${emailAttachments.length > 0 ? ` with ${emailAttachments.length} attachments` : ""}`);
         } catch (emailError) {
           console.error("Error sending email:", emailError);
         }

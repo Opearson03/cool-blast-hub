@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Mail, Package, MapPin, CalendarIcon, User, AlertCircle } from "lucide-react";
+import { Mail, Package, MapPin, CalendarIcon, User, AlertCircle, Paperclip } from "lucide-react";
 import { format } from "date-fns";
 import { BOQItem } from "../BOQTypes";
 import { OrderType, SupplierContact, SiteContactOption } from "./types";
@@ -23,6 +23,9 @@ interface ReviewStepProps {
   notes: string;
   // Validation
   validationErrors: string[];
+  // Plan attachments
+  includePlans?: boolean;
+  selectedPlanCount?: number;
 }
 
 export function ReviewStep({
@@ -39,6 +42,8 @@ export function ReviewStep({
   manualSiteContact,
   notes,
   validationErrors,
+  includePlans = false,
+  selectedPlanCount = 0,
 }: ReviewStepProps) {
   const isQuote = orderType === "quote";
   const selectedSuppliers = suppliers.filter(s => selectedSupplierIds.includes(s.id));
@@ -174,6 +179,14 @@ export function ReviewStep({
           )}
         </CardContent>
       </Card>
+
+      {/* Plan Attachments - only for quotes with plans */}
+      {isQuote && includePlans && selectedPlanCount > 0 && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Paperclip className="w-4 h-4" />
+          <span>{selectedPlanCount} building plan{selectedPlanCount > 1 ? 's' : ''} will be attached</span>
+        </div>
+      )}
 
       {/* Send Method - Email only */}
       <div className="flex items-center gap-2 text-sm text-muted-foreground pb-4">

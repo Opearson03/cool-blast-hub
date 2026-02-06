@@ -27,6 +27,7 @@ import {
   SupplierContact,
   InternalContact,
   SiteContactOption,
+  JobPlan,
 } from "./types";
 
 const STEPS: WizardStep[] = ["type", "items", "supplier", "delivery", "review"];
@@ -55,6 +56,9 @@ export function OrderWizardDialog({
   const [siteContactId, setSiteContactId] = useState("");
   const [manualSiteContact, setManualSiteContact] = useState({ name: "", phone: "" });
   const [notes, setNotes] = useState("");
+  const [includePlans, setIncludePlans] = useState(false);
+  const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([]);
+  const [isUploadingPlan, setIsUploadingPlan] = useState(false);
   const sendMethod: SendMethod = "email"; // Email only for supplier communications
 
   const { toast } = useToast();
@@ -79,6 +83,8 @@ export function OrderWizardDialog({
       setSiteContactId("");
       setManualSiteContact({ name: "", phone: "" });
       setNotes("");
+      setIncludePlans(false);
+      setSelectedPlanIds([]);
     }
   }, [open, boq.items, siteAddress, preSelectedItems]);
 
@@ -132,6 +138,35 @@ export function OrderWizardDialog({
 
       if (error) throw error;
       return data as InternalContact[];
+    },
+    enabled: open,
+  });
+
+  // Fetch job plans (documents with category "job")
+  const { data: jobPlans = [], refetch: refetchPlans } = useQuery({
+    queryKey: ["job-plans", jobId],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!profile?.business_id) return [];
+
+      const { data, error } = await supabase
+        .from("documents")
+        .select("id, file_name, file_url, file_type")
+        .eq("business_id", profile.business_id)
+        .eq("category", "job")
+        .eq("reference_id", jobId)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+      return (data || []) as JobPlan[];
     },
     enabled: open,
   });
@@ -242,11 +277,20 @@ export function OrderWizardDialog({
     };
   };
 
+  // Get selected plan URLs for attachments
+  const getSelectedPlanUrls = () => {
+    if (!includePlans || selectedPlanIds.length === 0) return [];
+    return jobPlans
+      .filter(p => selectedPlanIds.includes(p.id))
+      .map(p => ({ fileName: p.file_name, fileUrl: p.file_url }));
+  };
+
   // Send mutation
   const sendMutation = useMutation({
     mutationFn: async () => {
       const selectedBOQItems = boq.items.filter(item => selectedItems.includes(item.id));
       const siteContactInfo = getSiteContactInfo();
+      const planAttachments = orderType === "quote" ? getSelectedPlanUrls() : [];
 
       if (orderType === "quote" && selectedSupplierIds.length > 0) {
         const results = await Promise.all(
@@ -270,6 +314,7 @@ export function OrderWizardDialog({
                 sendMethod,
                 orderType: "quote",
                 saveNewSupplier: null,
+                planAttachments,
               },
             });
 
@@ -298,6 +343,7 @@ export function OrderWizardDialog({
             sendMethod,
             orderType,
             saveNewSupplier: !supplierId && saveSupplier ? manualSupplier : null,
+            planAttachments: orderType === "quote" ? planAttachments : [],
           },
         });
 
@@ -467,6 +513,14 @@ export function OrderWizardDialog({
                   notes={notes}
                   onNotesChange={setNotes}
                   isQuote={orderType === "quote"}
+                  // Plans for RFQ
+                  jobId={jobId}
+                  includePlans={includePlans}
+                  onIncludePlansChange={setIncludePlans}
+                  selectedPlanIds={selectedPlanIds}
+                  onSelectedPlanIdsChange={setSelectedPlanIds}
+                  jobPlans={jobPlans}
+                  onPlansUploaded={refetchPlans}
                 />
               )}
 
@@ -485,6 +539,9 @@ export function OrderWizardDialog({
                   manualSiteContact={manualSiteContact}
                   notes={notes}
                   validationErrors={validationErrors}
+                  // Plan attachments
+                  includePlans={includePlans}
+                  selectedPlanCount={selectedPlanIds.length}
                 />
               )}
             </div>
