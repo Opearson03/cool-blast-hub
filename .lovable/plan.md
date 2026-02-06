@@ -1,155 +1,105 @@
 
-# Per-Scope Inclusions & Exclusions
 
-## What Changes
+# Fix: Auto Inclusions & Exclusions Mapping Issues
 
-### 1. Conditions Step in the Estimator Wizard (UI)
+## Issues Found
 
-Currently the "Conditions" step shows a single flat list of inclusions and a single flat list of exclusions. This will be reorganised to group items by scope.
+### Issue 1: `exc_excavation` shows under scopes that INCLUDE excavation (Critical)
 
-**New Layout:**
+The "Excavation and site preparation" exclusion has `relevantModules: ["base-preparation", "formwork"]`. The intent (per the code comment on line 207) is to show this only when excavation is NOT in scope. But the current logic is: "show if ANY of the listed modules are active in this scope."
 
-The Conditions step will show inclusions and exclusions grouped under collapsible scope headings, plus a "General" group for global items (permits, engineering, waterproofing) that apply across all scopes.
+Since most scopes have BOTH excavation AND formwork/base-preparation, this exclusion gets auto-selected everywhere -- telling the client "excavation is excluded" when it is actually included in the quote. Affected scopes:
 
-```text
-What's Included
-  [General]
-    [ ] Sundries and consumables
-  [Raft Slab]
-    [ ] Supply of concrete to site
-    [ ] Concrete pump hire
-    [ ] All labour for concrete placement and finishing
-    ...
-  [Piers]
-    [ ] Excavation works as required
-    [ ] Supply of concrete to site
-    ...
+- **Piers** (has formwork + excavation) -- WRONG
+- **Standard Slab** (has base-preparation + formwork + excavation) -- WRONG
+- **Raft Slab** (has formwork + excavation) -- WRONG
+- **Waffle Pod** (has formwork + excavation) -- WRONG
+- **Driveway** (has base-preparation + formwork + excavation) -- WRONG
+- **Crossovers** (has base-preparation + formwork + excavation) -- WRONG
+- **Paths & Surrounds** (has base-preparation + formwork + excavation) -- WRONG
+- **Strip Footings** (has formwork + excavation) -- WRONG
+- **Retaining Wall Footings** (has formwork + excavation) -- WRONG
+- **Pad Footings** (has formwork + excavation) -- WRONG
 
-What's Excluded
-  [General]
-    [ ] Council permits and inspections
-    [ ] Engineering certification
-    [ ] Waterproofing membrane
-  [Raft Slab]
-    [ ] Saw cutting control joints
-    ...
-  [Piers]
-    [ ] Service scanning and locating
-    ...
-```
+In practice, this exclusion currently shows under EVERY scope that has it, which is always wrong because all of those scopes also include excavation.
 
-Each scope section will be collapsible (using existing Collapsible components) and default to expanded. Users can still toggle individual items on/off as before.
+### Issue 2: Missing `excludeWhenModulesActive` implementation
 
-### 2. PDF Page 2 - Per-Scope Conditions
+The architecture memory document references an `excludeWhenModulesActive` property that should hide items when certain modules are active. This property was never implemented:
+- The `InclusionExclusionItem` interface only has `relevantModules`
+- The filtering code in the Conditions step and auto-select logic only checks `relevantModules`
+- No code checks for an inverse/exclusion condition
 
-The `TermsAndExclusionsPage` component will render inclusions and exclusions grouped by scope name, with smaller text sizes to fit everything on one page.
+### Issue 3: `exc_saw_cutting` shows under scopes where control joints ARE included
 
-**Current text sizes vs new:**
-- Section headers: `text-xs` (stays the same)
-- Item text: `text-sm` (14px) becomes `text-xs` (12px)
-- Introductory text: `text-xs` becomes `text-[10px]`
-- Spacing between items: `space-y-1` becomes `space-y-0.5`
-- Spacing between sections: `mb-6`/`mb-8` becomes `mb-3`/`mb-4`
+The "Saw cutting control joints" exclusion has `relevantModules: ["joints-control", "surface-finishing"]`. This means it appears under scopes like Driveway, Standard Slab, and Paths & Surrounds which include `joints-control` and `control_joints` as an INCLUSION. This is contradictory -- you cannot both include "Control joint cutting" and exclude "Saw cutting control joints" for the same scope.
 
-**PDF layout example:**
-```text
-INCLUSIONS
-  Raft Slab:
-    Supply of concrete to site
-    All labour for concrete placement and finishing
-    Concrete pump hire
-  Piers:
-    Excavation works as required
-    Supply of concrete to site
+The fix is to hide this exclusion when the `joints-control` module is active (meaning cutting is already included in the quote).
 
-EXCLUSIONS
-  General:
-    Council permits and inspections
-    Engineering certification
-  Raft Slab:
-    Saw cutting control joints
-  Piers:
-    Service scanning and locating
-```
+### Issue 4: `exc_subgrade` shows alongside `base_prep` inclusion
 
-### 3. Data Storage Changes
-
-Currently inclusions/exclusions are stored as flat lists in `estimate.notes`. The new format stores them per-scope.
-
-**New notes format:**
-```text
-INCLUSIONS:
-[Raft Slab]
-- Supply of concrete to site
-- Concrete pump hire
-[Piers]
-- Excavation works as required
-
-EXCLUSIONS:
-[General]
-- Council permits and inspections
-[Raft Slab]
-- Saw cutting control joints
-```
-
-The `scope_data` will also carry structured inclusion/exclusion data per scope so the PDF renderer can extract it directly.
+"Subgrade preparation and compaction" exclusion has `relevantModules: ["base-preparation"]`. "Base preparation and compaction" inclusion also has `relevantModules: ["base-preparation"]`. Both auto-select under the same scopes, which is contradictory.
 
 ---
 
-## Technical Details
+## Solution
 
-### Files to Modify
+Add an `excludeWhenModulesActive` property to the `InclusionExclusionItem` interface and implement the filtering logic. This is the cleanest fix with minimal code change.
 
-| File | Change |
-|------|--------|
-| `src/components/estimates/EstimateFormDialog.tsx` | Restructure the Conditions step UI to group by scope; update `selectedInclusions`/`selectedExclusions` state to be scope-keyed maps instead of flat Sets; update `saveEstimate` to serialise per-scope conditions |
-| `src/components/estimates/PrintableEstimate.tsx` | Update `TermsAndExclusionsPage` to accept and render per-scope grouped data; reduce text sizes |
-| `src/lib/quote-pdf-data.ts` | Update `collectInclusions` and `collectExclusions` to return scope-grouped data; update `QuotePDFData` interface |
+### Changes
 
-### State Shape Change
+**File: `src/components/estimates/EstimateFormDialog.tsx`**
 
-**Current:**
-```typescript
-selectedInclusions: Set<string>   // e.g. Set(["concrete_supply", "labour", ...])
-selectedExclusions: Set<string>   // e.g. Set(["exc_permits", "exc_engineering", ...])
+1. **Update the interface** (line 166-170):
+   Add `excludeWhenModulesActive?: string[]` to `InclusionExclusionItem`.
+
+2. **Fix `exc_excavation`** (line 207):
+   Change `relevantModules` to target scopes that COULD need excavation, and add `excludeWhenModulesActive: ["excavation"]`. This way, the exclusion only appears under scopes that have formwork/base-preparation but do NOT have the excavation module. Since currently all scopes with formwork also have excavation, we can simplify: set `relevantModules` broadly but `excludeWhenModulesActive: ["excavation"]` to hide it from scopes where excavation is already priced.
+
+3. **Fix `exc_saw_cutting`** (line 214):
+   Add `excludeWhenModulesActive: ["joints-control"]` so it only shows when control joint cutting is NOT already included.
+
+4. **Fix `exc_subgrade`** (line 220):
+   Add `excludeWhenModulesActive: ["base-preparation"]` OR remove it, since if base-preparation is active, it's included (not excluded). Actually the better fix: keep it but DON'T auto-select it. The current problem is it auto-selects under the same scopes that also auto-select the `base_prep` inclusion.
+
+5. **Update filtering logic in three places:**
+
+   a. **Initial auto-select** (lines 837-851): When checking if an item should appear under a scope, also verify that none of the scope's modules match `excludeWhenModulesActive`.
+
+   b. **Conditions step UI -- inclusions filter** (line 2526-2528): Add the exclusion check when filtering `DEFAULT_INCLUSIONS` for each scope.
+
+   c. **Conditions step UI -- exclusions filter** (line 2615-2617): Add the exclusion check when filtering `DEFAULT_EXCLUSIONS` for each scope.
+
+### Updated Items
+
+| Item ID | Current `relevantModules` | Add `excludeWhenModulesActive` | Effect |
+|---------|--------------------------|-------------------------------|--------|
+| `exc_excavation` | `["base-preparation", "formwork"]` | `["excavation"]` | Hidden from all scopes that price excavation (currently all of them). Only shows if a scope has formwork/base-prep but no excavation module. |
+| `exc_saw_cutting` | `["joints-control", "surface-finishing"]` | `["joints-control"]` | Hidden from scopes that include control joint cutting (Driveway, Standard Slab, Paths). Still shows under scopes with only surface-finishing (Raft Slab). |
+| `exc_subgrade` | `["base-preparation"]` | `["base-preparation"]` | Since this would always be hidden (same module), convert to a non-auto-selected item or remove the contradiction differently -- see below. |
+
+For `exc_subgrade`, the better approach: change its `relevantModules` to `["excavation"]` (show it under scopes with excavation but without base-prep, like Piers/Strip Footings) and add `excludeWhenModulesActive: ["base-preparation"]`. This way it shows "Subgrade preparation excluded" only when base-prep is not being priced.
+
+### Filter Logic (Applied in 3 Places)
+
+```text
+For each item:
+  1. If no relevantModules: it's global (show under _general)
+  2. If relevantModules overlap with scope's moduleIds: potentially show
+  3. BUT if excludeWhenModulesActive overlaps with scope's moduleIds: HIDE it
 ```
 
-**New:**
-```typescript
-// Key is scope ID or "_general" for global items
-selectedInclusions: Record<string, Set<string>>
-// e.g. { "_general": Set(["sundries"]), "raft_slab": Set(["concrete_supply", "labour"]), "piers": Set(["excavation"]) }
-selectedExclusions: Record<string, Set<string>>
-```
+### Dynamic Auto-Sync Update (lines 760-811)
 
-### Inclusion/Exclusion Item Mapping
+The existing auto-sync for `exc_excavation` (remove when excavation answers are filled) becomes unnecessary once the filtering handles it. We can simplify by removing the excavation-specific sync code, since the item won't appear under scopes with excavation in the first place.
 
-Each item in `DEFAULT_INCLUSIONS` and `DEFAULT_EXCLUSIONS` already has `relevantModules`. The grouping logic will:
+---
 
-1. For each selected scope, get its `moduleIds` from `SCOPE_REGISTRY`
-2. Filter items whose `relevantModules` overlap with that scope's modules
-3. Items with no `relevantModules` (global) go into the "_general" group
-4. Items relevant to multiple scopes appear under each applicable scope
+## Files to Modify
 
-### Backwards Compatibility
+| File | What Changes |
+|------|-------------|
+| `src/components/estimates/EstimateFormDialog.tsx` | Add `excludeWhenModulesActive` to interface; update 4 exclusion items; update filtering in auto-select, inclusions UI, and exclusions UI (3 filter locations) |
 
-When loading an existing estimate that was saved with the old flat format, the migration logic will:
-- Parse flat inclusion/exclusion IDs from the notes field
-- Distribute them into per-scope groups based on `relevantModules` matching
-- Global items go to `_general`
+No other files need to change -- the PDF rendering and data storage work with whatever items are selected, so they're unaffected.
 
-### PDF Text Size Reductions
-
-To fit all per-scope conditions on a single page:
-- Scope group headings: `text-xs font-semibold` with scope name
-- Item bullets: `text-[11px]` (between 10px and 12px)
-- Remove "This quote includes:" / "The following items are NOT included:" intro text (scope headings provide enough context)
-- Tighten vertical spacing: `space-y-0.5` for items, `mb-3` between sections
-- Use a compact two-column layout for inclusions when there are many items
-
-### Auto-Selection Logic Update
-
-When scopes are first selected, the auto-selection logic will:
-1. For each scope, identify relevant inclusions/exclusions based on module overlap
-2. Auto-check relevant items under each scope
-3. Auto-check global exclusions under `_general`
