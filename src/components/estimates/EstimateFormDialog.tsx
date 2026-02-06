@@ -443,7 +443,6 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
   
   // Global margin/markup (applied to all scopes)
   const [globalMarginPercent, setGlobalMarginPercent] = useState<number>(15);
-  const [fixedProfitAmount, setFixedProfitAmount] = useState<number>(0);
   
   // Payment terms state
   const [paymentTermsType, setPaymentTermsType] = useState<PaymentTermsType>('deposit_balance');
@@ -593,6 +592,11 @@ const {
   const combinedTotal = useMemo(() => {
     return combinedSubtotal + marginAmount;
   }, [combinedSubtotal, marginAmount]);
+
+  // Derived fixed profit amount -- always in sync with percentage (source of truth)
+  const fixedProfitAmount = useMemo(() => {
+    return Math.round(combinedSubtotal * (globalMarginPercent / 100));
+  }, [combinedSubtotal, globalMarginPercent]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("en-AU", {
@@ -2371,8 +2375,6 @@ const {
                           onChange={(e) => {
                             const percent = Number(e.target.value) || 0;
                             setGlobalMarginPercent(percent);
-                            // Auto-update fixed amount
-                            setFixedProfitAmount(Math.round(combinedSubtotal * (percent / 100)));
                           }}
                           className="flex-1"
                           min={0}
@@ -2390,7 +2392,6 @@ const {
                             size="sm"
                             onClick={() => {
                               setGlobalMarginPercent(preset);
-                              setFixedProfitAmount(Math.round(combinedSubtotal * (preset / 100)));
                             }}
                           >
                             {preset}%
@@ -2415,8 +2416,6 @@ const {
                           value={fixedProfitAmount || ''}
                           onChange={(e) => {
                             const amount = Number(e.target.value) || 0;
-                            setFixedProfitAmount(amount);
-                            // Auto-update percentage
                             if (combinedSubtotal > 0) {
                               setGlobalMarginPercent(Math.round((amount / combinedSubtotal) * 100 * 10) / 10);
                             }
@@ -2435,7 +2434,6 @@ const {
                             variant={fixedProfitAmount === preset ? "default" : "outline"}
                             size="sm"
                             onClick={() => {
-                              setFixedProfitAmount(preset);
                               if (combinedSubtotal > 0) {
                                 setGlobalMarginPercent(Math.round((preset / combinedSubtotal) * 100 * 10) / 10);
                               }
