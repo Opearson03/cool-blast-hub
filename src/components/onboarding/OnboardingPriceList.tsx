@@ -217,8 +217,8 @@ export function OnboardingPriceList({ priceOverrides, onPriceOverridesChange }: 
                               <div className="flex items-center gap-1">
                                 <Input
                                   ref={inputRef}
-                                  type="number"
-                                  step="0.01"
+                                  type="text"
+                                  inputMode="decimal"
                                   value={editValue}
                                   onChange={(e) => {
                                     setEditValue(e.target.value);
