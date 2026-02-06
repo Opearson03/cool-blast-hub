@@ -13,13 +13,15 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CalendarIcon, Loader2, X, Plus, Search, UserPlus } from "lucide-react";
+import { CalendarIcon, Loader2, X, Plus, Search, UserPlus, Bell, Mail, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useBusinessSubbies, PastSubbie } from "@/hooks/useBusinessSubbies";
 import { useSendSubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Command,
   CommandEmpty,
@@ -54,9 +56,17 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
   const [newSubbiePhone, setNewSubbiePhone] = useState("");
   const [newSubbieRole, setNewSubbieRole] = useState("");
 
+  // Notify client state
+  const [notifyClient, setNotifyClient] = useState(false);
+  const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
+  const [sendVia, setSendVia] = useState<"sms" | "email" | "both">("sms");
+
   const { data: pastSubbies = [], isLoading: subbiesLoading } = useBusinessSubbies();
   const sendInvite = useSendSubTradeInvite();
   const [isSendingInvites, setIsSendingInvites] = useState(false);
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -104,6 +114,8 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
       return { job, pour: null };
     },
     onSuccess: async (result) => {
+      let toastMessages: string[] = [];
+
       // Send invites to sub-contractors after job/pour is created
       if (result.pour && selectedSubbies.length > 0) {
         setIsSendingInvites(true);
@@ -129,10 +141,46 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
         setIsSendingInvites(false);
         
         if (sentCount > 0) {
-          toast.success(`Misc job added, ${sentCount} invite(s) sent`);
-        } else {
-          toast.success("Misc job added (no invites sent - missing contact info)");
+          toastMessages.push(`${sentCount} subbie invite(s) sent`);
         }
+      }
+
+      // Send client notification if enabled
+      if (notifyClient && clientName.trim()) {
+        const canSendSms = (sendVia === "sms" || sendVia === "both") && clientPhone.trim();
+        const canSendEmail = (sendVia === "email" || sendVia === "both") && clientEmail.trim();
+
+        if (canSendSms || canSendEmail) {
+          setIsSendingNotification(true);
+          try {
+            const { data, error } = await supabase.functions.invoke("send-misc-job-confirmation", {
+              body: {
+                job_id: result.job.id,
+                client_name: clientName.trim(),
+                client_phone: clientPhone.trim() || undefined,
+                client_email: clientEmail.trim() || undefined,
+                send_via: sendVia,
+              },
+            });
+
+            if (error) {
+              console.error("Failed to send client notification:", error);
+              toastMessages.push("Client notification failed");
+            } else if (data?.success) {
+              const notifyMethod = sendVia === "both" ? "SMS & email" : sendVia.toUpperCase();
+              toastMessages.push(`Client notified via ${notifyMethod}`);
+            }
+          } catch (err) {
+            console.error("Error sending client notification:", err);
+            toastMessages.push("Client notification failed");
+          }
+          setIsSendingNotification(false);
+        }
+      }
+
+      // Show combined toast
+      if (toastMessages.length > 0) {
+        toast.success(`Misc job added - ${toastMessages.join(", ")}`);
       } else {
         toast.success("Misc job added");
       }
@@ -147,8 +195,6 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
     },
   });
 
-  // Remove the old hashToken function as it's no longer needed
-
   const handleClose = () => {
     setName("");
     setAddress("");
@@ -159,6 +205,11 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
     setNewSubbieName("");
     setNewSubbiePhone("");
     setNewSubbieRole("");
+    setNotifyClient(false);
+    setClientName("");
+    setClientPhone("");
+    setClientEmail("");
+    setSendVia("sms");
     onOpenChange(false);
   };
 
@@ -168,6 +219,27 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
       toast.error("Name and address are required");
       return;
     }
+
+    // Validate notify client fields if enabled
+    if (notifyClient) {
+      if (!clientName.trim()) {
+        toast.error("Client name is required for notification");
+        return;
+      }
+      if (sendVia === "sms" && !clientPhone.trim()) {
+        toast.error("Client phone is required for SMS notification");
+        return;
+      }
+      if (sendVia === "email" && !clientEmail.trim()) {
+        toast.error("Client email is required for email notification");
+        return;
+      }
+      if (sendVia === "both" && (!clientPhone.trim() || !clientEmail.trim())) {
+        toast.error("Both phone and email are required");
+        return;
+      }
+    }
+
     createMutation.mutate();
   };
 
@@ -206,6 +278,8 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
     setNewSubbieRole("");
     setShowAddNew(false);
   };
+
+  const isSubmitting = createMutation.isPending || isSendingInvites || isSendingNotification;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -273,6 +347,80 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
                   placeholder="e.g., 2 blokes booked for the day"
                   rows={2}
                 />
+              </div>
+
+              {/* Notify Client Section */}
+              <div className="space-y-3 border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label className="flex items-center gap-2">
+                    <Bell className="h-4 w-4" />
+                    Notify Client
+                  </Label>
+                  <Switch
+                    checked={notifyClient}
+                    onCheckedChange={setNotifyClient}
+                  />
+                </div>
+
+                {notifyClient && (
+                  <div className="space-y-3 p-3 border rounded-md bg-muted/30">
+                    <Input
+                      placeholder="Client name *"
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      className="h-9"
+                    />
+                    
+                    <RadioGroup
+                      value={sendVia}
+                      onValueChange={(v) => setSendVia(v as "sms" | "email" | "both")}
+                      className="flex gap-4"
+                    >
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="sms" id="sms" />
+                        <Label htmlFor="sms" className="flex items-center gap-1 text-sm cursor-pointer">
+                          <MessageSquare className="h-3 w-3" />
+                          SMS
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="email" id="email" />
+                        <Label htmlFor="email" className="flex items-center gap-1 text-sm cursor-pointer">
+                          <Mail className="h-3 w-3" />
+                          Email
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <RadioGroupItem value="both" id="both" />
+                        <Label htmlFor="both" className="text-sm cursor-pointer">Both</Label>
+                      </div>
+                    </RadioGroup>
+
+                    {(sendVia === "sms" || sendVia === "both") && (
+                      <Input
+                        placeholder="Phone number *"
+                        value={clientPhone}
+                        onChange={(e) => setClientPhone(e.target.value)}
+                        className="h-9"
+                        type="tel"
+                      />
+                    )}
+
+                    {(sendVia === "email" || sendVia === "both") && (
+                      <Input
+                        placeholder="Email address *"
+                        value={clientEmail}
+                        onChange={(e) => setClientEmail(e.target.value)}
+                        className="h-9"
+                        type="email"
+                      />
+                    )}
+
+                    <p className="text-xs text-muted-foreground">
+                      Client will receive a confirmation with the job address and date.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Subbie Allocation Section */}
@@ -420,13 +568,13 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
             </Button>
             <Button
               type="submit"
-              disabled={createMutation.isPending || isSendingInvites}
+              disabled={isSubmitting}
               className="flex-1 touch-target"
             >
-              {(createMutation.isPending || isSendingInvites) && (
+              {isSubmitting && (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               )}
-              {isSendingInvites ? "Sending Invites..." : "Add Job"}
+              {isSendingNotification ? "Notifying..." : isSendingInvites ? "Sending Invites..." : "Add Job"}
             </Button>
           </div>
         </form>
