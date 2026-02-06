@@ -1,113 +1,106 @@
 
-# Fix Footing Chair Selection: Per-LM Quantity & Dynamic Bag Size
 
-## What's Wrong
+# Fix Expansion Joints: 3m Pieces, Not 25m Rolls
 
-Two issues with footing chairs:
+## Problem
 
-### 1. Bag size hardcoded to 25
-Currently, all chair calculations divide total chair count by 25 to get bag count, and the price label always shows "$/25". But according to the price list:
-- **TM Chair (TMCHAIR)**: Bag of **25** -- priced at $12.50/bag
-- **All bar chairs (2540C, 5065C, 7590C, etc.)**: Bag of **100** -- priced at $15.80-$67.30/bag
+The expansion joint system is fundamentally miscalculating because it treats joints as **25m rolls** when they're actually **3m pieces** (sticks). This causes:
 
-The current `getChairPricePerBag25` helper divides bar chair prices by 4 to normalize them to "per 25", which is confusing and wrong -- a bag of 100 should be treated as a bag of 100.
+1. **Wrong quantity**: Total length / 25 = too few "rolls" instead of total length / 3 = correct number of 3m pieces
+2. **Wrong price**: The price key resolves to `EXJ10060` (non-existent 6m variant, falls back to $35) instead of `EXJ10030` ($95/piece)
+3. **Wrong labels**: UI shows "rolls" everywhere instead of "joints" or "pcs"
 
-### 2. Chairs/m input uses decimal steps
-The input uses `step="0.1"` with `min="0.5"`. The boss wants users to pick a whole number of chairs per linear meter (1, 2, 3, etc.).
+### How the bug happens
 
-## What Changes
+The constant `ROLL_LENGTH_M = 25` propagates through the system:
+- New joint `length` is set to `String(25 * 1000)` = `'25000'`
+- The price lookup builds key `EXJ100` + (`'25000' === '3000' ? '30' : '60'`) = `EXJ10060` -- doesn't exist in price list, so falls back to $35
+- Quantity is calculated as `Math.ceil(totalLength / 25)` instead of `Math.ceil(totalLength / 3)`
 
-### UI Changes (all 3 footing/section components)
+### What the price list actually says
 
-- **Chairs/m input**: Change to integer step (`step="1"`, `min="1"`, `max="10"`) so users pick whole numbers
-- **Price label**: Change from static "$/25" to dynamic label showing the actual bag size for the selected chair type (e.g., "$/bag(25)" for TM Chair, "$/bag(100)" for bar chairs)
-- **Price value**: Show the actual catalog price per bag (not the divided-by-4 value)
+| Code | Description | Price |
+|------|-------------|-------|
+| EXJ10030 | Expansion Joint 100mm 3000mm R12 - 300mm Dowel 335/c | $95.00/each |
+| EXJ12530 | Expansion Joint 125mm 3000mm R16 - 450mm Dowel 450/c | $119.30/each |
+| EXJ15030 | Expansion Joint 150mm 3000mm R16 - 450mm Dowel 450/c | $156.90/each |
+| EXJ20030 | Expansion Joint 200mm 3000mm R24 - 450mm Dowel 450/c | $217.80/each |
 
-### Calculation Changes
+These are 3m pieces, priced per piece. The joint product itself includes integrated dowels at the specified centres. The separate "Dowels Required" toggle is for additional doweling into existing concrete -- that flow is correct and unchanged.
 
-- **Remove `getChairPricePerBag25` normalization**: Store and use the actual catalog price per bag
-- **Dynamic bag divisor**: When converting total chairs to bags, divide by the correct bag size (25 for TMCHAIR, 100 for bar chairs) instead of always 25
-- **Descriptions**: Show actual bag size in line item descriptions (e.g., "3 x 100" instead of "12 x 25")
+### Scopes affected
 
-### BOQ Changes
+All scopes that include `connections-joints`: SOG (Standard Slab), Driveway, Crossovers, Paths and Surrounds. These scopes already have the module in their `moduleIds` -- no scope changes needed.
 
-Same dynamic bag size logic for the BOQ generator -- use 25 or 100 based on chair type.
+---
+
+## Solution
+
+### 1. Change the piece length constant
+
+Replace `ROLL_LENGTH_M = 25` with `PIECE_LENGTH_M = 3` (3m joint pieces).
+
+### 2. Fix default joint creation
+
+When adding a new joint:
+- Set `length: '3000'` (3m pieces) instead of `'25000'`
+- This makes the price key resolve correctly to `EXJ10030` = $95
+
+### 3. Fix quantity calculation
+
+Change from `Math.ceil(totalLength / 25)` to `Math.ceil(totalLength / 3)`.
+
+### 4. Update all UI labels
+
+| Location | Before | After |
+|----------|--------|-------|
+| Header badge | "X rolls x 100mm" | "X pcs x 100mm" |
+| Quantity label | "Quantity (auto)" | "Qty (pcs)" |
+| Auto-calc text | "X rolls needed (Ym / 25m per roll)" | "X joints needed (Ym / 3m per joint)" |
+
+### 5. Fix fallback price in calculation module
+
+In `connections-joints.ts`, update the fallback from `35` to `95` so even without a price map, the number is sensible.
+
+### 6. Foam section: unchanged
+
+The foam section correctly uses 25m rolls -- that's a different product (expansion foam rolls). No change needed there.
+
+### 7. Capping: auto-corrects
+
+Capping calculates `cappingLength = quantity x (jointLengthMM / 1000)`. Once `jointLengthMM` is `'3000'` instead of `'25000'`, the capping length calculation fixes itself (e.g., 10 pieces x 3m = 30m of capping).
 
 ---
 
 ## Technical Details
 
-### Files to Modify
+### Files to modify
 
-| File | Change |
-|------|--------|
-| `src/components/estimates/calculators/FootingReinforcementInput.tsx` | Update chair UI: integer step for chairs/m, dynamic price label, use actual catalog price |
-| `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx` | Same UI changes as above |
-| `src/lib/estimate-components/modules/reinforcement-footing.ts` | Use dynamic bag size (25 or 100) based on chair type; stop dividing bar chair prices by 4 |
-| `src/lib/boq-generator.ts` | Use dynamic bag size for footing chair and layer chair line items |
+| File | Changes |
+|------|---------|
+| `src/components/estimates/calculators/MultiExpansionJointInput.tsx` | Replace `ROLL_LENGTH_M=25` with `PIECE_LENGTH_M=3`; update `addJoint` default `length` to `'3000'`; fix `calculateQuantityFromLength` divisor; update all "roll" labels to "joint"/"pcs" |
+| `src/lib/estimate-components/modules/connections-joints.ts` | Update fallback price from `35` to `95`; update line item description to clarify "3m joints" |
 
-### Helper Function Changes
+### Specific code changes
 
-**Replace `getChairPricePerBag25`** in both FootingReinforcementInput and FootingSectionReinforcementInput:
+**MultiExpansionJointInput.tsx:**
 
-```text
-BEFORE (wrong):
-  getChairPricePerBag25('5065C') -> $16.80 / 4 = $4.20
-  Bags = totalChairs / 25
+1. Line 34: `const PIECE_LENGTH_M = 3;` (was `ROLL_LENGTH_M = 25`)
+2. Line 146: `Math.ceil(totalLengthM / PIECE_LENGTH_M)` (was `/ ROLL_LENGTH_M`)
+3. Line 159: `length: '3000'` (was `String(ROLL_LENGTH_M * 1000)`)
+4. Line 161: `price_each: getJointPrice(defaultDepth, '3000', priceMap)` (now resolves to `EXJ10030` = $95)
+5. Line 200: `calculateQuantityFromLength(totalLength)` stays the same (just uses updated divisor)
+6. Line 336: Badge text: `{joint.quantity} pcs` (was "rolls")
+7. Line 427: Auto-calc text: `joints needed (Xm / 3m per joint)` (was "rolls needed ... per roll")
+8. Line 436-439: Quantity label: remove "(auto)" suffix when measured, keep otherwise
+9. Line 779: Foam label stays "Number of Rolls (25m each)" -- foam IS sold in 25m rolls, no change
 
-AFTER (correct):
-  getChairCatalogPrice('5065C') -> $16.80
-  getBagSize('5065C') -> 100
-  Bags = totalChairs / 100
-```
+**connections-joints.ts:**
 
-New helper: `getChairBagSize(chairType)` returns 25 for TMCHAIR, 100 for all bar chairs (reads from `CHAIR_TYPE_OPTIONS.bagsOf`).
+1. Line 67: Fallback `getPrice(priceMap, 'joints_expansion', priceListKey, 95)` (was `35`)
+2. Line 72: Description: `Expansion Joints ${jointLabel} x 3m (${jointQty} pcs)` -- clearer
 
-### Chairs/m Input
+### Data compatibility
 
-```text
-BEFORE: step="0.1", min="0.5", default=1.4
-AFTER:  step="1", min="1", default=1
-```
+Existing estimates that stored `length: '25000'` will still work for price lookups (the key builder handles both `'3000'` and `'6000'`, and anything else falls to the `'60'` path). The quantity won't auto-recalculate until the user re-enters total length -- this is acceptable since editing the estimate re-triggers the calculation.
 
-### Price Label
-
-```text
-BEFORE: "$/25" (static)
-AFTER:  "$/bag" with tooltip or subtext showing bag size
-        e.g., Label reads "$/bag(100)" for 5065C, "$/bag(25)" for TMCHAIR
-```
-
-### Calculation Module (`reinforcement-footing.ts`)
-
-```text
-BEFORE:
-  catalogChairPrice = getPrice(...) / 4     -- divides by 4
-  bags = Math.ceil(totalChairs / 25)        -- always 25
-  description: "Footing TM Chairs (X x 25)"
-
-AFTER:
-  catalogChairPrice = getPrice(...)         -- actual catalog price
-  bagSize = chairType === 'TMCHAIR' ? 25 : 100
-  bags = Math.ceil(totalChairs / bagSize)
-  description: "Footing Chairs - 5065C (X x 100)"
-```
-
-### BOQ Generator (`boq-generator.ts`)
-
-```text
-BEFORE (line 1142):
-  const bags = Math.ceil(totalFootingChairs / 25);
-  notes: `${bags} x 25 pcs`
-
-AFTER:
-  const bagSize = footingChairType === 'TMCHAIR' ? 25 : 100;
-  const bags = Math.ceil(totalFootingChairs / bagSize);
-  notes: `${bags} x ${bagSize} pcs`
-```
-
-Same fix applies to the layer chairs section (lines 1184-1192).
-
-### Data Compatibility
-
-Existing estimates that stored `chair_price_per_bag` as the divided-by-4 value will need handling. On load, if the stored price seems too low relative to the catalog price, the initialization effect will re-fetch the actual catalog price. The `chairs_per_m` value will remain as-is (existing decimals like 1.4 still work, they just won't be settable via the UI anymore).
