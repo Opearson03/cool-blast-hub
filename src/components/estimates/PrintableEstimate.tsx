@@ -723,6 +723,18 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     const secondaryColor = business?.quote_secondary_color || "#1f2937";
     const fontFamily = business?.quote_font || "Arial";
 
+    // Compute valid_until with fallback to created_at + quote_validity_days
+    const validUntilDate = estimate.valid_until
+      ? format(new Date(estimate.valid_until), "d MMM yyyy")
+      : estimate.quote_validity_days && estimate.created_at
+        ? format(new Date(new Date(estimate.created_at).getTime() + (estimate.quote_validity_days as number) * 24 * 60 * 60 * 1000), "d MMM yyyy")
+        : null;
+    const validUntilDateLong = estimate.valid_until
+      ? format(new Date(estimate.valid_until), "d MMMM yyyy")
+      : estimate.quote_validity_days && estimate.created_at
+        ? format(new Date(new Date(estimate.created_at).getTime() + (estimate.quote_validity_days as number) * 24 * 60 * 60 * 1000), "d MMMM yyyy")
+        : null;
+
     // Extract rich data from scope_data
     const quotePDFData = extractQuotePDFData(scopeData, selectedScopes, estimate.description);
 
@@ -847,7 +859,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                     </tr>
                     <tr>
                       <td className="bg-gray-100 border border-gray-300 px-3 py-2 text-gray-600 whitespace-nowrap align-top h-[36px]">Quote valid until</td>
-                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{estimate.valid_until ? format(new Date(estimate.valid_until), "d MMM yyyy") : "-"}</td>
+                      <td className="border border-gray-300 px-3 py-2 text-gray-900 truncate align-top h-[36px]">{validUntilDate || "-"}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1126,7 +1138,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Valid Until</span>
-                  <span className="text-gray-900 font-medium">{estimate.valid_until ? format(new Date(estimate.valid_until), "d MMMM yyyy") : "-"}</span>
+                  <span className="text-gray-900 font-medium">{validUntilDateLong || "-"}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">ABN</span>
