@@ -556,8 +556,8 @@ const {
       const scopeDef = SCOPE_REGISTRY[scopeType];
       
       if (state?.calculatedTotal > 0) {
-        // Build description from scope answers
-        let desc = scopeDef?.name || scopeType;
+        // Build description from scope answers - avoid duplicating scope name
+        let desc = "";
         if (state.scopeAnswers) {
           if (state.scopeAnswers.area) {
             desc = `${state.scopeAnswers.area}m²`;
@@ -1242,7 +1242,8 @@ const {
     const descriptionParts = selectedScopesArray.map(scope => {
       const label = getScopeLabel(scope);
       const { description } = scopeTotals[scope];
-      return `${label}: ${description || 'Not configured'}`;
+      // If no meaningful description, just show the label
+      return description ? `${label}: ${description}` : label;
     });
 
     // Build notes with scope breakdown and inclusions/exclusions
