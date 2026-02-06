@@ -1,51 +1,147 @@
 
-# Fix: Inbound Email Webhook Not Reaching Business Inbox
+# Plan: Improve Email Classification and Fix "Supplier" Label
 
-## Problem Identified
+## Two Issues to Fix
 
-Emails sent to `jefconptyltd@pourhub.au` are arriving in the Resend received inbox but never reaching the PourHub business inbox. Investigation of the backend logs revealed the root cause:
+### Issue 1: Email Classification Gets It Wrong
 
-```
-POST | 404 | receive-test-email
-```
+**Current Problem**: The classification uses a first-keyword-match approach that causes frequent misclassifications. For example, an email from a supplier like Forcon Products saying "Please Price this job" might get classified as a "Plan" instead of "Supplier" because keywords like "pricing" or "slab" in the filename trigger the building_plan classification before the quote_response check.
 
-The Resend webhook is correctly forwarding inbound emails to your backend, but the `receive-test-email` function (which processes all inbound emails) is returning a **404 Not Found** error. This means the function is not currently deployed, despite the code and configuration being present.
+**Root Cause**: The `detectDocumentType` function in the backend email processing:
+- Checks keyword categories in a fixed order (first match wins)
+- Has no awareness of who the sender is (known supplier? known client?)
+- Uses single-keyword matching with no weighting
+- Overlapping keywords between categories cause false positives (e.g., "pricing" appears in both quote and plan keyword lists)
 
-## Evidence
+**Solution**: Implement a scoring-based classification system that:
+1. Scores each category instead of first-match-wins
+2. Checks if the sender is a known supplier contact (strong signal)
+3. Uses weighted keyword matching (exact phrase matches score higher)
+4. Analyzes email body text for additional context clues
 
-- **Jefcon business exists** with alias `jefconptyltd` -- routing would work if the function was live
-- **No records** in any inbox tables (pending_plans, pending_documents, pending_general) for Jefcon
-- **No function execution logs** -- confirming the function never ran
-- **Edge logs show 404** -- the webhook request reaches the server but the function isn't found
-- **All existing inbox records** (from the demo PourHub business) were created when the function was previously deployed and working
+### Issue 2: Reclassification Buttons Still Say "Quote"
 
-## Fix
+**Current Problem**: The inbox list correctly shows "Supplier" for quote-type items, but when you open the detail sheet, the type badge shows "Quote" and the reclassification button also says "Quote" (visible in the screenshot).
 
-### Step 1: Redeploy the `receive-test-email` edge function
+**Solution**: Update the labels in `InboxDetailSheet.tsx` to use "Supplier" consistently.
 
-The function code is complete and correct (1,002 lines covering plan detection, test results, delivery dockets, quote responses, and general emails). It simply needs to be redeployed to make it live again.
+---
 
-No code changes are needed -- just a redeployment.
+## Files to Modify
 
-### Step 2: Verify deployment with a test
-
-After redeployment, send a test webhook call to confirm the function responds with a 200 status instead of 404.
-
-### Step 3: Re-send the plans
-
-Once the function is live, the client will need to re-send their plans to `jefconptyltd@pourhub.au` since the original email was lost (Resend received it but the webhook failed, so the data was never stored).
+| File | Change |
+|------|--------|
+| `supabase/functions/receive-test-email/index.ts` | Replace keyword-first-match with scoring-based classification, add sender lookup |
+| `src/components/contacts/InboxDetailSheet.tsx` | Change "Quote" labels to "Supplier" in `getTypeLabel` and reclassify buttons |
 
 ---
 
 ## Technical Details
 
-| Item | Detail |
-|------|--------|
-| Function | `supabase/functions/receive-test-email/index.ts` |
-| Config | `supabase/config.toml` -- already has `verify_jwt = false` |
-| Business alias | `jefconptyltd` maps to business ID `b68994a9-...` |
-| Action required | Redeploy edge function (no code changes) |
+### 1. Scoring-Based Classification (Edge Function)
 
-## Why This Happened
+Replace the current `detectDocumentType` function with a `scoreDocumentType` approach:
 
-Edge functions can become undeployed if a previous build/deploy cycle failed or if the function was accidentally excluded from a deployment batch. The code and config have been intact the whole time, but the live deployment was missing.
+```text
+For each incoming email, calculate a score for each category:
+
+1. KNOWN SENDER CHECK (highest priority, +60 points)
+   - Query supplier_contacts table for sender email
+   - If sender matches a known supplier -> +60 to quote_response
+
+2. KEYWORD SCORING (weighted)
+   - Exact phrase match: +15 points (e.g., "please find attached quote")
+   - Single keyword match: +5 points (e.g., "quote")
+   - Subject line keywords weighted 2x vs filename keywords
+
+3. CONTEXTUAL PATTERNS (+20 points each)
+   - "RE:" or "FW:" in subject with matching RFQ -> quote_response
+   - Sender domain matches known supplier -> quote_response
+   - "Please price/quote" = request TO the business -> building_plan
+   - "Here is our quote/pricing" = response FROM supplier -> quote_response
+
+4. ANTI-OVERLAP RULES
+   - If "pricing" appears alongside "request" or "quote" -> favor quote_response
+   - If "plan" or "drawing" appears alongside "price" -> favor building_plan
+   - Exclude general/misc words from triggering work categories
+
+Pick the category with the highest score. 
+If no category scores above 10, default to "general".
+```
+
+### 2. Known Supplier Lookup
+
+Add a query at the start of email processing:
+
+```text
+Before classifying:
+1. Extract sender email domain
+2. Query supplier_contacts where email ILIKE sender email
+3. If match found -> strong signal for quote_response classification
+4. Also check purchase_orders for any active RFQ sent to this email
+```
+
+### 3. Improved Keyword Lists
+
+Reorganize keywords with weights:
+
+```text
+BUILDING_PLAN (incoming work requests):
+  Strong (15pts): "please price", "please quote", "quote request", 
+                  "pricing request", "tender", "scope of works"
+  Medium (10pts): "plans attached", "drawings attached", "for pricing"
+  Weak (5pts):    "plan", "drawing", "architectural", "structural",
+                  "floor plan", "site plan", "footing", "slab"
+
+QUOTE_RESPONSE (supplier replies):
+  Strong (15pts): "here is our quote", "attached quote", "our pricing",
+                  "as requested", "please find attached"
+  Medium (10pts): "quotation", "price list", "cost breakdown", "unit rates"
+  Weak (5pts):    "quote", "pricing"
+
+TEST_RESULT:
+  Strong (15pts): "test result", "lab result", "compressive strength",
+                  "7 day result", "28 day result"
+  Medium (10pts): "mpa", "cylinder", "slump test"
+  Weak (5pts):    "test", "laboratory", "strength"
+
+DELIVERY_DOCKET:
+  Strong (15pts): "delivery docket", "concrete delivery", "batch ticket"
+  Medium (10pts): "docket number", "cartage note"
+  Weak (5pts):    "docket", "delivery", "dispatch", "truck", "load"
+
+GENERAL (exclusions - if these match, reduce other scores):
+  "invoice", "statement", "payment", "receipt", "newsletter",
+  "unsubscribe", "marketing", "promotion"
+```
+
+### 4. Fix "Supplier" Labels in InboxDetailSheet.tsx
+
+Two simple changes:
+
+**getTypeLabel function (line 250)**:
+- Change: `case "quote": return "Quote";`
+- To: `case "quote": return "Supplier";`
+
+**Reclassify button (line 647)**:
+- Change: `Quote`
+- To: `Supplier`
+
+---
+
+## Expected Improvements
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| Known supplier emails pricing | Classified as "Plan" | Classified as "Supplier" (sender match) |
+| "Please Price this job" from unknown | Could be Plan or wrong | Classified as "Plan" (request TO business) |
+| "Here is our quote" from supplier | Sometimes "Plan" | Classified as "Supplier" (response pattern) |
+| Reply to sent RFQ | Sometimes "General" | Classified as "Supplier" (RFQ match) |
+| Reclassify button label | Shows "Quote" | Shows "Supplier" |
+| Detail sheet type badge | Shows "Quote" | Shows "Supplier" |
+
+---
+
+## Deployment Note
+
+The edge function change requires redeployment of `receive-test-email`. This will be handled automatically. No database changes are needed.
