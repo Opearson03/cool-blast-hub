@@ -248,7 +248,7 @@ export function InboxDetailSheet({
       case "test": return "Test Result";
       case "docket": return "Docket";
       case "general": return "General";
-      case "quote": return "Quote";
+      case "quote": return "Supplier";
       default: return type;
     }
   };
@@ -644,7 +644,7 @@ export function InboxDetailSheet({
                     disabled={isReclassifying}
                   >
                     {isReclassifying ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : <span className="mr-1 font-bold">$</span>}
-                    Quote
+                    Supplier
                   </Button>
                 )}
               </div>
