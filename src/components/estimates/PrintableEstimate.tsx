@@ -644,7 +644,7 @@ const TermsAndExclusionsPage = ({
   };
 
   return (
-    <div data-pdf-section="page-2" className="page-break-before">
+    <div data-pdf-section="page-2" className="page-break-before pt-1">
       {renderHeader()}
       {renderInclusions()}
       {renderExclusions()}
