@@ -1,64 +1,45 @@
 
-# Plan: Fix RFQ Popup Content Overflow Issue
 
-## Problem
-Content throughout the Order Wizard dialog is being cut off and hidden beneath the footer buttons ("Back", "Cancel", "Send PO/Request Quote"). The ScrollArea is not properly containing the content within the available space, causing content to fall off the bottom.
+# Plan: Fix Order Wizard Popup Usability Issues
 
-## Root Cause Analysis
+## Problems Identified
 
-The layout structure is:
-```
-DialogContent (max-h-[85vh], flex flex-col, overflow-hidden)
-  ├── StepIndicator (fixed height)
-  ├── ScrollArea (flex-1, min-h-0)  <-- ISSUE HERE
-  │     └── Viewport (needs explicit overflow control)
-  │           └── div (min-h-[200px], pb-4)
-  │                 └── Step content
-  └── DialogFooter (fixed height, pt-4 border-t)
-```
+After reviewing all the components, I've identified the following issues causing the popup to be unusable:
 
-**Issues identified:**
-1. The Radix ScrollArea Viewport needs `!overflow-y-auto` to ensure scrolling works in flexbox
-2. The inner content wrapper doesn't have enough bottom padding to clear the footer
-3. The ScrollArea negative margins (`-mx-6 px-6`) can interfere with scroll behavior
+### 1. **ScrollArea Viewport Height Issue**
+The Radix `ScrollArea` component has a `Viewport` that uses `h-full w-full`, but in a flex container, `h-full` doesn't work without an explicit height. The `[&_[data-radix-scroll-area-viewport]]:!overflow-y-auto` fix added overflow but doesn't fix the **height calculation** issue.
 
-## Solution
+**Root cause**: The viewport needs explicit height constraints, not just overflow control.
 
-### 1. Fix ScrollArea Viewport Styling
-Update the ScrollArea component to add proper overflow handling for the viewport, or override it in OrderWizardDialog.
+### 2. **Content Competing for Space**
+Each step component has internal scrolling or fixed heights that conflict with the parent ScrollArea:
+- `ItemsStep`: Has `max-h-80 overflow-y-auto` on the items list (nested scroll)
+- `SupplierStep`: Has `max-h-48` on the CommandList (nested scroll) 
+- These nested scroll areas inside the parent ScrollArea cause unpredictable behavior
 
-### 2. Update OrderWizardDialog Layout
-- Remove the negative margin hack on ScrollArea
-- Add proper padding/margin management
-- Ensure content has adequate bottom spacing
+### 3. **Missing Viewport Height on ScrollArea**
+The ScrollArea needs explicit height constraints via CSS to properly calculate available space. Currently it uses `flex-1 min-h-0` but the Radix Viewport inside doesn't inherit this properly.
+
+### 4. **Footer/Header Not Accounted For**
+The dialog structure doesn't properly reserve space for the header (StepIndicator) and footer, leaving the ScrollArea to fight for remaining space.
+
+---
+
+## Solution: Complete Layout Restructure
+
+### Approach
+Replace the problematic `ScrollArea` with a simpler CSS-based scrolling solution that works reliably in flexbox containers.
+
+---
 
 ## Technical Changes
 
 ### File: `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx`
 
-**Current (line 462-470):**
-```tsx
-<DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
-  <StepIndicator ... />
-  
-  <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
-    <div className="min-h-[200px] pb-4">
-      {/* Step content */}
-    </div>
-  </ScrollArea>
-  
-  <DialogFooter className="flex-row justify-between gap-2 pt-4 border-t">
-```
-
-**Fix:**
-1. Remove `-mx-6 px-6` from ScrollArea (this hack causes scroll issues)
-2. Add `[&_[data-radix-scroll-area-viewport]]:!overflow-y-auto` to force proper scrolling
-3. Add `pr-2` for scrollbar clearance
-4. Increase bottom padding inside the content wrapper to ensure content clears the footer area
-
+**Current Structure (Broken):**
 ```tsx
 <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden p-0">
-  <div className="p-6 pb-0">
+  <div className="p-6 pb-4">
     <StepIndicator ... />
   </div>
   
@@ -68,49 +49,116 @@ Update the ScrollArea component to add proper overflow handling for the viewport
     </div>
   </ScrollArea>
   
-  <DialogFooter className="flex-row justify-between gap-2 p-6 pt-4 border-t mt-auto flex-shrink-0">
+  <DialogFooter className="flex-row justify-between gap-2 p-6 pt-4 border-t flex-shrink-0">
 ```
 
-Key changes:
-- **DialogContent**: `p-0` to manage padding manually per section
-- **StepIndicator wrapper**: `p-6 pb-0` for top/side padding
-- **ScrollArea**: Remove margin hack, add explicit viewport overflow control
-- **Content div**: `pb-6` for proper bottom clearance
-- **DialogFooter**: `p-6 pt-4 flex-shrink-0` to ensure it never shrinks and has proper padding
-
-### Alternative simpler fix:
-If the above restructuring is too invasive, a simpler fix:
-
+**New Structure (Fixed):**
 ```tsx
-<ScrollArea className="flex-1 min-h-0 -mx-6 px-6 [&>div]:!overflow-y-auto">
-  <div className="min-h-[200px] pb-8">
-    {/* Step content - increased bottom padding */}
+<DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden p-0">
+  {/* Header - fixed height, never shrinks */}
+  <div className="flex-shrink-0 p-6 pb-4">
+    <StepIndicator ... />
   </div>
-</ScrollArea>
+  
+  {/* Scrollable content area - takes remaining space, scrolls internally */}
+  <div className="flex-1 overflow-y-auto px-6 min-h-0">
+    <div className="pb-6">
+      {/* Step content */}
+    </div>
+  </div>
+  
+  {/* Footer - fixed height, never shrinks */}
+  <DialogFooter className="flex-shrink-0 flex-row justify-between gap-2 p-6 pt-4 border-t">
 ```
 
-This targets the Radix viewport div and forces vertical scrolling, plus adds more bottom padding.
+**Key changes:**
+1. Replace `ScrollArea` with a simple `div` using `overflow-y-auto`
+2. Add `flex-shrink-0` to both header and footer to prevent them from shrinking
+3. Use `flex-1 min-h-0 overflow-y-auto` on the content area (this is the standard flexbox scroll pattern)
+4. Remove the Radix viewport override hack
 
 ---
 
-## Files Changed
+### File: `src/components/jobs/boq/order-wizard/ItemsStep.tsx`
+
+**Remove nested scroll area** - let the parent handle scrolling:
+
+```tsx
+// Before (line 49):
+<div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
+
+// After:
+<div className="border rounded-lg divide-y">
+```
+
+---
+
+### File: `src/components/jobs/boq/order-wizard/SupplierStep.tsx`
+
+**Remove nested scroll constraint** on CommandList:
+
+```tsx
+// Before (line ~99):
+<CommandList className="max-h-48">
+
+// After:
+<CommandList className="max-h-[200px]">
+```
+
+Keep a max-height but make it reasonable. Also for the PO supplier search (line ~146):
+```tsx
+<CommandList className="max-h-[200px]">
+```
+
+---
+
+### File: `src/components/jobs/boq/order-wizard/DeliveryStep.tsx`
+
+The Notes textarea at the bottom has `pb-4` which may not be enough. Increase to ensure visibility:
+
+```tsx
+// Line 152 - already has pb-4, but the parent now handles scrolling
+// No change needed here
+```
+
+---
+
+### File: `src/components/jobs/boq/order-wizard/ReviewStep.tsx`
+
+The final `pb-4` div (line 361) is adequate. No changes needed.
+
+---
+
+## Summary of Changes
 
 | File | Change |
 |------|--------|
-| `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx` | Fix ScrollArea layout and padding to prevent content overflow |
+| `OrderWizardDialog.tsx` | Replace ScrollArea with native CSS scroll; add flex-shrink-0 to header/footer |
+| `ItemsStep.tsx` | Remove `max-h-80 overflow-y-auto` from items list |
+| `SupplierStep.tsx` | Adjust `max-h-48` to `max-h-[200px]` for both CommandLists |
+
+---
+
+## Why This Works
+
+1. **Flexbox scroll pattern**: `flex: 1` + `min-height: 0` + `overflow-y: auto` is the standard CSS pattern for creating a scrollable area that takes remaining space in a flex container.
+
+2. **No Radix quirks**: The Radix ScrollArea component has known issues in certain flex layouts. Using native CSS scroll is more reliable.
+
+3. **Single scroll context**: Removing nested scrollable areas prevents "scroll trapping" where the user's scroll input gets captured by the wrong element.
+
+4. **Fixed header/footer**: Using `flex-shrink-0` ensures the header and footer always remain visible and never get pushed off-screen.
 
 ---
 
 ## Testing Checklist
 
-1. Open BOQ Order Wizard and select "Request Quote"
-2. Proceed through all 5 steps
-3. Verify ALL content is visible and scrollable on each step:
-   - Type step: Both options visible
-   - Items step: All items scrollable, no cutoff
-   - Supplier step: All suppliers visible, search works
-   - Delivery step: All fields visible including Notes textarea at bottom
-   - Review step: All sections visible including "Include building plans" toggle and "Will be sent via email" footer
-4. Verify footer buttons (Back, Cancel, Send) are always visible and not covering content
-5. Test on mobile viewport to ensure scrolling works on smaller screens
-6. Test with many items/suppliers to ensure long lists scroll properly
+1. Open Order Wizard → verify all 5 steps are fully visible and scrollable
+2. **Type step**: Both cards visible without scrolling
+3. **Items step**: Long item list scrolls properly, "Select All" header stays visible
+4. **Supplier step**: Search dropdown works, all suppliers visible when scrolling
+5. **Delivery step**: All fields visible - Address, Date, Site Contact, Notes textarea at bottom
+6. **Review step**: All summary info visible, "Include plans" toggle visible, email notice at bottom visible
+7. Footer buttons (Back, Cancel, Send) always visible and not covering content
+8. Test on mobile viewport (small screen) - content should scroll without cutoff
+
