@@ -55,7 +55,7 @@ export function OrderWizardDialog({
   const [siteContactId, setSiteContactId] = useState("");
   const [manualSiteContact, setManualSiteContact] = useState({ name: "", phone: "" });
   const [notes, setNotes] = useState("");
-  const [sendMethod, setSendMethod] = useState<SendMethod>("email");
+  const sendMethod: SendMethod = "email"; // Email only for supplier communications
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -79,7 +79,6 @@ export function OrderWizardDialog({
       setSiteContactId("");
       setManualSiteContact({ name: "", phone: "" });
       setNotes("");
-      setSendMethod("email");
     }
   }, [open, boq.items, siteAddress, preSelectedItems]);
 
@@ -201,25 +200,14 @@ export function OrderWizardDialog({
       if (selectedSupplierIds.length === 0 && !manualSupplier.name) {
         errors.push("Select or enter at least one supplier");
       }
+      // Email is required for all suppliers
       if (selectedSupplierIds.length > 0) {
-        if (sendMethod === "email" && selectedSuppliers.some(s => !s.email)) {
+        if (selectedSuppliers.some(s => !s.email)) {
           errors.push("Some suppliers are missing email addresses");
         }
-        if (sendMethod === "sms" && selectedSuppliers.some(s => !s.phone)) {
-          errors.push("Some suppliers are missing phone numbers");
-        }
-        if (sendMethod === "both" && selectedSuppliers.some(s => !s.email || !s.phone)) {
-          errors.push("Some suppliers are missing contact info");
-        }
       } else {
-        if (sendMethod === "email" && !manualSupplier.email) {
+        if (!manualSupplier.email) {
           errors.push("Supplier email is required");
-        }
-        if (sendMethod === "sms" && !manualSupplier.phone) {
-          errors.push("Supplier phone is required");
-        }
-        if (sendMethod === "both" && (!manualSupplier.email || !manualSupplier.phone)) {
-          errors.push("Supplier email and phone are required");
         }
       }
     } else {
@@ -230,14 +218,9 @@ export function OrderWizardDialog({
       if (!deliveryAddress) {
         errors.push("Delivery address is required");
       }
-      if (sendMethod === "email" && !recipient?.email) {
+      // Email is required
+      if (!recipient?.email) {
         errors.push("Supplier email is required");
-      }
-      if (sendMethod === "sms" && !recipient?.phone) {
-        errors.push("Supplier phone is required");
-      }
-      if (sendMethod === "both" && (!recipient?.email || !recipient?.phone)) {
-        errors.push("Supplier email and phone are required");
       }
     }
 
@@ -501,8 +484,6 @@ export function OrderWizardDialog({
                   siteContactOptions={siteContactOptions}
                   manualSiteContact={manualSiteContact}
                   notes={notes}
-                  sendMethod={sendMethod}
-                  onSendMethodChange={setSendMethod}
                   validationErrors={validationErrors}
                 />
               )}
