@@ -231,13 +231,20 @@ serve(async (req) => {
         const emailSubjectPrefix = isQuoteRequest ? "Quote Request" : "Purchase Order";
         
         // Build attachments array for quote requests with plans
-        const emailAttachments: { filename: string; content: string }[] = [];
+        const emailAttachments: { filename: string; content: string; content_type: string }[] = [];
         
         if (isQuoteRequest && planAttachments.length > 0) {
           console.log(`Processing ${planAttachments.length} plan attachments`);
           
           for (const plan of planAttachments) {
             try {
+              // Only attach PDF files
+              const isPdf = plan.fileName.toLowerCase().endsWith('.pdf');
+              if (!isPdf) {
+                console.log(`Skipping non-PDF file: ${plan.fileName}`);
+                continue;
+              }
+              
               // Download the file from the URL
               const response = await fetch(plan.fileUrl);
               if (!response.ok) {
@@ -260,9 +267,10 @@ serve(async (req) => {
               emailAttachments.push({
                 filename: plan.fileName,
                 content: base64Content,
+                content_type: 'application/pdf',
               });
               
-              console.log(`Attached: ${plan.fileName} (${Math.round(arrayBuffer.byteLength / 1024)}KB)`);
+              console.log(`Attached PDF: ${plan.fileName} (${Math.round(arrayBuffer.byteLength / 1024)}KB)`);
             } catch (attachError) {
               console.error(`Error attaching file ${plan.fileName}:`, attachError);
             }
@@ -396,7 +404,7 @@ serve(async (req) => {
             to: string[];
             subject: string;
             html: string;
-            attachments?: { filename: string; content: string }[];
+            attachments?: { filename: string; content: string; content_type: string }[];
           } = {
             from: `${businessName} <${fromEmail}>`,
             to: [supplierEmail],
