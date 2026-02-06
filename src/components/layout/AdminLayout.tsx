@@ -13,6 +13,7 @@ import { useThemeOnAuth } from "@/hooks/useThemeOnAuth";
 import { usePlatform } from "@/hooks/usePlatform";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "@/hooks/use-toast";
 
 interface NavItem {
   href: string;
@@ -48,34 +49,62 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     navigate("/auth");
   };
 
+  const handleLockedItemClick = (e: React.MouseEvent, item: NavItem) => {
+    e.preventDefault();
+    toast({
+      title: "PourHub Pro feature",
+      description: `Upgrade to Pro to unlock ${item.label}, Jobs, Schedule, and Contacts.`,
+    });
+  };
+
   const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
     const isActive = location.pathname === item.href;
     const isLocked = item.requiresPro && !hasFullAppAccess;
+    
+    const baseClasses = cn(
+      isMobile
+        ? "flex items-center gap-3 px-4 py-3 rounded-lg text-lg touch-target"
+        : "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+      isActive && !isLocked
+        ? "bg-primary text-primary-foreground" 
+        : isLocked
+          ? "text-muted-foreground/60 cursor-not-allowed"
+          : "hover:bg-muted"
+    );
+
+    // If locked, render as a non-navigating element
+    if (isLocked) {
+      return (
+        <div
+          key={item.href}
+          role="button"
+          aria-disabled="true"
+          tabIndex={-1}
+          onClick={(e) => handleLockedItemClick(e, item)}
+          className={baseClasses}
+        >
+          <item.icon className="w-5 h-5 opacity-50" />
+          <span className="flex-1 opacity-70">{item.label}</span>
+          <Lock className="w-4 h-4 opacity-50" />
+        </div>
+      );
+    }
     
     return (
       <Link
         key={item.href}
         to={item.href}
         onClick={() => isMobile && setMobileMenuOpen(false)}
-        className={cn(
-          isMobile
-            ? "flex items-center gap-3 px-4 py-3 rounded-lg text-lg touch-target"
-            : "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-          isActive 
-            ? "bg-primary text-primary-foreground" 
-            : isLocked
-              ? "text-muted-foreground hover:bg-muted/50"
-              : "hover:bg-muted"
-        )}
+        className={baseClasses}
       >
         <item.icon className="w-5 h-5" />
         <span className="flex-1">{item.label}</span>
-        {isLocked && (
-          <Lock className="w-4 h-4 text-muted-foreground" />
-        )}
       </Link>
     );
   };
+
+  // Determine logo link based on access level
+  const logoLink = hasFullAppAccess ? "/admin" : "/admin/estimates";
 
   // Tier display badge
   const TierBadge = () => {
@@ -99,7 +128,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-card border-b border-border px-4 py-3 flex items-center justify-between"
         style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 8px)' } : undefined}
       >
-        <Link to="/admin" className="flex items-center gap-2">
+        <Link to={logoLink} className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg overflow-hidden">
             <Logo className="w-full h-full" />
           </div>
@@ -148,7 +177,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 bg-card border-r border-border flex-col">
         <div className="p-4 border-b border-border flex items-center justify-between">
-          <Link to="/admin" className="flex items-center gap-2">
+          <Link to={logoLink} className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-lg overflow-hidden">
               <Logo className="w-full h-full" />
             </div>

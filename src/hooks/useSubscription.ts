@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { SUBSCRIPTION_TIERS, SubscriptionTier } from "@/lib/subscription-tiers";
 
-const SUBSCRIPTION_CACHE_KEY = "pourhub_subscription_cache";
+const SUBSCRIPTION_CACHE_KEY = "pourhub_subscription_cache_v2";
 const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes (increased from 5 minutes)
 const POLLING_INTERVAL_MS = 10 * 60 * 1000; // 10 minutes (reduced from 60 seconds)
 
