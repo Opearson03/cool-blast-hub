@@ -46,7 +46,7 @@ export function ItemsStep({
         </div>
       </div>
 
-      <div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
+      <div className="border rounded-lg divide-y">
         {unorderedItems.map((item) => (
           <label
             key={item.id}

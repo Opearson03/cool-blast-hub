@@ -118,7 +118,7 @@ export function SupplierStep({
                 value={searchQuery}
                 onValueChange={setSearchQuery}
               />
-              <CommandList className="max-h-48">
+              <CommandList className="max-h-[200px]">
                 <CommandEmpty>No suppliers found</CommandEmpty>
                 <CommandGroup>
                   {filteredSuppliers
@@ -163,7 +163,7 @@ export function SupplierStep({
             value={searchQuery}
             onValueChange={setSearchQuery}
           />
-          <CommandList className="max-h-48">
+          <CommandList className="max-h-[200px]">
             <CommandEmpty>No suppliers found</CommandEmpty>
             <CommandGroup>
               <CommandItem
