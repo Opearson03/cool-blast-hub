@@ -459,15 +459,17 @@ export function OrderWizardDialog({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
-          <StepIndicator
-            currentStep={currentStep}
-            orderType={orderType}
-            completedSteps={completedSteps}
-          />
+        <DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden p-0">
+          <div className="p-6 pb-4">
+            <StepIndicator
+              currentStep={currentStep}
+              orderType={orderType}
+              completedSteps={completedSteps}
+            />
+          </div>
 
-          <ScrollArea className="flex-1 min-h-0 -mx-6 px-6">
-            <div className="min-h-[200px] pb-4">
+          <ScrollArea className="flex-1 min-h-0 px-6 [&_[data-radix-scroll-area-viewport]]:!overflow-y-auto">
+            <div className="min-h-[200px] pb-6">
               {currentStep === "type" && (
                 <TypeStep orderType={orderType} onSelect={setOrderType} />
               )}
@@ -544,7 +546,7 @@ export function OrderWizardDialog({
             </div>
           </ScrollArea>
 
-          <DialogFooter className="flex-row justify-between gap-2 pt-4 border-t">
+          <DialogFooter className="flex-row justify-between gap-2 p-6 pt-4 border-t flex-shrink-0">
             <Button
               variant="outline"
               onClick={handleBack}
