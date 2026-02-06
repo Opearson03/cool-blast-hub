@@ -383,8 +383,8 @@ const TermsAndExclusionsPage = ({
   secondaryColor,
   template 
 }: { 
-  inclusions: string[];
-  exclusions: string[]; 
+  inclusions: Record<string, string[]>;
+  exclusions: Record<string, string[]>; 
   paymentTerms: string[] | null;
   customNotes: string | null;
   business: PrintableEstimateProps['business'];
@@ -393,7 +393,9 @@ const TermsAndExclusionsPage = ({
   secondaryColor: string;
   template: string;
 }) => {
-  const hasContent = inclusions.length > 0 || exclusions.length > 0 || paymentTerms || customNotes;
+  const hasInclusions = Object.values(inclusions).some(items => items.length > 0);
+  const hasExclusions = Object.values(exclusions).some(items => items.length > 0);
+  const hasContent = hasInclusions || hasExclusions || paymentTerms || customNotes;
   if (!hasContent) return null;
 
   const renderHeader = () => {
@@ -502,78 +504,104 @@ const TermsAndExclusionsPage = ({
   };
 
   const renderInclusions = () => {
-    if (inclusions.length === 0) return null;
+    const entries = Object.entries(inclusions).filter(([_, items]) => items.length > 0);
+    if (entries.length === 0) return null;
 
     if (template === 'minimal') {
       return (
-        <div className="mb-8">
-          <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Inclusions</p>
-          <p className="text-xs text-gray-500 mb-2">This quote includes:</p>
-          <div className="text-sm text-gray-600 space-y-1">
-            {inclusions.map((inc, index) => (
-              <p key={index} className="flex items-start gap-2">
-                <span className="text-green-500">✓</span>
-                <span>{inc}</span>
-              </p>
-            ))}
-          </div>
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-wider text-gray-400 mb-1.5">Inclusions</p>
+          {entries.map(([scopeName, items], groupIdx) => (
+            <div key={groupIdx} className="mb-1.5">
+              {entries.length > 1 && (
+                <p className="text-[10px] font-semibold text-gray-500 mb-0.5">{scopeName}</p>
+              )}
+              <div className="space-y-0.5">
+                {items.map((inc, idx) => (
+                  <p key={idx} className="text-[11px] text-gray-600 flex items-start gap-1.5">
+                    <span className="text-green-500">✓</span>
+                    <span>{inc}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
 
-    // Classic - accent border style
+    // Classic - accent border style with per-scope groups
     return (
-      <div className="mb-6">
-        <div className="border-l-4 pl-4" style={{ borderLeftColor: "#16a34a" }}>
-          <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Inclusions</p>
-          <p className="text-xs text-gray-500 mb-2">This quote includes:</p>
-          <div className="space-y-1">
-            {inclusions.map((inc, index) => (
-              <p key={index} className="text-sm text-gray-600 flex items-start gap-2">
-                <span className="text-green-500 font-bold">✓</span>
-                <span>{inc}</span>
-              </p>
-            ))}
-          </div>
+      <div className="mb-3">
+        <div className="border-l-4 pl-3" style={{ borderLeftColor: "#16a34a" }}>
+          <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Inclusions</p>
+          {entries.map(([scopeName, items], groupIdx) => (
+            <div key={groupIdx} className="mb-1.5">
+              {entries.length > 1 && (
+                <p className="text-[10px] font-semibold text-gray-600 uppercase mb-0.5">{scopeName}</p>
+              )}
+              <div className="space-y-0.5">
+                {items.map((inc, idx) => (
+                  <p key={idx} className="text-[11px] text-gray-600 flex items-start gap-1.5">
+                    <span className="text-green-500 font-bold">✓</span>
+                    <span>{inc}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
   };
 
   const renderExclusions = () => {
-    if (exclusions.length === 0) return null;
+    const entries = Object.entries(exclusions).filter(([_, items]) => items.length > 0);
+    if (entries.length === 0) return null;
 
     if (template === 'minimal') {
       return (
-        <div className="mb-8">
-          <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">Exclusions</p>
-          <p className="text-xs text-gray-500 mb-2">The following items are NOT included in this quote:</p>
-          <div className="text-sm text-gray-600 space-y-1">
-            {exclusions.map((exc, index) => (
-              <p key={index} className="flex items-start gap-2">
-                <span className="text-gray-400">×</span>
-                <span>{exc}</span>
-              </p>
-            ))}
-          </div>
+        <div className="mb-4">
+          <p className="text-xs uppercase tracking-wider text-gray-400 mb-1.5">Exclusions</p>
+          {entries.map(([scopeName, items], groupIdx) => (
+            <div key={groupIdx} className="mb-1.5">
+              {entries.length > 1 && (
+                <p className="text-[10px] font-semibold text-gray-500 mb-0.5">{scopeName}</p>
+              )}
+              <div className="space-y-0.5">
+                {items.map((exc, idx) => (
+                  <p key={idx} className="text-[11px] text-gray-600 flex items-start gap-1.5">
+                    <span className="text-gray-400">×</span>
+                    <span>{exc}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       );
     }
 
-    // Classic - accent border style
+    // Classic - accent border style with per-scope groups
     return (
-      <div className="mb-6">
-        <div className="border-l-4 pl-4" style={{ borderLeftColor: "#ea580c" }}>
-          <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-3">Exclusions</p>
-          <p className="text-xs text-gray-500 mb-2">The following items are NOT included:</p>
-          <div className="space-y-1">
-            {exclusions.map((exc, index) => (
-              <p key={index} className="text-sm text-gray-600 flex items-start gap-2">
-                <span className="text-orange-500 font-bold">✕</span>
-                <span>{exc}</span>
-              </p>
-            ))}
-          </div>
+      <div className="mb-3">
+        <div className="border-l-4 pl-3" style={{ borderLeftColor: "#ea580c" }}>
+          <p className="text-xs font-bold text-gray-700 uppercase tracking-wide mb-1.5">Exclusions</p>
+          {entries.map(([scopeName, items], groupIdx) => (
+            <div key={groupIdx} className="mb-1.5">
+              {entries.length > 1 && (
+                <p className="text-[10px] font-semibold text-gray-600 uppercase mb-0.5">{scopeName}</p>
+              )}
+              <div className="space-y-0.5">
+                {items.map((exc, idx) => (
+                  <p key={idx} className="text-[11px] text-gray-600 flex items-start gap-1.5">
+                    <span className="text-orange-500 font-bold">✕</span>
+                    <span>{exc}</span>
+                  </p>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -706,6 +734,27 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
     
     // Get dynamic payment terms (pass whether user has custom notes)
     const paymentTerms = getPaymentTermsText(estimate, !!parsedNotes.userNotes);
+
+    // Merge grouped inclusions/exclusions with legacy flat notes (backward compat)
+    const mergedInclusions: Record<string, string[]> = (() => {
+      const base = { ...quotePDFData.inclusions };
+      const flatItems = parsedNotes.inclusionsFromNotes.filter(inc =>
+        !Object.values(base).some(items => items.includes(inc))
+      );
+      if (flatItems.length > 0) {
+        base['General'] = [...(base['General'] || []), ...flatItems];
+      }
+      return base;
+    })();
+
+    const mergedExclusions: Record<string, string[]> = (() => {
+      const hasGrouped = Object.values(quotePDFData.exclusions).some(items => items.length > 0);
+      if (hasGrouped) return quotePDFData.exclusions;
+      if (parsedNotes.exclusionsFromNotes.length > 0) {
+        return { 'General': parsedNotes.exclusionsFromNotes };
+      }
+      return {};
+    })();
 
     // Common styles for print - no margin auto to avoid gaps in PDF capture
     const printStyles = `
@@ -990,8 +1039,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
           {/* PAGE 2 - Terms & Exclusions */}
           <TermsAndExclusionsPage
-            inclusions={[...quotePDFData.inclusions, ...parsedNotes.inclusionsFromNotes.filter(inc => !quotePDFData.inclusions.includes(inc))]}
-            exclusions={quotePDFData.exclusions.length > 0 ? quotePDFData.exclusions : parsedNotes.exclusionsFromNotes}
+            inclusions={mergedInclusions}
+            exclusions={mergedExclusions}
             paymentTerms={paymentTerms}
             customNotes={parsedNotes.userNotes}
             business={business}
@@ -1271,8 +1320,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
 
         {/* PAGE 2 - Terms & Exclusions */}
         <TermsAndExclusionsPage
-          inclusions={[...quotePDFData.inclusions, ...parsedNotes.inclusionsFromNotes.filter(inc => !quotePDFData.inclusions.includes(inc))]}
-          exclusions={quotePDFData.exclusions.length > 0 ? quotePDFData.exclusions : parsedNotes.exclusionsFromNotes}
+          inclusions={mergedInclusions}
+          exclusions={mergedExclusions}
           paymentTerms={paymentTerms}
           customNotes={parsedNotes.userNotes}
           business={business}

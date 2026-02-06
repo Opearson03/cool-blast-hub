@@ -46,8 +46,8 @@ export interface QuotePDFData {
   reinforcement: ReinforcementDetails | null;
   scopeBreakdowns: ScopeBreakdown[];
   lineItems: QuoteLineItem[];
-  inclusions: string[];
-  exclusions: string[];
+  inclusions: Record<string, string[]>;
+  exclusions: Record<string, string[]>;
 }
 
 /**
@@ -66,6 +66,8 @@ function getScopesFromData(scopeData: Record<string, any> | null): Record<string
   // Non-scope keys to skip - these are metadata, not actual scopes
   const nonScopeKeys = new Set([
     '_globalMargin', 
+    '_inclusions',
+    '_exclusions',
     'exclusions', 
     'customExclusions', 
     'calculatedCosts',
@@ -472,12 +474,23 @@ export function generateLineItems(
  */
 export function collectInclusions(
   scopeData: Record<string, any> | null
-): string[] {
+): Record<string, string[]> {
+  if (!scopeData) return {};
+  
+  // New format: per-scope inclusions stored as _inclusions
+  if (scopeData._inclusions && typeof scopeData._inclusions === 'object') {
+    const result: Record<string, string[]> = {};
+    for (const [scopeKey, items] of Object.entries(scopeData._inclusions)) {
+      if (Array.isArray(items) && items.length > 0) {
+        const displayName = scopeKey === '_general' ? 'General' : formatScopeName(scopeKey);
+        result[displayName] = items as string[];
+      }
+    }
+    return result;
+  }
+  
+  // Legacy format: flat lists in scope_data
   const inclusions: string[] = [];
-  
-  if (!scopeData) return inclusions;
-  
-  // Standard inclusions from the estimate state
   const stateInclusions = scopeData.inclusions || [];
   const customInclusions = scopeData.customInclusions || [];
   
@@ -487,7 +500,6 @@ export function collectInclusions(
     }
   }
   
-  // Check module-level inclusions in calculated costs
   const calculatedCosts = scopeData.calculatedCosts || [];
   for (const moduleCost of calculatedCosts) {
     if (moduleCost.inclusions && Array.isArray(moduleCost.inclusions)) {
@@ -499,20 +511,31 @@ export function collectInclusions(
     }
   }
   
-  return inclusions;
+  return inclusions.length > 0 ? { 'General': inclusions } : {};
 }
 
 /**
- * Collect all exclusions from scope data
+ * Collect all exclusions from scope data (grouped by scope)
  */
 export function collectExclusions(
   scopeData: Record<string, any> | null
-): string[] {
+): Record<string, string[]> {
+  if (!scopeData) return {};
+  
+  // New format: per-scope exclusions stored as _exclusions
+  if (scopeData._exclusions && typeof scopeData._exclusions === 'object') {
+    const result: Record<string, string[]> = {};
+    for (const [scopeKey, items] of Object.entries(scopeData._exclusions)) {
+      if (Array.isArray(items) && items.length > 0) {
+        const displayName = scopeKey === '_general' ? 'General' : formatScopeName(scopeKey);
+        result[displayName] = items as string[];
+      }
+    }
+    return result;
+  }
+  
+  // Legacy format: flat lists
   const exclusions: string[] = [];
-  
-  if (!scopeData) return exclusions;
-  
-  // Standard exclusions from the estimate state
   const stateExclusions = scopeData.exclusions || [];
   const customExclusions = scopeData.customExclusions || [];
   
@@ -522,7 +545,6 @@ export function collectExclusions(
     }
   }
   
-  // Check module-level exclusions in calculated costs
   const calculatedCosts = scopeData.calculatedCosts || [];
   for (const moduleCost of calculatedCosts) {
     if (moduleCost.exclusions && Array.isArray(moduleCost.exclusions)) {
@@ -534,7 +556,7 @@ export function collectExclusions(
     }
   }
   
-  return exclusions;
+  return exclusions.length > 0 ? { 'General': exclusions } : {};
 }
 
 /**
