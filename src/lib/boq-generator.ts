@@ -1118,6 +1118,49 @@ export function generateBOQFromEstimate(
       }
 
       // ═══════════════════════════════════════════════════════════════
+      // FOOTING TM CHAIRS (primary chairs for TM support)
+      // ═══════════════════════════════════════════════════════════════
+      const footingsForChairs = scopeAnswers.linearSections || scopeAnswers.footings || [];
+      if (Array.isArray(footingsForChairs) && footingsForChairs.length > 0) {
+        let totalFootingChairs = 0;
+        let footingChairPrice = 12.50;
+        let footingChairType = '5065C';
+        
+        footingsForChairs.forEach((section: any) => {
+          if (!section.chairs_enabled) return;
+          
+          const length = section._actualLength || Number(section.length) || 0;
+          if (length <= 0) return;
+          
+          const chairsPerM = section.chairs_per_m ?? 1.4;
+          footingChairPrice = section.chair_price_per_bag ?? 12.50;
+          footingChairType = section.chair_type || '5065C';
+          totalFootingChairs += Math.ceil(length * chairsPerM);
+        });
+        
+        if (totalFootingChairs > 0) {
+          const bags = Math.ceil(totalFootingChairs / 25);
+          const chairLabels: Record<string, string> = {
+            'TMCHAIR': 'TM Chairs',
+            '2540C': '25-40mm',
+            '5065C': '50-65mm',
+            '7590C': '75-90mm',
+            '100120C': '100-120mm',
+            '125150C': '125-150mm',
+          };
+          
+          addItem(
+            "reinforcement",
+            `Footing Chairs (${chairLabels[footingChairType] || footingChairType})`,
+            bags,
+            "bags",
+            footingChairPrice,
+            `${bags} × 25 pcs`
+          );
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
       // FOOTING LAYER CHAIRS (for 2-layer TM)
       // ═══════════════════════════════════════════════════════════════
       const footings = scopeAnswers.linearSections || scopeAnswers.footings || [];
