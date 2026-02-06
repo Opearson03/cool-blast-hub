@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck } from "lucide-react";
+import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck, Truck } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "@/components/ui/Logo";
 import { WaitlistTable } from "@/components/staff/WaitlistTable";
@@ -13,6 +13,7 @@ import { SubscriptionMetrics } from "@/components/staff/SubscriptionMetrics";
 import { SignupTrends } from "@/components/staff/SignupTrends";
 import { SubscribersTable } from "@/components/staff/SubscribersTable";
 import { UsersTable } from "@/components/staff/UsersTable";
+import { SupplierRegistrationsTable } from "@/components/staff/SupplierRegistrationsTable";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -240,6 +241,10 @@ export default function StaffDashboard() {
               <CreditCard className="h-4 w-4 mr-2" />
               Subscriptions
             </TabsTrigger>
+            <TabsTrigger value="suppliers">
+              <Truck className="h-4 w-4 mr-2" />
+              Suppliers
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -260,6 +265,10 @@ export default function StaffDashboard() {
           <TabsContent value="subscriptions" className="space-y-4">
             <SubscriptionMetrics stats={stats} isLoading={statsLoading} fullWidth />
             <SubscribersTable />
+          </TabsContent>
+
+          <TabsContent value="suppliers">
+            <SupplierRegistrationsTable />
           </TabsContent>
         </Tabs>
       </main>
