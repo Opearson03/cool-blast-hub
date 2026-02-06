@@ -1,131 +1,111 @@
 
-# Plan: Simplify Supplier Landing Page
+# Plan: Add Industry Photos to Supplier Landing Page
 
 ## Overview
 
-The current page has 10 sections spanning 520 lines. This plan consolidates it into 4 focused sections while retaining all core value propositions, reducing visual noise and improving user focus.
+Add the two uploaded concrete industry photos to the `/suppliers` landing page to increase visual appeal and industry credibility. The photos will be placed strategically where they add the most value without cluttering the simplified layout.
 
 ---
 
-## Current Structure (10 sections)
+## Image Placement Strategy
 
-1. Hero + Login
-2. What is PourHub?
-3. What is Preferred Supplier Placement?
-4. Where Your Brand Appears (3 workflow moments)
-5. Categories We Support
-6. Why This Works Better (3 reasons)
-7. What Suppliers Receive (4 benefits)
-8. What You Don't Pay For
-9. Expected Commercial Impact
-10. CTA + Footer
+### Image 1: Concrete Pour (2.png)
+**Placement**: Hero section background or accent image
+
+This image shows concrete being poured from a chute - representing the supply/ordering moment that suppliers want to be part of. It reinforces the headline about "placing orders."
+
+**Implementation**: Add as a subtle background image with overlay in the hero section, or as a decorative accent image.
 
 ---
 
-## Proposed Simplified Structure (4 sections)
+### Image 2: Concrete Finishing (3.png)  
+**Placement**: "How It Works" section
 
-### Section 1: Hero + Login (keep as-is)
-- Strong headline about reaching concreters at the moment they order
-- "Register Interest" button
-- Login card for existing suppliers
+This image shows a worker finishing concrete with hand tools - representing the professional concreters who use PourHub. It connects the "operations platform concreters use" messaging to real craftspeople.
 
-### Section 2: How It Works
-Merge sections 2-5 into one clean section:
-- Brief "What is PourHub?" intro (1-2 sentences)
-- Inline category tags (Concrete, Reinforcement, etc.)
-- 3 placement moments in a compact format
-
-### Section 3: Why Choose PourHub
-Merge sections 6-8 into one benefits section:
-- Key benefits in a 2x3 or 3x2 grid
-- Include: Confirmed intent buyers, No price-shopping, Geographic targeting, Category exclusivity, Direct RFQs/POs, No commissions/revenue share
-
-### Section 4: CTA + Footer
-- Simple call to action with "Register Interest"
-- Footer
+**Implementation**: Add as an inline image between the intro text and the 3-step cards.
 
 ---
 
-## Content Being Preserved
+## Technical Implementation
 
-| Core Message | Where It Goes |
-|--------------|---------------|
-| PourHub is used by concreters to quote, schedule, and order | Section 2 intro |
-| Supplier categories (Concrete, Reinforcement, etc.) | Section 2 inline tags |
-| 3 placement moments (RFQ, PO, Repeat) | Section 2 cards |
-| Buyers with confirmed intent | Section 3 |
-| Bypass price-shopping | Section 3 |
-| Geographic targeting | Section 3 |
-| Category exclusivity | Section 3 |
-| Direct RFQs & POs | Section 3 |
-| No commissions/revenue share | Section 3 |
+### 1. Copy Images to Project
 
-## Content Being Removed/Condensed
+```
+src/assets/supplier-concrete-pour.png    <- user-uploads://2.png
+src/assets/supplier-concrete-finish.png  <- user-uploads://3.png
+```
 
-- Separate "What is Preferred Supplier Placement?" section (merged into hero copy)
-- "What Suppliers Receive" 4-card grid (consolidated into benefits grid)
-- "Expected Commercial Impact" section (implied by other benefits)
-- Redundant explanatory text
+### 2. Update SuppliersLanding.tsx
 
----
+**Hero Section Changes:**
+- Add the concrete pour image as a background with dark overlay
+- Position the gradient overlay to ensure text remains readable
+- Image will be visible on larger screens, subtle on mobile
 
-## Technical Changes
-
-### File: `src/pages/suppliers/SuppliersLanding.tsx`
-
-**Before:** ~520 lines, 10 sections
-**After:** ~280 lines, 4 sections
-
-Changes:
-1. Keep hero section with login card (lines 189-266)
-2. Create new "How It Works" section combining PourHub intro + categories + 3 placement moments
-3. Create new "Why PourHub" section with 6 concise benefit cards
-4. Keep CTA + Footer (simplified)
-5. Remove standalone sections for:
-   - "What is Preferred Supplier Placement"
-   - "Categories We Support" (inline into How It Works)
-   - "Why This Works Better" (merged)
-   - "What Suppliers Receive" (merged)
-   - "What You Don't Pay For" (merged)
-   - "Expected Commercial Impact" (removed)
+**"How It Works" Section Changes:**
+- Add the concrete finishing image as a full-width banner
+- Apply rounded corners and subtle shadow for polish
+- Use `object-cover` to maintain aspect ratio
 
 ---
 
 ## Visual Layout
 
 ```text
-┌─────────────────────────────────────────────┐
-│ HEADER                                      │
-├─────────────────────────────────────────────┤
-│ HERO                          │ LOGIN CARD  │
-│ Headline + subtext            │             │
-│ [Register Interest]           │             │
-├─────────────────────────────────────────────┤
-│ HOW IT WORKS                                │
-│ Brief intro + category tags                 │
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐        │
-│ │ RFQ     │ │ PO      │ │ Repeat  │        │
-│ └─────────┘ └─────────┘ └─────────┘        │
-├─────────────────────────────────────────────┤
-│ WHY POURHUB                                 │
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐        │
-│ │Confirmed│ │No Price │ │Geographic│       │
-│ │Intent   │ │Shopping │ │Targeting │       │
-│ ├─────────┤ ├─────────┤ ├─────────┤        │
-│ │Category │ │Direct   │ │No       │        │
-│ │Exclusive│ │RFQs/POs │ │Commission│       │
-│ └─────────┘ └─────────┘ └─────────┘        │
-├─────────────────────────────────────────────┤
-│ CTA - Register Interest                     │
-├─────────────────────────────────────────────┤
-│ FOOTER                                      │
-└─────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ HEADER                                                      │
+├─────────────────────────────────────────────────────────────┤
+│ HERO (with concrete pour background image + overlay)        │
+│ ┌─────────────────────────────┐  ┌───────────────────────┐  │
+│ │ Headline + subtext          │  │ LOGIN CARD            │  │
+│ │ [Register Interest]         │  │                       │  │
+│ └─────────────────────────────┘  └───────────────────────┘  │
+├─────────────────────────────────────────────────────────────┤
+│ HOW IT WORKS                                                │
+│ Brief intro + category tags                                 │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ [Concrete finishing image - worker troweling]           │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐                        │
+│ │ RFQ     │ │ PO      │ │ Repeat  │                        │
+│ └─────────┘ └─────────┘ └─────────┘                        │
+├─────────────────────────────────────────────────────────────┤
+│ WHY POURHUB (unchanged - 6 benefit cards)                   │
+├─────────────────────────────────────────────────────────────┤
+│ CTA - Register Interest                                     │
+├─────────────────────────────────────────────────────────────┤
+│ FOOTER                                                      │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
+
+## Files to Create
+
+| File | Source |
+|------|--------|
+| `src/assets/supplier-concrete-pour.png` | `user-uploads://2.png` |
+| `src/assets/supplier-concrete-finish.png` | `user-uploads://3.png` |
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/suppliers/SuppliersLanding.tsx` | Consolidate 10 sections into 4 focused sections |
+| `src/pages/suppliers/SuppliersLanding.tsx` | Import images, add to hero background and "How It Works" section |
+
+---
+
+## Code Changes Preview
+
+**Hero Section** (lines 146-213):
+- Add `relative overflow-hidden` to section
+- Add absolute positioned image behind content with dark overlay gradient
+- Content remains on top with `relative z-10`
+
+**"How It Works" Section** (lines 215-256):
+- Add the finishing image as a responsive banner between the category tags and the 3 placement cards
+- Use `rounded-xl overflow-hidden shadow-lg` for polished appearance
+- Include descriptive alt text for accessibility
