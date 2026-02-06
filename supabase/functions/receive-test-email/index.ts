@@ -36,13 +36,321 @@ type ResolvedAttachment = {
 type DocumentType = 'building_plan' | 'test_result' | 'delivery_docket' | 'general' | 'quote_response';
 type MatchStatus = 'pending' | 'job_matched' | 'auto_matched';
 
-// Keywords for document type detection
-const TEST_RESULT_KEYWORDS = ['test', 'lab', 'result', 'mpa', 'strength', 'cylinder', 'slump', '7 day', '28 day', '7-day', '28-day', 'compressive', 'laboratory'];
-const DELIVERY_DOCKET_KEYWORDS = ['docket', 'delivery', 'cartage', 'truck', 'load', 'batch', 'dispatch', 'concrete delivery', 'ticket'];
-const BUILDING_PLAN_KEYWORDS = ['plan', 'plans', 'drawing', 'drawings', 'quote request', 'estimate', 'pricing request', 'architectural', 'engineering', 'structural', 'floor plan', 'site plan', 'blueprint', 'specs', 'specification', 'tender', 'footing', 'slab'];
-const QUOTE_RESPONSE_KEYWORDS = ['quote', 'quotation', 'price list', 'pricing', 'attached quote', 'here is our quote', 'please find attached', 'as requested', 'our pricing', 'cost breakdown', 'unit rates'];
-// Keywords that indicate an email is NOT a work document (general/misc)
-const GENERAL_EXCLUSION_KEYWORDS = ['invoice', 'statement', 'account', 'payment', 'receipt', 'subscription', 'newsletter', 'unsubscribe', 'marketing', 'promo', 'promotion', 'sale', 'discount', 'offer', 'advertisement'];
+// ── Scoring-based keyword lists with weights ──
+
+interface WeightedKeyword {
+  phrase: string;
+  points: number;
+}
+
+const BUILDING_PLAN_KEYWORDS: WeightedKeyword[] = [
+  // Strong – incoming work requests (15 pts)
+  { phrase: 'please price', points: 15 },
+  { phrase: 'please quote', points: 15 },
+  { phrase: 'quote request', points: 15 },
+  { phrase: 'pricing request', points: 15 },
+  { phrase: 'tender', points: 15 },
+  { phrase: 'scope of works', points: 15 },
+  { phrase: 'request for quote', points: 15 },
+  { phrase: 'rfq', points: 15 },
+  // Medium (10 pts)
+  { phrase: 'plans attached', points: 10 },
+  { phrase: 'drawings attached', points: 10 },
+  { phrase: 'for pricing', points: 10 },
+  { phrase: 'for quoting', points: 10 },
+  { phrase: 'to price', points: 10 },
+  // Weak (5 pts)
+  { phrase: 'plan', points: 5 },
+  { phrase: 'drawing', points: 5 },
+  { phrase: 'architectural', points: 5 },
+  { phrase: 'structural', points: 5 },
+  { phrase: 'floor plan', points: 5 },
+  { phrase: 'site plan', points: 5 },
+  { phrase: 'blueprint', points: 5 },
+  { phrase: 'footing', points: 5 },
+  { phrase: 'slab', points: 5 },
+  { phrase: 'specs', points: 5 },
+  { phrase: 'specification', points: 5 },
+  { phrase: 'engineering', points: 5 },
+];
+
+const QUOTE_RESPONSE_KEYWORDS: WeightedKeyword[] = [
+  // Strong – supplier replies (15 pts)
+  { phrase: 'here is our quote', points: 15 },
+  { phrase: 'attached quote', points: 15 },
+  { phrase: 'our pricing', points: 15 },
+  { phrase: 'as requested', points: 15 },
+  { phrase: 'please find attached', points: 15 },
+  { phrase: 'as per your request', points: 15 },
+  { phrase: 'attached is our', points: 15 },
+  { phrase: 'herewith our', points: 15 },
+  // Medium (10 pts)
+  { phrase: 'quotation', points: 10 },
+  { phrase: 'price list', points: 10 },
+  { phrase: 'cost breakdown', points: 10 },
+  { phrase: 'unit rates', points: 10 },
+  { phrase: 'our quote', points: 10 },
+  { phrase: 'supply price', points: 10 },
+  // Weak (5 pts)
+  { phrase: 'quote', points: 5 },
+  { phrase: 'pricing', points: 5 },
+];
+
+const TEST_RESULT_KEYWORDS: WeightedKeyword[] = [
+  // Strong (15 pts)
+  { phrase: 'test result', points: 15 },
+  { phrase: 'lab result', points: 15 },
+  { phrase: 'compressive strength', points: 15 },
+  { phrase: '7 day result', points: 15 },
+  { phrase: '28 day result', points: 15 },
+  { phrase: '7-day result', points: 15 },
+  { phrase: '28-day result', points: 15 },
+  { phrase: 'test report', points: 15 },
+  { phrase: 'test certificate', points: 15 },
+  // Medium (10 pts)
+  { phrase: 'mpa', points: 10 },
+  { phrase: 'cylinder', points: 10 },
+  { phrase: 'slump test', points: 10 },
+  { phrase: 'concrete test', points: 10 },
+  // Weak (5 pts)
+  { phrase: 'test', points: 5 },
+  { phrase: 'laboratory', points: 5 },
+  { phrase: 'strength', points: 5 },
+];
+
+const DELIVERY_DOCKET_KEYWORDS: WeightedKeyword[] = [
+  // Strong (15 pts)
+  { phrase: 'delivery docket', points: 15 },
+  { phrase: 'concrete delivery', points: 15 },
+  { phrase: 'batch ticket', points: 15 },
+  { phrase: 'delivery note', points: 15 },
+  // Medium (10 pts)
+  { phrase: 'docket number', points: 10 },
+  { phrase: 'cartage note', points: 10 },
+  { phrase: 'load docket', points: 10 },
+  // Weak (5 pts)
+  { phrase: 'docket', points: 5 },
+  { phrase: 'delivery', points: 5 },
+  { phrase: 'dispatch', points: 5 },
+  { phrase: 'truck', points: 5 },
+  { phrase: 'load', points: 5 },
+];
+
+// Keywords that reduce all other scores — indicates general/admin email
+const GENERAL_EXCLUSION_KEYWORDS = [
+  'invoice', 'statement', 'account', 'payment', 'receipt',
+  'subscription', 'newsletter', 'unsubscribe', 'marketing',
+  'promo', 'promotion', 'sale', 'discount', 'offer', 'advertisement',
+];
+
+// ── Scoring helper ──
+
+function scoreKeywords(text: string, keywords: WeightedKeyword[]): number {
+  let score = 0;
+  const lower = text.toLowerCase();
+  // Sort by phrase length descending so longer phrases match first
+  const sorted = [...keywords].sort((a, b) => b.phrase.length - a.phrase.length);
+  const matched = new Set<string>();
+  for (const kw of sorted) {
+    // Don't double-count if a longer phrase already matched this substring
+    if (lower.includes(kw.phrase)) {
+      // Check if this phrase is a substring of an already-matched longer phrase
+      const alreadyCovered = Array.from(matched).some(m => m.includes(kw.phrase) && m !== kw.phrase);
+      if (!alreadyCovered) {
+        score += kw.points;
+        matched.add(kw.phrase);
+      }
+    }
+  }
+  return score;
+}
+
+function hasExclusionKeyword(text: string): boolean {
+  const lower = text.toLowerCase();
+  return GENERAL_EXCLUSION_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+// ── Check if sender is a known supplier for this business ──
+
+async function isKnownSupplier(
+  supabase: any,
+  businessId: string,
+  fromEmail: string
+): Promise<boolean> {
+  try {
+    const emailLower = fromEmail.toLowerCase();
+    // Extract domain for broader matching
+    const domain = emailLower.split('@')[1] || '';
+
+    // Check exact email match in supplier_contacts
+    const { data: exactMatch } = await supabase
+      .from('supplier_contacts')
+      .select('id')
+      .eq('business_id', businessId)
+      .ilike('email', emailLower)
+      .limit(1);
+
+    if (exactMatch && exactMatch.length > 0) {
+      console.log('Known supplier match (exact email):', emailLower);
+      return true;
+    }
+
+    // Check domain match in supplier_contacts
+    if (domain) {
+      const { data: domainMatch } = await supabase
+        .from('supplier_contacts')
+        .select('id')
+        .eq('business_id', businessId)
+        .ilike('email', `%@${domain}`)
+        .limit(1);
+
+      if (domainMatch && domainMatch.length > 0) {
+        console.log('Known supplier match (domain):', domain);
+        return true;
+      }
+    }
+
+    // Check if we've sent a purchase order to this email
+    const { data: poMatch } = await supabase
+      .from('purchase_orders')
+      .select('id')
+      .eq('business_id', businessId)
+      .ilike('supplier_email', emailLower)
+      .limit(1);
+
+    if (poMatch && poMatch.length > 0) {
+      console.log('Known supplier match (purchase order):', emailLower);
+      return true;
+    }
+
+    return false;
+  } catch (err) {
+    console.warn('Error checking supplier status:', err);
+    return false;
+  }
+}
+
+// ── Main classification function (scoring-based) ──
+
+async function detectDocumentType(
+  supabase: any,
+  businessId: string,
+  subject: string,
+  filename: string,
+  fromEmail: string,
+  emailBody: string | null
+): Promise<DocumentType> {
+  // Combine all available text for analysis
+  const subjectLower = (subject || '').toLowerCase();
+  const filenameLower = (filename || '').toLowerCase();
+  const bodyLower = (emailBody || '').toLowerCase().slice(0, 3000); // Cap body length
+
+  // Subject and filename are higher signal; body is supplementary
+  const primaryText = `${subjectLower} ${filenameLower}`;
+  const fullText = `${primaryText} ${bodyLower}`;
+
+  // ── Step 1: Check for general exclusion keywords ──
+  // If the primary text (subject/filename) has strong exclusion signals, go general
+  if (hasExclusionKeyword(primaryText)) {
+    console.log('Classification: general (exclusion keyword in subject/filename)');
+    return 'general';
+  }
+
+  // ── Step 2: Score each category ──
+  const scores: Record<DocumentType, number> = {
+    building_plan: 0,
+    quote_response: 0,
+    test_result: 0,
+    delivery_docket: 0,
+    general: 0,
+  };
+
+  // Subject keywords are weighted 2x vs filename alone
+  scores.building_plan += scoreKeywords(subjectLower, BUILDING_PLAN_KEYWORDS) * 2;
+  scores.building_plan += scoreKeywords(filenameLower, BUILDING_PLAN_KEYWORDS);
+  scores.building_plan += scoreKeywords(bodyLower, BUILDING_PLAN_KEYWORDS) * 0.5;
+
+  scores.quote_response += scoreKeywords(subjectLower, QUOTE_RESPONSE_KEYWORDS) * 2;
+  scores.quote_response += scoreKeywords(filenameLower, QUOTE_RESPONSE_KEYWORDS);
+  scores.quote_response += scoreKeywords(bodyLower, QUOTE_RESPONSE_KEYWORDS) * 0.5;
+
+  scores.test_result += scoreKeywords(subjectLower, TEST_RESULT_KEYWORDS) * 2;
+  scores.test_result += scoreKeywords(filenameLower, TEST_RESULT_KEYWORDS);
+  scores.test_result += scoreKeywords(bodyLower, TEST_RESULT_KEYWORDS) * 0.5;
+
+  scores.delivery_docket += scoreKeywords(subjectLower, DELIVERY_DOCKET_KEYWORDS) * 2;
+  scores.delivery_docket += scoreKeywords(filenameLower, DELIVERY_DOCKET_KEYWORDS);
+  scores.delivery_docket += scoreKeywords(bodyLower, DELIVERY_DOCKET_KEYWORDS) * 0.5;
+
+  // ── Step 3: Known supplier check (+60 to quote_response) ──
+  const knownSupplier = await isKnownSupplier(supabase, businessId, fromEmail);
+  if (knownSupplier) {
+    scores.quote_response += 60;
+  }
+
+  // ── Step 4: Contextual pattern bonuses ──
+  // "RE:" or "FW:" suggests a reply — could be supplier responding to RFQ
+  if (/^(re|fw|fwd):/i.test(subject || '')) {
+    scores.quote_response += 10;
+  }
+
+  // Phrases that indicate a REQUEST TO the business (→ building_plan)
+  const requestPatterns = ['can you price', 'could you quote', 'we need a price', 'need a quote for', 'requesting a quote'];
+  for (const p of requestPatterns) {
+    if (fullText.includes(p)) {
+      scores.building_plan += 20;
+      break;
+    }
+  }
+
+  // Phrases that indicate a RESPONSE FROM supplier (→ quote_response)
+  const responsePatterns = ['here is our', 'as discussed', 'as per your', 'further to your', 'in response to'];
+  for (const p of responsePatterns) {
+    if (fullText.includes(p)) {
+      scores.quote_response += 20;
+      break;
+    }
+  }
+
+  // ── Step 5: Anti-overlap tie-breaking ──
+  // If both building_plan and quote_response scored, use context to disambiguate
+  if (scores.building_plan > 0 && scores.quote_response > 0) {
+    // "Please price" alongside attachment from known sender → quote_response wins
+    if (knownSupplier) {
+      scores.quote_response += 15;
+    }
+    // If subject contains "re:" and we have quote keywords → supplier reply
+    if (/^(re|fw|fwd):/i.test(subject || '') && scores.quote_response >= scores.building_plan) {
+      scores.quote_response += 10;
+    }
+  }
+
+  // If body has exclusion keywords, dampen all non-general scores
+  if (hasExclusionKeyword(bodyLower)) {
+    scores.building_plan *= 0.5;
+    scores.quote_response *= 0.5;
+    scores.test_result *= 0.5;
+    scores.delivery_docket *= 0.5;
+    scores.general += 15;
+  }
+
+  // ── Step 6: Pick the winner ──
+  const entries = Object.entries(scores).filter(([k]) => k !== 'general') as [DocumentType, number][];
+  entries.sort((a, b) => b[1] - a[1]);
+
+  const topType = entries[0][0];
+  const topScore = entries[0][1];
+
+  console.log('Classification scores:', JSON.stringify(scores), '→', topType, `(${topScore}pts)`);
+
+  // Only classify if confidence is above threshold
+  if (topScore < 10) {
+    console.log('Classification: general (no category above threshold)');
+    return 'general';
+  }
+
+  return topType;
+}
 
 function isLikelyPdfAttachment(meta: { filename?: string; content_type?: string }): boolean {
   const ct = meta.content_type?.toLowerCase() || '';
@@ -165,50 +473,6 @@ async function resolvePdfAttachments(event: ResendEmailEvent): Promise<ResolvedA
   });
 }
 
-function detectDocumentType(subject: string, filename: string, fromEmail: string): DocumentType {
-  const searchText = `${subject} ${filename} ${fromEmail}`.toLowerCase();
-  
-  // First check if it's clearly a general/misc email (invoices, marketing, etc)
-  for (const keyword of GENERAL_EXCLUSION_KEYWORDS) {
-    if (searchText.includes(keyword)) {
-      return 'general';
-    }
-  }
-  
-  // Check for delivery docket keywords first (most specific)
-  for (const keyword of DELIVERY_DOCKET_KEYWORDS) {
-    if (searchText.includes(keyword)) {
-      return 'delivery_docket';
-    }
-  }
-  
-  // Check for test result keywords
-  for (const keyword of TEST_RESULT_KEYWORDS) {
-    if (searchText.includes(keyword)) {
-      return 'test_result';
-    }
-  }
-  
-  // Check for quote response keywords (supplier responding with pricing)
-  for (const keyword of QUOTE_RESPONSE_KEYWORDS) {
-    if (searchText.includes(keyword)) {
-      return 'quote_response';
-    }
-  }
-  
-  // Check for building plan keywords
-  for (const keyword of BUILDING_PLAN_KEYWORDS) {
-    if (searchText.includes(keyword)) {
-      return 'building_plan';
-    }
-  }
-  
-  // Default to 'general' for emails without clear categorization
-  // Users can manually reclassify if needed
-  return 'general';
-}
-
-// Match quote response to an existing RFQ
 async function matchQuoteToRFQ(
   supabase: any,
   businessId: string,
@@ -602,8 +866,9 @@ serve(async (req) => {
       try {
         console.log('Processing attachment:', attachment.filename);
 
-        // Detect document type based on subject, filename, and sender
-        const documentType = detectDocumentType(subject || '', attachment.filename, from);
+        // Detect document type using scoring-based classification
+        const emailBody = payload.data.text || payload.data.html?.replace(/<[^>]*>/g, ' ').slice(0, 3000) || null;
+        const documentType = await detectDocumentType(supabase, business.id, subject || '', attachment.filename, from, emailBody);
         console.log('Detected document type:', documentType);
 
         const pdfContent = attachment.bytes;
