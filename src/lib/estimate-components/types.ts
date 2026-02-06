@@ -351,9 +351,11 @@ export interface FootingConfig {
   
   // Per-footing bar chair settings
   chairs_enabled?: boolean;
+  chair_type?: string;           // e.g., '2540C', '5065C', '7590C', '100120C', '125150C', 'TMCHAIR'
   chairs_per_m?: number;         // chairs per linear metre
   chair_price_per_bag?: number;  // price per 25
   layer_chairs_enabled?: boolean; // chairs between TM layers
+  layer_chair_type?: string;      // e.g., '2540C' - chair type for top layer
   layer_chairs_per_m?: number;    // layer chairs per m
   layer_chair_price?: number;     // price per 25 for layer chairs
 }
