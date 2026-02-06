@@ -167,6 +167,7 @@ function validateClientForm(data: FormData): FormErrors {
    id: string;
    label: string;
    relevantModules?: string[]; // If undefined or empty, item is always shown (global)
+   excludeWhenModulesActive?: string[]; // Hide this item from scopes where ANY of these modules are active
  }
  
  const DEFAULT_INCLUSIONS: InclusionExclusionItem[] = [
@@ -204,20 +205,20 @@ function validateClientForm(data: FormData): FormErrors {
    { id: "exc_engineering", label: "Engineering certification" }, // Global
    { id: "exc_waterproofing", label: "Waterproofing membrane" }, // Global
    // Excavation-related exclusions (show when excavation NOT enabled or when relevant)
-   { id: "exc_excavation", label: "Excavation and site preparation", relevantModules: ["base-preparation", "formwork"] }, // Shown when no excavation module
+   { id: "exc_excavation", label: "Excavation and site preparation", relevantModules: ["base-preparation", "formwork"], excludeWhenModulesActive: ["excavation"] },
    { id: "exc_soil_removal", label: "Removal of excavated material", relevantModules: ["excavation", "demolition"] },
    // Formwork-related exclusions
    { id: "exc_boxing", label: "Boxing and formwork beyond edge forms", relevantModules: ["formwork", "architectural-formwork"] },
    // Plumbing/drainage exclusions
    { id: "exc_drainage", label: "Drainage and stormwater works", relevantModules: ["plumbing"] },
    // Finishing-related exclusions
-   { id: "exc_saw_cutting", label: "Saw cutting control joints", relevantModules: ["joints-control", "surface-finishing"] },
+   { id: "exc_saw_cutting", label: "Saw cutting control joints", relevantModules: ["surface-finishing"], excludeWhenModulesActive: ["joints-control"] },
    { id: "exc_sealing", label: "Concrete sealing", relevantModules: ["surface-finishing", "architectural-finishing"] },
    // Demolition-specific exclusions
    { id: "exc_service_scanning", label: "Service scanning and locating", relevantModules: ["demolition"] },
    { id: "exc_asbestos", label: "Asbestos removal or handling", relevantModules: ["demolition"] },
-   // Base preparation exclusion (show when base-prep IS active, in case user declines)
-   { id: "exc_subgrade", label: "Subgrade preparation and compaction", relevantModules: ["base-preparation"] },
+   // Subgrade exclusion (show under scopes with excavation but NOT base-preparation)
+   { id: "exc_subgrade", label: "Subgrade preparation and compaction", relevantModules: ["excavation"], excludeWhenModulesActive: ["base-preparation"] },
  ];
 
 // Modular calculator state type
@@ -776,15 +777,8 @@ const {
         needsIncUpdate = true;
       }
       
-      // Check excavation module - remove exc_excavation from this scope
-      const excavationAnswers = state.moduleAnswers['excavation'];
-      if ((excavationAnswers?.detailed_excavation_required === true || 
-           excavationAnswers?.bulk_excavation_required === true) &&
-          selectedExclusions[scopeType]?.has('exc_excavation')) {
-        if (!excRemoves[scopeType]) excRemoves[scopeType] = [];
-        excRemoves[scopeType].push('exc_excavation');
-        needsExcUpdate = true;
-      }
+      // exc_excavation is now handled by excludeWhenModulesActive filtering
+      // No additional dynamic sync needed for it
     }
     
     if (needsIncUpdate) {
@@ -837,7 +831,10 @@ const {
          for (const item of DEFAULT_INCLUSIONS) {
            if (!item.relevantModules || item.relevantModules.length === 0) {
              newInclusions._general.add(item.id);
-           } else if (item.relevantModules.some(m => scopeDef.moduleIds.includes(m))) {
+           } else if (
+             item.relevantModules.some(m => scopeDef.moduleIds.includes(m)) &&
+             !(item.excludeWhenModulesActive?.some(m => scopeDef.moduleIds.includes(m)))
+           ) {
              newInclusions[scopeId].add(item.id);
            }
          }
@@ -845,7 +842,10 @@ const {
          for (const item of DEFAULT_EXCLUSIONS) {
            if (!item.relevantModules || item.relevantModules.length === 0) {
              newExclusions._general.add(item.id);
-           } else if (item.relevantModules.some(m => scopeDef.moduleIds.includes(m))) {
+           } else if (
+             item.relevantModules.some(m => scopeDef.moduleIds.includes(m)) &&
+             !(item.excludeWhenModulesActive?.some(m => scopeDef.moduleIds.includes(m)))
+           ) {
              newExclusions[scopeId].add(item.id);
            }
          }
@@ -2523,10 +2523,11 @@ const {
                   {selectedScopesArray.map(scopeId => {
                     const scopeDef = SCOPE_REGISTRY[scopeId];
                     if (!scopeDef) return null;
-                    const scopeItems = DEFAULT_INCLUSIONS.filter(item =>
-                      item.relevantModules && item.relevantModules.length > 0 &&
-                      item.relevantModules.some(m => scopeDef.moduleIds.includes(m))
-                    );
+                   const scopeItems = DEFAULT_INCLUSIONS.filter(item =>
+                     item.relevantModules && item.relevantModules.length > 0 &&
+                     item.relevantModules.some(m => scopeDef.moduleIds.includes(m)) &&
+                     !(item.excludeWhenModulesActive?.some(m => scopeDef.moduleIds.includes(m)))
+                   );
                     if (scopeItems.length === 0) return null;
                     const selectedCount = scopeItems.filter(item => selectedInclusions[scopeId]?.has(item.id)).length;
                     return (
@@ -2612,10 +2613,11 @@ const {
                   {selectedScopesArray.map(scopeId => {
                     const scopeDef = SCOPE_REGISTRY[scopeId];
                     if (!scopeDef) return null;
-                    const scopeItems = DEFAULT_EXCLUSIONS.filter(item =>
-                      item.relevantModules && item.relevantModules.length > 0 &&
-                      item.relevantModules.some(m => scopeDef.moduleIds.includes(m))
-                    );
+                   const scopeItems = DEFAULT_EXCLUSIONS.filter(item =>
+                     item.relevantModules && item.relevantModules.length > 0 &&
+                     item.relevantModules.some(m => scopeDef.moduleIds.includes(m)) &&
+                     !(item.excludeWhenModulesActive?.some(m => scopeDef.moduleIds.includes(m)))
+                   );
                     if (scopeItems.length === 0) return null;
                     const selectedCount = scopeItems.filter(item => selectedExclusions[scopeId]?.has(item.id)).length;
                     return (
