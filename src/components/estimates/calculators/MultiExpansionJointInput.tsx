@@ -30,8 +30,8 @@ const JOINT_DEPTH_OPTIONS = [
   { value: '200', label: '200mm' },
 ];
 
-// Expansion joints come in 25m rolls
-const ROLL_LENGTH_M = 25;
+// Expansion joints come in 3m pieces (sticks)
+const PIECE_LENGTH_M = 3;
 
 const CAPPING_TYPE_OPTIONS = [
   { value: 'EXJ CAP B', label: 'Black Capping Mould' },
@@ -75,9 +75,9 @@ const FOAM_HEIGHT_OPTIONS = [
 ];
 
 function getJointPrice(depth: string, length: string, priceMap?: PriceMap): number {
-  if (!priceMap) return 35;
+  if (!priceMap) return 95;
   const priceKey = `EXJ${depth}${length === '3000' ? '30' : '60'}`;
-  return priceMap['joints_expansion']?.[priceKey] ?? 35;
+  return priceMap['joints_expansion']?.[priceKey] ?? 95;
 }
 
 function getCappingPrice(cappingType: string, priceMap?: PriceMap): number {
@@ -140,10 +140,10 @@ export function MultiExpansionJointInput({
     }
   }, [joints, openJoints]);
 
-  // Calculate quantity (rolls) from total length - 25m per roll
+  // Calculate quantity (pieces) from total length - 3m per joint piece
   const calculateQuantityFromLength = useCallback((totalLengthM: number): number => {
     if (!totalLengthM || totalLengthM <= 0) return 0;
-    return Math.ceil(totalLengthM / ROLL_LENGTH_M);
+    return Math.ceil(totalLengthM / PIECE_LENGTH_M);
   }, []);
 
   const addJoint = useCallback(() => {
@@ -156,9 +156,9 @@ export function MultiExpansionJointInput({
       id: `joint_${Date.now()}`,
       name: '',
       depth: defaultDepth,
-      length: String(ROLL_LENGTH_M * 1000), // 25m rolls
+      length: '3000', // 3m pieces
       quantity: 0, // Default to 0, will be calculated from total_length_m
-      price_each: getJointPrice(defaultDepth, String(ROLL_LENGTH_M * 1000), priceMap),
+      price_each: getJointPrice(defaultDepth, '3000', priceMap),
       capping_required: false,
       capping_type: 'EXJ CAP B',
       capping_price_per_m: getCappingPrice('EXJ CAP B', priceMap),
@@ -333,7 +333,7 @@ export function MultiExpansionJointInput({
                         {joint.name || `${depthLabel} Joints`}
                       </span>
                       <Badge variant="outline" className="text-xs font-normal h-5">
-                        {joint.quantity} roll{joint.quantity !== 1 ? 's' : ''} × {depthLabel}
+                        {joint.quantity} pcs × {depthLabel}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2">
@@ -365,7 +365,7 @@ export function MultiExpansionJointInput({
                         onValueChange={(val) => {
                           updateJoint(index, { 
                             depth: val,
-                            price_each: getJointPrice(val, String(ROLL_LENGTH_M * 1000), priceMap)
+                            price_each: getJointPrice(val, '3000', priceMap)
                           });
                         }}
                       >
@@ -424,7 +424,7 @@ export function MultiExpansionJointInput({
                       </div>
                       {(joint.total_length_m ?? 0) > 0 && (
                         <p className="text-xs text-muted-foreground">
-                          Auto-calculated: {Math.ceil((joint.total_length_m || 0) / ROLL_LENGTH_M)} roll{Math.ceil((joint.total_length_m || 0) / ROLL_LENGTH_M) !== 1 ? 's' : ''} needed ({joint.total_length_m}m ÷ {ROLL_LENGTH_M}m per roll)
+                          Auto-calculated: {Math.ceil((joint.total_length_m || 0) / PIECE_LENGTH_M)} joint{Math.ceil((joint.total_length_m || 0) / PIECE_LENGTH_M) !== 1 ? 's' : ''} needed ({joint.total_length_m}m ÷ {PIECE_LENGTH_M}m per joint)
                         </p>
                       )}
                     </div>
@@ -433,7 +433,7 @@ export function MultiExpansionJointInput({
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
                         <Label className="text-xs font-medium">
-                          Quantity
+                          Qty (pcs)
                           {(joint.total_length_m ?? 0) > 0 && (
                             <span className="text-muted-foreground font-normal ml-1">(auto)</span>
                           )}

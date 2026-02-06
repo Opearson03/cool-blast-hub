@@ -64,12 +64,12 @@ export const connectionsJointsModule: EstimateModule = {
 
       // ============ EXPANSION JOINT COST ============
       const priceListKey = `EXJ${jointDepth}${jointLengthMM === '3000' ? '30' : '60'}`;
-      const pricePerJoint = Number(joint.price_each) || getPrice(priceMap, 'joints_expansion', priceListKey, 35);
+      const pricePerJoint = Number(joint.price_each) || getPrice(priceMap, 'joints_expansion', priceListKey, 95);
       const jointCost = jointQty * pricePerJoint;
 
       lineItems.push({
         id: `expansion_joints_${index}`,
-        description: `Expansion Joints ${jointLabel} × ${Number(jointLengthMM) / 1000}m (${jointQty} pcs)`,
+        description: `Expansion Joints ${jointLabel} × 3m (${jointQty} pcs)`,
         quantity: jointQty,
         unit: 'pcs',
         unitPrice: pricePerJoint,
