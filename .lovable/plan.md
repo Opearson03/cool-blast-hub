@@ -1,74 +1,113 @@
 
+# Fix Footing Chair Selection: Per-LM Quantity & Dynamic Bag Size
 
-# Fix: Fixed Profit Amount Showing Stale/Wrong Values
+## What's Wrong
 
-## Problem
+Two issues with footing chairs:
 
-The "Fixed Profit" field on the Markup step shows incorrect dollar amounts ($4126, $6709) that don't match the 15% auto markup. Two bugs are causing this:
+### 1. Bag size hardcoded to 25
+Currently, all chair calculations divide total chair count by 25 to get bag count, and the price label always shows "$/25". But according to the price list:
+- **TM Chair (TMCHAIR)**: Bag of **25** -- priced at $12.50/bag
+- **All bar chairs (2540C, 5065C, 7590C, etc.)**: Bag of **100** -- priced at $15.80-$67.30/bag
 
-### Bug 1: No sync between percentage and dollar amount
+The current `getChairPricePerBag25` helper divides bar chair prices by 4 to normalize them to "per 25", which is confusing and wrong -- a bag of 100 should be treated as a bag of 100.
 
-`fixedProfitAmount` is initialized to `0` and only updated when the user manually interacts with the markup inputs. There is no effect or derived calculation that keeps it in sync with `combinedSubtotal * globalMarginPercent / 100`.
+### 2. Chairs/m input uses decimal steps
+The input uses `step="0.1"` with `min="0.5"`. The boss wants users to pick a whole number of chairs per linear meter (1, 2, 3, etc.).
 
-So when you open an estimate:
-- `globalMarginPercent` loads correctly as 15%
-- `combinedSubtotal` computes correctly from scope totals
-- But `fixedProfitAmount` stays at `0` (shows as empty) until you click something
+## What Changes
 
-### Bug 2: Stale state between estimates
+### UI Changes (all 3 footing/section components)
 
-When creating a new estimate, the reset block resets `globalMarginPercent` to 15 but **never resets** `fixedProfitAmount`. So if you set a fixed profit of $4126 on one estimate, close, and open a new estimate, the $4126 carries over.
+- **Chairs/m input**: Change to integer step (`step="1"`, `min="1"`, `max="10"`) so users pick whole numbers
+- **Price label**: Change from static "$/25" to dynamic label showing the actual bag size for the selected chair type (e.g., "$/bag(25)" for TM Chair, "$/bag(100)" for bar chairs)
+- **Price value**: Show the actual catalog price per bag (not the divided-by-4 value)
 
-## Solution
+### Calculation Changes
 
-### 1. Make `fixedProfitAmount` a derived value (not independent state)
+- **Remove `getChairPricePerBag25` normalization**: Store and use the actual catalog price per bag
+- **Dynamic bag divisor**: When converting total chairs to bags, divide by the correct bag size (25 for TMCHAIR, 100 for bar chairs) instead of always 25
+- **Descriptions**: Show actual bag size in line item descriptions (e.g., "3 x 100" instead of "12 x 25")
 
-Replace the independent `fixedProfitAmount` state with a `useMemo` that always derives from `combinedSubtotal * globalMarginPercent / 100`. This eliminates any desync.
+### BOQ Changes
 
-The percentage input remains the "source of truth". The fixed profit field becomes a convenience input that reverse-calculates the percentage when edited.
-
-### 2. Add reset on dialog close/new estimate
-
-Add `setFixedProfitAmount(0)` to the reset block so stale values don't carry over between estimates.
-
-Since we're making `fixedProfitAmount` derived, the reset is handled automatically -- no stale state possible.
+Same dynamic bag size logic for the BOQ generator -- use 25 or 100 based on chair type.
 
 ---
 
-## Technical Changes
+## Technical Details
 
-**File: `src/components/estimates/EstimateFormDialog.tsx`**
+### Files to Modify
 
-| Change | Location | Detail |
-|--------|----------|--------|
-| Replace `fixedProfitAmount` state with derived memo | Line 446 | Remove `useState`, add `useMemo` that computes `Math.round(combinedSubtotal * (globalMarginPercent / 100))` |
-| Remove `setFixedProfitAmount` calls from percentage input | Line 2375 | No longer needed -- the memo auto-derives |
-| Remove `setFixedProfitAmount` calls from preset buttons | Lines 2393, 2438 | Same reason |
-| Update fixed profit `onChange` handler | Line 2416 | Keep the reverse-calc: user types a dollar amount, it sets `globalMarginPercent` accordingly, and the memo re-derives the display value |
-| Fix the `value` binding | Line 2415 | Change from `fixedProfitAmount \|\| ''` to the derived value (which will always be a number, never 0 unless subtotal is 0) |
-| Remove fixed profit preset `variant` check | Line 2435 | The preset highlight check `fixedProfitAmount === preset` still works with the derived value |
+| File | Change |
+|------|--------|
+| `src/components/estimates/calculators/FootingReinforcementInput.tsx` | Update chair UI: integer step for chairs/m, dynamic price label, use actual catalog price |
+| `src/components/estimates/calculators/FootingSectionReinforcementInput.tsx` | Same UI changes as above |
+| `src/lib/estimate-components/modules/reinforcement-footing.ts` | Use dynamic bag size (25 or 100) based on chair type; stop dividing bar chair prices by 4 |
+| `src/lib/boq-generator.ts` | Use dynamic bag size for footing chair and layer chair line items |
 
-### Derived value logic
+### Helper Function Changes
+
+**Replace `getChairPricePerBag25`** in both FootingReinforcementInput and FootingSectionReinforcementInput:
 
 ```text
-fixedProfitAmount = Math.round(combinedSubtotal * (globalMarginPercent / 100))
+BEFORE (wrong):
+  getChairPricePerBag25('5065C') -> $16.80 / 4 = $4.20
+  Bags = totalChairs / 25
+
+AFTER (correct):
+  getChairCatalogPrice('5065C') -> $16.80
+  getBagSize('5065C') -> 100
+  Bags = totalChairs / 100
 ```
 
-This ensures:
-- Opening an estimate with 15% margin and $27,510 subtotal immediately shows $4,127 in the fixed profit field
-- Changing scope totals automatically updates the fixed profit display
-- The percentage always remains the source of truth
-- No stale state possible between estimates
+New helper: `getChairBagSize(chairType)` returns 25 for TMCHAIR, 100 for all bar chairs (reads from `CHAIR_TYPE_OPTIONS.bagsOf`).
 
-### Fixed profit input behavior (unchanged UX)
+### Chairs/m Input
 
-When the user types into the fixed profit field:
-1. The typed amount reverse-calculates the percentage: `globalMarginPercent = (amount / combinedSubtotal) * 100`
-2. The memo immediately re-derives the displayed fixed profit from the new percentage
-3. Both fields stay in sync
+```text
+BEFORE: step="0.1", min="0.5", default=1.4
+AFTER:  step="1", min="1", default=1
+```
 
-### Fixed profit preset buttons
+### Price Label
 
-When clicking a preset like $5,000:
-1. Reverse-calculate: `globalMarginPercent = (5000 / combinedSubtotal) * 100`
-2. The memo derives the display value (which will be exactly $5,000 since it's derived from the same math)
+```text
+BEFORE: "$/25" (static)
+AFTER:  "$/bag" with tooltip or subtext showing bag size
+        e.g., Label reads "$/bag(100)" for 5065C, "$/bag(25)" for TMCHAIR
+```
+
+### Calculation Module (`reinforcement-footing.ts`)
+
+```text
+BEFORE:
+  catalogChairPrice = getPrice(...) / 4     -- divides by 4
+  bags = Math.ceil(totalChairs / 25)        -- always 25
+  description: "Footing TM Chairs (X x 25)"
+
+AFTER:
+  catalogChairPrice = getPrice(...)         -- actual catalog price
+  bagSize = chairType === 'TMCHAIR' ? 25 : 100
+  bags = Math.ceil(totalChairs / bagSize)
+  description: "Footing Chairs - 5065C (X x 100)"
+```
+
+### BOQ Generator (`boq-generator.ts`)
+
+```text
+BEFORE (line 1142):
+  const bags = Math.ceil(totalFootingChairs / 25);
+  notes: `${bags} x 25 pcs`
+
+AFTER:
+  const bagSize = footingChairType === 'TMCHAIR' ? 25 : 100;
+  const bags = Math.ceil(totalFootingChairs / bagSize);
+  notes: `${bags} x ${bagSize} pcs`
+```
+
+Same fix applies to the layer chairs section (lines 1184-1192).
+
+### Data Compatibility
+
+Existing estimates that stored `chair_price_per_bag` as the divided-by-4 value will need handling. On load, if the stored price seems too low relative to the catalog price, the initialization effect will re-fetch the actual catalog price. The `chairs_per_m` value will remain as-is (existing decimals like 1.4 still work, they just won't be settable via the UI anymore).
