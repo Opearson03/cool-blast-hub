@@ -21,6 +21,8 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SupplierRegistrationDialog } from "@/components/suppliers/SupplierRegistrationDialog";
+import supplierConcretePour from "@/assets/supplier-concrete-pour.png";
+import supplierConcreteFinish from "@/assets/supplier-concrete-finish.png";
 
 export default function SuppliersLanding() {
   const [email, setEmail] = useState("");
@@ -144,8 +146,17 @@ export default function SuppliersLanding() {
       </header>
 
       {/* Section 1: Hero + Login */}
-      <section className="py-16 md:py-24 bg-gradient-to-b from-primary/5 to-background">
-        <div className="container mx-auto px-4">
+      <section className="py-16 md:py-24 relative overflow-hidden">
+        {/* Background image with overlay */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src={supplierConcretePour} 
+            alt="" 
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80" />
+        </div>
+        <div className="container mx-auto px-4 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
               <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
@@ -230,6 +241,15 @@ export default function SuppliersLanding() {
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* Industry image banner */}
+          <div className="max-w-4xl mx-auto mb-10 rounded-xl overflow-hidden shadow-lg">
+            <img 
+              src={supplierConcreteFinish} 
+              alt="Professional concreter finishing a slab with hand tools" 
+              className="w-full h-48 md:h-64 object-cover"
+            />
           </div>
           
           <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
