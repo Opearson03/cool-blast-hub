@@ -1,164 +1,187 @@
 
+# Plan: Supplier Portal Implementation
 
-# Plan: Fix Order Wizard Popup Usability Issues
+## Overview
 
-## Problems Identified
-
-After reviewing all the components, I've identified the following issues causing the popup to be unusable:
-
-### 1. **ScrollArea Viewport Height Issue**
-The Radix `ScrollArea` component has a `Viewport` that uses `h-full w-full`, but in a flex container, `h-full` doesn't work without an explicit height. The `[&_[data-radix-scroll-area-viewport]]:!overflow-y-auto` fix added overflow but doesn't fix the **height calculation** issue.
-
-**Root cause**: The viewport needs explicit height constraints, not just overflow control.
-
-### 2. **Content Competing for Space**
-Each step component has internal scrolling or fixed heights that conflict with the parent ScrollArea:
-- `ItemsStep`: Has `max-h-80 overflow-y-auto` on the items list (nested scroll)
-- `SupplierStep`: Has `max-h-48` on the CommandList (nested scroll) 
-- These nested scroll areas inside the parent ScrollArea cause unpredictable behavior
-
-### 3. **Missing Viewport Height on ScrollArea**
-The ScrollArea needs explicit height constraints via CSS to properly calculate available space. Currently it uses `flex-1 min-h-0` but the Radix Viewport inside doesn't inherit this properly.
-
-### 4. **Footer/Header Not Accounted For**
-The dialog structure doesn't properly reserve space for the header (StepIndicator) and footer, leaving the ScrollArea to fight for remaining space.
+Create a new supplier user type with their own dedicated login portal at `/suppliers`, similar to how PourHub staff have their own portal at `/staff`. The `/suppliers` route will show a landing page about supplier advertising opportunities, with login access for registered suppliers.
 
 ---
 
-## Solution: Complete Layout Restructure
+## Architecture
 
-### Approach
-Replace the problematic `ScrollArea` with a simpler CSS-based scrolling solution that works reliably in flexbox containers.
+The supplier portal will follow the same pattern as the staff portal:
 
----
-
-## Technical Changes
-
-### File: `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx`
-
-**Current Structure (Broken):**
-```tsx
-<DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden p-0">
-  <div className="p-6 pb-4">
-    <StepIndicator ... />
-  </div>
-  
-  <ScrollArea className="flex-1 min-h-0 px-6 [&_[data-radix-scroll-area-viewport]]:!overflow-y-auto">
-    <div className="min-h-[200px] pb-6">
-      {/* Step content */}
-    </div>
-  </ScrollArea>
-  
-  <DialogFooter className="flex-row justify-between gap-2 p-6 pt-4 border-t flex-shrink-0">
-```
-
-**New Structure (Fixed):**
-```tsx
-<DialogContent className="max-w-lg max-h-[85vh] flex flex-col overflow-hidden p-0">
-  {/* Header - fixed height, never shrinks */}
-  <div className="flex-shrink-0 p-6 pb-4">
-    <StepIndicator ... />
-  </div>
-  
-  {/* Scrollable content area - takes remaining space, scrolls internally */}
-  <div className="flex-1 overflow-y-auto px-6 min-h-0">
-    <div className="pb-6">
-      {/* Step content */}
-    </div>
-  </div>
-  
-  {/* Footer - fixed height, never shrinks */}
-  <DialogFooter className="flex-shrink-0 flex-row justify-between gap-2 p-6 pt-4 border-t">
-```
-
-**Key changes:**
-1. Replace `ScrollArea` with a simple `div` using `overflow-y-auto`
-2. Add `flex-shrink-0` to both header and footer to prevent them from shrinking
-3. Use `flex-1 min-h-0 overflow-y-auto` on the content area (this is the standard flexbox scroll pattern)
-4. Remove the Radix viewport override hack
-
----
-
-### File: `src/components/jobs/boq/order-wizard/ItemsStep.tsx`
-
-**Remove nested scroll area** - let the parent handle scrolling:
-
-```tsx
-// Before (line 49):
-<div className="border rounded-lg divide-y max-h-80 overflow-y-auto">
-
-// After:
-<div className="border rounded-lg divide-y">
+```text
+/suppliers                 -> Landing page + Login
+/suppliers/dashboard       -> Supplier dashboard (protected)
+suppliers.pourhub.com.au   -> Subdomain access (future)
 ```
 
 ---
 
-### File: `src/components/jobs/boq/order-wizard/SupplierStep.tsx`
+## Database Changes
 
-**Remove nested scroll constraint** on CommandList:
+### 1. Add `supplier` to `app_role` enum
 
-```tsx
-// Before (line ~99):
-<CommandList className="max-h-48">
-
-// After:
-<CommandList className="max-h-[200px]">
+```sql
+ALTER TYPE public.app_role ADD VALUE 'supplier';
 ```
 
-Keep a max-height but make it reasonable. Also for the PO supplier search (line ~146):
+### 2. Create `supplier_profiles` table
+
+Store supplier-specific data (separate from the business-owned `supplier_contacts` which tracks contacts a business has added):
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | uuid | Primary key |
+| user_id | uuid | References auth.users (unique) |
+| company_name | text | Supplier's company name |
+| contact_name | text | Primary contact person |
+| phone | text | Contact phone |
+| email | text | Contact email |
+| abn | text | Australian Business Number |
+| categories | text[] | Services offered (e.g. concrete, pumping, steel) |
+| description | text | Business description |
+| logo_url | text | Company logo |
+| website | text | Company website |
+| service_areas | text[] | Regions they service |
+| is_verified | boolean | Verified by PourHub staff |
+| created_at | timestamptz | Timestamp |
+| updated_at | timestamptz | Timestamp |
+
+### 3. Create `is_supplier` helper function
+
+```sql
+CREATE OR REPLACE FUNCTION public.is_supplier(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.user_roles
+    WHERE user_id = _user_id AND role = 'supplier'
+  )
+$$;
+```
+
+### 4. RLS Policies for `supplier_profiles`
+
+- Suppliers can view and update their own profile
+- PourHub staff can view all supplier profiles (for verification)
+- Public can view verified suppliers (for future directory feature)
+
+---
+
+## Frontend Changes
+
+### File Structure
+
+```text
+src/
+├── pages/
+│   └── suppliers/
+│       ├── SuppliersLanding.tsx    # Landing page with info + login
+│       └── SupplierDashboard.tsx   # Protected supplier dashboard
+├── components/
+│   └── suppliers/
+│       └── SupplierProtectedRoute.tsx  # Route guard
+```
+
+### 1. Create `SuppliersLanding.tsx`
+
+A marketing-focused landing page that:
+- Explains supplier benefits (reach PourHub users, get quote requests)
+- Shows how advertising works
+- Includes login form for existing suppliers
+- Has a "Register Interest" button (future signup)
+
+Visual sections:
+- Hero: "Reach More Concreters with PourHub"
+- Benefits: Get quote requests, verified badge, directory listing
+- How it works: Register → Get verified → Receive leads
+- Login card (same pattern as StaffAuth)
+
+### 2. Create `SupplierDashboard.tsx`
+
+Initial simple dashboard showing:
+- Company profile overview
+- Placeholder for future features (incoming RFQs, analytics)
+- Profile edit capability
+
+### 3. Create `SupplierProtectedRoute.tsx`
+
+Same pattern as `StaffProtectedRoute`:
+- Check session exists
+- Call `is_supplier` RPC to verify role
+- Redirect to `/suppliers` if unauthorized
+
+### 4. Update `useSubdomain.ts`
+
+Add supplier subdomain detection:
+```typescript
+if (hostname === "suppliers.pourhub.com.au" || hostname.startsWith("suppliers.")) {
+  return "suppliers";
+}
+```
+
+### 5. Update `App.tsx`
+
+Add new routes:
 ```tsx
-<CommandList className="max-h-[200px]">
+{/* Supplier Routes */}
+<Route path="/suppliers" element={<SuppliersLanding />} />
+<Route path="/suppliers/dashboard" element={
+  <SupplierProtectedRoute>
+    <SupplierDashboard />
+  </SupplierProtectedRoute>
+} />
 ```
 
 ---
 
-### File: `src/components/jobs/boq/order-wizard/DeliveryStep.tsx`
+## Files to Create
 
-The Notes textarea at the bottom has `pb-4` which may not be enough. Increase to ensure visibility:
+| File | Purpose |
+|------|---------|
+| `src/pages/suppliers/SuppliersLanding.tsx` | Landing page with marketing info + login |
+| `src/pages/suppliers/SupplierDashboard.tsx` | Protected supplier dashboard |
+| `src/components/suppliers/SupplierProtectedRoute.tsx` | Route guard for supplier pages |
 
-```tsx
-// Line 152 - already has pb-4, but the parent now handles scrolling
-// No change needed here
-```
-
----
-
-### File: `src/components/jobs/boq/order-wizard/ReviewStep.tsx`
-
-The final `pb-4` div (line 361) is adequate. No changes needed.
-
----
-
-## Summary of Changes
+## Files to Modify
 
 | File | Change |
 |------|--------|
-| `OrderWizardDialog.tsx` | Replace ScrollArea with native CSS scroll; add flex-shrink-0 to header/footer |
-| `ItemsStep.tsx` | Remove `max-h-80 overflow-y-auto` from items list |
-| `SupplierStep.tsx` | Adjust `max-h-48` to `max-h-[200px]` for both CommandLists |
+| `src/App.tsx` | Add supplier routes |
+| `src/hooks/useSubdomain.ts` | Add supplier subdomain detection |
+| Migration SQL | Add supplier role, table, RLS, and helper function |
 
 ---
 
-## Why This Works
+## Security Considerations
 
-1. **Flexbox scroll pattern**: `flex: 1` + `min-height: 0` + `overflow-y: auto` is the standard CSS pattern for creating a scrollable area that takes remaining space in a flex container.
+1. Supplier role is separate from business admin/staff roles
+2. Suppliers cannot access any business data
+3. RLS ensures suppliers only see/edit their own profile
+4. PourHub staff can manage supplier verification
+5. No cross-role access possible
 
-2. **No Radix quirks**: The Radix ScrollArea component has known issues in certain flex layouts. Using native CSS scroll is more reliable.
+---
 
-3. **Single scroll context**: Removing nested scrollable areas prevents "scroll trapping" where the user's scroll input gets captured by the wrong element.
+## Future Enhancements (not in this plan)
 
-4. **Fixed header/footer**: Using `flex-shrink-0` ensures the header and footer always remain visible and never get pushed off-screen.
+- Supplier registration/signup flow
+- Integration with RFQ system to route quote requests to verified suppliers
+- Supplier directory for businesses to browse
+- Analytics dashboard for suppliers
+- Advertising tier pricing
 
 ---
 
 ## Testing Checklist
 
-1. Open Order Wizard → verify all 5 steps are fully visible and scrollable
-2. **Type step**: Both cards visible without scrolling
-3. **Items step**: Long item list scrolls properly, "Select All" header stays visible
-4. **Supplier step**: Search dropdown works, all suppliers visible when scrolling
-5. **Delivery step**: All fields visible - Address, Date, Site Contact, Notes textarea at bottom
-6. **Review step**: All summary info visible, "Include plans" toggle visible, email notice at bottom visible
-7. Footer buttons (Back, Cancel, Send) always visible and not covering content
-8. Test on mobile viewport (small screen) - content should scroll without cutoff
-
+1. Navigate to `/suppliers` - see landing page with login form
+2. Attempt login without supplier role - get access denied
+3. Login with supplier role - redirect to `/suppliers/dashboard`
+4. Verify supplier can view/edit their profile
+5. Verify supplier cannot access `/admin` or `/staff` routes
+6. Test subdomain detection for `suppliers.pourhub.com.au`
