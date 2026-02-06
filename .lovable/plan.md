@@ -1,44 +1,40 @@
 
-
-# Fix: Quote Valid Date Not Showing in Top Section
+# Fix: Concrete Total Quantities Not Showing for Slab on Ground and Raft Slab
 
 ## Problem
 
-The quote "Valid Until" date shows correctly at the bottom of the quote (Page 2 payment terms says "This quote is valid for 14 days from the date of issue") but shows "-" in the top section of both Classic and Simple templates.
+The concrete volume for Slab on Ground and Raft Slab scopes is never displayed on the quote PDF because the extraction functions look for volume in fields that don't exist in the saved data.
 
 ## Root Cause
 
-Two separate fields exist:
-- `quote_validity_days` (e.g. 14) -- set by the user in the Payment Terms section of the estimate form
-- `valid_until` (an actual date) -- never auto-calculated from `quote_validity_days`
+The concrete volume is calculated on-the-fly by the estimator (`ModularCalculator`) but is never stored directly in `scopeAnswers`. Instead, it gets saved in `moduleAnswers['concrete-supply'].calculated_volume`. However, the PDF data extraction functions (`extractProjectSummary` and `extractScopeBreakdowns` in `quote-pdf-data.ts`) only look for volume in three places that are never populated:
 
-The top section displays `valid_until` (which is null), while the bottom section uses `quote_validity_days` (which has a value). They are never connected.
+- `scopeAnswers.concreteVolume` -- never set
+- `scopeAnswers.total_volume` -- never set
+- `scopeAnswers.volume` -- never set
 
-## Solution
+As confirmed by the database, these fields are always null for slab scopes, while `moduleAnswers['concrete-supply'].calculated_volume` correctly stores the value (e.g., 19.72 m3 for a raft slab, 38.67 m3 for a slab on ground).
 
-**Auto-calculate `valid_until` from `quote_validity_days` when saving the estimate.** This ensures the actual date is always populated when the user sets a validity period.
+Additionally, the area calculation for takeoff-based scopes uses `length x width` instead of the more accurate `_actualArea` value from plan takeoff.
 
-Additionally, add a fallback in the PrintableEstimate so that if `valid_until` is still null (e.g. for older estimates), it computes the date from `created_at + quote_validity_days`.
+## Fix
 
-## Technical Details
+Update `src/lib/quote-pdf-data.ts` in two functions to read volume from where it's actually stored, and use accurate takeoff areas.
 
-### File 1: `src/components/estimates/EstimateFormDialog.tsx`
+### Changes to `extractProjectSummary` (lines 209-226)
 
-In the save function (around line 1365), replace:
-```
-valid_until: formData.valid_until || null,
-```
-with logic that auto-computes valid_until from `created_at + quoteValidityDays` if the user hasn't manually entered a date. This covers all new and edited estimates going forward.
+1. After the existing volume checks (lines 210-218), add a fallback to `moduleAnswers['concrete-supply'].calculated_volume`
+2. Update the area calculation (lines 221-226) to prefer `_actualArea` from takeoff data before falling back to `length x width`
 
-### File 2: `src/components/estimates/PrintableEstimate.tsx`
+### Changes to `extractScopeBreakdowns` (lines 381-401)
 
-Add a computed `validUntilDate` near the top of the render function (around line 727) that falls back to `created_at + quote_validity_days` when `valid_until` is null. Then use this computed date in both templates:
+1. Line 381: Add `moduleAnswers['concrete-supply']?.calculated_volume` as a fallback for the volume extraction
+2. Lines 393-400: Update individual area extraction to use `_actualArea` when available, and fix the filter to include areas that have `_actualArea` (not just `length x width`)
 
-- **Simple template** (line 850): Use the computed date instead of raw `estimate.valid_until`
-- **Classic template** (line 1129): Use the computed date instead of raw `estimate.valid_until`
+### Concrete strength extraction
 
-This ensures older estimates without a stored `valid_until` still display the correct date based on `quote_validity_days`.
+Also add `moduleAnswers['concrete-supply']?.concrete_type` as a fallback for concrete strength extraction (line 404-407), since the concrete type is stored in the module answers, not in scope answers.
 
 ### No database changes needed
 
-The `valid_until` column already exists and accepts date strings. This is purely a front-end logic fix.
+All the correct data is already stored in the database. This is purely a read-side fix in the PDF data extraction logic.
