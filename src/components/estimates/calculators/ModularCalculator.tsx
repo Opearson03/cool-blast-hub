@@ -23,6 +23,7 @@ import {
 import { MODULE_REGISTRY } from "@/lib/estimate-components/modules";
 import { usePriceList } from "@/hooks/usePriceList";
 import { ModuleSection } from "./ModuleSection";
+import { AccordionDoneBadge } from "./shared/AccordionDoneBadge";
 import { ModularCostSummary } from "./ModularCostSummary";
 import { ExclusionsSummary } from "./ExclusionsSummary";
 import { MultiAreaInput } from "./MultiAreaInput";
@@ -1708,18 +1709,19 @@ function DemolitionModuleSection({
         className="flex items-center justify-between px-4 py-4 cursor-pointer hover:bg-muted/50 transition-colors"
         onClick={onToggle}
       >
-        <div className="flex items-center gap-3 flex-1">
-          <span className="font-medium">{module.name}</span>
-          {isMarkedDone && (
-            <span className="text-xs font-medium text-green-600 bg-green-100 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded-full">
-              Done
-            </span>
-          )}
-          {subtotal > 0 && (
-            <span className="ml-auto mr-4 text-sm font-medium text-primary">
-              {formatCurrency(subtotal)}
-            </span>
-          )}
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <span className="font-medium truncate">{module.name}</span>
+          <div className="flex-1" />
+          <div className="w-16 flex justify-end shrink-0">
+            {isMarkedDone && <AccordionDoneBadge />}
+          </div>
+          <div className="w-24 text-right shrink-0 mr-2">
+            {subtotal > 0 && (
+              <span className="text-sm font-medium text-primary">
+                {formatCurrency(subtotal)}
+              </span>
+            )}
+          </div>
         </div>
         <svg
           className={`h-4 w-4 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`}
