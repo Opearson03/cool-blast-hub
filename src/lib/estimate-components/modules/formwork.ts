@@ -115,26 +115,6 @@ export const formworkModule: EstimateModule = {
           subtotal += spacer2WayCost;
         }
       }
-      
-      // Pod Rails (always included if required, regardless of supply question)
-      const podRailsRequired = scopeData?.pod_rails_required === true;
-      const podRailPacks = Number(scopeData?.pod_rail_packs) || 0;
-      
-      if (podRailsRequired && podRailPacks > 0) {
-        const podRailPrice = getPrice(priceMap, 'consumables', 'POD RAIL', 26);
-        const podRailCost = podRailPacks * podRailPrice;
-        
-        lineItems.push({
-          id: 'waffle_pod_rails',
-          description: `Pod Rail Spacers (${podRailPacks} × 20)`,
-          quantity: podRailPacks,
-          unit: 'packs',
-          unitPrice: podRailPrice,
-          total: Math.round(podRailCost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += podRailCost;
-      }
     }
 
     return {
