@@ -1,157 +1,42 @@
 
-# Plan: Fix Slab Workflow Page Navigation Issue
+# Plan: Fix Slab Workflow Page Navigation Issue ✅ COMPLETED
 
 ## Problem Summary
 
 When using the "Use Perimeter as Edge Beam" shortcut during slab takeoff, if users navigate to a different page (sheet), they lose sight of their pending slab and the workflow becomes confusing. The slab workflow remains active but the visual context disappears, leaving users unable to complete the workflow properly.
 
-## Root Cause
+## Solution Implemented
 
-The slab workflow stores `pageNumber` and `fileId` when a slab is drawn, but there's no mechanism to:
-1. Prevent page navigation during an active workflow
-2. Warn users if they navigate away
-3. Automatically return them to the correct page
-
-## Proposed Solution
-
-Implement a **page navigation guard** during active slab workflows that prevents accidental navigation and provides clear feedback to users.
+Implemented a **page navigation guard** during active slab workflows that:
+1. Hides page navigation controls when slab workflow is active
+2. Shows a toast message if the user somehow tries to change pages
+3. Displays a "wrong page" warning in the panel/dialog with a "Return" button
 
 ---
 
-## Implementation Details
+## Changes Made
 
-### 1. Add Page Navigation Prevention During Active Slab Workflow
+### 1. PlanViewer.tsx
+- Added `disablePageNavigation` prop that hides page controls when true
 
-**File: `src/components/estimates/takeoff/PlanTakeoffStep.tsx`**
+### 2. PlanTakeoffStep.tsx
+- Added `useToast` hook
+- Created `handlePageChange` guarded function that blocks page changes during active slab workflow with a toast message
+- Passed `disablePageNavigation={slabWorkflowActive && !!pendingSlabData}` to PlanViewer
+- Added `currentPage`, `slabPage`, and `onReturnToSlabPage` props to both panel and dialog
 
-- Create a wrapper function for `setCurrentPage` that checks if a slab workflow is active
-- If active, show a confirmation toast or block the navigation entirely
-- Provide a way for users to cancel the workflow if they need to navigate away
+### 3. SlabBeamMarkupPanel.tsx
+- Added props for page tracking (`currentPage`, `slabPage`, `onReturnToSlabPage`)
+- Added "wrong page" detection logic
+- Added warning banner with "Return" button when user is on different page
 
-```text
-Logic:
-1. When slabWorkflowActive is true AND user tries to change page:
-   - Show toast: "Complete or cancel the current slab workflow first"
-   - Prevent the page change
-2. Alternative: Auto-navigate back to the correct page
-```
-
-### 2. Auto-Return to Slab Page When Workflow Dialog Opens
-
-**File: `src/components/estimates/takeoff/PlanTakeoffStep.tsx`**
-
-- When the slab beam dialog/panel opens (`showSlabBeamDialog = true`)
-- Automatically navigate back to the page where the slab was drawn
-- This ensures visual context is always maintained
-
-### 3. Add Visual Indicator for Wrong Page
-
-**File: `src/components/estimates/takeoff/panels/SlabBeamMarkupPanel.tsx`** and **`SlabBeamMarkupDialog.tsx`**
-
-- If user is on a different page than where the slab was drawn, show a warning:
-  - "You're viewing a different page. Return to Sheet X to see your slab."
-- Add a "Return to Slab" button that navigates back
-
-### 4. Disable Page Navigation Controls During Marking Steps
-
-**File: `src/components/estimates/takeoff/PlanViewer.tsx`**
-
-- Accept a new prop `disablePageNavigation?: boolean`
-- When true, hide or disable the page navigation arrows
-- Pass this prop from `PlanTakeoffStep` when `slabWorkflowActive` is true
+### 4. SlabBeamMarkupDialog.tsx (mobile)
+- Same changes as panel for mobile consistency
 
 ---
 
-## Files to Modify
+## User Experience After Fix
 
-| File | Change |
-|------|--------|
-| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Add page navigation guard logic, pass props to child components |
-| `src/components/estimates/takeoff/PlanViewer.tsx` | Add `disablePageNavigation` prop to control visibility of page arrows |
-| `src/components/estimates/takeoff/panels/SlabBeamMarkupPanel.tsx` | Add "wrong page" warning and return button |
-| `src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx` | Add "wrong page" warning and return button |
-
----
-
-## Technical Approach
-
-### Step 1: Modify PlanTakeoffStep.tsx
-
-Add a guard around the `setCurrentPage` call:
-
-```typescript
-// Create a guarded page change handler
-const handlePageChange = useCallback((newPage: number) => {
-  // Block page changes during active slab workflow
-  if (slabWorkflowActive && pendingSlabData) {
-    toast({
-      title: "Workflow in progress",
-      description: "Complete or cancel the current slab before navigating pages.",
-      variant: "default"
-    });
-    return;
-  }
-  setCurrentPage(newPage);
-}, [slabWorkflowActive, pendingSlabData, setCurrentPage, toast]);
-```
-
-Pass this handler to PlanViewer instead of direct setCurrentPage.
-
-### Step 2: Modify PlanViewer.tsx
-
-Add optional prop to disable navigation:
-
-```typescript
-interface PlanViewerProps {
-  // ... existing props
-  disablePageNavigation?: boolean;
-}
-
-// In the JSX, conditionally render page controls:
-{planType === 'pdf' && totalPages > 1 && !disablePageNavigation && (
-  <div className="absolute top-2 ...">
-    {/* Page navigation buttons */}
-  </div>
-)}
-```
-
-### Step 3: Add Warning in Panel/Dialog
-
-Add a warning banner when user is on wrong page:
-
-```typescript
-const isOnWrongPage = pendingSlabData && (
-  pendingSlabData.fileId !== currentFileId || 
-  pendingSlabData.pageNumber !== currentPage
-);
-
-// In JSX:
-{isOnWrongPage && (
-  <Alert variant="warning" className="mb-4">
-    <AlertDescription className="flex items-center justify-between">
-      <span>Your slab is on a different page.</span>
-      <Button size="sm" onClick={handleReturnToSlabPage}>
-        Return to Slab
-      </Button>
-    </AlertDescription>
-  </Alert>
-)}
-```
-
----
-
-## User Experience
-
-**Before Fix:**
-- User draws slab → clicks "Yes" for perimeter edge beam → accidentally navigates to Sheet 2 → slab disappears → confusion
-
-**After Fix:**
-- User draws slab → clicks "Yes" for perimeter edge beam → tries to navigate to Sheet 2 → toast message explains they need to complete or cancel the workflow first → user stays on correct page and completes workflow smoothly
-
----
-
-## Alternative Considered
-
-**Auto-cancel workflow on page change**: This was considered but rejected because users might accidentally lose their work if they briefly check another page.
-
-The chosen approach (block + inform) preserves user work while providing clear feedback about the expected workflow.
+- User draws slab → clicks "Yes" for perimeter edge beam → page navigation controls are hidden
+- If somehow on wrong page, panel shows "Your slab is on Sheet X" with Return button
+- User stays focused on correct page and completes workflow smoothly
