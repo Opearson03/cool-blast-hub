@@ -153,6 +153,8 @@ export default function AdminSettings() {
 
   const updateMutation = useMutation({
     mutationFn: async () => {
+      const nameChanged = business && name !== business.name;
+      
       if (!business) {
         const { data: userData } = await supabase.auth.getUser();
         const { data, error } = await supabase
@@ -176,7 +178,7 @@ export default function AdminSettings() {
           .update({ business_id: data.id })
           .eq("id", userData.user?.id);
 
-        return data;
+        return { data, nameChanged: false };
       } else {
         const { error } = await supabase
           .from("businesses")
@@ -195,11 +197,20 @@ export default function AdminSettings() {
           .eq("id", business.id);
 
         if (error) throw error;
+        return { nameChanged };
       }
     },
-    onSuccess: () => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["business"] });
       toast({ title: "Settings saved" });
+      
+      // Notify user if business name changed (which updates their inbox email)
+      if (result?.nameChanged) {
+        toast({ 
+          title: "Inbox email updated",
+          description: "Your test result inbox email has been updated to match your new business name. Please update your testing labs.",
+        });
+      }
     },
     onError: (error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
