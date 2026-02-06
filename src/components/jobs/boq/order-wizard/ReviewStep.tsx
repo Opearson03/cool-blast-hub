@@ -1,13 +1,10 @@
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Mail, MessageSquare, Package, MapPin, CalendarIcon, User, AlertCircle } from "lucide-react";
+import { Mail, Package, MapPin, CalendarIcon, User, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
-import { BOQItem, BOQ_CATEGORIES } from "../BOQTypes";
-import { OrderType, SendMethod, SupplierContact, SiteContactOption } from "./types";
+import { BOQItem } from "../BOQTypes";
+import { OrderType, SupplierContact, SiteContactOption } from "./types";
 
 interface ReviewStepProps {
   orderType: OrderType;
@@ -24,9 +21,6 @@ interface ReviewStepProps {
   siteContactOptions: SiteContactOption[];
   manualSiteContact: { name: string; phone: string };
   notes: string;
-  // Send method
-  sendMethod: SendMethod;
-  onSendMethodChange: (method: SendMethod) => void;
   // Validation
   validationErrors: string[];
 }
@@ -44,8 +38,6 @@ export function ReviewStep({
   siteContactOptions,
   manualSiteContact,
   notes,
-  sendMethod,
-  onSendMethodChange,
   validationErrors,
 }: ReviewStepProps) {
   const isQuote = orderType === "quote";
@@ -183,29 +175,10 @@ export function ReviewStep({
         </CardContent>
       </Card>
 
-      {/* Send Method */}
-      <div className="space-y-3 pb-4">
-        <Label className="text-base font-medium">Send via</Label>
-        <RadioGroup
-          value={sendMethod}
-          onValueChange={(v) => onSendMethodChange(v as SendMethod)}
-          className="flex gap-4"
-        >
-          <label className="flex items-center gap-2 cursor-pointer">
-            <RadioGroupItem value="email" />
-            <Mail className="w-4 h-4" />
-            <span>Email</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <RadioGroupItem value="sms" />
-            <MessageSquare className="w-4 h-4" />
-            <span>SMS</span>
-          </label>
-          <label className="flex items-center gap-2 cursor-pointer">
-            <RadioGroupItem value="both" />
-            <span>Both</span>
-          </label>
-        </RadioGroup>
+      {/* Send Method - Email only */}
+      <div className="flex items-center gap-2 text-sm text-muted-foreground pb-4">
+        <Mail className="w-4 h-4" />
+        <span>Will be sent via email</span>
       </div>
     </div>
   );

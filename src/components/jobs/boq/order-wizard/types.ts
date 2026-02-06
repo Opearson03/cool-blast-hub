@@ -1,7 +1,7 @@
 import { BOQItem, JobBOQ } from "../BOQTypes";
 
 export type OrderType = "quote" | "po";
-export type SendMethod = "email" | "sms" | "both";
+export type SendMethod = "email"; // SMS removed - email only for supplier communications
 
 export interface SupplierContact {
   id: string;
