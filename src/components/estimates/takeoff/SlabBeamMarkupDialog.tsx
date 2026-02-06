@@ -540,8 +540,8 @@ export function SlabBeamMarkupDialog({
               <div className="space-y-3">
                 <Label className="text-sm font-medium">{getEdgeLabel()}</Label>
                 <p className="text-xs text-muted-foreground">
-                  {isDriveway 
-                    ? 'Driveways can have thickened edges around the perimeter.'
+                  {isEdgeThickeningScope
+                    ? 'Slabs can have thickened edges around the perimeter.'
                     : isWafflePod
                       ? 'Waffle pod slabs have edge beams around the perimeter.'
                       : 'Raft slabs typically have thickened edge beams around the perimeter.'}
