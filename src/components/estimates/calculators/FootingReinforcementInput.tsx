@@ -75,17 +75,19 @@ function getChairOption(chairType: string) {
   return CHAIR_TYPE_OPTIONS.find(opt => opt.value === chairType) || CHAIR_TYPE_OPTIONS[2]; // Default to 5065C
 }
 
-// Get price per bag of 25 for consistent pricing
-function getChairPricePerBag25(chairType: string, priceMap?: PriceMap): number {
+// Get the actual catalog price per bag (no normalization)
+function getChairCatalogPrice(chairType: string, priceMap?: PriceMap): number {
   const catalogPrice = getChairPrice(chairType, priceMap);
-  const option = getChairOption(chairType);
-  
   if (catalogPrice === undefined) {
     return 12.50; // Default fallback
   }
-  
-  // TMCHAIR is already per bag of 25, bar chairs are per bag of 100
-  return option.bagsOf === 25 ? catalogPrice : catalogPrice / 4;
+  return catalogPrice;
+}
+
+// Get bag size for chair type
+function getChairBagSize(chairType: string): number {
+  const option = getChairOption(chairType);
+  return option.bagsOf;
 }
 
 type FootingOrSection = FootingConfig | LinearSection;
@@ -961,10 +963,10 @@ export function FootingReinforcementInput({
                             <Select
                               value={group.chair_type || '5065C'}
                               onValueChange={(val) => {
-                                const pricePerBagOf25 = getChairPricePerBag25(val, priceMap);
+                                const catalogPrice = getChairCatalogPrice(val, priceMap);
                                 updateGroupReinforcement(group, { 
                                   chair_type: val,
-                                  chair_price_per_bag: pricePerBagOf25
+                                  chair_price_per_bag: catalogPrice
                                 });
                               }}
                             >
@@ -973,7 +975,10 @@ export function FootingReinforcementInput({
                               </SelectTrigger>
                               <SelectContent className="z-[150]">
                                 {CHAIR_TYPE_OPTIONS.map(opt => (
-                                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                                  <SelectItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                    <span className="text-muted-foreground text-xs ml-1">(bag {opt.bagsOf})</span>
+                                  </SelectItem>
                                 ))}
                               </SelectContent>
                             </Select>
@@ -984,23 +989,23 @@ export function FootingReinforcementInput({
                               <Label className="text-[10px] text-muted-foreground">Chairs/m</Label>
                               <Input
                                 type="number"
-                                step="0.1"
-                                min="0.5"
-                                max="5"
-                                value={group.chairs_per_m ?? 1.4}
+                                step="1"
+                                min="1"
+                                max="10"
+                                value={group.chairs_per_m ?? 1}
                                 onChange={(e) => updateGroupReinforcement(group, { chairs_per_m: Number(e.target.value) })}
                                 className="h-8 text-sm"
                               />
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-[10px] text-muted-foreground">$/25</Label>
+                              <Label className="text-[10px] text-muted-foreground">$/bag({getChairBagSize(group.chair_type || '5065C')})</Label>
                               <div className="relative">
                                 <span className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">$</span>
                                 <Input
                                   type="number"
                                   step="0.01"
                                   min="0"
-                                  value={group.chair_price_per_bag ?? 12.50}
+                                  value={group.chair_price_per_bag ?? getChairCatalogPrice(group.chair_type || '5065C', priceMap)}
                                   onChange={(e) => updateGroupReinforcement(group, { chair_price_per_bag: Number(e.target.value) })}
                                   className="h-8 text-sm pl-6"
                                 />

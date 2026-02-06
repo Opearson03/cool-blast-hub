@@ -1132,14 +1132,15 @@ export function generateBOQFromEstimate(
           const length = section._actualLength || Number(section.length) || 0;
           if (length <= 0) return;
           
-          const chairsPerM = section.chairs_per_m ?? 1.4;
+          const chairsPerM = section.chairs_per_m ?? 1;
           footingChairPrice = section.chair_price_per_bag ?? 12.50;
           footingChairType = section.chair_type || '5065C';
           totalFootingChairs += Math.ceil(length * chairsPerM);
         });
         
         if (totalFootingChairs > 0) {
-          const bags = Math.ceil(totalFootingChairs / 25);
+          const bagSize = footingChairType === 'TMCHAIR' ? 25 : 100;
+          const bags = Math.ceil(totalFootingChairs / bagSize);
           const chairLabels: Record<string, string> = {
             'TMCHAIR': 'TM Chairs',
             '2540C': '25-40mm',
@@ -1155,7 +1156,7 @@ export function generateBOQFromEstimate(
             bags,
             "bags",
             footingChairPrice,
-            `${bags} × 25 pcs`
+            `${bags} × ${bagSize} pcs`
           );
         }
       }
@@ -1167,6 +1168,7 @@ export function generateBOQFromEstimate(
       if (Array.isArray(footings) && footings.length > 0) {
         let totalFootingLayerChairs = 0;
         let footingLayerChairPrice = 12.50;
+        let layerChairType = '2540C';
         
         footings.forEach((section: any) => {
           const tmLayers = section.tm_layers || 1;
@@ -1178,18 +1180,20 @@ export function generateBOQFromEstimate(
           
           const layerChairsPerM = section.layer_chairs_per_m ?? 1;
           footingLayerChairPrice = section.layer_chair_price ?? 12.50;
+          layerChairType = section.layer_chair_type || '2540C';
           totalFootingLayerChairs += Math.ceil(length * layerChairsPerM);
         });
         
         if (totalFootingLayerChairs > 0) {
-          const bags = Math.ceil(totalFootingLayerChairs / 25);
+          const layerBagSize = layerChairType === 'TMCHAIR' ? 25 : 100;
+          const bags = Math.ceil(totalFootingLayerChairs / layerBagSize);
           addItem(
             "reinforcement",
             "Footing TM Layer Chairs",
             bags,
             "bags",
             footingLayerChairPrice,
-            `${bags} × 25 pcs (between TM layers)`
+            `${bags} × ${layerBagSize} pcs (between TM layers)`
           );
         }
       }
