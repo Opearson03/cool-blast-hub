@@ -2552,6 +2552,60 @@ export type Database = {
           },
         ]
       }
+      supplier_profiles: {
+        Row: {
+          abn: string | null
+          categories: string[] | null
+          company_name: string
+          contact_name: string | null
+          created_at: string
+          description: string | null
+          email: string | null
+          id: string
+          is_verified: boolean | null
+          logo_url: string | null
+          phone: string | null
+          service_areas: string[] | null
+          updated_at: string
+          user_id: string
+          website: string | null
+        }
+        Insert: {
+          abn?: string | null
+          categories?: string[] | null
+          company_name: string
+          contact_name?: string | null
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          id?: string
+          is_verified?: boolean | null
+          logo_url?: string | null
+          phone?: string | null
+          service_areas?: string[] | null
+          updated_at?: string
+          user_id: string
+          website?: string | null
+        }
+        Update: {
+          abn?: string | null
+          categories?: string[] | null
+          company_name?: string
+          contact_name?: string | null
+          created_at?: string
+          description?: string | null
+          email?: string | null
+          id?: string
+          is_verified?: boolean | null
+          logo_url?: string | null
+          phone?: string | null
+          service_areas?: string[] | null
+          updated_at?: string
+          user_id?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       swms_signoffs: {
         Row: {
           employee_id: string | null
@@ -3130,9 +3184,10 @@ export type Database = {
         Returns: boolean
       }
       is_pourhub_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_supplier: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "staff" | "pourhub_staff"
+      app_role: "admin" | "staff" | "pourhub_staff" | "supplier"
       booking_status: "pending" | "contacted" | "converted" | "cancelled"
       customer_type: "retail" | "industrial"
       document_category:
@@ -3294,7 +3349,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff", "pourhub_staff"],
+      app_role: ["admin", "staff", "pourhub_staff", "supplier"],
       booking_status: ["pending", "contacted", "converted", "cancelled"],
       customer_type: ["retail", "industrial"],
       document_category: [

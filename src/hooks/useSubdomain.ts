@@ -9,11 +9,20 @@ export function useSubdomain() {
       return "staff";
     }
     
+    // Check for suppliers subdomain
+    if (hostname === "suppliers.pourhub.com.au" || hostname.startsWith("suppliers.")) {
+      return "suppliers";
+    }
+    
     // For local development, check for query param override
     if (hostname === "localhost" || hostname.includes("lovable.app")) {
       const params = new URLSearchParams(window.location.search);
-      if (params.get("subdomain") === "staff") {
+      const subdomainParam = params.get("subdomain");
+      if (subdomainParam === "staff") {
         return "staff";
+      }
+      if (subdomainParam === "suppliers") {
+        return "suppliers";
       }
     }
     
@@ -23,5 +32,6 @@ export function useSubdomain() {
   return {
     subdomain,
     isStaffDomain: subdomain === "staff",
+    isSupplierDomain: subdomain === "suppliers",
   };
 }
