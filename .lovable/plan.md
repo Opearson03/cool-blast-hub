@@ -1,187 +1,131 @@
 
-# Plan: Supplier Portal Implementation
+# Plan: Simplify Supplier Landing Page
 
 ## Overview
 
-Create a new supplier user type with their own dedicated login portal at `/suppliers`, similar to how PourHub staff have their own portal at `/staff`. The `/suppliers` route will show a landing page about supplier advertising opportunities, with login access for registered suppliers.
+The current page has 10 sections spanning 520 lines. This plan consolidates it into 4 focused sections while retaining all core value propositions, reducing visual noise and improving user focus.
 
 ---
 
-## Architecture
+## Current Structure (10 sections)
 
-The supplier portal will follow the same pattern as the staff portal:
+1. Hero + Login
+2. What is PourHub?
+3. What is Preferred Supplier Placement?
+4. Where Your Brand Appears (3 workflow moments)
+5. Categories We Support
+6. Why This Works Better (3 reasons)
+7. What Suppliers Receive (4 benefits)
+8. What You Don't Pay For
+9. Expected Commercial Impact
+10. CTA + Footer
+
+---
+
+## Proposed Simplified Structure (4 sections)
+
+### Section 1: Hero + Login (keep as-is)
+- Strong headline about reaching concreters at the moment they order
+- "Register Interest" button
+- Login card for existing suppliers
+
+### Section 2: How It Works
+Merge sections 2-5 into one clean section:
+- Brief "What is PourHub?" intro (1-2 sentences)
+- Inline category tags (Concrete, Reinforcement, etc.)
+- 3 placement moments in a compact format
+
+### Section 3: Why Choose PourHub
+Merge sections 6-8 into one benefits section:
+- Key benefits in a 2x3 or 3x2 grid
+- Include: Confirmed intent buyers, No price-shopping, Geographic targeting, Category exclusivity, Direct RFQs/POs, No commissions/revenue share
+
+### Section 4: CTA + Footer
+- Simple call to action with "Register Interest"
+- Footer
+
+---
+
+## Content Being Preserved
+
+| Core Message | Where It Goes |
+|--------------|---------------|
+| PourHub is used by concreters to quote, schedule, and order | Section 2 intro |
+| Supplier categories (Concrete, Reinforcement, etc.) | Section 2 inline tags |
+| 3 placement moments (RFQ, PO, Repeat) | Section 2 cards |
+| Buyers with confirmed intent | Section 3 |
+| Bypass price-shopping | Section 3 |
+| Geographic targeting | Section 3 |
+| Category exclusivity | Section 3 |
+| Direct RFQs & POs | Section 3 |
+| No commissions/revenue share | Section 3 |
+
+## Content Being Removed/Condensed
+
+- Separate "What is Preferred Supplier Placement?" section (merged into hero copy)
+- "What Suppliers Receive" 4-card grid (consolidated into benefits grid)
+- "Expected Commercial Impact" section (implied by other benefits)
+- Redundant explanatory text
+
+---
+
+## Technical Changes
+
+### File: `src/pages/suppliers/SuppliersLanding.tsx`
+
+**Before:** ~520 lines, 10 sections
+**After:** ~280 lines, 4 sections
+
+Changes:
+1. Keep hero section with login card (lines 189-266)
+2. Create new "How It Works" section combining PourHub intro + categories + 3 placement moments
+3. Create new "Why PourHub" section with 6 concise benefit cards
+4. Keep CTA + Footer (simplified)
+5. Remove standalone sections for:
+   - "What is Preferred Supplier Placement"
+   - "Categories We Support" (inline into How It Works)
+   - "Why This Works Better" (merged)
+   - "What Suppliers Receive" (merged)
+   - "What You Don't Pay For" (merged)
+   - "Expected Commercial Impact" (removed)
+
+---
+
+## Visual Layout
 
 ```text
-/suppliers                 -> Landing page + Login
-/suppliers/dashboard       -> Supplier dashboard (protected)
-suppliers.pourhub.com.au   -> Subdomain access (future)
+┌─────────────────────────────────────────────┐
+│ HEADER                                      │
+├─────────────────────────────────────────────┤
+│ HERO                          │ LOGIN CARD  │
+│ Headline + subtext            │             │
+│ [Register Interest]           │             │
+├─────────────────────────────────────────────┤
+│ HOW IT WORKS                                │
+│ Brief intro + category tags                 │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│ │ RFQ     │ │ PO      │ │ Repeat  │        │
+│ └─────────┘ └─────────┘ └─────────┘        │
+├─────────────────────────────────────────────┤
+│ WHY POURHUB                                 │
+│ ┌─────────┐ ┌─────────┐ ┌─────────┐        │
+│ │Confirmed│ │No Price │ │Geographic│       │
+│ │Intent   │ │Shopping │ │Targeting │       │
+│ ├─────────┤ ├─────────┤ ├─────────┤        │
+│ │Category │ │Direct   │ │No       │        │
+│ │Exclusive│ │RFQs/POs │ │Commission│       │
+│ └─────────┘ └─────────┘ └─────────┘        │
+├─────────────────────────────────────────────┤
+│ CTA - Register Interest                     │
+├─────────────────────────────────────────────┤
+│ FOOTER                                      │
+└─────────────────────────────────────────────┘
 ```
 
 ---
-
-## Database Changes
-
-### 1. Add `supplier` to `app_role` enum
-
-```sql
-ALTER TYPE public.app_role ADD VALUE 'supplier';
-```
-
-### 2. Create `supplier_profiles` table
-
-Store supplier-specific data (separate from the business-owned `supplier_contacts` which tracks contacts a business has added):
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | uuid | Primary key |
-| user_id | uuid | References auth.users (unique) |
-| company_name | text | Supplier's company name |
-| contact_name | text | Primary contact person |
-| phone | text | Contact phone |
-| email | text | Contact email |
-| abn | text | Australian Business Number |
-| categories | text[] | Services offered (e.g. concrete, pumping, steel) |
-| description | text | Business description |
-| logo_url | text | Company logo |
-| website | text | Company website |
-| service_areas | text[] | Regions they service |
-| is_verified | boolean | Verified by PourHub staff |
-| created_at | timestamptz | Timestamp |
-| updated_at | timestamptz | Timestamp |
-
-### 3. Create `is_supplier` helper function
-
-```sql
-CREATE OR REPLACE FUNCTION public.is_supplier(_user_id uuid)
-RETURNS boolean
-LANGUAGE sql STABLE SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM public.user_roles
-    WHERE user_id = _user_id AND role = 'supplier'
-  )
-$$;
-```
-
-### 4. RLS Policies for `supplier_profiles`
-
-- Suppliers can view and update their own profile
-- PourHub staff can view all supplier profiles (for verification)
-- Public can view verified suppliers (for future directory feature)
-
----
-
-## Frontend Changes
-
-### File Structure
-
-```text
-src/
-├── pages/
-│   └── suppliers/
-│       ├── SuppliersLanding.tsx    # Landing page with info + login
-│       └── SupplierDashboard.tsx   # Protected supplier dashboard
-├── components/
-│   └── suppliers/
-│       └── SupplierProtectedRoute.tsx  # Route guard
-```
-
-### 1. Create `SuppliersLanding.tsx`
-
-A marketing-focused landing page that:
-- Explains supplier benefits (reach PourHub users, get quote requests)
-- Shows how advertising works
-- Includes login form for existing suppliers
-- Has a "Register Interest" button (future signup)
-
-Visual sections:
-- Hero: "Reach More Concreters with PourHub"
-- Benefits: Get quote requests, verified badge, directory listing
-- How it works: Register → Get verified → Receive leads
-- Login card (same pattern as StaffAuth)
-
-### 2. Create `SupplierDashboard.tsx`
-
-Initial simple dashboard showing:
-- Company profile overview
-- Placeholder for future features (incoming RFQs, analytics)
-- Profile edit capability
-
-### 3. Create `SupplierProtectedRoute.tsx`
-
-Same pattern as `StaffProtectedRoute`:
-- Check session exists
-- Call `is_supplier` RPC to verify role
-- Redirect to `/suppliers` if unauthorized
-
-### 4. Update `useSubdomain.ts`
-
-Add supplier subdomain detection:
-```typescript
-if (hostname === "suppliers.pourhub.com.au" || hostname.startsWith("suppliers.")) {
-  return "suppliers";
-}
-```
-
-### 5. Update `App.tsx`
-
-Add new routes:
-```tsx
-{/* Supplier Routes */}
-<Route path="/suppliers" element={<SuppliersLanding />} />
-<Route path="/suppliers/dashboard" element={
-  <SupplierProtectedRoute>
-    <SupplierDashboard />
-  </SupplierProtectedRoute>
-} />
-```
-
----
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/pages/suppliers/SuppliersLanding.tsx` | Landing page with marketing info + login |
-| `src/pages/suppliers/SupplierDashboard.tsx` | Protected supplier dashboard |
-| `src/components/suppliers/SupplierProtectedRoute.tsx` | Route guard for supplier pages |
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/App.tsx` | Add supplier routes |
-| `src/hooks/useSubdomain.ts` | Add supplier subdomain detection |
-| Migration SQL | Add supplier role, table, RLS, and helper function |
-
----
-
-## Security Considerations
-
-1. Supplier role is separate from business admin/staff roles
-2. Suppliers cannot access any business data
-3. RLS ensures suppliers only see/edit their own profile
-4. PourHub staff can manage supplier verification
-5. No cross-role access possible
-
----
-
-## Future Enhancements (not in this plan)
-
-- Supplier registration/signup flow
-- Integration with RFQ system to route quote requests to verified suppliers
-- Supplier directory for businesses to browse
-- Analytics dashboard for suppliers
-- Advertising tier pricing
-
----
-
-## Testing Checklist
-
-1. Navigate to `/suppliers` - see landing page with login form
-2. Attempt login without supplier role - get access denied
-3. Login with supplier role - redirect to `/suppliers/dashboard`
-4. Verify supplier can view/edit their profile
-5. Verify supplier cannot access `/admin` or `/staff` routes
-6. Test subdomain detection for `suppliers.pourhub.com.au`
+| `src/pages/suppliers/SuppliersLanding.tsx` | Consolidate 10 sections into 4 focused sections |
