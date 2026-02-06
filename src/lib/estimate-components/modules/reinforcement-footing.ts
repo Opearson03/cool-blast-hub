@@ -174,16 +174,18 @@ export const reinforcementFootingModule: EstimateModule = {
       let totalLayerChairs = 0;
       let chairPrice = 12.50;
       let layerChairPrice = 12.50;
+      let chairType = '5065C';
+      let layerChairType = '2540C';
       
       sections.forEach((section) => {
         if (!section.chairs_enabled) return;
         const length = section._actualLength || section.length;
         if (length <= 0) return;
         
-        const chairsPerM = section.chairs_per_m ?? 1.4;
-        // Use section price or fall back to catalog (bar chairs are per 100, divide by 4 for per-25)
-        const chairType = section.chair_type || '5065C';
-        const catalogChairPrice = getPrice(priceMap, 'consumables', chairType, 50) / 4;
+        const chairsPerM = section.chairs_per_m ?? 1;
+        chairType = section.chair_type || '5065C';
+        // Use actual catalog price (no /4 normalization)
+        const catalogChairPrice = getPrice(priceMap, 'consumables', chairType, 12.50);
         chairPrice = section.chair_price_per_bag ?? catalogChairPrice;
         totalChairs += Math.ceil(length * chairsPerM);
         
@@ -191,21 +193,22 @@ export const reinforcementFootingModule: EstimateModule = {
         const tmLayers = section.tm_layers || 1;
         if (section.layer_chairs_enabled && tmLayers > 1) {
           const layerChairsPerM = section.layer_chairs_per_m ?? 1;
-          // Look up layer chair price from catalog (bar chairs are per 100, divide by 4 for per-25)
-          const layerChairType = section.layer_chair_type || '2540C';
-          const catalogLayerPrice = getPrice(priceMap, 'consumables', layerChairType, 50) / 4;
+          layerChairType = section.layer_chair_type || '2540C';
+          // Use actual catalog price (no /4 normalization)
+          const catalogLayerPrice = getPrice(priceMap, 'consumables', layerChairType, 12.50);
           layerChairPrice = section.layer_chair_price ?? catalogLayerPrice;
           totalLayerChairs += Math.ceil(length * layerChairsPerM);
         }
       });
       
       if (totalChairs > 0) {
-        const bags = Math.ceil(totalChairs / 25);
+        const bagSize = chairType === 'TMCHAIR' ? 25 : 100;
+        const bags = Math.ceil(totalChairs / bagSize);
         const cost = bags * chairPrice;
         
         lineItems.push({
           id: 'footing_chairs',
-          description: `Footing TM Chairs (${bags} × 25)`,
+          description: `Footing Chairs – ${chairType} (${bags} × ${bagSize})`,
           quantity: bags,
           unit: 'bags',
           unitPrice: chairPrice,
@@ -216,12 +219,13 @@ export const reinforcementFootingModule: EstimateModule = {
       }
       
       if (totalLayerChairs > 0) {
-        const bags = Math.ceil(totalLayerChairs / 25);
+        const layerBagSize = layerChairType === 'TMCHAIR' ? 25 : 100;
+        const bags = Math.ceil(totalLayerChairs / layerBagSize);
         const cost = bags * layerChairPrice;
         
         lineItems.push({
           id: 'footing_layer_chairs',
-          description: `Footing TM Layer Chairs (${bags} × 25)`,
+          description: `Footing Layer Chairs – ${layerChairType} (${bags} × ${layerBagSize})`,
           quantity: bags,
           unit: 'bags',
           unitPrice: layerChairPrice,
