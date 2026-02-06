@@ -120,7 +120,7 @@ export function useSubscription() {
         const exemptState = {
           isLoading: false,
           isSubscribed: true,
-          tier: "standard" as SubscriptionTier,
+          tier: "pro" as SubscriptionTier,
           subscriptionEnd: null,
           employeeLimit: 999,
           error: null,
@@ -129,7 +129,7 @@ export function useSubscription() {
         setState(exemptState);
         setCachedSubscription({
           subscribed: true,
-          tier: "standard",
+          tier: "pro",
           subscriptionEnd: null,
           employeeLimit: 999,
           isExempt: true,
@@ -311,16 +311,16 @@ export function useSubscription() {
       if (state.isExempt) return true;
       if (!state.tier) return false;
       const tierConfig = SUBSCRIPTION_TIERS[state.tier];
-      return tierConfig.features.some(f => f.toLowerCase().includes(feature.toLowerCase()));
+      return tierConfig?.features?.some(f => f.toLowerCase().includes(feature.toLowerCase())) ?? false;
     },
     [state.tier, state.isExempt]
   );
 
   // Check if user has access - now includes free tier (all authenticated users have access)
-  // Free tier users have tier = "free", subscribed = false
-  // Standard tier users have tier = "standard", subscribed = true
-  // Exempt users have isExempt = true
   const hasAccess = state.isSubscribed || state.isExempt || state.tier === "free";
+
+  // Check if user has full app access (pro, standard legacy, or exempt)
+  const hasFullAppAccess = state.isExempt || state.tier === "pro" || state.tier === "standard";
 
   const openCustomerPortal = useCallback(async () => {
     try {
@@ -346,6 +346,7 @@ export function useSubscription() {
   return {
     ...state,
     hasAccess,
+    hasFullAppAccess,
     checkSubscription,
     checkEmployeeLimit,
     canAddEmployee,

@@ -11,14 +11,15 @@ import { useWaitlistCount } from "@/hooks/useWaitlistCount";
 
 const Pricing = () => {
   const freeTier = SUBSCRIPTION_TIERS.free;
-  const proTier = SUBSCRIPTION_TIERS.standard;
+  const estimatingTier = SUBSCRIPTION_TIERS.estimating;
+  const proTier = SUBSCRIPTION_TIERS.pro;
   const { data: waitlistCount = 0 } = useWaitlistCount();
 
   return (
     <>
       <SEOHead
-        title="PourHub Pricing - Free & Pro Plans | Concreting Software Australia"
-        description="Simple pricing for PourHub concreting business management software. Start free with 1 quote/month or go Pro for $100/month with unlimited quotes."
+        title="PourHub Pricing - Free, Estimating & Pro Plans | Concreting Software Australia"
+        description="Simple pricing for PourHub concreting business management software. Start free with 2 quotes/month, Estimating at $99/month, or Pro for $240/month."
         canonicalPath="/pricing"
         keywords="concreting software pricing, construction management software cost, concrete quoting software"
       />
@@ -47,7 +48,7 @@ const Pricing = () => {
               Simple, Transparent Pricing
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
-              Start free with 1 quote per month. Full job management included.
+              Start free with 2 quotes per month. Upgrade when you're ready.
             </p>
             {/* Waitlist Counter */}
             <div className="flex items-center justify-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mx-auto">
@@ -61,7 +62,7 @@ const Pricing = () => {
 
         {/* Pricing Cards */}
         <div className="px-4 pb-20">
-          <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Free Tier */}
             <Card className="border-border">
               <CardHeader className="text-center pb-2">
@@ -75,8 +76,44 @@ const Pricing = () => {
                 </p>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col">
+                <div className="mb-4 p-2 bg-muted/50 rounded text-center text-sm text-muted-foreground">
+                  Quotes page only
+                </div>
                 <ul className="space-y-3 flex-1">
                   {freeTier.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/" className="mt-6">
+                  <Button variant="outline" className="w-full touch-target" size="lg">
+                    Join Waiting List
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+
+            {/* Estimating Tier */}
+            <Card className="border-border">
+              <CardHeader className="text-center pb-2">
+                <h2 className="text-2xl font-bold">{estimatingTier.name}</h2>
+                <div className="mt-4">
+                  <span className="text-5xl font-bold text-primary">${estimatingTier.price}</span>
+                  <span className="text-muted-foreground"> / month</span>
+                </div>
+                <p className="text-sm text-muted-foreground mt-3">
+                  {estimatingTier.description}
+                </p>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                <div className="mb-4 p-2 bg-muted/50 rounded text-center text-sm text-muted-foreground">
+                  Quotes page only
+                </div>
+                <ul className="space-y-3 flex-1">
+                  {estimatingTier.features.map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                       <span className="text-sm">{feature}</span>
@@ -113,16 +150,19 @@ const Pricing = () => {
                 </p>
               </CardHeader>
               <CardContent className="flex-1 flex flex-col">
+                <div className="mb-4 p-2 bg-primary/20 rounded text-center text-sm font-medium text-primary">
+                  Full app access
+                </div>
                 <ul className="space-y-3 flex-1">
-                  {proTier.features.slice(0, 10).map((feature, idx) => (
+                  {proTier.features.slice(0, 8).map((feature, idx) => (
                     <li key={idx} className="flex items-start gap-3">
                       <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                       <span className="text-sm">{feature}</span>
                     </li>
                   ))}
-                  {proTier.features.length > 10 && (
+                  {proTier.features.length > 8 && (
                     <li className="text-sm text-muted-foreground pl-8">
-                      + {proTier.features.length - 10} more features
+                      + {proTier.features.length - 8} more features
                     </li>
                   )}
                 </ul>
@@ -137,39 +177,96 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* Value Props */}
+        {/* Comparison Table */}
         <div className="bg-charcoal py-16 px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-primary-foreground">
-              Why Concreters Choose <span className="text-primary">PourHub</span>
+              Compare Plans
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
-              <div>
-                <div className="text-4xl font-bold text-primary mb-2">$100</div>
-                <p className="text-primary-foreground/90">Less than 1 hour of labour per month</p>
-              </div>
-              <div>
-                <div className="text-4xl font-bold text-primary mb-2">100%</div>
-                <p className="text-primary-foreground/90">Digital compliance documentation</p>
-              </div>
-              <div>
-                <div className="text-4xl font-bold text-primary mb-2">0</div>
-                <p className="text-primary-foreground/90">Missed test results</p>
-              </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="text-left py-3 px-4 text-muted-foreground">Feature</th>
+                    <th className="text-center py-3 px-4">Free</th>
+                    <th className="text-center py-3 px-4">Estimating</th>
+                    <th className="text-center py-3 px-4 text-primary">Pro</th>
+                  </tr>
+                </thead>
+                <tbody className="text-primary-foreground">
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Quotes per month</td>
+                    <td className="text-center py-3 px-4">2</td>
+                    <td className="text-center py-3 px-4">Unlimited</td>
+                    <td className="text-center py-3 px-4">Unlimited</td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Professional PDFs</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Quote signing</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Email delivery</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Job management</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Scheduling</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Test result tracking</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Priority support</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
 
-        {/* Value Explanation */}
+        {/* Value Props */}
         <div className="bg-background py-16 px-4">
-          <div className="max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-8">Start Free, Upgrade Anytime</h2>
-            <div className="bg-card border border-border rounded-lg p-6">
-              <p className="text-muted-foreground text-center">
-                Try PourHub with 1 free quote per month and full access to job management. 
-                When you're ready to scale, upgrade to Pro for unlimited quotes and priority support.
-                No commitment required—upgrade only when it makes sense for your business.
-              </p>
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12">
+              Why Concreters Choose <span className="text-primary">PourHub</span>
+            </h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">$240</div>
+                <p className="text-muted-foreground">Less than 2 hours of labour per month</p>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">100%</div>
+                <p className="text-muted-foreground">Digital compliance documentation</p>
+              </div>
+              <div>
+                <div className="text-4xl font-bold text-primary mb-2">0</div>
+                <p className="text-muted-foreground">Missed test results</p>
+              </div>
             </div>
           </div>
         </div>

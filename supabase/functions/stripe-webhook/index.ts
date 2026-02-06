@@ -12,6 +12,25 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
   console.log(`[STRIPE-WEBHOOK] ${step}${detailsStr}`);
 };
 
+// Product IDs for tier detection
+const PRODUCT_IDS = {
+  estimating: "prod_TvWGele4WOtuLp",
+  pro: "prod_TvWGfsM4uQs4od",
+  legacy: "prod_TkdAIRs15o1Omv", // Legacy $100 plan - treat as pro
+};
+
+function getTierFromProductId(productId: string): string {
+  if (productId === PRODUCT_IDS.estimating) {
+    return "estimating";
+  } else if (productId === PRODUCT_IDS.pro) {
+    return "pro";
+  } else if (productId === PRODUCT_IDS.legacy) {
+    return "pro"; // Legacy subscribers get pro access
+  }
+  // Unknown product - default to pro for safety
+  return "pro";
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -129,12 +148,11 @@ serve(async (req) => {
           break;
         }
 
-        // Get subscription tier from price
-        const priceId = subscription.items.data[0]?.price?.id;
+        // Get subscription tier from product
         const productId = subscription.items.data[0]?.price?.product as string;
+        const planTier = getTierFromProductId(productId);
         
-        // Determine tier based on product (all new signups get "standard")
-        const planTier = "standard";
+        logStep("Determined tier from product", { productId, planTier });
         
         // Calculate subscription end
         const subscriptionEnd = subscription.current_period_end 
@@ -150,7 +168,7 @@ serve(async (req) => {
             stripe_subscription_id: subscription.id,
             status: subscription.status === "active" || subscription.status === "trialing" ? "active" : subscription.status,
             plan_tier: planTier,
-            employee_limit: 999, // Unlimited for standard tier
+            employee_limit: 999,
             current_period_end: subscriptionEnd,
             updated_at: new Date().toISOString(),
           }, { onConflict: "business_id" });
@@ -158,7 +176,7 @@ serve(async (req) => {
         if (upsertError) {
           logStep("Error upserting subscription", { error: upsertError.message });
         } else {
-          logStep("Subscription updated successfully", { businessId, status: subscription.status });
+          logStep("Subscription updated successfully", { businessId, status: subscription.status, planTier });
         }
         break;
       }
