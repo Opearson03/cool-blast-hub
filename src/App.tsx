@@ -34,6 +34,9 @@ import StaffDashboard from "./pages/staff/StaffDashboard";
 import SignQuote from "./pages/public/SignQuote";
 import SignVariation from "./pages/public/SignVariation";
 import RespondInvite from "./pages/public/RespondInvite";
+import SuppliersLanding from "./pages/suppliers/SuppliersLanding";
+import SupplierDashboard from "./pages/suppliers/SupplierDashboard";
+import { SupplierProtectedRoute } from "./components/suppliers/SupplierProtectedRoute";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
@@ -95,6 +98,10 @@ const AppContent = () => {
       {/* Staff Routes - accessible via staff.pourhub.com.au or /staff path */}
       <Route path="/staff" element={<StaffAuth />} />
       <Route path="/staff/dashboard" element={<StaffProtectedRoute><StaffDashboard /></StaffProtectedRoute>} />
+      
+      {/* Supplier Routes - accessible via suppliers.pourhub.com.au or /suppliers path */}
+      <Route path="/suppliers" element={<SuppliersLanding />} />
+      <Route path="/suppliers/dashboard" element={<SupplierProtectedRoute><SupplierDashboard /></SupplierProtectedRoute>} />
       
       {/* Public Signing Routes - no auth required */}
       <Route path="/sign/quote/:token" element={<SignQuote />} />
