@@ -101,7 +101,7 @@ export const generateQuotePDF = async (options: GeneratePDFOptions): Promise<str
     background: #ffffff;
     background-color: #ffffff;
     z-index: -1;
-    overflow: hidden;
+    overflow: visible;
   `;
   document.body.appendChild(container);
   
