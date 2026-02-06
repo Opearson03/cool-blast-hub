@@ -14,6 +14,8 @@ interface PlanViewerProps {
   onPagesLoaded?: (count: number) => void;
   onDimensionsChange?: (dimensions: { width: number; height: number }) => void;
   onZoomChange?: (zoom: number) => void;
+  /** When true, hides the page navigation controls (used during slab/beam marking workflows) */
+  disablePageNavigation?: boolean;
   children?: React.ReactNode;
 }
 
@@ -27,6 +29,7 @@ export function PlanViewer({
   onPagesLoaded,
   onDimensionsChange,
   onZoomChange,
+  disablePageNavigation = false,
   children,
 }: PlanViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -305,8 +308,8 @@ export function PlanViewer({
 
   return (
     <Card className="relative overflow-hidden bg-muted/30">
-      {/* Page navigation for PDFs */}
-      {planType === 'pdf' && totalPages > 1 && (
+      {/* Page navigation for PDFs - hidden during active slab workflow */}
+      {planType === 'pdf' && totalPages > 1 && !disablePageNavigation && (
         <div className="absolute top-2 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 bg-background/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-sm border">
           <Button
             variant="ghost"

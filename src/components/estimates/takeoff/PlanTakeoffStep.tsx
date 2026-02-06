@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ChevronRight, ChevronLeft, Trash2, AlertTriangle, Plus, MessageSquareWarning } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { FeedbackDialog } from '@/components/feedback/FeedbackDialog';
 import { useTakeoffData } from '@/hooks/useTakeoffData';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -170,11 +171,26 @@ export function PlanTakeoffStep({
   const [wafflePodDepth, setWafflePodDepth] = useState<string>('225');
   
   const isMobile = useIsMobile();
+  const { toast } = useToast();
   
   const isActivelyMarking = activeScope !== null && activeTool !== 'select';
   const isSlabBeamMarking = slabWorkflowActive && (slabWorkflowStep === 'mark_edge_beam' || slabWorkflowStep === 'mark_internal_beam');
   const isAddingBeamToExistingSlab = addingBeamToSlabId !== null && activeTool === 'polyline';
   const isScopePanelCollapsed = (isActivelyMarking || isSlabBeamMarking || isAddingBeamToExistingSlab) && !scopePanelManuallyExpanded;
+
+  // Guarded page change handler - blocks navigation during active slab workflow
+  const handlePageChange = useCallback((newPage: number) => {
+    // Block page changes during active slab workflow to prevent losing context
+    if (slabWorkflowActive && pendingSlabData) {
+      toast({
+        title: "Slab workflow in progress",
+        description: "Complete or cancel the current slab markup before navigating pages.",
+        variant: "default"
+      });
+      return;
+    }
+    setCurrentPage(newPage);
+  }, [slabWorkflowActive, pendingSlabData, setCurrentPage, toast]);
 
   // Determine active panel type for split-screen layout (not used on mobile)
   const activePanelType = useMemo(() => {
@@ -1714,6 +1730,13 @@ export function PlanTakeoffStep({
             onAddAnotherInternalBeam={handleAddAnotherInternalBeam}
             onFinishAllBeams={handleFinishAllBeams}
             onCancel={handleCancelSlabWorkflow}
+            currentPage={currentPage}
+            slabPage={pendingSlabData?.pageNumber}
+            onReturnToSlabPage={() => {
+              if (pendingSlabData?.pageNumber) {
+                setCurrentPage(pendingSlabData.pageNumber);
+              }
+            }}
           />
         );
       default:
@@ -1760,6 +1783,8 @@ export function PlanTakeoffStep({
     handleAddAnotherInternalBeam,
     handleFinishAllBeams,
     handleCancelSlabWorkflow,
+    currentPage,
+    setCurrentPage,
   ]);
 
   // Show upload state if no files
@@ -1950,10 +1975,11 @@ export function PlanTakeoffStep({
                 pageNumber={currentPage}
                 totalPages={totalPages}
                 zoom={zoom}
-                onPageChange={setCurrentPage}
+                onPageChange={handlePageChange}
                 onPagesLoaded={handlePagesLoaded}
                 onDimensionsChange={handleDimensionsChange}
                 onZoomChange={setZoom}
+                disablePageNavigation={slabWorkflowActive && !!pendingSlabData}
               >
                 <DrawingCanvas
                   width={planDimensions.width}
@@ -2363,6 +2389,13 @@ export function PlanTakeoffStep({
         onAddAnotherInternalBeam={handleAddAnotherInternalBeam}
         onFinishAllBeams={handleFinishAllBeams}
         onCancel={handleCancelSlabWorkflow}
+        currentPage={currentPage}
+        slabPage={pendingSlabData?.pageNumber}
+        onReturnToSlabPage={() => {
+          if (pendingSlabData?.pageNumber) {
+            setCurrentPage(pendingSlabData.pageNumber);
+          }
+        }}
       />
 
       {/* Edit beam dialog */}

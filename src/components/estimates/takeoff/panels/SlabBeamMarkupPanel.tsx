@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Tag, ArrowRight, Check, SkipForward, Minus, Plus, Layers } from 'lucide-react';
+import { Tag, ArrowRight, Check, SkipForward, Minus, Plus, Layers, ArrowLeft } from 'lucide-react';
 import { EDGE_BEAM_COLOR, INTERNAL_BEAM_COLOR } from '../DrawingCanvas';
 import type { SlabWorkflowStep, BeamData, BeamSegment } from '../SlabBeamMarkupDialog';
 
@@ -53,6 +54,12 @@ interface SlabBeamMarkupPanelProps {
   onAddAnotherInternalBeam: () => void;
   onFinishAllBeams: () => void;
   onCancel: () => void;
+  /** Current page being viewed */
+  currentPage?: number;
+  /** Page where the slab was drawn */
+  slabPage?: number;
+  /** Callback to navigate back to the slab's page */
+  onReturnToSlabPage?: () => void;
 }
 
 export function SlabBeamMarkupPanel({
@@ -90,6 +97,9 @@ export function SlabBeamMarkupPanel({
   onAddAnotherInternalBeam,
   onFinishAllBeams,
   onCancel,
+  currentPage,
+  slabPage,
+  onReturnToSlabPage,
 }: SlabBeamMarkupPanelProps) {
   // Local state for beam details
   const [beamName, setBeamName] = useState('');
@@ -117,6 +127,9 @@ export function SlabBeamMarkupPanel({
   const isEdgeThickeningScope = edgeThickeningScopes.includes(scopeId || '');
   const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
   const hideInternalBeams = noInternalBeamScopes.includes(scopeId || '');
+  
+  // Check if viewing wrong page
+  const isOnWrongPage = slabPage !== undefined && currentPage !== undefined && slabPage !== currentPage;
   
   const getEdgeLabel = (plural: boolean = true) => {
     if (isEdgeThickeningScope) return 'Edge Thickening';
@@ -337,6 +350,26 @@ export function SlabBeamMarkupPanel({
         </div>
         <p className="text-xs text-muted-foreground mt-1">{getStepDescription()}</p>
       </div>
+
+      {/* Wrong page warning */}
+      {isOnWrongPage && onReturnToSlabPage && (
+        <Alert className="m-4 mb-0 border-amber-500/50 bg-amber-500/10">
+          <AlertDescription className="flex items-center justify-between gap-2">
+            <span className="text-sm text-amber-700 dark:text-amber-400">
+              Your slab is on Sheet {slabPage}.
+            </span>
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={onReturnToSlabPage}
+              className="shrink-0 gap-1 border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+            >
+              <ArrowLeft className="h-3 w-3" />
+              Return
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Scrollable content area */}
       <div className="flex-1 overflow-y-auto p-4">
