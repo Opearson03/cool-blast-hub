@@ -1,111 +1,157 @@
 
-# Plan: Add Industry Photos to Supplier Landing Page
+# Plan: Fix Slab Workflow Page Navigation Issue
 
-## Overview
+## Problem Summary
 
-Add the two uploaded concrete industry photos to the `/suppliers` landing page to increase visual appeal and industry credibility. The photos will be placed strategically where they add the most value without cluttering the simplified layout.
+When using the "Use Perimeter as Edge Beam" shortcut during slab takeoff, if users navigate to a different page (sheet), they lose sight of their pending slab and the workflow becomes confusing. The slab workflow remains active but the visual context disappears, leaving users unable to complete the workflow properly.
 
----
+## Root Cause
 
-## Image Placement Strategy
+The slab workflow stores `pageNumber` and `fileId` when a slab is drawn, but there's no mechanism to:
+1. Prevent page navigation during an active workflow
+2. Warn users if they navigate away
+3. Automatically return them to the correct page
 
-### Image 1: Concrete Pour (2.png)
-**Placement**: Hero section background or accent image
+## Proposed Solution
 
-This image shows concrete being poured from a chute - representing the supply/ordering moment that suppliers want to be part of. It reinforces the headline about "placing orders."
-
-**Implementation**: Add as a subtle background image with overlay in the hero section, or as a decorative accent image.
-
----
-
-### Image 2: Concrete Finishing (3.png)  
-**Placement**: "How It Works" section
-
-This image shows a worker finishing concrete with hand tools - representing the professional concreters who use PourHub. It connects the "operations platform concreters use" messaging to real craftspeople.
-
-**Implementation**: Add as an inline image between the intro text and the 3-step cards.
+Implement a **page navigation guard** during active slab workflows that prevents accidental navigation and provides clear feedback to users.
 
 ---
 
-## Technical Implementation
+## Implementation Details
 
-### 1. Copy Images to Project
+### 1. Add Page Navigation Prevention During Active Slab Workflow
 
-```
-src/assets/supplier-concrete-pour.png    <- user-uploads://2.png
-src/assets/supplier-concrete-finish.png  <- user-uploads://3.png
-```
+**File: `src/components/estimates/takeoff/PlanTakeoffStep.tsx`**
 
-### 2. Update SuppliersLanding.tsx
-
-**Hero Section Changes:**
-- Add the concrete pour image as a background with dark overlay
-- Position the gradient overlay to ensure text remains readable
-- Image will be visible on larger screens, subtle on mobile
-
-**"How It Works" Section Changes:**
-- Add the concrete finishing image as a full-width banner
-- Apply rounded corners and subtle shadow for polish
-- Use `object-cover` to maintain aspect ratio
-
----
-
-## Visual Layout
+- Create a wrapper function for `setCurrentPage` that checks if a slab workflow is active
+- If active, show a confirmation toast or block the navigation entirely
+- Provide a way for users to cancel the workflow if they need to navigate away
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ HEADER                                                      │
-├─────────────────────────────────────────────────────────────┤
-│ HERO (with concrete pour background image + overlay)        │
-│ ┌─────────────────────────────┐  ┌───────────────────────┐  │
-│ │ Headline + subtext          │  │ LOGIN CARD            │  │
-│ │ [Register Interest]         │  │                       │  │
-│ └─────────────────────────────┘  └───────────────────────┘  │
-├─────────────────────────────────────────────────────────────┤
-│ HOW IT WORKS                                                │
-│ Brief intro + category tags                                 │
-│                                                             │
-│ ┌─────────────────────────────────────────────────────────┐ │
-│ │ [Concrete finishing image - worker troweling]           │ │
-│ └─────────────────────────────────────────────────────────┘ │
-│                                                             │
-│ ┌─────────┐ ┌─────────┐ ┌─────────┐                        │
-│ │ RFQ     │ │ PO      │ │ Repeat  │                        │
-│ └─────────┘ └─────────┘ └─────────┘                        │
-├─────────────────────────────────────────────────────────────┤
-│ WHY POURHUB (unchanged - 6 benefit cards)                   │
-├─────────────────────────────────────────────────────────────┤
-│ CTA - Register Interest                                     │
-├─────────────────────────────────────────────────────────────┤
-│ FOOTER                                                      │
-└─────────────────────────────────────────────────────────────┘
+Logic:
+1. When slabWorkflowActive is true AND user tries to change page:
+   - Show toast: "Complete or cancel the current slab workflow first"
+   - Prevent the page change
+2. Alternative: Auto-navigate back to the correct page
 ```
 
+### 2. Auto-Return to Slab Page When Workflow Dialog Opens
+
+**File: `src/components/estimates/takeoff/PlanTakeoffStep.tsx`**
+
+- When the slab beam dialog/panel opens (`showSlabBeamDialog = true`)
+- Automatically navigate back to the page where the slab was drawn
+- This ensures visual context is always maintained
+
+### 3. Add Visual Indicator for Wrong Page
+
+**File: `src/components/estimates/takeoff/panels/SlabBeamMarkupPanel.tsx`** and **`SlabBeamMarkupDialog.tsx`**
+
+- If user is on a different page than where the slab was drawn, show a warning:
+  - "You're viewing a different page. Return to Sheet X to see your slab."
+- Add a "Return to Slab" button that navigates back
+
+### 4. Disable Page Navigation Controls During Marking Steps
+
+**File: `src/components/estimates/takeoff/PlanViewer.tsx`**
+
+- Accept a new prop `disablePageNavigation?: boolean`
+- When true, hide or disable the page navigation arrows
+- Pass this prop from `PlanTakeoffStep` when `slabWorkflowActive` is true
+
 ---
-
-## Files to Create
-
-| File | Source |
-|------|--------|
-| `src/assets/supplier-concrete-pour.png` | `user-uploads://2.png` |
-| `src/assets/supplier-concrete-finish.png` | `user-uploads://3.png` |
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/pages/suppliers/SuppliersLanding.tsx` | Import images, add to hero background and "How It Works" section |
+| `src/components/estimates/takeoff/PlanTakeoffStep.tsx` | Add page navigation guard logic, pass props to child components |
+| `src/components/estimates/takeoff/PlanViewer.tsx` | Add `disablePageNavigation` prop to control visibility of page arrows |
+| `src/components/estimates/takeoff/panels/SlabBeamMarkupPanel.tsx` | Add "wrong page" warning and return button |
+| `src/components/estimates/takeoff/SlabBeamMarkupDialog.tsx` | Add "wrong page" warning and return button |
 
 ---
 
-## Code Changes Preview
+## Technical Approach
 
-**Hero Section** (lines 146-213):
-- Add `relative overflow-hidden` to section
-- Add absolute positioned image behind content with dark overlay gradient
-- Content remains on top with `relative z-10`
+### Step 1: Modify PlanTakeoffStep.tsx
 
-**"How It Works" Section** (lines 215-256):
-- Add the finishing image as a responsive banner between the category tags and the 3 placement cards
-- Use `rounded-xl overflow-hidden shadow-lg` for polished appearance
-- Include descriptive alt text for accessibility
+Add a guard around the `setCurrentPage` call:
+
+```typescript
+// Create a guarded page change handler
+const handlePageChange = useCallback((newPage: number) => {
+  // Block page changes during active slab workflow
+  if (slabWorkflowActive && pendingSlabData) {
+    toast({
+      title: "Workflow in progress",
+      description: "Complete or cancel the current slab before navigating pages.",
+      variant: "default"
+    });
+    return;
+  }
+  setCurrentPage(newPage);
+}, [slabWorkflowActive, pendingSlabData, setCurrentPage, toast]);
+```
+
+Pass this handler to PlanViewer instead of direct setCurrentPage.
+
+### Step 2: Modify PlanViewer.tsx
+
+Add optional prop to disable navigation:
+
+```typescript
+interface PlanViewerProps {
+  // ... existing props
+  disablePageNavigation?: boolean;
+}
+
+// In the JSX, conditionally render page controls:
+{planType === 'pdf' && totalPages > 1 && !disablePageNavigation && (
+  <div className="absolute top-2 ...">
+    {/* Page navigation buttons */}
+  </div>
+)}
+```
+
+### Step 3: Add Warning in Panel/Dialog
+
+Add a warning banner when user is on wrong page:
+
+```typescript
+const isOnWrongPage = pendingSlabData && (
+  pendingSlabData.fileId !== currentFileId || 
+  pendingSlabData.pageNumber !== currentPage
+);
+
+// In JSX:
+{isOnWrongPage && (
+  <Alert variant="warning" className="mb-4">
+    <AlertDescription className="flex items-center justify-between">
+      <span>Your slab is on a different page.</span>
+      <Button size="sm" onClick={handleReturnToSlabPage}>
+        Return to Slab
+      </Button>
+    </AlertDescription>
+  </Alert>
+)}
+```
+
+---
+
+## User Experience
+
+**Before Fix:**
+- User draws slab → clicks "Yes" for perimeter edge beam → accidentally navigates to Sheet 2 → slab disappears → confusion
+
+**After Fix:**
+- User draws slab → clicks "Yes" for perimeter edge beam → tries to navigate to Sheet 2 → toast message explains they need to complete or cancel the workflow first → user stays on correct page and completes workflow smoothly
+
+---
+
+## Alternative Considered
+
+**Auto-cancel workflow on page change**: This was considered but rejected because users might accidentally lose their work if they briefly check another page.
+
+The chosen approach (block + inform) preserves user work while providing clear feedback about the expected workflow.
