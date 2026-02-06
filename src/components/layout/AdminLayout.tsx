@@ -3,26 +3,31 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Briefcase, Calendar, Users, UserCheck, Truck, FileText, Settings, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Briefcase, Calendar, Users, FileText, Settings, LogOut, Menu, X, Lock, Crown } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
+import { FullAppAccessGate } from "@/components/subscription/FullAppAccessGate";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { useThemeOnAuth } from "@/hooks/useThemeOnAuth";
 import { usePlatform } from "@/hooks/usePlatform";
+import { useSubscription } from "@/hooks/useSubscription";
+import { Badge } from "@/components/ui/badge";
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  requiresPro?: boolean;
+}
 
-const navItems = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/jobs", label: "Jobs", icon: Briefcase },
-  { href: "/admin/estimates", label: "Quotes", icon: FileText },
-  { href: "/admin/schedule", label: "Schedule", icon: Calendar },
-  { href: "/admin/contacts", label: "Contact", icon: Users },
-  // Hidden for now - keeping code for future:
-  // { href: "/admin/crews", label: "Crews", icon: Users },
-  // { href: "/admin/employees", label: "Employees", icon: UserCheck },
-  // { href: "/admin/equipment", label: "Equipment", icon: Truck },
-  { href: "/admin/settings", label: "Settings", icon: Settings },
+const navItems: NavItem[] = [
+  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, requiresPro: true },
+  { href: "/admin/jobs", label: "Jobs", icon: Briefcase, requiresPro: true },
+  { href: "/admin/estimates", label: "Quotes", icon: FileText, requiresPro: false },
+  { href: "/admin/schedule", label: "Schedule", icon: Calendar, requiresPro: true },
+  { href: "/admin/contacts", label: "Contact", icon: Users, requiresPro: true },
+  { href: "/admin/settings", label: "Settings", icon: Settings, requiresPro: false },
 ];
 
 export function AdminLayout({ children }: { children: ReactNode }) {
@@ -31,6 +36,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { isNative } = usePlatform();
+  const { tier, isExempt, hasFullAppAccess } = useSubscription();
   
   // Set dark mode as default for authenticated users
   useThemeOnAuth();
@@ -40,6 +46,49 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     queryClient.clear();
     await supabase.auth.signOut();
     navigate("/auth");
+  };
+
+  const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
+    const isActive = location.pathname === item.href;
+    const isLocked = item.requiresPro && !hasFullAppAccess;
+    
+    return (
+      <Link
+        key={item.href}
+        to={item.href}
+        onClick={() => isMobile && setMobileMenuOpen(false)}
+        className={cn(
+          isMobile
+            ? "flex items-center gap-3 px-4 py-3 rounded-lg text-lg touch-target"
+            : "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+          isActive 
+            ? "bg-primary text-primary-foreground" 
+            : isLocked
+              ? "text-muted-foreground hover:bg-muted/50"
+              : "hover:bg-muted"
+        )}
+      >
+        <item.icon className="w-5 h-5" />
+        <span className="flex-1">{item.label}</span>
+        {isLocked && (
+          <Lock className="w-4 h-4 text-muted-foreground" />
+        )}
+      </Link>
+    );
+  };
+
+  // Tier display badge
+  const TierBadge = () => {
+    if (isExempt) {
+      return <Badge variant="secondary" className="text-xs">Demo</Badge>;
+    }
+    if (tier === "pro" || tier === "standard") {
+      return <Badge className="text-xs bg-primary/20 text-primary border-primary/30">Pro</Badge>;
+    }
+    if (tier === "estimating") {
+      return <Badge variant="secondary" className="text-xs">Estimating</Badge>;
+    }
+    return <Badge variant="outline" className="text-xs">Free</Badge>;
   };
 
   return (
@@ -55,6 +104,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             <Logo className="w-full h-full" />
           </div>
           <span className="font-bold">PourHub</span>
+          <TierBadge />
         </Link>
         <div className="flex items-center gap-2">
           <ThemeToggle />
@@ -68,24 +118,29 @@ export function AdminLayout({ children }: { children: ReactNode }) {
       {mobileMenuOpen && (
         <div className="lg:hidden fixed inset-0 z-40 bg-background" style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 48px)' } : { paddingTop: '56px' }}>
           <nav className="p-4 space-y-2">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                to={item.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3 rounded-lg text-lg touch-target",
-                  location.pathname === item.href ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-                )}
-              >
-                <item.icon className="w-5 h-5" />
-                {item.label}
-              </Link>
-            ))}
+            {navItems.map((item) => renderNavItem(item, true))}
             <Button variant="ghost" onClick={handleLogout} className="w-full justify-start gap-3 px-4 py-3 text-lg touch-target">
               <LogOut className="w-5 h-5" />
               Sign Out
             </Button>
+            
+            {/* Upgrade prompt for non-pro users */}
+            {!hasFullAppAccess && (
+              <div className="mt-4 p-4 bg-primary/10 border border-primary/30 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Crown className="w-5 h-5 text-primary" />
+                  <span className="font-semibold text-primary">Upgrade to Pro</span>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Unlock jobs, scheduling, and full business management.
+                </p>
+                <Link to="/admin/estimates" onClick={() => setMobileMenuOpen(false)}>
+                  <Button size="sm" className="w-full">
+                    View Plans
+                  </Button>
+                </Link>
+              </div>
+            )}
           </nav>
         </div>
       )}
@@ -99,23 +154,35 @@ export function AdminLayout({ children }: { children: ReactNode }) {
             </div>
             <span className="text-xl font-bold">PourHub</span>
           </Link>
-          <ThemeToggle />
+          <div className="flex items-center gap-2">
+            <TierBadge />
+            <ThemeToggle />
+          </div>
         </div>
         <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              to={item.href}
-              className={cn(
-                "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
-                location.pathname === item.href ? "bg-primary text-primary-foreground" : "hover:bg-muted"
-              )}
-            >
-              <item.icon className="w-5 h-5" />
-              {item.label}
-            </Link>
-          ))}
+          {navItems.map((item) => renderNavItem(item, false))}
         </nav>
+        
+        {/* Upgrade prompt for non-pro users */}
+        {!hasFullAppAccess && (
+          <div className="p-4 border-t border-border">
+            <div className="p-3 bg-primary/10 border border-primary/30 rounded-lg">
+              <div className="flex items-center gap-2 mb-2">
+                <Crown className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-primary">Upgrade to Pro</span>
+              </div>
+              <p className="text-xs text-muted-foreground mb-2">
+                Unlock all features
+              </p>
+              <Link to="/admin/estimates">
+                <Button size="sm" className="w-full text-xs">
+                  View Plans
+                </Button>
+              </Link>
+            </div>
+          </div>
+        )}
+        
         <div className="p-4 border-t border-border">
           <Button variant="ghost" onClick={handleLogout} className="w-full justify-start gap-3">
             <LogOut className="w-5 h-5" />
@@ -130,7 +197,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 72px)' } : undefined}
       >
         <div className="w-full max-w-full overflow-x-auto">
-          {children}
+          <FullAppAccessGate>
+            {children}
+          </FullAppAccessGate>
         </div>
       </main>
     </div>

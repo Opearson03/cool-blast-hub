@@ -12,8 +12,12 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${detailsStr}`);
 };
 
-// Single tier price ID
-const PRICE_ID = "price_1Sn7u2S7UIjxyz7VMeUH1Kct";
+// Price IDs for each tier
+const PRICE_IDS = {
+  estimating: "price_1SxfDWS7UIjxyz7V3CrcxMT4", // $99/month
+  pro: "price_1SxfE0S7UIjxyz7Vdj3W8vBx",        // $240/month
+  legacy: "price_1Sn7u2S7UIjxyz7VMeUH1Kct",     // $100/month (legacy)
+};
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -28,8 +32,8 @@ serve(async (req) => {
     logStep("Stripe key verified");
 
     const body = await req.json();
-    const { email, fullName, businessName, upgrade } = body;
-    logStep("Request data received", { email, businessName, upgrade });
+    const { email, fullName, businessName, upgrade, tier = "pro" } = body;
+    logStep("Request data received", { email, businessName, upgrade, tier });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -52,7 +56,11 @@ serve(async (req) => {
       }
 
       const userEmail = userData.user.email;
-      logStep("Upgrade flow - user authenticated", { email: userEmail });
+      logStep("Upgrade flow - user authenticated", { email: userEmail, targetTier: tier });
+
+      // Determine price ID based on requested tier
+      const priceId = tier === "estimating" ? PRICE_IDS.estimating : PRICE_IDS.pro;
+      logStep("Using price ID for tier", { tier, priceId });
 
       // Find or create customer
       const customers = await stripe.customers.list({ email: userEmail, limit: 1 });
@@ -68,7 +76,7 @@ serve(async (req) => {
         customer_email: customerId ? undefined : userEmail,
         line_items: [
           {
-            price: PRICE_ID,
+            price: priceId,
             quantity: 1,
           },
         ],
@@ -78,7 +86,7 @@ serve(async (req) => {
         payment_method_collection: "always",
       });
 
-      logStep("Upgrade checkout session created", { sessionId: session.id });
+      logStep("Upgrade checkout session created", { sessionId: session.id, tier });
 
       return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -86,7 +94,7 @@ serve(async (req) => {
       });
     }
 
-    // Original signup flow
+    // Original signup flow - default to pro tier with trial
     if (!email || !fullName || !businessName) {
       throw new Error("Missing required fields: email, fullName, businessName");
     }
@@ -99,13 +107,19 @@ serve(async (req) => {
       logStep("Existing customer found", { customerId });
     }
 
+    // Determine price ID for signup (default to pro for new signups)
+    const signupTier = tier || "pro";
+    const priceId = signupTier === "estimating" ? PRICE_IDS.estimating : PRICE_IDS.pro;
+    
+    logStep("Creating checkout for new signup", { tier: signupTier, priceId });
+
     // Create checkout session with 30-day free trial
     const session = await stripe.checkout.sessions.create({
       customer: customerId,
       customer_email: customerId ? undefined : email,
       line_items: [
         {
-          price: PRICE_ID,
+          price: priceId,
           quantity: 1,
         },
       ],
@@ -118,15 +132,17 @@ serve(async (req) => {
         metadata: {
           full_name: fullName,
           business_name: businessName,
+          tier: signupTier,
         },
       },
       metadata: {
         full_name: fullName,
         business_name: businessName,
+        tier: signupTier,
       },
     });
 
-    logStep("Checkout session created", { sessionId: session.id, url: session.url });
+    logStep("Checkout session created", { sessionId: session.id, url: session.url, tier: signupTier });
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

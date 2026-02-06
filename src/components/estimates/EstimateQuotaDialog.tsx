@@ -1,10 +1,11 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Crown, Calendar } from "lucide-react";
+import { Crown, Calendar, Check } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
 
 interface EstimateQuotaDialogProps {
   open: boolean;
@@ -21,11 +22,11 @@ export function EstimateQuotaDialog({
   limit, 
   resetsAt 
 }: EstimateQuotaDialogProps) {
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const handleUpgrade = async () => {
-    setLoading(true);
+  const handleUpgrade = async (tier: "estimating" | "pro") => {
+    setLoading(tier);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
@@ -36,6 +37,7 @@ export function EstimateQuotaDialog({
         },
         body: {
           upgrade: true,
+          tier: tier,
         },
       });
 
@@ -52,7 +54,7 @@ export function EstimateQuotaDialog({
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setLoading(null);
     }
   };
 
@@ -65,9 +67,12 @@ export function EstimateQuotaDialog({
     });
   };
 
+  const estimatingTier = SUBSCRIPTION_TIERS.estimating;
+  const proTier = SUBSCRIPTION_TIERS.pro;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Crown className="w-5 h-5 text-primary" />
@@ -98,20 +103,63 @@ export function EstimateQuotaDialog({
             </div>
           )}
           
-          <div className="p-4 bg-primary/10 border border-primary/30 rounded-lg">
-            <p className="font-medium text-primary">PourHub Pro - $100/month</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              Unlimited quotes, priority support, and all features included.
-            </p>
+          {/* Estimating Tier */}
+          <div className="p-4 bg-muted/50 border border-border rounded-lg">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="font-medium">{estimatingTier.name}</p>
+                <p className="text-2xl font-bold text-primary">${estimatingTier.price}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+              </div>
+              <Button 
+                onClick={() => handleUpgrade("estimating")} 
+                disabled={loading !== null}
+                variant="outline"
+              >
+                {loading === "estimating" ? "Loading..." : "Select"}
+              </Button>
+            </div>
+            <ul className="space-y-1">
+              {estimatingTier.features.slice(0, 3).map((feature, idx) => (
+                <li key={idx} className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Check className="w-4 h-4 text-primary shrink-0" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Pro Tier - Recommended */}
+          <div className="p-4 bg-primary/10 border-2 border-primary/30 rounded-lg relative">
+            <Badge className="absolute -top-2 left-4 bg-primary">Recommended</Badge>
+            <div className="flex items-center justify-between mb-3 mt-1">
+              <div>
+                <p className="font-medium">{proTier.name}</p>
+                <p className="text-2xl font-bold text-primary">${proTier.price}<span className="text-sm font-normal text-muted-foreground">/month</span></p>
+              </div>
+              <Button 
+                onClick={() => handleUpgrade("pro")} 
+                disabled={loading !== null}
+              >
+                {loading === "pro" ? "Loading..." : "Select"}
+              </Button>
+            </div>
+            <ul className="space-y-1">
+              {proTier.features.slice(0, 4).map((feature, idx) => (
+                <li key={idx} className="flex items-center gap-2 text-sm">
+                  <Check className="w-4 h-4 text-primary shrink-0" />
+                  <span>{feature}</span>
+                </li>
+              ))}
+              <li className="text-xs text-muted-foreground pl-6">
+                + {proTier.features.length - 4} more features
+              </li>
+            </ul>
           </div>
         </div>
         
-        <DialogFooter className="flex-col gap-2 sm:flex-row">
-          <Button variant="outline" onClick={() => onOpenChange(false)} className="w-full sm:w-auto">
+        <DialogFooter>
+          <Button variant="ghost" onClick={() => onOpenChange(false)} className="w-full">
             Maybe Later
-          </Button>
-          <Button onClick={handleUpgrade} disabled={loading} className="w-full sm:w-auto">
-            {loading ? "Loading..." : "Upgrade Now"}
           </Button>
         </DialogFooter>
       </DialogContent>

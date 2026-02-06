@@ -12,8 +12,13 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
 };
 
-// Single tier product ID
-const PRODUCT_ID = "prod_TkdAIRs15o1Omv";
+// Product IDs for tier detection
+const PRODUCT_IDS = {
+  estimating: "prod_TvWGele4WOtuLp",
+  pro: "prod_TvWGfsM4uQs4od",
+  legacy: "prod_TkdAIRs15o1Omv", // Legacy $100 plan - treat as pro
+};
+
 const EMPLOYEE_LIMIT = 999;
 
 serve(async (req) => {
@@ -83,7 +88,7 @@ serve(async (req) => {
         logStep("Business is exempt from subscription - granting full access");
         return new Response(JSON.stringify({
           subscribed: true,
-          tier: "standard",
+          tier: "pro",
           subscription_end: null,
           employee_limit: EMPLOYEE_LIMIT,
           is_exempt: true,
@@ -148,6 +153,7 @@ serve(async (req) => {
         return new Response(
           JSON.stringify({
             subscribed: false,
+            tier: "free",
             is_exempt: false,
           }),
           {
@@ -177,7 +183,7 @@ serve(async (req) => {
       });
     }
     const hasActiveSub = subscriptions.data.length > 0;
-    let tier = null;
+    let tier = "free";
     let subscriptionEnd = null;
 
     if (hasActiveSub) {
@@ -188,16 +194,26 @@ serve(async (req) => {
       if (periodEnd && typeof periodEnd === 'number') {
         subscriptionEnd = new Date(periodEnd * 1000).toISOString();
       }
+      
+      // Determine tier from product ID
+      const productId = subscription.items.data[0]?.price?.product as string;
+      
+      if (productId === PRODUCT_IDS.estimating) {
+        tier = "estimating";
+      } else if (productId === PRODUCT_IDS.pro || productId === PRODUCT_IDS.legacy) {
+        tier = "pro";
+      } else {
+        // Unknown product - default to pro for safety (legacy handling)
+        tier = "pro";
+      }
+      
       logStep("Subscription found", { 
         subscriptionId: subscription.id, 
         status: subscription.status,
+        tier,
+        productId,
         endDate: subscriptionEnd,
-        trialEnd: subscription.trial_end,
-        currentPeriodEnd: subscription.current_period_end,
       });
-      
-      tier = "standard";
-      logStep("Determined subscription tier", { tier, employeeLimit: EMPLOYEE_LIMIT });
 
       // Update subscription record in database
       if (profile?.business_id) {
@@ -217,13 +233,10 @@ serve(async (req) => {
     } else {
       logStep("No active subscription found");
     }
-
-    // If no active subscription, return as free tier (still has access, just limited quotes)
-    const effectiveTier = hasActiveSub ? tier : "free";
     
     return new Response(JSON.stringify({
       subscribed: hasActiveSub,
-      tier: effectiveTier,
+      tier: tier,
       subscription_end: subscriptionEnd,
       employee_limit: EMPLOYEE_LIMIT,
       is_exempt: false,

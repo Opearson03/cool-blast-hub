@@ -12,8 +12,14 @@ const logStep = (step: string, details?: any) => {
   console.log(`[CHECK-ESTIMATE-QUOTA] ${step}${detailsStr}`);
 };
 
-const PRODUCT_ID = "prod_TkdAIRs15o1Omv";
-const FREE_TIER_LIMIT = 1;
+// Product IDs for tier detection
+const PRODUCT_IDS = {
+  estimating: "prod_TvWGele4WOtuLp",
+  pro: "prod_TvWGfsM4uQs4od",
+  legacy: "prod_TkdAIRs15o1Omv", // Legacy $100 plan - treat as pro
+};
+
+const FREE_TIER_LIMIT = 2;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -83,7 +89,7 @@ serve(async (req) => {
       logStep("Business is exempt - unlimited quotes");
       return new Response(JSON.stringify({
         can_create: true,
-        tier: "standard",
+        tier: "pro",
         used: 0,
         limit: null,
       }), {
@@ -118,6 +124,8 @@ serve(async (req) => {
 
     // Check for active or trialing subscription
     let hasActiveSub = false;
+    let tier = "free";
+    
     if (customerId) {
       let subscriptions = await stripe.subscriptions.list({
         customer: customerId,
@@ -134,14 +142,30 @@ serve(async (req) => {
       }
       
       hasActiveSub = subscriptions.data.length > 0;
+      
+      if (hasActiveSub) {
+        // Determine tier from product ID
+        const productId = subscriptions.data[0].items.data[0]?.price?.product as string;
+        
+        if (productId === PRODUCT_IDS.estimating) {
+          tier = "estimating";
+        } else if (productId === PRODUCT_IDS.pro || productId === PRODUCT_IDS.legacy) {
+          tier = "pro";
+        } else {
+          // Unknown product - default to pro for safety (legacy handling)
+          tier = "pro";
+        }
+        
+        logStep("Active subscription found", { tier, productId });
+      }
     }
 
     // If subscribed (active or trialing), unlimited quotes
     if (hasActiveSub) {
-      logStep("Active subscription - unlimited quotes");
+      logStep("Paid tier - unlimited quotes", { tier });
       return new Response(JSON.stringify({
         can_create: true,
-        tier: "standard",
+        tier: tier,
         used: 0,
         limit: null,
       }), {
