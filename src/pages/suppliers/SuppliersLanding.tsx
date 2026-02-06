@@ -10,8 +10,6 @@ import {
   Loader2, 
   CheckCircle, 
   TrendingUp, 
-  Users, 
-  Shield, 
   ArrowRight,
   FileText,
   ShoppingCart,
@@ -29,11 +27,13 @@ import {
   PiggyBank
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { SupplierRegistrationDialog } from "@/components/suppliers/SupplierRegistrationDialog";
 
 export default function SuppliersLanding() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showRegistrationDialog, setShowRegistrationDialog] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -211,10 +211,7 @@ export default function SuppliersLanding() {
               <p className="text-xl text-muted-foreground mb-8">
                 When a concreter uses PourHub, supplier selection happens inside the software — not via Google, not by cold calls, not by ads. This is where you come in.
               </p>
-              <Button size="lg" className="gap-2" onClick={() => {
-                const contactSection = document.getElementById('contact-section');
-                contactSection?.scrollIntoView({ behavior: 'smooth' });
-              }}>
+              <Button size="lg" className="gap-2" onClick={() => setShowRegistrationDialog(true)}>
                 Register Interest <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -498,12 +495,7 @@ export default function SuppliersLanding() {
             size="lg" 
             variant="secondary"
             className="gap-2"
-            onClick={() => {
-              toast({
-                title: "Coming Soon",
-                description: "Supplier registration will be available soon. Contact us to express interest.",
-              });
-            }}
+            onClick={() => setShowRegistrationDialog(true)}
           >
             <CheckCircle className="h-5 w-5" />
             Register Interest
@@ -517,6 +509,12 @@ export default function SuppliersLanding() {
           <p>&copy; {new Date().getFullYear()} PourHub. All rights reserved.</p>
         </div>
       </footer>
+
+      {/* Registration Dialog */}
+      <SupplierRegistrationDialog
+        open={showRegistrationDialog}
+        onOpenChange={setShowRegistrationDialog}
+      />
     </div>
   );
 }

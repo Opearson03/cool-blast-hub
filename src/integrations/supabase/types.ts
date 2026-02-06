@@ -2606,6 +2606,63 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_registrations: {
+        Row: {
+          abn: string | null
+          categories: string[] | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          notes: string | null
+          phone: string | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          service_areas: string[] | null
+          status: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          abn?: string | null
+          categories?: string[] | null
+          company_name: string
+          contact_name: string
+          created_at?: string
+          email: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_areas?: string[] | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          abn?: string | null
+          categories?: string[] | null
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          service_areas?: string[] | null
+          status?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       swms_signoffs: {
         Row: {
           employee_id: string | null
