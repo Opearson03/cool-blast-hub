@@ -50,6 +50,7 @@ export function SupplierStep({
   onAddNewSupplier,
 }: SupplierStepProps) {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const isQuote = orderType === "quote";
   const selectedSuppliers = suppliers.filter(s => selectedSupplierIds.includes(s.id));
   const showManualEntry = isQuote ? selectedSupplierIds.length === 0 : !supplierId;
@@ -117,39 +118,46 @@ export function SupplierStep({
                 placeholder="Search suppliers..." 
                 value={searchQuery}
                 onValueChange={setSearchQuery}
+                onFocus={() => setIsDropdownOpen(true)}
               />
-              <CommandList className="max-h-[200px]">
-                <CommandEmpty>No suppliers found</CommandEmpty>
-                <CommandGroup>
-                  {filteredSuppliers
-                    .filter(s => !selectedSupplierIds.includes(s.id))
-                    .map((supplier) => (
-                      <CommandItem
-                        key={supplier.id}
-                        value={`${supplier.name} ${supplier.company || ""}`}
-                        onSelect={() => onToggleSupplier(supplier.id)}
-                        className="cursor-pointer"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium text-sm">
-                            {supplier.name}
-                            {supplier.company && (
-                              <span className="text-muted-foreground ml-1">({supplier.company})</span>
-                            )}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            {[supplier.email, supplier.phone].filter(Boolean).join(" • ") || "No contact info"}
-                          </p>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  {filteredSuppliers.filter(s => !selectedSupplierIds.includes(s.id)).length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-2">
-                      {searchQuery ? "No matching suppliers" : "All suppliers selected"}
-                    </p>
-                  )}
-                </CommandGroup>
-              </CommandList>
+              {isDropdownOpen && (
+                <CommandList className="max-h-[200px]">
+                  <CommandEmpty>No suppliers found</CommandEmpty>
+                  <CommandGroup>
+                    {filteredSuppliers
+                      .filter(s => !selectedSupplierIds.includes(s.id))
+                      .map((supplier) => (
+                        <CommandItem
+                          key={supplier.id}
+                          value={`${supplier.name} ${supplier.company || ""}`}
+                          onSelect={() => {
+                            onToggleSupplier(supplier.id);
+                            setIsDropdownOpen(false);
+                            setSearchQuery("");
+                          }}
+                          className="cursor-pointer"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-sm">
+                              {supplier.name}
+                              {supplier.company && (
+                                <span className="text-muted-foreground ml-1">({supplier.company})</span>
+                              )}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              {[supplier.email, supplier.phone].filter(Boolean).join(" • ") || "No contact info"}
+                            </p>
+                          </div>
+                        </CommandItem>
+                      ))}
+                    {filteredSuppliers.filter(s => !selectedSupplierIds.includes(s.id)).length === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-2">
+                        {searchQuery ? "No matching suppliers" : "All suppliers selected"}
+                      </p>
+                    )}
+                  </CommandGroup>
+                </CommandList>
+              )}
             </Command>
           )}
         </>
@@ -162,45 +170,50 @@ export function SupplierStep({
             placeholder="Search suppliers..." 
             value={searchQuery}
             onValueChange={setSearchQuery}
+            onFocus={() => setIsDropdownOpen(true)}
           />
-          <CommandList className="max-h-[200px]">
-            <CommandEmpty>No suppliers found</CommandEmpty>
-            <CommandGroup>
-              <CommandItem
-                value="__manual__"
-                onSelect={() => {
-                  onSupplierIdChange("");
-                  setSearchQuery("");
-                }}
-                className="cursor-pointer"
-              >
-                <span className="text-muted-foreground">-- Enter manually --</span>
-              </CommandItem>
-              {filteredSuppliers.map((supplier) => (
+          {isDropdownOpen && (
+            <CommandList className="max-h-[200px]">
+              <CommandEmpty>No suppliers found</CommandEmpty>
+              <CommandGroup>
                 <CommandItem
-                  key={supplier.id}
-                  value={`${supplier.name} ${supplier.company || ""}`}
+                  value="__manual__"
                   onSelect={() => {
-                    onSupplierIdChange(supplier.id);
+                    onSupplierIdChange("");
                     setSearchQuery("");
+                    setIsDropdownOpen(false);
                   }}
                   className="cursor-pointer"
                 >
-                  <div className="flex-1 min-w-0 flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm">
-                        {supplier.name} {supplier.company && `(${supplier.company})`}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {[supplier.email, supplier.phone].filter(Boolean).join(" • ") || "No contact info"}
-                      </p>
-                    </div>
-                    {supplierId === supplier.id && <Check className="w-4 h-4 text-primary" />}
-                  </div>
+                  <span className="text-muted-foreground">-- Enter manually --</span>
                 </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
+                {filteredSuppliers.map((supplier) => (
+                  <CommandItem
+                    key={supplier.id}
+                    value={`${supplier.name} ${supplier.company || ""}`}
+                    onSelect={() => {
+                      onSupplierIdChange(supplier.id);
+                      setSearchQuery("");
+                      setIsDropdownOpen(false);
+                    }}
+                    className="cursor-pointer"
+                  >
+                    <div className="flex-1 min-w-0 flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">
+                          {supplier.name} {supplier.company && `(${supplier.company})`}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {[supplier.email, supplier.phone].filter(Boolean).join(" • ") || "No contact info"}
+                        </p>
+                      </div>
+                      {supplierId === supplier.id && <Check className="w-4 h-4 text-primary" />}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          )}
         </Command>
       )}
 
