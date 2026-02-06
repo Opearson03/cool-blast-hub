@@ -1,118 +1,158 @@
 
+# Plan: Fix Site Visit Rescheduling Flow
 
-# Plan: View & Download Signed Quote from Quote Page
+## Problems Identified
 
-## Overview
-Add the ability to view and download the signed quote PDF directly from the "Accepted" quote detail popup, without needing to navigate to the job.
+1. **No email notification on reschedule**: When dragging a site visit to a new date on the schedule calendar, the date is updated but no confirmation email is sent to the client with the new details.
 
-## Current State
-- When a quote is signed via the public signing page, the signed PDF is:
-  1. Generated server-side with the embedded signature
-  2. Uploaded to the `documents` storage bucket
-  3. Linked to the **job** (not the estimate) via `documents.reference_id = job.id`
-- The estimate has signature data: `client_signature`, `client_signature_name`, `signed_at`
-- Jobs have `source_estimate_id` linking back to the originating estimate
+2. **Wrong action button shown**: The EstimateDetailSheet shows "Accept & Create Job" for site visits, but for draft estimates (which is what site visits are), the appropriate action is "Start/Edit Estimate" to continue building the quote.
 
-## Solution
-
-### Add a new query to fetch the signed PDF document
-When viewing an "accepted" estimate, we'll:
-1. Find the job where `source_estimate_id = estimate.id`
-2. Find the document where `reference_id = job.id` and `file_name LIKE 'Signed Quote%'`
-3. Display View/Download options in the estimate detail sheet
-
-### UI Changes
-Add a new "Signed Quote" section in the EstimateDetailSheet that appears **only for accepted quotes** with signature data:
-
-```
-┌─────────────────────────────────────────┐
-│ ✓ SIGNED                                │
-│   Signed by: John Smith                 │
-│   Date: 6 Feb 2026 at 10:30 AM          │
-│                                         │
-│   [View Signed PDF]   [Download]        │
-└─────────────────────────────────────────┘
-```
+3. **Missing Edit functionality**: The AdminSchedule page doesn't pass the `onEdit` prop to EstimateDetailSheet, so there's no way to start/continue the estimate from the schedule.
 
 ---
 
-## Technical Implementation
+## Solution Overview
+
+### 1. Add Email Notification on Site Visit Reschedule
+When an estimate is dragged to a new date on the schedule, show a confirmation dialog (similar to pour reschedule) asking if the user wants to notify the client of the change.
+
+### 2. Replace "Convert to Job" with "Start/Edit Estimate"
+For draft estimates (site visits), show "Start Estimate" or "Edit Estimate" instead of "Accept & Create Job". This navigates to the estimates page and opens the estimate form.
+
+### 3. Pass `onEdit` handler from AdminSchedule
+Enable the edit functionality in the schedule's estimate sheet.
+
+---
+
+## Technical Changes
+
+### File: `src/pages/admin/AdminSchedule.tsx`
+
+**Add state for reschedule confirmation dialog:**
+```typescript
+const [pendingEstimateReschedule, setPendingEstimateReschedule] = useState<{
+  estimateId: string;
+  estimate: ScheduleEstimate;
+  field: "site_visit_date" | "follow_up_date";
+  newDate: string;
+} | null>(null);
+const [estimateRescheduleDialogOpen, setEstimateRescheduleDialogOpen] = useState(false);
+```
+
+**Modify `handleDragEnd` for estimates:**
+Instead of immediately updating, check if client has email and show confirmation dialog offering to send updated details.
+
+**Add `handleEditEstimate` function:**
+Navigate to estimates page with the estimate ID to open it for editing.
+
+**Pass `onEdit` prop to EstimateDetailSheet:**
+```tsx
+<EstimateDetailSheet
+  estimate={selectedEstimate}
+  open={estimateSheetOpen}
+  onOpenChange={setEstimateSheetOpen}
+  onEdit={handleEditEstimate}  // Add this
+/>
+```
+
+**Remove `onConvertToJob` for draft estimates:**
+Don't pass `onConvertToJob` or make the button conditional based on estimate completeness.
+
+---
 
 ### File: `src/components/estimates/EstimateDetailSheet.tsx`
 
-**1. Add a new query to fetch the signed document:**
-```typescript
-const { data: signedDocument } = useQuery({
-  queryKey: ["signed-document", estimate?.id],
-  queryFn: async () => {
-    if (!estimate?.id) return null;
-    
-    // First find the job created from this estimate
-    const { data: job } = await supabase
-      .from("jobs")
-      .select("id")
-      .eq("source_estimate_id", estimate.id)
-      .maybeSingle();
-    
-    if (!job) return null;
-    
-    // Then find the signed quote document
-    const { data: doc } = await supabase
-      .from("documents")
-      .select("id, file_name, file_url")
-      .eq("reference_id", job.id)
-      .ilike("file_name", "Signed Quote%")
-      .maybeSingle();
-    
-    return doc;
-  },
-  enabled: open && !!estimate?.id && estimate?.status === "accepted",
-});
+**Update the action button logic:**
+- For draft estimates: Show "Start Estimate" or "Edit Estimate" button that triggers `onEdit`
+- For sent/pending estimates: Show "Accept & Create Job" (existing behavior)
+
+**Current logic (line ~605):**
+```tsx
+{onConvertToJob && estimate.status !== "accepted" && (
+  <Button onClick={() => onConvertToJob(estimate)} ...>
+    Accept & Create Job
+  </Button>
+)}
 ```
 
-**2. Add state for viewing signed PDF:**
-```typescript
-const [isSignedPdfViewerOpen, setIsSignedPdfViewerOpen] = useState(false);
+**New logic:**
+```tsx
+{/* For draft estimates - show Edit/Start Estimate */}
+{onEdit && estimate.status === "draft" && (
+  <Button onClick={() => { onEdit(estimate); onOpenChange(false); }} ...>
+    <Pencil className="w-4 h-4" />
+    {hasSubstantialContent ? "Edit Estimate" : "Start Estimate"}
+  </Button>
+)}
+
+{/* For sent/pending estimates - show Accept & Create Job */}
+{onConvertToJob && ["pending", "sent"].includes(estimate.status) && (
+  <Button onClick={() => onConvertToJob(estimate)} ...>
+    Accept & Create Job
+  </Button>
+)}
 ```
 
-**3. Add "Signed Quote" section UI (after Actions section, before Client Info):**
-- Only visible when `estimate.status === "accepted"` and `estimate.signed_at` exists
-- Show signer name and signed date/time
-- "View" button opens PDF in a dialog (iframe)
-- "Download" button opens PDF in new tab
-
-**4. Add Dialog for viewing signed PDF:**
-- Similar to the existing Plan Viewer Dialog
-- Simple iframe viewer with download option
+Where `hasSubstantialContent` checks if `total_amount > 0` or `scope_data` has content.
 
 ---
 
-## Visual Placement
-The signed quote section will appear:
-1. After the action buttons (Print/Email/Revise)
-2. Before the Client Details section
-3. With a green accent to indicate "accepted" status
+### New Component: `src/components/schedule/SiteVisitRescheduleDialog.tsx`
+
+Create a simple dialog for site visit reschedule confirmation:
+
+```tsx
+interface Props {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  clientName: string;
+  clientEmail: string | null;
+  oldDate: string;
+  newDate: string;
+  eventType: "site_visit" | "follow_up";
+  onConfirm: (sendEmail: boolean) => void;
+  onCancel: () => void;
+}
+```
+
+Dialog offers two options:
+- "Move & Notify Client" - Updates date and sends confirmation email
+- "Move Only" - Updates date without notification
 
 ---
 
-## Edge Cases Handled
-- **No signed PDF found**: Hide the View/Download buttons, just show signature info
-- **Query loading**: Show skeleton while fetching signed document
-- **Estimate not accepted**: Don't run the query at all (enabled: false)
+## Flow After Changes
+
+1. **User drags site visit to new date**
+2. **Dialog appears**: "Reschedule Site Visit?"
+   - Shows old date → new date
+   - If client has email: Shows "Move & Notify" and "Move Only" buttons
+   - If no email: Just shows "Move" button
+3. **If "Move & Notify"**: Updates date, then calls `send-site-visit-email` edge function with new date
+4. **If "Move Only"**: Just updates the date
+
+5. **User clicks on site visit card**
+6. **Sheet opens** with "Start Estimate" button (not "Create Job")
+7. **Clicking "Start Estimate"** navigates to `/admin/estimates?edit={id}` and opens the form
 
 ---
 
 ## Files Changed
+
 | File | Change |
 |------|--------|
-| `src/components/estimates/EstimateDetailSheet.tsx` | Add signed document query, viewer dialog, and UI section |
+| `src/pages/admin/AdminSchedule.tsx` | Add reschedule dialog, edit handler, update EstimateDetailSheet props |
+| `src/components/estimates/EstimateDetailSheet.tsx` | Conditional action buttons based on estimate status |
+| `src/components/schedule/SiteVisitRescheduleDialog.tsx` | New dialog component |
 
 ---
 
 ## Testing Checklist
-1. Open an "Accepted" quote
-2. Verify "Signed" section appears with signer name and date
-3. Click "View Signed PDF" - confirm PDF displays in dialog
-4. Click "Download" - confirm PDF opens in new tab
-5. Open a non-accepted quote - confirm section does NOT appear
 
+1. Drag a site visit (with client email) to a new date → should show reschedule dialog
+2. Choose "Move & Notify" → date updates, email sent with new date
+3. Choose "Move Only" → date updates, no email
+4. Click on a site visit card → sheet opens
+5. For draft estimate → should show "Start Estimate" button
+6. Click "Start Estimate" → navigates to estimates page with form open
+7. For sent estimate → should show "Accept & Create Job" button
