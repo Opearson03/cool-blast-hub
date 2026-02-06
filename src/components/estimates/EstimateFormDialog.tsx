@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
@@ -436,8 +437,8 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
   const [currentStep, setCurrentStep] = useState<WizardStep>("client");
   const [estimateType, setEstimateType] = useState<EstimateType>(DEFAULT_ESTIMATE_TYPE);
   const [formData, setFormData] = useState<FormData>(initialFormData);
-  const [selectedInclusions, setSelectedInclusions] = useState<Set<string>>(new Set(DEFAULT_INCLUSIONS.slice(0, 6).map(i => i.id)));
-  const [selectedExclusions, setSelectedExclusions] = useState<Set<string>>(new Set(DEFAULT_EXCLUSIONS.slice(0, 4).map(e => e.id)));
+  const [selectedInclusions, setSelectedInclusions] = useState<Record<string, Set<string>>>({});
+  const [selectedExclusions, setSelectedExclusions] = useState<Record<string, Set<string>>>({});
   
   // Global margin/markup (applied to all scopes)
   const [globalMarginPercent, setGlobalMarginPercent] = useState<number>(15);
@@ -640,6 +641,32 @@ const {
         setModularScopeStates(migratedStates);
       }
       
+      // Load per-scope inclusions/exclusions from scope_data (new format)
+      if (editEstimate.scope_data?._inclusions) {
+        const loadedInc: Record<string, Set<string>> = {};
+        for (const [key, labels] of Object.entries(editEstimate.scope_data._inclusions as Record<string, string[]>)) {
+          const ids = new Set<string>();
+          for (const label of labels) {
+            const item = DEFAULT_INCLUSIONS.find(i => i.label === label);
+            if (item) ids.add(item.id);
+          }
+          if (ids.size > 0) loadedInc[key] = ids;
+        }
+        setSelectedInclusions(loadedInc);
+      }
+      if (editEstimate.scope_data?._exclusions) {
+        const loadedExc: Record<string, Set<string>> = {};
+        for (const [key, labels] of Object.entries(editEstimate.scope_data._exclusions as Record<string, string[]>)) {
+          const ids = new Set<string>();
+          for (const label of labels) {
+            const item = DEFAULT_EXCLUSIONS.find(i => i.label === label);
+            if (item) ids.add(item.id);
+          }
+          if (ids.size > 0) loadedExc[key] = ids;
+        }
+        setSelectedExclusions(loadedExc);
+      }
+      
       // Load global margin from scope_data
       if (editEstimate.scope_data?._globalMargin !== undefined) {
         setGlobalMarginPercent(Number(editEstimate.scope_data._globalMargin) || 15);
@@ -701,8 +728,8 @@ const {
       setEstimateType(DEFAULT_ESTIMATE_TYPE);
       setFormData(initialFormData);
        // Don't pre-select inclusions/exclusions here - they'll be set when scopes are selected
-       setSelectedInclusions(new Set());
-       setSelectedExclusions(new Set());
+       setSelectedInclusions({});
+       setSelectedExclusions({});
       setSelectedScopes(new Set());
       setModularScopeStates({} as Record<ScopeType, ModularScopeState>);
       setActiveScopeIndex(0);
@@ -730,45 +757,60 @@ const {
     fetchBusinessId();
   }, [editEstimate, open]);
 
-  // Auto-sync inclusions/exclusions based on module answers
+  // Auto-sync inclusions/exclusions based on module answers (per-scope)
   useEffect(() => {
-    let hasPumping = false;
-    let hasExcavation = false;
+    let needsIncUpdate = false;
+    let needsExcUpdate = false;
+    const incUpdates: Record<string, string[]> = {};
+    const excRemoves: Record<string, string[]> = {};
     
     for (const scopeType of Array.from(selectedScopes)) {
       const state = modularScopeStates[scopeType];
       if (!state?.moduleAnswers) continue;
       
-      // Check concrete-pumping module
+      // Check concrete-pumping module - add pump_hire to this scope
       const pumpingAnswers = state.moduleAnswers['concrete-pumping'];
-      if (pumpingAnswers?.pump_required === true) {
-        hasPumping = true;
+      if (pumpingAnswers?.pump_required === true && !selectedInclusions[scopeType]?.has('pump_hire')) {
+        if (!incUpdates[scopeType]) incUpdates[scopeType] = [];
+        incUpdates[scopeType].push('pump_hire');
+        needsIncUpdate = true;
       }
       
-      // Check excavation module  
+      // Check excavation module - remove exc_excavation from this scope
       const excavationAnswers = state.moduleAnswers['excavation'];
-      if (excavationAnswers?.detailed_excavation_required === true || 
-          excavationAnswers?.bulk_excavation_required === true) {
-        hasExcavation = true;
+      if ((excavationAnswers?.detailed_excavation_required === true || 
+           excavationAnswers?.bulk_excavation_required === true) &&
+          selectedExclusions[scopeType]?.has('exc_excavation')) {
+        if (!excRemoves[scopeType]) excRemoves[scopeType] = [];
+        excRemoves[scopeType].push('exc_excavation');
+        needsExcUpdate = true;
       }
     }
     
-    // Sync inclusions - add pump_hire if pumping is enabled
-    if (hasPumping && !selectedInclusions.has('pump_hire')) {
-      setSelectedInclusions(prev => new Set([...prev, 'pump_hire']));
+    if (needsIncUpdate) {
+      setSelectedInclusions(prev => {
+        const updated = { ...prev };
+        for (const [scopeId, ids] of Object.entries(incUpdates)) {
+          updated[scopeId] = new Set(prev[scopeId] || []);
+          ids.forEach(id => updated[scopeId].add(id));
+        }
+        return updated;
+      });
     }
     
-    // Sync exclusions - remove exc_excavation if excavation is enabled
-    if (hasExcavation && selectedExclusions.has('exc_excavation')) {
+    if (needsExcUpdate) {
       setSelectedExclusions(prev => {
-        const next = new Set(prev);
-        next.delete('exc_excavation');
-        return next;
+        const updated = { ...prev };
+        for (const [scopeId, ids] of Object.entries(excRemoves)) {
+          updated[scopeId] = new Set(prev[scopeId] || []);
+          ids.forEach(id => updated[scopeId].delete(id));
+        }
+        return updated;
       });
     }
   }, [modularScopeStates, selectedScopes, selectedInclusions, selectedExclusions]);
  
-   // Auto-select relevant inclusions/exclusions when scopes change
+   // Auto-select relevant inclusions/exclusions when scopes change (per-scope)
    // Only runs when scopes array length changes (add/remove scope)
    const prevScopeCountRef = useRef(0);
    useEffect(() => {
@@ -776,35 +818,41 @@ const {
      const prevCount = prevScopeCountRef.current;
      prevScopeCountRef.current = currentCount;
      
-     // Don't auto-select on initial render if editing an existing estimate
      if (currentCount === 0) return;
      
-     // If scopes changed, auto-select all visible inclusions and global exclusions
-     // We need to update the selections to match what's relevant for the current scopes
-     const currentActiveModules = getActiveModulesFromScopes(selectedScopes);
-     
-     // For inclusions: select all that are relevant to active modules
-     const relevantInclusionIds = DEFAULT_INCLUSIONS
-       .filter(item => {
-         if (!item.relevantModules || item.relevantModules.length === 0) return true;
-         return item.relevantModules.some(m => currentActiveModules.has(m));
-       })
-       .map(item => item.id);
-     
-     // For exclusions: select global ones (no module mapping) plus relevant ones
-     const relevantExclusionIds = DEFAULT_EXCLUSIONS
-       .filter(item => {
-         // Always select global exclusions
-         if (!item.relevantModules || item.relevantModules.length === 0) return true;
-         return item.relevantModules.some(m => currentActiveModules.has(m));
-       })
-       .map(item => item.id);
-     
-     // Only auto-update if this is the first time selecting scopes (new estimate)
-     // or if coming from 0 scopes
+     // Only auto-update on first scope selection (not when editing with loaded data)
      if (prevCount === 0 && currentCount > 0) {
-       setSelectedInclusions(new Set(relevantInclusionIds));
-       setSelectedExclusions(new Set(relevantExclusionIds));
+       // Don't auto-select if already loaded from saved data
+       if (Object.keys(selectedInclusions).length > 0 || Object.keys(selectedExclusions).length > 0) return;
+       
+       const newInclusions: Record<string, Set<string>> = { _general: new Set() };
+       const newExclusions: Record<string, Set<string>> = { _general: new Set() };
+       
+       for (const scopeId of selectedScopes) {
+         newInclusions[scopeId] = new Set();
+         newExclusions[scopeId] = new Set();
+         const scopeDef = SCOPE_REGISTRY[scopeId];
+         if (!scopeDef) continue;
+         
+         for (const item of DEFAULT_INCLUSIONS) {
+           if (!item.relevantModules || item.relevantModules.length === 0) {
+             newInclusions._general.add(item.id);
+           } else if (item.relevantModules.some(m => scopeDef.moduleIds.includes(m))) {
+             newInclusions[scopeId].add(item.id);
+           }
+         }
+         
+         for (const item of DEFAULT_EXCLUSIONS) {
+           if (!item.relevantModules || item.relevantModules.length === 0) {
+             newExclusions._general.add(item.id);
+           } else if (item.relevantModules.some(m => scopeDef.moduleIds.includes(m))) {
+             newExclusions[scopeId].add(item.id);
+           }
+         }
+       }
+       
+       setSelectedInclusions(newInclusions);
+       setSelectedExclusions(newExclusions);
      }
    }, [selectedScopes]);
 
@@ -824,30 +872,8 @@ const {
     }
   }, [currentStep, formData.client_name, formData.site_address, selectedScopes.size, globalMarginPercent]);
  
-   // Get active modules from selected scopes for filtering inclusions/exclusions
-   const activeModules = useMemo(() => {
-     return getActiveModulesFromScopes(selectedScopes);
-   }, [selectedScopes]);
- 
-   // Filter inclusions based on active modules
-   const visibleInclusions = useMemo(() => {
-     return DEFAULT_INCLUSIONS.filter(item => {
-       // Items with no module mapping are always shown (global items)
-       if (!item.relevantModules || item.relevantModules.length === 0) return true;
-       // Show only if at least one relevant module is active
-       return item.relevantModules.some(m => activeModules.has(m));
-     });
-   }, [activeModules]);
- 
-   // Filter exclusions based on active modules
-   const visibleExclusions = useMemo(() => {
-     return DEFAULT_EXCLUSIONS.filter(item => {
-       // Items with no module mapping are always shown (global items)
-       if (!item.relevantModules || item.relevantModules.length === 0) return true;
-       // Show only if at least one relevant module is active
-       return item.relevantModules.some(m => activeModules.has(m));
-     });
-   }, [activeModules]);
+   // Note: inclusions/exclusions are now grouped per-scope in selectedInclusions/selectedExclusions
+   // No flat filtering needed - each scope section shows its relevant items directly
 
   // Create a draft estimate for takeoff step (needed for file uploads)
   // Uses a promise lock to prevent duplicate inserts from concurrent calls
@@ -1195,6 +1221,29 @@ const {
     // Store global margin at root level
     data._globalMargin = globalMarginPercent;
     
+    // Store per-scope inclusions/exclusions (labels for PDF rendering)
+    const inclusionData: Record<string, string[]> = {};
+    for (const [scopeKey, ids] of Object.entries(selectedInclusions)) {
+      const labels = DEFAULT_INCLUSIONS
+        .filter(i => ids.has(i.id))
+        .map(i => i.label);
+      if (labels.length > 0) {
+        inclusionData[scopeKey] = labels;
+      }
+    }
+    data._inclusions = inclusionData;
+    
+    const exclusionData: Record<string, string[]> = {};
+    for (const [scopeKey, ids] of Object.entries(selectedExclusions)) {
+      const labels = DEFAULT_EXCLUSIONS
+        .filter(e => ids.has(e.id))
+        .map(e => e.label);
+      if (labels.length > 0) {
+        exclusionData[scopeKey] = labels;
+      }
+    }
+    data._exclusions = exclusionData;
+    
     for (const scopeType of selectedScopesArray) {
       const state = modularScopeStates[scopeType];
       if (state) {
@@ -1266,20 +1315,35 @@ const {
       fullNotes += (fullNotes ? "\n" : "") + userNotes;
     }
     
-    // Inclusions and exclusions only for non-draft
+    // Inclusions and exclusions only for non-draft (per-scope format)
     if (status !== 'draft') {
-      const inclusionsList = DEFAULT_INCLUSIONS
-        .filter(i => selectedInclusions.has(i.id))
-        .map(i => i.label);
-      const exclusionsList = DEFAULT_EXCLUSIONS
-        .filter(e => selectedExclusions.has(e.id))
-        .map(e => e.label);
+      const inclusionEntries = Object.entries(selectedInclusions)
+        .map(([key, ids]) => ({
+          label: key === '_general' ? 'General' : getScopeLabel(key as ScopeType),
+          items: DEFAULT_INCLUSIONS.filter(i => ids.has(i.id)).map(i => i.label),
+        }))
+        .filter(e => e.items.length > 0);
       
-      if (inclusionsList.length > 0) {
-        fullNotes += "\n\nINCLUSIONS:\n• " + inclusionsList.join("\n• ");
+      const exclusionEntries = Object.entries(selectedExclusions)
+        .map(([key, ids]) => ({
+          label: key === '_general' ? 'General' : getScopeLabel(key as ScopeType),
+          items: DEFAULT_EXCLUSIONS.filter(e => ids.has(e.id)).map(e => e.label),
+        }))
+        .filter(e => e.items.length > 0);
+      
+      if (inclusionEntries.length > 0) {
+        fullNotes += "\n\nINCLUSIONS:";
+        for (const entry of inclusionEntries) {
+          fullNotes += `\n[${entry.label}]`;
+          fullNotes += "\n• " + entry.items.join("\n• ");
+        }
       }
-      if (exclusionsList.length > 0) {
-        fullNotes += "\n\nEXCLUSIONS:\n• " + exclusionsList.join("\n• ");
+      if (exclusionEntries.length > 0) {
+        fullNotes += "\n\nEXCLUSIONS:";
+        for (const entry of exclusionEntries) {
+          fullNotes += `\n[${entry.label}]`;
+          fullNotes += "\n• " + entry.items.join("\n• ");
+        }
       }
     }
 
@@ -2420,27 +2484,85 @@ const {
                     What's Included
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                     {visibleInclusions.length === 0 ? (
-                       <p className="text-sm text-muted-foreground col-span-2 py-2">
-                         No standard inclusions apply to this scope. Add custom notes if needed.
-                       </p>
-                     ) : visibleInclusions.map((item) => (
-                      <label key={item.id} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-muted/50">
-                        <Checkbox
-                          checked={selectedInclusions.has(item.id)}
-                          onCheckedChange={(checked) => {
-                            const newSet = new Set(selectedInclusions);
-                            if (checked) newSet.add(item.id);
-                            else newSet.delete(item.id);
-                            setSelectedInclusions(newSet);
-                          }}
-                        />
-                        <span className="text-sm">{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
+                <CardContent className="space-y-1">
+                  {/* General inclusions (items without relevantModules) */}
+                  {(() => {
+                    const generalItems = DEFAULT_INCLUSIONS.filter(i => !i.relevantModules || i.relevantModules.length === 0);
+                    if (generalItems.length === 0) return null;
+                    return (
+                      <Collapsible defaultOpen>
+                        <CollapsibleTrigger className="group flex items-center gap-2 w-full text-left py-1.5 px-2 rounded hover:bg-muted/50">
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                          <span className="text-sm font-semibold">General</span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pl-6 pt-1">
+                          <div className="grid sm:grid-cols-2 gap-1">
+                            {generalItems.map(item => (
+                              <label key={item.id} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                                <Checkbox
+                                  checked={selectedInclusions._general?.has(item.id) || false}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedInclusions(prev => {
+                                      const updated = { ...prev };
+                                      updated._general = new Set(prev._general || []);
+                                      if (checked) updated._general.add(item.id);
+                                      else updated._general.delete(item.id);
+                                      return updated;
+                                    });
+                                  }}
+                                />
+                                <span className="text-sm">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  })()}
+                  {/* Per-scope inclusions */}
+                  {selectedScopesArray.map(scopeId => {
+                    const scopeDef = SCOPE_REGISTRY[scopeId];
+                    if (!scopeDef) return null;
+                    const scopeItems = DEFAULT_INCLUSIONS.filter(item =>
+                      item.relevantModules && item.relevantModules.length > 0 &&
+                      item.relevantModules.some(m => scopeDef.moduleIds.includes(m))
+                    );
+                    if (scopeItems.length === 0) return null;
+                    const selectedCount = scopeItems.filter(item => selectedInclusions[scopeId]?.has(item.id)).length;
+                    return (
+                      <Collapsible key={scopeId} defaultOpen>
+                        <CollapsibleTrigger className="group flex items-center gap-2 w-full text-left py-1.5 px-2 rounded hover:bg-muted/50">
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                          <span className="text-sm font-semibold">{getScopeLabel(scopeId)}</span>
+                          <Badge variant="secondary" className="text-xs ml-auto">{selectedCount}/{scopeItems.length}</Badge>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pl-6 pt-1">
+                          <div className="grid sm:grid-cols-2 gap-1">
+                            {scopeItems.map(item => (
+                              <label key={item.id} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                                <Checkbox
+                                  checked={selectedInclusions[scopeId]?.has(item.id) || false}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedInclusions(prev => {
+                                      const updated = { ...prev };
+                                      updated[scopeId] = new Set(prev[scopeId] || []);
+                                      if (checked) updated[scopeId].add(item.id);
+                                      else updated[scopeId].delete(item.id);
+                                      return updated;
+                                    });
+                                  }}
+                                />
+                                <span className="text-sm">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  })}
+                  {selectedScopesArray.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-2">Select scopes first to see relevant inclusions.</p>
+                  )}
                 </CardContent>
               </Card>
 
@@ -2451,27 +2573,85 @@ const {
                     What's Excluded
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid sm:grid-cols-2 gap-2">
-                     {visibleExclusions.length === 0 ? (
-                       <p className="text-sm text-muted-foreground col-span-2 py-2">
-                         No standard exclusions apply to this scope.
-                       </p>
-                     ) : visibleExclusions.map((item) => (
-                      <label key={item.id} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-muted/50">
-                        <Checkbox
-                          checked={selectedExclusions.has(item.id)}
-                          onCheckedChange={(checked) => {
-                            const newSet = new Set(selectedExclusions);
-                            if (checked) newSet.add(item.id);
-                            else newSet.delete(item.id);
-                            setSelectedExclusions(newSet);
-                          }}
-                        />
-                        <span className="text-sm">{item.label}</span>
-                      </label>
-                    ))}
-                  </div>
+                <CardContent className="space-y-1">
+                  {/* General exclusions */}
+                  {(() => {
+                    const generalItems = DEFAULT_EXCLUSIONS.filter(i => !i.relevantModules || i.relevantModules.length === 0);
+                    if (generalItems.length === 0) return null;
+                    return (
+                      <Collapsible defaultOpen>
+                        <CollapsibleTrigger className="group flex items-center gap-2 w-full text-left py-1.5 px-2 rounded hover:bg-muted/50">
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                          <span className="text-sm font-semibold">General</span>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pl-6 pt-1">
+                          <div className="grid sm:grid-cols-2 gap-1">
+                            {generalItems.map(item => (
+                              <label key={item.id} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                                <Checkbox
+                                  checked={selectedExclusions._general?.has(item.id) || false}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedExclusions(prev => {
+                                      const updated = { ...prev };
+                                      updated._general = new Set(prev._general || []);
+                                      if (checked) updated._general.add(item.id);
+                                      else updated._general.delete(item.id);
+                                      return updated;
+                                    });
+                                  }}
+                                />
+                                <span className="text-sm">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  })()}
+                  {/* Per-scope exclusions */}
+                  {selectedScopesArray.map(scopeId => {
+                    const scopeDef = SCOPE_REGISTRY[scopeId];
+                    if (!scopeDef) return null;
+                    const scopeItems = DEFAULT_EXCLUSIONS.filter(item =>
+                      item.relevantModules && item.relevantModules.length > 0 &&
+                      item.relevantModules.some(m => scopeDef.moduleIds.includes(m))
+                    );
+                    if (scopeItems.length === 0) return null;
+                    const selectedCount = scopeItems.filter(item => selectedExclusions[scopeId]?.has(item.id)).length;
+                    return (
+                      <Collapsible key={scopeId} defaultOpen>
+                        <CollapsibleTrigger className="group flex items-center gap-2 w-full text-left py-1.5 px-2 rounded hover:bg-muted/50">
+                          <ChevronRight className="w-3.5 h-3.5 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
+                          <span className="text-sm font-semibold">{getScopeLabel(scopeId)}</span>
+                          <Badge variant="secondary" className="text-xs ml-auto">{selectedCount}/{scopeItems.length}</Badge>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="pl-6 pt-1">
+                          <div className="grid sm:grid-cols-2 gap-1">
+                            {scopeItems.map(item => (
+                              <label key={item.id} className="flex items-center gap-2 cursor-pointer p-1.5 rounded hover:bg-muted/50">
+                                <Checkbox
+                                  checked={selectedExclusions[scopeId]?.has(item.id) || false}
+                                  onCheckedChange={(checked) => {
+                                    setSelectedExclusions(prev => {
+                                      const updated = { ...prev };
+                                      updated[scopeId] = new Set(prev[scopeId] || []);
+                                      if (checked) updated[scopeId].add(item.id);
+                                      else updated[scopeId].delete(item.id);
+                                      return updated;
+                                    });
+                                  }}
+                                />
+                                <span className="text-sm">{item.label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
+                    );
+                  })}
+                  {selectedScopesArray.length === 0 && (
+                    <p className="text-sm text-muted-foreground py-2">Select scopes first to see relevant exclusions.</p>
+                  )}
                 </CardContent>
               </Card>
 
