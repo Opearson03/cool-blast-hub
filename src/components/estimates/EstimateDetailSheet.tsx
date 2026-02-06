@@ -601,8 +601,24 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
         </DialogHeader>
 
         <div className="space-y-6 no-print">
-          {/* Accept & Create Job - only show for non-accepted quotes */}
-          {onConvertToJob && estimate.status !== "accepted" && (
+          {/* For draft estimates - show Start/Edit Estimate button */}
+          {onEdit && estimate.status === "draft" && (
+            <Button 
+              onClick={() => {
+                onEdit(estimate);
+                onOpenChange(false);
+              }} 
+              className="w-full gap-2 h-12 bg-primary hover:bg-primary/90"
+            >
+              <Pencil className="w-4 h-4" />
+              {(estimate.total_amount && estimate.total_amount > 0) || (estimate.scope_data && Object.keys(estimate.scope_data).length > 0) 
+                ? "Edit Estimate" 
+                : "Start Estimate"}
+            </Button>
+          )}
+
+          {/* Accept & Create Job - only show for sent/pending quotes */}
+          {onConvertToJob && ["pending", "sent"].includes(estimate.status) && (
             <Button 
               onClick={() => {
                 onConvertToJob(estimate);

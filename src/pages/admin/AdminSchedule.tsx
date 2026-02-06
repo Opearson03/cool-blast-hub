@@ -19,6 +19,7 @@ import { AddToScheduleMenu } from "@/components/schedule/AddToScheduleMenu";
 import { SchedulePourDialog } from "@/components/schedule/SchedulePourDialog";
 import { ScheduleSubbieDialog } from "@/components/schedule/ScheduleSubbieDialog";
 import { SubbieRescheduleDialog } from "@/components/schedule/SubbieRescheduleDialog";
+import { SiteVisitRescheduleDialog } from "@/components/schedule/SiteVisitRescheduleDialog";
 import { SubTradeInvite } from "@/hooks/useSubTradeInvites";
 import { 
   format, 
@@ -123,6 +124,15 @@ export default function AdminSchedule() {
     oldDate: string;
     newDate: string;
     invites: SubTradeInvite[];
+  } | null>(null);
+  const [estimateRescheduleDialogOpen, setEstimateRescheduleDialogOpen] = useState(false);
+  const [pendingEstimateReschedule, setPendingEstimateReschedule] = useState<{
+    estimateId: string;
+    estimate: ScheduleEstimate;
+    field: "site_visit_date" | "follow_up_date";
+    oldDate: string;
+    newDate: string;
+    clientEmail: string | null;
   } | null>(null);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const { toast } = useToast();
@@ -416,7 +426,27 @@ export default function AdminSchedule() {
           const data = active.data.current as { estimate: ScheduleEstimate; eventType: EstimateEventType } | undefined;
           if (data) {
             const field = data.eventType === "site_visit" ? "site_visit_date" : "follow_up_date";
-            updateEstimateDate.mutate({ estimateId: data.estimate.id, field, newDate });
+            const oldDate = data.eventType === "site_visit" 
+              ? data.estimate.site_visit_date 
+              : data.estimate.follow_up_date;
+            
+            // Fetch client email for the estimate
+            const { data: estimateDetails } = await supabase
+              .from("estimates")
+              .select("client_email")
+              .eq("id", data.estimate.id)
+              .single();
+            
+            // Show reschedule dialog
+            setPendingEstimateReschedule({
+              estimateId: data.estimate.id,
+              estimate: data.estimate,
+              field,
+              oldDate: oldDate || "",
+              newDate,
+              clientEmail: estimateDetails?.client_email || null,
+            });
+            setEstimateRescheduleDialogOpen(true);
           }
         } else {
           // It's a pour - check for existing invites
@@ -563,7 +593,97 @@ export default function AdminSchedule() {
     setEstimateSheetOpen(true);
   };
 
+  const handleEditEstimate = (estimate: { id: string }) => {
+    // Navigate to estimates page with the estimate ID to open it for editing
+    navigate(`/admin/estimates?edit=${estimate.id}`);
+  };
+
+  const handleEstimateRescheduleConfirm = async (sendEmail: boolean) => {
+    if (!pendingEstimateReschedule) return;
+
+    const { estimateId, field, newDate, clientEmail, estimate } = pendingEstimateReschedule;
+
+    // Update the estimate date
+    const { error: updateError } = await supabase
+      .from("estimates")
+      .update({ [field]: newDate })
+      .eq("id", estimateId);
+
+    if (updateError) {
+      toast({ title: "Failed to update date", variant: "destructive" });
+      setPendingEstimateReschedule(null);
+      return;
+    }
+
+    // Send email notification if requested and client has email
+    if (sendEmail && clientEmail) {
+      try {
+        // Fetch business details for email
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("business_id")
+            .eq("id", user.id)
+            .single();
+
+          if (profile?.business_id) {
+            const { data: business } = await supabase
+              .from("businesses")
+              .select("name, phone, email, inbound_email_alias")
+              .eq("id", profile.business_id)
+              .single();
+
+            await supabase.functions.invoke("send-site-visit-email", {
+              body: {
+                clientEmail,
+                clientName: estimate.client_name,
+                siteAddress: estimate.site_address,
+                visitDate: newDate,
+                businessName: business?.name || "PourHub",
+                businessPhone: business?.phone || null,
+                businessEmail: business?.email || null,
+                businessEmailAlias: business?.inbound_email_alias || null,
+                isFollowUp: field === "follow_up_date",
+              },
+            });
+
+            toast({
+              title: field === "site_visit_date" ? "Site visit rescheduled" : "Follow-up rescheduled",
+              description: `Client notified at ${clientEmail}`,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Failed to send notification:", err);
+        toast({
+          title: "Rescheduled",
+          description: "Date updated but email notification failed",
+          variant: "destructive",
+        });
+      }
+    } else {
+      toast({
+        title: field === "site_visit_date" ? "Site visit moved" : "Follow-up moved",
+      });
+    }
+
+    queryClient.invalidateQueries({ queryKey: ["schedule-estimates"] });
+    setPendingEstimateReschedule(null);
+  };
+
+  const handleEstimateRescheduleCancel = () => {
+    setPendingEstimateReschedule(null);
+  };
+
   const handleConvertToJob = (estimate: FullEstimate) => {
+    // Only allow conversion for sent/pending estimates, not drafts
+    if (estimate.status === "draft") {
+      // For drafts, navigate to edit instead
+      handleEditEstimate(estimate);
+      return;
+    }
+    
     // Parse structured data from estimate scope_data
     let estimatedM3 = "";
     let mpaStrength = "";
@@ -815,7 +935,8 @@ export default function AdminSchedule() {
         estimate={selectedEstimate}
         open={estimateSheetOpen}
         onOpenChange={setEstimateSheetOpen}
-        onConvertToJob={handleConvertToJob}
+        onConvertToJob={selectedEstimate?.status !== "draft" ? handleConvertToJob : undefined}
+        onEdit={handleEditEstimate}
       />
 
       {/* Quick Site Visit Dialog */}
@@ -847,6 +968,21 @@ export default function AdminSchedule() {
           invites={pendingReschedule.invites}
           onConfirm={handleRescheduleConfirm}
           onCancel={handleRescheduleCancel}
+        />
+      )}
+
+      {/* Site Visit Reschedule Dialog */}
+      {pendingEstimateReschedule && (
+        <SiteVisitRescheduleDialog
+          open={estimateRescheduleDialogOpen}
+          onOpenChange={setEstimateRescheduleDialogOpen}
+          clientName={pendingEstimateReschedule.estimate.client_name}
+          clientEmail={pendingEstimateReschedule.clientEmail}
+          oldDate={pendingEstimateReschedule.oldDate}
+          newDate={pendingEstimateReschedule.newDate}
+          eventType={pendingEstimateReschedule.field === "site_visit_date" ? "site_visit" : "follow_up"}
+          onConfirm={handleEstimateRescheduleConfirm}
+          onCancel={handleEstimateRescheduleCancel}
         />
       )}
     </AdminLayout>
