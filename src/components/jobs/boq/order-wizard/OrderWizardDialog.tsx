@@ -513,14 +513,6 @@ export function OrderWizardDialog({
                   notes={notes}
                   onNotesChange={setNotes}
                   isQuote={orderType === "quote"}
-                  // Plans for RFQ
-                  jobId={jobId}
-                  includePlans={includePlans}
-                  onIncludePlansChange={setIncludePlans}
-                  selectedPlanIds={selectedPlanIds}
-                  onSelectedPlanIdsChange={setSelectedPlanIds}
-                  jobPlans={jobPlans}
-                  onPlansUploaded={refetchPlans}
                 />
               )}
 
@@ -540,8 +532,13 @@ export function OrderWizardDialog({
                   notes={notes}
                   validationErrors={validationErrors}
                   // Plan attachments
+                  jobId={jobId}
                   includePlans={includePlans}
-                  selectedPlanCount={selectedPlanIds.length}
+                  onIncludePlansChange={setIncludePlans}
+                  selectedPlanIds={selectedPlanIds}
+                  onSelectedPlanIdsChange={setSelectedPlanIds}
+                  jobPlans={jobPlans}
+                  onPlansUploaded={refetchPlans}
                 />
               )}
             </div>

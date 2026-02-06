@@ -1,10 +1,17 @@
+import { useState, useRef } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Mail, Package, MapPin, CalendarIcon, User, AlertCircle, Paperclip } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Mail, Package, MapPin, CalendarIcon, User, AlertCircle, FileText, Upload, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { BOQItem } from "../BOQTypes";
-import { OrderType, SupplierContact, SiteContactOption } from "./types";
+import { OrderType, SupplierContact, SiteContactOption, JobPlan } from "./types";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ReviewStepProps {
   orderType: OrderType;
@@ -24,8 +31,13 @@ interface ReviewStepProps {
   // Validation
   validationErrors: string[];
   // Plan attachments
+  jobId?: string;
   includePlans?: boolean;
-  selectedPlanCount?: number;
+  onIncludePlansChange?: (include: boolean) => void;
+  selectedPlanIds?: string[];
+  onSelectedPlanIdsChange?: (ids: string[]) => void;
+  jobPlans?: JobPlan[];
+  onPlansUploaded?: () => void;
 }
 
 export function ReviewStep({
@@ -42,9 +54,17 @@ export function ReviewStep({
   manualSiteContact,
   notes,
   validationErrors,
+  jobId,
   includePlans = false,
-  selectedPlanCount = 0,
+  onIncludePlansChange,
+  selectedPlanIds = [],
+  onSelectedPlanIdsChange,
+  jobPlans = [],
+  onPlansUploaded,
 }: ReviewStepProps) {
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
   const isQuote = orderType === "quote";
   const selectedSuppliers = suppliers.filter(s => selectedSupplierIds.includes(s.id));
   const singleSupplier = suppliers.find(s => s.id === supplierId);
@@ -65,6 +85,82 @@ export function ReviewStep({
       return selectedSiteContact.name;
     }
     return manualSiteContact.name || "Not specified";
+  };
+
+  const handlePlanToggle = (planId: string, checked: boolean) => {
+    if (!onSelectedPlanIdsChange) return;
+    if (checked) {
+      onSelectedPlanIdsChange([...selectedPlanIds, planId]);
+    } else {
+      onSelectedPlanIdsChange(selectedPlanIds.filter(id => id !== planId));
+    }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0 || !jobId) return;
+
+    setIsUploading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile?.business_id) throw new Error("No business found");
+
+      for (const file of Array.from(files)) {
+        const fileExt = file.name.split('.').pop();
+        const filePath = `${profile.business_id}/${jobId}/${crypto.randomUUID()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("documents")
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from("documents")
+          .getPublicUrl(filePath);
+
+        const { error: docError } = await supabase
+          .from("documents")
+          .insert({
+            business_id: profile.business_id,
+            category: "job",
+            reference_id: jobId,
+            file_name: file.name,
+            file_url: publicUrl,
+            file_type: file.type || null,
+            uploaded_by: user.id,
+          });
+
+        if (docError) throw docError;
+      }
+
+      toast({
+        title: "Plans uploaded",
+        description: `${files.length} file(s) uploaded successfully`,
+      });
+
+      onPlansUploaded?.();
+    } catch (error) {
+      console.error("Upload error:", error);
+      toast({
+        title: "Upload failed",
+        description: error instanceof Error ? error.message : "Failed to upload files",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   return (
@@ -180,12 +276,85 @@ export function ReviewStep({
         </CardContent>
       </Card>
 
-      {/* Plan Attachments - only for quotes with plans */}
-      {isQuote && includePlans && selectedPlanCount > 0 && (
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Paperclip className="w-4 h-4" />
-          <span>{selectedPlanCount} building plan{selectedPlanCount > 1 ? 's' : ''} will be attached</span>
-        </div>
+      {/* Building Plans - Only for Quote Requests */}
+      {isQuote && onIncludePlansChange && (
+        <Card>
+          <CardContent className="p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <Label className="flex items-center gap-1.5">
+                <FileText className="w-4 h-4" />
+                Include building plans
+              </Label>
+              <Switch
+                checked={includePlans}
+                onCheckedChange={onIncludePlansChange}
+              />
+            </div>
+
+            {includePlans && (
+              <div className="space-y-3 pt-2">
+                <p className="text-sm text-muted-foreground">
+                  Some items require suppliers to see the plans for accurate pricing.
+                </p>
+
+                {jobPlans.length > 0 ? (
+                  <div className="space-y-2">
+                    {jobPlans.map((plan) => (
+                      <div
+                        key={plan.id}
+                        className="flex items-center gap-2 p-2 rounded border bg-muted/30"
+                      >
+                        <Checkbox
+                          id={`plan-${plan.id}`}
+                          checked={selectedPlanIds.includes(plan.id)}
+                          onCheckedChange={(checked) =>
+                            handlePlanToggle(plan.id, checked === true)
+                          }
+                        />
+                        <label
+                          htmlFor={`plan-${plan.id}`}
+                          className="flex-1 text-sm truncate cursor-pointer"
+                        >
+                          {plan.file_name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground italic">
+                    No plans uploaded yet for this job.
+                  </p>
+                )}
+
+                {/* Upload button */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.png,.jpg,.jpeg"
+                    multiple
+                    className="hidden"
+                    onChange={handleFileUpload}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    {isUploading ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Upload className="w-4 h-4 mr-2" />
+                    )}
+                    {isUploading ? "Uploading..." : "Upload plan"}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Send Method - Email only */}
