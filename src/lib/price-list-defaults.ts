@@ -56,6 +56,7 @@ export const DEFAULT_PRICE_LIST: PriceListItem[] = [
   { category: 'excavation', item_code: 'AUGER DRIVE', item_name: 'Additional Cost For Auger Driver', unit: '/day', default_price: 100 },
   { category: 'excavation', item_code: 'AUGER HIRE', item_name: 'Additonal Charge Auger Hire', unit: '/day', default_price: 100 },
   { category: 'excavation', item_code: 'POSI TRACK', item_name: 'Posi Track With Operator', unit: '/h', default_price: 150 },
+  { category: 'excavation', item_code: 'EXC_M3', item_name: 'Excavation Rate per m³', unit: '/m³', default_price: 60 },
   { category: 'excavation', item_code: 'SPOTTER', item_name: 'Labour Charge Excavation Spotter', unit: '/h', default_price: 75 },
 
   // Concrete Supply
