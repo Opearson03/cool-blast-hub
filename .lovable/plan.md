@@ -1,40 +1,44 @@
 
 
-# Fix: Quote Page 2 Header Falling Off Top of Page
+# Fix: Quote Valid Date Not Showing in Top Section
 
 ## Problem
 
-The second page header on the quote PDF is being cut off (falling off the top of the page). This affects the live preview on the Settings page and any generated/emailed PDFs.
+The quote "Valid Until" date shows correctly at the bottom of the quote (Page 2 payment terms says "This quote is valid for 14 days from the date of issue") but shows "-" in the top section of both Classic and Simple templates.
 
 ## Root Cause
 
-The hidden render container used for PDF generation has this CSS:
+Two separate fields exist:
+- `quote_validity_days` (e.g. 14) -- set by the user in the Payment Terms section of the estimate form
+- `valid_until` (an actual date) -- never auto-calculated from `quote_validity_days`
 
-```
-position: fixed;
-top: 0;
-overflow: hidden;  <-- THIS IS THE PROBLEM
-```
+The top section displays `valid_until` (which is null), while the bottom section uses `quote_validity_days` (which has a value). They are never connected.
 
-Page 1 has a minimum height of 277mm. Page 2 content renders below it. But the container is `position: fixed` with `overflow: hidden` and no explicit height. Some browsers limit a fixed-position element's effective height to the viewport when `overflow: hidden` is set.
+## Solution
 
-This means the Page 2 section (starting at ~277mm from top) is partially or fully clipped before `html2canvas` can capture it. The header accent bar and content get cut off in the resulting capture.
+**Auto-calculate `valid_until` from `quote_validity_days` when saving the estimate.** This ensures the actual date is always populated when the user sets a validity period.
 
-## Fix
-
-Two changes in **`src/lib/generate-quote-pdf.ts`**:
-
-1. Change `overflow: hidden` to `overflow: visible` on the render container -- allows all content to exist fully in the DOM regardless of viewport size
-2. Add a small top padding to the Page 2 section wrapper in **`src/components/estimates/PrintableEstimate.tsx`** to prevent the thin 4px accent bar from being clipped by any sub-pixel rounding during capture
+Additionally, add a fallback in the PrintableEstimate so that if `valid_until` is still null (e.g. for older estimates), it computes the date from `created_at + quote_validity_days`.
 
 ## Technical Details
 
-### File 1: `src/lib/generate-quote-pdf.ts`
+### File 1: `src/components/estimates/EstimateFormDialog.tsx`
 
-Change line 104 in the render container CSS from `overflow: hidden` to `overflow: visible`. This ensures the full content (Page 1 + Page 2) is rendered without clipping, regardless of viewport size.
+In the save function (around line 1365), replace:
+```
+valid_until: formData.valid_until || null,
+```
+with logic that auto-computes valid_until from `created_at + quoteValidityDays` if the user hasn't manually entered a date. This covers all new and edited estimates going forward.
 
 ### File 2: `src/components/estimates/PrintableEstimate.tsx`
 
-Add a small `pt-1` (4px) top padding to the `page-2` wrapper div (line 647) so the accent bar has breathing room and isn't vulnerable to sub-pixel clipping during html2canvas capture. This applies to both Classic and Simple templates since they share the same `TermsAndExclusionsPage` component.
+Add a computed `validUntilDate` near the top of the render function (around line 727) that falls back to `created_at + quote_validity_days` when `valid_until` is null. Then use this computed date in both templates:
 
-Both changes are minimal (one CSS property, one Tailwind class) and don't affect the visual design of the quote.
+- **Simple template** (line 850): Use the computed date instead of raw `estimate.valid_until`
+- **Classic template** (line 1129): Use the computed date instead of raw `estimate.valid_until`
+
+This ensures older estimates without a stored `valid_until` still display the correct date based on `quote_validity_days`.
+
+### No database changes needed
+
+The `valid_until` column already exists and accepts date strings. This is purely a front-end logic fix.
