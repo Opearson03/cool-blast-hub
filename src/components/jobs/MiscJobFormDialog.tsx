@@ -307,36 +307,50 @@ export function MiscJobFormDialog({ open, onOpenChange }: MiscJobFormDialogProps
 
                 {/* Search Past Subbies */}
                 {!showAddNew && (
-                  <Command className="border rounded-md">
-                    <CommandInput placeholder="Search past sub-contractors..." />
-                    <CommandList className="max-h-32">
-                      <CommandEmpty>
-                        <span className="text-muted-foreground text-sm">No sub-contractors found</span>
-                      </CommandEmpty>
-                      <CommandGroup>
-                        {pastSubbies.map((subbie, index) => {
-                          const isSelected = selectedSubbies.some(
-                            (s) => s.recipient_name === subbie.recipient_name && s.role === subbie.role
-                          );
-                          return (
-                            <CommandItem
-                              key={index}
-                              onSelect={() => handleSelectSubbie(subbie)}
-                              disabled={isSelected}
-                              className={cn(isSelected && "opacity-50")}
-                            >
-                              <div className="flex flex-col">
-                                <span className="font-medium">{subbie.recipient_name}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {subbie.role} {subbie.recipient_phone && `• ${subbie.recipient_phone}`}
-                                </span>
-                              </div>
-                            </CommandItem>
-                          );
-                        })}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full justify-start text-muted-foreground font-normal"
+                      >
+                        <Search className="h-4 w-4 mr-2" />
+                        Search past sub-contractors...
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search past sub-contractors..." />
+                        <CommandList className="max-h-48">
+                          <CommandEmpty>
+                            <span className="text-muted-foreground text-sm">No sub-contractors found</span>
+                          </CommandEmpty>
+                          <CommandGroup>
+                            {pastSubbies.map((subbie, index) => {
+                              const isSelected = selectedSubbies.some(
+                                (s) => s.recipient_name === subbie.recipient_name && s.role === subbie.role
+                              );
+                              return (
+                                <CommandItem
+                                  key={index}
+                                  onSelect={() => handleSelectSubbie(subbie)}
+                                  disabled={isSelected}
+                                  className={cn(isSelected && "opacity-50")}
+                                >
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{subbie.recipient_name}</span>
+                                    <span className="text-xs text-muted-foreground">
+                                      {subbie.role} {subbie.recipient_phone && `• ${subbie.recipient_phone}`}
+                                    </span>
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 )}
 
                 {/* Add New Subbie Form */}
