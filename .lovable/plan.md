@@ -1,40 +1,36 @@
 
-# Fix: Concrete Total Quantities Not Showing for Slab on Ground and Raft Slab
+
+# Remove Pod Rails from Formwork Module
 
 ## Problem
 
-The concrete volume for Slab on Ground and Raft Slab scopes is never displayed on the quote PDF because the extraction functions look for volume in fields that don't exist in the saved data.
-
-## Root Cause
-
-The concrete volume is calculated on-the-fly by the estimator (`ModularCalculator`) but is never stored directly in `scopeAnswers`. Instead, it gets saved in `moduleAnswers['concrete-supply'].calculated_volume`. However, the PDF data extraction functions (`extractProjectSummary` and `extractScopeBreakdowns` in `quote-pdf-data.ts`) only look for volume in three places that are never populated:
-
-- `scopeAnswers.concreteVolume` -- never set
-- `scopeAnswers.total_volume` -- never set
-- `scopeAnswers.volume` -- never set
-
-As confirmed by the database, these fields are always null for slab scopes, while `moduleAnswers['concrete-supply'].calculated_volume` correctly stores the value (e.g., 19.72 m3 for a raft slab, 38.67 m3 for a slab on ground).
-
-Additionally, the area calculation for takeoff-based scopes uses `length x width` instead of the more accurate `_actualArea` value from plan takeoff.
+Pod rails are being priced **twice** in waffle pod estimates:
+1. In the **Pods module** (`pods.ts`) -- where they belong, with proper toggle controls and depth-based logic
+2. In the **Formwork module** (`formwork.ts`) -- where they don't belong, duplicating the cost
 
 ## Fix
 
-Update `src/lib/quote-pdf-data.ts` in two functions to read volume from where it's actually stored, and use accurate takeoff areas.
+Remove the pod rails block from `src/lib/estimate-components/modules/formwork.ts` (lines 119-137). The pods, spacers, and supply-related items remain in formwork as they are gated by the "supplied by concreter" toggle, but pod rails are already fully handled in the Pods module with better logic (toggle, price override, per-zone aggregation).
 
-### Changes to `extractProjectSummary` (lines 209-226)
+## Technical Details
 
-1. After the existing volume checks (lines 210-218), add a fallback to `moduleAnswers['concrete-supply'].calculated_volume`
-2. Update the area calculation (lines 221-226) to prefer `_actualArea` from takeoff data before falling back to `length x width`
+### File: `src/lib/estimate-components/modules/formwork.ts`
 
-### Changes to `extractScopeBreakdowns` (lines 381-401)
+Remove lines 118-137 (the pod rails section inside the waffle pod block):
 
-1. Line 381: Add `moduleAnswers['concrete-supply']?.calculated_volume` as a fallback for the volume extraction
-2. Lines 393-400: Update individual area extraction to use `_actualArea` when available, and fix the filter to include areas that have `_actualArea` (not just `length x width`)
+```
+// Pod Rails (always included if required, regardless of supply question)
+const podRailsRequired = scopeData?.pod_rails_required === true;
+const podRailPacks = Number(scopeData?.pod_rail_packs) || 0;
 
-### Concrete strength extraction
+if (podRailsRequired && podRailPacks > 0) {
+  ...
+}
+```
 
-Also add `moduleAnswers['concrete-supply']?.concrete_type` as a fallback for concrete strength extraction (line 404-407), since the concrete type is stored in the module answers, not in scope answers.
+The closing brace for the `isWafflePod` block stays. No other changes needed -- the Pods module already handles pod rails with:
+- A user toggle (`include_pod_rails`)
+- An editable price field (`pod_rail_price`)
+- Per-zone aggregation for multi-zone waffle slabs
+- Proper exclusion text when toggled off
 
-### No database changes needed
-
-All the correct data is already stored in the database. This is purely a read-side fix in the PDF data extraction logic.
