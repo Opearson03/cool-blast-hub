@@ -1,139 +1,112 @@
 
-# Plan: Fix Site Visit Rescheduling Flow
+# Plan: Attach Building Plans to Quote Requests
 
-## Problems Identified
+## Overview
+Add the ability to include building plans when sending a Quote Request (RFQ) to suppliers. This is essential for items like waffle pods, reo cages, and fabricated steel where suppliers need to see the plans to provide accurate pricing.
 
-1. **No email notification on reschedule**: When dragging a site visit to a new date on the schedule calendar, the date is updated but no confirmation email is sent to the client with the new details.
+## Current State
+- Jobs can have building plans stored in two places:
+  1. **documents table** (category: "job") - Plans copied from estimates when job is created
+  2. **estimate_takeoffs + takeoff_files** - Original plans linked to the source estimate
+- The Order Wizard supports Quote Requests (RFQ) and Purchase Orders (PO)
+- Email sending is handled by the `send-purchase-order` edge function
+- Resend API is used for sending emails and supports attachments
 
-2. **Wrong action button shown**: The EstimateDetailSheet shows "Accept & Create Job" for site visits, but for draft estimates (which is what site visits are), the appropriate action is "Start/Edit Estimate" to continue building the quote.
+## User Experience
 
-3. **Missing Edit functionality**: The AdminSchedule page doesn't pass the `onEdit` prop to EstimateDetailSheet, so there's no way to start/continue the estimate from the schedule.
+### Flow
+1. User selects "Request Quote" in the BOQ Order Wizard
+2. User proceeds through Type → Items → Supplier → Delivery steps
+3. **NEW**: In the Delivery step (or a new step), a toggle appears:
+   - "Include building plans for supplier to quote from"
+4. If toggled ON:
+   - If job has plans attached: Show the list of available plans with checkboxes
+   - If no plans exist: Show an upload area to add plans now
+5. Selected plans are sent as email attachments with the RFQ
+
+### UI Mockup (Delivery Step Addition)
+```
+┌──────────────────────────────────────────┐
+│ ☐ Include building plans                 │
+│                                          │
+│   Some items require suppliers to see    │
+│   the plans for accurate pricing.        │
+│                                          │
+│   ┌──────────────────────────────────┐   │
+│   │ ☑ Floor Plan - Page 1.pdf        │   │
+│   │ ☑ Foundation Plan.pdf            │   │
+│   │ ☐ Elevation Drawing.pdf          │   │
+│   └──────────────────────────────────┘   │
+│                                          │
+│   [+ Upload additional plan]             │
+└──────────────────────────────────────────┘
+```
 
 ---
 
-## Solution Overview
+## Technical Implementation
 
-### 1. Add Email Notification on Site Visit Reschedule
-When an estimate is dragged to a new date on the schedule, show a confirmation dialog (similar to pour reschedule) asking if the user wants to notify the client of the change.
+### 1. Update Types
+**File: `src/components/jobs/boq/order-wizard/types.ts`**
 
-### 2. Replace "Convert to Job" with "Start/Edit Estimate"
-For draft estimates (site visits), show "Start Estimate" or "Edit Estimate" instead of "Accept & Create Job". This navigates to the estimates page and opens the estimate form.
-
-### 3. Pass `onEdit` handler from AdminSchedule
-Enable the edit functionality in the schedule's estimate sheet.
-
----
-
-## Technical Changes
-
-### File: `src/pages/admin/AdminSchedule.tsx`
-
-**Add state for reschedule confirmation dialog:**
+Add new state fields:
 ```typescript
-const [pendingEstimateReschedule, setPendingEstimateReschedule] = useState<{
-  estimateId: string;
-  estimate: ScheduleEstimate;
-  field: "site_visit_date" | "follow_up_date";
-  newDate: string;
-} | null>(null);
-const [estimateRescheduleDialogOpen, setEstimateRescheduleDialogOpen] = useState(false);
-```
+export interface OrderWizardData {
+  // ... existing fields
+  includePlans: boolean;
+  selectedPlanIds: string[];
+}
 
-**Modify `handleDragEnd` for estimates:**
-Instead of immediately updating, check if client has email and show confirmation dialog offering to send updated details.
-
-**Add `handleEditEstimate` function:**
-Navigate to estimates page with the estimate ID to open it for editing.
-
-**Pass `onEdit` prop to EstimateDetailSheet:**
-```tsx
-<EstimateDetailSheet
-  estimate={selectedEstimate}
-  open={estimateSheetOpen}
-  onOpenChange={setEstimateSheetOpen}
-  onEdit={handleEditEstimate}  // Add this
-/>
-```
-
-**Remove `onConvertToJob` for draft estimates:**
-Don't pass `onConvertToJob` or make the button conditional based on estimate completeness.
-
----
-
-### File: `src/components/estimates/EstimateDetailSheet.tsx`
-
-**Update the action button logic:**
-- For draft estimates: Show "Start Estimate" or "Edit Estimate" button that triggers `onEdit`
-- For sent/pending estimates: Show "Accept & Create Job" (existing behavior)
-
-**Current logic (line ~605):**
-```tsx
-{onConvertToJob && estimate.status !== "accepted" && (
-  <Button onClick={() => onConvertToJob(estimate)} ...>
-    Accept & Create Job
-  </Button>
-)}
-```
-
-**New logic:**
-```tsx
-{/* For draft estimates - show Edit/Start Estimate */}
-{onEdit && estimate.status === "draft" && (
-  <Button onClick={() => { onEdit(estimate); onOpenChange(false); }} ...>
-    <Pencil className="w-4 h-4" />
-    {hasSubstantialContent ? "Edit Estimate" : "Start Estimate"}
-  </Button>
-)}
-
-{/* For sent/pending estimates - show Accept & Create Job */}
-{onConvertToJob && ["pending", "sent"].includes(estimate.status) && (
-  <Button onClick={() => onConvertToJob(estimate)} ...>
-    Accept & Create Job
-  </Button>
-)}
-```
-
-Where `hasSubstantialContent` checks if `total_amount > 0` or `scope_data` has content.
-
----
-
-### New Component: `src/components/schedule/SiteVisitRescheduleDialog.tsx`
-
-Create a simple dialog for site visit reschedule confirmation:
-
-```tsx
-interface Props {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  clientName: string;
-  clientEmail: string | null;
-  oldDate: string;
-  newDate: string;
-  eventType: "site_visit" | "follow_up";
-  onConfirm: (sendEmail: boolean) => void;
-  onCancel: () => void;
+export interface JobPlan {
+  id: string;
+  file_name: string;
+  file_url: string;
+  file_type: string;
 }
 ```
 
-Dialog offers two options:
-- "Move & Notify Client" - Updates date and sends confirmation email
-- "Move Only" - Updates date without notification
+### 2. Update OrderWizardDialog
+**File: `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx`**
 
----
+- Add state for `includePlans` (boolean, default false) and `selectedPlanIds` (string[])
+- Add query to fetch job's building plans from `documents` table
+- Pass these to DeliveryStep (for RFQ only)
+- Include selected plan URLs in the edge function call when `orderType === "quote"`
+- Add mutation for uploading new plans if needed
 
-## Flow After Changes
+### 3. Update DeliveryStep
+**File: `src/components/jobs/boq/order-wizard/DeliveryStep.tsx`**
 
-1. **User drags site visit to new date**
-2. **Dialog appears**: "Reschedule Site Visit?"
-   - Shows old date → new date
-   - If client has email: Shows "Move & Notify" and "Move Only" buttons
-   - If no email: Just shows "Move" button
-3. **If "Move & Notify"**: Updates date, then calls `send-site-visit-email` edge function with new date
-4. **If "Move Only"**: Just updates the date
+Add a new section (only shown when `isQuote === true`):
+- Switch toggle: "Include building plans"
+- When enabled, show:
+  - List of existing plans with checkboxes
+  - Button to upload additional plans
+- File upload uses the existing `documents` bucket pattern
 
-5. **User clicks on site visit card**
-6. **Sheet opens** with "Start Estimate" button (not "Create Job")
-7. **Clicking "Start Estimate"** navigates to `/admin/estimates?edit={id}` and opens the form
+### 4. Update ReviewStep
+**File: `src/components/jobs/boq/order-wizard/ReviewStep.tsx`**
+
+- Add props for `includePlans` and selected plan count
+- Show "Attachments: X building plan(s)" in the review summary when plans are included
+
+### 5. Update Edge Function
+**File: `supabase/functions/send-purchase-order/index.ts`**
+
+- Accept new `planUrls` array parameter in request body
+- For Quote Requests, download each plan file and attach to the email
+- Resend supports attachments via the `attachments` array:
+```typescript
+await resend.emails.send({
+  // ...existing config
+  attachments: [
+    {
+      filename: 'Building-Plans.pdf',
+      content: base64Content,
+    }
+  ]
+});
+```
 
 ---
 
@@ -141,18 +114,30 @@ Dialog offers two options:
 
 | File | Change |
 |------|--------|
-| `src/pages/admin/AdminSchedule.tsx` | Add reschedule dialog, edit handler, update EstimateDetailSheet props |
-| `src/components/estimates/EstimateDetailSheet.tsx` | Conditional action buttons based on estimate status |
-| `src/components/schedule/SiteVisitRescheduleDialog.tsx` | New dialog component |
+| `src/components/jobs/boq/order-wizard/types.ts` | Add `includePlans`, `selectedPlanIds`, `JobPlan` interface |
+| `src/components/jobs/boq/order-wizard/OrderWizardDialog.tsx` | Add plan state, fetch plans query, upload mutation, pass to steps |
+| `src/components/jobs/boq/order-wizard/DeliveryStep.tsx` | Add "Include building plans" section with toggle, checklist, and upload |
+| `src/components/jobs/boq/order-wizard/ReviewStep.tsx` | Display attachment summary |
+| `supabase/functions/send-purchase-order/index.ts` | Handle plan attachments in RFQ emails |
+
+---
+
+## Edge Cases
+
+1. **No existing plans**: Show upload area with message "No plans uploaded yet - add one now"
+2. **Large files**: Limit total attachment size (Resend has 40MB limit per email)
+3. **Private bucket files**: Generate signed URLs for downloading files in edge function
+4. **Multiple suppliers**: Same plans attached to all supplier emails
 
 ---
 
 ## Testing Checklist
 
-1. Drag a site visit (with client email) to a new date → should show reschedule dialog
-2. Choose "Move & Notify" → date updates, email sent with new date
-3. Choose "Move Only" → date updates, no email
-4. Click on a site visit card → sheet opens
-5. For draft estimate → should show "Start Estimate" button
-6. Click "Start Estimate" → navigates to estimates page with form open
-7. For sent estimate → should show "Accept & Create Job" button
+1. Open BOQ → Order → Request Quote
+2. Proceed to Delivery step
+3. Verify "Include building plans" toggle appears (not for PO)
+4. Toggle ON → see list of existing plans (if any)
+5. Select plans and proceed to Review
+6. Verify Review shows attachment count
+7. Send RFQ → verify email arrives with PDF attachments
+8. Test with no existing plans → upload new plan → verify it's saved and attached
