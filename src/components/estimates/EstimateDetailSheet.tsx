@@ -34,8 +34,10 @@ import {
   Check,
   X,
   UserPen,
+  FileCheck,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { PrintableEstimate } from "./PrintableEstimate";
 import { InternalBreakdownSection } from "./InternalBreakdownSection";
@@ -66,6 +68,8 @@ interface Estimate {
   payment_terms_type?: string | null;
   deposit_percentage?: number | null;
   quote_validity_days?: number | null;
+  signed_at?: string | null;
+  client_signature_name?: string | null;
 }
 
 interface EstimateDetailSheetProps {
@@ -98,6 +102,7 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
   const [isEditingClientDetails, setIsEditingClientDetails] = useState(false);
   const [isPlanViewerOpen, setIsPlanViewerOpen] = useState(false);
   const [activePlanIndex, setActivePlanIndex] = useState(0);
+  const [isSignedPdfViewerOpen, setIsSignedPdfViewerOpen] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -194,6 +199,34 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
       };
     },
     enabled: open && !!estimate?.id,
+  });
+
+  // Fetch signed quote document for accepted estimates
+  const { data: signedDocument, isLoading: isLoadingSignedDoc } = useQuery({
+    queryKey: ["signed-document", estimate?.id],
+    queryFn: async () => {
+      if (!estimate?.id) return null;
+      
+      // First find the job created from this estimate
+      const { data: job } = await supabase
+        .from("jobs")
+        .select("id")
+        .eq("source_estimate_id", estimate.id)
+        .maybeSingle();
+      
+      if (!job) return null;
+      
+      // Then find the signed quote document
+      const { data: doc } = await supabase
+        .from("documents")
+        .select("id, file_name, file_url")
+        .eq("reference_id", job.id)
+        .ilike("file_name", "Signed Quote%")
+        .maybeSingle();
+      
+      return doc;
+    },
+    enabled: open && !!estimate?.id && estimate?.status === "accepted",
   });
 
   const formatCurrency = (amount: number) => {
@@ -699,6 +732,55 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
             </p>
           )}
 
+          {/* Signed Quote Section - only for accepted quotes */}
+          {estimate.status === "accepted" && estimate.signed_at && (
+            <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                  <FileCheck className="w-4 h-4 text-green-600 dark:text-green-400" />
+                </div>
+                <div>
+                  <p className="font-semibold text-green-700 dark:text-green-300">Signed</p>
+                  <p className="text-xs text-green-600 dark:text-green-400">
+                    by {estimate.client_signature_name || "Client"} on {format(new Date(estimate.signed_at), "d MMM yyyy 'at' h:mm a")}
+                  </p>
+                </div>
+              </div>
+              
+              {isLoadingSignedDoc ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading signed document...
+                </div>
+              ) : signedDocument ? (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 flex-1 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900"
+                    onClick={() => setIsSignedPdfViewerOpen(true)}
+                  >
+                    <Eye className="w-4 h-4" />
+                    View Signed PDF
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 flex-1 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-100 dark:hover:bg-green-900"
+                    onClick={() => window.open(signedDocument.file_url, '_blank')}
+                  >
+                    <Download className="w-4 h-4" />
+                    Download
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Signed document not found. The PDF may still be generating.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Client Info */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -965,6 +1047,44 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
                   onClick={() => {
                     if (takeoff?.files?.[activePlanIndex]?.signed_url) {
                       window.open(takeoff.files[activePlanIndex].signed_url, '_blank');
+                    }
+                  }}
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* Signed PDF Viewer Dialog */}
+          <Dialog open={isSignedPdfViewerOpen} onOpenChange={setIsSignedPdfViewerOpen}>
+            <DialogContent className="max-w-4xl w-[95vw] max-h-[90vh] flex flex-col p-0">
+              <DialogHeader className="p-4 pb-2 border-b">
+                <DialogTitle className="flex items-center gap-2">
+                  <FileCheck className="w-5 h-5 text-green-600" />
+                  Signed Quote
+                </DialogTitle>
+              </DialogHeader>
+              <div className="flex-1 overflow-auto p-4 bg-muted/30">
+                {signedDocument?.file_url && (
+                  <iframe
+                    src={signedDocument.file_url}
+                    className="w-full h-[70vh] rounded-lg border"
+                    title="Signed Quote Document"
+                  />
+                )}
+              </div>
+              <div className="p-4 pt-2 border-t flex justify-between items-center">
+                <p className="text-sm text-muted-foreground">
+                  {signedDocument?.file_name || 'Signed Quote'}
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    if (signedDocument?.file_url) {
+                      window.open(signedDocument.file_url, '_blank');
                     }
                   }}
                 >
