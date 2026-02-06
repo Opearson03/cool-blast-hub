@@ -1762,12 +1762,16 @@ function DemolitionModuleSection({
               // Excavator hire props
               excavatorRequired={answers.excavator_required || false}
               onExcavatorRequiredChange={(val) => onAnswerChange('excavator_required', val)}
+              excavatorPricingMethod={answers.excavator_pricing_method || 'hourly'}
+              onExcavatorPricingMethodChange={(method) => onAnswerChange('excavator_pricing_method', method)}
               excavatorType={answers.excavator_type || 'EXC 3.2T'}
               onExcavatorTypeChange={(type) => onAnswerChange('excavator_type', type)}
               excavatorRate={answers.excavator_rate || getPrice('excavation', answers.excavator_type || 'EXC 3.2T', 150)}
               onExcavatorRateChange={(rate) => onAnswerChange('excavator_rate', rate)}
               excavatorHours={answers.excavator_hours || 4}
               onExcavatorHoursChange={(hours) => onAnswerChange('excavator_hours', hours)}
+              excavatorM3Rate={answers.excavator_m3_rate || getPrice('excavation', 'EXC_M3', 60)}
+              onExcavatorM3RateChange={(rate) => onAnswerChange('excavator_m3_rate', rate)}
               excavatorFloat={answers.excavator_float || getPrice('excavation', 'FLOAT', 150)}
               onExcavatorFloatChange={(float) => onAnswerChange('excavator_float', float)}
               // Saw cutting props

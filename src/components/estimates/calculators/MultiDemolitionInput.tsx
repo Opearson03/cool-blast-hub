@@ -30,12 +30,16 @@ interface MultiDemolitionInputProps {
   // Excavator hire props
   excavatorRequired?: boolean;
   onExcavatorRequiredChange?: (required: boolean) => void;
+  excavatorPricingMethod?: string;
+  onExcavatorPricingMethodChange?: (method: string) => void;
   excavatorType?: string;
   onExcavatorTypeChange?: (type: string) => void;
   excavatorRate?: number;
   onExcavatorRateChange?: (rate: number) => void;
   excavatorHours?: number;
   onExcavatorHoursChange?: (hours: number) => void;
+  excavatorM3Rate?: number;
+  onExcavatorM3RateChange?: (rate: number) => void;
   excavatorFloat?: number;
   onExcavatorFloatChange?: (float: number) => void;
   // Saw cutting props
@@ -93,12 +97,16 @@ export function MultiDemolitionInput({
   // Excavator hire
   excavatorRequired = false,
   onExcavatorRequiredChange,
+  excavatorPricingMethod = 'hourly',
+  onExcavatorPricingMethodChange,
   excavatorType = 'EXC 3.2T',
   onExcavatorTypeChange,
   excavatorRate = 150,
   onExcavatorRateChange,
   excavatorHours = 4,
   onExcavatorHoursChange,
+  excavatorM3Rate = 60,
+  onExcavatorM3RateChange,
   excavatorFloat = 150,
   onExcavatorFloatChange,
   // Saw cutting
@@ -448,106 +456,198 @@ export function MultiDemolitionInput({
 
             {excavatorRequired && (
               <div className="p-3 bg-muted/50 rounded-lg space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Excavator Type
-                    </Label>
-                    <Select
-                      value={excavatorType}
-                      onValueChange={(value) => onExcavatorTypeChange?.(value)}
-                    >
-                      <SelectTrigger className="h-11 sm:h-9">
-                        <SelectValue placeholder="Select excavator" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {EXCAVATOR_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Hourly Rate
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        $
-                      </span>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={excavatorRate || ""}
-                        onChange={(e) =>
-                          onExcavatorRateChange?.(
-                            e.target.value === "" ? 150 : Number(e.target.value)
-                          )
-                        }
-                        min={0}
-                        step={10}
-                        className="pl-7 pr-10 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        /hr
-                      </span>
-                    </div>
-                  </div>
+                {/* Pricing Method Selector */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-muted-foreground">
+                    Pricing Method
+                  </Label>
+                  <Select
+                    value={excavatorPricingMethod}
+                    onValueChange={(value) => onExcavatorPricingMethodChange?.(value)}
+                  >
+                    <SelectTrigger className="h-11 sm:h-9">
+                      <SelectValue placeholder="Select method" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="hourly">Hourly Rate</SelectItem>
+                      <SelectItem value="m3">m³ Rate</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Hours
-                    </Label>
-                    <div className="relative">
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={excavatorHours || ""}
-                        onChange={(e) =>
-                          onExcavatorHoursChange?.(
-                            e.target.value === "" ? 4 : Number(e.target.value)
-                          )
-                        }
-                        min={0.5}
-                        step={0.5}
-                        className="pr-10 h-11 sm:h-9"
-                      />
-                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
-                        hrs
-                      </span>
+
+                {excavatorPricingMethod === 'hourly' ? (
+                  <>
+                    {/* Hourly rate inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">
+                          Excavator Type
+                        </Label>
+                        <Select
+                          value={excavatorType}
+                          onValueChange={(value) => onExcavatorTypeChange?.(value)}
+                        >
+                          <SelectTrigger className="h-11 sm:h-9">
+                            <SelectValue placeholder="Select excavator" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {EXCAVATOR_OPTIONS.map((opt) => (
+                              <SelectItem key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">
+                          Hourly Rate
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                            $
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={excavatorRate || ""}
+                            onChange={(e) =>
+                              onExcavatorRateChange?.(
+                                e.target.value === "" ? 150 : Number(e.target.value)
+                              )
+                            }
+                            min={0}
+                            step={10}
+                            className="pl-7 pr-10 h-11 sm:h-9"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                            /hr
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">
-                      Float Charge
-                    </Label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                        $
-                      </span>
-                      <Input
-                        type="number"
-                        inputMode="decimal"
-                        value={excavatorFloat || ""}
-                        onChange={(e) =>
-                          onExcavatorFloatChange?.(
-                            e.target.value === "" ? 150 : Number(e.target.value)
-                          )
-                        }
-                        min={0}
-                        step={10}
-                        className="pl-7 h-11 sm:h-9"
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">
+                          Hours
+                        </Label>
+                        <div className="relative">
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={excavatorHours || ""}
+                            onChange={(e) =>
+                              onExcavatorHoursChange?.(
+                                e.target.value === "" ? 4 : Number(e.target.value)
+                              )
+                            }
+                            min={0.5}
+                            step={0.5}
+                            className="pr-10 h-11 sm:h-9"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                            hrs
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">
+                          Float Charge
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                            $
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={excavatorFloat || ""}
+                            onChange={(e) =>
+                              onExcavatorFloatChange?.(
+                                e.target.value === "" ? 150 : Number(e.target.value)
+                              )
+                            }
+                            min={0}
+                            step={10}
+                            className="pl-7 h-11 sm:h-9"
+                          />
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </div>
-                {excavatorHours > 0 && excavatorRate > 0 && (
-                  <div className="text-sm text-muted-foreground">
-                    Total: ${((excavatorHours * excavatorRate) + (excavatorFloat || 0)).toFixed(2)} (${(excavatorHours * excavatorRate).toFixed(2)} hire + ${excavatorFloat || 0} float)
-                  </div>
+                    {excavatorHours > 0 && excavatorRate > 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        Total: ${((excavatorHours * excavatorRate) + (excavatorFloat || 0)).toFixed(2)} (${(excavatorHours * excavatorRate).toFixed(2)} hire + ${excavatorFloat || 0} float)
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {/* m³ rate inputs */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">
+                          Rate per m³
+                        </Label>
+                        <div className="relative">
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                            $
+                          </span>
+                          <Input
+                            type="number"
+                            inputMode="decimal"
+                            value={excavatorM3Rate || ""}
+                            onChange={(e) =>
+                              onExcavatorM3RateChange?.(
+                                e.target.value === "" ? 60 : Number(e.target.value)
+                              )
+                            }
+                            min={0}
+                            step={5}
+                            className="pl-7 pr-12 h-11 sm:h-9"
+                          />
+                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+                            /m³
+                          </span>
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">
+                          Volume (auto-calculated)
+                        </Label>
+                        <div className="h-11 sm:h-9 flex items-center px-3 rounded-md text-sm bg-muted">
+                          {totalVolume > 0 ? `${totalVolume.toFixed(2)} m³` : '—'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="max-w-[200px] space-y-1.5">
+                      <Label className="text-xs text-muted-foreground">
+                        Float Charge
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                          $
+                        </span>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          value={excavatorFloat || ""}
+                          onChange={(e) =>
+                            onExcavatorFloatChange?.(
+                              e.target.value === "" ? 150 : Number(e.target.value)
+                            )
+                          }
+                          min={0}
+                          step={10}
+                          className="pl-7 h-11 sm:h-9"
+                        />
+                      </div>
+                    </div>
+                    {totalVolume > 0 && excavatorM3Rate > 0 && (
+                      <div className="text-sm text-muted-foreground">
+                        Total: ${((totalVolume * excavatorM3Rate) + (excavatorFloat || 0)).toFixed(2)} (${(totalVolume * excavatorM3Rate).toFixed(2)} excavation + ${excavatorFloat || 0} float)
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
             )}

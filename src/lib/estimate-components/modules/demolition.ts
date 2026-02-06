@@ -69,6 +69,17 @@ export const demolitionModule: EstimateModule = {
       showIf: () => false, // Hidden - managed by custom component
     },
     {
+      id: 'excavator_pricing_method',
+      type: 'select',
+      label: 'Excavator pricing method',
+      options: [
+        { value: 'hourly', label: 'Hourly Rate' },
+        { value: 'm3', label: 'm³ Rate' },
+      ],
+      defaultValue: 'hourly',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
       id: 'excavator_type',
       type: 'select',
       label: 'Excavator type',
@@ -99,6 +110,15 @@ export const demolitionModule: EstimateModule = {
       min: 0.5,
       step: 0.5,
       unit: 'hrs',
+      showIf: () => false, // Hidden - managed by custom component
+    },
+    {
+      id: 'excavator_m3_rate',
+      type: 'currency',
+      label: 'Excavation rate per m³',
+      defaultValue: 60,
+      priceListKey: 'excavation.EXC_M3',
+      unit: '/m³',
       showIf: () => false, // Hidden - managed by custom component
     },
     {
@@ -308,20 +328,41 @@ export const demolitionModule: EstimateModule = {
 
     // Line 3: Excavator Hire (if required)
     if (answers.excavator_required) {
-      const excavatorType = answers.excavator_type || 'EXC 3.2T';
-      const excavatorRate = Number(answers.excavator_rate) || getPrice(priceMap, 'excavation', excavatorType, 150);
-      const excavatorHours = Number(answers.excavator_hours) || 4;
-      const excavatorTotal = excavatorHours * excavatorRate;
+      const excavatorPricingMethod = answers.excavator_pricing_method || 'hourly';
+      
+      if (excavatorPricingMethod === 'm3') {
+        // m³ rate method
+        const excavatorM3Rate = Number(answers.excavator_m3_rate) || getPrice(priceMap, 'excavation', 'EXC_M3', 60);
+        const excavatorTotal = totalVolume * excavatorM3Rate;
 
-      lineItems.push({
-        id: 'excavator_hire',
-        description: `${excavatorType} Excavator (${excavatorHours} hrs @ $${excavatorRate}/hr)`,
-        quantity: excavatorHours,
-        unit: 'hrs',
-        unitPrice: excavatorRate,
-        total: Math.round(excavatorTotal * 100) / 100,
-        category: 'plant',
-      });
+        if (totalVolume > 0) {
+          lineItems.push({
+            id: 'excavator_hire',
+            description: `Excavation (${totalVolume.toFixed(2)} m³ @ $${excavatorM3Rate}/m³)`,
+            quantity: Math.round(totalVolume * 100) / 100,
+            unit: 'm³',
+            unitPrice: excavatorM3Rate,
+            total: Math.round(excavatorTotal * 100) / 100,
+            category: 'plant',
+          });
+        }
+      } else {
+        // Hourly rate method (default)
+        const excavatorType = answers.excavator_type || 'EXC 3.2T';
+        const excavatorRate = Number(answers.excavator_rate) || getPrice(priceMap, 'excavation', excavatorType, 150);
+        const excavatorHours = Number(answers.excavator_hours) || 4;
+        const excavatorTotal = excavatorHours * excavatorRate;
+
+        lineItems.push({
+          id: 'excavator_hire',
+          description: `${excavatorType} Excavator (${excavatorHours} hrs @ $${excavatorRate}/hr)`,
+          quantity: excavatorHours,
+          unit: 'hrs',
+          unitPrice: excavatorRate,
+          total: Math.round(excavatorTotal * 100) / 100,
+          category: 'plant',
+        });
+      }
 
       const floatCharge = Number(answers.excavator_float) || getPrice(priceMap, 'excavation', 'FLOAT', 150);
       if (floatCharge > 0) {
