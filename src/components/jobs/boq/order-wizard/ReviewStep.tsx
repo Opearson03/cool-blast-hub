@@ -69,6 +69,12 @@ export function ReviewStep({
   const selectedSuppliers = suppliers.filter(s => selectedSupplierIds.includes(s.id));
   const singleSupplier = suppliers.find(s => s.id === supplierId);
   const selectedSiteContact = siteContactOptions.find(c => c.id === siteContactId);
+  
+  // Filter to only show PDF files for plan attachments
+  const pdfPlans = jobPlans.filter(p => 
+    p.file_type === 'application/pdf' || 
+    p.file_name.toLowerCase().endsWith('.pdf')
+  );
 
   const getSupplierDisplay = () => {
     if (isQuote) {
@@ -297,9 +303,9 @@ export function ReviewStep({
                   Some items require suppliers to see the plans for accurate pricing.
                 </p>
 
-                {jobPlans.length > 0 ? (
+                {pdfPlans.length > 0 ? (
                   <div className="space-y-2">
-                    {jobPlans.map((plan) => (
+                    {pdfPlans.map((plan) => (
                       <div
                         key={plan.id}
                         className="flex items-center gap-2 p-2 rounded border bg-muted/30"
@@ -322,16 +328,16 @@ export function ReviewStep({
                   </div>
                 ) : (
                   <p className="text-sm text-muted-foreground italic">
-                    No plans uploaded yet for this job.
+                    No PDF plans uploaded yet for this job.
                   </p>
                 )}
 
-                {/* Upload button */}
+                {/* Upload button - PDF only */}
                 <div>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.png,.jpg,.jpeg"
+                    accept=".pdf,application/pdf"
                     multiple
                     className="hidden"
                     onChange={handleFileUpload}
@@ -348,7 +354,7 @@ export function ReviewStep({
                     ) : (
                       <Upload className="w-4 h-4 mr-2" />
                     )}
-                    {isUploading ? "Uploading..." : "Upload plan"}
+                    {isUploading ? "Uploading..." : "Upload PDF"}
                   </Button>
                 </div>
               </div>
