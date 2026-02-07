@@ -391,7 +391,8 @@ export const reinforcementRaftModule: EstimateModule = {
           const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
           
           // Calculate bottom bar totals with editable lap allowance
-          const zoneLapMultiplier = 1 + (Number(zone.rib_lap_percent) || 12.5) / 100;
+          const zoneLapPercent = zone.rib_lap_percent ?? Number(scopeData?.rib_lap_percent) ?? 12.5;
+          const zoneLapMultiplier = 1 + zoneLapPercent / 100;
           const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * zoneLapMultiplier;
           const bottomWeightKg = bottomTotalLength * bottomBarWeight;
           
@@ -464,7 +465,8 @@ export const reinforcementRaftModule: EstimateModule = {
           const topBarWeight = REBAR_WEIGHTS[topBarSize] || 0.888;
           
           // Calculate bottom bar totals with editable lap allowance
-          const ribLapMultiplier = 1 + (Number(scopeData?.rib_lap_percent) || 12.5) / 100;
+          const ribLapPercent = Number(scopeData?.rib_lap_percent) ?? 12.5;
+          const ribLapMultiplier = 1 + ribLapPercent / 100;
           const bottomTotalLength = ribLengthPerLayerM * bottomBarsPerRib * ribLapMultiplier;
           const bottomWeightKg = bottomTotalLength * bottomBarWeight;
           const bottomStockQty = Math.ceil(bottomTotalLength / stockLength);
