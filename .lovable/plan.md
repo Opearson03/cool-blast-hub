@@ -1,36 +1,46 @@
 
-
-# Remove Pod Rails from Formwork Module
+# Fix: Round Area and Length Values in Quote Description
 
 ## Problem
 
-Pod rails are being priced **twice** in waffle pod estimates:
-1. In the **Pods module** (`pods.ts`) -- where they belong, with proper toggle controls and depth-based logic
-2. In the **Formwork module** (`formwork.ts`) -- where they don't belong, duplicating the cost
+The "Summary of Customer Requirements" section on the quote PDF shows unrounded numbers like "Raft Slab: 126.05941839376057m²" because the raw `_actualArea` value from plan takeoff is stored directly in the description without any formatting.
+
+## Root Cause
+
+In `EstimateFormDialog.tsx` (line 564), the area value from `scopeAnswers` is interpolated directly into the description string without rounding:
+
+```typescript
+desc = `${state.scopeAnswers.area}m²`;
+```
+
+When areas come from takeoff measurements, they have full floating-point precision (e.g., 126.05941839376057). This unrounded value gets saved to the database as part of the estimate description and then displayed on the quote.
 
 ## Fix
 
-Remove the pod rails block from `src/lib/estimate-components/modules/formwork.ts` (lines 119-137). The pods, spacers, and supply-related items remain in formwork as they are gated by the "supplied by concreter" toggle, but pod rails are already fully handled in the Pods module with better logic (toggle, price override, per-zone aggregation).
+Round all measurement values in the description builder to 2 decimal places.
 
-## Technical Details
+### File: `src/components/estimates/EstimateFormDialog.tsx`
 
-### File: `src/lib/estimate-components/modules/formwork.ts`
+**Line 564** -- Round the area value:
+```typescript
+// Before
+desc = `${state.scopeAnswers.area}m²`;
 
-Remove lines 118-137 (the pod rails section inside the waffle pod block):
-
-```
-// Pod Rails (always included if required, regardless of supply question)
-const podRailsRequired = scopeData?.pod_rails_required === true;
-const podRailPacks = Number(scopeData?.pod_rail_packs) || 0;
-
-if (podRailsRequired && podRailPacks > 0) {
-  ...
-}
+// After
+desc = `${Number(state.scopeAnswers.area).toFixed(2)}m²`;
 ```
 
-The closing brace for the `isWafflePod` block stays. No other changes needed -- the Pods module already handles pod rails with:
-- A user toggle (`include_pod_rails`)
-- An editable price field (`pod_rail_price`)
-- Per-zone aggregation for multi-zone waffle slabs
-- Proper exclusion text when toggled off
+**Line 568** -- Round the length value (same potential issue):
+```typescript
+// Before
+desc = `${state.scopeAnswers.total_length}m`;
 
+// After
+desc = `${Number(state.scopeAnswers.total_length).toFixed(2)}m`;
+```
+
+### Scope
+
+- Only affects newly saved or re-saved estimates (the description is rebuilt on each save)
+- No database changes needed
+- Two lines changed in one file
