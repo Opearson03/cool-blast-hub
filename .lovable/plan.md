@@ -1,46 +1,59 @@
 
-# Fix: Round Area and Length Values in Quote Description
+
+# Fix: Waffle Pod Rib Lap Percentage Not Working
 
 ## Problem
 
-The "Summary of Customer Requirements" section on the quote PDF shows unrounded numbers like "Raft Slab: 126.05941839376057m²" because the raw `_actualArea` value from plan takeoff is stored directly in the description without any formatting.
+When you change the lap % in the Rib Reinforcement section, it has no effect on the calculation. The cost stays the same no matter what value you enter.
 
 ## Root Cause
 
-In `EstimateFormDialog.tsx` (line 564), the area value from `scopeAnswers` is interpolated directly into the description string without rounding:
+The lap % input writes to `scopeData.rib_lap_percent` (top-level), but the calculation reads from `zone.rib_lap_percent` (inside each zone object). Since zones never have this property set, the calculation always falls back to 12.5% regardless of user input.
 
-```typescript
-desc = `${state.scopeAnswers.area}m²`;
+## Fix (2 files, 3 changes)
+
+### 1. Calculation fallback -- `reinforcement-raft.ts`
+
+In the multi-zone calculation path, fall back to the top-level `scopeData.rib_lap_percent` when the zone doesn't have its own value:
+
+**Line 394:**
 ```
-
-When areas come from takeoff measurements, they have full floating-point precision (e.g., 126.05941839376057). This unrounded value gets saved to the database as part of the estimate description and then displayed on the quote.
-
-## Fix
-
-Round all measurement values in the description builder to 2 decimal places.
-
-### File: `src/components/estimates/EstimateFormDialog.tsx`
-
-**Line 564** -- Round the area value:
-```typescript
 // Before
-desc = `${state.scopeAnswers.area}m²`;
+const zoneLapMultiplier = 1 + (Number(zone.rib_lap_percent) || 12.5) / 100;
 
 // After
-desc = `${Number(state.scopeAnswers.area).toFixed(2)}m²`;
+const zoneLapPercent = zone.rib_lap_percent ?? Number(scopeData?.rib_lap_percent) ?? 12.5;
+const zoneLapMultiplier = 1 + zoneLapPercent / 100;
 ```
 
-**Line 568** -- Round the length value (same potential issue):
-```typescript
+Also fix the legacy single-zone path to use `??` instead of `||` (so 0% would work if ever needed):
+
+**Line 467:**
+```
 // Before
-desc = `${state.scopeAnswers.total_length}m`;
+const ribLapMultiplier = 1 + (Number(scopeData?.rib_lap_percent) || 12.5) / 100;
 
 // After
-desc = `${Number(state.scopeAnswers.total_length).toFixed(2)}m`;
+const ribLapPercent = Number(scopeData?.rib_lap_percent) ?? 12.5;
+const ribLapMultiplier = 1 + ribLapPercent / 100;
 ```
 
-### Scope
+### 2. Zone default -- `MultiWafflePodZoneInput.tsx`
 
-- Only affects newly saved or re-saved estimates (the description is rebuilt on each save)
+Add `rib_lap_percent: 12.5` to the `DEFAULT_ZONE` constant so new zones start with the correct default:
+
+**Line 45-57:**
+```
+const DEFAULT_ZONE: Omit<WafflePodZone, 'id' | 'name'> = {
+  ...existing fields...
+  rib_lap_percent: 12.5,    // <-- add this
+};
+```
+
+## Summary
+
+- The 12.5% default stays the same
+- Changing the lap % input will now actually update the rib reinforcement cost
+- Works for both single-zone and multi-zone waffle pod estimates
 - No database changes needed
-- Two lines changed in one file
+
