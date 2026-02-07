@@ -54,6 +54,7 @@ const DEFAULT_ZONE: Omit<WafflePodZone, 'id' | 'name'> = {
   rib_bottom_bar_size: 'N12',
   rib_top_bars: 1,
   rib_top_bar_size: 'N12',
+  rib_lap_percent: 12.5,
 };
 
 export function MultiWafflePodZoneInput({
