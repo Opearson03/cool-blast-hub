@@ -561,11 +561,11 @@ const {
         let desc = "";
         if (state.scopeAnswers) {
           if (state.scopeAnswers.area) {
-            desc = `${state.scopeAnswers.area}m²`;
+            desc = `${Number(state.scopeAnswers.area).toFixed(2)}m²`;
           } else if (state.scopeAnswers.num_piers) {
             desc = `${state.scopeAnswers.num_piers} piers`;
           } else if (state.scopeAnswers.total_length) {
-            desc = `${state.scopeAnswers.total_length}m`;
+            desc = `${Number(state.scopeAnswers.total_length).toFixed(2)}m`;
           }
         }
         
