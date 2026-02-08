@@ -12,12 +12,16 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format-currency";
+import { VolumeBreakdown } from "./shared/VolumeBreakdown";
 
 interface MobileCostSummaryBarProps {
   moduleCosts: ComponentCost[];
   marginPercent: number;
   scopeVolume?: number;
   scopeArea?: number;
+  scopeId?: string;
+  scopeAnswers?: Record<string, any>;
+  derivedScopeAnswers?: Record<string, any>;
 }
 
 export function MobileCostSummaryBar({
@@ -25,6 +29,9 @@ export function MobileCostSummaryBar({
   marginPercent,
   scopeVolume,
   scopeArea,
+  scopeId,
+  scopeAnswers,
+  derivedScopeAnswers,
 }: MobileCostSummaryBarProps) {
   const [isOpen, setIsOpen] = useState(false);
 
@@ -78,9 +85,18 @@ export function MobileCostSummaryBar({
         <SheetHeader className="pb-4">
           <SheetTitle>Cost Summary</SheetTitle>
           {scopeVolume !== undefined && scopeVolume > 0 && (
-            <p className="text-sm text-muted-foreground">
-              Concrete Volume: {scopeVolume.toFixed(2)} m³
-            </p>
+            <div>
+              <p className="text-sm text-muted-foreground">
+                Concrete Volume: {scopeVolume.toFixed(2)} m³
+              </p>
+              {scopeId && scopeAnswers && derivedScopeAnswers && (
+                <VolumeBreakdown
+                  scopeId={scopeId}
+                  scopeAnswers={scopeAnswers}
+                  derivedScopeAnswers={derivedScopeAnswers}
+                />
+              )}
+            </div>
           )}
         </SheetHeader>
         

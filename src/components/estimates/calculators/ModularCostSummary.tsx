@@ -2,12 +2,16 @@ import { ComponentCost } from "@/lib/estimate-components/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency } from "@/lib/format-currency";
+import { VolumeBreakdown } from "./shared/VolumeBreakdown";
 
 interface ModularCostSummaryProps {
   moduleCosts: ComponentCost[];
   marginPercent: number;
   scopeVolume?: number;
   scopeArea?: number;
+  scopeId?: string;
+  scopeAnswers?: Record<string, any>;
+  derivedScopeAnswers?: Record<string, any>;
 }
 
 export function ModularCostSummary({
@@ -15,6 +19,9 @@ export function ModularCostSummary({
   marginPercent,
   scopeVolume,
   scopeArea,
+  scopeId,
+  scopeAnswers,
+  derivedScopeAnswers,
 }: ModularCostSummaryProps) {
   // Calculate totals
   const subtotal = moduleCosts.reduce((sum, mc) => sum + mc.subtotal, 0);
@@ -28,9 +35,18 @@ export function ModularCostSummary({
       <CardHeader className="pb-3">
         <CardTitle className="text-base">Cost Summary</CardTitle>
         {scopeVolume !== undefined && scopeVolume > 0 && (
-          <p className="text-sm text-muted-foreground">
-            Concrete Volume: {scopeVolume.toFixed(2)} m³
-          </p>
+          <div>
+            <p className="text-sm text-muted-foreground">
+              Concrete Volume: {scopeVolume.toFixed(2)} m³
+            </p>
+            {scopeId && scopeAnswers && derivedScopeAnswers && (
+              <VolumeBreakdown
+                scopeId={scopeId}
+                scopeAnswers={scopeAnswers}
+                derivedScopeAnswers={derivedScopeAnswers}
+              />
+            )}
+          </div>
         )}
       </CardHeader>
       <CardContent className="space-y-3">

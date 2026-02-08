@@ -1633,6 +1633,9 @@ export function ModularCalculator({
             marginPercent={marginPercent}
             scopeVolume={scopeVolume}
             scopeArea={derivedScopeAnswers.area}
+            scopeId={scope.id}
+            scopeAnswers={scopeAnswers}
+            derivedScopeAnswers={derivedScopeAnswers}
           />
         </div>
       </div>
