@@ -18,6 +18,7 @@ const getChairTypeFromThickness = (thickness: number): string => {
 };
 
 const CHAIR_LABELS: Record<string, string> = {
+  'TMCHAIR': 'TM Chair',
   '2540C': '25-40mm',
   '5065C': '50-65mm',
   '7590C': '75-90mm',
@@ -610,13 +611,13 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // EDGE BEAM CHAIRS (per-beam configuration)
+    // EDGE BEAM CHAIRS (per-beam configuration, chair-type aware)
     // ═══════════════════════════════════════════════════════════════
     // Auto-include edge beam chairs if edge beams exist from takeoff
     if ((answers.edge_beam_reo || edgeBeams.length > 0) && edgeBeams.length > 0) {
-      let totalChairs = 0;
+      // Group chairs by type for proper bag sizing
+      const edgeChairsByType: Record<string, { count: number; price: number; bagSize: number }> = {};
       let totalLayerChairs = 0;
-      let chairPrice = 12.50;
       let layerChairPrice = 12.50;
       
       edgeBeams.forEach((beam) => {
@@ -624,9 +625,16 @@ export const reinforcementRaftModule: EstimateModule = {
         const length = Number(beam.length) || 0;
         if (length <= 0) return;
         
+        const chairType = beam.chair_type || 'TMCHAIR';
+        const bagSize = chairType === 'TMCHAIR' ? 25 : 100;
         const chairsPerM = beam.chairs_per_m ?? 1.4;
-        chairPrice = beam.chair_price_per_bag ?? getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
-        totalChairs += Math.ceil(length * chairsPerM);
+        const chairPrice = beam.chair_price_per_bag ?? getPrice(priceMap, 'consumables', chairType, 12.50);
+        const chairCount = Math.ceil(length * chairsPerM);
+        
+        if (!edgeChairsByType[chairType]) {
+          edgeChairsByType[chairType] = { count: 0, price: chairPrice, bagSize };
+        }
+        edgeChairsByType[chairType].count += chairCount;
         
         // Layer chairs (between TM layers)
         if (beam.layer_chairs_enabled && (beam.tm_layers ?? 1) > 1) {
@@ -636,21 +644,23 @@ export const reinforcementRaftModule: EstimateModule = {
         }
       });
       
-      if (totalChairs > 0) {
-        const bags = Math.ceil(totalChairs / 25);
-        const cost = bags * chairPrice;
+      // Generate line items for each chair type
+      Object.entries(edgeChairsByType).forEach(([chairType, { count, price, bagSize }]) => {
+        const bags = Math.ceil(count / bagSize);
+        const cost = bags * price;
+        const label = CHAIR_LABELS[chairType] || chairType;
         
         lineItems.push({
-          id: 'edge_beam_chairs',
-          description: `Edge Beam TM Chairs (${bags} × 25)`,
+          id: `edge_beam_chairs_${chairType}`,
+          description: `Edge Beam ${label} Chairs (${bags} × ${bagSize})`,
           quantity: bags,
           unit: 'bags',
-          unitPrice: chairPrice,
+          unitPrice: price,
           total: Math.round(cost * 100) / 100,
           category: 'materials',
         });
         subtotal += cost;
-      }
+      });
       
       if (totalLayerChairs > 0) {
         const bags = Math.ceil(totalLayerChairs / 25);
@@ -670,13 +680,13 @@ export const reinforcementRaftModule: EstimateModule = {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // INTERNAL BEAM CHAIRS (per-beam configuration)
+    // INTERNAL BEAM CHAIRS (per-beam configuration, chair-type aware)
     // ═══════════════════════════════════════════════════════════════
     // Auto-include internal beam chairs if internal beams exist from takeoff
     if ((answers.internal_beam_reo || internalBeams.length > 0) && internalBeams.length > 0) {
-      let totalChairs = 0;
+      // Group chairs by type for proper bag sizing
+      const intChairsByType: Record<string, { count: number; price: number; bagSize: number }> = {};
       let totalLayerChairs = 0;
-      let chairPrice = 12.50;
       let layerChairPrice = 12.50;
       
       internalBeams.forEach((beam) => {
@@ -684,9 +694,16 @@ export const reinforcementRaftModule: EstimateModule = {
         const length = Number(beam.length) || 0;
         if (length <= 0) return;
         
+        const chairType = beam.chair_type || 'TMCHAIR';
+        const bagSize = chairType === 'TMCHAIR' ? 25 : 100;
         const chairsPerM = beam.chairs_per_m ?? 1.4;
-        chairPrice = beam.chair_price_per_bag ?? getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
-        totalChairs += Math.ceil(length * chairsPerM);
+        const chairPrice = beam.chair_price_per_bag ?? getPrice(priceMap, 'consumables', chairType, 12.50);
+        const chairCount = Math.ceil(length * chairsPerM);
+        
+        if (!intChairsByType[chairType]) {
+          intChairsByType[chairType] = { count: 0, price: chairPrice, bagSize };
+        }
+        intChairsByType[chairType].count += chairCount;
         
         // Layer chairs (between TM layers)
         if (beam.layer_chairs_enabled && (beam.tm_layers ?? 1) > 1) {
@@ -696,21 +713,23 @@ export const reinforcementRaftModule: EstimateModule = {
         }
       });
       
-      if (totalChairs > 0) {
-        const bags = Math.ceil(totalChairs / 25);
-        const cost = bags * chairPrice;
+      // Generate line items for each chair type
+      Object.entries(intChairsByType).forEach(([chairType, { count, price, bagSize }]) => {
+        const bags = Math.ceil(count / bagSize);
+        const cost = bags * price;
+        const label = CHAIR_LABELS[chairType] || chairType;
         
         lineItems.push({
-          id: 'internal_beam_chairs',
-          description: `Internal Beam TM Chairs (${bags} × 25)`,
+          id: `internal_beam_chairs_${chairType}`,
+          description: `Internal Beam ${label} Chairs (${bags} × ${bagSize})`,
           quantity: bags,
           unit: 'bags',
-          unitPrice: chairPrice,
+          unitPrice: price,
           total: Math.round(cost * 100) / 100,
           category: 'materials',
         });
         subtotal += cost;
-      }
+      });
       
       if (totalLayerChairs > 0) {
         const bags = Math.ceil(totalLayerChairs / 25);
