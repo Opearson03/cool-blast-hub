@@ -19,7 +19,7 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const [checking, setChecking] = useState(true);
   const isNative = Capacitor.isNativePlatform();
-  const { data: waitlistCount = 0 } = useWaitlistCount();
+  const { data: waitlistCount, isLoading: isCountLoading } = useWaitlistCount();
   
   // Get referral code from URL
   const referralCode = searchParams.get('ref') || undefined;
@@ -103,12 +103,18 @@ const Index = () => {
               </p>
               
               {/* Waitlist Counter */}
-              <div className="flex items-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mb-4">
-                <Users className="w-5 h-5 text-primary" />
-                <span className="text-primary-foreground font-medium">
-                  <span className="text-primary font-bold">{waitlistCount}</span> concreters on the waiting list
-                </span>
-              </div>
+              {(isCountLoading || (waitlistCount != null && waitlistCount > 0)) && (
+                <div className="flex items-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mb-4">
+                  <Users className="w-5 h-5 text-primary" />
+                  <span className="text-primary-foreground font-medium">
+                    {isCountLoading ? (
+                      <span className="inline-block w-8 h-5 animate-pulse bg-primary/30 rounded align-middle" />
+                    ) : (
+                      <span className="text-primary font-bold">{waitlistCount}</span>
+                    )} concreters on the waiting list
+                  </span>
+                </div>
+              )}
               
               <Link to="/auth">
                 <Button size="sm" variant="ghost" className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10">
@@ -337,7 +343,13 @@ const Index = () => {
             Ready to Get Organised?
           </h3>
           <p className="text-primary-foreground/90 mb-8 max-w-xl mx-auto">
-            Join {waitlistCount} other concreters on the waiting list. Be first in line when we launch.
+            {isCountLoading ? (
+              <>Join <span className="inline-block w-8 h-5 animate-pulse bg-primary-foreground/30 rounded align-middle" /> other concreters on the waiting list. Be first in line when we launch.</>
+            ) : waitlistCount != null && waitlistCount > 0 ? (
+              <>Join {waitlistCount} other concreters on the waiting list. Be first in line when we launch.</>
+            ) : (
+              <>Join the waiting list. Be first in line when we launch.</>
+            )}
           </p>
           <a href="#top">
             <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">

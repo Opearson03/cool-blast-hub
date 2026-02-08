@@ -13,7 +13,7 @@ const Pricing = () => {
   const freeTier = SUBSCRIPTION_TIERS.free;
   const estimatingTier = SUBSCRIPTION_TIERS.estimating;
   const proTier = SUBSCRIPTION_TIERS.pro;
-  const { data: waitlistCount = 0 } = useWaitlistCount();
+  const { data: waitlistCount, isLoading: isCountLoading } = useWaitlistCount();
 
   return (
     <>
@@ -51,12 +51,18 @@ const Pricing = () => {
               Start free with 2 quotes per month. Upgrade when you're ready.
             </p>
             {/* Waitlist Counter */}
-            <div className="flex items-center justify-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mx-auto">
-              <Users className="w-5 h-5 text-primary" />
-              <span className="text-primary-foreground font-medium">
-                <span className="text-primary font-bold">{waitlistCount}</span> concreters on the waiting list
-              </span>
-            </div>
+            {(isCountLoading || (waitlistCount != null && waitlistCount > 0)) && (
+              <div className="flex items-center justify-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mx-auto">
+                <Users className="w-5 h-5 text-primary" />
+                <span className="text-primary-foreground font-medium">
+                  {isCountLoading ? (
+                    <span className="inline-block w-8 h-5 animate-pulse bg-primary/30 rounded align-middle" />
+                  ) : (
+                    <span className="text-primary font-bold">{waitlistCount}</span>
+                  )} concreters on the waiting list
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
