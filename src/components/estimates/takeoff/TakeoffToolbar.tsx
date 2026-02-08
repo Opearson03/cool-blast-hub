@@ -377,7 +377,7 @@ export function TakeoffToolbar({
       )}
 
       {/* Main toolbar row */}
-      <div className="flex items-center gap-2 flex-wrap">
+      <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
         {/* Drawing tools */}
         <div className="flex items-center gap-1">
           {tools.map((tool) => (

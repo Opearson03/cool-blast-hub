@@ -14,6 +14,7 @@ import { usePlatform } from "@/hooks/usePlatform";
 import { useSubscription } from "@/hooks/useSubscription";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
+import { AdminBottomNav } from "./AdminBottomNav";
 
 interface NavItem {
   href: string;
@@ -256,10 +257,13 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      {/* Main Content - header is ~56px + safe-area on native */}
+      {/* Main Content - header is ~56px + safe-area on native, bottom nav is ~60px on mobile */}
       <main 
-        className="lg:ml-64 p-4 lg:p-6 pt-20 lg:pt-6 overflow-x-hidden max-w-full"
-        style={isNative ? { paddingTop: 'calc(env(safe-area-inset-top) + 72px)' } : undefined}
+        className="lg:ml-64 p-4 lg:p-6 pt-20 lg:pt-6 pb-20 lg:pb-6 overflow-x-hidden max-w-full"
+        style={isNative ? { 
+          paddingTop: 'calc(env(safe-area-inset-top) + 72px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 72px)'
+        } : undefined}
       >
         <div className="w-full max-w-full overflow-x-auto">
           <FullAppAccessGate>
@@ -267,6 +271,9 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           </FullAppAccessGate>
         </div>
       </main>
+
+      {/* Bottom Navigation - Mobile/Tablet Only */}
+      <AdminBottomNav />
     </div>
     </SubscriptionGate>
   );
