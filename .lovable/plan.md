@@ -1,104 +1,89 @@
 
 
-# Fix Waffle Pod Rib Reinforcement Disappearing
+# Bug Audit: All Reported Issues Status and Remaining Fix
 
-## Problem
+## Audit Results
 
-Rib reinforcement for waffle pods produces zero line items because of a NaN propagation bug in the lap percentage calculation.
+After reviewing every bug from the list against the current codebase, **7 out of 8 issues are already fixed**. Here is the status of each:
+
+| Bug | Status | Evidence |
+|-----|--------|----------|
+| Waffle Pod Rib Reinforcement | Fixed | `Number(scopeData?.rib_lap_percent ?? 12.5)` on lines 395/469, plus useEffect defaults in WafflePodRibsInput |
+| Beam Length Input Glitch | Fixed | `group.typeName` as stable key (line 275), EditableTotalLength for blur-based syncing |
+| Chairs in Raft Beams (takeoff) | Fixed | `chairs_enabled: true` set on edge beams (line 1634) and internal beams (line 1651) |
+| Raft Concrete - Internal Beams | Working | `scopes.ts` lines 377-388 correctly sums internal beam volume |
+| Excavation - Internal Beams | Working | `ModularCalculator.tsx` lines 470-480 calculates from beams array |
+| SOG Edge Beam Chairs | Working | `reinforcement-slab.ts` has chair type selection with dynamic bag sizing matching retaining walls |
+| Expansion Joints Auto Qty | Working | `total_length_m` field auto-calculates qty via `calculateQuantityFromLength` |
+| **Fixed Profit Preset Discrepancy** | **Still a bug** | Double-rounding causes a few dollars difference |
+
+## Remaining Bug: Fixed Profit Preset Discrepancy
 
 ### Root Cause
 
-In `reinforcement-raft.ts`, the legacy single-zone path (line 469) uses:
+When clicking a preset button (e.g., $5,000), the code:
 
-```typescript
-const ribLapPercent = Number(scopeData?.rib_lap_percent) ?? 12.5;
+1. Converts the dollar amount to a percentage: `5000 / subtotal * 100`
+2. Rounds the percentage to 2 decimal places: `Math.round(... * 100) / 100`
+3. Stores only the rounded percentage
+
+Then `fixedProfitAmount` re-derives the dollar amount:
+
+```
+fixedProfitAmount = Math.round(combinedSubtotal * (globalMarginPercent / 100))
 ```
 
-When the user accepts the default 12.5% lap in the UI without explicitly editing it, `rib_lap_percent` is never written to `scopeAnswers` -- it stays `undefined`.
+The re-derived dollar amount can differ by a few dollars due to double-rounding.
 
-- `Number(undefined)` produces `NaN`
-- `NaN ?? 12.5` evaluates to `NaN` (nullish coalescing only catches `null`/`undefined`, not `NaN`)
-- `NaN` propagates through the entire rib calculation, causing all bar lengths and weights to be `NaN`
-- The guard `bottomTotalLength > 0` evaluates to `false` for `NaN`, so **no rib line items are ever pushed**
+**Example:** Subtotal = $23,456
+- Click $5,000 preset
+- Percentage = 5000 / 23456 * 100 = 21.3173...%
+- Rounded percentage = 21.32%
+- Re-derived amount = Math.round(23456 * 0.2132) = $4,999 (not $5,000)
 
-The same unsafe pattern exists on line 395 for the multi-zone path, though it's less likely to trigger since zones carry explicit defaults.
+### Fix
 
-### Why it appears "lost"
+When a preset button is clicked, store the exact dollar amount and derive the percentage from it with higher precision (no 2dp rounding). The percentage is still the "source of truth" for storage, but we need more decimal places to accurately represent the dollar amount.
 
-The rib UI in `WafflePodRibsInput` displays the correct default (12.5%) using `numericWithDefault()`, giving the impression the value is set. But the display default is never persisted to `scopeAnswers` unless the user actively edits the field. The calculation reads from a different source (raw `scopeData`) using a different defaulting mechanism that breaks with `NaN`.
+**Change the preset onClick** (line 2452):
 
-## Fix
-
-Two changes:
-
-### 1. Fix NaN-safe defaulting in reinforcement-raft.ts
-
-**Line 469** (legacy single-zone path):
-
-Before:
+Currently:
 ```typescript
-const ribLapPercent = Number(scopeData?.rib_lap_percent) ?? 12.5;
+setGlobalMarginPercent(Math.round((preset / combinedSubtotal) * 100 * 100) / 100);
+```
+
+After -- use more decimal places to preserve accuracy:
+```typescript
+setGlobalMarginPercent((preset / combinedSubtotal) * 100);
+```
+
+By removing the rounding of the percentage, the re-derived `fixedProfitAmount` will be exact (or off by at most $1 due to `Math.round`).
+
+**Also update the manual input onChange** (line 2434) with the same approach:
+
+Currently:
+```typescript
+setGlobalMarginPercent(Math.round((amount / combinedSubtotal) * 100 * 100) / 100);
 ```
 
 After:
 ```typescript
-const ribLapPercent = Number(scopeData?.rib_lap_percent ?? 12.5);
+setGlobalMarginPercent((amount / combinedSubtotal) * 100);
 ```
-
-This moves `??` inside the `Number()` call, so `undefined ?? 12.5` produces `12.5` before `Number()` is applied. A value of `0` still passes through correctly (`0 ?? 12.5` = `0`).
-
-**Line 395** (multi-zone path):
-
-Before:
-```typescript
-const zoneLapPercent = zone.rib_lap_percent ?? Number(scopeData?.rib_lap_percent) ?? 12.5;
-```
-
-After:
-```typescript
-const zoneLapPercent = zone.rib_lap_percent ?? Number(scopeData?.rib_lap_percent ?? 12.5);
-```
-
-Same fix applied for consistency and safety.
-
-### 2. Pre-populate rib defaults in WafflePodRibsInput on mount
-
-Add a `useEffect` to `WafflePodRibsInput.tsx` that writes the display defaults into `scopeData` if they haven't been set yet. This ensures the calculation always has concrete values, not just the UI.
-
-```typescript
-useEffect(() => {
-  const defaults: Record<string, any> = {
-    rib_bottom_bars: 1,
-    rib_bottom_bar_size: 'N12',
-    rib_top_bars: 0,
-    rib_top_bar_size: 'N12',
-    stock_length: '6',
-    rib_lap_percent: 12.5,
-  };
-  
-  let hasChanges = false;
-  for (const [key, defaultVal] of Object.entries(defaults)) {
-    if (scopeData?.[key] === undefined || scopeData?.[key] === null) {
-      onScopeDataChange(key, defaultVal);
-      hasChanges = true;
-    }
-  }
-}, []); // Run once on mount
-```
-
-This ensures that even before the user interacts with any rib field, all rib parameters are persisted in `scopeAnswers` and available to the calculation.
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Fix `Number(x) ?? default` to `Number(x ?? default)` on lines 395 and 469 |
-| `src/components/estimates/calculators/WafflePodRibsInput.tsx` | Add useEffect to pre-populate rib defaults into scopeData on mount |
+| `src/components/estimates/EstimateFormDialog.tsx` | Remove 2dp rounding when converting fixed profit to percentage (lines 2434 and 2452) |
 
-## Impact
+## No Downstream Issues Found
 
-- Rib reinforcement will calculate correctly even when the user doesn't explicitly edit any rib settings
-- Existing estimates with explicitly set values are unaffected (the `??` still respects explicit `0`)
-- Multi-zone estimates are also protected from the same NaN issue
-- No database changes required
+The fixes implemented in previous sessions are clean and well-isolated:
+
+- **EditableTotalLength** correctly buffers input during typing and commits on blur/Enter
+- **Stable keys** (`typeName`) prevent component remounting without affecting data operations (which use segment IDs)
+- **chairs_enabled: true** only affects new takeoff merges; existing saved estimates with explicit values are unaffected
+- **Waffle pod rib fix** correctly handles `undefined`, `null`, and explicit `0` values
+- **Excavation and concrete volume** calculations both use the same beam array data source, so they stay in sync
 
