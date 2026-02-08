@@ -1,59 +1,51 @@
 
 
-# Fix: Waffle Pod Rib Lap Percentage Not Working
+# Fix: Preset Fixed Profit Off by a Few Dollars
 
 ## Problem
 
-When you change the lap % in the Rib Reinforcement section, it has no effect on the calculation. The cost stays the same no matter what value you enter.
+When you click a preset profit button (e.g. $5,000), the displayed fixed profit shows a slightly different number (e.g. $5,005 or $4,997). This is because:
 
-## Root Cause
+1. Clicking $5,000 reverse-calculates the margin percentage, rounding to **1 decimal place**
+2. The displayed profit re-calculates from that rounded percentage, producing a slightly different dollar amount
 
-The lap % input writes to `scopeData.rib_lap_percent` (top-level), but the calculation reads from `zone.rib_lap_percent` (inside each zone object). Since zones never have this property set, the calculation always falls back to 12.5% regardless of user input.
+For example, with a subtotal of $38,500:
+- $5,000 / $38,500 = 12.987...% --> rounds to **13.0%**
+- 13.0% x $38,500 = **$5,005** (off by $5)
 
-## Fix (2 files, 3 changes)
+## Fix
 
-### 1. Calculation fallback -- `reinforcement-raft.ts`
+Increase the margin percentage precision from 1 decimal place to 2 decimal places. This reduces the maximum drift from ~$50 to ~$5 on typical estimates, and in most cases eliminates visible discrepancy entirely.
 
-In the multi-zone calculation path, fall back to the top-level `scopeData.rib_lap_percent` when the zone doesn't have its own value:
+### File: `src/components/estimates/EstimateFormDialog.tsx`
 
-**Line 394:**
+**Change 1 -- Preset profit buttons (line 2438):**
+
+Round to 2 decimal places instead of 1:
+
 ```
 // Before
-const zoneLapMultiplier = 1 + (Number(zone.rib_lap_percent) || 12.5) / 100;
+setGlobalMarginPercent(Math.round((preset / combinedSubtotal) * 100 * 10) / 10);
 
 // After
-const zoneLapPercent = zone.rib_lap_percent ?? Number(scopeData?.rib_lap_percent) ?? 12.5;
-const zoneLapMultiplier = 1 + zoneLapPercent / 100;
+setGlobalMarginPercent(Math.round((preset / combinedSubtotal) * 100 * 100) / 100);
 ```
 
-Also fix the legacy single-zone path to use `??` instead of `||` (so 0% would work if ever needed):
+**Change 2 -- Manual profit input (line 2420):**
 
-**Line 467:**
+Same precision increase for consistency when typing a custom dollar amount:
+
 ```
 // Before
-const ribLapMultiplier = 1 + (Number(scopeData?.rib_lap_percent) || 12.5) / 100;
+setGlobalMarginPercent(Math.round((amount / combinedSubtotal) * 100 * 10) / 10);
 
 // After
-const ribLapPercent = Number(scopeData?.rib_lap_percent) ?? 12.5;
-const ribLapMultiplier = 1 + ribLapPercent / 100;
+setGlobalMarginPercent(Math.round((amount / combinedSubtotal) * 100 * 100) / 100);
 ```
 
-### 2. Zone default -- `MultiWafflePodZoneInput.tsx`
+## Impact
 
-Add `rib_lap_percent: 12.5` to the `DEFAULT_ZONE` constant so new zones start with the correct default:
-
-**Line 45-57:**
-```
-const DEFAULT_ZONE: Omit<WafflePodZone, 'id' | 'name'> = {
-  ...existing fields...
-  rib_lap_percent: 12.5,    // <-- add this
-};
-```
-
-## Summary
-
-- The 12.5% default stays the same
-- Changing the lap % input will now actually update the rib reinforcement cost
-- Works for both single-zone and multi-zone waffle pod estimates
-- No database changes needed
-
+- Two lines changed in one file
+- The margin percentage will now store up to 2 decimal places (e.g. 12.99% instead of 13.0%)
+- The displayed fixed profit will match the preset much more closely
+- No effect on existing saved estimates -- margin percentage is already stored as a number
