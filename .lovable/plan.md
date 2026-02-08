@@ -1,49 +1,88 @@
 
-# Fix: Remove Bar Chairs from Waffle Pod Topping Slab
+
+# Fix: Retaining Wall Toe Not Added to Concrete and Excavation
 
 ## The Problem
 
-Your boss is right -- bar chairs are being included on waffle pod estimates where they shouldn't be. On a waffle pod slab, the topping mesh sits directly on the pods and is supported by pod rails. There's no need for separate bar chairs to hold the mesh up.
+When you enable "Include Strip Footing" on a full retaining wall estimate and enter a toe length (e.g. 300mm), the toe volume is completely ignored in both the concrete supply and excavation calculations. The estimator calculates wall volume + footing volume but never adds the toe.
 
-Here's what's happening in the code:
+This means every retaining wall quote with a toe is under-quoting concrete and excavation.
 
-1. The field `bar_chairs_count` is being auto-calculated as `pods x 3` (line 888-893 in ModularCalculator)
-2. The reinforcement module then prices this as "Bar Chairs 25-40mm" line items on the estimate (lines 594-610 in reinforcement-raft.ts)
-3. This adds unnecessary cost to every waffle pod quote
+## Root Cause
 
-There's also a secondary bug: the same `bar_chairs_count` field is being calculated **twice** -- once as "pod rails = pods x 2" (line 871-877), then immediately overwritten as "bar chairs = pods x 3" (line 888-893). The pod rails calculation never takes effect because the bar chairs one runs right after and overwrites it.
+The `retaining_walls` scope (full retaining wall construction) has a `toe_length` input field that users can fill in, but the `calculateVolume` function never reads it. The toe volume formula should be:
+
+```text
+Toe Volume = Total Length x Toe Length x Footing Depth
+```
+
+This volume needs to be added in three places:
+
+1. The scope's volume calculation (feeds concrete supply)
+2. The excavation module's volume calculation (feeds excavation pricing)
+3. The volume breakdown display (so users can see how it's calculated)
 
 ## The Fix
 
-### 1. Remove the bar chairs auto-calculation for waffle pods
+### 1. Add toe volume to `calculateVolume` in scopes.ts
 
-In `ModularCalculator.tsx`, remove the "bar chairs: pods x 3" auto-calculation block (lines 888-894). The `bar_chairs_count` field should only be used for pod rails (pods x 2), which is already handled by the block at lines 871-877.
+In `RETAINING_WALLS_SCOPE.calculateVolume`, after calculating the footing volume, also calculate and add the toe volume using the existing `toe_length` answer field:
 
-### 2. Remove the bar chairs line item from the reinforcement module
+```typescript
+// Current (missing toe):
+footingVolume = totalLength * footingWidthM * footingDepthM;
 
-In `reinforcement-raft.ts`, remove the "Bar Chairs" accessories block (lines 594-610) that prices `barChairsCount` as bar chairs. These are not needed on waffle pod topping slabs because the pods and pod rails provide all the mesh support.
+// Fixed (includes toe):
+footingVolume = totalLength * footingWidthM * footingDepthM;
 
-Pod rails are already correctly handled by the **Pods module** (`pods.ts`), so there's no gap -- rails are still quoted, just in the right place.
+// Toe volume
+const toeLengthM = (Number(answers.toe_length) || 0) / 1000;
+if (toeLengthM > 0) {
+  toeVolume = totalLength * toeLengthM * footingDepthM;
+}
+```
 
-### 3. Clean up the UI label
+This ensures `concrete_volume` (used by concrete-supply) includes the toe.
 
-In `WafflePodConfigCard.tsx`, the field currently labeled "Bar Chairs" with formula "pods x 3" should either be removed entirely (since pod rails are managed in the Pods module) or relabeled to match its actual purpose. Since pod rails are already handled by the Pods module with correct pricing, the cleanest approach is to remove this field from the accessories section.
+### 2. Add toe volume to excavation module
+
+In `excavation.ts`, the m3-rate detailed excavation calculation reads linear sections but doesn't know about the global `toe_length` answer. For the `retaining_walls` scope, the excavation volume needs to include the toe volume from `scopeData`.
+
+The simplest approach: pass `concrete_volume` (which will now include toe) as the excavation fallback for retaining walls. The excavation module already reads `scopeData.excavation_volume` first -- we just need to ensure the footing + toe volume is available there.
+
+Since excavation for retaining walls should cover the footing trench (footing + toe combined width), the fix is to check `scopeData.toe_length` when calculating excavation volume from the retaining walls scope answers, adding it the same way the concrete calculation does.
+
+### 3. Update VolumeBreakdown display
+
+In `buildRetainingWallsBreakdown`, add a "Footing Toe" row when `toe_length > 0`:
+
+```typescript
+if (scopeAnswers.include_footing && toeLengthMM > 0) {
+  const toeVol = totalLength * (toeLengthMM / 1000) * (footingDepthMM / 1000);
+  rows.push({
+    label: "Footing Toe",
+    dimensions: `${totalLength.toFixed(1)}m x ${toeLengthMM}mm x ${footingDepthMM}mm`,
+    volume: toeVol,
+  });
+}
+```
 
 ## Summary of Changes
 
 | File | Change |
 |------|--------|
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Remove the "bar chairs = pods x 3" auto-calc block (lines 888-894) |
-| `src/lib/estimate-components/modules/reinforcement-raft.ts` | Remove the bar chairs line item block (lines 594-610) |
-| `src/components/estimates/calculators/WafflePodConfigCard.tsx` | Remove the "Bar Chairs" input field from the accessories section |
+| `src/lib/estimate-components/scopes.ts` | Add toe volume calculation to `RETAINING_WALLS_SCOPE.calculateVolume` (lines 2323-2329) |
+| `src/lib/estimate-components/modules/excavation.ts` | Add toe volume to the m3-rate excavation calculation for `retaining_walls` scope |
+| `src/components/estimates/calculators/shared/VolumeBreakdown.tsx` | Add "Footing Toe" row to `buildRetainingWallsBreakdown` |
 
 ## What stays the same
 
-- **TM Chairs** for perimeter beams -- these are still needed and correctly calculated (perimeter / 1.2)
-- **Pod Rails** -- still correctly handled by the Pods module with proper pack-of-20 pricing
-- **Edge beam chairs** -- still correctly handled per-beam in the reinforcement module
-- **4-way and 2-way spacers** -- unchanged, handled by the Pods module
+- **Retaining Wall Footings** scope (standalone footings) -- already handles toe correctly via per-section `has_toe` fields
+- Wall volume calculation -- unchanged
+- Footing width/depth calculation -- unchanged
+- Hourly-rate excavation -- unaffected (user enters hours manually)
+- All other scope calculations -- untouched
 
 ## Risk Assessment
 
-Low risk. These changes only remove an incorrect line item. No other calculations depend on `bar_chairs_count` downstream. The pod rails that `bar_chairs_count` was originally meant to track are already covered by the Pods module (`pod_rail_packs`), so removing this redundant field causes no gap.
+Low risk. These changes only add missing volume that should have been included. The `toe_length` field already exists in the UI and is already being collected from users -- it just wasn't being used in the calculations. No new fields, no schema changes, no downstream dependencies affected.
