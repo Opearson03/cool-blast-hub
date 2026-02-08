@@ -2431,7 +2431,7 @@ const {
                           onChange={(e) => {
                             const amount = Number(e.target.value) || 0;
                             if (combinedSubtotal > 0) {
-                              setGlobalMarginPercent(Math.round((amount / combinedSubtotal) * 100 * 100) / 100);
+                              setGlobalMarginPercent((amount / combinedSubtotal) * 100);
                             }
                           }}
                           className="flex-1"
@@ -2449,7 +2449,7 @@ const {
                             size="sm"
                             onClick={() => {
                               if (combinedSubtotal > 0) {
-                                setGlobalMarginPercent(Math.round((preset / combinedSubtotal) * 100 * 100) / 100);
+                                setGlobalMarginPercent((preset / combinedSubtotal) * 100);
                               }
                             }}
                           >
