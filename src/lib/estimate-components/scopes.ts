@@ -2322,13 +2322,20 @@ export const RETAINING_WALLS_SCOPE: ScopeDefinition = {
     
     // Footing volume
     let footingVolume = 0;
+    let toeVolume = 0;
     if (answers.include_footing) {
       const footingWidthM = (Number(answers.footing_width) || 600) / 1000;
       const footingDepthM = (Number(answers.footing_depth) || 300) / 1000;
       footingVolume = totalLength * footingWidthM * footingDepthM;
+      
+      // Toe volume
+      const toeLengthM = (Number(answers.toe_length) || 0) / 1000;
+      if (toeLengthM > 0) {
+        toeVolume = totalLength * toeLengthM * footingDepthM;
+      }
     }
     
-    return safeVolume(wallVolume + footingVolume);
+    return safeVolume(wallVolume + footingVolume + toeVolume);
   },
   defaultExclusions: [
     { id: 'engineering', text: 'Structural engineering and geotechnical design', moduleId: 'retaining_walls' },
