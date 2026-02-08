@@ -885,13 +885,6 @@ export function ModularCalculator({
       }
     }
     
-    // Auto-calculate bar chairs: pods × 3 (only if not manually overridden)
-    if (podCount > 0 && !scopeUserOverrides.has('bar_chairs_count')) {
-      const calculatedBarChairs = podCount * 3;
-      if (!scopeAnswers.bar_chairs_count || scopeAnswers.bar_chairs_count !== calculatedBarChairs) {
-        updates.bar_chairs_count = calculatedBarChairs;
-      }
-    }
     
     // Auto-calculate pod grid dimensions (nx, ny) for rib bar calculations
     // Grid is derived from pod count using square root estimation

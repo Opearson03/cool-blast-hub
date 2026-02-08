@@ -68,8 +68,6 @@ interface WafflePodConfigCardProps {
   spacer2WayCount: number;
   /** TM chairs count */
   tmChairsCount: number;
-  /** Bar chairs count */
-  barChairsCount: number;
   /** Whether measurements came from takeoff */
   fromTakeoff?: boolean;
   /** Whether pod count is estimated (not manually entered) */
@@ -143,7 +141,6 @@ export function WafflePodConfigCard({
   spacer4WayCount,
   spacer2WayCount,
   tmChairsCount,
-  barChairsCount,
   fromTakeoff = false,
   podCountEstimated = false,
   volumeBreakdown,
@@ -548,7 +545,7 @@ export function WafflePodConfigCard({
             </Badge>
           </div>
           
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {/* Pod Count */}
             <div className="space-y-1.5">
               <Label className="text-xs text-muted-foreground">Pods</Label>
@@ -618,23 +615,6 @@ export function WafflePodConfigCard({
               <p className="text-[10px] text-muted-foreground">perimeter ÷ 1.2</p>
             </div>
 
-            {/* Bar Chairs / Pod Rails */}
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Bar Chairs</Label>
-              <Input
-                type="number"
-                inputMode="numeric"
-                value={barChairsCount === 0 ? '' : barChairsCount}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  onChange('bar_chairs_count', val === '' ? 0 : Number(val));
-                }}
-                className="h-9"
-                min={0}
-                placeholder="0"
-              />
-              <p className="text-[10px] text-muted-foreground">pods × 3</p>
-            </div>
           </div>
           
           <div className="flex items-start gap-2 p-2 rounded-md bg-amber-500/10 border border-amber-500/20">
