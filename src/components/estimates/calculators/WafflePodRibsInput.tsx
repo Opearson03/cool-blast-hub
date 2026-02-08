@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,6 +45,24 @@ export function WafflePodRibsInput({
   // Pod count and perimeter for summary
   const podCount = numericWithDefault(scopeData?.pod_count, 0);
   const perimeter = numericWithDefault(scopeData?.perimeter, 0);
+
+  // Pre-populate rib defaults into scopeData on mount so the calculation
+  // always has concrete values even if the user never edits rib fields.
+  useEffect(() => {
+    const defaults: Record<string, any> = {
+      rib_bottom_bars: 1,
+      rib_bottom_bar_size: 'N12',
+      rib_top_bars: 0,
+      rib_top_bar_size: 'N12',
+      stock_length: '6',
+      rib_lap_percent: 12.5,
+    };
+    for (const [key, defaultVal] of Object.entries(defaults)) {
+      if (scopeData?.[key] === undefined || scopeData?.[key] === null) {
+        onScopeDataChange(key, defaultVal);
+      }
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (field: string, value: any) => {
     onScopeDataChange(field, value);
