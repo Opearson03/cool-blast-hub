@@ -90,6 +90,16 @@ export function computeVolumeBreakdown(
     return buildRetainingWallsBreakdown(scopeAnswers);
   }
 
+  // ── Kerbs & Channels ───────────────────────────────────────────
+  if (scopeId === "kerbs_channels") {
+    return buildKerbsBreakdown(scopeAnswers);
+  }
+
+  // ── Bollards ───────────────────────────────────────────────────
+  if (scopeId === "bollards") {
+    return buildBollardsBreakdown(scopeAnswers);
+  }
+
   // ── Other scopes: generic fallback ──────────────────────────────
   // For scopes not explicitly handled, don't show breakdown
   return rows;
@@ -348,7 +358,7 @@ function buildFootingsBreakdown(
 
   if (footings.length > 0) {
     footings.forEach((f: any, i: number) => {
-      const length = Number(f.length) || 0;
+      const length = Number(f._actualLength) || Number(f.length) || 0;
       const widthMM = Number(f.width) || 0;
       const depthMM = Number(f.depth) || 0;
       const vol = length * (widthMM / 1000) * (depthMM / 1000);
@@ -383,7 +393,7 @@ function buildRetainingWallFootingsBreakdown(
 
   if (footings.length > 0) {
     footings.forEach((f: any, i: number) => {
-      const length = Number(f.length) || 0;
+      const length = Number(f._actualLength) || Number(f.length) || 0;
       const widthMM = Number(f.width) || 0;
       const depthMM = Number(f.depth) || 0;
       const mainVol = length * (widthMM / 1000) * (depthMM / 1000);
@@ -470,6 +480,72 @@ function buildRetainingWallsBreakdown(scopeAnswers: Record<string, any>): Volume
       volume: footingVol,
     });
   }
+
+  return rows;
+}
+
+function buildKerbsBreakdown(scopeAnswers: Record<string, any>): VolumeBreakdownRow[] {
+  const rows: VolumeBreakdownRow[] = [];
+  const footings = scopeAnswers.footings || [];
+
+  const kerbType = scopeAnswers.kerb_type || 'barrier';
+  const kerbLabels: Record<string, { label: string; dims: string; area: number }> = {
+    barrier: { label: 'Barrier Kerb', dims: '150mm × 300mm', area: 0.15 * 0.30 },
+    mountable: { label: 'Mountable Kerb', dims: '150mm × 150mm', area: 0.15 * 0.15 },
+    rollover: { label: 'Roll-top Kerb', dims: '150mm × 200mm', area: 0.15 * 0.20 },
+    channel: { label: 'Channel Only', dims: '300mm × 75mm', area: 0.30 * 0.075 },
+    kerb_channel: { label: 'Kerb & Channel', dims: '450mm × 300mm', area: 0.45 * 0.30 },
+  };
+  const profile = kerbLabels[kerbType] || kerbLabels.barrier;
+
+  if (footings.length > 0) {
+    footings.forEach((f: any, i: number) => {
+      const length = Number(f._actualLength) || Number(f.length) || 0;
+      const vol = length * profile.area;
+      const label = f.name || `Section ${i + 1}`;
+      rows.push({
+        label,
+        dimensions: `${length.toFixed(1)}m × ${profile.dims} (${profile.label})`,
+        volume: vol,
+      });
+    });
+  } else {
+    const length = Number(scopeAnswers.total_length) || 0;
+    const vol = length * profile.area;
+    rows.push({
+      label: profile.label,
+      dimensions: `${length.toFixed(1)}m × ${profile.dims}`,
+      volume: vol,
+    });
+  }
+
+  return rows;
+}
+
+function buildBollardsBreakdown(scopeAnswers: Record<string, any>): VolumeBreakdownRow[] {
+  const rows: VolumeBreakdownRow[] = [];
+  const numBollards = Number(scopeAnswers.num_bollards) || 4;
+  const diamMM = Number(scopeAnswers.diameter) || 200;
+  const heightAboveMM = Number(scopeAnswers.height_above) || 900;
+  const embedMM = Number(scopeAnswers.embedment_depth) || 400;
+  const footingDiamMM = Number(scopeAnswers.footing_diameter) || 400;
+
+  const bollardR = (diamMM / 1000) / 2;
+  const footingR = (footingDiamMM / 1000) / 2;
+  const totalH = (heightAboveMM + embedMM) / 1000;
+  const embedM = embedMM / 1000;
+
+  const bollardVol = Math.PI * bollardR * bollardR * totalH;
+  const footingVol = Math.PI * footingR * footingR * embedM;
+  const additionalFooting = Math.max(0, footingVol - (Math.PI * bollardR * bollardR * embedM));
+  const perBollard = bollardVol + additionalFooting;
+
+  rows.push({
+    label: `${numBollards}× Bollards`,
+    dimensions: `ø${diamMM}mm × ${heightAboveMM + embedMM}mm tall + ø${footingDiamMM}mm footing`,
+    volume: numBollards * perBollard,
+    note: `Each bollard: ${perBollard.toFixed(4)} m³`,
+  });
 
   return rows;
 }
