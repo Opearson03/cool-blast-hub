@@ -1686,10 +1686,10 @@ const {
                 // Spacer counts from takeoff - only include if defined (let auto-calculation work otherwise)
                 ...(spacer4WayCount !== undefined && { spacer_4way_count: spacer4WayCount }),
                 ...(spacer2WayCount !== undefined && { spacer_2way_count: spacer2WayCount }),
-                // Set waffle pod dimensions (use takeoff value or defaults)
-                pod_size: '1090',
-                pod_thickness: podThickness,
-                top_slab_thickness: 85, // Default 85mm top
+                // Set waffle pod dimensions (preserve existing values or use defaults)
+                pod_size: initialScopeAnswers.pod_size ?? '1090',
+                pod_thickness: initialScopeAnswers.pod_thickness ?? podThickness,
+                top_slab_thickness: initialScopeAnswers.top_slab_thickness ?? 85,
               };
             }
           }

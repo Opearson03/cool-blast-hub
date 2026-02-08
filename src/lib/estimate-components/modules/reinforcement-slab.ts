@@ -896,7 +896,7 @@ export const reinforcementSlabModule: EstimateModule = {
     // Mesh calculation
     if (reoType === 'mesh') {
       const meshArea = Number(answers.mesh_area) || Number(scopeData.area) || 100;
-      const lapAllowance = 1 + (Number(answers.mesh_lap_allowance) || 15) / 100;
+      const lapAllowance = 1 + (Number(answers.mesh_lap_allowance) || 12.5) / 100;
       const totalMeshArea = meshArea * lapAllowance;
       
       const sheetArea = 14.4; // 6m x 2.4m standard sheet

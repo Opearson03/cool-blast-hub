@@ -259,15 +259,16 @@ export const reinforcementPadModule: EstimateModule = {
       if (chairsEnabled) {
         const padAreaSqm = (padLength / 1000) * (padWidth / 1000) * numPads;
         const totalChairs = Math.ceil(padAreaSqm * chairsPerSqm);
-        const chairCost = (totalChairs / 100) * chairPricePer100;
+        const bags = Math.ceil(totalChairs / 100);
+        const chairCost = bags * chairPricePer100;
         totalCost += chairCost;
         
         lineItems.push({
           id: `reo-pad-${itemIdx++}`,
-          description: `${groupName} - Bar Chairs: ${totalChairs} chairs`,
-          quantity: totalChairs,
-          unit: 'ea',
-          unitPrice: chairPricePer100 / 100,
+          description: `${groupName} - Bar Chairs: ${bags} bags of 100`,
+          quantity: bags,
+          unit: 'bags',
+          unitPrice: chairPricePer100,
           total: chairCost,
           category: 'materials',
         });

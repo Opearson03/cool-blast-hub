@@ -112,16 +112,7 @@ export const concreteSupplyModule: EstimateModule = {
     let subtotal = 0;
 
     // Get volume from scope data or calculated
-    let volume = Number(scopeData.concrete_volume) || Number(answers.calculated_volume) || 0;
-    
-    // Calculate volume for piers if scope provides dimensions
-    if (scopeData.num_piers && scopeData.diameter && scopeData.depth) {
-      const numPiers = Number(scopeData.num_piers);
-      const diameter = Number(scopeData.diameter) / 1000; // mm to m
-      const depth = Number(scopeData.depth) / 1000; // mm to m
-      const radius = diameter / 2;
-      volume = numPiers * Math.PI * radius * radius * depth;
-    }
+    const volume = Number(scopeData.concrete_volume) || Number(answers.calculated_volume) || 0;
 
     // Apply wastage and round up to nearest 0.1 m³
     const wastagePercent = Number(answers.wastage_percent) || 10;

@@ -170,12 +170,9 @@ export const reinforcementFootingModule: EstimateModule = {
     // TM CHAIRS (per-section configuration)
     // ═══════════════════════════════════════════════════════════════
     if (sections.length > 0 && hasAnyChairs) {
-      let totalChairs = 0;
-      let totalLayerChairs = 0;
-      let chairPrice = 12.50;
-      let layerChairPrice = 12.50;
-      let chairType = '5065C';
-      let layerChairType = '2540C';
+      // Group chairs by type to handle mixed chair types across sections
+      const chairGroups: Record<string, { count: number; price: number; bagSize: number }> = {};
+      const layerChairGroups: Record<string, { count: number; price: number; bagSize: number }> = {};
       
       sections.forEach((section) => {
         if (!section.chairs_enabled) return;
@@ -183,57 +180,66 @@ export const reinforcementFootingModule: EstimateModule = {
         if (length <= 0) return;
         
         const chairsPerM = section.chairs_per_m ?? 1;
-        chairType = section.chair_type || '5065C';
-        // Use actual catalog price (no /4 normalization)
-        const catalogChairPrice = getPrice(priceMap, 'consumables', chairType, 12.50);
-        chairPrice = section.chair_price_per_bag ?? catalogChairPrice;
-        totalChairs += Math.ceil(length * chairsPerM);
+        const type = section.chair_type || '5065C';
+        const catalogChairPrice = getPrice(priceMap, 'consumables', type, 12.50);
+        const price = section.chair_price_per_bag ?? catalogChairPrice;
+        const bagSize = type === 'TMCHAIR' ? 25 : 100;
+        
+        if (!chairGroups[type]) {
+          chairGroups[type] = { count: 0, price, bagSize };
+        }
+        chairGroups[type].count += Math.ceil(length * chairsPerM);
         
         // Layer chairs (between TM layers)
         const tmLayers = section.tm_layers || 1;
         if (section.layer_chairs_enabled && tmLayers > 1) {
           const layerChairsPerM = section.layer_chairs_per_m ?? 1;
-          layerChairType = section.layer_chair_type || '2540C';
-          // Use actual catalog price (no /4 normalization)
-          const catalogLayerPrice = getPrice(priceMap, 'consumables', layerChairType, 12.50);
-          layerChairPrice = section.layer_chair_price ?? catalogLayerPrice;
-          totalLayerChairs += Math.ceil(length * layerChairsPerM);
+          const layerType = section.layer_chair_type || '2540C';
+          const catalogLayerPrice = getPrice(priceMap, 'consumables', layerType, 12.50);
+          const layerPrice = section.layer_chair_price ?? catalogLayerPrice;
+          const layerBagSize = layerType === 'TMCHAIR' ? 25 : 100;
+          
+          if (!layerChairGroups[layerType]) {
+            layerChairGroups[layerType] = { count: 0, price: layerPrice, bagSize: layerBagSize };
+          }
+          layerChairGroups[layerType].count += Math.ceil(length * layerChairsPerM);
         }
       });
       
-      if (totalChairs > 0) {
-        const bagSize = chairType === 'TMCHAIR' ? 25 : 100;
-        const bags = Math.ceil(totalChairs / bagSize);
-        const cost = bags * chairPrice;
+      // Generate one line item per chair type
+      Object.entries(chairGroups).forEach(([type, group]) => {
+        if (group.count <= 0) return;
+        const bags = Math.ceil(group.count / group.bagSize);
+        const cost = bags * group.price;
         
         lineItems.push({
-          id: 'footing_chairs',
-          description: `Footing Chairs – ${chairType} (${bags} × ${bagSize})`,
+          id: `footing_chairs_${type}`,
+          description: `Footing Chairs – ${type} (${bags} × ${group.bagSize})`,
           quantity: bags,
           unit: 'bags',
-          unitPrice: chairPrice,
+          unitPrice: group.price,
           total: Math.round(cost * 100) / 100,
           category: 'materials',
         });
         subtotal += cost;
-      }
+      });
       
-      if (totalLayerChairs > 0) {
-        const layerBagSize = layerChairType === 'TMCHAIR' ? 25 : 100;
-        const bags = Math.ceil(totalLayerChairs / layerBagSize);
-        const cost = bags * layerChairPrice;
+      Object.entries(layerChairGroups).forEach(([type, group]) => {
+        if (group.count <= 0) return;
+        const bags = Math.ceil(group.count / group.bagSize);
+        const cost = bags * group.price;
         
         lineItems.push({
-          id: 'footing_layer_chairs',
-          description: `Footing Layer Chairs – ${layerChairType} (${bags} × ${layerBagSize})`,
+          id: `footing_layer_chairs_${type}`,
+          description: `Footing Layer Chairs – ${type} (${bags} × ${group.bagSize})`,
           quantity: bags,
           unit: 'bags',
-          unitPrice: layerChairPrice,
+          unitPrice: group.price,
           total: Math.round(cost * 100) / 100,
           category: 'materials',
         });
         subtotal += cost;
-      }
+      });
     }
 
     // ═══════════════════════════════════════════════════════════════
