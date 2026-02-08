@@ -200,13 +200,27 @@ export const excavationModule: EstimateModule = {
             const depthM = (Number(section.dimension2 || section.depth) || 0) / 1000;
             volume += length * widthM * depthM;
             
-            // Add toe volume if present (retaining wall footings)
+            // Add toe volume if present (per-section, e.g. retaining_wall_footings)
             if (section.has_toe) {
               const toeWidthM = (Number(section.toe_width) || 0) / 1000;
               const toeDepthM = (Number(section.toe_depth) || 0) / 1000;
               volume += length * toeWidthM * toeDepthM;
             }
           }
+          
+          // Add toe volume for retaining_walls scope (global toe_length)
+          if (scopeData.scopeId === 'retaining_walls' && scopeData.include_footing) {
+            const toeLengthM = (Number(scopeData.toe_length) || 0) / 1000;
+            if (toeLengthM > 0) {
+              const footingDepthM = (Number(scopeData.footing_depth) || 300) / 1000;
+              const rwFootings = scopeData.footings || [];
+              const totalLen = Array.isArray(rwFootings) && rwFootings.length > 0
+                ? rwFootings.reduce((s: number, f: any) => s + (Number(f.length) || 0), 0)
+                : Number(scopeData.total_length) || 0;
+              volume += totalLen * toeLengthM * footingDepthM;
+            }
+          }
+          
           if (volume > 0) {
             return `~${volume.toFixed(2)}m³`;
           }
@@ -504,13 +518,26 @@ export const excavationModule: EstimateModule = {
               const depthM = (Number(section.dimension2 || section.depth) || 0) / 1000;
               excavationVolume += length * widthM * depthM;
               
-              // Add toe volume if present
+              // Add toe volume if present (per-section, e.g. retaining_wall_footings)
               if (section.has_toe) {
                 const toeWidthM = (Number(section.toe_width) || 0) / 1000;
                 const toeDepthM = (Number(section.toe_depth) || 0) / 1000;
                 excavationVolume += length * toeWidthM * toeDepthM;
               }
             }
+          }
+        }
+        
+        // Add toe volume for retaining_walls scope (global toe_length, not per-section)
+        if (scopeData?.scopeId === 'retaining_walls' && scopeData?.include_footing) {
+          const toeLengthM = (Number(scopeData.toe_length) || 0) / 1000;
+          if (toeLengthM > 0) {
+            const footingDepthM = (Number(scopeData.footing_depth) || 300) / 1000;
+            const rwFootings = scopeData.footings || [];
+            const totalLen = Array.isArray(rwFootings) && rwFootings.length > 0
+              ? rwFootings.reduce((s: number, f: any) => s + (Number(f.length) || 0), 0)
+              : Number(scopeData.total_length) || 0;
+            excavationVolume += totalLen * toeLengthM * footingDepthM;
           }
         }
         

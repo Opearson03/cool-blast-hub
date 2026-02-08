@@ -479,6 +479,17 @@ function buildRetainingWallsBreakdown(scopeAnswers: Record<string, any>): Volume
       dimensions: `${totalLength.toFixed(1)}m × ${footingWidthMM}mm × ${footingDepthMM}mm`,
       volume: footingVol,
     });
+
+    // Footing Toe
+    const toeLengthMM = Number(scopeAnswers.toe_length) || 0;
+    if (toeLengthMM > 0) {
+      const toeVol = totalLength * (toeLengthMM / 1000) * (footingDepthMM / 1000);
+      rows.push({
+        label: "Footing Toe",
+        dimensions: `${totalLength.toFixed(1)}m × ${toeLengthMM}mm × ${footingDepthMM}mm`,
+        volume: toeVol,
+      });
+    }
   }
 
   return rows;
