@@ -1,51 +1,45 @@
 
-# Update Edge Beam & Thickening Chairs to Match Retaining Wall Pattern
+# Auto-Populate Expansion Joint Qty from Takeoff Measurement
 
-## What's Changing
+## Problem
 
-The chair selection for SOG edge beams/thickenings (and raft slab edge/internal beams) currently only offers a basic "TM Chairs" toggle with chairs-per-metre and a fixed $/25 price. The retaining wall footing module already has a proper chair type dropdown (TM Chair, 25-40mm, 50-65mm, 75-90mm, 100-120mm, 125-150mm) with dynamic bag sizing (25 for TM Chair, 100 for bar chairs).
+When a joint measurement comes back from the takeoff (via "Mark on Plans"), the `total_length_m` is saved correctly, but the **quantity (pcs)** field stays at its old value (usually 0). This is because the auto-calculation logic (`Math.ceil(length / 3)`) only runs inside the `MultiExpansionJointInput` component's `updateJoint` function -- which is triggered by UI interactions, not by the state update in `handleJointMarkupComplete`.
 
-This update brings the edge beam chairs in line with that pattern.
+## Fix
 
-## Changes
+Add the quantity calculation directly into `handleJointMarkupComplete` in `EstimateFormDialog.tsx`, so that when the measured length flows back from the takeoff, the quantity is calculated at the same time.
 
-### 1. UI -- BeamReinforcementInput.tsx
+### File: `src/components/estimates/EstimateFormDialog.tsx`
 
-**Add chair type dropdown and dynamic bag size** to the "TM Chairs" section (currently lines 878-925):
+**Change** (around lines 1139-1143):
 
-- Add the `CHAIR_TYPE_OPTIONS` constant (already exists in `FootingSectionReinforcementInput.tsx`)
-- Add helper functions: `getChairOption`, `getChairCatalogPrice`, `getChairBagSize` (same as footing file)
-- Replace the current simple 2-column grid (Chairs/m + $/25) with:
-  - A chair type dropdown (TM Chair, 25-40mm, 50-65mm, etc.)
-  - Chairs/m input
-  - Price per bag with dynamic label showing the bag size (e.g. $/bag(100) for bar chairs, $/bag(25) for TM Chair)
-- When the chair type changes, auto-populate the price from the price map
+Currently the joint update only sets `total_length_m` and `measured_on_plans`:
 
-### 2. Calculation -- reinforcement-raft.ts (edge beams, lines 612-670)
+```typescript
+joints[jointIndex] = {
+  ...joints[jointIndex],
+  total_length_m: parseFloat(lengthMeters.toFixed(2)),
+  measured_on_plans: true,
+};
+```
 
-Update the edge beam chairs calculation to be chair-type aware:
+Update to also calculate and set quantity (3m per piece):
 
-- Read `beam.chair_type` (default 'TMCHAIR' for backward compatibility)
-- Determine bag size: 25 for TMCHAIR, 100 for bar chairs
-- Use the correct price lookup based on chair type
-- Update the line item description to show the chair type and correct bag size
+```typescript
+const measuredLength = parseFloat(lengthMeters.toFixed(2));
+joints[jointIndex] = {
+  ...joints[jointIndex],
+  total_length_m: measuredLength,
+  measured_on_plans: true,
+  quantity: Math.ceil(measuredLength / 3),
+};
+```
 
-Apply the same change to internal beam chairs (lines 672-730).
-
-### 3. Calculation -- reinforcement-slab.ts (SOG edge beams, lines 1049-1067)
-
-This is the legacy SOG path that uses `answers.edge_tm_chairs`. Update similarly:
-
-- Read `answers.edge_chair_type` (default 'TMCHAIR')
-- Use dynamic bag size based on chair type
-- Update description
+This same change applies to both the expansion joints block (line 1139) and the control joints block (line 1152) -- though control joints don't use quantity in the same way, the expansion joints path is the key fix.
 
 ## Summary
 
-| File | Change |
-|------|--------|
-| `BeamReinforcementInput.tsx` | Add chair type dropdown + dynamic bag pricing (matching footing/retaining wall UI) |
-| `reinforcement-raft.ts` | Edge beam + internal beam chairs: read chair_type, use correct bag size (25 or 100) |
-| `reinforcement-slab.ts` | SOG edge beam chairs: same chair type awareness |
-
-No database changes needed. The `BeamConfig` type already has `chair_type` defined.
+- One file changed: `EstimateFormDialog.tsx`
+- Two lines updated (expansion joints path + control joints path for consistency)
+- The Qty (auto) field will now correctly populate when returning from takeoff measurement
+- Works for SOG, Driveway, and Paths/Surrounds scopes since they all flow through the same `handleJointMarkupComplete` handler
