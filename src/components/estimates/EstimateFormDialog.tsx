@@ -1136,10 +1136,12 @@ const {
             const joints = [...(connectionsModule.expansion_joints || [])];
             const jointIndex = joints.findIndex((j: any) => j.id === jointId);
             if (jointIndex >= 0) {
+              const measuredLength = parseFloat(lengthMeters.toFixed(2));
               joints[jointIndex] = {
                 ...joints[jointIndex],
-                total_length_m: parseFloat(lengthMeters.toFixed(2)),
+                total_length_m: measuredLength,
                 measured_on_plans: true,
+                quantity: Math.ceil(measuredLength / 3),
               };
               connectionsModule.expansion_joints = joints;
               moduleAnswers['connections-joints'] = connectionsModule;
@@ -1149,10 +1151,12 @@ const {
             const joints = [...(controlModule.control_joints || [])];
             const jointIndex = joints.findIndex((j: any) => j.id === jointId);
             if (jointIndex >= 0) {
+              const measuredLength = parseFloat(lengthMeters.toFixed(2));
               joints[jointIndex] = {
                 ...joints[jointIndex],
-                total_length_m: parseFloat(lengthMeters.toFixed(2)),
+                total_length_m: measuredLength,
                 measured_on_plans: true,
+                quantity: Math.ceil(measuredLength / 3),
               };
               controlModule.control_joints = joints;
               moduleAnswers['joints-control'] = controlModule;
