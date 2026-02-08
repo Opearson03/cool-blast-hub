@@ -498,27 +498,27 @@ export function VolumeBreakdown({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5">
+      <CollapsibleTrigger className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer py-0.5">
         <span>How it's calculated</span>
         <ChevronDown
-          className={`h-3 w-3 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+          className={`h-3.5 w-3.5 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
         />
       </CollapsibleTrigger>
 
       <CollapsibleContent className="mt-2 space-y-1.5">
         {rows.map((row, i) => (
           <div key={i} className="space-y-0.5">
-            <div className="flex justify-between text-xs">
+            <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">{row.label}</span>
               <span className="font-mono tabular-nums">
                 {row.volume.toFixed(2)} m³
               </span>
             </div>
-            <div className="text-[10px] text-muted-foreground/70 pl-2">
+            <div className="text-xs text-muted-foreground/70 pl-2">
               {row.dimensions}
             </div>
             {row.note && (
-              <div className="text-[10px] italic text-muted-foreground/60 pl-2">
+              <div className="text-xs italic text-muted-foreground/60 pl-2">
                 {row.note}
               </div>
             )}
@@ -526,7 +526,7 @@ export function VolumeBreakdown({
         ))}
 
         {rows.length > 1 && (
-          <div className="flex justify-between text-xs font-medium border-t pt-1.5 mt-1.5">
+          <div className="flex justify-between text-sm font-medium border-t pt-1.5 mt-1.5">
             <span>Total Volume</span>
             <span className="font-mono tabular-nums">{total.toFixed(2)} m³</span>
           </div>

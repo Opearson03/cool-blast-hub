@@ -2048,7 +2048,7 @@ const {
       <DialogContent 
         className={cn(
           "max-h-[95vh] overflow-hidden flex flex-col",
-          currentStep === "takeoff" ? "max-w-[95vw] w-full" : "max-w-4xl"
+          currentStep === "takeoff" ? "max-w-[95vw] w-full" : "max-w-4xl md:max-w-[95vw] lg:max-w-4xl"
         )}
         onEscapeKeyDown={(e) => {
           // Always prevent Escape from closing the estimate wizard

@@ -170,7 +170,7 @@ export function DroppablePourDay({
     <div
       ref={setNodeRef}
       className={cn(
-        "border rounded-lg p-1 sm:p-1.5 min-h-[60px] sm:min-h-[100px] transition-colors",
+        "border rounded-lg p-1 sm:p-2 min-h-[60px] sm:min-h-[100px] md:min-h-[110px] transition-colors",
         isOver && "border-primary bg-primary/5",
         today && "border-primary/50 bg-primary/5",
         !isCurrentMonth && "opacity-40"

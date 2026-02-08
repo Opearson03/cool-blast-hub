@@ -18,23 +18,25 @@ export default function AdminContacts() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-5 lg:w-auto lg:inline-flex">
-            <TabsTrigger value="inbox" className="gap-2">
+            <TabsTrigger value="inbox" className="gap-1.5">
               <Inbox className="h-4 w-4 hidden sm:inline" />
               Inbox
             </TabsTrigger>
-            <TabsTrigger value="clients" className="gap-2">
+            <TabsTrigger value="clients" className="gap-1.5">
               <Users className="h-4 w-4 hidden sm:inline" />
               Clients
             </TabsTrigger>
-            <TabsTrigger value="subbies" className="gap-2">
+            <TabsTrigger value="subbies" className="gap-1.5">
               <Building2 className="h-4 w-4 hidden sm:inline" />
-              Sub-Contractors
+              <span className="hidden sm:inline">Sub-Contractors</span>
+              <span className="sm:hidden">Subbies</span>
             </TabsTrigger>
-            <TabsTrigger value="suppliers" className="gap-2">
+            <TabsTrigger value="suppliers" className="gap-1.5">
               <Truck className="h-4 w-4 hidden sm:inline" />
-              Suppliers
+              <span className="hidden sm:inline">Suppliers</span>
+              <span className="sm:hidden">Supply</span>
             </TabsTrigger>
-            <TabsTrigger value="internal" className="gap-2">
+            <TabsTrigger value="internal" className="gap-1.5">
               <UserCircle className="h-4 w-4 hidden sm:inline" />
               Internal
             </TabsTrigger>
