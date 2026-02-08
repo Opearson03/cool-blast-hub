@@ -1631,6 +1631,7 @@ const {
                   width: b.width,
                   depth: b.depth,
                   _fromTakeoff: true,
+                  chairs_enabled: true,
                 })),
               }),
               // Legacy aggregate edge beam fields for calculations
@@ -1647,6 +1648,7 @@ const {
                   width: b.width,
                   depth: b.depth,
                   _fromTakeoff: true,
+                  chairs_enabled: true,
                 })),
               }),
               // Legacy aggregate internal beam fields
