@@ -1,45 +1,69 @@
 
-# Auto-Populate Expansion Joint Qty from Takeoff Measurement
+
+# Fix Raft Slab Internal Beam Volume + Excavation Consistency
 
 ## Problem
 
-When a joint measurement comes back from the takeoff (via "Mark on Plans"), the `total_length_m` is saved correctly, but the **quantity (pcs)** field stays at its old value (usually 0). This is because the auto-calculation logic (`Math.ceil(length / 3)`) only runs inside the `MultiExpansionJointInput` component's `updateJoint` function -- which is triggered by UI interactions, not by the state update in `handleJointMarkupComplete`.
+Two issues affecting raft slab calculations:
 
-## Fix
+1. **Excavation volume inflated by scalar fallbacks**: When no `edgeBeams` array exists, the excavation calculation falls back to scalar fields (`edge_beam_depth` default 450mm, `edge_beam_length` defaulting to full perimeter). This inflates the excavation volume even when no edge beams have been drawn. The concrete volume calculation does NOT have this fallback, creating a mismatch.
 
-Add the quantity calculation directly into `handleJointMarkupComplete` in `EstimateFormDialog.tsx`, so that when the measured length flows back from the takeoff, the quantity is calculated at the same time.
+2. **Internal beams not merged from takeoff**: The `needsTakeoffMerge` condition checks for `areasNeedMerge` and `edgeBeamsNeedMerge`, but NOT `internalBeamsNeedMerge`. If internal beams are marked on plans after the estimate has already been saved with areas and edge beams, the internal beam data may not flow into the calculator.
 
-### File: `src/components/estimates/EstimateFormDialog.tsx`
+## Changes
 
-**Change** (around lines 1139-1143):
+### 1. Fix excavation volume fallback (ModularCalculator.tsx, ~line 466)
 
-Currently the joint update only sets `total_length_m` and `measured_on_plans`:
+Remove the scalar fallback path for edge beam excavation volume. Only calculate edge beam excavation from the `edgeBeams` array (same pattern as the concrete volume calculation). This prevents phantom excavation volume from default scalar values.
 
-```typescript
-joints[jointIndex] = {
-  ...joints[jointIndex],
-  total_length_m: parseFloat(lengthMeters.toFixed(2)),
-  measured_on_plans: true,
-};
+**Before:**
+```
+if (edgeBeams.length > 0) {
+  // calculate from array
+} else if (scopeAnswers.edge_beam_depth) {
+  // FALLBACK: uses perimeter x default depth - WRONG
+}
 ```
 
-Update to also calculate and set quantity (3m per piece):
-
-```typescript
-const measuredLength = parseFloat(lengthMeters.toFixed(2));
-joints[jointIndex] = {
-  ...joints[jointIndex],
-  total_length_m: measuredLength,
-  measured_on_plans: true,
-  quantity: Math.ceil(measuredLength / 3),
-};
+**After:**
+```
+if (edgeBeams.length > 0) {
+  // calculate from array - only path
+}
+// No fallback - if no edgeBeams array, volume = 0
 ```
 
-This same change applies to both the expansion joints block (line 1139) and the control joints block (line 1152) -- though control joints don't use quantity in the same way, the expansion joints path is the key fix.
+### 2. Add internalBeamsNeedMerge to takeoff merge logic (EstimateFormDialog.tsx, ~line 1571)
 
-## Summary
+Add a check for internal beams needing merge, mirroring the existing `edgeBeamsNeedMerge` pattern.
 
-- One file changed: `EstimateFormDialog.tsx`
-- Two lines updated (expansion joints path + control joints path for consistency)
-- The Qty (auto) field will now correctly populate when returning from takeoff measurement
-- Works for SOG, Driveway, and Paths/Surrounds scopes since they all flow through the same `handleJointMarkupComplete` handler
+**Before:**
+```
+const needsTakeoffMerge = !hasUserData || areasNeedMerge || edgeBeamsNeedMerge;
+```
+
+**After:**
+```
+const takeoffHasInternalBeams = raftSlabAreas.some(s => 
+  s.internalBeams && s.internalBeams.length > 0 && 
+  s.internalBeams.some(b => b.length > 0));
+const savedInternalBeamsHaveLength = initialScopeAnswers.beams?.some((b: any) => 
+  b.length > 0 && b._fromTakeoff === true);
+const internalBeamsNeedMerge = takeoffHasInternalBeams && !savedInternalBeamsHaveLength;
+
+const needsTakeoffMerge = !hasUserData || areasNeedMerge || edgeBeamsNeedMerge || internalBeamsNeedMerge;
+```
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Remove scalar fallback for edge beam excavation volume (~line 466-473) |
+| `src/components/estimates/EstimateFormDialog.tsx` | Add `internalBeamsNeedMerge` check to takeoff merge condition (~line 1563-1571) |
+
+## Impact
+
+- Excavation volume will only reflect beams that actually exist in the `edgeBeams`/`beams` arrays
+- Internal beams marked on plans will always merge correctly into the calculator, even if areas and edge beams were already saved
+- No database changes needed
+
