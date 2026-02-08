@@ -17,6 +17,15 @@ const TRENCH_MESH_WEIGHTS: Record<string, number> = {
   'L12TM5': 2.82,
 };
 
+const CHAIR_LABELS: Record<string, string> = {
+  'TMCHAIR': 'TM Chair',
+  '2540C': '25-40mm',
+  '5065C': '50-65mm',
+  '7590C': '75-90mm',
+  '100120C': '100-120mm',
+  '125150C': '125-150mm',
+};
+
 export const reinforcementSlabModule: EstimateModule = {
   id: 'reinforcement-slab',
   name: 'Reinforcement',
@@ -446,7 +455,7 @@ export const reinforcementSlabModule: EstimateModule = {
     {
       id: 'edge_tm_chairs',
       type: 'boolean',
-      label: 'Include Trench Mesh Chairs',
+      label: 'Include Edge Beam Chairs',
       defaultValue: false,
       showIf: (answers, scopeData) => 
         (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
@@ -454,9 +463,28 @@ export const reinforcementSlabModule: EstimateModule = {
         answers.edge_beam_reo === true,
     },
     {
+      id: 'edge_chair_type',
+      type: 'select',
+      label: 'Chair Type',
+      options: [
+        { value: 'TMCHAIR', label: 'TM Chair (bag 25)' },
+        { value: '2540C', label: '25-40mm (bag 100)' },
+        { value: '5065C', label: '50-65mm (bag 100)' },
+        { value: '7590C', label: '75-90mm (bag 100)' },
+        { value: '100120C', label: '100-120mm (bag 100)' },
+        { value: '125150C', label: '125-150mm (bag 100)' },
+      ],
+      defaultValue: 'TMCHAIR',
+      showIf: (answers, scopeData) => 
+        (answers.reo_type === 'mesh' || answers.reo_type === 'bar') && 
+        scopeData?.hasThickening === true && 
+        answers.edge_beam_reo === true &&
+        answers.edge_tm_chairs === true,
+    },
+    {
       id: 'edge_tm_chairs_per_m',
       type: 'number',
-      label: 'TM Chairs per Linear Metre',
+      label: 'Chairs per Linear Metre',
       defaultValue: 1.4,
       min: 1,
       max: 5,
@@ -472,7 +500,7 @@ export const reinforcementSlabModule: EstimateModule = {
     {
       id: 'edge_tm_chair_price',
       type: 'currency',
-      label: 'TM Chair Price per Bag (25)',
+      label: 'Chair Price per Bag',
       defaultValue: 12.50,
       unit: '/bag',
       showIf: (answers, scopeData) => 
@@ -480,8 +508,9 @@ export const reinforcementSlabModule: EstimateModule = {
         scopeData?.hasThickening === true && 
         answers.edge_beam_reo === true &&
         answers.edge_tm_chairs === true,
-      deriveFrom: (_scopeData, _moduleAnswers, priceMap) => {
-        return priceMap?.['consumables']?.['TMCHAIR'];
+      deriveFrom: (_scopeData, moduleAnswers, priceMap) => {
+        const chairType = moduleAnswers.edge_chair_type || 'TMCHAIR';
+        return priceMap?.['consumables']?.[chairType];
       },
     },
     // ============ EDGE BEAM ADDITIONAL REINFORCEMENT ============
@@ -1046,24 +1075,27 @@ export const reinforcementSlabModule: EstimateModule = {
       });
       subtotal += tmCost;
 
-      // TM Chairs for edge beams - rounded to bags of 25
+      // Edge beam chairs - chair-type aware with dynamic bag sizing
       if (answers.edge_tm_chairs) {
+        const chairType = answers.edge_chair_type || 'TMCHAIR';
+        const bagSize = chairType === 'TMCHAIR' ? 25 : 100;
         const chairsPerM = Number(answers.edge_tm_chairs_per_m) || 2;
-        const totalTmChairs = Math.ceil(tmLength * chairsPerM);
-        const bagsNeeded = Math.ceil(totalTmChairs / 25);
-        const tmChairPrice = Number(answers.edge_tm_chair_price) || getPrice(priceMap, 'consumables', 'TMCHAIR', 12.50);
-        const tmChairCost = bagsNeeded * tmChairPrice;
+        const totalChairs = Math.ceil(tmLength * chairsPerM);
+        const bagsNeeded = Math.ceil(totalChairs / bagSize);
+        const chairLabel = CHAIR_LABELS[chairType] || chairType;
+        const chairPrice = Number(answers.edge_tm_chair_price) || getPrice(priceMap, 'consumables', chairType, 12.50);
+        const chairCost = bagsNeeded * chairPrice;
 
         lineItems.push({
           id: 'edge_tm_chairs',
-          description: `Edge Beam TM Chairs (${bagsNeeded} bags of 25)`,
+          description: `Edge Beam ${chairLabel} Chairs (${bagsNeeded} × ${bagSize})`,
           quantity: bagsNeeded,
           unit: 'bags',
-          unitPrice: tmChairPrice,
-          total: Math.round(tmChairCost * 100) / 100,
+          unitPrice: chairPrice,
+          total: Math.round(chairCost * 100) / 100,
           category: 'materials',
         });
-        subtotal += tmChairCost;
+        subtotal += chairCost;
       }
 
       // Edge Beam Additional Horizontal TM (Layer 2)
