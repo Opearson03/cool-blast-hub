@@ -1568,7 +1568,15 @@ const {
           );
           const edgeBeamsNeedMerge = takeoffHasEdgeBeams && !savedEdgeBeamsHaveLength;
           
-          const needsTakeoffMerge = !hasUserData || areasNeedMerge || edgeBeamsNeedMerge;
+          // Check if internal beams need merging: takeoff has beams with length but saved state doesn't
+          const takeoffHasInternalBeams = raftSlabAreas.some(s => 
+            s.internalBeams && s.internalBeams.length > 0 && 
+            s.internalBeams.some(b => b.length > 0));
+          const savedInternalBeamsHaveLength = initialScopeAnswers.beams?.some((b: any) => 
+            b.length > 0 && b._fromTakeoff === true);
+          const internalBeamsNeedMerge = takeoffHasInternalBeams && !savedInternalBeamsHaveLength;
+          
+          const needsTakeoffMerge = !hasUserData || areasNeedMerge || edgeBeamsNeedMerge || internalBeamsNeedMerge;
           
           if (needsTakeoffMerge) {
             // Convert raft slab areas to MeasurementArea format

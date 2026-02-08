@@ -463,15 +463,9 @@ export function ModularCalculator({
             return sum + depth * length;
           }, 0) / totalLength;
         }
-      } else if (scopeAnswers.edge_beam_depth) {
-        // Fallback to scalar fields
-        const edgeBeamLength = Number(scopeAnswers.edge_beam_length) || totalPerimeter;
-        const edgeBeamWidthM = (Number(scopeAnswers.edge_beam_width) || 300) / 1000;
-        const edgeBeamDepthM = (Number(scopeAnswers.edge_beam_depth) || 300) / 1000;
-        const extraEdgeDepth = Math.max(0, edgeBeamDepthM - thicknessM);
-        excavationVolume += edgeBeamLength * edgeBeamWidthM * extraEdgeDepth;
-        averageExcavationDepth = Number(scopeAnswers.edge_beam_depth) || 300;
       }
+      // No scalar fallback - if no edgeBeams array, excavation volume = 0
+      // This matches the concrete volume calculation which also only uses the array
       
       // Internal thickening excavation - calculate from beams array if available
       const beams = scopeAnswers.beams || [];
