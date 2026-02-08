@@ -1,51 +1,51 @@
 
+# Update Edge Beam & Thickening Chairs to Match Retaining Wall Pattern
 
-# Fix: Preset Fixed Profit Off by a Few Dollars
+## What's Changing
 
-## Problem
+The chair selection for SOG edge beams/thickenings (and raft slab edge/internal beams) currently only offers a basic "TM Chairs" toggle with chairs-per-metre and a fixed $/25 price. The retaining wall footing module already has a proper chair type dropdown (TM Chair, 25-40mm, 50-65mm, 75-90mm, 100-120mm, 125-150mm) with dynamic bag sizing (25 for TM Chair, 100 for bar chairs).
 
-When you click a preset profit button (e.g. $5,000), the displayed fixed profit shows a slightly different number (e.g. $5,005 or $4,997). This is because:
+This update brings the edge beam chairs in line with that pattern.
 
-1. Clicking $5,000 reverse-calculates the margin percentage, rounding to **1 decimal place**
-2. The displayed profit re-calculates from that rounded percentage, producing a slightly different dollar amount
+## Changes
 
-For example, with a subtotal of $38,500:
-- $5,000 / $38,500 = 12.987...% --> rounds to **13.0%**
-- 13.0% x $38,500 = **$5,005** (off by $5)
+### 1. UI -- BeamReinforcementInput.tsx
 
-## Fix
+**Add chair type dropdown and dynamic bag size** to the "TM Chairs" section (currently lines 878-925):
 
-Increase the margin percentage precision from 1 decimal place to 2 decimal places. This reduces the maximum drift from ~$50 to ~$5 on typical estimates, and in most cases eliminates visible discrepancy entirely.
+- Add the `CHAIR_TYPE_OPTIONS` constant (already exists in `FootingSectionReinforcementInput.tsx`)
+- Add helper functions: `getChairOption`, `getChairCatalogPrice`, `getChairBagSize` (same as footing file)
+- Replace the current simple 2-column grid (Chairs/m + $/25) with:
+  - A chair type dropdown (TM Chair, 25-40mm, 50-65mm, etc.)
+  - Chairs/m input
+  - Price per bag with dynamic label showing the bag size (e.g. $/bag(100) for bar chairs, $/bag(25) for TM Chair)
+- When the chair type changes, auto-populate the price from the price map
 
-### File: `src/components/estimates/EstimateFormDialog.tsx`
+### 2. Calculation -- reinforcement-raft.ts (edge beams, lines 612-670)
 
-**Change 1 -- Preset profit buttons (line 2438):**
+Update the edge beam chairs calculation to be chair-type aware:
 
-Round to 2 decimal places instead of 1:
+- Read `beam.chair_type` (default 'TMCHAIR' for backward compatibility)
+- Determine bag size: 25 for TMCHAIR, 100 for bar chairs
+- Use the correct price lookup based on chair type
+- Update the line item description to show the chair type and correct bag size
 
-```
-// Before
-setGlobalMarginPercent(Math.round((preset / combinedSubtotal) * 100 * 10) / 10);
+Apply the same change to internal beam chairs (lines 672-730).
 
-// After
-setGlobalMarginPercent(Math.round((preset / combinedSubtotal) * 100 * 100) / 100);
-```
+### 3. Calculation -- reinforcement-slab.ts (SOG edge beams, lines 1049-1067)
 
-**Change 2 -- Manual profit input (line 2420):**
+This is the legacy SOG path that uses `answers.edge_tm_chairs`. Update similarly:
 
-Same precision increase for consistency when typing a custom dollar amount:
+- Read `answers.edge_chair_type` (default 'TMCHAIR')
+- Use dynamic bag size based on chair type
+- Update description
 
-```
-// Before
-setGlobalMarginPercent(Math.round((amount / combinedSubtotal) * 100 * 10) / 10);
+## Summary
 
-// After
-setGlobalMarginPercent(Math.round((amount / combinedSubtotal) * 100 * 100) / 100);
-```
+| File | Change |
+|------|--------|
+| `BeamReinforcementInput.tsx` | Add chair type dropdown + dynamic bag pricing (matching footing/retaining wall UI) |
+| `reinforcement-raft.ts` | Edge beam + internal beam chairs: read chair_type, use correct bag size (25 or 100) |
+| `reinforcement-slab.ts` | SOG edge beam chairs: same chair type awareness |
 
-## Impact
-
-- Two lines changed in one file
-- The margin percentage will now store up to 2 decimal places (e.g. 12.99% instead of 13.0%)
-- The displayed fixed profit will match the preset much more closely
-- No effect on existing saved estimates -- margin percentage is already stored as a number
+No database changes needed. The `BeamConfig` type already has `chair_type` defined.
