@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { EditableTotalLength } from "./shared/EditableTotalLength";
 import { Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -458,17 +459,9 @@ export function MultiLinearTypeInput({
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Total Length</Label>
                       <div className="relative">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          value={group.totalLength > 0 ? group.totalLength.toFixed(2) : ""}
-                          onChange={(e) =>
-                            updateGroupTotalLength(group,
-                              e.target.value === "" ? 0 : Number(e.target.value)
-                            )
-                          }
-                          min={0}
-                          step={0.1}
+                        <EditableTotalLength
+                          totalLength={group.totalLength}
+                          onCommit={(val) => updateGroupTotalLength(group, val)}
                           className="pr-8 h-11 sm:h-9"
                         />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
