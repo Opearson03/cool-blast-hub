@@ -1,69 +1,94 @@
 
 
-# Fix Raft Slab Internal Beam Volume + Excavation Consistency
+# Fix Raft Beam Chairs Not Auto-Including from Takeoff
 
 ## Problem
 
-Two issues affecting raft slab calculations:
+When raft slab beams come from the takeoff ("Mark on Plans"), they are created with only basic properties: `id`, `name`, `length`, `width`, `depth`, and `_fromTakeoff`. The `chairs_enabled` property is not set, so it defaults to `false`/undefined.
 
-1. **Excavation volume inflated by scalar fallbacks**: When no `edgeBeams` array exists, the excavation calculation falls back to scalar fields (`edge_beam_depth` default 450mm, `edge_beam_length` defaulting to full perimeter). This inflates the excavation volume even when no edge beams have been drawn. The concrete volume calculation does NOT have this fallback, creating a mismatch.
+In the reinforcement calculation (`reinforcement-raft.ts`), both edge beam chairs (line 624) and internal beam chairs (line 693) check `if (!beam.chairs_enabled) return;` -- which skips every beam that came from takeoff.
 
-2. **Internal beams not merged from takeoff**: The `needsTakeoffMerge` condition checks for `areasNeedMerge` and `edgeBeamsNeedMerge`, but NOT `internalBeamsNeedMerge`. If internal beams are marked on plans after the estimate has already been saved with areas and edge beams, the internal beam data may not flow into the calculator.
+This is the same class of issue as the internal beams not flowing through: takeoff-created data is missing a property that the calculation requires.
 
-## Changes
+**Comparison with SOG**: The SOG module (`reinforcement-slab.ts`) uses a module-level toggle (`answers.edge_tm_chairs`) for chairs, so this issue doesn't affect SOG/driveway/paths scopes.
 
-### 1. Fix excavation volume fallback (ModularCalculator.tsx, ~line 466)
+## Fix
 
-Remove the scalar fallback path for edge beam excavation volume. Only calculate edge beam excavation from the `edgeBeams` array (same pattern as the concrete volume calculation). This prevents phantom excavation volume from default scalar values.
+Set `chairs_enabled: true` as a default when creating beam objects from takeoff data. This ensures chairs auto-calculate with sensible defaults (TMCHAIR type, 1.4 chairs/m) for beams that came from plan markups.
 
-**Before:**
-```
-if (edgeBeams.length > 0) {
-  // calculate from array
-} else if (scopeAnswers.edge_beam_depth) {
-  // FALLBACK: uses perimeter x default depth - WRONG
-}
-```
+### File: `src/components/estimates/EstimateFormDialog.tsx`
 
-**After:**
-```
-if (edgeBeams.length > 0) {
-  // calculate from array - only path
-}
-// No fallback - if no edgeBeams array, volume = 0
-```
+**Change 1** -- Edge beams from takeoff (around line 1627-1634):
 
-### 2. Add internalBeamsNeedMerge to takeoff merge logic (EstimateFormDialog.tsx, ~line 1571)
-
-Add a check for internal beams needing merge, mirroring the existing `edgeBeamsNeedMerge` pattern.
-
-**Before:**
-```
-const needsTakeoffMerge = !hasUserData || areasNeedMerge || edgeBeamsNeedMerge;
+Currently:
+```typescript
+edgeBeams: allEdgeBeams.map((b) => ({
+  id: b.id,
+  name: b.name,
+  length: parseFloat(b.length.toFixed(2)),
+  width: b.width,
+  depth: b.depth,
+  _fromTakeoff: true,
+})),
 ```
 
-**After:**
+Add `chairs_enabled: true`:
+```typescript
+edgeBeams: allEdgeBeams.map((b) => ({
+  id: b.id,
+  name: b.name,
+  length: parseFloat(b.length.toFixed(2)),
+  width: b.width,
+  depth: b.depth,
+  _fromTakeoff: true,
+  chairs_enabled: true,
+})),
 ```
-const takeoffHasInternalBeams = raftSlabAreas.some(s => 
-  s.internalBeams && s.internalBeams.length > 0 && 
-  s.internalBeams.some(b => b.length > 0));
-const savedInternalBeamsHaveLength = initialScopeAnswers.beams?.some((b: any) => 
-  b.length > 0 && b._fromTakeoff === true);
-const internalBeamsNeedMerge = takeoffHasInternalBeams && !savedInternalBeamsHaveLength;
 
-const needsTakeoffMerge = !hasUserData || areasNeedMerge || edgeBeamsNeedMerge || internalBeamsNeedMerge;
+**Change 2** -- Internal beams from takeoff (around line 1643-1650):
+
+Currently:
+```typescript
+beams: allInternalBeams.map((b) => ({
+  id: b.id,
+  name: b.name,
+  length: parseFloat(b.length.toFixed(2)),
+  width: b.width,
+  depth: b.depth,
+  _fromTakeoff: true,
+})),
 ```
+
+Add `chairs_enabled: true`:
+```typescript
+beams: allInternalBeams.map((b) => ({
+  id: b.id,
+  name: b.name,
+  length: parseFloat(b.length.toFixed(2)),
+  width: b.width,
+  depth: b.depth,
+  _fromTakeoff: true,
+  chairs_enabled: true,
+})),
+```
+
+## How It Works
+
+- When beams arrive from takeoff with `chairs_enabled: true`, the reinforcement calculation in `reinforcement-raft.ts` will no longer skip them at the `if (!beam.chairs_enabled) return;` check
+- Default chair values apply automatically: TMCHAIR type, 1.4 chairs per metre, catalog price from price list
+- The user can still toggle chairs OFF per-beam in the BeamReinforcementInput UI if they don't want them
+- Existing saved estimates with beams that already have `chairs_enabled` explicitly set will not be affected
 
 ## Files Modified
 
 | File | Change |
 |------|--------|
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Remove scalar fallback for edge beam excavation volume (~line 466-473) |
-| `src/components/estimates/EstimateFormDialog.tsx` | Add `internalBeamsNeedMerge` check to takeoff merge condition (~line 1563-1571) |
+| `src/components/estimates/EstimateFormDialog.tsx` | Add `chairs_enabled: true` to both edge beam and internal beam objects created from takeoff data |
 
 ## Impact
 
-- Excavation volume will only reflect beams that actually exist in the `edgeBeams`/`beams` arrays
-- Internal beams marked on plans will always merge correctly into the calculator, even if areas and edge beams were already saved
-- No database changes needed
+- Raft slab beams from takeoff will now automatically include chairs in the cost calculation
+- Users can still disable chairs per-beam if needed
+- No database changes required
+- Only affects new takeoff merges; existing saved estimates are unchanged
 
