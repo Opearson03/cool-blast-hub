@@ -517,7 +517,7 @@ export const reinforcementRaftModule: EstimateModule = {
       
       // Get aggregated values for mesh calculation
       const tmChairsCount = Number(scopeData?.tm_chairs_count) || 0;
-      const barChairsCount = Number(scopeData?.bar_chairs_count) || 0;
+      
       const perimeter = Number(scopeData?.perimeter) || 0;
       const podCount = Number(scopeData?.pod_count) || 0;
       
@@ -591,23 +591,6 @@ export const reinforcementRaftModule: EstimateModule = {
         subtotal += cost;
       }
       
-      // Bar Chairs for pod support (heuristic: pods × 3)
-      if (barChairsCount > 0) {
-        const barChairPrice = getPrice(priceMap, 'consumables', '2540C', 35);
-        const bags = Math.ceil(barChairsCount / 100);
-        const cost = bags * barChairPrice;
-        
-        lineItems.push({
-          id: 'waffle_bar_chairs',
-          description: `Bar Chairs 25-40mm (${bags} × 100) [allowance: pods × 3]`,
-          quantity: bags,
-          unit: 'bags',
-          unitPrice: barChairPrice,
-          total: Math.round(cost * 100) / 100,
-          category: 'materials',
-        });
-        subtotal += cost;
-      }
     }
 
     // ═══════════════════════════════════════════════════════════════
