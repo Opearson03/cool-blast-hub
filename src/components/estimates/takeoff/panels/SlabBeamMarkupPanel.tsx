@@ -125,7 +125,7 @@ export function SlabBeamMarkupPanel({
   const isDriveway = scopeId === 'driveway';
   const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds', 'standard_slab'];
   const isEdgeThickeningScope = edgeThickeningScopes.includes(scopeId || '');
-  const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
+  const noInternalBeamScopes = ['crossovers', 'paths_surrounds', 'driveway'];
   const hideInternalBeams = noInternalBeamScopes.includes(scopeId || '');
   
   // Check if viewing wrong page
