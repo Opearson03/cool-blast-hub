@@ -77,13 +77,6 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     availableFor: ["commercial_slab"],
     category: "foundations"
   },
-  { 
-    id: "retaining_walls", 
-    label: "Retaining Walls", 
-    description: "Full retaining wall construction including footing",
-    availableFor: ["house_slab", "commercial_slab"],
-    category: "foundations"
-  },
   // Slabs
   { 
     id: "standard_slab", 
