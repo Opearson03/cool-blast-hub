@@ -10,9 +10,25 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, FileText, MapPin, Loader2, Mail, Send } from "lucide-react";
+import {
+  CheckCircle2,
+  FileText,
+  MapPin,
+  Loader2,
+  Mail,
+  Send,
+  BellOff,
+  Clock,
+  XCircle,
+} from "lucide-react";
 
 interface UnsignedQuote {
   id: string;
@@ -54,6 +70,14 @@ interface ActionsRequiredDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+const SNOOZE_OPTIONS = [
+  { label: "1 day", days: 1 },
+  { label: "3 days", days: 3 },
+  { label: "7 days", days: 7 },
+  { label: "14 days", days: 14 },
+  { label: "30 days", days: 30 },
+] as const;
+
 export function ActionsRequiredDialog({
   businessId,
   open,
@@ -66,38 +90,92 @@ export function ActionsRequiredDialog({
   const [loading, setLoading] = useState(false);
   const [sendingId, setSendingId] = useState<string | null>(null);
 
+  const fetchData = async () => {
+    setLoading(true);
+    const now = new Date().toISOString();
+
+    const [quotesRes, businessRes] = await Promise.all([
+      supabase
+        .from("estimates")
+        .select(
+          "id, client_name, client_email, client_phone, company_name, site_address, total_amount, estimate_number, description, valid_until, notes, created_at, payment_terms_type, deposit_percentage, quote_validity_days, scope_data, selected_scopes"
+        )
+        .eq("business_id", businessId)
+        .eq("status", "sent")
+        .is("signed_at", null)
+        .or(`action_snoozed_until.is.null,action_snoozed_until.lt.${now}`)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("businesses")
+        .select(
+          "name, logo_url, address, phone, email, abn, inbound_email_alias, quote_template, quote_primary_color, quote_secondary_color, quote_font"
+        )
+        .eq("id", businessId)
+        .single(),
+    ]);
+
+    setQuotes(quotesRes.data ?? []);
+    setBusiness(businessRes.data ?? null);
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (!open) return;
-
-    const fetchData = async () => {
-      setLoading(true);
-
-      const [quotesRes, businessRes] = await Promise.all([
-        supabase
-          .from("estimates")
-          .select(
-            "id, client_name, client_email, client_phone, company_name, site_address, total_amount, estimate_number, description, valid_until, notes, created_at, payment_terms_type, deposit_percentage, quote_validity_days, scope_data, selected_scopes"
-          )
-          .eq("business_id", businessId)
-          .eq("status", "sent")
-          .is("signed_at", null)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("businesses")
-          .select(
-            "name, logo_url, address, phone, email, abn, inbound_email_alias, quote_template, quote_primary_color, quote_secondary_color, quote_font"
-          )
-          .eq("id", businessId)
-          .single(),
-      ]);
-
-      setQuotes(quotesRes.data ?? []);
-      setBusiness(businessRes.data ?? null);
-      setLoading(false);
-    };
-
     fetchData();
   }, [open, businessId]);
+
+  const handleSnooze = async (quoteId: string, days: number) => {
+    const snoozedUntil = new Date();
+    snoozedUntil.setDate(snoozedUntil.getDate() + days);
+
+    const { error } = await supabase
+      .from("estimates")
+      .update({ action_snoozed_until: snoozedUntil.toISOString() })
+      .eq("id", quoteId);
+
+    if (error) {
+      toast({
+        title: "Failed to snooze",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Snoozed",
+      description: `This quote will reappear in ${days} day${days > 1 ? "s" : ""}.`,
+    });
+
+    // Remove from local list immediately
+    setQuotes((prev) => prev.filter((q) => q.id !== quoteId));
+  };
+
+  const handleDismiss = async (quoteId: string) => {
+    // Set far future date to effectively dismiss permanently
+    const farFuture = new Date("2099-12-31T00:00:00Z");
+
+    const { error } = await supabase
+      .from("estimates")
+      .update({ action_snoozed_until: farFuture.toISOString() })
+      .eq("id", quoteId);
+
+    if (error) {
+      toast({
+        title: "Failed to dismiss",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Dismissed",
+      description: "This quote has been removed from actions required.",
+    });
+
+    setQuotes((prev) => prev.filter((q) => q.id !== quoteId));
+  };
 
   const handleResendQuote = async (quote: UnsignedQuote) => {
     if (!quote.client_email || !business) return;
@@ -225,9 +303,35 @@ export function ActionsRequiredDialog({
                         <span className="truncate">{quote.site_address}</span>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="shrink-0">
-                      Awaiting Signature
-                    </Badge>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-7 w-7 shrink-0"
+                        >
+                          <BellOff className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48">
+                        {SNOOZE_OPTIONS.map((opt) => (
+                          <DropdownMenuItem
+                            key={opt.days}
+                            onClick={() => handleSnooze(quote.id, opt.days)}
+                          >
+                            <Clock className="h-3.5 w-3.5 mr-2 text-muted-foreground" />
+                            Snooze {opt.label}
+                          </DropdownMenuItem>
+                        ))}
+                        <DropdownMenuItem
+                          onClick={() => handleDismiss(quote.id)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-2" />
+                          Dismiss permanently
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
 
                   <div className="flex items-center justify-between">
@@ -266,7 +370,9 @@ export function ActionsRequiredDialog({
                     </div>
                   ) : (
                     <div className="flex items-center justify-between gap-2 pt-1">
-                      <span className="text-xs text-destructive">No email on file</span>
+                      <span className="text-xs text-destructive">
+                        No email on file
+                      </span>
                       <Button
                         size="sm"
                         variant="outline"

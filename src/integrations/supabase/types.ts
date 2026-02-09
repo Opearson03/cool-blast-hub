@@ -595,6 +595,7 @@ export type Database = {
       }
       estimates: {
         Row: {
+          action_snoozed_until: string | null
           business_id: string
           client_email: string | null
           client_name: string
@@ -626,6 +627,7 @@ export type Database = {
           valid_until: string | null
         }
         Insert: {
+          action_snoozed_until?: string | null
           business_id: string
           client_email?: string | null
           client_name: string
@@ -657,6 +659,7 @@ export type Database = {
           valid_until?: string | null
         }
         Update: {
+          action_snoozed_until?: string | null
           business_id?: string
           client_email?: string | null
           client_name?: string
