@@ -1,111 +1,101 @@
 
 
-# Fix: Ensure Concrete Volume Consistently Includes Toe
+# Fix: Toe Toggle Not Affecting Volume
 
 ## Root Cause
 
-The `retaining_wall_footings` scope uses `supportsLinearSections`, which means user input goes through `MultiLinearTypeInput` and `handleLinearSectionsChange`. That handler creates a `footings` array (with toe fields) as a side-effect, but this only happens when the user actively edits a value.
+The toe width and depth values shown in the UI are **display-only defaults** that never get written to the actual data.
 
-On mount (loading a saved estimate or before user interaction), `scopeAnswers.footings` may be:
-- Missing entirely (if linearSections exists but footings was never synced)
-- Stale (saved before toe support was added -- no `has_toe`, `toe_width`, `toe_depth` fields)
-
-When `calculateVolume` in `scopes.ts` sees an empty/missing `footings` array, it falls back to `total_length x default width x default depth` -- which has no toe. Meanwhile, the UI shows toe in the volume breakdown because `VolumeBreakdown` reads from `scopeAnswers.footings` which may differ from what `calculateVolume` receives via `derivedScopeAnswers`.
-
-## Fix (2 changes, 1 file)
-
-### 1. Add mount-time sync: linearSections to footings
-
-In `ModularCalculator.tsx`, add a `useEffect` that ensures the `footings` array is always derived from `linearSections` on mount. This mirrors what `handleLinearSectionsChange` does, but runs automatically when the component loads:
-
-```typescript
-// Sync linearSections to footings on mount for linear scopes
-useEffect(() => {
-  if (!scope.supportsLinearSections) return;
-  const sections = scopeAnswers.linearSections;
-  if (!Array.isArray(sections) || sections.length === 0) return;
-
-  // Always re-derive footings from linearSections to ensure consistency
-  const footings = sections.map(s => ({
-    id: s.id,
-    name: s.name,
-    length: s._actualLength && s._actualLength > 0 ? s._actualLength : s.length,
-    width: s.dimension1,
-    depth: s.dimension2,
-    has_toe: s.has_toe,
-    toe_width: s.toe_width,
-    toe_depth: s.toe_depth,
-    _fromTakeoff: s._fromTakeoff,
-    _actualLength: s._actualLength,
-  }));
-
-  const totalLength = sections.reduce((sum, s) => {
-    const len = s._actualLength && s._actualLength > 0 ? s._actualLength : (Number(s.length) || 0);
-    return sum + len;
-  }, 0);
-
-  setScopeAnswers(prev => ({
-    ...prev,
-    footings,
-    total_length: totalLength,
-  }));
-}, [scope.supportsLinearSections]); // Only run on mount
+When the initial section is created (in `ModularCalculator.tsx` line 122), it has no toe fields:
+```
+{ id: 'section-1', name: 'Section 1', length: 0, dimension1: 450, dimension2: 300 }
 ```
 
-This ensures that even when loading from saved data, the `footings` array is always fresh and includes toe fields.
+When the user toggles "Include Toe?" to ON, `updateGroupToe` only sets `has_toe: true` on the section. The `toe_width` and `toe_depth` remain `undefined`.
 
-### 2. Make calculateVolume also check linearSections as fallback
+The UI inputs show **300mm** as a visual fallback (`group.toe_width ?? 300`), but the actual section data still has `undefined` for both values. When `calculateVolume` runs, it gets `Number(undefined) || 0 = 0`, so toe volume is always zero.
 
-In `scopes.ts`, update `RETAINING_WALL_FOOTINGS_SCOPE.calculateVolume` to also check `answers.linearSections` if `answers.footings` is empty, mapping `dimension1` to width and `dimension2` to depth:
+## Fix (3 targeted changes, 2 files)
+
+### 1. Set default toe values when toggling has_toe ON
+
+**File:** `src/components/estimates/calculators/MultiLinearTypeInput.tsx` (line 192-200)
+
+Update `updateGroupToe` so that when `has_toe` is toggled to `true`, it also writes `toe_width: 300` and `toe_depth: 300` if those values are currently undefined on the section:
 
 ```typescript
-calculateVolume: (answers) => {
-  // Check footings first (derived from linearSections by handler)
-  let sections = answers.footings || [];
-
-  // Fallback: read directly from linearSections if footings not yet synced
-  if (sections.length === 0 && answers.linearSections?.length > 0) {
-    sections = answers.linearSections.map((s: any) => ({
-      length: s._actualLength && s._actualLength > 0 ? s._actualLength : s.length,
-      width: s.dimension1,
-      depth: s.dimension2,
-      has_toe: s.has_toe,
-      toe_width: s.toe_width,
-      toe_depth: s.toe_depth,
-    }));
-  }
-
-  if (sections.length > 0) {
-    const volume = sections.reduce((sum, footing) => {
-      const length = Number(footing.length) || 0;
-      const widthM = (Number(footing.width) || 0) / 1000;
-      const depthM = (Number(footing.depth) || 0) / 1000;
-      const mainVolume = length * widthM * depthM;
-
-      const hasToe = footing.has_toe === true;
-      const toeWidthM = hasToe ? (Number(footing.toe_width) || 0) / 1000 : 0;
-      const toeDepthM = hasToe ? (Number(footing.toe_depth) || 0) / 1000 : 0;
-      const toeVolume = length * toeWidthM * toeDepthM;
-
-      return sum + mainVolume + toeVolume;
-    }, 0);
-    return safeVolume(volume);
-  }
-
-  // Final fallback
-  const length = Number(answers.total_length) || 0;
-  const widthM = 600 / 1000;
-  const depthM = 400 / 1000;
-  return safeVolume(length * widthM * depthM);
-},
+const updateGroupToe = (group, field, value) => {
+  const updatedSections = sections.map(section => {
+    if (matchesGroup(section, group)) {
+      const updated = { ...section, [field]: value };
+      // When enabling toe, ensure defaults are written to data (not just displayed)
+      if (field === 'has_toe' && value === true) {
+        if (updated.toe_width == null) updated.toe_width = 300;
+        if (updated.toe_depth == null) updated.toe_depth = 300;
+      }
+      return updated;
+    }
+    return section;
+  });
+  onChange(updatedSections);
+};
 ```
 
-## Why This Fixes Both Concrete and Excavation
+This ensures the 300mm defaults shown in the UI are also persisted in the actual data.
 
-- **Concrete**: `calculateVolume` will always find sections with toe data, either from `footings` or `linearSections`
-- **Excavation**: The mount-time sync ensures `scopeAnswers.footings` exists with toe fields before `derivedScopeAnswers` runs
-- **Pump**: Uses `scopeData.concrete_volume` which comes from `calculateVolume`, so it's automatically fixed
+### 2. Include toe defaults in initial section for retaining wall scopes
+
+**File:** `src/components/estimates/calculators/ModularCalculator.tsx` (line 121-123)
+
+Update the default linearSection initialisation to include toe fields when the scope supports them:
+
+```typescript
+if (scope.supportsLinearSections && !initialScopeAnswers.linearSections) {
+  const isRetainingWall = scope.id === 'retaining_wall_footings' || scope.id === 'retaining_walls';
+  defaults.linearSections = [{
+    id: 'section-1',
+    name: 'Section 1',
+    length: 0,
+    dimension1: 450,
+    dimension2: 300,
+    ...(isRetainingWall ? { has_toe: false, toe_width: 300, toe_depth: 300 } : {}),
+  }];
+}
+```
+
+This ensures even the very first section has toe fields with proper defaults, matching what `addNewType()` already does (line 247).
+
+### 3. Add safety fallback in handleLinearSectionsChange mapping
+
+**File:** `src/components/estimates/calculators/ModularCalculator.tsx` (line 1250-1261)
+
+When mapping `linearSections` to `footings`, apply default toe values if `has_toe` is true but dimensions are missing:
+
+```typescript
+footings: sections.map(s => ({
+  id: s.id,
+  name: s.name,
+  length: s._actualLength && s._actualLength > 0 ? s._actualLength : s.length,
+  width: s.dimension1,
+  depth: s.dimension2,
+  has_toe: s.has_toe,
+  toe_width: s.has_toe ? (s.toe_width ?? 300) : s.toe_width,
+  toe_depth: s.has_toe ? (s.toe_depth ?? 300) : s.toe_depth,
+  _fromTakeoff: s._fromTakeoff,
+  _actualLength: s._actualLength,
+})),
+```
+
+This is a safety net: if `has_toe` is true but toe dimensions are still undefined (e.g., from legacy data), the footings mapping uses 300mm defaults.
+
+## Why This Fixes the Issue
+
+- **Fix 1** addresses the active user interaction: toggling the toe switch now writes real values to the data, not just UI defaults
+- **Fix 2** addresses new estimates: the initial section starts with toe fields so they are never undefined
+- **Fix 3** addresses legacy data: any existing estimates with `has_toe: true` but missing dimensions get safe defaults in the calculation pipeline
+
+The same safety net pattern should also be applied to the mount-time sync `useEffect` (line 252-262) for consistency.
 
 ## Risk Assessment
 
-Very low. The mount-time sync mirrors exactly what `handleLinearSectionsChange` already does. The `calculateVolume` fallback to `linearSections` is a safety net that maintains the same math. No existing estimates are affected -- they only gain data consistency.
+Very low. All three changes only affect retaining wall footing scopes. They convert display-only defaults into actual data values, which is what the user already expects to happen based on what the UI shows them. No existing calculations change for sections where toe values are already defined.
