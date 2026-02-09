@@ -1,14 +1,29 @@
 
-# Hide "Retaining Walls" Scope from Scope Selector
 
-## What Changes
+# Fix Takeoff Scope Completion Count Bug
 
-The "Retaining Walls" scope will be hidden from the scope selector so users only see "Retaining Wall Footings". Since the retaining walls scope is referenced across many files (calculators, takeoff types, linear inputs, etc.), the safest approach is to simply hide it from the UI selection list rather than removing it entirely -- this avoids breaking any existing estimates that already use it.
+## The Problem
 
-## Technical Details (1 file)
+When you mark a driveway area on the plans, the takeoff step incorrectly thinks all scopes are complete and auto-advances. This happens because the completion count uses `markups.length` (total number of markups) instead of counting **unique scopes that have at least one markup**.
 
-### `src/components/estimates/ScopeSelector.tsx`
+For example, if you have 2 selected scopes (e.g., driveway + paths & surrounds), marking a driveway area produces 1 area markup plus potentially 1 edge thickening markup = 2 total markups. The code sees `2 markups + 0 skipped = 2 = selectedScopes.length`, so it thinks all scopes are done.
 
-- Remove or comment out the `retaining_walls` entry (lines 80-86) from the `SCOPE_OPTIONS` array
-- This prevents it from appearing as a selectable scope when creating/editing estimates
-- Existing estimates that already use `retaining_walls` will continue to function since all calculator logic, type definitions, and constants remain untouched
+## The Fix (1 file)
+
+### `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
+
+Change the `completedCount` calculation from counting total markups to counting unique scopes that have at least one markup:
+
+**Before:**
+```
+const completedCount = markups.length + skippedScopes.size;
+```
+
+**After:**
+```
+const scopesWithMarkups = new Set(markups.map(m => m.scope_id));
+const completedCount = scopesWithMarkups.size + skippedScopes.size;
+```
+
+This ensures each scope only counts once toward completion, regardless of how many markups (areas, beams, thickenings) it has.
+
