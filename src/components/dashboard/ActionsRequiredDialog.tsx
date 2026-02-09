@@ -11,11 +11,12 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, FileText, MapPin, Loader2 } from "lucide-react";
+import { CheckCircle2, FileText, MapPin, Loader2, Mail } from "lucide-react";
 
 interface UnsignedQuote {
   id: string;
   client_name: string;
+  client_email: string | null;
   site_address: string;
   total_amount: number | null;
   estimate_number: string | null;
@@ -43,7 +44,7 @@ export function ActionsRequiredDialog({
       setLoading(true);
       const { data } = await supabase
         .from("estimates")
-        .select("id, client_name, site_address, total_amount, estimate_number")
+        .select("id, client_name, client_email, site_address, total_amount, estimate_number")
         .eq("business_id", businessId)
         .eq("status", "sent")
         .is("signed_at", null)
@@ -114,14 +115,34 @@ export function ActionsRequiredDialog({
                       </span>
                     )}
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleViewQuote(quote.id)}
-                  >
-                    View Quote
-                  </Button>
                 </div>
+
+                {quote.client_email ? (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
+                      <Mail className="h-3 w-3 shrink-0" />
+                      <span className="truncate">{quote.client_email}</span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleViewQuote(quote.id)}
+                    >
+                      Resend Quote
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="text-xs text-destructive">No email on file</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleViewQuote(quote.id)}
+                    >
+                      View Quote
+                    </Button>
+                  </div>
+                )}
               </div>
             ))
           )}
