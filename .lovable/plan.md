@@ -1,88 +1,74 @@
 
 
-# Fix: Retaining Wall Toe Not Added to Concrete and Excavation
+# Fix: Number Inputs That Reject Zero Values
 
 ## The Problem
 
-When you enable "Include Strip Footing" on a full retaining wall estimate and enter a toe length (e.g. 300mm), the toe volume is completely ignored in both the concrete supply and excavation calculations. The estimator calculates wall volume + footing volume but never adds the toe.
+Across the estimating wizard, many numeric input fields use the JavaScript `||` (OR) operator to display values:
 
-This means every retaining wall quote with a toe is under-quoting concrete and excavation.
-
-## Root Cause
-
-The `retaining_walls` scope (full retaining wall construction) has a `toe_length` input field that users can fill in, but the `calculateVolume` function never reads it. The toe volume formula should be:
-
-```text
-Toe Volume = Total Length x Toe Length x Footing Depth
+```typescript
+value={area.length || ""}
 ```
 
-This volume needs to be added in three places:
+Because `0` is "falsy" in JavaScript, `0 || ""` evaluates to `""` (empty string). This means whenever a user types `0`, it immediately vanishes from the input. It also makes it difficult to type numbers that require passing through `0` as an intermediate step (like clearing a field to retype a value).
 
-1. The scope's volume calculation (feeds concrete supply)
-2. The excavation module's volume calculation (feeds excavation pricing)
-3. The volume breakdown display (so users can see how it's calculated)
+The project already has the correct pattern established in several components -- using `??` (nullish coalescing) instead of `||`:
+
+```typescript
+value={area.length ?? ""}  // 0 displays as "0", only null/undefined becomes ""
+```
 
 ## The Fix
 
-### 1. Add toe volume to `calculateVolume` in scopes.ts
+A simple, mechanical find-and-replace of `||` to `??` in the `value={}` binding of every affected numeric input. Text/string inputs using `|| ''` (like name fields) are fine and should be left alone.
 
-In `RETAINING_WALLS_SCOPE.calculateVolume`, after calculating the footing volume, also calculate and add the toe volume using the existing `toe_length` answer field:
+## Affected Files (8 files, ~35 numeric inputs total)
 
-```typescript
-// Current (missing toe):
-footingVolume = totalLength * footingWidthM * footingDepthM;
+### 1. MultiDemolitionInput.tsx (~17 numeric inputs)
+All dimension and rate inputs: `area.length`, `area.width`, `area.thickness`, `tipRate`, `excavatorRate`, `excavatorHours`, `excavatorFloat`, `excavatorM3Rate`, `rockBreakerCost`, `sawCuttingLength`, `sawCuttingRate`, `sawCuttingHours`, `sawCuttingHourlyRate`, `sawCuttingEstablishment`, `demoCrewSize`, `demoHours`, `demoLabourRate`
 
-// Fixed (includes toe):
-footingVolume = totalLength * footingWidthM * footingDepthM;
+Change pattern: `value={someVar || ""}` to `value={someVar ?? ""}`
 
-// Toe volume
-const toeLengthM = (Number(answers.toe_length) || 0) / 1000;
-if (toeLengthM > 0) {
-  toeVolume = totalLength * toeLengthM * footingDepthM;
-}
-```
+### 2. MultiBeamInput.tsx (3 numeric inputs)
+`beam.length`, `beam.width`, `beam.depth`
 
-This ensures `concrete_volume` (used by concrete-supply) includes the toe.
+### 3. MultiPadFootingGroupInput.tsx (4 numeric inputs)
+`group.quantity`, `group.length`, `group.width`, `group.depth`
 
-### 2. Add toe volume to excavation module
+### 4. MultiLinearTypeInput.tsx (3 numeric inputs)
+`group.dimension1`, `group.dimension2`, `segmentLength`
 
-In `excavation.ts`, the m3-rate detailed excavation calculation reads linear sections but doesn't know about the global `toe_length` answer. For the `retaining_walls` scope, the excavation volume needs to include the toe volume from `scopeData`.
+### 5. MultiAreaInput.tsx (3 numeric inputs)
+`thickness`, `thickeningDepth`, `thickeningWidth`
 
-The simplest approach: pass `concrete_volume` (which will now include toe) as the excavation fallback for retaining walls. The excavation module already reads `scopeData.excavation_volume` first -- we just need to ensure the footing + toe volume is available there.
+### 6. MultiPierInput.tsx (3 numeric inputs)
+`pier.quantity`, `pier.diameter`, `pier.depth`
 
-Since excavation for retaining walls should cover the footing trench (footing + toe combined width), the fix is to check `scopeData.toe_length` when calculating excavation volume from the retaining walls scope answers, adding it the same way the concrete calculation does.
+### 7. MultiExpansionJointInput.tsx (1 numeric input)
+`joint.total_length_m`
 
-### 3. Update VolumeBreakdown display
+### 8. MultiControlJointInput.tsx (1 numeric input)
+`joint.total_length_m`
 
-In `buildRetainingWallsBreakdown`, add a "Footing Toe" row when `toe_length > 0`:
+## Files Already Correct (no changes needed)
 
-```typescript
-if (scopeAnswers.include_footing && toeLengthMM > 0) {
-  const toeVol = totalLength * (toeLengthMM / 1000) * (footingDepthMM / 1000);
-  rows.push({
-    label: "Footing Toe",
-    dimensions: `${totalLength.toFixed(1)}m x ${toeLengthMM}mm x ${footingDepthMM}mm`,
-    volume: toeVol,
-  });
-}
-```
+These files already use `??` or other correct patterns:
+- `ModuleSection.tsx` (QuestionInput) -- uses `value={value ?? ''}`
+- `MultiFootingInput.tsx` -- uses `value={footing.length ?? ""}`
+- `MultiPierGroupInput.tsx` -- uses `value={group.quantity ?? ""}`
+- `MultiBeamTypeInput.tsx` -- uses `EditableTotalLength` component
+- `MultiLinearInput.tsx` -- correct
+- `WafflePodConfigCard.tsx`, `WafflePodConfigInput.tsx`, `WafflePodRibsInput.tsx`, `WafflePodToppingMeshInput.tsx` -- correct
+- All reinforcement inputs (`AreaReinforcementInput`, `BeamReinforcementInput`, `FootingSectionReinforcementInput`, etc.) -- correct
 
-## Summary of Changes
+## What This Doesn't Change
 
-| File | Change |
-|------|--------|
-| `src/lib/estimate-components/scopes.ts` | Add toe volume calculation to `RETAINING_WALLS_SCOPE.calculateVolume` (lines 2323-2329) |
-| `src/lib/estimate-components/modules/excavation.ts` | Add toe volume to the m3-rate excavation calculation for `retaining_walls` scope |
-| `src/components/estimates/calculators/shared/VolumeBreakdown.tsx` | Add "Footing Toe" row to `buildRetainingWallsBreakdown` |
-
-## What stays the same
-
-- **Retaining Wall Footings** scope (standalone footings) -- already handles toe correctly via per-section `has_toe` fields
-- Wall volume calculation -- unchanged
-- Footing width/depth calculation -- unchanged
-- Hourly-rate excavation -- unaffected (user enters hours manually)
-- All other scope calculations -- untouched
+- The `onChange` handlers are fine as-is -- they correctly use `e.target.value === "" ? 0 : Number(e.target.value)` to distinguish an empty field from a `0` entry
+- No calculation logic changes
+- No database or schema changes
+- Text/string name fields keep using `||` (strings aren't affected by this bug)
 
 ## Risk Assessment
 
-Low risk. These changes only add missing volume that should have been included. The `toe_length` field already exists in the UI and is already being collected from users -- it just wasn't being used in the calculations. No new fields, no schema changes, no downstream dependencies affected.
+Very low risk. This is a one-character change (`||` to `??`) repeated across input value bindings. The behavior difference is only for the value `0`, which goes from invisible to visible -- exactly what users expect.
+
