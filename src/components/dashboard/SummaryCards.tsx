@@ -6,6 +6,8 @@ interface SummaryCardsProps {
   pendingInvitesCount: number;
   actionsRequiredCount: number;
   isLoading?: boolean;
+  onTodayTasksClick?: () => void;
+  onPendingResponsesClick?: () => void;
   onActionRequiredClick?: () => void;
 }
 
@@ -14,6 +16,8 @@ export function SummaryCards({
   pendingInvitesCount,
   actionsRequiredCount,
   isLoading = false,
+  onTodayTasksClick,
+  onPendingResponsesClick,
   onActionRequiredClick,
 }: SummaryCardsProps) {
   const cards = [
@@ -22,30 +26,33 @@ export function SummaryCards({
       value: todayTasksCount,
       icon: Briefcase,
       iconColor: "text-primary",
+      onClick: onTodayTasksClick,
     },
     {
-      title: "Pending Responses",
+      title: "Pending Subbie Responses",
       value: pendingInvitesCount,
       icon: Users,
       iconColor: pendingInvitesCount > 0 ? "text-amber-500" : "text-muted-foreground",
+      onClick: onPendingResponsesClick,
     },
     {
       title: "Action Required",
       value: actionsRequiredCount,
       icon: AlertTriangle,
       iconColor: actionsRequiredCount > 0 ? "text-destructive" : "text-muted-foreground",
+      onClick: onActionRequiredClick,
     },
   ];
 
   return (
     <div className="grid grid-cols-3 gap-4">
       {cards.map((card) => {
-        const isClickable = card.title === "Action Required" && card.value > 0 && onActionRequiredClick;
+        const isClickable = card.value > 0 && card.onClick;
         return (
           <Card
             key={card.title}
             className={isClickable ? "cursor-pointer transition-colors hover:bg-accent/50" : ""}
-            onClick={isClickable ? onActionRequiredClick : undefined}
+            onClick={isClickable ? card.onClick : undefined}
           >
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
