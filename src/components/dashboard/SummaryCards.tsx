@@ -6,6 +6,7 @@ interface SummaryCardsProps {
   pendingInvitesCount: number;
   actionsRequiredCount: number;
   isLoading?: boolean;
+  onActionRequiredClick?: () => void;
 }
 
 export function SummaryCards({
@@ -13,6 +14,7 @@ export function SummaryCards({
   pendingInvitesCount,
   actionsRequiredCount,
   isLoading = false,
+  onActionRequiredClick,
 }: SummaryCardsProps) {
   const cards = [
     {
@@ -37,21 +39,28 @@ export function SummaryCards({
 
   return (
     <div className="grid grid-cols-3 gap-4">
-      {cards.map((card) => (
-        <Card key={card.title}>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <card.icon className={`w-4 h-4 ${card.iconColor}`} />
-              <span className="truncate">{card.title}</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold">
-              {isLoading ? "..." : card.value}
-            </p>
-          </CardContent>
-        </Card>
-      ))}
+      {cards.map((card) => {
+        const isClickable = card.title === "Action Required" && card.value > 0 && onActionRequiredClick;
+        return (
+          <Card
+            key={card.title}
+            className={isClickable ? "cursor-pointer transition-colors hover:bg-accent/50" : ""}
+            onClick={isClickable ? onActionRequiredClick : undefined}
+          >
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <card.icon className={`w-4 h-4 ${card.iconColor}`} />
+                <span className="truncate">{card.title}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-bold">
+                {isLoading ? "..." : card.value}
+              </p>
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }

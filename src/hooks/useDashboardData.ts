@@ -44,13 +44,7 @@ export function useDashboardData(businessId: string | null) {
           .gte("job_pour.pour_date", today)
           .lte("job_pour.pour_date", weekAhead);
 
-        // Fetch actions required (pending leave + unsigned quotes)
-        const { count: pendingLeave } = await supabase
-          .from("leave_requests")
-          .select("id", { count: "exact", head: true })
-          .eq("business_id", businessId)
-          .eq("status", "pending");
-
+        // Fetch actions required (unsigned quotes only)
         const { count: unsignedQuotes } = await supabase
           .from("estimates")
           .select("id", { count: "exact", head: true })
@@ -61,7 +55,7 @@ export function useDashboardData(businessId: string | null) {
         setData({
           todayTasksCount: todayTasks || 0,
           pendingInvitesCount: pendingInvites || 0,
-          actionsRequiredCount: (pendingLeave || 0) + (unsignedQuotes || 0),
+          actionsRequiredCount: unsignedQuotes || 0,
           isLoading: false,
         });
       } catch (error) {
