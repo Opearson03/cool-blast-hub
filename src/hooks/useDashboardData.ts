@@ -44,13 +44,19 @@ export function useDashboardData(businessId: string | null) {
           .gte("job_pour.pour_date", today)
           .lte("job_pour.pour_date", weekAhead);
 
-        // Fetch actions required (unsigned quotes only)
-        const { count: unsignedQuotes } = await supabase
+        // Fetch actions required (unsigned quotes, excluding snoozed)
+        const now = new Date().toISOString();
+        let unsignedQuery = supabase
           .from("estimates")
           .select("id", { count: "exact", head: true })
           .eq("business_id", businessId)
           .eq("status", "sent")
           .is("signed_at", null);
+
+        // Filter out items snoozed until the future
+        unsignedQuery = unsignedQuery.or(`action_snoozed_until.is.null,action_snoozed_until.lt.${now}`);
+
+        const { count: unsignedQuotes } = await unsignedQuery;
 
         setData({
           todayTasksCount: todayTasks || 0,
