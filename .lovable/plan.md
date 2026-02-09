@@ -1,29 +1,39 @@
 
-
-# Fix Takeoff Scope Completion Count Bug
+# Fix: "No Edge Beams" on External Paths Should Complete Workflow
 
 ## The Problem
 
-When you mark a driveway area on the plans, the takeoff step incorrectly thinks all scopes are complete and auto-advances. This happens because the completion count uses `markups.length` (total number of markups) instead of counting **unique scopes that have at least one markup**.
-
-For example, if you have 2 selected scopes (e.g., driveway + paths & surrounds), marking a driveway area produces 1 area markup plus potentially 1 edge thickening markup = 2 total markups. The code sees `2 markups + 0 skipped = 2 = selectedScopes.length`, so it thinks all scopes are done.
+When marking an external paths (or crossovers) area and selecting "No Edge Beams", the workflow transitions to the internal beam marking step. But paths and crossovers don't support internal beams, so the user gets stuck being asked to measure beams that don't apply.
 
 ## The Fix (1 file)
 
 ### `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
 
-Change the `completedCount` calculation from counting total markups to counting unique scopes that have at least one markup:
+In the `handleSkipEdgeBeams` function (~line 706-711), after saving the slab, the code always transitions to `mark_internal_beam`. The fix adds a check: if the active scope is one that doesn't support internal beams (`crossovers` or `paths_surrounds`), call `resetSlabWorkflow()` to complete the workflow immediately instead.
 
 **Before:**
-```
-const completedCount = markups.length + skippedScopes.size;
+```typescript
+// Go to internal beam marking
+setShowSlabBeamDialog(false);
+setSlabWorkflowStep('mark_internal_beam');
+setPolylinePoints([]);
+setActiveTool('polyline');
 ```
 
 **After:**
-```
-const scopesWithMarkups = new Set(markups.map(m => m.scope_id));
-const completedCount = scopesWithMarkups.size + skippedScopes.size;
+```typescript
+// For scopes without internal beams, complete the workflow
+const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
+if (noInternalBeamScopes.includes(activeScope)) {
+  resetSlabWorkflow();
+  return;
+}
+
+// Go to internal beam marking
+setShowSlabBeamDialog(false);
+setSlabWorkflowStep('mark_internal_beam');
+setPolylinePoints([]);
+setActiveTool('polyline');
 ```
 
-This ensures each scope only counts once toward completion, regardless of how many markups (areas, beams, thickenings) it has.
-
+Also add `resetSlabWorkflow` to the dependency array of the `useCallback`.
