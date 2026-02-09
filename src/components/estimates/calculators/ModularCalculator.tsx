@@ -413,13 +413,15 @@ export function ModularCalculator({
       averageExcavationDepth = (Number(scopeAnswers.base_thickness) || 0) + (Number(scopeAnswers.wall_height) || 0);
     }
     // Retaining Walls: footing excavation
-    else if (scopeAnswers.wall_length && scopeAnswers.footing_width && scopeAnswers.footing_depth) {
-      const lengthM = Number(scopeAnswers.wall_length) || 0;
-      const widthM = (Number(scopeAnswers.footing_width) || 0) / 1000;
+    else if (scopeAnswers.total_length && scopeAnswers.footing_width && scopeAnswers.footing_depth && scopeAnswers.include_footing) {
+      const lengthM = Number(scopeAnswers.total_length) || 0;
+      const footingWidthM = (Number(scopeAnswers.footing_width) || 0) / 1000;
+      const toeLengthM = (Number(scopeAnswers.toe_length) || 0) / 1000;
+      const totalExcWidthM = footingWidthM + toeLengthM;
       const depthM = (Number(scopeAnswers.footing_depth) || 0) / 1000;
       
-      excavationVolume = lengthM * widthM * depthM;
-      excavationArea = lengthM * widthM;
+      excavationVolume = lengthM * totalExcWidthM * depthM;
+      excavationArea = lengthM * totalExcWidthM;
       averageExcavationDepth = Number(scopeAnswers.footing_depth) || 0;
     }
     // Waffle Pod: box cut excavation (total area × total depth)
