@@ -542,6 +542,7 @@ const {
       demolition: { total: 0, description: "" },
       piers: { total: 0, description: "" },
       retaining_wall_footings: { total: 0, description: "" },
+      retaining_walls: { total: 0, description: "" },
       strip_footings: { total: 0, description: "" },
       standard_slab: { total: 0, description: "" },
       raft_slab: { total: 0, description: "" },

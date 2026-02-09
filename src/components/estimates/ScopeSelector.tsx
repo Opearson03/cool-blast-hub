@@ -12,6 +12,7 @@ export type ScopeType =
   | "demolition"
   | "piers"
   | "retaining_wall_footings"
+  | "retaining_walls"
   | "strip_footings"
   | "standard_slab"
   | "raft_slab"
@@ -74,6 +75,13 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     label: "Pad Footings", 
     description: "Isolated pad/spread footings for columns",
     availableFor: ["commercial_slab"],
+    category: "foundations"
+  },
+  { 
+    id: "retaining_walls", 
+    label: "Retaining Walls", 
+    description: "Full retaining wall construction including footing",
+    availableFor: ["house_slab", "commercial_slab"],
     category: "foundations"
   },
   // Slabs

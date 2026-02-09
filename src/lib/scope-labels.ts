@@ -10,6 +10,8 @@ export const SCOPE_LABELS: Record<string, string> = {
   driveway: "Driveway",
   paths_surrounds: "Paths & Surrounds",
   retaining_wall: "Retaining Wall",
+  retaining_walls: "Retaining Walls",
+  retaining_wall_footings: "Retaining Wall Footings",
   architectural: "Architectural Concrete",
 };
 

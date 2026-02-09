@@ -2603,6 +2603,7 @@ export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   strip_footings: STRIP_FOOTINGS_SCOPE,
   retaining_wall_footings: RETAINING_WALL_FOOTINGS_SCOPE,
   pad_footings: PAD_FOOTINGS_SCOPE,
+  retaining_walls: RETAINING_WALLS_SCOPE,
 };
 
 // Get scope by ID
