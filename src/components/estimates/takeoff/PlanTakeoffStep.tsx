@@ -704,6 +704,24 @@ export function PlanTakeoffStep({
       }
     }
     
+    // For scopes without internal beams (paths, crossovers), complete the workflow immediately
+    const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
+    if (noInternalBeamScopes.includes(activeScope)) {
+      setShowSlabBeamDialog(false);
+      setSlabWorkflowActive(false);
+      setSlabWorkflowStep('name');
+      setPendingSlabData(null);
+      setCurrentBeamPoints([]);
+      setPolylinePoints([]);
+      setCachedBeamLength(0);
+      setCachedBeamSegments([]);
+      setDiscreteInternalBeams([]);
+      setSlabSavedId(null);
+      setActiveTool('select');
+      setActiveScope(null);
+      return;
+    }
+
     // Go to internal beam marking
     setShowSlabBeamDialog(false);
     setSlabWorkflowStep('mark_internal_beam');
