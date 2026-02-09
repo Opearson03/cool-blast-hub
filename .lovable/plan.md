@@ -1,74 +1,89 @@
 
 
-# Fix: Number Inputs That Reject Zero Values
+# Fix: Retaining Wall Toe Not Flowing to Modules
 
-## The Problem
+## Investigation Findings
 
-Across the estimating wizard, many numeric input fields use the JavaScript `||` (OR) operator to display values:
+After tracing the complete data flow, I found **two distinct issues** causing the toe volume to not reach the concrete supply, excavation, and pump modules.
 
+### Issue 1: `RETAINING_WALLS_SCOPE` is Not Registered
+
+The `RETAINING_WALLS_SCOPE` (full wall construction) is defined in `scopes.ts` (line 2226) but **never added to `SCOPE_REGISTRY`** (lines 2594-2606). This means:
+- Users cannot select it in the estimate wizard
+- All the previous toe fixes targeting `retaining_walls` scope are unreachable
+- Users can only use `retaining_wall_footings` (standalone footings scope)
+
+The previous fix added toe logic for `scopeData.scopeId === 'retaining_walls'` in the excavation module, but since that scope is never available, those code paths never execute.
+
+### Issue 2: ModularCalculator Retaining Wall Excavation Uses Wrong Field
+
+In `ModularCalculator.tsx` line 416, the retaining wall excavation derivation checks:
+```
+scopeAnswers.wall_length
+```
+But the retaining walls scope uses `total_length`, not `wall_length`. This condition never evaluates to true, so the retaining wall excavation block is always skipped in `derivedScopeAnswers`.
+
+### What Actually Works (retaining_wall_footings)
+
+For the `retaining_wall_footings` scope that users CAN access:
+- Per-section toe (`has_toe`, `toe_width`, `toe_depth`) IS correctly included in `calculateVolume` (line 1608-1611)
+- `scopeData.concrete_volume = scopeVolume` includes toe
+- The `derivedScopeAnswers` footings block (line 335-368) correctly includes per-section toe in `excavation_volume`
+
+If toe is not flowing through for `retaining_wall_footings`, the issue would be in how the VolumeBreakdown displays the total vs how `calculateVolume` actually computes. But the logic is consistent.
+
+## The Fix (3 changes)
+
+### 1. Register `RETAINING_WALLS_SCOPE` in `SCOPE_REGISTRY`
+
+**File:** `src/lib/estimate-components/scopes.ts` (line 2606)
+
+Add the missing scope so users can actually select it:
 ```typescript
-value={area.length || ""}
+export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
+  // ... existing scopes ...
+  pad_footings: PAD_FOOTINGS_SCOPE,
+  retaining_walls: RETAINING_WALLS_SCOPE,  // ADD THIS
+};
 ```
 
-Because `0` is "falsy" in JavaScript, `0 || ""` evaluates to `""` (empty string). This means whenever a user types `0`, it immediately vanishes from the input. It also makes it difficult to type numbers that require passing through `0` as an intermediate step (like clearing a field to retype a value).
+Also need to add it to the scope selection UI categories (wherever scopes are grouped into "Foundations", "Floor Slabs", etc.).
 
-The project already has the correct pattern established in several components -- using `??` (nullish coalescing) instead of `||`:
+### 2. Fix `wall_length` to `total_length` in ModularCalculator
 
+**File:** `src/components/estimates/calculators/ModularCalculator.tsx` (line 416)
+
+Change:
 ```typescript
-value={area.length ?? ""}  // 0 displays as "0", only null/undefined becomes ""
+else if (scopeAnswers.wall_length && scopeAnswers.footing_width && scopeAnswers.footing_depth) {
+    const lengthM = Number(scopeAnswers.wall_length) || 0;
+```
+To:
+```typescript
+else if (scopeAnswers.total_length && scopeAnswers.footing_width && scopeAnswers.footing_depth && scopeAnswers.include_footing) {
+    const lengthM = Number(scopeAnswers.total_length) || 0;
+    const footingWidthM = (Number(scopeAnswers.footing_width) || 0) / 1000;
+    const toeLengthM = (Number(scopeAnswers.toe_length) || 0) / 1000;
+    const totalExcWidthM = footingWidthM + toeLengthM;
 ```
 
-## The Fix
+This also adds the toe width to the excavation trench width, since the trench must be wide enough for footing + toe.
 
-A simple, mechanical find-and-replace of `||` to `??` in the `value={}` binding of every affected numeric input. Text/string inputs using `|| ''` (like name fields) are fine and should be left alone.
+### 3. Add `retaining_walls` to scope category mapping
 
-## Affected Files (8 files, ~35 numeric inputs total)
+**File:** `src/components/estimates/EstimateFormDialog.tsx` (or wherever scope categories are defined)
 
-### 1. MultiDemolitionInput.tsx (~17 numeric inputs)
-All dimension and rate inputs: `area.length`, `area.width`, `area.thickness`, `tipRate`, `excavatorRate`, `excavatorHours`, `excavatorFloat`, `excavatorM3Rate`, `rockBreakerCost`, `sawCuttingLength`, `sawCuttingRate`, `sawCuttingHours`, `sawCuttingHourlyRate`, `sawCuttingEstablishment`, `demoCrewSize`, `demoHours`, `demoLabourRate`
+Add `retaining_walls` to the "Foundations" category so it appears in the scope selection UI alongside `retaining_wall_footings`.
 
-Change pattern: `value={someVar || ""}` to `value={someVar ?? ""}`
+## Summary
 
-### 2. MultiBeamInput.tsx (3 numeric inputs)
-`beam.length`, `beam.width`, `beam.depth`
-
-### 3. MultiPadFootingGroupInput.tsx (4 numeric inputs)
-`group.quantity`, `group.length`, `group.width`, `group.depth`
-
-### 4. MultiLinearTypeInput.tsx (3 numeric inputs)
-`group.dimension1`, `group.dimension2`, `segmentLength`
-
-### 5. MultiAreaInput.tsx (3 numeric inputs)
-`thickness`, `thickeningDepth`, `thickeningWidth`
-
-### 6. MultiPierInput.tsx (3 numeric inputs)
-`pier.quantity`, `pier.diameter`, `pier.depth`
-
-### 7. MultiExpansionJointInput.tsx (1 numeric input)
-`joint.total_length_m`
-
-### 8. MultiControlJointInput.tsx (1 numeric input)
-`joint.total_length_m`
-
-## Files Already Correct (no changes needed)
-
-These files already use `??` or other correct patterns:
-- `ModuleSection.tsx` (QuestionInput) -- uses `value={value ?? ''}`
-- `MultiFootingInput.tsx` -- uses `value={footing.length ?? ""}`
-- `MultiPierGroupInput.tsx` -- uses `value={group.quantity ?? ""}`
-- `MultiBeamTypeInput.tsx` -- uses `EditableTotalLength` component
-- `MultiLinearInput.tsx` -- correct
-- `WafflePodConfigCard.tsx`, `WafflePodConfigInput.tsx`, `WafflePodRibsInput.tsx`, `WafflePodToppingMeshInput.tsx` -- correct
-- All reinforcement inputs (`AreaReinforcementInput`, `BeamReinforcementInput`, `FootingSectionReinforcementInput`, etc.) -- correct
-
-## What This Doesn't Change
-
-- The `onChange` handlers are fine as-is -- they correctly use `e.target.value === "" ? 0 : Number(e.target.value)` to distinguish an empty field from a `0` entry
-- No calculation logic changes
-- No database or schema changes
-- Text/string name fields keep using `||` (strings aren't affected by this bug)
+| File | Change |
+|------|--------|
+| `src/lib/estimate-components/scopes.ts` | Add `retaining_walls: RETAINING_WALLS_SCOPE` to `SCOPE_REGISTRY` |
+| `src/components/estimates/calculators/ModularCalculator.tsx` | Fix `wall_length` to `total_length` and include toe in excavation width (line 416-424) |
+| Scope category UI file | Add `retaining_walls` to "Foundations" category |
 
 ## Risk Assessment
 
-Very low risk. This is a one-character change (`||` to `??`) repeated across input value bindings. The behavior difference is only for the value `0`, which goes from invisible to visible -- exactly what users expect.
+Low risk. Registering the scope makes it available but doesn't affect existing estimates. Fixing the field name in ModularCalculator only affects the `retaining_walls` scope which has no existing data. The `retaining_wall_footings` scope (existing estimates) is unaffected.
 
