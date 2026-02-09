@@ -218,7 +218,7 @@ export function SlabBeamMarkupDialog({
   const edgeThickeningScopes = ['driveway', 'crossovers', 'paths_surrounds', 'standard_slab'];
   const isEdgeThickeningScope = edgeThickeningScopes.includes(scopeId || '');
   // Scopes that DON'T support internal beams (crossovers, paths_surrounds only)
-  const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
+  const noInternalBeamScopes = ['crossovers', 'paths_surrounds', 'driveway'];
   const hideInternalBeams = noInternalBeamScopes.includes(scopeId || '');
   
   // Check if viewing wrong page

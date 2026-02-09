@@ -705,7 +705,7 @@ export function PlanTakeoffStep({
     }
     
     // For scopes without internal beams (paths, crossovers), complete the workflow immediately
-    const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
+    const noInternalBeamScopes = ['crossovers', 'paths_surrounds', 'driveway'];
     if (noInternalBeamScopes.includes(activeScope)) {
       setShowSlabBeamDialog(false);
       setSlabWorkflowActive(false);
