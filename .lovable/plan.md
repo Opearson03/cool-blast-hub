@@ -1,48 +1,57 @@
 
 
-# Make "Action Required" Card Clickable with Unsigned Quotes List
+# Make All Summary Cards Clickable with Dialog Popups
 
 ## What Changes
 
-Tapping the "Action Required" card on the dashboard will open a popup listing quotes that have been sent but not yet signed by the client. Each item will show the client name, site address, and quote amount, with a button to jump directly to that quote.
+All three summary cards on the dashboard will become interactive with a consistent click-to-open-dialog pattern, matching the existing "Action Required" behavior:
 
-The pending leave request count will also be removed from the "Action Required" total since that feature isn't active.
+1. **"Today's Tasks"** -- tapping opens a dialog showing today's scheduled pours/visits with key details (time, job name, site address, visit type). Each item links to its job page.
+
+2. **"Pending Responses"** renamed to **"Pending Subbie Responses"** -- tapping opens a dialog listing sub-contractor invites that haven't been confirmed yet. Each item opens the existing action sheet (Send/Resend, Call, Reschedule) without leaving the dashboard.
+
+3. **"Action Required"** -- no changes, already works as a dialog.
 
 ## Technical Details (4 files)
 
-### 1. Update `useDashboardData.ts` -- Remove leave requests from count
+### 1. `src/components/dashboard/SummaryCards.tsx` -- Make all cards clickable
 
-Remove the `leave_requests` query entirely. The `actionsRequiredCount` will only reflect unsigned quotes:
+- Rename "Pending Responses" to "Pending Subbie Responses"
+- Add `onTodayTasksClick` and `onPendingResponsesClick` callback props
+- Apply the same clickable styling (cursor-pointer, hover effect) to all cards when their count is greater than 0 and they have an onClick handler
 
-```typescript
-actionsRequiredCount: unsignedQuotes || 0,
-```
+### 2. New: `src/components/dashboard/TodayTasksDialog.tsx`
 
-### 2. New component: `ActionsRequiredDialog.tsx`
+- Accepts `businessId`, `open`, `onOpenChange` props
+- When opened, fetches today's pours from `job_pours` with joined `jobs` data (same query pattern as `DailyScheduleWidget`)
+- Also fetches subbie confirmation stats per pour (same as `DailyScheduleWidget`)
+- Displays each pour in a card showing:
+  - Pour name and visit type badge
+  - Job name and job number
+  - Scheduled time and site address
+  - Subbie confirmation count (e.g. "2/3 confirmed")
+  - Status badge (scheduled, in_progress, etc.)
+- Clicking a pour item closes the dialog and navigates to `/admin/jobs/{jobId}`
+- Shows loading spinner while fetching
+- Shows "No tasks scheduled for today" with a calendar icon when empty
 
-Create `src/components/dashboard/ActionsRequiredDialog.tsx`:
+### 3. New: `src/components/dashboard/PendingResponsesDialog.tsx`
 
-- Accepts `businessId`, `open`, and `onOpenChange` props
-- When opened, fetches unsigned quotes from `estimates` table (status = "sent", signed_at is null)
-- Displays each quote as a card showing:
-  - Client name
-  - Site address
-  - Total amount (formatted as currency)
-  - Status badge ("Awaiting Signature")
-  - "View Quote" button
-- "View Quote" closes the dialog and navigates to `/admin/estimates?edit={id}`
-- Shows a loading spinner while fetching
-- Shows "No actions required" with a checkmark when the list is empty
+- Accepts `businessId`, `open`, `onOpenChange` props
+- When opened, fetches pending sub-contractor invites for the next 7 days from `external_invites` (same query pattern as `PendingSubbieInvitesWidget`)
+- Groups invites by date with "Tomorrow" highlighted urgently
+- Each invite shows:
+  - Recipient name and trade/role badge
+  - Pour name and job name
+  - Status badge (Sent, Viewed, Draft)
+- Clicking an invite opens the existing `PendingInviteActionSheet` (Send/Resend, Call, Reschedule) keeping the user on the dashboard
+- Shows loading spinner while fetching
+- Shows "All sub-contractors have responded" with a checkmark when empty
 
-### 3. Update `SummaryCards.tsx` -- Make card clickable
+### 4. `src/pages/admin/AdminDashboard.tsx` -- Wire new dialogs
 
-- Add optional `onActionRequiredClick` callback prop
-- When `actionsRequiredCount > 0` and callback is provided, make the "Action Required" card clickable with cursor-pointer and a subtle hover effect
-- Wire the card's `onClick` to call the callback
+- Import `TodayTasksDialog` and `PendingResponsesDialog`
+- Add `todayTasksDialogOpen` and `pendingResponsesDialogOpen` state variables
+- Pass `onTodayTasksClick` and `onPendingResponsesClick` to `SummaryCards`
+- Render both new dialogs with `businessId`
 
-### 4. Update `AdminDashboard.tsx` -- Wire dialog
-
-- Import `ActionsRequiredDialog`
-- Add `actionsDialogOpen` state
-- Pass `onActionRequiredClick` to `SummaryCards` to open the dialog
-- Render `ActionsRequiredDialog` with `businessId`
