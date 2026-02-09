@@ -7,12 +7,14 @@ import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget"
 import { PendingSubbieInvitesWidget } from "@/components/dashboard/PendingSubbieInvitesWidget";
 import { TomorrowPreviewWidget } from "@/components/dashboard/TomorrowPreviewWidget";
 import { InboxWidget } from "@/components/dashboard/InboxWidget";
+import { ActionsRequiredDialog } from "@/components/dashboard/ActionsRequiredDialog";
 import { useDashboardData } from "@/hooks/useDashboardData";
 
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [actionsDialogOpen, setActionsDialogOpen] = useState(false);
   const dashboardData = useDashboardData(businessId);
 
   useEffect(() => {
@@ -79,7 +81,16 @@ export default function AdminDashboard() {
           pendingInvitesCount={dashboardData.pendingInvitesCount}
           actionsRequiredCount={dashboardData.actionsRequiredCount}
           isLoading={dashboardData.isLoading}
+          onActionRequiredClick={() => setActionsDialogOpen(true)}
         />
+
+        {businessId && (
+          <ActionsRequiredDialog
+            businessId={businessId}
+            open={actionsDialogOpen}
+            onOpenChange={setActionsDialogOpen}
+          />
+        )}
 
         {businessId && (
           <>
