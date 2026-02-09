@@ -270,7 +270,7 @@ export function MultiPierInput({
                         <Input
                           type="number"
                           inputMode="numeric"
-                          value={pier.quantity || ""}
+                          value={pier.quantity ?? ""}
                           onChange={(e) =>
                             updatePier(pier.id, "quantity", e.target.value === "" ? 0 : Number(e.target.value))
                           }
@@ -286,7 +286,7 @@ export function MultiPierInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={pier.diameter || ""}
+                            value={pier.diameter ?? ""}
                             onChange={(e) =>
                               updatePier(pier.id, "diameter", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -306,7 +306,7 @@ export function MultiPierInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={pier.depth || ""}
+                            value={pier.depth ?? ""}
                             onChange={(e) =>
                               updatePier(pier.id, "depth", e.target.value === "" ? 0 : Number(e.target.value))
                             }

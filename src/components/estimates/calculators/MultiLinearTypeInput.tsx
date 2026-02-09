@@ -417,7 +417,7 @@ export function MultiLinearTypeInput({
                         <Input
                           type="number"
                           inputMode="numeric"
-                          value={group.dimension1 || ""}
+                          value={group.dimension1 ?? ""}
                           onChange={(e) =>
                             updateGroupDimensions(group, 'dimension1', 
                               e.target.value === "" ? 0 : Number(e.target.value)
@@ -439,7 +439,7 @@ export function MultiLinearTypeInput({
                         <Input
                           type="number"
                           inputMode="numeric"
-                          value={group.dimension2 || ""}
+                          value={group.dimension2 ?? ""}
                           onChange={(e) =>
                             updateGroupDimensions(group, 'dimension2',
                               e.target.value === "" ? 0 : Number(e.target.value)
@@ -571,7 +571,7 @@ export function MultiLinearTypeInput({
                               <Input
                                 type="number"
                                 inputMode="decimal"
-                                value={segmentLength || ""}
+                                value={segmentLength ?? ""}
                                 onChange={(e) =>
                                   updateSegmentLength(segment.id,
                                     e.target.value === "" ? 0 : Number(e.target.value)

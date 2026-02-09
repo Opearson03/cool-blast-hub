@@ -285,7 +285,7 @@ export function MultiPadFootingGroupInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={group.quantity || ""}
+                            value={group.quantity ?? ""}
                             onChange={(e) =>
                               updateGroup(
                                 group.id,
@@ -307,7 +307,7 @@ export function MultiPadFootingGroupInput({
                             <Input
                               type="number"
                               inputMode="numeric"
-                              value={group.length || ""}
+                              value={group.length ?? ""}
                               onChange={(e) =>
                                 updateGroup(
                                   group.id,
@@ -333,7 +333,7 @@ export function MultiPadFootingGroupInput({
                             <Input
                               type="number"
                               inputMode="numeric"
-                              value={group.width || ""}
+                              value={group.width ?? ""}
                               onChange={(e) =>
                                 updateGroup(
                                   group.id,
@@ -359,7 +359,7 @@ export function MultiPadFootingGroupInput({
                             <Input
                               type="number"
                               inputMode="numeric"
-                              value={group.depth || ""}
+                              value={group.depth ?? ""}
                               onChange={(e) =>
                                 updateGroup(
                                   group.id,
