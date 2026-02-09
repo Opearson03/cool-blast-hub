@@ -1602,7 +1602,8 @@ export function PlanTakeoffStep({
     return filtered;
   }, [markups, currentPage, currentFileId, dimensionsReady, activeScope, activeTool]);
 
-  const completedCount = markups.length + skippedScopes.size;
+  const scopesWithMarkups = new Set(markups.map(m => m.scope_id));
+  const completedCount = scopesWithMarkups.size + skippedScopes.size;
   const canContinue = completedCount === selectedScopes.length || !hasFiles;
 
   // Render panel content for split-screen layout (desktop only)
