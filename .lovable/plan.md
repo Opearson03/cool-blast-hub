@@ -1,89 +1,77 @@
 
 
-# Fix: Retaining Wall Toe Not Flowing to Modules
+# Fix: Excavation for Retaining Wall Toe is ~20% Over
 
-## Investigation Findings
+## Root Cause
 
-After tracing the complete data flow, I found **two distinct issues** causing the toe volume to not reach the concrete supply, excavation, and pump modules.
+The excavation calculation adds the toe width to the footing width and then multiplies the entire combined width by the **footing depth**. But the toe only extends to its own depth (`toe_depth`), which is shallower than the footing. This overcounts the excavation for the toe portion.
 
-### Issue 1: `RETAINING_WALLS_SCOPE` is Not Registered
-
-The `RETAINING_WALLS_SCOPE` (full wall construction) is defined in `scopes.ts` (line 2226) but **never added to `SCOPE_REGISTRY`** (lines 2594-2606). This means:
-- Users cannot select it in the estimate wizard
-- All the previous toe fixes targeting `retaining_walls` scope are unreachable
-- Users can only use `retaining_wall_footings` (standalone footings scope)
-
-The previous fix added toe logic for `scopeData.scopeId === 'retaining_walls'` in the excavation module, but since that scope is never available, those code paths never execute.
-
-### Issue 2: ModularCalculator Retaining Wall Excavation Uses Wrong Field
-
-In `ModularCalculator.tsx` line 416, the retaining wall excavation derivation checks:
+**Current (incorrect):**
+```text
+Excavation = Length x (FootingWidth + ToeWidth) x FootingDepth
+                       ^^^^^^^^^^^^^^^^^^^^^^^^^
+                       Full trench width at full footing depth
 ```
-scopeAnswers.wall_length
+
+**Correct approach (matches concrete calculation):**
+```text
+Excavation = (Length x FootingWidth x FootingDepth)   -- main footing
+           + (Length x ToeWidth x ToeDepth)            -- toe portion at its own depth
 ```
-But the retaining walls scope uses `total_length`, not `wall_length`. This condition never evaluates to true, so the retaining wall excavation block is always skipped in `derivedScopeAnswers`.
 
-### What Actually Works (retaining_wall_footings)
+This matches exactly how the concrete volume is calculated in `scopes.ts`.
 
-For the `retaining_wall_footings` scope that users CAN access:
-- Per-section toe (`has_toe`, `toe_width`, `toe_depth`) IS correctly included in `calculateVolume` (line 1608-1611)
-- `scopeData.concrete_volume = scopeVolume` includes toe
-- The `derivedScopeAnswers` footings block (line 335-368) correctly includes per-section toe in `excavation_volume`
+## Example (why it's ~20% over on the toe portion)
 
-If toe is not flowing through for `retaining_wall_footings`, the issue would be in how the VolumeBreakdown displays the total vs how `calculateVolume` actually computes. But the logic is consistent.
+With footing_depth = 400mm, toe_depth = 330mm, toe_width = 200mm, footing_width = 600mm, length = 10m:
 
-## The Fix (3 changes)
+| | Current (wrong) | Fixed |
+|---|---|---|
+| Footing excavation | 10 x 0.8 x 0.4 = 3.20 m3 | 10 x 0.6 x 0.4 = 2.40 m3 |
+| Toe excavation | (included above) | 10 x 0.2 x 0.33 = 0.66 m3 |
+| **Total** | **3.20 m3** | **3.06 m3** |
 
-### 1. Register `RETAINING_WALLS_SCOPE` in `SCOPE_REGISTRY`
+The current method over-reports by 0.14 m3 (4.6% of total, but ~21% of the toe volume itself).
 
-**File:** `src/lib/estimate-components/scopes.ts` (line 2606)
+## Changes (1 file)
 
-Add the missing scope so users can actually select it:
+### ModularCalculator.tsx (lines 341-349)
+
+Split the excavation into two separate calculations -- main footing volume and toe volume -- instead of combining widths:
+
+**From:**
 ```typescript
-export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
-  // ... existing scopes ...
-  pad_footings: PAD_FOOTINGS_SCOPE,
-  retaining_walls: RETAINING_WALLS_SCOPE,  // ADD THIS
-};
+excavationVolume = scopeAnswers.footings.reduce((sum, f) => {
+  const length = ...;
+  const footingWidth = Number(f.width) || 0;
+  const hasToe = f.has_toe === true;
+  const toeWidth = hasToe ? (Number(f.toe_width) || 0) : 0;
+  const excavationWidthM = (footingWidth + toeWidth) / 1000;
+  const depthM = (Number(f.depth) || 0) / 1000;
+  return sum + length * excavationWidthM * depthM;
+}, 0);
 ```
 
-Also need to add it to the scope selection UI categories (wherever scopes are grouped into "Foundations", "Floor Slabs", etc.).
-
-### 2. Fix `wall_length` to `total_length` in ModularCalculator
-
-**File:** `src/components/estimates/calculators/ModularCalculator.tsx` (line 416)
-
-Change:
+**To:**
 ```typescript
-else if (scopeAnswers.wall_length && scopeAnswers.footing_width && scopeAnswers.footing_depth) {
-    const lengthM = Number(scopeAnswers.wall_length) || 0;
+excavationVolume = scopeAnswers.footings.reduce((sum, f) => {
+  const length = ...;
+  const footingWidthM = (Number(f.width) || 0) / 1000;
+  const footingDepthM = (Number(f.depth) || 0) / 1000;
+  const mainVolume = length * footingWidthM * footingDepthM;
+
+  const hasToe = f.has_toe === true;
+  const toeWidthM = hasToe ? (Number(f.toe_width) || 0) / 1000 : 0;
+  const toeDepthM = hasToe ? (Number(f.toe_depth) || 0) / 1000 : 0;
+  const toeVolume = length * toeWidthM * toeDepthM;
+
+  return sum + mainVolume + toeVolume;
+}, 0);
 ```
-To:
-```typescript
-else if (scopeAnswers.total_length && scopeAnswers.footing_width && scopeAnswers.footing_depth && scopeAnswers.include_footing) {
-    const lengthM = Number(scopeAnswers.total_length) || 0;
-    const footingWidthM = (Number(scopeAnswers.footing_width) || 0) / 1000;
-    const toeLengthM = (Number(scopeAnswers.toe_length) || 0) / 1000;
-    const totalExcWidthM = footingWidthM + toeLengthM;
-```
 
-This also adds the toe width to the excavation trench width, since the trench must be wide enough for footing + toe.
-
-### 3. Add `retaining_walls` to scope category mapping
-
-**File:** `src/components/estimates/EstimateFormDialog.tsx` (or wherever scope categories are defined)
-
-Add `retaining_walls` to the "Foundations" category so it appears in the scope selection UI alongside `retaining_wall_footings`.
-
-## Summary
-
-| File | Change |
-|------|--------|
-| `src/lib/estimate-components/scopes.ts` | Add `retaining_walls: RETAINING_WALLS_SCOPE` to `SCOPE_REGISTRY` |
-| `src/components/estimates/calculators/ModularCalculator.tsx` | Fix `wall_length` to `total_length` and include toe in excavation width (line 416-424) |
-| Scope category UI file | Add `retaining_walls` to "Foundations" category |
+The same pattern applies to the `excavationArea` calculation (lines 353-360) -- the toe area should use `toe_width` alone, not be combined with footing width at the same depth.
 
 ## Risk Assessment
 
-Low risk. Registering the scope makes it available but doesn't affect existing estimates. Fixing the field name in ModularCalculator only affects the `retaining_walls` scope which has no existing data. The `retaining_wall_footings` scope (existing estimates) is unaffected.
+Very low risk. This only affects the `retaining_wall_footings` scope when a toe is present. It corrects the excavation to match the concrete volume logic exactly, which is the expected behavior.
 
