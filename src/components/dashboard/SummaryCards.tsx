@@ -29,7 +29,7 @@ export function SummaryCards({
       onClick: onTodayTasksClick,
     },
     {
-      title: "Pending Subbie Responses",
+      title: "Pending Subcontractor Responses",
       value: pendingInvitesCount,
       icon: Users,
       iconColor: pendingInvitesCount > 0 ? "text-amber-500" : "text-muted-foreground",
