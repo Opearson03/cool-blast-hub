@@ -241,6 +241,39 @@ export function ModularCalculator({
     }));
   }, [scope.id]); // Only run on mount - empty deps would cause issues with state
 
+  // Sync linearSections to footings on mount for linear scopes (retaining_wall_footings, strip_footings)
+  // This ensures the footings array always has toe fields even when loading from saved data
+  useEffect(() => {
+    if (!scope.supportsLinearSections) return;
+    const sections = scopeAnswers.linearSections;
+    if (!Array.isArray(sections) || sections.length === 0) return;
+
+    // Always re-derive footings from linearSections to ensure consistency
+    const footings = sections.map((s: any) => ({
+      id: s.id,
+      name: s.name,
+      length: s._actualLength && s._actualLength > 0 ? s._actualLength : s.length,
+      width: s.dimension1,
+      depth: s.dimension2,
+      has_toe: s.has_toe,
+      toe_width: s.toe_width,
+      toe_depth: s.toe_depth,
+      _fromTakeoff: s._fromTakeoff,
+      _actualLength: s._actualLength,
+    }));
+
+    const totalLength = sections.reduce((sum: number, s: any) => {
+      const len = s._actualLength && s._actualLength > 0 ? s._actualLength : (Number(s.length) || 0);
+      return sum + len;
+    }, 0);
+
+    setScopeAnswers(prev => ({
+      ...prev,
+      footings,
+      total_length: totalLength,
+    }));
+  }, [scope.supportsLinearSections]); // Only run on mount
+
   // Build derived scope answers used for calculations (area/perimeter can come from takeoff)
   const derivedScopeAnswers = useMemo(() => {
     let totalArea = scopeAnswers.area || 0;

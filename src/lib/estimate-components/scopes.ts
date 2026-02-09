@@ -1593,32 +1593,42 @@ export const RETAINING_WALL_FOOTINGS_SCOPE: ScopeDefinition = {
     'extra-items',
   ],
   calculateVolume: (answers) => {
-    // Calculate from linear sections/footings (per-type dimensions)
-    const footings = answers.footings || [];
-    if (footings.length > 0) {
-      const volume = footings.reduce((sum: number, footing: any) => {
+    // Check footings first (derived from linearSections by handler)
+    let sections = answers.footings || [];
+
+    // Fallback: read directly from linearSections if footings not yet synced
+    if (sections.length === 0 && answers.linearSections?.length > 0) {
+      sections = answers.linearSections.map((s: any) => ({
+        length: s._actualLength && s._actualLength > 0 ? s._actualLength : s.length,
+        width: s.dimension1,
+        depth: s.dimension2,
+        has_toe: s.has_toe,
+        toe_width: s.toe_width,
+        toe_depth: s.toe_depth,
+      }));
+    }
+
+    if (sections.length > 0) {
+      const volume = sections.reduce((sum: number, footing: any) => {
         const length = Number(footing.length) || 0;
         const widthM = (Number(footing.width) || 0) / 1000;
         const depthM = (Number(footing.depth) || 0) / 1000;
-        
-        // Main footing volume
         const mainVolume = length * widthM * depthM;
-        
-        // Toe volume (if has_toe is enabled)
+
         const hasToe = footing.has_toe === true;
         const toeWidthM = hasToe ? (Number(footing.toe_width) || 0) / 1000 : 0;
         const toeDepthM = hasToe ? (Number(footing.toe_depth) || 0) / 1000 : 0;
         const toeVolume = length * toeWidthM * toeDepthM;
-        
+
         return sum + mainVolume + toeVolume;
       }, 0);
       return safeVolume(volume);
     }
-    // Fallback to total_length with default dimensions if no sections defined yet
+
+    // Final fallback to total_length with default dimensions
     const length = Number(answers.total_length) || 0;
-    // No global width/depth questions anymore - use defaults for initial estimate
-    const widthM = 600 / 1000; // Default 600mm width
-    const depthM = 400 / 1000; // Default 400mm depth
+    const widthM = 600 / 1000;
+    const depthM = 400 / 1000;
     return safeVolume(length * widthM * depthM);
   },
   defaultExclusions: [
