@@ -1,39 +1,26 @@
 
-# Fix: "No Edge Beams" on External Paths Should Complete Workflow
+# Fix: Add `driveway` to No-Internal-Beams List
 
 ## The Problem
 
-When marking an external paths (or crossovers) area and selecting "No Edge Beams", the workflow transitions to the internal beam marking step. But paths and crossovers don't support internal beams, so the user gets stuck being asked to measure beams that don't apply.
+The previous fix added `crossovers` and `paths_surrounds` to the `noInternalBeamScopes` list, but missed `driveway`. When clicking "No Edge Beams" for driveways or crossovers, the workflow still transitions to internal beam marking (the 2-point measurer) instead of completing immediately.
+
+Only actual slab types (`raft_slab`, `waffle_pod`, `standard_slab`, `suspended_slab`) should proceed to internal beam marking. External/hardscape scopes like `driveway`, `crossovers`, and `paths_surrounds` should complete the workflow when edge beams are skipped.
 
 ## The Fix (1 file)
 
 ### `src/components/estimates/takeoff/PlanTakeoffStep.tsx`
 
-In the `handleSkipEdgeBeams` function (~line 706-711), after saving the slab, the code always transitions to `mark_internal_beam`. The fix adds a check: if the active scope is one that doesn't support internal beams (`crossovers` or `paths_surrounds`), call `resetSlabWorkflow()` to complete the workflow immediately instead.
+Update the `noInternalBeamScopes` array in `handleSkipEdgeBeams` (~line 708) to also include `driveway`:
 
 **Before:**
 ```typescript
-// Go to internal beam marking
-setShowSlabBeamDialog(false);
-setSlabWorkflowStep('mark_internal_beam');
-setPolylinePoints([]);
-setActiveTool('polyline');
+const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
 ```
 
 **After:**
 ```typescript
-// For scopes without internal beams, complete the workflow
-const noInternalBeamScopes = ['crossovers', 'paths_surrounds'];
-if (noInternalBeamScopes.includes(activeScope)) {
-  resetSlabWorkflow();
-  return;
-}
-
-// Go to internal beam marking
-setShowSlabBeamDialog(false);
-setSlabWorkflowStep('mark_internal_beam');
-setPolylinePoints([]);
-setActiveTool('polyline');
+const noInternalBeamScopes = ['crossovers', 'paths_surrounds', 'driveway'];
 ```
 
-Also add `resetSlabWorkflow` to the dependency array of the `useCallback`.
+This ensures all three external/hardscape area scopes skip internal beam marking when "No Edge Beams" is selected.
