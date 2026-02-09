@@ -8,6 +8,8 @@ import { PendingSubbieInvitesWidget } from "@/components/dashboard/PendingSubbie
 import { TomorrowPreviewWidget } from "@/components/dashboard/TomorrowPreviewWidget";
 import { InboxWidget } from "@/components/dashboard/InboxWidget";
 import { ActionsRequiredDialog } from "@/components/dashboard/ActionsRequiredDialog";
+import { TodayTasksDialog } from "@/components/dashboard/TodayTasksDialog";
+import { PendingResponsesDialog } from "@/components/dashboard/PendingResponsesDialog";
 import { useDashboardData } from "@/hooks/useDashboardData";
 
 export default function AdminDashboard() {
@@ -15,6 +17,8 @@ export default function AdminDashboard() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionsDialogOpen, setActionsDialogOpen] = useState(false);
+  const [todayTasksDialogOpen, setTodayTasksDialogOpen] = useState(false);
+  const [pendingResponsesDialogOpen, setPendingResponsesDialogOpen] = useState(false);
   const dashboardData = useDashboardData(businessId);
 
   useEffect(() => {
@@ -81,15 +85,29 @@ export default function AdminDashboard() {
           pendingInvitesCount={dashboardData.pendingInvitesCount}
           actionsRequiredCount={dashboardData.actionsRequiredCount}
           isLoading={dashboardData.isLoading}
+          onTodayTasksClick={() => setTodayTasksDialogOpen(true)}
+          onPendingResponsesClick={() => setPendingResponsesDialogOpen(true)}
           onActionRequiredClick={() => setActionsDialogOpen(true)}
         />
 
         {businessId && (
-          <ActionsRequiredDialog
-            businessId={businessId}
-            open={actionsDialogOpen}
-            onOpenChange={setActionsDialogOpen}
-          />
+          <>
+            <ActionsRequiredDialog
+              businessId={businessId}
+              open={actionsDialogOpen}
+              onOpenChange={setActionsDialogOpen}
+            />
+            <TodayTasksDialog
+              businessId={businessId}
+              open={todayTasksDialogOpen}
+              onOpenChange={setTodayTasksDialogOpen}
+            />
+            <PendingResponsesDialog
+              businessId={businessId}
+              open={pendingResponsesDialogOpen}
+              onOpenChange={setPendingResponsesDialogOpen}
+            />
+          </>
         )}
 
         {businessId && (
