@@ -243,9 +243,20 @@ export function ActionsRequiredDialog({
 
       if (error) throw error;
 
+      // Snooze for 48 hours after successful resend
+      const snoozedUntil = new Date();
+      snoozedUntil.setHours(snoozedUntil.getHours() + 48);
+      await supabase
+        .from("estimates")
+        .update({ action_snoozed_until: snoozedUntil.toISOString() })
+        .eq("id", quote.id);
+
+      // Remove from local list
+      setQuotes((prev) => prev.filter((q) => q.id !== quote.id));
+
       toast({
         title: "Quote resent!",
-        description: `Email sent to ${quote.client_email}`,
+        description: `Email sent to ${quote.client_email}. This item will reappear in 48 hours if still unsigned.`,
       });
     } catch (error: any) {
       console.error("Error resending quote:", error);
