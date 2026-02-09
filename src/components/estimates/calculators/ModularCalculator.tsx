@@ -340,23 +340,27 @@ export function ModularCalculator({
 
       excavationVolume = scopeAnswers.footings.reduce((sum: number, f: any) => {
         const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
-        // For retaining wall footings, excavation width includes the toe if present
-        const footingWidth = Number(f.width) || 0;
+        // Main footing excavation
+        const footingWidthM = (Number(f.width) || 0) / 1000;
+        const footingDepthM = (Number(f.depth) || 0) / 1000;
+        const mainVolume = length * footingWidthM * footingDepthM;
+        // Toe excavation at its own (shallower) depth
         const hasToe = f.has_toe === true;
-        const toeWidth = hasToe ? (Number(f.toe_width) || 0) : 0;
-        const excavationWidthM = (footingWidth + toeWidth) / 1000; // mm to m
-        const depthM = (Number(f.depth) || 0) / 1000; // mm to m
-        return sum + length * excavationWidthM * depthM;
+        const toeWidthM = hasToe ? (Number(f.toe_width) || 0) / 1000 : 0;
+        const toeDepthM = hasToe ? (Number(f.toe_depth) || 0) / 1000 : 0;
+        const toeVolume = length * toeWidthM * toeDepthM;
+        return sum + mainVolume + toeVolume;
       }, 0);
 
-      // Excavation area as total trench area (including toe if present)
+      // Excavation area: footing area + toe area (toe at its own width)
       excavationArea = scopeAnswers.footings.reduce((sum: number, f: any) => {
         const length = f._actualLength && f._actualLength > 0 ? f._actualLength : (Number(f.length) || 0);
-        const footingWidth = Number(f.width) || 0;
+        const footingWidthM = (Number(f.width) || 0) / 1000;
+        const mainArea = length * footingWidthM;
         const hasToe = f.has_toe === true;
-        const toeWidth = hasToe ? (Number(f.toe_width) || 0) : 0;
-        const excavationWidthM = (footingWidth + toeWidth) / 1000;
-        return sum + length * excavationWidthM;
+        const toeWidthM = hasToe ? (Number(f.toe_width) || 0) / 1000 : 0;
+        const toeArea = length * toeWidthM;
+        return sum + mainArea + toeArea;
       }, 0);
 
       // Weighted average depth by length
