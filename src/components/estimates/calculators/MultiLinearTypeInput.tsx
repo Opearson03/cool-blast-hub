@@ -192,7 +192,13 @@ export function MultiLinearTypeInput({
   const updateGroupToe = (group: LinearTypeGroup, field: 'has_toe' | 'toe_width' | 'toe_depth', value: boolean | number) => {
     const updatedSections = sections.map(section => {
       if (matchesGroup(section, group)) {
-        return { ...section, [field]: value };
+        const updated = { ...section, [field]: value };
+        // When enabling toe, ensure defaults are written to data (not just displayed)
+        if (field === 'has_toe' && value === true) {
+          if (updated.toe_width == null) updated.toe_width = 300;
+          if (updated.toe_depth == null) updated.toe_depth = 300;
+        }
+        return updated;
       }
       return section;
     });

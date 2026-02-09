@@ -119,7 +119,15 @@ export function ModularCalculator({
     }
     
     if (scope.supportsLinearSections && !initialScopeAnswers.linearSections) {
-      defaults.linearSections = [{ id: 'section-1', name: 'Section 1', length: 0, dimension1: 450, dimension2: 300 }];
+      const isRetainingWall = scope.id === 'retaining_wall_footings' || scope.id === 'retaining_walls';
+      defaults.linearSections = [{
+        id: 'section-1',
+        name: 'Section 1',
+        length: 0,
+        dimension1: 450,
+        dimension2: 300,
+        ...(isRetainingWall ? { has_toe: false, toe_width: 300, toe_depth: 300 } : {}),
+      }];
     }
     
     if (scope.supportsMultipleBeams && !initialScopeAnswers.beams) {
@@ -256,8 +264,8 @@ export function ModularCalculator({
       width: s.dimension1,
       depth: s.dimension2,
       has_toe: s.has_toe,
-      toe_width: s.toe_width,
-      toe_depth: s.toe_depth,
+      toe_width: s.has_toe ? (s.toe_width ?? 300) : s.toe_width,
+      toe_depth: s.has_toe ? (s.toe_depth ?? 300) : s.toe_depth,
       _fromTakeoff: s._fromTakeoff,
       _actualLength: s._actualLength,
     }));
@@ -1254,8 +1262,8 @@ export function ModularCalculator({
         width: s.dimension1,
         depth: s.dimension2,
         has_toe: s.has_toe,
-        toe_width: s.toe_width,
-        toe_depth: s.toe_depth,
+        toe_width: s.has_toe ? (s.toe_width ?? 300) : s.toe_width,
+        toe_depth: s.has_toe ? (s.toe_depth ?? 300) : s.toe_depth,
         _fromTakeoff: s._fromTakeoff,
         _actualLength: s._actualLength,
       })),
