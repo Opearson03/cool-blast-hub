@@ -169,7 +169,7 @@ export function PendingResponsesDialog({ businessId, open, onOpenChange }: Pendi
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Users className="h-5 w-5 text-amber-500" />
-              Pending Subbie Responses
+              Pending Subcontractor Responses
             </DialogTitle>
             <DialogDescription>
               Sub-contractor invites awaiting confirmation
