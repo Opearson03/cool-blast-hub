@@ -536,7 +536,7 @@ export function MultiAreaInput({
                   <Input
                     type="number"
                     inputMode="numeric"
-                    value={thickness || ""}
+                    value={thickness ?? ""}
                     onChange={(e) =>
                       onThicknessChange(e.target.value === "" ? 0 : Number(e.target.value))
                     }
@@ -589,7 +589,7 @@ export function MultiAreaInput({
                 <div className="relative">
                   <Input
                     type="number"
-                    value={thickeningDepth || ""}
+                    value={thickeningDepth ?? ""}
                     onChange={(e) =>
                       onThickeningDepthChange?.(e.target.value === "" ? 300 : Number(e.target.value))
                     }
@@ -607,7 +607,7 @@ export function MultiAreaInput({
                 <div className="relative">
                   <Input
                     type="number"
-                    value={thickeningWidth || ""}
+                    value={thickeningWidth ?? ""}
                     onChange={(e) =>
                       onThickeningWidthChange?.(e.target.value === "" ? 300 : Number(e.target.value))
                     }

@@ -200,7 +200,7 @@ export function MultiBeamInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={beam.length || ""}
+                            value={beam.length ?? ""}
                             onChange={(e) =>
                               updateBeam(beam.id, "length", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -220,7 +220,7 @@ export function MultiBeamInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={beam.width || ""}
+                            value={beam.width ?? ""}
                             onChange={(e) =>
                               updateBeam(beam.id, "width", e.target.value === "" ? 0 : Number(e.target.value))
                             }
@@ -240,7 +240,7 @@ export function MultiBeamInput({
                           <Input
                             type="number"
                             inputMode="numeric"
-                            value={beam.depth || ""}
+                            value={beam.depth ?? ""}
                             onChange={(e) =>
                               updateBeam(beam.id, "depth", e.target.value === "" ? 0 : Number(e.target.value))
                             }

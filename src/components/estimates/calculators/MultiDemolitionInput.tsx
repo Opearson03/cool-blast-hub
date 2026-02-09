@@ -291,7 +291,7 @@ export function MultiDemolitionInput({
                       <Input
                         type="number"
                         inputMode="decimal"
-                        value={area.length || ""}
+                        value={area.length ?? ""}
                         onChange={(e) =>
                           updateArea(
                             area.id,
@@ -315,7 +315,7 @@ export function MultiDemolitionInput({
                       <Input
                         type="number"
                         inputMode="decimal"
-                        value={area.width || ""}
+                        value={area.width ?? ""}
                         onChange={(e) =>
                           updateArea(
                             area.id,
@@ -339,7 +339,7 @@ export function MultiDemolitionInput({
                       <Input
                         type="number"
                         inputMode="numeric"
-                        value={area.thickness || ""}
+                        value={area.thickness ?? ""}
                         onChange={(e) =>
                           updateArea(
                             area.id,
@@ -422,7 +422,7 @@ export function MultiDemolitionInput({
                 <Input
                   type="number"
                   inputMode="decimal"
-                  value={tipRate || ""}
+                  value={tipRate ?? ""}
                   onChange={(e) =>
                     onTipRateChange(
                       e.target.value === "" ? 400 : Number(e.target.value)
@@ -510,7 +510,7 @@ export function MultiDemolitionInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={excavatorRate || ""}
+                            value={excavatorRate ?? ""}
                             onChange={(e) =>
                               onExcavatorRateChange?.(
                                 e.target.value === "" ? 150 : Number(e.target.value)
@@ -535,7 +535,7 @@ export function MultiDemolitionInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={excavatorHours || ""}
+                            value={excavatorHours ?? ""}
                             onChange={(e) =>
                               onExcavatorHoursChange?.(
                                 e.target.value === "" ? 4 : Number(e.target.value)
@@ -561,7 +561,7 @@ export function MultiDemolitionInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={excavatorFloat || ""}
+                            value={excavatorFloat ?? ""}
                             onChange={(e) =>
                               onExcavatorFloatChange?.(
                                 e.target.value === "" ? 150 : Number(e.target.value)
@@ -595,7 +595,7 @@ export function MultiDemolitionInput({
                           <Input
                             type="number"
                             inputMode="decimal"
-                            value={excavatorM3Rate || ""}
+                            value={excavatorM3Rate ?? ""}
                             onChange={(e) =>
                               onExcavatorM3RateChange?.(
                                 e.target.value === "" ? 60 : Number(e.target.value)
@@ -630,7 +630,7 @@ export function MultiDemolitionInput({
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={excavatorFloat || ""}
+                          value={excavatorFloat ?? ""}
                           onChange={(e) =>
                             onExcavatorFloatChange?.(
                               e.target.value === "" ? 150 : Number(e.target.value)
@@ -679,7 +679,7 @@ export function MultiDemolitionInput({
                   <Input
                     type="number"
                     inputMode="decimal"
-                    value={rockBreakerCost || ""}
+                    value={rockBreakerCost ?? ""}
                     onChange={(e) =>
                       onRockBreakerCostChange(
                         e.target.value === "" ? 200 : Number(e.target.value)
@@ -743,7 +743,7 @@ export function MultiDemolitionInput({
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={sawCuttingLength || ""}
+                          value={sawCuttingLength ?? ""}
                           onChange={(e) =>
                             onSawCuttingLengthChange?.(
                               e.target.value === "" ? 0 : Number(e.target.value)
@@ -769,7 +769,7 @@ export function MultiDemolitionInput({
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={sawCuttingRate || ""}
+                          value={sawCuttingRate ?? ""}
                           onChange={(e) =>
                             onSawCuttingRateChange?.(
                               e.target.value === "" ? 25 : Number(e.target.value)
@@ -795,7 +795,7 @@ export function MultiDemolitionInput({
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={sawCuttingHours || ""}
+                          value={sawCuttingHours ?? ""}
                           onChange={(e) =>
                             onSawCuttingHoursChange?.(
                               e.target.value === "" ? 2 : Number(e.target.value)
@@ -821,7 +821,7 @@ export function MultiDemolitionInput({
                         <Input
                           type="number"
                           inputMode="decimal"
-                          value={sawCuttingHourlyRate || ""}
+                          value={sawCuttingHourlyRate ?? ""}
                           onChange={(e) =>
                             onSawCuttingHourlyRateChange?.(
                               e.target.value === "" ? 180 : Number(e.target.value)
@@ -851,7 +851,7 @@ export function MultiDemolitionInput({
                     <Input
                       type="number"
                       inputMode="decimal"
-                      value={sawCuttingEstablishment || ""}
+                      value={sawCuttingEstablishment ?? ""}
                       onChange={(e) =>
                         onSawCuttingEstablishmentChange?.(
                           e.target.value === "" ? 150 : Number(e.target.value)
@@ -905,7 +905,7 @@ export function MultiDemolitionInput({
                       <Input
                         type="number"
                         inputMode="numeric"
-                        value={demoCrewSize || ""}
+                        value={demoCrewSize ?? ""}
                         onChange={(e) =>
                           onDemoCrewSizeChange?.(
                             e.target.value === "" ? 2 : Number(e.target.value)
@@ -928,7 +928,7 @@ export function MultiDemolitionInput({
                       <Input
                         type="number"
                         inputMode="decimal"
-                        value={demoHours || ""}
+                        value={demoHours ?? ""}
                         onChange={(e) =>
                           onDemoHoursChange?.(
                             e.target.value === "" ? 4 : Number(e.target.value)
@@ -954,7 +954,7 @@ export function MultiDemolitionInput({
                       <Input
                         type="number"
                         inputMode="decimal"
-                        value={demoLabourRate || ""}
+                        value={demoLabourRate ?? ""}
                         onChange={(e) =>
                           onDemoLabourRateChange?.(
                             e.target.value === "" ? 75 : Number(e.target.value)

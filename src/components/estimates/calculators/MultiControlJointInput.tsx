@@ -250,7 +250,7 @@ export function MultiControlJointInput({
                             type="number"
                             step="0.1"
                             min="0"
-                            value={joint.total_length_m || ''}
+                            value={joint.total_length_m ?? ''}
                             onChange={(e) => updateJoint(index, { 
                               total_length_m: e.target.value === '' ? 0 : Number(e.target.value),
                               measured_on_plans: false
