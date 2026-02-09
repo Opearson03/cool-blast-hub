@@ -37,6 +37,8 @@ import RespondInvite from "./pages/public/RespondInvite";
 import SuppliersLanding from "./pages/suppliers/SuppliersLanding";
 import SupplierDashboard from "./pages/suppliers/SupplierDashboard";
 import { SupplierProtectedRoute } from "./components/suppliers/SupplierProtectedRoute";
+import Articles from "./pages/Articles";
+import ArticlePage from "./pages/ArticlePage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
@@ -102,6 +104,10 @@ const AppContent = () => {
       {/* Supplier Routes - accessible via suppliers.pourhub.com.au or /suppliers path */}
       <Route path="/suppliers" element={<SuppliersLanding />} />
       <Route path="/suppliers/dashboard" element={<SupplierProtectedRoute><SupplierDashboard /></SupplierProtectedRoute>} />
+      
+      {/* Articles */}
+      <Route path="/articles" element={<Articles />} />
+      <Route path="/articles/:slug" element={<ArticlePage />} />
       
       {/* Public Signing Routes - no auth required */}
       <Route path="/sign/quote/:token" element={<SignQuote />} />
