@@ -150,6 +150,15 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
         }
       }
 
+      // Fire Google Ads conversion tracking
+      if (typeof (window as any).gtag === 'function') {
+        (window as any).gtag('event', 'conversion', {
+          send_to: 'AW-17843911252/JYjvCKiAi_cbENT00bxC',
+          value: 1.0,
+          currency: 'AUD',
+        });
+      }
+
       setIsSuccess(true);
       toast.success("You're on the list! Check your email for your referral code.");
       onSuccess?.();
