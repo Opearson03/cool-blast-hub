@@ -16,7 +16,6 @@ interface WelcomeEmailRequest {
 }
 
 const handler = async (req: Request): Promise<Response> => {
-  // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -68,23 +67,19 @@ const handler = async (req: Request): Promise<Response> => {
                       <p style="margin: 0 0 20px 0; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
                         You're officially on the PourHub waitlist! We're stoked to have you.
                       </p>
+
+                      <!-- Free Month Highlight -->
+                      <div style="background: linear-gradient(135deg, #F97316 0%, #ea580c 100%); border-radius: 8px; padding: 20px; margin: 24px 0; text-align: center;">
+                        <p style="margin: 0 0 4px 0; color: #ffffff; font-size: 14px;">You've locked in</p>
+                        <p style="margin: 0; color: #ffffff; font-size: 36px; font-weight: bold;">1 Month FREE</p>
+                        <p style="margin: 4px 0 0 0; color: #ffffff; font-size: 14px;">when PourHub launches 🎉</p>
+                      </div>
                       
                       <!-- Referral Section -->
                       <div style="background-color: #1a1a1a; border-radius: 8px; padding: 24px; margin: 30px 0; border: 1px solid #404040;">
-                        <h3 style="margin: 0 0 12px 0; color: #ffffff; font-size: 18px;">🚀 Move up the list!</h3>
+                        <h3 style="margin: 0 0 12px 0; color: #ffffff; font-size: 18px;">🎁 Want more free months?</h3>
                         <p style="margin: 0 0 16px 0; color: #a3a3a3; font-size: 14px; line-height: 1.5;">
-                          Invite your mates and jump ahead in the queue:
-                        </p>
-                        
-                        <div style="background-color: #262626; border-radius: 6px; padding: 12px; margin-bottom: 12px;">
-                          <p style="margin: 0; color: #ffffff; font-size: 14px;">⚡ <strong>Refer 1 mate</strong> → Jump 50 spots + 1 month FREE each</p>
-                        </div>
-                        <div style="background-color: #262626; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
-                          <p style="margin: 0; color: #fbbf24; font-size: 14px;">👑 <strong>Refer 3 mates</strong> → Guaranteed early access + 5 bonus quotes</p>
-                        </div>
-                        
-                        <p style="margin: 0 0 12px 0; color: #a3a3a3; font-size: 14px;">
-                          Share your code and you <strong style="color: #F97316;">BOTH</strong> get rewarded!
+                          Refer a mate to the waitlist — when they sign up, you <strong style="color: #F97316;">BOTH</strong> get an extra month FREE. No cap!
                         </p>
                         
                         <div style="background-color: #262626; border: 2px dashed #F97316; border-radius: 8px; padding: 16px; text-align: center; margin-bottom: 16px;">

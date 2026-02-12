@@ -31,14 +31,13 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Get referrer details from database
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const { data: referrer, error: fetchError } = await supabase
       .from("waiting_list")
-      .select("email, full_name, referral_count, vip_status, bonus_estimates")
+      .select("email, full_name, referral_count")
       .eq("id", referrerId)
       .single();
 
@@ -53,26 +52,9 @@ const handler = async (req: Request): Promise<Response> => {
     const referrerName = referrer.full_name || "there";
     const newMemberDisplayName = newMemberName || "A mate";
     const referralCount = referrer.referral_count || 1;
-    const spotsJumped = referralCount * 50;
-    const isVip = referrer.vip_status;
-    const referralsToVip = Math.max(0, 3 - referralCount);
+    const freeMonths = 1 + referralCount;
 
     console.log(`Sending referral success email to ${referrer.email}`);
-
-    const vipSection = isVip ? `
-      <div style="background: linear-gradient(135deg, #fbbf24 0%, #f97316 100%); border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
-        <p style="margin: 0; color: #1a1a1a; font-size: 18px; font-weight: bold;">👑 VIP STATUS UNLOCKED!</p>
-        <p style="margin: 8px 0 0 0; color: #1a1a1a; font-size: 14px;">You've got guaranteed early access + 5 bonus quotes!</p>
-      </div>
-    ` : referralsToVip === 1 ? `
-      <div style="background-color: #262626; border-radius: 8px; padding: 16px; margin: 20px 0; border: 1px solid #fbbf24;">
-        <p style="margin: 0; color: #fbbf24; font-size: 14px; text-align: center;">⚡ Just <strong>1 more referral</strong> to unlock VIP status!</p>
-      </div>
-    ` : `
-      <div style="background-color: #262626; border-radius: 8px; padding: 16px; margin: 20px 0;">
-        <p style="margin: 0; color: #a3a3a3; font-size: 14px; text-align: center;">${referralsToVip} more referrals to unlock VIP status 👑</p>
-      </div>
-    `;
 
     const emailResponse = await resend.emails.send({
       from: "PourHub <hello@pourhub.au>",
@@ -106,20 +88,19 @@ const handler = async (req: Request): Promise<Response> => {
                         <strong style="color: #ffffff;">${newMemberDisplayName}</strong> just joined the waitlist using your referral code!
                       </p>
                       
-                      <div style="background-color: #1a1a1a; border-radius: 8px; padding: 24px; margin: 20px 0; text-align: center; border: 1px solid #404040;">
-                        <p style="margin: 0 0 8px 0; color: #a3a3a3; font-size: 14px;">You've jumped</p>
-                        <p style="margin: 0; color: #F97316; font-size: 48px; font-weight: bold;">${spotsJumped}</p>
-                        <p style="margin: 8px 0 0 0; color: #a3a3a3; font-size: 14px;">spots up the list!</p>
+                      <!-- Free Months Earned -->
+                      <div style="background: linear-gradient(135deg, #F97316 0%, #ea580c 100%); border-radius: 8px; padding: 24px; margin: 20px 0; text-align: center;">
+                        <p style="margin: 0 0 4px 0; color: #ffffff; font-size: 14px;">You've now earned</p>
+                        <p style="margin: 0; color: #ffffff; font-size: 48px; font-weight: bold;">${freeMonths}</p>
+                        <p style="margin: 4px 0 0 0; color: #ffffff; font-size: 14px;">free month${freeMonths !== 1 ? 's' : ''} total</p>
                       </div>
                       
                       <div style="background-color: #1a1a1a; border-radius: 8px; padding: 16px; margin: 20px 0; text-align: center;">
                         <p style="margin: 0; color: #a3a3a3; font-size: 14px;">Total referrals: <strong style="color: #ffffff;">${referralCount}</strong></p>
                       </div>
                       
-                      ${vipSection}
-                      
                       <p style="margin: 30px 0 0 0; color: #a3a3a3; font-size: 16px; line-height: 1.6; text-align: center;">
-                        Keep sharing your code to move up even faster!
+                        Keep sharing your code — every mate who joins earns you another free month!
                       </p>
                       
                       <p style="margin: 20px 0 0 0; color: #a3a3a3; font-size: 16px; text-align: center;">

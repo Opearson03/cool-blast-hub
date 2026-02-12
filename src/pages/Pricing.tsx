@@ -148,7 +148,7 @@ const Pricing = () => {
                 </div>
                 <div className="mt-2">
                   <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
-                    One month free trial
+                    Join waitlist = 1 month FREE
                   </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-3">
