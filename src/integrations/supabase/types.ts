@@ -3245,6 +3245,15 @@ export type Database = {
       }
       is_pourhub_staff: { Args: { _user_id: string }; Returns: boolean }
       is_supplier: { Args: { _user_id: string }; Returns: boolean }
+      join_waitlist: {
+        Args: {
+          _business_name?: string
+          _email: string
+          _full_name?: string
+          _referred_by?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "staff" | "pourhub_staff" | "supplier"

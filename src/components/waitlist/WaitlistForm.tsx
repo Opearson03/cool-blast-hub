@@ -72,19 +72,6 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
 
     try {
       const normalizedEmail = email.toLowerCase().trim();
-      
-      // Check if email already exists
-      const { data: existingEntry } = await supabase
-        .from("waiting_list")
-        .select('id, referral_code')
-        .eq('email', normalizedEmail)
-        .maybeSingle();
-
-      if (existingEntry) {
-        toast.error("You're already on the waiting list!");
-        setIsSubmitting(false);
-        return;
-      }
 
       // Look up referrer if referral code provided
       let referredById: string | null = null;
@@ -94,24 +81,22 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
         referredById = referrerId;
       }
 
-      // Insert into waiting list
-      const { data: insertedRow, error } = await supabase
-        .from("waiting_list")
-        .insert({
-          email: email.toLowerCase().trim(),
-          full_name: fullName.trim() || null,
-          business_name: businessName.trim() || null,
-          referred_by: referredById,
-        })
-        .select('id, referral_code')
-        .single();
+      // Join waitlist via RPC (handles insert + read-back + duplicate check)
+      const { data: result, error } = await supabase
+        .rpc('join_waitlist', {
+          _email: normalizedEmail,
+          _full_name: fullName.trim() || null,
+          _business_name: businessName.trim() || null,
+          _referred_by: referredById,
+        });
 
-      if (error) {
-        if (error.code === "23505") {
-          toast.error("This email is already on the waiting list!");
-        } else {
-          throw error;
-        }
+      if (error) throw error;
+
+      const insertedRow = result as { id?: string; referral_code?: string; error?: string };
+
+      if (insertedRow?.error === 'already_exists') {
+        toast.error("You're already on the waiting list!");
+        setIsSubmitting(false);
         return;
       }
 
