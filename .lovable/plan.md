@@ -1,50 +1,53 @@
 
 
-## Fix: Waitlist "Something went wrong" Error
+## Refine Waitlist Offer: Simple "Free Months" Referral System
 
-### Root Cause
-When someone joins the waitlist, the insert succeeds, but the code immediately tries to read back the inserted row (`.select('id, referral_code').single()`). The only SELECT policy on `waiting_list` requires `is_pourhub_staff(auth.uid())`, so anonymous/unauthenticated users can't read their own row back. This causes a Supabase error, which triggers the "Something went wrong" toast.
+### New Offer (replacing the old ranking/VIP system)
+- **Join the waitlist** = 1 month FREE when PourHub launches
+- **Refer a mate** (who signs up to the waitlist) = they get 1 month FREE, you get an additional month FREE
+- **No cap** -- every referral earns another free month
+- **No more**: VIP status, spots jumped, position ranking, progress bars, bonus quotes
 
-### Solution
-Add a new RLS SELECT policy that allows users to read back their own row by matching on email. Since waitlist users are unauthenticated, the better approach is to create a database function (`SECURITY DEFINER`) that handles the insert and returns the `id` and `referral_code`, bypassing RLS for the read-back.
+### Files to Update
 
-### Changes
+**1. `src/components/waitlist/WaitlistForm.tsx`** (success screen)
+- Remove the "Your Progress" section (position, spots jumped, VIP badge, progress bar)
+- Remove the milestone cards ("Refer 1 mate = jump 50 spots", "Refer 3 mates = VIP")
+- Replace with a simple summary: "You've earned **X free months** (1 for joining + Y referrals)"
+- Keep the referral code display, email invite form, and share buttons (WhatsApp/SMS/Link)
+- Update share messages to: "Join me on PourHub! We'll both get a month FREE."
+- Remove unused imports: `Progress`, `Crown`, `Zap`, `TrendingUp`, `Rocket`
+- Remove `WaitlistStatus` interface and the `get_waitlist_status` RPC call
+- Simplify to just track `referral_count` from the `get_waitlist_status` response (or remove entirely since it's only shown post-signup)
 
-**1. Database Migration** -- Create an RPC function `join_waitlist` that:
-- Accepts email, full_name, business_name, and referred_by parameters
-- Inserts into `waiting_list`
-- Returns `id` and `referral_code` from the inserted row
-- Uses `SECURITY DEFINER` so it can read back the data regardless of RLS
-- Handles duplicate email gracefully (returns error)
+**2. `src/pages/WaitlistStatus.tsx`** (status lookup page)
+- Remove "Position Card" (effective position, spots jumped)
+- Remove VIP badge section and founder badge section
+- Remove "Progress to VIP" progress bar and milestone cards
+- Replace with simple display: "Free months earned: X" (1 base + referral count)
+- Keep the referral code, share buttons
+- Update share messages to match new offer
 
-**2. Update `WaitlistForm.tsx`** -- Replace the direct `.insert().select().single()` pattern with a call to `supabase.rpc('join_waitlist', { ... })`, which will return the `id` and `referral_code` without needing SELECT permissions.
+**3. `supabase/functions/send-waitlist-welcome/index.ts`** (welcome email)
+- Remove "Move up the list" / "jump ahead in the queue" copy
+- Remove milestone cards ("Refer 1 mate = jump 50 spots", "Refer 3 mates = VIP")
+- Replace with: "You've locked in your first month FREE! Refer a mate and you'll both get an extra month FREE."
+- Keep referral code and link
 
-### Technical Details
+**4. `supabase/functions/notify-referral-success/index.ts`** (referral notification email)
+- Remove VIP progress section and spots-jumped references
+- Update to: "You've earned another free month! You now have X free months total."
+- Remove VIP countdown messaging
 
-```sql
-CREATE OR REPLACE FUNCTION public.join_waitlist(
-  _email text,
-  _full_name text DEFAULT NULL,
-  _business_name text DEFAULT NULL,
-  _referred_by uuid DEFAULT NULL
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-DECLARE
-  _row waiting_list;
-BEGIN
-  INSERT INTO public.waiting_list (email, full_name, business_name, referred_by)
-  VALUES (_email, _full_name, _business_name, _referred_by)
-  RETURNING * INTO _row;
-  
-  RETURN jsonb_build_object('id', _row.id, 'referral_code', _row.referral_code);
-EXCEPTION
-  WHEN unique_violation THEN
-    RETURN jsonb_build_object('error', 'already_exists');
-END;
-$$;
-```
+**5. `src/pages/Pricing.tsx`** (minor)
+- Update badge text if needed (currently says "One month free trial")
 
-In `WaitlistForm.tsx`, replace the direct insert + select with a single RPC call, and remove the separate duplicate-check query (the function handles it).
+### What stays the same
+- The referral code system and `referral_count` column in the database
+- The email invite functionality
+- The WhatsApp/SMS/Link sharing
+- The `join_waitlist` RPC and `get_referrer_by_code` RPC
+- The database trigger that increments `referral_count` on the referrer
+
+### No database changes needed
+The existing `referral_count` column already tracks exactly what we need. The VIP/position columns can stay in the DB (harmless) -- we just stop using them in the UI.
