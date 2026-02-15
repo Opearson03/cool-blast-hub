@@ -3163,6 +3163,8 @@ export type Database = {
           business_name: string
           created_at: string
           email: string
+          estimates_created: number
+          estimates_sent: number
           full_name: string
           id: string
           last_sign_in_at: string
