@@ -19,6 +19,8 @@ interface UserEntry {
   subscription_exempt: boolean;
   subscription_status: string | null;
   role: string | null;
+  estimates_created: number;
+  estimates_sent: number;
 }
 
 export function UsersTable() {
@@ -35,13 +37,15 @@ export function UsersTable() {
   const exportToCsv = () => {
     if (!users?.length) return;
 
-    const headers = ["Name", "Email", "Business", "Role", "Subscription Status", "Last Login", "Joined"];
+    const headers = ["Name", "Email", "Business", "Role", "Subscription Status", "Quotes Created", "Quotes Sent", "Last Login", "Joined"];
     const rows = users.map((user) => [
       user.full_name || "",
       user.email,
       user.business_name || "No Business",
       user.role || "No Role",
       getSubscriptionLabel(user),
+      String(user.estimates_created ?? 0),
+      String(user.estimates_sent ?? 0),
       user.last_sign_in_at ? format(new Date(user.last_sign_in_at), "yyyy-MM-dd HH:mm") : "Never",
       format(new Date(user.created_at), "yyyy-MM-dd HH:mm"),
     ]);
@@ -134,6 +138,8 @@ export function UsersTable() {
                   <TableHead>Business</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead>Quotes Created</TableHead>
+                  <TableHead>Quotes Sent</TableHead>
                   <TableHead>
                     <div className="flex items-center gap-1">
                       <Clock className="h-4 w-4" />
@@ -164,6 +170,12 @@ export function UsersTable() {
                       <Badge variant={getSubscriptionBadgeVariant(user)}>
                         {getSubscriptionLabel(user)}
                       </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {user.estimates_created ? user.estimates_created : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                    <TableCell>
+                      {user.estimates_sent ? user.estimates_sent : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
                       <span className={user.last_sign_in_at ? "" : "text-muted-foreground"}>
