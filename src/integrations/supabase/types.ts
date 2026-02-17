@@ -3233,6 +3233,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          referral_count: number
         }[]
       }
       get_waitlist_by_email: { Args: { _email: string }; Returns: Json }
