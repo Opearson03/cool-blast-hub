@@ -1,42 +1,83 @@
 
+## Phone Onboarding: "Take Payment Over the Phone" in Staff Portal
 
-## Add Quote Stats to Staff Users Table
+### The Concept
+When you call someone from the waitlist, you need to:
+1. Collect their card details verbally
+2. Enter them on their behalf into a form
+3. Create their account immediately
+4. Send them a welcome email with login instructions
 
-### What changes
-Add two new columns to the Users table in the staff dashboard: **Quotes Created** and **Quotes Sent**, showing totals per business (since quotes are created at the business level, not per individual user).
+The cleanest Stripe-native way to do this is **Stripe Payment Links or Stripe Terminal** — but the best fit for your workflow is a **staff-initiated Stripe Checkout session** that you create on their behalf, then either:
+- You enter their card details into Stripe's secure hosted checkout page (on your screen, while they read card details over the phone), OR
+- Send them an email with the link and they can do it themselves in 30 seconds
 
-### Changes
+This approach means **you never store or handle raw card data**, which keeps you PCI compliant.
 
-**1. Database Migration** -- Update `get_all_users_for_staff()` to include two additional return columns:
-- `estimates_created` (integer): Total estimates for that user's business
-- `estimates_sent` (integer): Estimates with status = 'sent' or 'accepted' for that business
+### How the Flow Works
 
-These are computed via LEFT JOIN subqueries on the `estimates` table grouped by `business_id`.
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_all_users_for_staff()
-RETURNS TABLE (
-  -- existing columns ...
-  estimates_created bigint,
-  estimates_sent bigint
-)
--- Add LEFT JOINs:
-LEFT JOIN (
-  SELECT business_id, COUNT(*) as total_created,
-    COUNT(*) FILTER (WHERE status IN ('sent','accepted')) as total_sent
-  FROM public.estimates GROUP BY business_id
-) est ON b.id = est.business_id
--- And include in SELECT:
-COALESCE(est.total_created, 0) as estimates_created,
-COALESCE(est.total_sent, 0) as estimates_sent
+```text
+Staff Portal → Waitlist tab → "Onboard" button next to entry
+        ↓
+Modal opens: pre-filled with their name/business from waitlist
+        ↓
+Staff selects tier (Estimating $99 or Pro $240)
+        ↓
+"Create Checkout Link" button → generates a Stripe Checkout URL
+        ↓
+Two options presented:
+  [Open Checkout] → Opens Stripe hosted page in new tab (staff enters card while on phone)
+  [Send via Email] → Sends a payment link email to the customer  
+        ↓
+After payment: Customer is redirected to /signup/success
+        → Enters their password → Account created automatically
 ```
 
-**2. Update `src/components/staff/UsersTable.tsx`**
-- Add `estimates_created` and `estimates_sent` to the `UserEntry` interface
-- Add two new table columns: "Quotes Created" and "Quotes Sent"
-- Include these fields in the CSV export
-- Display counts with a muted dash for zero values
+### What Changes
 
-### Notes
-- Counts are per business, so all users in the same business will show the same numbers. This is the correct behaviour since quotes belong to the business, not individual users.
-- The existing `is_pourhub_staff` security check in the function remains unchanged.
+**1. New Edge Function: `staff-create-checkout`**
+- Staff-only endpoint (validates `is_pourhub_staff` JWT)
+- Takes: `email`, `fullName`, `businessName`, `tier`, `referralMonths` (for waitlist free months)
+- Creates a Stripe Checkout session with `trial_period_days` equal to `30 * (1 + referralMonths)` — so if they referred 2 people they get 3 months free automatically
+- Returns the checkout URL
+
+**2. New Component: `OnboardWaitlistModal`**
+- Triggered by a new "Onboard" button on each row in `WaitlistTable.tsx`
+- Pre-fills name, email, business from the waitlist entry
+- Lets staff pick the subscription tier
+- Shows how many free months the person has earned (1 + referral count)
+- Two action buttons: "Open Checkout" and "Copy Link / Send Email"
+- Shows a success state once checkout session is created
+
+**3. Update `WaitlistTable.tsx`**
+- Fetch `referral_count` alongside existing fields from the waitlist RPC
+- Add "Onboard" button per row (phone icon + label)
+
+**4. Update DB function `get_waiting_list_entries()`**
+- Add `referral_count` to the returned columns so the modal can display free months earned and pass it to the checkout
+
+### Technical Details
+
+**Free months calculation:**
+- Base: 1 month free (everyone gets this)
+- Bonus: +1 month per referral who joined the waitlist
+- `trial_period_days = 30 * (1 + referral_count)`
+
+**Stripe Checkout session parameters:**
+```typescript
+subscription_data: {
+  trial_period_days: 30 * (1 + referralCount),
+  metadata: { full_name, business_name, tier, onboarded_by_staff: "true" }
+}
+```
+
+**Security:**
+- The `staff-create-checkout` edge function validates the staff JWT before proceeding — regular users cannot call it
+- No raw card data ever touches your server or code
+
+**Files to create/modify:**
+- `supabase/functions/staff-create-checkout/index.ts` (new)
+- `supabase/config.toml` (add new function entry)
+- `supabase/migrations/...` (update `get_waiting_list_entries` to include `referral_count`)
+- `src/components/staff/OnboardWaitlistModal.tsx` (new)
+- `src/components/staff/WaitlistTable.tsx` (add Onboard button + referral_count)
