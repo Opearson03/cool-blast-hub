@@ -14,6 +14,7 @@ interface WaitlistEntry {
   email: string;
   full_name: string | null;
   business_name: string | null;
+  phone: string | null;
   created_at: string;
   referral_count: number;
 }
@@ -35,11 +36,12 @@ export function WaitlistTable() {
   const exportToCsv = () => {
     if (!entries?.length) return;
 
-    const headers = ["Email", "Full Name", "Business Name", "Referrals", "Joined Date"];
+    const headers = ["Email", "Full Name", "Business Name", "Phone", "Referrals", "Joined Date"];
     const rows = entries.map((entry) => [
       entry.email,
       entry.full_name || "",
       entry.business_name || "",
+      entry.phone || "",
       String(entry.referral_count),
       format(new Date(entry.created_at), "yyyy-MM-dd HH:mm"),
     ]);
@@ -94,6 +96,7 @@ export function WaitlistTable() {
                     <TableHead>Email</TableHead>
                     <TableHead>Full Name</TableHead>
                     <TableHead>Business Name</TableHead>
+                    <TableHead>Phone</TableHead>
                     <TableHead>Referrals</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead className="w-[120px]"></TableHead>
@@ -105,6 +108,15 @@ export function WaitlistTable() {
                       <TableCell className="font-medium">{entry.email}</TableCell>
                       <TableCell>{entry.full_name || "-"}</TableCell>
                       <TableCell>{entry.business_name || "-"}</TableCell>
+                      <TableCell>
+                        {entry.phone ? (
+                          <a href={`tel:${entry.phone}`} className="text-primary hover:underline">
+                            {entry.phone}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">-</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         {entry.referral_count > 0 ? (
                           <span className="text-primary font-medium">

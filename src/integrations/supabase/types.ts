@@ -3233,6 +3233,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          phone: string
           referral_count: number
         }[]
       }

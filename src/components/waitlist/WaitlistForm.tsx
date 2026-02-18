@@ -15,6 +15,7 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
+  const [phone, setPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [userReferralCode, setUserReferralCode] = useState<string | null>(null);
@@ -55,6 +56,7 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
           _full_name: fullName.trim() || null,
           _business_name: businessName.trim() || null,
           _referred_by: referredById,
+          _phone: phone.trim() || null,
         });
 
       if (error) throw error;
@@ -317,6 +319,18 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
           placeholder="Smith Concrete Pty Ltd"
           value={businessName}
           onChange={(e) => setBusinessName(e.target.value)}
+          className="bg-background/50 border-border"
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="phone" className="text-primary-foreground">Mobile Number</Label>
+        <Input
+          id="phone"
+          type="tel"
+          placeholder="04XX XXX XXX"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
           className="bg-background/50 border-border"
         />
       </div>
