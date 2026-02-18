@@ -21,7 +21,7 @@ interface ScopeAreaData {
   toe_depth_mm?: number | null;
   // Parent-child relationship for slab beams
   parent_markup_id?: string | null;
-  markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | null;
+  markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | 'cutout' | null;
   // Waffle pod counting data
   pod_count?: number | null;
   pod_thickness_mm?: number | null;
@@ -266,7 +266,21 @@ export function useTakeoffMarkups(estimateId: string | null): UseTakeoffMarkupsR
   }, [fetchMarkups]);
 
   const getAreaForScope = useCallback((scopeId: string): number | null => {
-    const markup = markups.find(m => m.scope_id === scopeId);
+    const scopeMarkups = markups.filter(m => m.scope_id === scopeId);
+    if (scopeMarkups.length === 0) return null;
+
+    // For pool_surround, subtract cutout areas from primary area
+    if (scopeId === 'pool_surround') {
+      const primaryArea = scopeMarkups
+        .filter(m => m.markup_type !== 'cutout')
+        .reduce((sum, m) => sum + (m.area_sqm ?? 0), 0);
+      const cutoutArea = scopeMarkups
+        .filter(m => m.markup_type === 'cutout')
+        .reduce((sum, m) => sum + (m.area_sqm ?? 0), 0);
+      return Math.max(0, primaryArea - cutoutArea);
+    }
+
+    const markup = scopeMarkups[0];
     return markup?.area_sqm ?? null;
   }, [markups]);
 

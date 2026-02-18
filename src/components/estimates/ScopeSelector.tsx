@@ -20,7 +20,10 @@ export type ScopeType =
   | "driveway"
   | "paths_surrounds"
   | "crossovers"
-  | "pad_footings";
+  | "pad_footings"
+  | "pool_surround"
+  | "kerb"
+  | "insitu_walls";
 
 export type ScopeCategory = 'site_works' | 'foundations' | 'slabs' | 'external';
 
@@ -120,6 +123,27 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     description: "Council crossover / vehicle crossing",
     availableFor: ["driveway", "house_slab", "commercial_slab"],
     category: "external"
+  },
+  {
+    id: "pool_surround",
+    label: "Pool Surround",
+    description: "Concrete surround around a pool (with cutout for pool area)",
+    availableFor: ["house_slab", "commercial_slab", "driveway"],
+    category: "external"
+  },
+  {
+    id: "kerb",
+    label: "Kerb",
+    description: "Concrete kerbing — narrow profile, linear measurement",
+    availableFor: ["house_slab", "commercial_slab", "driveway"],
+    category: "foundations"
+  },
+  {
+    id: "insitu_walls",
+    label: "Insitu Walls",
+    description: "Cast-in-place concrete walls with formwork both faces",
+    availableFor: ["house_slab", "commercial_slab", "driveway"],
+    category: "foundations"
   },
 ];
 

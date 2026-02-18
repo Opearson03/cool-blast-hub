@@ -93,6 +93,7 @@ export function PlanTakeoffStep({
 
   const [activeTool, setActiveTool] = useState<DrawingTool['type']>('select');
   const [activeScope, setActiveScope] = useState<string | null>(null);
+  const [isCutoutMode, setIsCutoutMode] = useState(false);
   const [pendingMarkupName, setPendingMarkupName] = useState<string>('');
   const [skippedScopes, setSkippedScopes] = useState<Set<string>>(new Set());
   const [showCalibration, setShowCalibration] = useState(false);
@@ -270,7 +271,7 @@ export function PlanTakeoffStep({
 
   // Define scope types for different drawing tools
   const POINT_SCOPES = ['piers', 'bollards', 'pit_bases', 'pad_footings'];
-  const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls', 'expansion_joints', 'control_joints'];
+  const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls', 'expansion_joints', 'control_joints', 'kerb', 'insitu_walls'];
   const JOINT_SCOPES = ['expansion_joints', 'control_joints'];
   
   const isPointScope = activeScope !== null && POINT_SCOPES.includes(activeScope);
@@ -517,7 +518,7 @@ export function PlanTakeoffStep({
     const { points, shapeType, scopeId, fileId, pageNumber } = pendingMarkupData;
     const color = getScopeColor(selectedScopes.indexOf(scopeId as ScopeType));
     
-    await addMarkup(fileId, scopeId, shapeType, points, color, pageNumber, name);
+    await addMarkup(fileId, scopeId, shapeType, points, color, pageNumber, name, isCutoutMode ? 'cutout' : 'primary');
     
     // Clear all state
     setPendingMarkupData(null);
@@ -525,7 +526,8 @@ export function PlanTakeoffStep({
     setActiveTool('select');
     setActiveScope(null);
     setPendingMarkupName('');
-  }, [pendingMarkupData, selectedScopes, addMarkup]);
+    setIsCutoutMode(false);
+  }, [pendingMarkupData, selectedScopes, addMarkup, isCutoutMode]);
 
   // Handler for confirming markup name and adding another
   const handleMarkupNameConfirmAndAddAnother = useCallback(async (name: string) => {
@@ -534,7 +536,7 @@ export function PlanTakeoffStep({
     const { points, shapeType, scopeId, fileId, pageNumber } = pendingMarkupData;
     const color = getScopeColor(selectedScopes.indexOf(scopeId as ScopeType));
     
-    await addMarkup(fileId, scopeId, shapeType, points, color, pageNumber, name);
+    await addMarkup(fileId, scopeId, shapeType, points, color, pageNumber, name, isCutoutMode ? 'cutout' : 'primary');
     
     // Clear markup data but keep scope and tool active for more marking
     setPendingMarkupData(null);
@@ -542,7 +544,7 @@ export function PlanTakeoffStep({
     // Keep activeScope and activeTool so user can continue marking
     const existingForScope = markups.filter(m => m.scope_id === scopeId);
     setPendingMarkupName(`Area ${existingForScope.length + 2}`);
-  }, [pendingMarkupData, selectedScopes, addMarkup, markups]);
+  }, [pendingMarkupData, selectedScopes, addMarkup, markups, isCutoutMode]);
 
   // ============= NEW SLAB WORKFLOW HANDLERS =============
   
@@ -2122,6 +2124,15 @@ export function PlanTakeoffStep({
                   onAddToLinearType={(scopeId, typeName, width, depth) => {
                     setScopePanelManuallyExpanded(false);
                     handleAddToLinearType(scopeId, typeName, width, depth);
+                  }}
+                  onDrawCutout={(scopeId) => {
+                    if (!isCalibrated) { setShowCalibration(true); return; }
+                    setIsCutoutMode(true);
+                    setActiveScope(scopeId);
+                    setActiveTool('polygon');
+                    setDrawingPoints([]);
+                    setPendingMarkupName('Pool cutout');
+                    setScopePanelManuallyExpanded(false);
                   }}
                   isCalibrated={isCalibrated}
                   isCollapsed={isScopePanelCollapsed}

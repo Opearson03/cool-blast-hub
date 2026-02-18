@@ -31,7 +31,7 @@ interface UseTakeoffDataReturn {
   setPageScale: (fileId: string, pageNumber: number, pixelsPerMeter: number) => Promise<void>;
   getPageScale: (fileId: string, pageNumber: number) => number | null;
   deletePlan: () => Promise<void>;
-  addMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
+  addMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], color: string, pageNumber: number, name?: string, markupType?: 'primary' | 'cutout') => Promise<TakeoffMarkup | null>;
   addAreaPadMarkup: (fileId: string, scopeId: string, shapeType: 'polygon' | 'rectangle', points: TakeoffPoint[], depthMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addPierMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, depthMm: number, color: string, pageNumber: number, name?: string) => Promise<TakeoffMarkup | null>;
   addBollardMarkups: (fileId: string, scopeId: string, points: TakeoffPoint[], diameterMm: number, heightMm: number, embedmentMm: number, color: string, pageNumber: number) => Promise<TakeoffMarkup | null>;
@@ -516,7 +516,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
     points: TakeoffPoint[],
     color: string,
     pageNumber: number,
-    name?: string
+    name?: string,
+    markupType?: 'primary' | 'cutout'
   ): Promise<TakeoffMarkup | null> => {
     if (!takeoff) return null;
 
@@ -549,7 +550,8 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
           area_sqm: area,
           perimeter_m: perimeter,
           page_number: pageNumber,
-          name: name || null
+          name: name || null,
+          markup_type: markupType || 'primary',
         })
         .select()
         .single();
@@ -569,7 +571,7 @@ export function useTakeoffData({ estimateId, businessId }: UseTakeoffDataProps):
         height_mm: null,
         length_m: null,
         parent_markup_id: data.parent_markup_id || null,
-        markup_type: (data.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening',
+        markup_type: (data.markup_type || 'primary') as 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | 'cutout',
       };
 
       setMarkups(prev => [...prev, newMarkup]);
