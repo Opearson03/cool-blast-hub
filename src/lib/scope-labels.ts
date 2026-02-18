@@ -13,6 +13,9 @@ export const SCOPE_LABELS: Record<string, string> = {
   retaining_walls: "Retaining Walls",
   retaining_wall_footings: "Retaining Wall Footings",
   architectural: "Architectural Concrete",
+  pool_surround: "Pool Surround",
+  kerb: "Kerb",
+  insitu_walls: "Insitu Walls",
 };
 
 export const ALL_SCOPE_KEYS = Object.keys(SCOPE_LABELS);

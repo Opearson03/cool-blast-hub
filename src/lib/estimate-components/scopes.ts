@@ -2601,6 +2601,176 @@ export const DEMOLITION_SCOPE: ScopeDefinition = {
   defaultExclusions: [],
 };
 
+/**
+ * Pool Surround Scope Definition
+ * Identical to Slab on Ground but supports cutout area subtraction for the pool itself
+ */
+export const POOL_SURROUND_SCOPE: ScopeDefinition = {
+  ...STANDARD_SLAB_SCOPE,
+  id: 'pool_surround',
+  name: 'Pool Surround',
+  description: 'Concrete surround around a pool — draw the outer area then subtract the pool cutout',
+  supportsCutouts: true,
+  defaultExclusions: [
+    { id: 'engineering', text: 'Engineering design and certification', moduleId: 'pool_surround' },
+    { id: 'permits', text: 'Council permits and approvals', moduleId: 'pool_surround' },
+    { id: 'pool_construction', text: 'Pool construction and waterproofing', moduleId: 'pool_surround' },
+    { id: 'dewatering', text: 'Dewatering of excavations', moduleId: 'scope' },
+    { id: 'surveyor', text: 'Surveyor costs and site setout', moduleId: 'scope' },
+  ],
+};
+
+/**
+ * Kerb Scope Definition
+ * Near-identical to Strip Footings but narrower/shallower profile for kerbing
+ */
+export const KERB_SCOPE: ScopeDefinition = {
+  id: 'kerb',
+  name: 'Kerb',
+  description: 'Concrete kerb — narrow linear section',
+  icon: 'minus',
+  supportsLinearSections: true,
+  linearSectionsLabel: 'Kerb Sections',
+  questions: [
+    {
+      id: 'total_length',
+      type: 'number',
+      label: 'Total Length (m)',
+      required: true,
+      min: 1,
+      unit: 'm',
+    },
+    {
+      id: 'width',
+      type: 'number',
+      label: 'Width (mm)',
+      required: true,
+      min: 100,
+      unit: 'mm',
+      defaultValue: 300,
+    },
+    {
+      id: 'depth',
+      type: 'number',
+      label: 'Depth (mm)',
+      required: true,
+      min: 100,
+      unit: 'mm',
+      defaultValue: 150,
+    },
+  ],
+  moduleIds: [
+    'excavation',
+    'formwork',
+    'reinforcement-footing',
+    'labour-prep',
+    'concrete-supply',
+    'concrete-pumping',
+    'labour-place',
+    'cleanup',
+    'sundries',
+    'extra-items',
+  ],
+  calculateVolume: (answers) => {
+    const footings = answers.footings || [];
+    if (footings.length > 0) {
+      const volume = footings.reduce((sum: number, footing: any) => {
+        const length = Number(footing.length) || 0;
+        const widthM = (Number(footing.width) || 0) / 1000;
+        const depthM = (Number(footing.depth) || 0) / 1000;
+        return sum + length * widthM * depthM;
+      }, 0);
+      return safeVolume(volume);
+    }
+    const length = Number(answers.total_length) || 0;
+    const widthM = (Number(answers.width) || 300) / 1000;
+    const depthM = (Number(answers.depth) || 150) / 1000;
+    return safeVolume(length * widthM * depthM);
+  },
+  defaultExclusions: [
+    { id: 'setout', text: 'Survey setout and line marking', moduleId: 'kerb' },
+    { id: 'subgrade', text: 'Subgrade preparation and compaction', moduleId: 'kerb' },
+    { id: 'drainage', text: 'Stormwater drainage connections', moduleId: 'kerb' },
+  ],
+};
+
+/**
+ * Insitu Walls Scope Definition
+ * Near-identical to Strip Footings but wall dimensions (taller/thinner)
+ * Includes formwork on both faces
+ */
+export const INSITU_WALLS_SCOPE: ScopeDefinition = {
+  id: 'insitu_walls',
+  name: 'Insitu Walls',
+  description: 'Cast-in-place concrete walls with formwork on both faces',
+  icon: 'minus',
+  supportsLinearSections: true,
+  linearSectionsLabel: 'Wall Sections',
+  questions: [
+    {
+      id: 'total_length',
+      type: 'number',
+      label: 'Total Length (m)',
+      required: true,
+      min: 1,
+      unit: 'm',
+    },
+    {
+      id: 'width',
+      type: 'number',
+      label: 'Wall Thickness (mm)',
+      required: true,
+      min: 100,
+      unit: 'mm',
+      defaultValue: 200,
+    },
+    {
+      id: 'depth',
+      type: 'number',
+      label: 'Wall Height (mm)',
+      required: true,
+      min: 200,
+      unit: 'mm',
+      defaultValue: 2400,
+    },
+  ],
+  moduleIds: [
+    'excavation',
+    'formwork',
+    'architectural-formwork',
+    'reinforcement-footing',
+    'labour-prep',
+    'concrete-supply',
+    'concrete-pumping',
+    'labour-place',
+    'cleanup',
+    'sundries',
+    'extra-items',
+  ],
+  calculateVolume: (answers) => {
+    const footings = answers.footings || [];
+    if (footings.length > 0) {
+      const volume = footings.reduce((sum: number, footing: any) => {
+        const length = Number(footing.length) || 0;
+        const widthM = (Number(footing.width) || 0) / 1000;
+        const depthM = (Number(footing.depth) || 0) / 1000;
+        return sum + length * widthM * depthM;
+      }, 0);
+      return safeVolume(volume);
+    }
+    const length = Number(answers.total_length) || 0;
+    const widthM = (Number(answers.width) || 200) / 1000;
+    const depthM = (Number(answers.depth) || 2400) / 1000;
+    return safeVolume(length * widthM * depthM);
+  },
+  defaultExclusions: [
+    { id: 'engineering', text: 'Structural engineering design and certification', moduleId: 'insitu_walls' },
+    { id: 'propping', text: 'Temporary propping and shoring', moduleId: 'insitu_walls' },
+    { id: 'waterproofing', text: 'Waterproofing membrane to rear face', moduleId: 'insitu_walls' },
+    { id: 'backfill', text: 'Backfilling behind walls', moduleId: 'insitu_walls' },
+  ],
+};
+
 export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   demolition: DEMOLITION_SCOPE,
   piers: PIERS_SCOPE,
@@ -2614,6 +2784,9 @@ export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   retaining_wall_footings: RETAINING_WALL_FOOTINGS_SCOPE,
   pad_footings: PAD_FOOTINGS_SCOPE,
   retaining_walls: RETAINING_WALLS_SCOPE,
+  pool_surround: POOL_SURROUND_SCOPE,
+  kerb: KERB_SCOPE,
+  insitu_walls: INSITU_WALLS_SCOPE,
 };
 
 // Get scope by ID

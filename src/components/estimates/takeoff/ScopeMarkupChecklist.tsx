@@ -29,7 +29,7 @@ interface LinearTypeGroup {
 }
 
 // Linear scope IDs that should be grouped by type
-const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls'] as const;
+const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls', 'kerb', 'insitu_walls'] as const;
 
 interface ScopeMarkupChecklistProps {
   scopes: { id: string; label: string }[];
@@ -44,6 +44,8 @@ interface ScopeMarkupChecklistProps {
   onAddBeamToSlab?: (slabMarkupId: string, beamType: 'edge_beam' | 'internal_beam') => void;
   /** Callback for adding a new segment to an existing linear type */
   onAddToLinearType?: (scopeId: string, typeName: string, width: number, depth: number) => void;
+  /** Callback for drawing a cutout (pool surround only) */
+  onDrawCutout?: (scopeId: string) => void;
   isCalibrated: boolean;
   /** When true, panel collapses to a compact toggle button */
   isCollapsed?: boolean;
@@ -63,6 +65,7 @@ export function ScopeMarkupChecklist({
   onDeleteMarkup,
   onAddBeamToSlab,
   onAddToLinearType,
+  onDrawCutout,
   isCalibrated,
   isCollapsed = false,
   onToggle
@@ -258,7 +261,7 @@ export function ScopeMarkupChecklist({
                 </div>
 
                 {/* Actions - compact */}
-                <div className="flex items-center gap-1.5 mt-2">
+                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                   {status.status === 'marked' && (
                     <Button
                       variant="outline"
@@ -268,6 +271,18 @@ export function ScopeMarkupChecklist({
                       disabled={!isCalibrated}
                     >
                       <Plus className="h-3 w-3" /> Add More
+                    </Button>
+                  )}
+                  {/* Draw Cutout button for pool_surround when primary area is marked */}
+                  {scope.id === 'pool_surround' && status.status === 'marked' && onDrawCutout && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 flex-1 text-xs gap-1 touch-manipulation border-dashed border-orange-400 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950"
+                      onClick={() => onDrawCutout(scope.id)}
+                      disabled={!isCalibrated}
+                    >
+                      <Plus className="h-3 w-3" /> Draw Cutout
                     </Button>
                   )}
                   {status.status === 'unmarked' && (

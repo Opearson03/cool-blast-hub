@@ -558,6 +558,9 @@ export interface ScopeDefinition {
   
   /** Question IDs that should be hidden from standard rendering (managed by multi-input components) */
   hideStandardQuestions?: string[];
+
+  /** If true, the scope supports drawing cutout areas (pool surround) */
+  supportsCutouts?: boolean;
 }
 
 /**

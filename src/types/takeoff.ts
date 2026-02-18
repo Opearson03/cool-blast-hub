@@ -48,7 +48,7 @@ export interface TakeoffMarkup {
   toe_depth_mm?: number | null;
   // Parent-child relationship for slab beams
   parent_markup_id?: string | null;
-  markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening';
+  markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | 'cutout';
   // Waffle pod counting data
   pod_count?: number | null;
   pod_thickness_mm?: number | null;
@@ -82,8 +82,8 @@ export interface DrawingTool {
 
 // Scope type classifications for takeoff tool selection
 export const POINT_SCOPES = ['piers', 'bollards', 'pit_bases', 'pad_footings'] as const;
-export const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls', 'expansion_joints', 'control_joints'] as const;
-export const AREA_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'suspended_slab'] as const;
+export const LINEAR_SCOPES = ['strip_footings', 'retaining_wall_footings', 'kerbs_channels', 'retaining_walls', 'expansion_joints', 'control_joints', 'kerb', 'insitu_walls'] as const;
+export const AREA_SCOPES = ['standard_slab', 'raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'suspended_slab', 'pool_surround'] as const;
 
 // Waffle Pod specific point scopes for counting pods and spacers
 export const WAFFLE_POD_POINT_SCOPES = ['waffle_pods_count', 'spacers_4way', 'spacers_2way'] as const;
@@ -94,7 +94,7 @@ export function isWafflePodPointScope(scopeId: string): scopeId is WafflePodPoin
 }
 
 // Scopes that support sub-element marking (beams over slabs)
-export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'standard_slab'] as const;
+export const SLAB_WITH_BEAMS_SCOPES = ['raft_slab', 'waffle_pod', 'driveway', 'crossovers', 'paths_surrounds', 'standard_slab', 'pool_surround'] as const;
 export type SlabWithBeamsScope = typeof SLAB_WITH_BEAMS_SCOPES[number];
 
 export function isSlabWithBeamsScope(scopeId: string): scopeId is SlabWithBeamsScope {

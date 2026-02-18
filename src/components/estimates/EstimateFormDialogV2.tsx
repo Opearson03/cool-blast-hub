@@ -551,6 +551,9 @@ const {
       paths_surrounds: { total: 0, description: "" },
       crossovers: { total: 0, description: "" },
       pad_footings: { total: 0, description: "" },
+      pool_surround: { total: 0, description: "" },
+      kerb: { total: 0, description: "" },
+      insitu_walls: { total: 0, description: "" },
     };
 
     for (const scopeType of Array.from(selectedScopes)) {
