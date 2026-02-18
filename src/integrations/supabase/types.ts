@@ -3236,12 +3236,17 @@ export type Database = {
         Args: never
         Returns: {
           business_name: string
+          checkout_tier: string
+          checkout_url: string
           created_at: string
           email: string
           full_name: string
           id: string
+          invited_at: string
+          outreach_status: string
           phone: string
           referral_count: number
+          staff_notes: string
         }[]
       }
       get_waitlist_by_email: { Args: { _email: string }; Returns: Json }
@@ -3265,6 +3270,18 @@ export type Database = {
           _referred_by?: string
         }
         Returns: Json
+      }
+      update_waitlist_outreach: {
+        Args: {
+          _checkout_tier?: string
+          _checkout_url?: string
+          _id: string
+          _invited_at?: string
+          _outreach_status: string
+          _staff_notes?: string
+          _stripe_session_id?: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
