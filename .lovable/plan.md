@@ -1,159 +1,81 @@
 
-## Pool Surround Cutout — Fix Area Subtraction, Visual Marking & Instructions
+## Hide Kerb & Insitu Walls from Non-Demo Users
 
-### What's Currently Broken / Missing
+### Root Cause
 
-**1. The Slab Workflow Bug**
-When `isCutoutMode` is true and the user finishes drawing a cutout polygon, `handleMarkupComplete` checks `SLAB_WITH_BEAMS_SCOPES.includes(activeScope)` — `pool_surround` IS in that list, so it incorrectly launches the multi-step slab beam dialog instead of going straight to save. The `isCutoutMode` flag is set but never consulted inside `handleMarkupComplete`.
+`ScopeSelector.tsx` is a **shared component** used by both `EstimateFormDialog.tsx` (V1, all users) and `EstimateFormDialogV2.tsx` (V2, demo only). The three new scopes — `pool_surround`, `kerb`, and `insitu_walls` — were added to the shared `SCOPE_OPTIONS` array, so every user on every plan can see and select them.
 
-**2. No Visual Distinction for Cutouts**
-The `renderMarkups` function in `DrawingCanvas.tsx` renders all markups with the same scope color + opacity. A cutout looks identical to the primary area. Users can't see what's being subtracted.
-
-**3. Checklist Shows Gross Area**
-`ScopeMarkupChecklist` sums `area_sqm` for all non-parent markups for a scope. For pool_surround this will sum both the primary area AND the cutout area — showing an inflated number. It needs to show net (primary minus cutout) with a breakdown.
-
-**4. No Ordering Instructions**
-There is no on-canvas guidance telling the user:
-- Step 1: Draw the pool perimeter first (the cutout — the hole)
-- Step 2: Draw the concrete perimeter second (the outer area — the slab)
+The `ScopeSelector` component has no concept of feature flags and no way to filter beta scopes out.
 
 ---
 
-### Correct Order of Operations (UX Decision)
+### The Fix (Two Small Changes)
 
-The user asked: "first mark perimeter of pool, then mark perimeter of concrete."
+**1. `src/components/estimates/ScopeSelector.tsx`**
 
-This means:
-1. User clicks "Mark" on pool_surround scope → enters **cutout mode** (pool perimeter)
-2. Draws pool boundary → saved as `markup_type: 'cutout'` (red, dashed)
-3. System auto-prompts/transitions → enters **primary mode** (concrete perimeter)
-4. Draws outer concrete area → saved as `markup_type: 'primary'` (scope color)
-5. Net area = primary − cutout is displayed and used
+Add an optional `featureGated?: string` field to the `ScopeOption` interface. Mark `kerb` and `insitu_walls` (and optionally `pool_surround`) with `featureGated: 'estimate_wizard_v2'`.
 
-The workflow reversal (cutout first, primary second) is more intuitive — you mark the thing you're NOT concreting first.
+Add an optional `allowedFeatureFlags?: Set<string>` prop to `ScopeSelectorProps`. When provided, filter out any scope whose `featureGated` key is not in that set.
 
----
-
-### Changes Required
-
-**File 1: `src/components/estimates/takeoff/PlanTakeoffStep.tsx`**
-
-*Fix A — Block slab workflow when in cutout mode:*
-Inside `handleMarkupComplete`, before the `isSlabWithBeamsScope` branch, add:
 ```typescript
-// Cutout mode bypasses the slab workflow — save directly
-if (isCutoutMode) {
-  setPendingMarkupData({ points, shapeType, scopeId: activeScope, fileId: currentFileId, pageNumber: currentPage });
-  setPendingMarkupName('Pool cutout');
-  setShowMarkupNameDialog(true);
-  return;
+// Interface change:
+export interface ScopeOption {
+  id: ScopeType;
+  label: string;
+  description: string;
+  availableFor: EstimateType[];
+  category: ScopeCategory;
+  featureGated?: string; // <-- new optional field
+}
+
+// Props change:
+interface ScopeSelectorProps {
+  selectedScopes: Set<ScopeType>;
+  onScopesChange: (scopes: Set<ScopeType>) => void;
+  allowedFeatureFlags?: Set<string>; // <-- new optional prop
 }
 ```
 
-*Fix B — Auto-flow: cutout-first, then primary:*
-Change `onDrawCutout` callback in `ScopeMarkupChecklist` to instead start with cutout mode automatically when user clicks "Mark" for pool_surround scope. Modify `handleMarkArea` so that when `scopeId === 'pool_surround'`:
-- If no markups exist yet → enter **cutout mode** first (isCutoutMode = true, pendingMarkupName = 'Pool cutout')
-- If cutout exists but no primary → enter **primary mode** (normal polygon)
-- If both exist → default to "Add More" primary areas
+Scope option entries for `kerb` and `insitu_walls` get `featureGated: 'estimate_wizard_v2'`. `pool_surround` should also be gated since it has the cutout feature that is V2-only.
 
-After confirming a cutout (`handleMarkupNameConfirm` when `isCutoutMode`), automatically transition to primary mode:
+Inside the component, filter `SCOPE_OPTIONS` before grouping:
 ```typescript
-if (isCutoutMode && scopeId === 'pool_surround') {
-  // Auto-start drawing the primary concrete area
-  setIsCutoutMode(false);
-  setActiveScope('pool_surround');
-  setActiveTool('polygon');
-  setDrawingPoints([]);
-  setPendingMarkupName('Concrete area 1');
-}
+const availableScopes = SCOPE_OPTIONS.filter(scope => {
+  if (!scope.featureGated) return true; // ungated, always show
+  return allowedFeatureFlags?.has(scope.featureGated) ?? false;
+});
 ```
 
-*Fix C — Instructions banner:*
-Add a `pool_surround` specific instruction banner above the drawing canvas (similar to the calibration mode indicator). Render it when `activeScope === 'pool_surround'`:
+**2. `src/components/estimates/EstimateFormDialogV2.tsx`**
+
+Pass the V2 feature flag set into `ScopeSelector`:
 ```tsx
-{activeScope === 'pool_surround' && !isCutoutMode && (
-  <div className="absolute bottom-4 ... bg-blue-500/10 border-blue-500/30">
-    Step 2 of 2 — Draw the concrete perimeter (the outer slab area)
-  </div>
-)}
-{activeScope === 'pool_surround' && isCutoutMode && (
-  <div className="absolute bottom-4 ... bg-orange-500/10 border-orange-500/30">
-    Step 1 of 2 — Draw the pool perimeter (the area to SUBTRACT)
-  </div>
-)}
-```
-
-*Fix D — Remove the separate "Draw Cutout" button flow:*
-Since cutout is now automatically entered first, the `onDrawCutout` callback in `ScopeMarkupChecklist` is only needed for adding additional cutouts after the initial flow. Keep the "Draw Cutout" button but label it "Add Another Cutout" for clarity.
-
----
-
-**File 2: `src/components/estimates/takeoff/DrawingCanvas.tsx`**
-
-*Visual distinction for cutout markups:*
-In `renderMarkups`, detect `markup.markup_type === 'cutout'` and render differently:
-- Stroke: red (`#ef4444`) with dashed line pattern (`dash={[8, 4]}`)
-- Fill: red at low opacity (~10%)
-- Label: shows negative area in red: `−42.5 m²`
-- No scope color used — always red to signal "this is removed"
-
-```tsx
-const isCutout = markup.markup_type === 'cutout';
-const strokeColor = isCutout ? '#ef4444' : markup.color;
-const fillColor = isCutout ? '#ef444420' : `${markup.color}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}`;
-// For the Line component:
-<Line
-  dash={isCutout ? [8, 4] : undefined}
-  stroke={strokeColor}
-  fill={fillColor}
-  ...
+<ScopeSelector
+  selectedScopes={selectedScopes}
+  onScopesChange={handleScopesChange}
+  allowedFeatureFlags={new Set(['estimate_wizard_v2'])}
 />
-// Label shows "−42.5 m²" for cutout
-text={isCutout ? `−${formatArea(markup.area_sqm)}` : formatArea(markup.area_sqm)}
-fill={isCutout ? '#ef4444' : '#fff'}
 ```
+
+**3. `src/components/estimates/EstimateFormDialog.tsx` (V1)**
+
+No change needed. V1 passes no `allowedFeatureFlags` prop, so the default `undefined` value causes all feature-gated scopes to be filtered out automatically. This is a safe, backward-compatible default.
 
 ---
 
-**File 3: `src/components/estimates/takeoff/ScopeMarkupChecklist.tsx`**
+### Why This Approach
 
-*Fix area display for pool_surround:*
-The `getScopeStatus` function sums all `area_sqm` for a scope. For `pool_surround`, split it:
-
-```typescript
-if (scopeId === 'pool_surround') {
-  const primaryMarkups = scopeMarkups.filter(m => m.markup_type !== 'cutout');
-  const cutoutMarkups = scopeMarkups.filter(m => m.markup_type === 'cutout');
-  const primaryArea = primaryMarkups.reduce((sum, m) => sum + (m.area_sqm || 0), 0);
-  const cutoutArea = cutoutMarkups.reduce((sum, m) => sum + (m.area_sqm || 0), 0);
-  const netArea = Math.max(0, primaryArea - cutoutArea);
-  // return net area
-}
-```
-
-In the markup list within the scope card, show cutout markups with red dashed styling and a `−` prefix:
-```tsx
-{markup.markup_type === 'cutout' ? (
-  <span className="text-red-500 font-mono text-[10px]">−{formatArea(markup.area_sqm)}</span>
-) : (...)}
-```
-
-Also update the "marked" summary line from e.g. `1 area • 85.0 m²` to:
-```
-85.0 m² − 42.5 m² = 42.5 m² net
-```
-
-*Show cutout markups in the pool_surround markup list:*
-The current `getScopeMarkups` filters to `!m.parent_markup_id`. Cutouts have no parent, so they already appear — but they're rendered the same as primary areas. Just add the visual distinction.
+- **Zero risk to V1 users** — the prop is optional; V1 doesn't pass it, so gated scopes are invisible.
+- **No hook in `ScopeSelector`** — the component stays pure/dumb. The parent dialog decides which flags are active. This keeps `ScopeSelector` reusable without adding auth coupling to it.
+- **Extensible** — adding a new beta scope in the future just requires adding `featureGated: 'some_flag'` to its entry. No other changes needed.
 
 ---
 
-### Summary of Files to Change
+### Files to Modify
 
-| File | Changes |
+| File | Change |
 |---|---|
-| `PlanTakeoffStep.tsx` | Fix cutout bypass in `handleMarkupComplete`; auto-flow cutout→primary; instruction banner |
-| `DrawingCanvas.tsx` | Render cutouts in red with dashed border + negative label |
-| `ScopeMarkupChecklist.tsx` | Show net area breakdown; red styling for cutout entries |
+| `src/components/estimates/ScopeSelector.tsx` | Add `featureGated?` to `ScopeOption`; add `allowedFeatureFlags?` prop; filter scopes before grouping; tag `kerb`, `insitu_walls`, `pool_surround` with `featureGated: 'estimate_wizard_v2'` |
+| `src/components/estimates/EstimateFormDialogV2.tsx` | Pass `allowedFeatureFlags={new Set(['estimate_wizard_v2'])}` to `<ScopeSelector>` |
 
-No database changes needed. No new components needed.
+No database changes. No new files. No changes to V1 (`EstimateFormDialog.tsx`).
