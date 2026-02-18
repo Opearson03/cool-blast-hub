@@ -1,73 +1,59 @@
 
-## Hide Kerb & Insitu Walls from Non-Demo Users
+## Add Phone Number to Waitlist Signup & Staff Dashboard
 
-### Root Cause
+### What Needs to Change
 
-`ScopeSelector.tsx` is a **shared component** used by both `EstimateFormDialog.tsx` (V1, all users) and `EstimateFormDialogV2.tsx` (V2, demo only). The three new scopes — `pool_surround`, `kerb`, and `insitu_walls` — were added to the shared `SCOPE_OPTIONS` array, so every user on every plan can see and select them.
-
-The `ScopeSelector` component has no concept of feature flags and no way to filter beta scopes out.
+The `waiting_list` table has no `phone` column. The `join_waitlist` RPC inserts without phone, and `get_waiting_list_entries` returns without phone. Both the signup form and the staff table need updating.
 
 ---
 
-### The Fix (Two Small Changes)
+### 1. Database Migration
 
-**1. `src/components/estimates/ScopeSelector.tsx`**
-
-Add an optional `featureGated?: string` field to the `ScopeOption` interface. Mark `kerb` and `insitu_walls` (and optionally `pool_surround`) with `featureGated: 'estimate_wizard_v2'`.
-
-Add an optional `allowedFeatureFlags?: Set<string>` prop to `ScopeSelectorProps`. When provided, filter out any scope whose `featureGated` key is not in that set.
-
-```typescript
-// Interface change:
-export interface ScopeOption {
-  id: ScopeType;
-  label: string;
-  description: string;
-  availableFor: EstimateType[];
-  category: ScopeCategory;
-  featureGated?: string; // <-- new optional field
-}
-
-// Props change:
-interface ScopeSelectorProps {
-  selectedScopes: Set<ScopeType>;
-  onScopesChange: (scopes: Set<ScopeType>) => void;
-  allowedFeatureFlags?: Set<string>; // <-- new optional prop
-}
+**Add `phone` column to `waiting_list`:**
+```sql
+ALTER TABLE public.waiting_list ADD COLUMN phone text NULL;
 ```
 
-Scope option entries for `kerb` and `insitu_walls` get `featureGated: 'estimate_wizard_v2'`. `pool_surround` should also be gated since it has the cutout feature that is V2-only.
-
-Inside the component, filter `SCOPE_OPTIONS` before grouping:
-```typescript
-const availableScopes = SCOPE_OPTIONS.filter(scope => {
-  if (!scope.featureGated) return true; // ungated, always show
-  return allowedFeatureFlags?.has(scope.featureGated) ?? false;
-});
+**Update `join_waitlist` RPC** to accept and store the phone number:
+```sql
+CREATE OR REPLACE FUNCTION public.join_waitlist(
+  _email text,
+  _full_name text DEFAULT NULL,
+  _business_name text DEFAULT NULL,
+  _referred_by uuid DEFAULT NULL,
+  _phone text DEFAULT NULL
+) RETURNS jsonb ...
+  INSERT INTO public.waiting_list (email, full_name, business_name, referred_by, phone)
+  VALUES (_email, _full_name, _business_name, _referred_by, _phone)
+  ...
 ```
 
-**2. `src/components/estimates/EstimateFormDialogV2.tsx`**
+The `_phone` parameter defaults to `NULL` so the existing V1 `join_waitlist` call from `WaitlistForm.tsx` (which currently doesn't pass phone) continues to work without change until we add the field.
 
-Pass the V2 feature flag set into `ScopeSelector`:
-```tsx
-<ScopeSelector
-  selectedScopes={selectedScopes}
-  onScopesChange={handleScopesChange}
-  allowedFeatureFlags={new Set(['estimate_wizard_v2'])}
-/>
+**Update `get_waiting_list_entries` RPC** to return phone in the result set:
+```sql
+-- Add phone to the SELECT
+SELECT w.id, w.email, w.full_name, w.business_name, w.phone, w.created_at, COALESCE(w.referral_count, 0)::integer
+FROM public.waiting_list w
+ORDER BY w.created_at DESC;
 ```
-
-**3. `src/components/estimates/EstimateFormDialog.tsx` (V1)**
-
-No change needed. V1 passes no `allowedFeatureFlags` prop, so the default `undefined` value causes all feature-gated scopes to be filtered out automatically. This is a safe, backward-compatible default.
 
 ---
 
-### Why This Approach
+### 2. `src/components/waitlist/WaitlistForm.tsx`
 
-- **Zero risk to V1 users** — the prop is optional; V1 doesn't pass it, so gated scopes are invisible.
-- **No hook in `ScopeSelector`** — the component stays pure/dumb. The parent dialog decides which flags are active. This keeps `ScopeSelector` reusable without adding auth coupling to it.
-- **Extensible** — adding a new beta scope in the future just requires adding `featureGated: 'some_flag'` to its entry. No other changes needed.
+- Add `phone` state variable.
+- Add a phone input field between Business Name and the Submit button (optional field, labelled "Mobile Number").
+- Pass `_phone: phone.trim() || null` to the `join_waitlist` RPC call.
+
+---
+
+### 3. `src/components/staff/WaitlistTable.tsx`
+
+- Add `phone: string | null` to the `WaitlistEntry` interface.
+- Add a **Phone** column header to the table.
+- Render the phone value in each row — if present, make it a clickable `tel:` link. If absent, show `−`.
+- Update the **CSV export** to include a "Phone" column.
 
 ---
 
@@ -75,7 +61,8 @@ No change needed. V1 passes no `allowedFeatureFlags` prop, so the default `undef
 
 | File | Change |
 |---|---|
-| `src/components/estimates/ScopeSelector.tsx` | Add `featureGated?` to `ScopeOption`; add `allowedFeatureFlags?` prop; filter scopes before grouping; tag `kerb`, `insitu_walls`, `pool_surround` with `featureGated: 'estimate_wizard_v2'` |
-| `src/components/estimates/EstimateFormDialogV2.tsx` | Pass `allowedFeatureFlags={new Set(['estimate_wizard_v2'])}` to `<ScopeSelector>` |
+| Database migration | Add `phone` column; update `join_waitlist` and `get_waiting_list_entries` RPCs |
+| `src/components/waitlist/WaitlistForm.tsx` | Add phone state + input field + pass to RPC |
+| `src/components/staff/WaitlistTable.tsx` | Add phone to interface, table column, and CSV export |
 
-No database changes. No new files. No changes to V1 (`EstimateFormDialog.tsx`).
+No changes needed to `OnboardWaitlistModal`, `WaitlistStatus.tsx`, or any edge functions. The phone field is optional so existing entries without a phone number display gracefully.
