@@ -18,11 +18,13 @@ import { SEOHead } from "@/components/seo/SEOHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
+import { EstimateFormDialogV2 } from "@/components/estimates/EstimateFormDialogV2";
 import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracker";
 import { EstimateQuotaDialog } from "@/components/estimates/EstimateQuotaDialog";
 import { DuplicateEstimateDialog } from "@/components/estimates/DuplicateEstimateDialog";
 import { useEstimateQuota } from "@/hooks/useEstimateQuota";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { formatCurrency } from "@/lib/format-currency";
 
 type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
@@ -78,6 +80,9 @@ export default function AdminEstimates() {
   const navigate = useNavigate();
   const location = useLocation();
   const { canCreate, used, limit, resetsAt, tier, refresh: refreshQuota } = useEstimateQuota();
+
+  const showWizardV2 = useFeatureFlag('estimate_wizard_v2');
+  const ActiveEstimateFormDialog = showWizardV2 ? EstimateFormDialogV2 : EstimateFormDialog;
 
   const { data: estimates = [], isLoading } = useQuery({
     queryKey: ["estimates"],
@@ -715,7 +720,7 @@ export default function AdminEstimates() {
         )}
       </div>
 
-      <EstimateFormDialog
+      <ActiveEstimateFormDialog
         open={formOpen}
         onOpenChange={handleFormClose}
         editEstimate={editingEstimate ? {
