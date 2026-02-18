@@ -14,6 +14,7 @@ import { SignupTrends } from "@/components/staff/SignupTrends";
 import { SubscribersTable } from "@/components/staff/SubscribersTable";
 import { UsersTable } from "@/components/staff/UsersTable";
 import { SupplierRegistrationsTable } from "@/components/staff/SupplierRegistrationsTable";
+import { ChurnMetrics } from "@/components/staff/ChurnMetrics";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -80,6 +81,7 @@ export default function StaffDashboard() {
     queryClient.invalidateQueries({ queryKey: ["staff-waitlist-entries"] });
     queryClient.invalidateQueries({ queryKey: ["staff-signup-trends"] });
     queryClient.invalidateQueries({ queryKey: ["staff-all-users"] });
+    queryClient.invalidateQueries({ queryKey: ["staff-churn-stats"] });
   }, [refetchStats, queryClient]);
 
   // Subscribe to realtime changes on relevant tables
@@ -248,9 +250,10 @@ export default function StaffDashboard() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <SignupTrends />
               <SubscriptionMetrics stats={stats} isLoading={statsLoading} />
+              <ChurnMetrics />
             </div>
           </TabsContent>
 
