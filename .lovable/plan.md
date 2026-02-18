@@ -1,97 +1,90 @@
 
-## Feature Flag: Estimate Wizard V2 (Demo Business Only)
+## Add Three New Scopes to the V2 Estimating Wizard
 
-### The Concept
+### Overview
+Three new concrete scopes will be added exclusively to the V2 wizard (demo business only). Because the new scope IDs won't be offered in the V1 `ScopeSelector`, they are safe additions to the shared files — existing users will never encounter them.
 
-You want to build a new version of the Estimate Wizard while keeping the current version live for all real users. The safest way to do this is:
+### The Three New Scopes
 
-1. **Copy** the current `EstimateFormDialog.tsx` to a new file `EstimateFormDialogV2.tsx` — initially an identical copy
-2. **Create a `useFeatureFlag` hook** that checks if the current user's business is the POURHUB DEMO BUSINESS
-3. **Swap the component** at the single render point in `AdminEstimates.tsx` based on that flag
+**1. Pool Surround** — identical to Slab on Ground but with a "cutout" subtraction feature at takeoff. In real world use: you draw the full outer rectangle around the pool area, then draw the pool shape as a cutout — the net area (outer minus pool) is what gets estimated.
 
-This gives you total isolation — changes to V2 never touch V1, and all real customers continue using the stable wizard unchanged.
+**2. Kerb** — near-identical to Strip Footings but with different default dimensions (narrower and shallower, appropriate for kerbing). Uses the same `reinforcement-footing` and `excavation` modules with linear section inputs.
 
-### Architecture
+**3. Insitu Walls** — near-identical to Strip Footings but defaults to wall-appropriate dimensions (taller/thinner). Includes formwork on both faces (which kerb/footings don't), so it uses the `formwork` module and the `architectural-formwork` module to cover both-face forming costs.
 
-```text
-AdminEstimates.tsx
-  ↓
-useFeatureFlag("estimate_wizard_v2")
-  ├── businessId === DEMO_BUSINESS_ID → EstimateFormDialogV2 (new, you can break things freely)
-  └── everyone else → EstimateFormDialog (current, untouched, stable)
-```
+---
 
-### The POURHUB DEMO BUSINESS
+### Files to Change
 
-The demo business already exists in the database:
-- **ID**: `302211e5-7b2c-4fb4-a5e0-a936c7f72364`
-- **Name**: POURHUB DEMO BUSINESS
-- **Flag**: `subscription_exempt: true`
-
-The `businessId` is already available globally via `useAuth()` — no extra DB calls needed.
-
-### Files to Create / Modify
-
-**1. New hook: `src/hooks/useFeatureFlag.ts`** (new file)
-
-A simple hook that checks if the current business matches the demo business ID:
+**1. `src/components/estimates/ScopeSelector.tsx`** — Add 3 new scope IDs to the `ScopeType` union and 3 new entries to `SCOPE_OPTIONS`:
 
 ```typescript
-const DEMO_BUSINESS_ID = '302211e5-7b2c-4fb4-a5e0-a936c7f72364';
-
-const FEATURE_FLAGS: Record<string, string[]> = {
-  'estimate_wizard_v2': [DEMO_BUSINESS_ID],
-};
-
-export function useFeatureFlag(flagName: string): boolean {
-  const { businessId } = useAuth();
-  const allowedBusinesses = FEATURE_FLAGS[flagName] ?? [];
-  return businessId ? allowedBusinesses.includes(businessId) : false;
-}
+// Updated ScopeType union (add to existing):
+| "pool_surround"
+| "kerb"
+| "insitu_walls"
 ```
 
-This is hardcoded for now — clean, zero DB queries, and easy to expand later (e.g. pull from a `feature_flags` DB table when you need more control).
+New scope options added to the `external` category for pool surround, and a new `walls` category (or appended to `foundations`) for kerb and insitu walls.
 
-**2. New file: `src/components/estimates/EstimateFormDialogV2.tsx`** (copy of current)
+**2. `src/lib/estimate-components/scopes.ts`** — Add 3 new `ScopeDefinition` exports and register them in `SCOPE_REGISTRY`:
 
-An exact copy of the current `EstimateFormDialog.tsx` at this point in time. Immediately after creation it is byte-for-byte identical to V1. You then make all future wizard changes in this file only. V1 (`EstimateFormDialog.tsx`) becomes frozen — no more changes to it.
+- **`POOL_SURROUND_SCOPE`**: Copies `STANDARD_SLAB_SCOPE` exactly (same `moduleIds`, same `calculateVolume`, same questions). Adds `supportsCutouts: true` flag (a new optional property on `ScopeDefinition`) to signal to the V2 takeoff canvas that a "Draw Cutout" option should be available after an area is marked. The cutout area is subtracted from the measured gross area before being written back to `scopeAnswers.area`.
 
-**3. Update: `src/pages/admin/AdminEstimates.tsx`**
+- **`KERB_SCOPE`**: Copies `STRIP_FOOTINGS_SCOPE` structure. Different defaults: width 300mm, depth 150mm (kerb profile). Same `moduleIds` as strip footings. `linearSectionsLabel` set to `'Kerb Sections'`.
 
-Import both dialogs and the feature flag hook, then swap based on the flag:
+- **`INSITU_WALLS_SCOPE`**: Copies `STRIP_FOOTINGS_SCOPE` structure with wall-appropriate defaults: width 200mm, depth 2400mm (floor-to-ceiling). Adds `'formwork'` and `'architectural-formwork'` to `moduleIds` (formwork both faces). `linearSectionsLabel` set to `'Wall Sections'`.
 
-```tsx
-import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
-import { EstimateFormDialogV2 } from "@/components/estimates/EstimateFormDialogV2";
-import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+**3. `src/types/takeoff.ts`** — Add the new scope IDs to the correct classification arrays:
+- `pool_surround` → add to `AREA_SCOPES` and `SLAB_WITH_BEAMS_SCOPES` (it supports edge beams like SOG)
+- `kerb` → add to `LINEAR_SCOPES`
+- `insitu_walls` → add to `LINEAR_SCOPES`
 
-// Inside component:
-const showWizardV2 = useFeatureFlag('estimate_wizard_v2');
-const ActiveEstimateFormDialog = showWizardV2 ? EstimateFormDialogV2 : EstimateFormDialog;
+**4. `src/components/estimates/EstimateFormDialogV2.tsx`** — Three changes:
+- Add the 3 new scopes to the hard-coded `scopeTotals` record (lines ~541–554)
+- Add the 3 new scopes to the `migrateLegacyScopeData` switch block (no-op cases — they have no legacy data to migrate)
+- In the `getActiveModulesFromScopes` function, ensure new scopes are handled (they are already handled generically via `SCOPE_REGISTRY` lookup, so no explicit change is needed here)
 
-// In JSX (single render, same props):
-<ActiveEstimateFormDialog
-  open={formOpen}
-  onOpenChange={handleFormClose}
-  editEstimate={editingEstimate}
-  onFinalized={handleEstimateFinalized}
-/>
+**5. `src/lib/scope-labels.ts`** — Add the 3 new label entries:
+```typescript
+pool_surround: "Pool Surround",
+kerb: "Kerb",
+insitu_walls: "Insitu Walls",
 ```
 
-### What this gives you
+---
 
-- All existing users → current wizard, completely untouched
-- POURHUB DEMO BUSINESS login → sees EstimateFormDialogV2 (your development sandbox)
-- You can freely restructure, break, and rebuild V2 without any risk to live users
-- When V2 is ready to go live, you add more business IDs to the `FEATURE_FLAGS` array, then eventually remove V1 and make V2 the default
+### Cutout Feature for Pool Surround (Takeoff)
 
-### What stays the same
+The cutout is implemented in `PlanTakeoffStep.tsx` (V2 only — since `EstimateFormDialogV2.tsx` renders `PlanTakeoffStep`, and V1 renders the same component, the cutout logic in `PlanTakeoffStep` is gated by the scope ID `pool_surround`):
 
-- No database changes needed
-- No edge functions needed
-- The `EstimateFormDialog.tsx` (V1) is never touched again after this
-- All imports/dependencies shared between V1 and V2 (modules, calculators, takeoff tools) remain shared — you only fork the top-level dialog shell
+When `activeScope === 'pool_surround'` and the user has already marked the main area, a **"Draw Cutout"** button appears in the scope checklist. Clicking it sets `activeTool` to `'polygon'` or `'rectangle'` with a special `isCutout` flag. When that polygon is completed:
+- Its area is computed from the pixels/meter scale (same as normal markups)
+- A new `markup_type: 'cutout'` record is saved to `takeoff_markups` with the same `scope_id: 'pool_surround'`
+- The net area = gross area − cutout area is what gets synced to `scopeAnswers.area`
 
-### Expanding the flag system later
+The `TakeoffMarkup` interface needs `'cutout'` added to the `markup_type` union:
+```typescript
+markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | 'cutout';
+```
 
-The `FEATURE_FLAGS` object in `useFeatureFlag.ts` can be updated to add more businesses or flag names at any time. If you eventually need per-business admin control (e.g. toggle from the staff portal), the hook can be updated to query a `feature_flags` DB table while keeping the same API — no changes needed in consuming components.
+The `ScopeMarkupChecklist` component shows cutout markups under pool surround entries with a label like "Pool cutout — 42.5 m²" and allows them to be deleted.
+
+In `useTakeoffMarkups.ts`, `getAreaForScope('pool_surround')` subtracts any cutout areas from the primary area total, so the auto-fill to `scopeAnswers.area` is already net.
+
+---
+
+### Technical Summary
+
+| File | Change |
+|---|---|
+| `ScopeSelector.tsx` | +3 types to union, +3 entries to `SCOPE_OPTIONS` |
+| `scopes.ts` | +3 `ScopeDefinition` exports, +3 entries to `SCOPE_REGISTRY` |
+| `types/takeoff.ts` | Add new IDs to classification arrays; add `'cutout'` to `markup_type` |
+| `EstimateFormDialogV2.tsx` | Add 3 new scopes to `scopeTotals` record |
+| `scope-labels.ts` | +3 label entries |
+| `PlanTakeoffStep.tsx` | Cutout drawing mode when scope is `pool_surround` |
+| `useTakeoffMarkups.ts` | Subtract cutout areas from net area for `pool_surround` |
+| `ScopeMarkupChecklist.tsx` | Show cutout entries in pool surround checklist |
+
+No database schema changes are needed — the existing `markup_type` column already stores arbitrary strings.
