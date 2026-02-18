@@ -1,68 +1,54 @@
 
-## Add Phone Number to Waitlist Signup & Staff Dashboard
+## Fix: Two Broken Database Functions
 
-### What Needs to Change
+### Problem 1 — Waitlist Table (Critical)
+The migration added `phone` to the `get_waiting_list_entries` function's SELECT clause, but **never ran `ALTER TABLE public.waiting_list ADD COLUMN phone text NULL`**. The column simply doesn't exist in the table, causing every call to the RPC to fail with error code `42703`.
 
-The `waiting_list` table has no `phone` column. The `join_waitlist` RPC inserts without phone, and `get_waiting_list_entries` returns without phone. Both the signup form and the staff table need updating.
+### Problem 2 — Signup Trends Chart
+The `get_signup_trends` function has a SQL error: `column "b.created_at" must appear in the GROUP BY clause`. The query uses `generate_series` with a LEFT JOIN on businesses, then groups by `d.date` — but the join produces `b.created_at` in the output which isn't aggregated. This needs the GROUP BY to use `d.date` correctly.
 
----
+### Fix: One Migration
 
-### 1. Database Migration
+**New migration file** containing:
 
-**Add `phone` column to `waiting_list`:**
+1. Add the missing `phone` column:
 ```sql
-ALTER TABLE public.waiting_list ADD COLUMN phone text NULL;
+ALTER TABLE public.waiting_list ADD COLUMN IF NOT EXISTS phone text NULL;
 ```
 
-**Update `join_waitlist` RPC** to accept and store the phone number:
+2. Fix `get_signup_trends` — the current function body uses `DATE(b.created_at)` in the GROUP BY check incorrectly. The fix is to ensure the join correctly aggregates:
 ```sql
-CREATE OR REPLACE FUNCTION public.join_waitlist(
-  _email text,
-  _full_name text DEFAULT NULL,
-  _business_name text DEFAULT NULL,
-  _referred_by uuid DEFAULT NULL,
-  _phone text DEFAULT NULL
-) RETURNS jsonb ...
-  INSERT INTO public.waiting_list (email, full_name, business_name, referred_by, phone)
-  VALUES (_email, _full_name, _business_name, _referred_by, _phone)
-  ...
+CREATE OR REPLACE FUNCTION public.get_signup_trends(days_back integer DEFAULT 30)
+RETURNS TABLE(signup_date date, business_count bigint, user_count bigint)
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public'
+AS $$
+BEGIN
+  IF NOT is_pourhub_staff(auth.uid()) THEN
+    RAISE EXCEPTION 'Access denied';
+  END IF;
+  
+  RETURN QUERY
+  SELECT 
+    d.date::date AS signup_date,
+    COUNT(DISTINCT b.id) AS business_count,
+    COUNT(DISTINCT p.id) AS user_count
+  FROM generate_series(
+    CURRENT_DATE - (days_back || ' days')::interval,
+    CURRENT_DATE,
+    '1 day'::interval
+  ) AS d(date)
+  LEFT JOIN public.businesses b ON DATE(b.created_at) = d.date::date
+  LEFT JOIN public.profiles p ON DATE(p.created_at) = d.date::date
+  GROUP BY d.date
+  ORDER BY d.date;
+END;
+$$;
 ```
 
-The `_phone` parameter defaults to `NULL` so the existing V1 `join_waitlist` call from `WaitlistForm.tsx` (which currently doesn't pass phone) continues to work without change until we add the field.
-
-**Update `get_waiting_list_entries` RPC** to return phone in the result set:
+3. Reload the PostgREST schema cache so the new column is immediately visible:
 ```sql
--- Add phone to the SELECT
-SELECT w.id, w.email, w.full_name, w.business_name, w.phone, w.created_at, COALESCE(w.referral_count, 0)::integer
-FROM public.waiting_list w
-ORDER BY w.created_at DESC;
+NOTIFY pgrst, 'reload schema';
 ```
 
----
-
-### 2. `src/components/waitlist/WaitlistForm.tsx`
-
-- Add `phone` state variable.
-- Add a phone input field between Business Name and the Submit button (optional field, labelled "Mobile Number").
-- Pass `_phone: phone.trim() || null` to the `join_waitlist` RPC call.
-
----
-
-### 3. `src/components/staff/WaitlistTable.tsx`
-
-- Add `phone: string | null` to the `WaitlistEntry` interface.
-- Add a **Phone** column header to the table.
-- Render the phone value in each row — if present, make it a clickable `tel:` link. If absent, show `−`.
-- Update the **CSV export** to include a "Phone" column.
-
----
-
-### Files to Modify
-
-| File | Change |
-|---|---|
-| Database migration | Add `phone` column; update `join_waitlist` and `get_waiting_list_entries` RPCs |
-| `src/components/waitlist/WaitlistForm.tsx` | Add phone state + input field + pass to RPC |
-| `src/components/staff/WaitlistTable.tsx` | Add phone to interface, table column, and CSV export |
-
-No changes needed to `OnboardWaitlistModal`, `WaitlistStatus.tsx`, or any edge functions. The phone field is optional so existing entries without a phone number display gracefully.
+### No code changes needed
+The TypeScript types, the RPC function signature, and `WaitlistTable.tsx` are all already correct. The only thing missing is the actual database column.
