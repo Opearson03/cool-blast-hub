@@ -1,90 +1,159 @@
 
-## Add Three New Scopes to the V2 Estimating Wizard
+## Pool Surround Cutout — Fix Area Subtraction, Visual Marking & Instructions
 
-### Overview
-Three new concrete scopes will be added exclusively to the V2 wizard (demo business only). Because the new scope IDs won't be offered in the V1 `ScopeSelector`, they are safe additions to the shared files — existing users will never encounter them.
+### What's Currently Broken / Missing
 
-### The Three New Scopes
+**1. The Slab Workflow Bug**
+When `isCutoutMode` is true and the user finishes drawing a cutout polygon, `handleMarkupComplete` checks `SLAB_WITH_BEAMS_SCOPES.includes(activeScope)` — `pool_surround` IS in that list, so it incorrectly launches the multi-step slab beam dialog instead of going straight to save. The `isCutoutMode` flag is set but never consulted inside `handleMarkupComplete`.
 
-**1. Pool Surround** — identical to Slab on Ground but with a "cutout" subtraction feature at takeoff. In real world use: you draw the full outer rectangle around the pool area, then draw the pool shape as a cutout — the net area (outer minus pool) is what gets estimated.
+**2. No Visual Distinction for Cutouts**
+The `renderMarkups` function in `DrawingCanvas.tsx` renders all markups with the same scope color + opacity. A cutout looks identical to the primary area. Users can't see what's being subtracted.
 
-**2. Kerb** — near-identical to Strip Footings but with different default dimensions (narrower and shallower, appropriate for kerbing). Uses the same `reinforcement-footing` and `excavation` modules with linear section inputs.
+**3. Checklist Shows Gross Area**
+`ScopeMarkupChecklist` sums `area_sqm` for all non-parent markups for a scope. For pool_surround this will sum both the primary area AND the cutout area — showing an inflated number. It needs to show net (primary minus cutout) with a breakdown.
 
-**3. Insitu Walls** — near-identical to Strip Footings but defaults to wall-appropriate dimensions (taller/thinner). Includes formwork on both faces (which kerb/footings don't), so it uses the `formwork` module and the `architectural-formwork` module to cover both-face forming costs.
-
----
-
-### Files to Change
-
-**1. `src/components/estimates/ScopeSelector.tsx`** — Add 3 new scope IDs to the `ScopeType` union and 3 new entries to `SCOPE_OPTIONS`:
-
-```typescript
-// Updated ScopeType union (add to existing):
-| "pool_surround"
-| "kerb"
-| "insitu_walls"
-```
-
-New scope options added to the `external` category for pool surround, and a new `walls` category (or appended to `foundations`) for kerb and insitu walls.
-
-**2. `src/lib/estimate-components/scopes.ts`** — Add 3 new `ScopeDefinition` exports and register them in `SCOPE_REGISTRY`:
-
-- **`POOL_SURROUND_SCOPE`**: Copies `STANDARD_SLAB_SCOPE` exactly (same `moduleIds`, same `calculateVolume`, same questions). Adds `supportsCutouts: true` flag (a new optional property on `ScopeDefinition`) to signal to the V2 takeoff canvas that a "Draw Cutout" option should be available after an area is marked. The cutout area is subtracted from the measured gross area before being written back to `scopeAnswers.area`.
-
-- **`KERB_SCOPE`**: Copies `STRIP_FOOTINGS_SCOPE` structure. Different defaults: width 300mm, depth 150mm (kerb profile). Same `moduleIds` as strip footings. `linearSectionsLabel` set to `'Kerb Sections'`.
-
-- **`INSITU_WALLS_SCOPE`**: Copies `STRIP_FOOTINGS_SCOPE` structure with wall-appropriate defaults: width 200mm, depth 2400mm (floor-to-ceiling). Adds `'formwork'` and `'architectural-formwork'` to `moduleIds` (formwork both faces). `linearSectionsLabel` set to `'Wall Sections'`.
-
-**3. `src/types/takeoff.ts`** — Add the new scope IDs to the correct classification arrays:
-- `pool_surround` → add to `AREA_SCOPES` and `SLAB_WITH_BEAMS_SCOPES` (it supports edge beams like SOG)
-- `kerb` → add to `LINEAR_SCOPES`
-- `insitu_walls` → add to `LINEAR_SCOPES`
-
-**4. `src/components/estimates/EstimateFormDialogV2.tsx`** — Three changes:
-- Add the 3 new scopes to the hard-coded `scopeTotals` record (lines ~541–554)
-- Add the 3 new scopes to the `migrateLegacyScopeData` switch block (no-op cases — they have no legacy data to migrate)
-- In the `getActiveModulesFromScopes` function, ensure new scopes are handled (they are already handled generically via `SCOPE_REGISTRY` lookup, so no explicit change is needed here)
-
-**5. `src/lib/scope-labels.ts`** — Add the 3 new label entries:
-```typescript
-pool_surround: "Pool Surround",
-kerb: "Kerb",
-insitu_walls: "Insitu Walls",
-```
+**4. No Ordering Instructions**
+There is no on-canvas guidance telling the user:
+- Step 1: Draw the pool perimeter first (the cutout — the hole)
+- Step 2: Draw the concrete perimeter second (the outer area — the slab)
 
 ---
 
-### Cutout Feature for Pool Surround (Takeoff)
+### Correct Order of Operations (UX Decision)
 
-The cutout is implemented in `PlanTakeoffStep.tsx` (V2 only — since `EstimateFormDialogV2.tsx` renders `PlanTakeoffStep`, and V1 renders the same component, the cutout logic in `PlanTakeoffStep` is gated by the scope ID `pool_surround`):
+The user asked: "first mark perimeter of pool, then mark perimeter of concrete."
 
-When `activeScope === 'pool_surround'` and the user has already marked the main area, a **"Draw Cutout"** button appears in the scope checklist. Clicking it sets `activeTool` to `'polygon'` or `'rectangle'` with a special `isCutout` flag. When that polygon is completed:
-- Its area is computed from the pixels/meter scale (same as normal markups)
-- A new `markup_type: 'cutout'` record is saved to `takeoff_markups` with the same `scope_id: 'pool_surround'`
-- The net area = gross area − cutout area is what gets synced to `scopeAnswers.area`
+This means:
+1. User clicks "Mark" on pool_surround scope → enters **cutout mode** (pool perimeter)
+2. Draws pool boundary → saved as `markup_type: 'cutout'` (red, dashed)
+3. System auto-prompts/transitions → enters **primary mode** (concrete perimeter)
+4. Draws outer concrete area → saved as `markup_type: 'primary'` (scope color)
+5. Net area = primary − cutout is displayed and used
 
-The `TakeoffMarkup` interface needs `'cutout'` added to the `markup_type` union:
-```typescript
-markup_type?: 'primary' | 'edge_beam' | 'internal_beam' | 'thickening' | 'cutout';
-```
-
-The `ScopeMarkupChecklist` component shows cutout markups under pool surround entries with a label like "Pool cutout — 42.5 m²" and allows them to be deleted.
-
-In `useTakeoffMarkups.ts`, `getAreaForScope('pool_surround')` subtracts any cutout areas from the primary area total, so the auto-fill to `scopeAnswers.area` is already net.
+The workflow reversal (cutout first, primary second) is more intuitive — you mark the thing you're NOT concreting first.
 
 ---
 
-### Technical Summary
+### Changes Required
 
-| File | Change |
+**File 1: `src/components/estimates/takeoff/PlanTakeoffStep.tsx`**
+
+*Fix A — Block slab workflow when in cutout mode:*
+Inside `handleMarkupComplete`, before the `isSlabWithBeamsScope` branch, add:
+```typescript
+// Cutout mode bypasses the slab workflow — save directly
+if (isCutoutMode) {
+  setPendingMarkupData({ points, shapeType, scopeId: activeScope, fileId: currentFileId, pageNumber: currentPage });
+  setPendingMarkupName('Pool cutout');
+  setShowMarkupNameDialog(true);
+  return;
+}
+```
+
+*Fix B — Auto-flow: cutout-first, then primary:*
+Change `onDrawCutout` callback in `ScopeMarkupChecklist` to instead start with cutout mode automatically when user clicks "Mark" for pool_surround scope. Modify `handleMarkArea` so that when `scopeId === 'pool_surround'`:
+- If no markups exist yet → enter **cutout mode** first (isCutoutMode = true, pendingMarkupName = 'Pool cutout')
+- If cutout exists but no primary → enter **primary mode** (normal polygon)
+- If both exist → default to "Add More" primary areas
+
+After confirming a cutout (`handleMarkupNameConfirm` when `isCutoutMode`), automatically transition to primary mode:
+```typescript
+if (isCutoutMode && scopeId === 'pool_surround') {
+  // Auto-start drawing the primary concrete area
+  setIsCutoutMode(false);
+  setActiveScope('pool_surround');
+  setActiveTool('polygon');
+  setDrawingPoints([]);
+  setPendingMarkupName('Concrete area 1');
+}
+```
+
+*Fix C — Instructions banner:*
+Add a `pool_surround` specific instruction banner above the drawing canvas (similar to the calibration mode indicator). Render it when `activeScope === 'pool_surround'`:
+```tsx
+{activeScope === 'pool_surround' && !isCutoutMode && (
+  <div className="absolute bottom-4 ... bg-blue-500/10 border-blue-500/30">
+    Step 2 of 2 — Draw the concrete perimeter (the outer slab area)
+  </div>
+)}
+{activeScope === 'pool_surround' && isCutoutMode && (
+  <div className="absolute bottom-4 ... bg-orange-500/10 border-orange-500/30">
+    Step 1 of 2 — Draw the pool perimeter (the area to SUBTRACT)
+  </div>
+)}
+```
+
+*Fix D — Remove the separate "Draw Cutout" button flow:*
+Since cutout is now automatically entered first, the `onDrawCutout` callback in `ScopeMarkupChecklist` is only needed for adding additional cutouts after the initial flow. Keep the "Draw Cutout" button but label it "Add Another Cutout" for clarity.
+
+---
+
+**File 2: `src/components/estimates/takeoff/DrawingCanvas.tsx`**
+
+*Visual distinction for cutout markups:*
+In `renderMarkups`, detect `markup.markup_type === 'cutout'` and render differently:
+- Stroke: red (`#ef4444`) with dashed line pattern (`dash={[8, 4]}`)
+- Fill: red at low opacity (~10%)
+- Label: shows negative area in red: `−42.5 m²`
+- No scope color used — always red to signal "this is removed"
+
+```tsx
+const isCutout = markup.markup_type === 'cutout';
+const strokeColor = isCutout ? '#ef4444' : markup.color;
+const fillColor = isCutout ? '#ef444420' : `${markup.color}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}`;
+// For the Line component:
+<Line
+  dash={isCutout ? [8, 4] : undefined}
+  stroke={strokeColor}
+  fill={fillColor}
+  ...
+/>
+// Label shows "−42.5 m²" for cutout
+text={isCutout ? `−${formatArea(markup.area_sqm)}` : formatArea(markup.area_sqm)}
+fill={isCutout ? '#ef4444' : '#fff'}
+```
+
+---
+
+**File 3: `src/components/estimates/takeoff/ScopeMarkupChecklist.tsx`**
+
+*Fix area display for pool_surround:*
+The `getScopeStatus` function sums all `area_sqm` for a scope. For `pool_surround`, split it:
+
+```typescript
+if (scopeId === 'pool_surround') {
+  const primaryMarkups = scopeMarkups.filter(m => m.markup_type !== 'cutout');
+  const cutoutMarkups = scopeMarkups.filter(m => m.markup_type === 'cutout');
+  const primaryArea = primaryMarkups.reduce((sum, m) => sum + (m.area_sqm || 0), 0);
+  const cutoutArea = cutoutMarkups.reduce((sum, m) => sum + (m.area_sqm || 0), 0);
+  const netArea = Math.max(0, primaryArea - cutoutArea);
+  // return net area
+}
+```
+
+In the markup list within the scope card, show cutout markups with red dashed styling and a `−` prefix:
+```tsx
+{markup.markup_type === 'cutout' ? (
+  <span className="text-red-500 font-mono text-[10px]">−{formatArea(markup.area_sqm)}</span>
+) : (...)}
+```
+
+Also update the "marked" summary line from e.g. `1 area • 85.0 m²` to:
+```
+85.0 m² − 42.5 m² = 42.5 m² net
+```
+
+*Show cutout markups in the pool_surround markup list:*
+The current `getScopeMarkups` filters to `!m.parent_markup_id`. Cutouts have no parent, so they already appear — but they're rendered the same as primary areas. Just add the visual distinction.
+
+---
+
+### Summary of Files to Change
+
+| File | Changes |
 |---|---|
-| `ScopeSelector.tsx` | +3 types to union, +3 entries to `SCOPE_OPTIONS` |
-| `scopes.ts` | +3 `ScopeDefinition` exports, +3 entries to `SCOPE_REGISTRY` |
-| `types/takeoff.ts` | Add new IDs to classification arrays; add `'cutout'` to `markup_type` |
-| `EstimateFormDialogV2.tsx` | Add 3 new scopes to `scopeTotals` record |
-| `scope-labels.ts` | +3 label entries |
-| `PlanTakeoffStep.tsx` | Cutout drawing mode when scope is `pool_surround` |
-| `useTakeoffMarkups.ts` | Subtract cutout areas from net area for `pool_surround` |
-| `ScopeMarkupChecklist.tsx` | Show cutout entries in pool surround checklist |
+| `PlanTakeoffStep.tsx` | Fix cutout bypass in `handleMarkupComplete`; auto-flow cutout→primary; instruction banner |
+| `DrawingCanvas.tsx` | Render cutouts in red with dashed border + negative label |
+| `ScopeMarkupChecklist.tsx` | Show net area breakdown; red styling for cutout entries |
 
-No database schema changes are needed — the existing `markup_type` column already stores arbitrary strings.
+No database changes needed. No new components needed.
