@@ -3097,6 +3097,7 @@ export type Database = {
           id: string
           last_position_email_at: string | null
           last_position_notified: number | null
+          phone: string | null
           referral_code: string | null
           referral_count: number | null
           referred_by: string | null
@@ -3113,6 +3114,7 @@ export type Database = {
           id?: string
           last_position_email_at?: string | null
           last_position_notified?: number | null
+          phone?: string | null
           referral_code?: string | null
           referral_count?: number | null
           referred_by?: string | null
@@ -3129,6 +3131,7 @@ export type Database = {
           id?: string
           last_position_email_at?: string | null
           last_position_notified?: number | null
+          phone?: string | null
           referral_code?: string | null
           referral_count?: number | null
           referred_by?: string | null
