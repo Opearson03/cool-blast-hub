@@ -1,63 +1,40 @@
 
-## Fix: Update `join_waitlist` RPC to Accept Phone Number
+## Remove Phone Field from Waitlist Form
 
-### Root Cause
+### Why It's Slow
 
-The `WaitlistForm.tsx` was updated to pass `_phone` to the `join_waitlist` RPC:
-```typescript
-_phone: phone.trim() || null,
-```
+The form currently makes up to 3 sequential network calls before showing success:
+1. `get_referrer_by_code` (if referral code present)
+2. `join_waitlist` RPC
+3. `send-waitlist-welcome` edge function (awaited)
+4. `notify-referral-success` edge function (awaited, if referred)
 
-But the database function was never updated to accept this parameter. PostgreSQL rejects any call with an unrecognised argument, causing the RPC to fail — which is why the form spins forever.
+Calls 3 and 4 are the likely culprits — they're awaited sequentially, meaning the user stares at a spinner while emails are being sent. The phone field itself isn't causing the slowness, but removing it is still the right call if it's reducing conversions.
 
-The `phone` column was correctly added to the `waiting_list` table in the last migration, but the `join_waitlist` function body still only inserts into `(email, full_name, business_name, referred_by)` — missing `phone`.
-
----
-
-### Fix: One Migration
-
-Update `join_waitlist` to add the `_phone` parameter and include it in the INSERT:
-
-```sql
-CREATE OR REPLACE FUNCTION public.join_waitlist(
-  _email text,
-  _full_name text DEFAULT NULL,
-  _business_name text DEFAULT NULL,
-  _referred_by uuid DEFAULT NULL,
-  _phone text DEFAULT NULL
-)
-RETURNS jsonb
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path TO 'public'
-AS $$
-DECLARE
-  _row waiting_list;
-BEGIN
-  INSERT INTO public.waiting_list (email, full_name, business_name, referred_by, phone)
-  VALUES (_email, _full_name, _business_name, _referred_by, _phone)
-  RETURNING * INTO _row;
-
-  RETURN jsonb_build_object('id', _row.id, 'referral_code', _row.referral_code);
-EXCEPTION
-  WHEN unique_violation THEN
-    RETURN jsonb_build_object('error', 'already_exists');
-END;
-$$;
-
-NOTIFY pgrst, 'reload schema';
-```
+The plan also fixes the email calls to run in the background (fire-and-forget) so the form resolves as soon as the DB insert succeeds — much faster.
 
 ---
 
-### No Frontend Changes Needed
+### Changes to `src/components/waitlist/WaitlistForm.tsx`
 
-`WaitlistForm.tsx` is already passing `_phone` correctly. Once the database function is updated, signups will work immediately.
+1. **Remove** the `phone` state variable (`const [phone, setPhone] = useState("")`)
+2. **Remove** `_phone: phone.trim() || null` from the `join_waitlist` RPC call
+3. **Remove** the Mobile Number input field from the form JSX
+4. **Make the email functions non-blocking** — wrap the `send-waitlist-welcome` and `notify-referral-success` calls in `.then().catch()` instead of `await`, so they run in the background after the user has already seen the success screen
+
+---
+
+### No Database Changes Needed
+
+The `phone` column stays in the `waiting_list` table and the `join_waitlist` RPC still accepts `_phone` as an optional parameter — we're just not passing it. This means:
+- Existing data is untouched
+- Staff can still see the Phone column in the dashboard (it will be empty for new signups)
+- If you ever want to add the field back, it's a one-line frontend change
 
 ---
 
 ### Files to Change
 
-| Target | Change |
+| File | Change |
 |---|---|
-| New database migration | Replace `join_waitlist` function with `_phone` parameter included in signature and INSERT |
+| `src/components/waitlist/WaitlistForm.tsx` | Remove phone state + input field + `_phone` RPC arg; make email sends non-blocking |
