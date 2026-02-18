@@ -1,40 +1,32 @@
 
-## Remove Phone Field from Waitlist Form
+## Fix: Remove Duplicate `join_waitlist` Function
 
-### Why It's Slow
+### Root Cause
 
-The form currently makes up to 3 sequential network calls before showing success:
-1. `get_referrer_by_code` (if referral code present)
-2. `join_waitlist` RPC
-3. `send-waitlist-welcome` edge function (awaited)
-4. `notify-referral-success` edge function (awaited, if referred)
+The database has two versions of `join_waitlist` living side by side:
 
-Calls 3 and 4 are the likely culprits — they're awaited sequentially, meaning the user stares at a spinner while emails are being sent. The phone field itself isn't causing the slowness, but removing it is still the right call if it's reducing conversions.
+1. Old version (4 params): `_email, _full_name, _business_name, _referred_by`
+2. New version (5 params): `_email, _full_name, _business_name, _referred_by, _phone`
 
-The plan also fixes the email calls to run in the background (fire-and-forget) so the form resolves as soon as the DB insert succeeds — much faster.
+Because every parameter after `_email` has a `DEFAULT NULL`, both functions can match a call like `join_waitlist(_email := 'x', _full_name := 'y', ...)`. PostgreSQL raises an **ambiguous function call** error, which hits the catch block and shows "Something went wrong".
 
----
+This happened because `CREATE OR REPLACE FUNCTION` only replaces a function if the signature matches exactly. Since the new migration added `_phone`, it created a brand new overload instead of replacing the old one.
 
-### Changes to `src/components/waitlist/WaitlistForm.tsx`
+### Fix: One Migration
 
-1. **Remove** the `phone` state variable (`const [phone, setPhone] = useState("")`)
-2. **Remove** `_phone: phone.trim() || null` from the `join_waitlist` RPC call
-3. **Remove** the Mobile Number input field from the form JSX
-4. **Make the email functions non-blocking** — wrap the `send-waitlist-welcome` and `notify-referral-success` calls in `.then().catch()` instead of `await`, so they run in the background after the user has already seen the success screen
+Drop the old (4-parameter) overload so only the correct version remains:
 
----
+```sql
+DROP FUNCTION IF EXISTS public.join_waitlist(text, text, text, uuid);
+NOTIFY pgrst, 'reload schema';
+```
 
-### No Database Changes Needed
+### No Frontend Changes Needed
 
-The `phone` column stays in the `waiting_list` table and the `join_waitlist` RPC still accepts `_phone` as an optional parameter — we're just not passing it. This means:
-- Existing data is untouched
-- Staff can still see the Phone column in the dashboard (it will be empty for new signups)
-- If you ever want to add the field back, it's a one-line frontend change
-
----
+`WaitlistForm.tsx` is already correct — it calls `join_waitlist` with 4 named parameters (no `_phone`), which will cleanly match the single remaining 5-parameter function (since `_phone` defaults to `NULL`).
 
 ### Files to Change
 
-| File | Change |
+| Target | Change |
 |---|---|
-| `src/components/waitlist/WaitlistForm.tsx` | Remove phone state + input field + `_phone` RPC arg; make email sends non-blocking |
+| New database migration | Drop the old 4-parameter `join_waitlist` overload |
