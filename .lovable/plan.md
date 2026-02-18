@@ -1,54 +1,63 @@
 
-## Fix: Two Broken Database Functions
+## Fix: Update `join_waitlist` RPC to Accept Phone Number
 
-### Problem 1 — Waitlist Table (Critical)
-The migration added `phone` to the `get_waiting_list_entries` function's SELECT clause, but **never ran `ALTER TABLE public.waiting_list ADD COLUMN phone text NULL`**. The column simply doesn't exist in the table, causing every call to the RPC to fail with error code `42703`.
+### Root Cause
 
-### Problem 2 — Signup Trends Chart
-The `get_signup_trends` function has a SQL error: `column "b.created_at" must appear in the GROUP BY clause`. The query uses `generate_series` with a LEFT JOIN on businesses, then groups by `d.date` — but the join produces `b.created_at` in the output which isn't aggregated. This needs the GROUP BY to use `d.date` correctly.
+The `WaitlistForm.tsx` was updated to pass `_phone` to the `join_waitlist` RPC:
+```typescript
+_phone: phone.trim() || null,
+```
+
+But the database function was never updated to accept this parameter. PostgreSQL rejects any call with an unrecognised argument, causing the RPC to fail — which is why the form spins forever.
+
+The `phone` column was correctly added to the `waiting_list` table in the last migration, but the `join_waitlist` function body still only inserts into `(email, full_name, business_name, referred_by)` — missing `phone`.
+
+---
 
 ### Fix: One Migration
 
-**New migration file** containing:
+Update `join_waitlist` to add the `_phone` parameter and include it in the INSERT:
 
-1. Add the missing `phone` column:
 ```sql
-ALTER TABLE public.waiting_list ADD COLUMN IF NOT EXISTS phone text NULL;
-```
-
-2. Fix `get_signup_trends` — the current function body uses `DATE(b.created_at)` in the GROUP BY check incorrectly. The fix is to ensure the join correctly aggregates:
-```sql
-CREATE OR REPLACE FUNCTION public.get_signup_trends(days_back integer DEFAULT 30)
-RETURNS TABLE(signup_date date, business_count bigint, user_count bigint)
-LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public'
+CREATE OR REPLACE FUNCTION public.join_waitlist(
+  _email text,
+  _full_name text DEFAULT NULL,
+  _business_name text DEFAULT NULL,
+  _referred_by uuid DEFAULT NULL,
+  _phone text DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
 AS $$
+DECLARE
+  _row waiting_list;
 BEGIN
-  IF NOT is_pourhub_staff(auth.uid()) THEN
-    RAISE EXCEPTION 'Access denied';
-  END IF;
-  
-  RETURN QUERY
-  SELECT 
-    d.date::date AS signup_date,
-    COUNT(DISTINCT b.id) AS business_count,
-    COUNT(DISTINCT p.id) AS user_count
-  FROM generate_series(
-    CURRENT_DATE - (days_back || ' days')::interval,
-    CURRENT_DATE,
-    '1 day'::interval
-  ) AS d(date)
-  LEFT JOIN public.businesses b ON DATE(b.created_at) = d.date::date
-  LEFT JOIN public.profiles p ON DATE(p.created_at) = d.date::date
-  GROUP BY d.date
-  ORDER BY d.date;
+  INSERT INTO public.waiting_list (email, full_name, business_name, referred_by, phone)
+  VALUES (_email, _full_name, _business_name, _referred_by, _phone)
+  RETURNING * INTO _row;
+
+  RETURN jsonb_build_object('id', _row.id, 'referral_code', _row.referral_code);
+EXCEPTION
+  WHEN unique_violation THEN
+    RETURN jsonb_build_object('error', 'already_exists');
 END;
 $$;
-```
 
-3. Reload the PostgREST schema cache so the new column is immediately visible:
-```sql
 NOTIFY pgrst, 'reload schema';
 ```
 
-### No code changes needed
-The TypeScript types, the RPC function signature, and `WaitlistTable.tsx` are all already correct. The only thing missing is the actual database column.
+---
+
+### No Frontend Changes Needed
+
+`WaitlistForm.tsx` is already passing `_phone` correctly. Once the database function is updated, signups will work immediately.
+
+---
+
+### Files to Change
+
+| Target | Change |
+|---|---|
+| New database migration | Replace `join_waitlist` function with `_phone` parameter included in signature and INSERT |
