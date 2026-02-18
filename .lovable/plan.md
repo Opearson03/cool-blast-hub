@@ -1,83 +1,97 @@
 
-## Phone Onboarding: "Take Payment Over the Phone" in Staff Portal
+## Feature Flag: Estimate Wizard V2 (Demo Business Only)
 
 ### The Concept
-When you call someone from the waitlist, you need to:
-1. Collect their card details verbally
-2. Enter them on their behalf into a form
-3. Create their account immediately
-4. Send them a welcome email with login instructions
 
-The cleanest Stripe-native way to do this is **Stripe Payment Links or Stripe Terminal** — but the best fit for your workflow is a **staff-initiated Stripe Checkout session** that you create on their behalf, then either:
-- You enter their card details into Stripe's secure hosted checkout page (on your screen, while they read card details over the phone), OR
-- Send them an email with the link and they can do it themselves in 30 seconds
+You want to build a new version of the Estimate Wizard while keeping the current version live for all real users. The safest way to do this is:
 
-This approach means **you never store or handle raw card data**, which keeps you PCI compliant.
+1. **Copy** the current `EstimateFormDialog.tsx` to a new file `EstimateFormDialogV2.tsx` — initially an identical copy
+2. **Create a `useFeatureFlag` hook** that checks if the current user's business is the POURHUB DEMO BUSINESS
+3. **Swap the component** at the single render point in `AdminEstimates.tsx` based on that flag
 
-### How the Flow Works
+This gives you total isolation — changes to V2 never touch V1, and all real customers continue using the stable wizard unchanged.
+
+### Architecture
 
 ```text
-Staff Portal → Waitlist tab → "Onboard" button next to entry
-        ↓
-Modal opens: pre-filled with their name/business from waitlist
-        ↓
-Staff selects tier (Estimating $99 or Pro $240)
-        ↓
-"Create Checkout Link" button → generates a Stripe Checkout URL
-        ↓
-Two options presented:
-  [Open Checkout] → Opens Stripe hosted page in new tab (staff enters card while on phone)
-  [Send via Email] → Sends a payment link email to the customer  
-        ↓
-After payment: Customer is redirected to /signup/success
-        → Enters their password → Account created automatically
+AdminEstimates.tsx
+  ↓
+useFeatureFlag("estimate_wizard_v2")
+  ├── businessId === DEMO_BUSINESS_ID → EstimateFormDialogV2 (new, you can break things freely)
+  └── everyone else → EstimateFormDialog (current, untouched, stable)
 ```
 
-### What Changes
+### The POURHUB DEMO BUSINESS
 
-**1. New Edge Function: `staff-create-checkout`**
-- Staff-only endpoint (validates `is_pourhub_staff` JWT)
-- Takes: `email`, `fullName`, `businessName`, `tier`, `referralMonths` (for waitlist free months)
-- Creates a Stripe Checkout session with `trial_period_days` equal to `30 * (1 + referralMonths)` — so if they referred 2 people they get 3 months free automatically
-- Returns the checkout URL
+The demo business already exists in the database:
+- **ID**: `302211e5-7b2c-4fb4-a5e0-a936c7f72364`
+- **Name**: POURHUB DEMO BUSINESS
+- **Flag**: `subscription_exempt: true`
 
-**2. New Component: `OnboardWaitlistModal`**
-- Triggered by a new "Onboard" button on each row in `WaitlistTable.tsx`
-- Pre-fills name, email, business from the waitlist entry
-- Lets staff pick the subscription tier
-- Shows how many free months the person has earned (1 + referral count)
-- Two action buttons: "Open Checkout" and "Copy Link / Send Email"
-- Shows a success state once checkout session is created
+The `businessId` is already available globally via `useAuth()` — no extra DB calls needed.
 
-**3. Update `WaitlistTable.tsx`**
-- Fetch `referral_count` alongside existing fields from the waitlist RPC
-- Add "Onboard" button per row (phone icon + label)
+### Files to Create / Modify
 
-**4. Update DB function `get_waiting_list_entries()`**
-- Add `referral_count` to the returned columns so the modal can display free months earned and pass it to the checkout
+**1. New hook: `src/hooks/useFeatureFlag.ts`** (new file)
 
-### Technical Details
+A simple hook that checks if the current business matches the demo business ID:
 
-**Free months calculation:**
-- Base: 1 month free (everyone gets this)
-- Bonus: +1 month per referral who joined the waitlist
-- `trial_period_days = 30 * (1 + referral_count)`
-
-**Stripe Checkout session parameters:**
 ```typescript
-subscription_data: {
-  trial_period_days: 30 * (1 + referralCount),
-  metadata: { full_name, business_name, tier, onboarded_by_staff: "true" }
+const DEMO_BUSINESS_ID = '302211e5-7b2c-4fb4-a5e0-a936c7f72364';
+
+const FEATURE_FLAGS: Record<string, string[]> = {
+  'estimate_wizard_v2': [DEMO_BUSINESS_ID],
+};
+
+export function useFeatureFlag(flagName: string): boolean {
+  const { businessId } = useAuth();
+  const allowedBusinesses = FEATURE_FLAGS[flagName] ?? [];
+  return businessId ? allowedBusinesses.includes(businessId) : false;
 }
 ```
 
-**Security:**
-- The `staff-create-checkout` edge function validates the staff JWT before proceeding — regular users cannot call it
-- No raw card data ever touches your server or code
+This is hardcoded for now — clean, zero DB queries, and easy to expand later (e.g. pull from a `feature_flags` DB table when you need more control).
 
-**Files to create/modify:**
-- `supabase/functions/staff-create-checkout/index.ts` (new)
-- `supabase/config.toml` (add new function entry)
-- `supabase/migrations/...` (update `get_waiting_list_entries` to include `referral_count`)
-- `src/components/staff/OnboardWaitlistModal.tsx` (new)
-- `src/components/staff/WaitlistTable.tsx` (add Onboard button + referral_count)
+**2. New file: `src/components/estimates/EstimateFormDialogV2.tsx`** (copy of current)
+
+An exact copy of the current `EstimateFormDialog.tsx` at this point in time. Immediately after creation it is byte-for-byte identical to V1. You then make all future wizard changes in this file only. V1 (`EstimateFormDialog.tsx`) becomes frozen — no more changes to it.
+
+**3. Update: `src/pages/admin/AdminEstimates.tsx`**
+
+Import both dialogs and the feature flag hook, then swap based on the flag:
+
+```tsx
+import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
+import { EstimateFormDialogV2 } from "@/components/estimates/EstimateFormDialogV2";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+
+// Inside component:
+const showWizardV2 = useFeatureFlag('estimate_wizard_v2');
+const ActiveEstimateFormDialog = showWizardV2 ? EstimateFormDialogV2 : EstimateFormDialog;
+
+// In JSX (single render, same props):
+<ActiveEstimateFormDialog
+  open={formOpen}
+  onOpenChange={handleFormClose}
+  editEstimate={editingEstimate}
+  onFinalized={handleEstimateFinalized}
+/>
+```
+
+### What this gives you
+
+- All existing users → current wizard, completely untouched
+- POURHUB DEMO BUSINESS login → sees EstimateFormDialogV2 (your development sandbox)
+- You can freely restructure, break, and rebuild V2 without any risk to live users
+- When V2 is ready to go live, you add more business IDs to the `FEATURE_FLAGS` array, then eventually remove V1 and make V2 the default
+
+### What stays the same
+
+- No database changes needed
+- No edge functions needed
+- The `EstimateFormDialog.tsx` (V1) is never touched again after this
+- All imports/dependencies shared between V1 and V2 (modules, calculators, takeoff tools) remain shared — you only fork the top-level dialog shell
+
+### Expanding the flag system later
+
+The `FEATURE_FLAGS` object in `useFeatureFlag.ts` can be updated to add more businesses or flag names at any time. If you eventually need per-business admin control (e.g. toggle from the staff portal), the hook can be updated to query a `feature_flags` DB table while keeping the same API — no changes needed in consuming components.
