@@ -15,7 +15,6 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
-  const [phone, setPhone] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [userReferralCode, setUserReferralCode] = useState<string | null>(null);
@@ -56,7 +55,6 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
           _full_name: fullName.trim() || null,
           _business_name: businessName.trim() || null,
           _referred_by: referredById,
-          _phone: phone.trim() || null,
         });
 
       if (error) throw error;
@@ -74,31 +72,23 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
         setUserReferralCode(insertedRow.referral_code);
       }
 
-      // Send welcome email with referral code
-      try {
-        await supabase.functions.invoke('send-waitlist-welcome', {
-          body: {
-            email: email.toLowerCase().trim(),
-            fullName: fullName.trim() || null,
-            referralCode: insertedRow?.referral_code,
-          },
-        });
-      } catch (emailError) {
-        console.error("Failed to send welcome email:", emailError);
-      }
+      // Send welcome email with referral code (fire-and-forget)
+      supabase.functions.invoke('send-waitlist-welcome', {
+        body: {
+          email: email.toLowerCase().trim(),
+          fullName: fullName.trim() || null,
+          referralCode: insertedRow?.referral_code,
+        },
+      }).catch((emailError) => console.error("Failed to send welcome email:", emailError));
 
-      // Notify the referrer if there was one
+      // Notify the referrer if there was one (fire-and-forget)
       if (referredById) {
-        try {
-          await supabase.functions.invoke('notify-referral-success', {
-            body: {
-              referrerId: referredById,
-              newMemberName: fullName.trim() || null,
-            },
-          });
-        } catch (notifyError) {
-          console.error("Failed to notify referrer:", notifyError);
-        }
+        supabase.functions.invoke('notify-referral-success', {
+          body: {
+            referrerId: referredById,
+            newMemberName: fullName.trim() || null,
+          },
+        }).catch((notifyError) => console.error("Failed to notify referrer:", notifyError));
       }
 
       // Fire Google Ads conversion tracking
@@ -323,17 +313,7 @@ export function WaitlistForm({ onSuccess, referralCode }: WaitlistFormProps) {
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="phone" className="text-primary-foreground">Mobile Number</Label>
-        <Input
-          id="phone"
-          type="tel"
-          placeholder="04XX XXX XXX"
-          value={phone}
-          onChange={(e) => setPhone(e.target.value)}
-          className="bg-background/50 border-border"
-        />
-      </div>
+
 
       <Button 
         type="submit" 
