@@ -17,6 +17,7 @@ export type Database = {
       business_subscriptions: {
         Row: {
           business_id: string
+          canceled_at: string | null
           created_at: string | null
           current_period_end: string | null
           employee_limit: number | null
@@ -29,6 +30,7 @@ export type Database = {
         }
         Insert: {
           business_id: string
+          canceled_at?: string | null
           created_at?: string | null
           current_period_end?: string | null
           employee_limit?: number | null
@@ -41,6 +43,7 @@ export type Database = {
         }
         Update: {
           business_id?: string
+          canceled_at?: string | null
           created_at?: string | null
           current_period_end?: string | null
           employee_limit?: number | null
@@ -3176,6 +3179,7 @@ export type Database = {
           subscription_status: string
         }[]
       }
+      get_churn_stats: { Args: never; Returns: Json }
       get_dashboard_stats: { Args: { p_business_id: string }; Returns: Json }
       get_referrer_by_code: { Args: { code: string }; Returns: string }
       get_signup_trends: {
