@@ -227,6 +227,30 @@ serve(async (req) => {
         break;
       }
 
+      case "checkout.session.completed": {
+        const session = event.data.object as Stripe.Checkout.Session;
+        const customerEmail = session.customer_details?.email || session.customer_email;
+        logStep("Checkout session completed", { sessionId: session.id, email: customerEmail });
+
+        if (customerEmail) {
+          // Mark waitlist entry as converted
+          const { error: waitlistError } = await supabaseClient
+            .from("waiting_list")
+            .update({ 
+              outreach_status: "converted",
+              stripe_session_id: session.id,
+            })
+            .ilike("email", customerEmail);
+
+          if (waitlistError) {
+            logStep("Error updating waitlist entry on conversion", { error: waitlistError.message });
+          } else {
+            logStep("Waitlist entry marked as converted", { email: customerEmail });
+          }
+        }
+        break;
+      }
+
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
         const subscriptionId = invoice.subscription as string;
