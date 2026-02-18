@@ -342,6 +342,34 @@ export function PlanTakeoffStep({
       setDiscreteJointSegments([]); // Clear any previous joint segments
     }
     
+    // Pool surround: auto-flow — cutout first (if no cutout yet), then primary
+    if (scopeId === 'pool_surround') {
+      const existingMarkups = markups.filter(m => m.scope_id === 'pool_surround');
+      const hasCutout = existingMarkups.some(m => m.markup_type === 'cutout');
+      const hasPrimary = existingMarkups.some(m => m.markup_type !== 'cutout');
+      
+      setActiveScope(scopeId);
+      setDrawingPoints([]);
+      setActiveTool('polygon');
+      
+      if (!hasCutout) {
+        // Step 1: Draw the pool perimeter (cutout) first
+        setIsCutoutMode(true);
+        setPendingMarkupName('Pool cutout');
+      } else if (!hasPrimary) {
+        // Step 2: Draw the concrete perimeter (primary)
+        setIsCutoutMode(false);
+        const existingPrimary = existingMarkups.filter(m => m.markup_type !== 'cutout');
+        setPendingMarkupName(existingPrimary.length === 0 ? 'Concrete area 1' : `Concrete area ${existingPrimary.length + 1}`);
+      } else {
+        // Both exist — add more primary areas
+        setIsCutoutMode(false);
+        const existingPrimary = existingMarkups.filter(m => m.markup_type !== 'cutout');
+        setPendingMarkupName(`Concrete area ${existingPrimary.length + 1}`);
+      }
+      return;
+    }
+    
     setActiveScope(scopeId);
     
     // Check scope type and set appropriate tool
@@ -469,6 +497,15 @@ export function PlanTakeoffStep({
   const handleMarkupComplete = useCallback(async (points: TakeoffPoint[], shapeType: 'polygon' | 'rectangle') => {
     if (!activeScope || !currentFileId) return;
     
+    // Cutout mode bypasses the slab workflow — save directly then auto-transition to primary
+    if (isCutoutMode) {
+      setPendingMarkupData({ points, shapeType, scopeId: activeScope, fileId: currentFileId, pageNumber: currentPage });
+      setPendingMarkupName('Pool cutout');
+      setShowMarkupNameDialog(true);
+      setDrawingPoints([]);
+      return;
+    }
+    
     // Check if this is a slab scope that supports beam marking
     const isSlabWithBeamsScope = SLAB_WITH_BEAMS_SCOPES.includes(activeScope as any);
     
@@ -518,7 +555,20 @@ export function PlanTakeoffStep({
     const { points, shapeType, scopeId, fileId, pageNumber } = pendingMarkupData;
     const color = getScopeColor(selectedScopes.indexOf(scopeId as ScopeType));
     
-    await addMarkup(fileId, scopeId, shapeType, points, color, pageNumber, name, isCutoutMode ? 'cutout' : 'primary');
+    const wasInCutoutMode = isCutoutMode;
+    await addMarkup(fileId, scopeId, shapeType, points, color, pageNumber, name, wasInCutoutMode ? 'cutout' : 'primary');
+    
+    // After saving a pool_surround cutout, auto-transition to drawing the primary concrete area
+    if (wasInCutoutMode && scopeId === 'pool_surround') {
+      setPendingMarkupData(null);
+      setDrawingPoints([]);
+      setIsCutoutMode(false);
+      setActiveScope('pool_surround');
+      setActiveTool('polygon');
+      setPendingMarkupName('Concrete area 1');
+      setShowMarkupNameDialog(false);
+      return;
+    }
     
     // Clear all state
     setPendingMarkupData(null);
@@ -2101,6 +2151,28 @@ export function PlanTakeoffStep({
                 >
                   Cancel
                 </Button>
+              </div>
+            )}
+
+            {/* Pool surround step instructions banner */}
+            {activeScope === 'pool_surround' && isCutoutMode && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border border-orange-500/30 z-20">
+                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30 shrink-0">
+                  Step 1 of 2 — Pool Perimeter
+                </Badge>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  Draw the <strong>pool perimeter</strong> — this area will be <strong>subtracted</strong> from the concrete
+                </span>
+              </div>
+            )}
+            {activeScope === 'pool_surround' && !isCutoutMode && activeTool === 'polygon' && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-card/95 backdrop-blur px-4 py-2 rounded-lg shadow-lg border border-primary/30 z-20">
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 shrink-0">
+                  Step 2 of 2 — Concrete Perimeter
+                </Badge>
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                  Draw the <strong>outer concrete area</strong> — the pool cutout will be subtracted from this
+                </span>
               </div>
             )}
             

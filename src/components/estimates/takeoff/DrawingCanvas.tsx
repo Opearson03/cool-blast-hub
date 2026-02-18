@@ -811,38 +811,49 @@ export function DrawingCanvas({
   const renderMarkups = () => {
     return markups.map((markup) => {
       const isSelected = markup.id === selectedMarkupId;
+      const isCutout = markup.markup_type === 'cutout';
       // Use much lower opacity for waffle pod slabs so user can see pods underneath
       const isWafflePodMarkup = markup.scope_id === 'waffle_pod';
-      const fillOpacity = isWafflePodMarkup 
-        ? (isSelected ? 0.15 : 0.08)
-        : (isSelected ? 0.4 : 0.25);
+      const fillOpacity = isCutout
+        ? 0.12
+        : isWafflePodMarkup 
+          ? (isSelected ? 0.15 : 0.08)
+          : (isSelected ? 0.4 : 0.25);
       const strokeWidth = isSelected ? 3 : 2;
+      const strokeColor = isCutout ? '#ef4444' : markup.color;
+      const fillColor = isCutout
+        ? `#ef4444${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}`
+        : `${markup.color}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}`;
 
       if (markup.shape_type === 'polygon') {
         const centroid = getCentroid(markup.points);
+        const labelText = isCutout
+          ? (markup.area_sqm ? `−${formatArea(markup.area_sqm)}` : '')
+          : formatArea(markup.area_sqm);
         
         return (
           <Group key={markup.id}>
             <Line
               points={flattenPoints(markup.points)}
-              stroke={markup.color}
+              stroke={strokeColor}
               strokeWidth={strokeWidth}
-              fill={`${markup.color}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}`}
+              fill={fillColor}
               closed={true}
+              dash={isCutout ? [8, 4] : undefined}
               onClick={() => tool === 'select' && onMarkupSelect(markup.id)}
               onTap={() => tool === 'select' && onMarkupSelect(markup.id)}
             />
-            {markup.area_sqm && (
+            {labelText && (
               <Text
                 x={centroid.x}
                 y={centroid.y}
-                text={formatArea(markup.area_sqm)}
+                text={labelText}
                 fontSize={14}
                 fontStyle="bold"
-                fill="#fff"
-                stroke="#000"
-                strokeWidth={0.5}
-                offsetX={25}
+                fill={isCutout ? '#ef4444' : '#fff'}
+                stroke={isCutout ? undefined : '#000'}
+                strokeWidth={isCutout ? 0 : 0.5}
+                offsetX={labelText.length * 4}
                 offsetY={7}
               />
             )}
@@ -853,7 +864,7 @@ export function DrawingCanvas({
                 y={point.y}
                 radius={3}
                 fill="white"
-                stroke={markup.color}
+                stroke={strokeColor}
                 strokeWidth={2}
               />
             ))}
@@ -868,6 +879,9 @@ export function DrawingCanvas({
         const w = Math.abs(p2.x - p1.x);
         const h = Math.abs(p2.y - p1.y);
         const center = getRectCenter(markup.points);
+        const labelText = isCutout
+          ? (markup.area_sqm ? `−${formatArea(markup.area_sqm)}` : '')
+          : formatArea(markup.area_sqm);
 
         return (
           <Group key={markup.id}>
@@ -876,32 +890,33 @@ export function DrawingCanvas({
               y={y}
               width={w}
               height={h}
-              stroke={markup.color}
+              stroke={strokeColor}
               strokeWidth={strokeWidth}
-              fill={`${markup.color}${Math.round(fillOpacity * 255).toString(16).padStart(2, '0')}`}
+              fill={fillColor}
+              dash={isCutout ? [8, 4] : undefined}
               onClick={() => tool === 'select' && onMarkupSelect(markup.id)}
               onTap={() => tool === 'select' && onMarkupSelect(markup.id)}
             />
-            {markup.area_sqm && (
+            {labelText && (
               <Text
                 x={center.x}
                 y={center.y}
-                text={formatArea(markup.area_sqm)}
+                text={labelText}
                 fontSize={14}
                 fontStyle="bold"
-                fill="#fff"
-                stroke="#000"
-                strokeWidth={0.5}
-                offsetX={25}
+                fill={isCutout ? '#ef4444' : '#fff'}
+                stroke={isCutout ? undefined : '#000'}
+                strokeWidth={isCutout ? 0 : 0.5}
+                offsetX={labelText.length * 4}
                 offsetY={7}
               />
             )}
             {isSelected && (
               <>
-                <Circle x={x} y={y} radius={3} fill="white" stroke={markup.color} strokeWidth={2} />
-                <Circle x={x + w} y={y} radius={3} fill="white" stroke={markup.color} strokeWidth={2} />
-                <Circle x={x} y={y + h} radius={3} fill="white" stroke={markup.color} strokeWidth={2} />
-                <Circle x={x + w} y={y + h} radius={3} fill="white" stroke={markup.color} strokeWidth={2} />
+                <Circle x={x} y={y} radius={3} fill="white" stroke={strokeColor} strokeWidth={2} />
+                <Circle x={x + w} y={y} radius={3} fill="white" stroke={strokeColor} strokeWidth={2} />
+                <Circle x={x} y={y + h} radius={3} fill="white" stroke={strokeColor} strokeWidth={2} />
+                <Circle x={x + w} y={y + h} radius={3} fill="white" stroke={strokeColor} strokeWidth={2} />
               </>
             )}
           </Group>
