@@ -3092,52 +3092,70 @@ export type Database = {
         Row: {
           bonus_estimates: number | null
           business_name: string | null
+          checkout_tier: string | null
+          checkout_url: string | null
           created_at: string | null
           email: string
           founder_reward: string | null
           founder_status: boolean | null
           full_name: string | null
           id: string
+          invited_at: string | null
           last_position_email_at: string | null
           last_position_notified: number | null
+          outreach_status: string
           phone: string | null
           referral_code: string | null
           referral_count: number | null
           referred_by: string | null
+          staff_notes: string | null
+          stripe_session_id: string | null
           vip_status: boolean | null
         }
         Insert: {
           bonus_estimates?: number | null
           business_name?: string | null
+          checkout_tier?: string | null
+          checkout_url?: string | null
           created_at?: string | null
           email: string
           founder_reward?: string | null
           founder_status?: boolean | null
           full_name?: string | null
           id?: string
+          invited_at?: string | null
           last_position_email_at?: string | null
           last_position_notified?: number | null
+          outreach_status?: string
           phone?: string | null
           referral_code?: string | null
           referral_count?: number | null
           referred_by?: string | null
+          staff_notes?: string | null
+          stripe_session_id?: string | null
           vip_status?: boolean | null
         }
         Update: {
           bonus_estimates?: number | null
           business_name?: string | null
+          checkout_tier?: string | null
+          checkout_url?: string | null
           created_at?: string | null
           email?: string
           founder_reward?: string | null
           founder_status?: boolean | null
           full_name?: string | null
           id?: string
+          invited_at?: string | null
           last_position_email_at?: string | null
           last_position_notified?: number | null
+          outreach_status?: string
           phone?: string | null
           referral_code?: string | null
           referral_count?: number | null
           referred_by?: string | null
+          staff_notes?: string | null
+          stripe_session_id?: string | null
           vip_status?: boolean | null
         }
         Relationships: [
