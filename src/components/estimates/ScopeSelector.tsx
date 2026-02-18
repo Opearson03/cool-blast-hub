@@ -33,6 +33,7 @@ export interface ScopeOption {
   description: string;
   availableFor: EstimateType[];
   category: ScopeCategory;
+  featureGated?: string;
 }
 
 const CATEGORY_CONFIG: Record<ScopeCategory, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
@@ -129,32 +130,39 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     label: "Pool Surround",
     description: "Concrete surround around a pool (with cutout for pool area)",
     availableFor: ["house_slab", "commercial_slab", "driveway"],
-    category: "external"
+    category: "external",
+    featureGated: "estimate_wizard_v2"
   },
   {
     id: "kerb",
     label: "Kerb",
     description: "Concrete kerbing — narrow profile, linear measurement",
     availableFor: ["house_slab", "commercial_slab", "driveway"],
-    category: "foundations"
+    category: "foundations",
+    featureGated: "estimate_wizard_v2"
   },
   {
     id: "insitu_walls",
     label: "Insitu Walls",
     description: "Cast-in-place concrete walls with formwork both faces",
     availableFor: ["house_slab", "commercial_slab", "driveway"],
-    category: "foundations"
+    category: "foundations",
+    featureGated: "estimate_wizard_v2"
   },
 ];
 
 interface ScopeSelectorProps {
   selectedScopes: Set<ScopeType>;
   onScopesChange: (scopes: Set<ScopeType>) => void;
+  allowedFeatureFlags?: Set<string>;
 }
 
-export function ScopeSelector({ selectedScopes, onScopesChange }: ScopeSelectorProps) {
-  // Show all scopes (no filtering by estimate type)
-  const availableScopes = SCOPE_OPTIONS;
+export function ScopeSelector({ selectedScopes, onScopesChange, allowedFeatureFlags }: ScopeSelectorProps) {
+  // Filter scopes by feature flags
+  const availableScopes = SCOPE_OPTIONS.filter(scope => {
+    if (!scope.featureGated) return true;
+    return allowedFeatureFlags?.has(scope.featureGated) ?? false;
+  });
 
   // Group scopes by category
   const groupedScopes = availableScopes.reduce((acc, scope) => {
