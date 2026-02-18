@@ -77,7 +77,7 @@ export function ScopeMarkupChecklist({
     return markups.filter(m => m.scope_id === scopeId && !m.parent_markup_id);
   };
 
-  const getScopeStatus = (scopeId: string): ScopeMarkupStatus & { pierCount?: number; totalLength?: number } => {
+  const getScopeStatus = (scopeId: string): ScopeMarkupStatus & { pierCount?: number; totalLength?: number; cutoutArea?: number; primaryArea?: number } => {
     const scopeMarkups = getScopeMarkups(scopeId);
     if (scopeMarkups.length > 0) {
       // Check if this is a pier/point scope (has point-type markups)
@@ -104,6 +104,24 @@ export function ScopeMarkupChecklist({
           status: 'marked',
           area_sqm: null,
           totalLength,
+          markup_id: scopeMarkups[0].id
+        };
+      }
+      
+      // Pool surround: separate primary vs cutout areas, return net area
+      if (scopeId === 'pool_surround') {
+        const primaryMarkups = scopeMarkups.filter(m => m.markup_type !== 'cutout');
+        const cutoutMarkups = scopeMarkups.filter(m => m.markup_type === 'cutout');
+        const primaryArea = primaryMarkups.reduce((sum, m) => sum + (m.area_sqm || 0), 0);
+        const cutoutArea = cutoutMarkups.reduce((sum, m) => sum + (m.area_sqm || 0), 0);
+        const netArea = Math.max(0, primaryArea - cutoutArea);
+        return {
+          scope_id: scopeId,
+          label: scopes.find(s => s.id === scopeId)?.label || scopeId,
+          status: 'marked',
+          area_sqm: netArea,
+          primaryArea,
+          cutoutArea,
           markup_id: scopeMarkups[0].id
         };
       }
@@ -247,7 +265,9 @@ export function ScopeMarkupChecklist({
                           ? formatPierCount(status.pierCount)
                           : status.totalLength 
                             ? `${scopeMarkups.length} section${scopeMarkups.length !== 1 ? 's' : ''} • ${formatLength(status.totalLength)}`
-                            : `${scopeMarkups.length} area${scopeMarkups.length !== 1 ? 's' : ''} • ${formatArea(status.area_sqm)}`
+                            : scope.id === 'pool_surround' && (status as any).cutoutArea > 0
+                              ? `${formatArea((status as any).primaryArea)} − ${formatArea((status as any).cutoutArea)} = ${formatArea(status.area_sqm)} net`
+                              : `${scopeMarkups.filter(m => m.markup_type !== 'cutout').length} area${scopeMarkups.filter(m => m.markup_type !== 'cutout').length !== 1 ? 's' : ''} • ${formatArea(status.area_sqm)}`
                         }
                       </p>
                     )}
@@ -273,16 +293,16 @@ export function ScopeMarkupChecklist({
                       <Plus className="h-3 w-3" /> Add More
                     </Button>
                   )}
-                  {/* Draw Cutout button for pool_surround when primary area is marked */}
+                  {/* Add Another Cutout button for pool_surround (after initial flow) */}
                   {scope.id === 'pool_surround' && status.status === 'marked' && onDrawCutout && (
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 flex-1 text-xs gap-1 touch-manipulation border-dashed border-orange-400 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950"
+                      className="h-8 w-full text-xs gap-1 touch-manipulation border-dashed border-destructive/50 text-destructive hover:bg-destructive/10"
                       onClick={() => onDrawCutout(scope.id)}
                       disabled={!isCalibrated}
                     >
-                      <Plus className="h-3 w-3" /> Draw Cutout
+                      <Plus className="h-3 w-3" /> Add Another Cutout
                     </Button>
                   )}
                   {status.status === 'unmarked' && (
@@ -397,13 +417,15 @@ export function ScopeMarkupChecklist({
                       scopeMarkups.slice(0, 5).map((markup, idx) => {
                         const isPolyline = markup.shape_type === 'polyline';
                         const isPoint = markup.shape_type === 'point';
-                        const isBeam = markup.markup_type === 'edge_beam' || markup.markup_type === 'internal_beam';
+                        const isCutout = markup.markup_type === 'cutout';
                         const displayLabel = isPoint 
                           ? `${markup.pier_quantity || 1} item${(markup.pier_quantity || 1) !== 1 ? 's' : ''}`
                           : isPolyline
                             ? formatLength(markup.length_m || null)
-                            : formatArea(markup.area_sqm);
-                        const defaultName = isPolyline ? `Section ${idx + 1}` : `Area ${idx + 1}`;
+                            : isCutout
+                              ? `−${formatArea(markup.area_sqm)}`
+                              : formatArea(markup.area_sqm);
+                        const defaultName = isPolyline ? `Section ${idx + 1}` : isCutout ? `Cutout ${idx + 1}` : `Area ${idx + 1}`;
                         
                         // Get child beams for this markup
                         const childBeams = markups.filter(m => m.parent_markup_id === markup.id);
@@ -411,10 +433,13 @@ export function ScopeMarkupChecklist({
                         return (
                           <div key={markup.id}>
                             <div 
-                              className="flex items-center gap-1.5 text-xs py-1 px-1.5 rounded bg-muted/50"
+                              className={cn(
+                                "flex items-center gap-1.5 text-xs py-1 px-1.5 rounded",
+                                isCutout ? "bg-destructive/10 border border-destructive/20 border-dashed" : "bg-muted/50"
+                              )}
                             >
-                              <span className="flex-1 truncate">{markup.name || defaultName}</span>
-                              <span className="text-muted-foreground font-mono text-[10px]">{displayLabel}</span>
+                              <span className={cn("flex-1 truncate", isCutout && "text-destructive font-medium")}>{markup.name || defaultName}</span>
+                              <span className={cn("font-mono text-[10px]", isCutout ? "text-destructive font-semibold" : "text-muted-foreground")}>{displayLabel}</span>
                               <Button
                                 variant="ghost"
                                 size="sm"
