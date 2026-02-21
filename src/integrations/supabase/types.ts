@@ -323,6 +323,169 @@ export type Database = {
           },
         ]
       }
+      crm_email_campaigns: {
+        Row: {
+          created_at: string
+          filter_type: string | null
+          html_body: string
+          id: string
+          recipient_count: number | null
+          sent_at: string | null
+          sent_by: string | null
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          filter_type?: string | null
+          html_body: string
+          id?: string
+          recipient_count?: number | null
+          sent_at?: string | null
+          sent_by?: string | null
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          filter_type?: string | null
+          html_body?: string
+          id?: string
+          recipient_count?: number | null
+          sent_at?: string | null
+          sent_by?: string | null
+          subject?: string
+        }
+        Relationships: []
+      }
+      crm_email_recipients: {
+        Row: {
+          campaign_id: string
+          contact_id: string
+          contact_type: string
+          email: string
+          id: string
+          resend_email_id: string | null
+          sent_at: string | null
+          status: string | null
+        }
+        Insert: {
+          campaign_id: string
+          contact_id: string
+          contact_type: string
+          email: string
+          id?: string
+          resend_email_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          campaign_id?: string
+          contact_id?: string
+          contact_type?: string
+          email?: string
+          id?: string
+          resend_email_id?: string | null
+          sent_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_email_recipients_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_inbox: {
+        Row: {
+          body_html: string | null
+          body_text: string | null
+          from_email: string
+          from_name: string | null
+          id: string
+          in_reply_to_campaign_id: string | null
+          is_read: boolean | null
+          received_at: string
+          staff_replied_at: string | null
+          staff_reply: string | null
+          subject: string | null
+        }
+        Insert: {
+          body_html?: string | null
+          body_text?: string | null
+          from_email: string
+          from_name?: string | null
+          id?: string
+          in_reply_to_campaign_id?: string | null
+          is_read?: boolean | null
+          received_at?: string
+          staff_replied_at?: string | null
+          staff_reply?: string | null
+          subject?: string | null
+        }
+        Update: {
+          body_html?: string | null
+          body_text?: string | null
+          from_email?: string
+          from_name?: string | null
+          id?: string
+          in_reply_to_campaign_id?: string | null
+          is_read?: boolean | null
+          received_at?: string
+          staff_replied_at?: string | null
+          staff_reply?: string | null
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_inbox_in_reply_to_campaign_id_fkey"
+            columns: ["in_reply_to_campaign_id"]
+            isOneToOne: false
+            referencedRelation: "crm_email_campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_leads: {
+        Row: {
+          company_name: string | null
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          notes: string | null
+          phone: string | null
+          source: string | null
+          tags: string[] | null
+          updated_at: string
+        }
+        Insert: {
+          company_name?: string | null
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Update: {
+          company_name?: string | null
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          tags?: string[] | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       documents: {
         Row: {
           business_id: string
@@ -3198,6 +3361,19 @@ export type Database = {
         }[]
       }
       get_churn_stats: { Args: never; Returns: Json }
+      get_crm_contacts: {
+        Args: { _filter?: string }
+        Returns: {
+          company_name: string
+          contact_id: string
+          contact_type: string
+          created_at: string
+          email: string
+          full_name: string
+          phone: string
+          source_detail: string
+        }[]
+      }
       get_dashboard_stats: { Args: { p_business_id: string }; Returns: Json }
       get_referrer_by_code: { Args: { code: string }; Returns: string }
       get_signup_trends: {
@@ -3277,6 +3453,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_crm_leads: { Args: { _leads: Json }; Returns: Json }
       is_pourhub_staff: { Args: { _user_id: string }; Returns: boolean }
       is_supplier: { Args: { _user_id: string }; Returns: boolean }
       join_waitlist: {

@@ -145,3 +145,9 @@ verify_jwt = false
 
 [functions.staff-create-checkout]
 verify_jwt = false
+
+[functions.send-crm-email]
+verify_jwt = false
+
+[functions.receive-crm-reply]
+verify_jwt = false

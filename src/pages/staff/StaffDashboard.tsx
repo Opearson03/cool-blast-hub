@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck, Truck } from "lucide-react";
+import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck, Truck, Mail } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "@/components/ui/Logo";
 import { WaitlistTable } from "@/components/staff/WaitlistTable";
@@ -15,6 +15,7 @@ import { SubscribersTable } from "@/components/staff/SubscribersTable";
 import { UsersTable } from "@/components/staff/UsersTable";
 import { SupplierRegistrationsTable } from "@/components/staff/SupplierRegistrationsTable";
 import { ChurnMetrics } from "@/components/staff/ChurnMetrics";
+import { CrmTab } from "@/components/staff/crm/CrmTab";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -103,6 +104,16 @@ export default function StaffDashboard() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'waiting_list' },
+        () => handleRealtimeUpdate()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'crm_leads' },
+        () => handleRealtimeUpdate()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'crm_inbox' },
         () => handleRealtimeUpdate()
       )
       .subscribe();
@@ -247,6 +258,10 @@ export default function StaffDashboard() {
               <Truck className="h-4 w-4 mr-2" />
               Suppliers
             </TabsTrigger>
+            <TabsTrigger value="crm">
+              <Mail className="h-4 w-4 mr-2" />
+              CRM
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -272,6 +287,10 @@ export default function StaffDashboard() {
 
           <TabsContent value="suppliers">
             <SupplierRegistrationsTable />
+          </TabsContent>
+
+          <TabsContent value="crm">
+            <CrmTab />
           </TabsContent>
         </Tabs>
       </main>
