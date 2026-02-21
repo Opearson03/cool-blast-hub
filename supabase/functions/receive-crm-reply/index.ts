@@ -20,12 +20,24 @@ serve(async (req: Request) => {
     const payload = await req.json();
     console.log("Received inbound email webhook:", JSON.stringify(payload));
 
-    // Resend inbound webhook payload structure
-    const fromEmail = payload.from || payload.envelope?.from || "";
-    const fromName = payload.from_name || "";
-    const subject = payload.subject || "(no subject)";
-    const bodyText = payload.text || payload.stripped_text || "";
-    const bodyHtml = payload.html || payload.stripped_html || "";
+    // Resend wraps inbound emails in { type: "email.received", data: { ... } }
+    const emailData = payload.data || payload;
+    
+    // Parse "from" field - Resend sends "Name <email>" format
+    let fromEmail = "";
+    let fromName = "";
+    const rawFrom = emailData.from || "";
+    const emailMatch = rawFrom.match(/<([^>]+)>/);
+    if (emailMatch) {
+      fromEmail = emailMatch[1];
+      fromName = rawFrom.replace(/<[^>]+>/, "").trim();
+    } else {
+      fromEmail = rawFrom;
+    }
+
+    const subject = emailData.subject || "(no subject)";
+    const bodyText = emailData.text || emailData.stripped_text || "";
+    const bodyHtml = emailData.html || emailData.stripped_html || "";
 
     // Try to match to a campaign by sender email
     let campaignId: string | null = null;
