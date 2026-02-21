@@ -19,6 +19,8 @@ interface CrmContact {
 export function CrmTab() {
   const [subTab, setSubTab] = useState("contacts");
   const [emailContacts, setEmailContacts] = useState<CrmContact[]>([]);
+  const [prefillSubject, setPrefillSubject] = useState("");
+  const [prefillBody, setPrefillBody] = useState("");
 
   const { data: unreadCount } = useQuery({
     queryKey: ["staff-crm-inbox-unread-count"],
@@ -71,12 +73,19 @@ export function CrmTab() {
       <TabsContent value="compose">
         <ComposeEmail
           preSelectedContacts={emailContacts.length > 0 ? emailContacts : undefined}
-          onBack={() => { setSubTab("contacts"); setEmailContacts([]); }}
+          initialSubject={prefillSubject}
+          initialBody={prefillBody}
+          onBack={() => { setSubTab("contacts"); setEmailContacts([]); setPrefillSubject(""); setPrefillBody(""); }}
         />
       </TabsContent>
 
       <TabsContent value="sent">
-        <SentEmailsLog />
+        <SentEmailsLog onResend={(subject, body) => {
+          setPrefillSubject(subject);
+          setPrefillBody(body);
+          setEmailContacts([]);
+          setSubTab("compose");
+        }} />
       </TabsContent>
 
       <TabsContent value="inbox">

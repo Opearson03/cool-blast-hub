@@ -19,14 +19,16 @@ interface CrmContact {
 
 interface ComposeEmailProps {
   preSelectedContacts?: CrmContact[];
+  initialSubject?: string;
+  initialBody?: string;
   onBack: () => void;
 }
 
 type RecipientMode = "selected" | "all" | "leads" | "waitlist" | "users";
 
-export function ComposeEmail({ preSelectedContacts, onBack }: ComposeEmailProps) {
-  const [subject, setSubject] = useState("");
-  const [htmlBody, setHtmlBody] = useState("");
+export function ComposeEmail({ preSelectedContacts, initialSubject, initialBody, onBack }: ComposeEmailProps) {
+  const [subject, setSubject] = useState(initialSubject || "");
+  const [htmlBody, setHtmlBody] = useState(initialBody || "");
   const [recipientMode, setRecipientMode] = useState<RecipientMode>(
     preSelectedContacts?.length ? "selected" : "all"
   );

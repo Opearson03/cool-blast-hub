@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { format } from "date-fns";
-import { ChevronDown, ChevronRight, Mail, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Mail, Users, RotateCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -32,7 +33,11 @@ interface Recipient {
   sent_at: string | null;
 }
 
-export function SentEmailsLog() {
+interface SentEmailsLogProps {
+  onResend?: (subject: string, htmlBody: string) => void;
+}
+
+export function SentEmailsLog({ onResend }: SentEmailsLogProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data: campaigns, isLoading } = useQuery({
@@ -126,6 +131,19 @@ export function SentEmailsLog() {
                     title="Email preview"
                   />
                 </div>
+
+                {onResend && (
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onResend(campaign.subject, campaign.html_body)}
+                    >
+                      <RotateCw className="h-4 w-4 mr-2" />
+                      Resend to New Recipients
+                    </Button>
+                  </div>
+                )}
 
                 {/* Recipients Table */}
                 <div>
