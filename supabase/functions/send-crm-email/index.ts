@@ -102,7 +102,7 @@ serve(async (req: Request) => {
 
         const emailResult = await resend.emails.send({
           from: "PourHub <hello@pourhub.au>",
-          replyTo: "crm@pourhub.au",
+          replyTo: "info@pourhub.com.au",
           to: [recipient.email],
           subject,
           html: personalizedHtml,
