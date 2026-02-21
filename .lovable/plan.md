@@ -1,22 +1,48 @@
 
-## Update CRM Reply-To Address
 
-The goal is to update the `replyTo` address in the CRM email sending function to `hello@pourhub.au`.
+## Fix: Route `hello@pourhub.au` Emails to CRM Inbox
 
-### 1. Update `send-crm-email` Edge Function
-I will modify the `send-crm-email` function to use the new reply-to address.
+### The Problem
 
-*   **File**: `supabase/functions/send-crm-email/index.ts`
-*   **Change**: Update `replyTo: "info@pourhub.com.au"` to `replyTo: "hello@pourhub.au"` on line 105.
+The logs reveal that emails sent to `hello@pourhub.au` are being received by the **`receive-test-email`** function (the business inbox handler), not by `receive-crm-reply`. This is because Resend has a single inbound webhook configured for all `*@pourhub.au` addresses, and it points to `receive-test-email`.
 
-### 2. Inbox Integration Considerations
-As noted in previous updates, for replies to appear in the **Staff Dashboard Inbox**, the domain must be configured in Resend with appropriate MX records. 
+When `receive-test-email` receives an email to `hello@pourhub.au`, it extracts the alias `hello`, tries to look up a business with that alias, finds none, and returns a 404 error. The email is silently dropped.
 
-*   Since the `from` address is also `hello@pourhub.au`, this change makes the sender and reply-to addresses identical.
-*   If `hello@pourhub.au` is your primary business mailbox (e.g., managed by Google Workspace), replies will land in your standard inbox. They will only appear in the CRM Dashboard Inbox if Resend is configured to receive those inbound emails (which usually requires a subdomain for the dashboard inbox to avoid breaking your main email service).
+Meanwhile, `receive-crm-reply` never receives any requests at all.
 
-I will proceed with the requested change to `hello@pourhub.au`.
+### The Fix
+
+Update `receive-test-email` to detect when the recipient is `hello@pourhub.au` (or any non-business alias) and forward those emails into the `crm_inbox` table -- the same logic currently in `receive-crm-reply`.
+
+### Changes
+
+| File | What Changes |
+|---|---|
+| `supabase/functions/receive-test-email/index.ts` | After extracting the alias and before the business lookup fails, check if the alias is `hello`. If so, insert the email into `crm_inbox` (with campaign matching) and return success instead of a 404 error. |
 
 ### Technical Details
-*   Modify line 105 in `supabase/functions/send-crm-email/index.ts`.
-*   The function will be redeployed automatically.
+
+In `receive-test-email/index.ts`, around line 810-825 (after extracting the alias and before the business lookup), add a handler:
+
+```
+if (alias === 'hello') {
+  // Route to CRM inbox instead of business inbox
+  // Parse sender, insert into crm_inbox, match to campaign
+  return Response with success
+}
+```
+
+This will:
+- Parse the `from` field to extract `from_email` and `from_name`
+- Try to match the sender to a recent CRM campaign via `crm_email_recipients`
+- Insert the email into the `crm_inbox` table
+- Return a success response
+
+No changes to `receive-crm-reply` are needed -- it can remain as a fallback if you later add a separate Resend webhook for it.
+
+### Why This Approach
+
+- Only **one file** needs to change
+- No external Resend configuration changes required
+- The existing business inbox routing continues to work exactly as before for all other aliases
+- Both inboxes (business and CRM) work side-by-side through the same webhook endpoint
