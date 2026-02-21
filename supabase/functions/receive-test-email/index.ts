@@ -826,8 +826,28 @@ serve(async (req) => {
         fromEmail = rawFrom;
       }
 
-      const bodyText = payload.data.text || '';
-      const bodyHtml = payload.data.html || '';
+      // Resend webhooks don't include body content - fetch via API
+      let bodyText = '';
+      let bodyHtml = '';
+      const emailId = payload.data.email_id;
+      const resendApiKey = Deno.env.get('RESEND_API_KEY');
+      if (emailId && resendApiKey) {
+        try {
+          const emailResp = await fetch(`https://api.resend.com/emails/${emailId}`, {
+            headers: { 'Authorization': `Bearer ${resendApiKey}` },
+          });
+          if (emailResp.ok) {
+            const emailDetail = await emailResp.json();
+            bodyText = emailDetail.text || '';
+            bodyHtml = emailDetail.html || '';
+            console.log('Fetched email body - text:', bodyText.length, 'html:', bodyHtml.length);
+          } else {
+            console.warn('Failed to fetch email body from Resend:', emailResp.status, await emailResp.text());
+          }
+        } catch (fetchErr) {
+          console.error('Error fetching email body:', fetchErr);
+        }
+      }
 
       // Try to match to a CRM campaign by sender email
       let campaignId: string | null = null;
