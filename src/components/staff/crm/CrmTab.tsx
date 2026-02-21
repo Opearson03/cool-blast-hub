@@ -3,10 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Users, Send, Inbox } from "lucide-react";
+import { Users, Send, Inbox, History } from "lucide-react";
 import { CrmContactsTable } from "./CrmContactsTable";
 import { ComposeEmail } from "./ComposeEmail";
 import { CrmInbox } from "./CrmInbox";
+import { SentEmailsLog } from "./SentEmailsLog";
 
 interface CrmContact {
   contact_type: string;
@@ -48,6 +49,10 @@ export function CrmTab() {
           <Send className="h-4 w-4 mr-2" />
           Compose
         </TabsTrigger>
+        <TabsTrigger value="sent">
+          <History className="h-4 w-4 mr-2" />
+          Sent
+        </TabsTrigger>
         <TabsTrigger value="inbox" className="relative">
           <Inbox className="h-4 w-4 mr-2" />
           Inbox
@@ -68,6 +73,10 @@ export function CrmTab() {
           preSelectedContacts={emailContacts.length > 0 ? emailContacts : undefined}
           onBack={() => { setSubTab("contacts"); setEmailContacts([]); }}
         />
+      </TabsContent>
+
+      <TabsContent value="sent">
+        <SentEmailsLog />
       </TabsContent>
 
       <TabsContent value="inbox">
