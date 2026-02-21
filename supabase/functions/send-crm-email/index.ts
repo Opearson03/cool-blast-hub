@@ -96,7 +96,7 @@ serve(async (req: Request) => {
     for (const recipient of recipients) {
       try {
         const personalizedHtml = htmlBody
-          .replace(/{name}/g, recipient.name || "")
+          .replace(/{name}/g, recipient.name || "Mate")
           .replace(/{email}/g, recipient.email)
           .replace(/{company}/g, recipient.company || "");
 
