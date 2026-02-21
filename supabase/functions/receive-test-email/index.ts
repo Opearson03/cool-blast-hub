@@ -810,6 +810,64 @@ serve(async (req) => {
     const alias = aliasMatch[1];
     console.log('Looking up business with alias:', alias);
 
+    // ── Route hello@pourhub.au emails to CRM inbox ──
+    if (alias === 'hello') {
+      console.log('Routing hello@ email to CRM inbox');
+
+      // Parse sender "Name <email>" format
+      let fromEmail = '';
+      let fromName = '';
+      const rawFrom = from || '';
+      const senderMatch = rawFrom.match(/<([^>]+)>/);
+      if (senderMatch) {
+        fromEmail = senderMatch[1];
+        fromName = rawFrom.replace(/<[^>]+>/, '').trim();
+      } else {
+        fromEmail = rawFrom;
+      }
+
+      const bodyText = payload.data.text || '';
+      const bodyHtml = payload.data.html || '';
+
+      // Try to match to a CRM campaign by sender email
+      let campaignId: string | null = null;
+      const { data: recipientMatch } = await supabase
+        .from('crm_email_recipients')
+        .select('campaign_id')
+        .eq('email', fromEmail)
+        .order('sent_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (recipientMatch) {
+        campaignId = recipientMatch.campaign_id;
+      }
+
+      const { error: crmInsertError } = await supabase.from('crm_inbox').insert({
+        from_email: fromEmail,
+        from_name: fromName || null,
+        subject: subject || '(no subject)',
+        body_text: bodyText,
+        body_html: bodyHtml,
+        in_reply_to_campaign_id: campaignId,
+        is_read: false,
+      });
+
+      if (crmInsertError) {
+        console.error('Error storing CRM inbox email:', crmInsertError);
+        return new Response(
+          JSON.stringify({ success: false, error: crmInsertError.message }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('CRM inbox email stored successfully from:', fromEmail);
+      return new Response(
+        JSON.stringify({ success: true, message: 'CRM inbox email stored' }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { data: business, error: businessError } = await supabase
       .from('businesses')
       .select('id, name')
