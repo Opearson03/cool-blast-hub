@@ -1,25 +1,23 @@
 
-## Update CRM Reply-To Address
 
-The goal is to update the `replyTo` address for CRM campaigns to `info@pourhub.com.au` while maintaining the `hello@pourhub.au` sender identity.
+## Add Sent Emails Log to CRM
 
-### 1. Update `send-crm-email` Edge Function
-I will modify the `send-crm-email` function to use the new reply-to address.
+### Overview
 
-*   **File**: `supabase/functions/send-crm-email/index.ts`
-*   **Change**: Update `replyTo: "crm@pourhub.au"` to `replyTo: "info@pourhub.com.au"`.
+The campaign and recipient data is already being stored in the database (`crm_email_campaigns` and `crm_email_recipients` tables) every time an email is sent. We just need a new "Sent" sub-tab in the CRM to display this history.
 
-### 2. Critical Configuration for the In-App Inbox
-As explained in the previous step, for these replies to appear in your **Staff Dashboard Inbox**, the domain `pourhub.com.au` must be configured in Resend to handle inbound emails.
+### Changes
 
-**WARNING**: If `info@pourhub.com.au` is your primary business email (managed by Google Workspace, Microsoft 365, etc.), you **should not** point your main domain's MX records to Resend, as this will stop your regular emails from arriving in your normal inbox.
+| File | Change |
+|---|---|
+| `src/components/staff/crm/SentEmailsLog.tsx` | New component -- fetches campaigns from `crm_email_campaigns` ordered by date, shows a list view (subject, recipient count, date, filter type). Clicking a campaign expands to show the HTML body preview and per-recipient delivery status from `crm_email_recipients`. |
+| `src/components/staff/crm/CrmTab.tsx` | Add a "Sent" sub-tab (with a History icon) between Compose and Inbox. Renders `<SentEmailsLog />`. |
 
-**Recommended Approaches**:
-*   **Option A (Separate Inbox)**: If you want replies to go to your real mailbox (`info@pourhub.com.au`) and you **don't** need them to show up in the dashboard, this change is all you need.
-*   **Option B (In-App Inbox)**: If you want the dashboard inbox to work, we should use a subdomain (e.g., `info@crm.pourhub.com.au`). This allows you to point MX records for the `crm` subdomain to Resend without affecting your main business email.
+### Sent Emails Log Details
 
-I will proceed with the update to `info@pourhub.com.au` as requested, but please be aware of the "No replies yet" behavior if the MX records aren't set up.
+- **List view**: Each row shows subject, recipient count, sent date, and filter type badge (e.g. "selected", "all leads")
+- **Expanded view**: Clicking a campaign shows:
+  - The full HTML body (rendered in a preview frame)
+  - A recipient table with email, contact type, and delivery status (sent/failed)
+- Data comes directly from existing `crm_email_campaigns` joined with `crm_email_recipients` -- no database changes needed
 
-### Technical Details
-*   Modify line 105 in `supabase/functions/send-crm-email/index.ts`.
-*   Redeploy the edge function.
