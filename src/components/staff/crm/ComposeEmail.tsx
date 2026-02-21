@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { ArrowLeft, Eye, Code, Loader2, Send } from "lucide-react";
+import { ArrowLeft, Eye, Code, Loader2, Send, Tag } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface CrmContact {
   contact_type: string;
@@ -31,6 +32,23 @@ export function ComposeEmail({ preSelectedContacts, onBack }: ComposeEmailProps)
   );
   const [showPreview, setShowPreview] = useState(false);
   const [sending, setSending] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const insertTag = (tag: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setHtmlBody((prev) => prev + tag);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newBody = htmlBody.substring(0, start) + tag + htmlBody.substring(end);
+    setHtmlBody(newBody);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + tag.length;
+    });
+  };
 
   // Fetch contacts for filter-based sending
   const { data: filterContacts } = useQuery({
@@ -66,6 +84,7 @@ export function ComposeEmail({ preSelectedContacts, onBack }: ComposeEmailProps)
             name: c.full_name || "",
             contactType: c.contact_type,
             contactId: c.contact_id,
+            company: (c as any).company_name || "",
           })),
         },
       });
@@ -132,14 +151,41 @@ export function ComposeEmail({ preSelectedContacts, onBack }: ComposeEmailProps)
             {showPreview ? "Edit" : "Preview"}
           </Button>
         </div>
+        {!showPreview && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <Tag className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">Insert variable:</span>
+            {["{name}", "{email}", "{company}"].map((tag) => (
+              <Badge
+                key={tag}
+                variant="secondary"
+                className="cursor-pointer hover:bg-accent transition-colors"
+                onClick={() => insertTag(tag)}
+              >
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
         {showPreview ? (
-          <div
-            className="border rounded-lg p-4 min-h-[200px] bg-white text-black prose prose-sm max-w-none"
-            dangerouslySetInnerHTML={{ __html: htmlBody }}
-          />
+          <>
+            <div
+              className="border rounded-lg p-4 min-h-[200px] bg-white text-black prose prose-sm max-w-none"
+              dangerouslySetInnerHTML={{
+                __html: htmlBody
+                  .replace(/{name}/g, "Jane Smith")
+                  .replace(/{email}/g, "jane@example.com")
+                  .replace(/{company}/g, "Acme Pty Ltd"),
+              }}
+            />
+            <p className="text-xs text-muted-foreground italic">
+              Preview shows sample data. Variables will be replaced per-recipient at send time.
+            </p>
+          </>
         ) : (
           <Textarea
-            placeholder="<h1>Hello!</h1><p>Your email content here...</p>"
+            ref={textareaRef}
+            placeholder='<h1>Hi {name}!</h1><p>Your email content here...</p>'
             value={htmlBody}
             onChange={(e) => setHtmlBody(e.target.value)}
             rows={12}

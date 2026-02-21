@@ -13,6 +13,7 @@ interface Recipient {
   name: string;
   contactType: string;
   contactId: string;
+  company?: string;
 }
 
 interface SendCrmEmailRequest {
@@ -94,12 +95,17 @@ serve(async (req: Request) => {
 
     for (const recipient of recipients) {
       try {
+        const personalizedHtml = htmlBody
+          .replace(/{name}/g, recipient.name || "")
+          .replace(/{email}/g, recipient.email)
+          .replace(/{company}/g, recipient.company || "");
+
         const emailResult = await resend.emails.send({
           from: "PourHub <hello@pourhub.au>",
           replyTo: "crm@pourhub.au",
           to: [recipient.email],
           subject,
-          html: htmlBody,
+          html: personalizedHtml,
         });
 
         await supabase.from("crm_email_recipients").insert({
