@@ -1,24 +1,22 @@
 
+## Update CRM Reply-To Address
 
-## Resend Campaigns to New Recipients
+The goal is to update the `replyTo` address in the CRM email sending function to `hello@pourhub.au`.
 
-### Overview
+### 1. Update `send-crm-email` Edge Function
+I will modify the `send-crm-email` function to use the new reply-to address.
 
-Add a "Resend" button to each campaign in the Sent Emails log. Clicking it pre-fills the Compose tab with the campaign's subject and HTML body, allowing staff to pick new recipients and send.
+*   **File**: `supabase/functions/send-crm-email/index.ts`
+*   **Change**: Update `replyTo: "info@pourhub.com.au"` to `replyTo: "hello@pourhub.au"` on line 105.
 
-### Changes
+### 2. Inbox Integration Considerations
+As noted in previous updates, for replies to appear in the **Staff Dashboard Inbox**, the domain must be configured in Resend with appropriate MX records. 
 
-| File | Change |
-|---|---|
-| `src/components/staff/crm/SentEmailsLog.tsx` | Add a `onResend` prop callback. Add a "Resend" button inside each expanded campaign that calls `onResend` with the campaign's subject and HTML body. |
-| `src/components/staff/crm/CrmTab.tsx` | Add state for pre-filled subject/body. Wire `SentEmailsLog`'s `onResend` to populate that state and switch to the Compose tab. Pass the pre-filled values to `ComposeEmail`. |
-| `src/components/staff/crm/ComposeEmail.tsx` | Accept optional `initialSubject` and `initialBody` props. Use them as default values for the subject and body fields so the composer opens pre-filled and ready for the staff to choose new recipients. |
+*   Since the `from` address is also `hello@pourhub.au`, this change makes the sender and reply-to addresses identical.
+*   If `hello@pourhub.au` is your primary business mailbox (e.g., managed by Google Workspace), replies will land in your standard inbox. They will only appear in the CRM Dashboard Inbox if Resend is configured to receive those inbound emails (which usually requires a subdomain for the dashboard inbox to avoid breaking your main email service).
 
-### User Flow
+I will proceed with the requested change to `hello@pourhub.au`.
 
-1. Staff opens the **Sent** tab and expands a campaign.
-2. Clicks the **Resend** button.
-3. The **Compose** tab opens with the subject and HTML body pre-filled from the original campaign.
-4. Staff selects new recipients (e.g. "All Leads", "All Contacts", or specific selections) and clicks Send.
-
-No database or backend changes required -- this reuses the existing `send-crm-email` edge function.
+### Technical Details
+*   Modify line 105 in `supabase/functions/send-crm-email/index.ts`.
+*   The function will be redeployed automatically.
