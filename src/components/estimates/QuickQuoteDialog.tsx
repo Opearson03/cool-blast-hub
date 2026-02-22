@@ -8,11 +8,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Plus, Trash2, Loader2, Send, Save, ChevronsUpDown, Check } from "lucide-react";
@@ -25,6 +27,12 @@ import type { Client } from "@/hooks/useClients";
 interface QuickQuoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  preselectedJobId?: string;
+  preselectedJobName?: string;
+  defaultClientName?: string;
+  defaultClientEmail?: string;
+  defaultClientPhone?: string;
+  defaultSiteAddress?: string;
 }
 
 interface LineItem {
@@ -45,8 +53,9 @@ const emptyItem = (): LineItem => ({
   total: 0,
 });
 
-export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) {
+export function QuickQuoteDialog({ open, onOpenChange, preselectedJobId, preselectedJobName, defaultClientName, defaultClientEmail, defaultClientPhone, defaultSiteAddress }: QuickQuoteDialogProps) {
   const queryClient = useQueryClient();
+  const isPreselectedVariation = !!preselectedJobId;
 
   // Client details
   const [clientName, setClientName] = useState("");
@@ -58,6 +67,27 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
   // Quote purpose
   const [quotePurpose, setQuotePurpose] = useState<"new_job" | "variation">("new_job");
   const [targetJobId, setTargetJobId] = useState("");
+
+  // Variation-specific fields
+  const [variationReason, setVariationReason] = useState("");
+  const [daysExtension, setDaysExtension] = useState(0);
+
+  // Initialize from props when dialog opens
+  const [initialized, setInitialized] = useState(false);
+  if (open && !initialized) {
+    if (isPreselectedVariation) {
+      setQuotePurpose("variation");
+      setTargetJobId(preselectedJobId);
+    }
+    if (defaultClientName) setClientName(defaultClientName);
+    if (defaultClientEmail) setClientEmail(defaultClientEmail);
+    if (defaultClientPhone) setClientPhone(defaultClientPhone);
+    if (defaultSiteAddress) setSiteAddress(defaultSiteAddress);
+    setInitialized(true);
+  }
+  if (!open && initialized) {
+    setInitialized(false);
+  }
 
   // Line items
   const [items, setItems] = useState<LineItem[]>([emptyItem()]);
@@ -126,6 +156,12 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
     setSiteAddress("");
     setQuotePurpose("new_job");
     setTargetJobId("");
+    setVariationReason("");
+    setDaysExtension(0);
+    setItems([emptyItem()]);
+    setNotes("");
+    setIncludeGST(true);
+    onOpenChange(false);
     setItems([emptyItem()]);
     setNotes("");
     setIncludeGST(true);
@@ -218,6 +254,8 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
           scope_data: {
             quote_purpose: quotePurpose,
             target_job_id: quotePurpose === "variation" ? targetJobId : null,
+            variation_reason: quotePurpose === "variation" ? variationReason || null : null,
+            days_extension: quotePurpose === "variation" ? daysExtension : null,
           } as any,
         })
         .select()
@@ -348,7 +386,7 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
-          <DialogTitle>Quick Quote</DialogTitle>
+          <DialogTitle>{isPreselectedVariation ? "Quote Variation" : "Quick Quote"}</DialogTitle>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto pr-1">
@@ -414,75 +452,117 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
             {/* Quote Purpose */}
             <div className="space-y-3 border-t pt-4">
               <Label className="text-sm font-medium">Quote Type</Label>
-              <RadioGroup
-                value={quotePurpose}
-                onValueChange={(v) => {
-                  setQuotePurpose(v as "new_job" | "variation");
-                  if (v === "new_job") setTargetJobId("");
-                }}
-                className="flex gap-4"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="new_job" id="qq-new-job" />
-                  <Label htmlFor="qq-new-job" className="text-sm cursor-pointer">New Job</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="variation" id="qq-variation" />
-                  <Label htmlFor="qq-variation" className="text-sm cursor-pointer">Variation</Label>
-                </div>
-              </RadioGroup>
+              {isPreselectedVariation ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary">Variation</Badge>
+                    <span className="text-sm text-muted-foreground">for</span>
+                    <Badge variant="outline">{preselectedJobName || "Selected Job"}</Badge>
+                  </div>
 
-              {quotePurpose === "variation" && (
-                <div className="space-y-1.5">
-                  <Label>Select Job *</Label>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between font-normal"
-                      >
-                        {targetJobId
-                          ? (() => {
-                              const job = activeJobs.find((j) => j.id === targetJobId);
-                              return job
-                                ? `${job.job_number ? `${job.job_number} - ` : ""}${job.name}`
-                                : "Choose an existing job...";
-                            })()
-                          : "Choose an existing job..."}
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
-                      <Command>
-                        <CommandInput placeholder="Search jobs..." />
-                        <CommandList>
-                          <CommandEmpty>No jobs found.</CommandEmpty>
-                          <CommandGroup>
-                            {activeJobs.map((job) => {
-                              const label = `${job.job_number ? `${job.job_number} - ` : ""}${job.name}`;
-                              return (
-                                <CommandItem
-                                  key={job.id}
-                                  value={`${job.job_number || ""} ${job.name} ${job.site_address || ""} ${job.builder_client || ""}`}
-                                  onSelect={() => setTargetJobId(job.id)}
-                                >
-                                  <Check className={cn("mr-2 h-4 w-4", targetJobId === job.id ? "opacity-100" : "opacity-0")} />
-                                  <div className="flex flex-col">
-                                    <span className="text-sm">{label}</span>
-                                    {job.site_address && (
-                                      <span className="text-xs text-muted-foreground">{job.site_address}</span>
-                                    )}
-                                  </div>
-                                </CommandItem>
-                              );
-                            })}
-                          </CommandGroup>
-                        </CommandList>
-                      </Command>
-                    </PopoverContent>
-                  </Popover>
+                  {/* Reason */}
+                  <div className="space-y-1.5">
+                    <Label>Reason</Label>
+                    <Select value={variationReason} onValueChange={setVariationReason}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select reason (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="client_request">Client Request</SelectItem>
+                        <SelectItem value="site_condition">Site Condition</SelectItem>
+                        <SelectItem value="design_change">Design Change</SelectItem>
+                        <SelectItem value="regulatory">Regulatory</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Days Extension */}
+                  <div className="space-y-1.5">
+                    <Label>Days Extension</Label>
+                    <Input
+                      type="number"
+                      value={daysExtension || ""}
+                      onChange={(e) => setDaysExtension(e.target.value === "" ? 0 : Number(e.target.value))}
+                      placeholder="0"
+                      min={0}
+                      className="w-32"
+                    />
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <RadioGroup
+                    value={quotePurpose}
+                    onValueChange={(v) => {
+                      setQuotePurpose(v as "new_job" | "variation");
+                      if (v === "new_job") setTargetJobId("");
+                    }}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="new_job" id="qq-new-job" />
+                      <Label htmlFor="qq-new-job" className="text-sm cursor-pointer">New Job</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="variation" id="qq-variation" />
+                      <Label htmlFor="qq-variation" className="text-sm cursor-pointer">Variation</Label>
+                    </div>
+                  </RadioGroup>
+
+                  {quotePurpose === "variation" && (
+                    <div className="space-y-1.5">
+                      <Label>Select Job *</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between font-normal"
+                          >
+                            {targetJobId
+                              ? (() => {
+                                  const job = activeJobs.find((j) => j.id === targetJobId);
+                                  return job
+                                    ? `${job.job_number ? `${job.job_number} - ` : ""}${job.name}`
+                                    : "Choose an existing job...";
+                                })()
+                              : "Choose an existing job..."}
+                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                          <Command>
+                            <CommandInput placeholder="Search jobs..." />
+                            <CommandList>
+                              <CommandEmpty>No jobs found.</CommandEmpty>
+                              <CommandGroup>
+                                {activeJobs.map((job) => {
+                                  const label = `${job.job_number ? `${job.job_number} - ` : ""}${job.name}`;
+                                  return (
+                                    <CommandItem
+                                      key={job.id}
+                                      value={`${job.job_number || ""} ${job.name} ${job.site_address || ""} ${job.builder_client || ""}`}
+                                      onSelect={() => setTargetJobId(job.id)}
+                                    >
+                                      <Check className={cn("mr-2 h-4 w-4", targetJobId === job.id ? "opacity-100" : "opacity-0")} />
+                                      <div className="flex flex-col">
+                                        <span className="text-sm">{label}</span>
+                                        {job.site_address && (
+                                          <span className="text-xs text-muted-foreground">{job.site_address}</span>
+                                        )}
+                                      </div>
+                                    </CommandItem>
+                                  );
+                                })}
+                              </CommandGroup>
+                            </CommandList>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 
