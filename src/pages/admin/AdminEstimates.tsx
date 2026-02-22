@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Square, Home, Building2, Copy, Briefcase } from "lucide-react";
+import { Plus, Search, FileText, Calendar, DollarSign, MoreVertical, Send, CheckCircle, Clock, XCircle, Loader2, Square, Home, Building2, Copy, Briefcase, ChevronDown, Zap } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -568,20 +568,31 @@ export default function AdminEstimates() {
                 {used}/{limit} quotes this month
               </Badge>
             )}
-            <Button variant="outline" className="gap-2" onClick={() => {
-              if (!canCreate && limit !== null) {
-                setQuotaDialogOpen(true);
-                return;
-              }
-              setQuickQuoteOpen(true);
-            }}>
-              <Plus className="w-4 h-4" />
-              Quick Quote
-            </Button>
-            <Button className="gap-2" onClick={handleNewEstimate}>
-              <Plus className="w-4 h-4" />
-              New Estimate
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  New Quote
+                  <ChevronDown className="w-4 h-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => {
+                  if (!canCreate && limit !== null) {
+                    setQuotaDialogOpen(true);
+                    return;
+                  }
+                  setQuickQuoteOpen(true);
+                }}>
+                  <Zap className="w-4 h-4 mr-2" />
+                  Quick Quote
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleNewEstimate}>
+                  <FileText className="w-4 h-4 mr-2" />
+                  Full Estimate
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
 
