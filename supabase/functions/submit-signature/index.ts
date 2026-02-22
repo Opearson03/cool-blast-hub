@@ -1387,6 +1387,8 @@ serve(async (req: Request) => {
               description: estimate.description || 'Variation from signed quote',
               amount: estimate.total_amount || 0,
               items: variationItems,
+              reason: scopeData.variation_reason || null,
+              days_extension: scopeData.days_extension || 0,
               notes: estimate.notes || null,
               status: 'approved',
               approved_at: nowIso,

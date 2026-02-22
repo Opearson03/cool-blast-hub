@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, MoreHorizontal, Pencil, Trash2, Send, CheckCircle, XCircle, FileText, Loader2 } from "lucide-react";
 import { VariationFormDialog } from "@/components/jobs/VariationFormDialog";
 import { SendVariationDialog } from "@/components/jobs/SendVariationDialog";
+import { QuickQuoteDialog } from "@/components/estimates/QuickQuoteDialog";
 import { format } from "date-fns";
 
 interface Job {
@@ -97,11 +98,27 @@ const reasonLabels: Record<string, string> = {
 
 export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabProps) {
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [isQuoteVariationOpen, setIsQuoteVariationOpen] = useState(false);
   const [editingVariation, setEditingVariation] = useState<Variation | null>(null);
   const [deleteVariation, setDeleteVariation] = useState<Variation | null>(null);
   const [sendVariation, setSendVariation] = useState<Variation | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch source estimate for client details pre-fill
+  const { data: sourceEstimate } = useQuery({
+    queryKey: ["source-estimate", job.source_estimate_id],
+    queryFn: async () => {
+      if (!job.source_estimate_id) return null;
+      const { data } = await supabase
+        .from("estimates")
+        .select("client_name, client_email, client_phone, site_address")
+        .eq("id", job.source_estimate_id)
+        .single();
+      return data;
+    },
+    enabled: !!job.source_estimate_id,
+  });
 
   const { data: variations = [], isLoading } = useQuery({
     queryKey: ["job-variations", jobId],
@@ -242,8 +259,12 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
         </Card>
       </div>
 
-      {/* Add Button */}
-      <div className="flex justify-end">
+      {/* Add Buttons */}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => setIsQuoteVariationOpen(true)} className="touch-target">
+          <Send className="w-4 h-4 mr-2" />
+          Quote Variation
+        </Button>
         <Button onClick={() => setIsFormOpen(true)} className="touch-target">
           <Plus className="w-4 h-4 mr-2" />
           Add Variation
@@ -439,6 +460,18 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
         existingCount={variations.length}
         editVariation={editingVariation}
         onCreated={editingVariation ? undefined : handleVariationCreated}
+      />
+
+      {/* Quick Quote Variation Dialog */}
+      <QuickQuoteDialog
+        open={isQuoteVariationOpen}
+        onOpenChange={setIsQuoteVariationOpen}
+        preselectedJobId={jobId}
+        preselectedJobName={`${job.job_number ? `${job.job_number} - ` : ""}${job.name}`}
+        defaultClientName={sourceEstimate?.client_name || job.builder_client || ""}
+        defaultClientEmail={sourceEstimate?.client_email || ""}
+        defaultClientPhone={sourceEstimate?.client_phone || ""}
+        defaultSiteAddress={sourceEstimate?.site_address || job.site_address || ""}
       />
 
       {/* Send to Client Dialog */}
