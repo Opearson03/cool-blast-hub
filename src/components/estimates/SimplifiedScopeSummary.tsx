@@ -1,6 +1,8 @@
+import { useState, useRef, useEffect } from "react";
 import { formatCurrency } from "@/lib/format-currency";
 import { Badge } from "@/components/ui/badge";
-import { Ruler, Box, Droplets } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Ruler, Box, Droplets, Pencil, RotateCcw } from "lucide-react";
 
 interface ScopeEntry {
   scopeAnswers?: Record<string, any>;
@@ -12,6 +14,10 @@ interface SimplifiedScopeSummaryProps {
   scopeId: string;
   scopeEntry: ScopeEntry;
   scopeLabel: string;
+  onTotalChange?: (newTotal: number) => void;
+  isOverridden?: boolean;
+  originalTotal?: number;
+  onReset?: () => void;
 }
 
 const formatScopeName = (scopeId: string): string => {
@@ -157,9 +163,47 @@ function extractKeyMetrics(scopeAnswers: Record<string, any> | undefined) {
   return metrics;
 }
 
-export function SimplifiedScopeSummary({ scopeId, scopeEntry, scopeLabel }: SimplifiedScopeSummaryProps) {
+export function SimplifiedScopeSummary({ 
+  scopeId, 
+  scopeEntry, 
+  scopeLabel,
+  onTotalChange,
+  isOverridden,
+  originalTotal,
+  onReset,
+}: SimplifiedScopeSummaryProps) {
   const scopeTotal = scopeEntry.calculatedTotal || 0;
+  const displayTotal = isOverridden && originalTotal !== undefined ? scopeTotal : scopeTotal;
   const metrics = extractKeyMetrics(scopeEntry.scopeAnswers);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (isEditing && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [isEditing]);
+
+  const handleStartEdit = () => {
+    if (!onTotalChange) return;
+    setEditValue(String(scopeTotal));
+    setIsEditing(true);
+  };
+
+  const handleCommit = () => {
+    const newValue = parseFloat(editValue);
+    if (!isNaN(newValue) && newValue >= 0 && onTotalChange) {
+      onTotalChange(newValue);
+    }
+    setIsEditing(false);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleCommit();
+    if (e.key === "Escape") setIsEditing(false);
+  };
   
   return (
     <div className="flex items-center justify-between bg-muted/50 hover:bg-muted/70 transition-colors px-4 py-3 rounded-lg">
@@ -180,9 +224,53 @@ export function SimplifiedScopeSummary({ scopeId, scopeEntry, scopeLabel }: Simp
           </div>
         )}
       </div>
-      <span className={`text-sm font-semibold font-mono ${scopeTotal > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
-        {formatCurrency(scopeTotal)}
-      </span>
+      <div className="flex flex-col items-end gap-0.5">
+        {isEditing ? (
+          <Input
+            ref={inputRef}
+            type="number"
+            inputMode="decimal"
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={handleCommit}
+            onKeyDown={handleKeyDown}
+            className="h-7 w-28 text-sm font-semibold font-mono text-right"
+            min={0}
+            step="0.01"
+          />
+        ) : (
+          <button
+            type="button"
+            onClick={handleStartEdit}
+            disabled={!onTotalChange}
+            className={`flex items-center gap-1.5 group ${onTotalChange ? 'cursor-pointer' : 'cursor-default'}`}
+          >
+            <span className={`text-sm font-semibold font-mono ${scopeTotal > 0 ? 'text-primary' : 'text-muted-foreground'} ${isOverridden ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+              {formatCurrency(scopeTotal)}
+            </span>
+            {onTotalChange && (
+              <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            )}
+          </button>
+        )}
+        {isOverridden && originalTotal !== undefined && (
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-muted-foreground line-through font-mono">
+              {formatCurrency(originalTotal)}
+            </span>
+            {onReset && (
+              <button
+                type="button"
+                onClick={onReset}
+                className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                reset
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
