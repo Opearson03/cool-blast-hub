@@ -958,18 +958,18 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                       <tbody>
                         {/* Scope Items - with markup distributed into each line item */}
                         {markedUpScopes.map((scope, index) => {
-                          const totalIncGst = scope.markedUpTotal;
-                          const priceExGst = totalIncGst / 1.1;
+                          const priceExGst = scope.markedUpTotal;
+                          const totalIncGst = priceExGst * 1.1;
                           return (
                             <tr key={`scope-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
                               <td className="py-2 px-2 text-gray-900">{scope.scopeName}</td>
                               <td className="py-2 px-2 text-right text-gray-700">
-                                {totalIncGst ? formatCurrency(priceExGst) : "-"}
+                                {priceExGst ? formatCurrency(priceExGst) : "-"}
                               </td>
                               <td className="py-2 px-2 text-right text-gray-700">1</td>
                               <td className="py-2 px-2 text-right text-gray-700">10%</td>
                               <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                                {totalIncGst ? formatCurrency(totalIncGst) : "-"}
+                                {priceExGst ? formatCurrency(totalIncGst) : "-"}
                               </td>
                             </tr>
                           );
@@ -977,14 +977,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                         {/* Custom line items */}
                         {customLineItems.map((item, index) => {
                           const rowIdx = quotePDFData.scopeBreakdowns.length + index;
-                          const priceExGst = item.amount / 1.1;
+                          const priceExGst = item.amount;
+                          const totalIncGst = priceExGst * 1.1;
                           return (
                             <tr key={`custom-${index}`} style={{ backgroundColor: rowIdx % 2 === 0 ? "#f3f4f6" : "white" }}>
                               <td className="py-2 px-2 text-gray-900">{item.description}</td>
                               <td className="py-2 px-2 text-right text-gray-700">{formatCurrency(priceExGst)}</td>
                               <td className="py-2 px-2 text-right text-gray-700">1</td>
                               <td className="py-2 px-2 text-right text-gray-700">10%</td>
-                              <td className="py-2 px-2 text-right text-gray-900 font-medium">{formatCurrency(item.amount)}</td>
+                              <td className="py-2 px-2 text-right text-gray-900 font-medium">{formatCurrency(totalIncGst)}</td>
                             </tr>
                           );
                         })}
@@ -1015,19 +1016,19 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                         <tr className="border-t border-gray-300">
                           <td colSpan={4} className="py-2 px-2 text-right text-gray-700 font-medium">Subtotal (ex GST)</td>
                           <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                            {formatCurrency(estimate.total_amount ? estimate.total_amount / 1.1 : 0)}
+                            {formatCurrency(estimate.total_amount ? estimate.total_amount : 0)}
                           </td>
                         </tr>
                         <tr>
                           <td colSpan={4} className="py-2 px-2 text-right text-gray-700 font-medium">GST (10%)</td>
                           <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                            {formatCurrency(estimate.total_amount ? estimate.total_amount - (estimate.total_amount / 1.1) : 0)}
+                            {formatCurrency(estimate.total_amount ? estimate.total_amount * 0.1 : 0)}
                           </td>
                         </tr>
                         <tr className="bg-gray-100">
                           <td colSpan={4} className="py-2 px-2 text-right text-gray-900 font-bold">Total (inc GST)</td>
                           <td className="py-2 px-2 text-right text-gray-900 font-bold text-base">
-                            {formatCurrency(estimate.total_amount)}
+                            {formatCurrency(estimate.total_amount ? estimate.total_amount * 1.1 : 0)}
                           </td>
                         </tr>
                       </tbody>
@@ -1227,8 +1228,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                         </thead>
                         <tbody>
                           {markedUpScopes.map((scope, index) => {
-                            const totalIncGst = scope.markedUpTotal;
-                            const priceExGst = totalIncGst / 1.1;
+                            const priceExGst = scope.markedUpTotal;
+                            const totalIncGst = priceExGst * 1.1;
                             return (
                               <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                                 <td className="py-3 px-4 text-sm border-b border-gray-100 text-gray-900">{scope.scopeName}</td>
@@ -1242,14 +1243,15 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                           {/* Custom line items */}
                           {customLineItems.map((item, index) => {
                             const rowIdx = quotePDFData.scopeBreakdowns.length + index;
-                            const priceExGst = item.amount / 1.1;
+                            const priceExGst = item.amount;
+                            const totalIncGst = priceExGst * 1.1;
                             return (
                               <tr key={`custom-${index}`} className={rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                                 <td className="py-3 px-4 text-sm border-b border-gray-100 text-gray-900">{item.description}</td>
                                 <td className="py-3 px-4 text-sm text-right border-b border-gray-100 text-gray-600">{formatCurrency(priceExGst)}</td>
                                 <td className="py-3 px-4 text-sm text-center border-b border-gray-100 text-gray-600">1</td>
                                 <td className="py-3 px-4 text-sm text-center border-b border-gray-100 text-gray-600">10%</td>
-                                <td className="py-3 px-4 text-sm text-right font-semibold border-b border-gray-100 text-gray-900">{formatCurrency(item.amount)}</td>
+                                <td className="py-3 px-4 text-sm text-right font-semibold border-b border-gray-100 text-gray-900">{formatCurrency(totalIncGst)}</td>
                               </tr>
                             );
                           })}
@@ -1266,11 +1268,11 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                           <tbody>
                             <tr>
                               <td className="py-2 px-4 text-sm text-right text-gray-600">Subtotal (ex GST)</td>
-                              <td className="py-2 px-4 text-sm text-right font-medium text-gray-700">{formatCurrency(estimate.total_amount / 1.1)}</td>
+                              <td className="py-2 px-4 text-sm text-right font-medium text-gray-700">{formatCurrency(estimate.total_amount)}</td>
                             </tr>
                             <tr>
                               <td className="py-2 px-4 text-sm text-right text-gray-600">GST (10%)</td>
-                              <td className="py-2 px-4 text-sm text-right font-medium text-gray-700">{formatCurrency(estimate.total_amount - (estimate.total_amount / 1.1))}</td>
+                              <td className="py-2 px-4 text-sm text-right font-medium text-gray-700">{formatCurrency(estimate.total_amount * 0.1)}</td>
                             </tr>
                           </tbody>
                         </table>
@@ -1286,7 +1288,7 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                           <tbody>
                             <tr>
                               <td className="py-3 px-4 text-sm font-bold text-right text-white uppercase tracking-wide">Total Due</td>
-                              <td className="py-3 px-4 text-lg text-right font-bold text-white">{formatCurrency(estimate.total_amount)}</td>
+                              <td className="py-3 px-4 text-lg text-right font-bold text-white">{formatCurrency(estimate.total_amount * 1.1)}</td>
                             </tr>
                           </tbody>
                         </table>
