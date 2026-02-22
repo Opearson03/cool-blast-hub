@@ -43,6 +43,7 @@ import { SCOPE_REGISTRY } from "@/lib/estimate-components/scopes";
 import { ExclusionItem } from "@/lib/estimate-components/types";
 import { useTakeoffMarkups } from "@/hooks/useTakeoffMarkups";
 import { SimplifiedScopeSummary } from "./SimplifiedScopeSummary";
+import { SummaryLineItems, CustomSummaryLineItem } from "./SummaryLineItems";
 import { ClientAutocomplete } from "@/components/contacts/ClientAutocomplete";
 import type { Client } from "@/hooks/useClients";
 // EstimateType kept for backwards compatibility with existing database values
@@ -451,6 +452,10 @@ export function EstimateFormDialogV2({ open, onOpenChange, editEstimate, onFinal
   
   const [selectedScopes, setSelectedScopes] = useState<Set<ScopeType>>(new Set());
   const [modularScopeStates, setModularScopeStates] = useState<Record<ScopeType, ModularScopeState>>({} as Record<ScopeType, ModularScopeState>);
+  
+  // Scope total overrides and custom line items for summary step
+  const [scopeTotalOverrides, setScopeTotalOverrides] = useState<Record<string, number | null>>({});
+  const [customSummaryLineItems, setCustomSummaryLineItems] = useState<CustomSummaryLineItem[]>([]);
   const [activeScopeIndex, setActiveScopeIndex] = useState(0);
   const scopeContainerRef = useRef<HTMLDivElement>(null);
   const dialogScrollRef = useRef<HTMLDivElement>(null);
@@ -585,8 +590,15 @@ const {
 
   // Calculate scope subtotals (before margin) and combined subtotal
   const combinedSubtotal = useMemo(() => {
-    return selectedScopesArray.reduce((sum, scope) => sum + scopeTotals[scope].total, 0);
-  }, [selectedScopesArray, scopeTotals]);
+    const scopeSum = selectedScopesArray.reduce((sum, scope) => {
+      const override = scopeTotalOverrides[scope];
+      return sum + (override !== null && override !== undefined
+        ? override
+        : scopeTotals[scope].total);
+    }, 0);
+    const customSum = customSummaryLineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+    return scopeSum + customSum;
+  }, [selectedScopesArray, scopeTotals, scopeTotalOverrides, customSummaryLineItems]);
 
   // Calculate margin amount and final total (uses percentage as source of truth)
   const marginAmount = useMemo(() => {
@@ -701,6 +713,18 @@ const {
       setDepositPercentage(editEstimate.deposit_percentage ?? 50);
       setQuoteValidityDays(editEstimate.quote_validity_days ?? 14);
 
+      // Load scope total overrides and custom line items
+      if (editEstimate.scope_data?._scopeTotalOverrides) {
+        setScopeTotalOverrides(editEstimate.scope_data._scopeTotalOverrides as Record<string, number | null>);
+      } else {
+        setScopeTotalOverrides({});
+      }
+      if (editEstimate.scope_data?._customSummaryLineItems) {
+        setCustomSummaryLineItems(editEstimate.scope_data._customSummaryLineItems as CustomSummaryLineItem[]);
+      } else {
+        setCustomSummaryLineItems([]);
+      }
+
       // Determine starting step based on draft progress
       // Check if forceStartStep flag is set (from Inbox "Start Estimate")
       const forceStartStep = (editEstimate as any)?._forceStartStep === true;
@@ -747,6 +771,8 @@ const {
       setPaymentTermsType('deposit_balance');
       setDepositPercentage(50);
       setQuoteValidityDays(14);
+      setScopeTotalOverrides({});
+      setCustomSummaryLineItems([]);
     }
     
     // Fetch business ID
@@ -1256,6 +1282,10 @@ const {
     }
     data._exclusions = exclusionData;
     
+    // Store scope total overrides and custom line items
+    data._scopeTotalOverrides = scopeTotalOverrides;
+    data._customSummaryLineItems = customSummaryLineItems;
+    
     for (const scopeType of selectedScopesArray) {
       const state = modularScopeStates[scopeType];
       if (state) {
@@ -1315,8 +1345,15 @@ const {
       let scopeBreakdown = "SCOPE BREAKDOWN:\n";
       selectedScopesArray.forEach(scope => {
         const label = getScopeLabel(scope);
-        const { total } = scopeTotals[scope];
+        const override = scopeTotalOverrides[scope];
+        const total = (override !== null && override !== undefined) ? override : scopeTotals[scope].total;
         scopeBreakdown += `• ${label}: ${formatCurrency(total)}\n`;
+      });
+      // Add custom line items to breakdown
+      customSummaryLineItems.forEach(item => {
+        if (item.description && item.amount > 0) {
+          scopeBreakdown += `• ${item.description}: ${formatCurrency(item.amount)}\n`;
+        }
       });
       fullNotes = scopeBreakdown;
     }
@@ -2706,6 +2743,10 @@ const {
                   <div className="space-y-2">
                     {selectedScopesArray.map((scope) => {
                       const scopeState = modularScopeStates[scope];
+                      const calculatedTotal = scopeState?.calculatedTotal || scopeTotals[scope]?.total || 0;
+                      const override = scopeTotalOverrides[scope];
+                      const isOverridden = override !== null && override !== undefined;
+                      const displayTotal = isOverridden ? override : calculatedTotal;
                       return (
                         <SimplifiedScopeSummary
                           key={scope}
@@ -2714,12 +2755,30 @@ const {
                           scopeEntry={{
                             scopeAnswers: scopeState?.scopeAnswers,
                             moduleAnswers: scopeState?.moduleAnswers,
-                            calculatedTotal: scopeState?.calculatedTotal || scopeTotals[scope]?.total || 0,
+                            calculatedTotal: displayTotal,
+                          }}
+                          onTotalChange={(newTotal) => {
+                            setScopeTotalOverrides(prev => ({ ...prev, [scope]: newTotal }));
+                          }}
+                          isOverridden={isOverridden}
+                          originalTotal={isOverridden ? calculatedTotal : undefined}
+                          onReset={() => {
+                            setScopeTotalOverrides(prev => {
+                              const updated = { ...prev };
+                              delete updated[scope];
+                              return updated;
+                            });
                           }}
                         />
                       );
                     })}
                   </div>
+
+                  {/* Custom line items */}
+                  <SummaryLineItems
+                    items={customSummaryLineItems}
+                    onChange={setCustomSummaryLineItems}
+                  />
 
                   <div className="border-t pt-3 space-y-1">
                     <div className="flex justify-between text-lg font-bold">
