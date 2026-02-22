@@ -15,6 +15,8 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Loader2, Send, Save } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency, roundToCents } from "@/lib/format-currency";
+import { ClientAutocomplete } from "@/components/contacts/ClientAutocomplete";
+import type { Client } from "@/hooks/useClients";
 
 interface QuickQuoteDialogProps {
   open: boolean;
@@ -314,11 +316,17 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="qq-client">Client Name *</Label>
-                <Input
-                  id="qq-client"
+                <ClientAutocomplete
                   value={clientName}
-                  onChange={(e) => setClientName(e.target.value)}
-                  placeholder="e.g., John Smith"
+                  onChange={setClientName}
+                  onSelect={(client: Client) => {
+                    setClientName(client.name);
+                    if (client.email) setClientEmail(client.email);
+                    if (client.phone) setClientPhone(client.phone);
+                    if (client.company_name) setCompanyName(client.company_name);
+                    if (client.address) setSiteAddress(client.address);
+                  }}
+                  placeholder="Start typing to search clients..."
                 />
               </div>
               <div className="space-y-1.5">
