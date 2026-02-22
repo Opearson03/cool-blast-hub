@@ -907,35 +907,37 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
             {/* Flexible content area - grows to fill space */}
             <div className="flex-grow">
             {/* Line Items Table with alternating rows - markup distributed into each line item */}
-              {(() => {
+            {(() => {
                 // Calculate markup multiplier from global margin
                 const globalMargin = scopeData?._globalMargin || 0;
                 const markupMultiplier = 1 + (Number(globalMargin) / 100);
                 
-                // Custom line items from scope_data
+                // Custom line items from scope_data - also get markup applied
                 const customLineItems = quotePDFData.customLineItems || [];
-                const customLineItemsTotal = customLineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
+                const markedUpCustomItems = customLineItems.map(item => ({
+                  ...item,
+                  chargeExGst: (item.amount || 0) * markupMultiplier
+                }));
                 
-                // Calculate marked-up totals for each scope
-                const markedUpScopes = quotePDFData.scopeBreakdowns.map(scope => {
-                  const internalCost = scope.calculatedTotal || 0;
-                  return {
-                    ...scope,
-                    markedUpTotal: internalCost * markupMultiplier
-                  };
-                });
+                // Calculate charge ex-GST for each scope (cost × markup)
+                const markedUpScopes = quotePDFData.scopeBreakdowns.map(scope => ({
+                  ...scope,
+                  chargeExGst: (scope.calculatedTotal || 0) * markupMultiplier
+                }));
                 
-                // Calculate sum of scopes + custom items and apply rounding adjustment to largest scope
-                const markedUpSum = markedUpScopes.reduce((sum, s) => sum + s.markedUpTotal, 0) + customLineItemsTotal;
-                const roundingDiff = estimate.total_amount - markedUpSum;
+                // Total ex-GST then inc-GST
+                const totalChargeExGst = markedUpScopes.reduce((sum, s) => sum + s.chargeExGst, 0)
+                  + markedUpCustomItems.reduce((sum, s) => sum + s.chargeExGst, 0);
+                const calculatedTotalIncGst = totalChargeExGst * 1.1;
+                const roundingDiff = estimate.total_amount - calculatedTotalIncGst;
                 
-                // Apply rounding difference to the largest scope (if any scopes exist)
+                // Apply rounding difference to the largest scope (adjust ex-GST so inc-GST matches)
                 if (markedUpScopes.length > 0 && Math.abs(roundingDiff) > 0.001) {
                   const largestIdx = markedUpScopes.reduce(
-                    (maxIdx, scope, idx, arr) => scope.markedUpTotal > arr[maxIdx].markedUpTotal ? idx : maxIdx, 
+                    (maxIdx, scope, idx, arr) => scope.chargeExGst > arr[maxIdx].chargeExGst ? idx : maxIdx, 
                     0
                   );
-                  markedUpScopes[largestIdx].markedUpTotal += roundingDiff;
+                  markedUpScopes[largestIdx].chargeExGst += roundingDiff / 1.1;
                 }
                 
                 // Count total data rows for empty row calculation
@@ -958,33 +960,34 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                       <tbody>
                         {/* Scope Items - with markup distributed into each line item */}
                         {markedUpScopes.map((scope, index) => {
-                          const totalIncGst = scope.markedUpTotal;
-                          const priceExGst = totalIncGst / 1.1;
+                          const priceExGst = scope.chargeExGst;
+                          const totalIncGst = priceExGst * 1.1;
                           return (
                             <tr key={`scope-${index}`} style={{ backgroundColor: index % 2 === 0 ? "#f3f4f6" : "white" }}>
                               <td className="py-2 px-2 text-gray-900">{scope.scopeName}</td>
                               <td className="py-2 px-2 text-right text-gray-700">
-                                {totalIncGst ? formatCurrency(priceExGst) : "-"}
+                                {priceExGst ? formatCurrency(priceExGst) : "-"}
                               </td>
                               <td className="py-2 px-2 text-right text-gray-700">1</td>
                               <td className="py-2 px-2 text-right text-gray-700">10%</td>
                               <td className="py-2 px-2 text-right text-gray-900 font-medium">
-                                {totalIncGst ? formatCurrency(totalIncGst) : "-"}
+                                {priceExGst ? formatCurrency(totalIncGst) : "-"}
                               </td>
                             </tr>
                           );
                         })}
-                        {/* Custom line items */}
-                        {customLineItems.map((item, index) => {
+                        {/* Custom line items - with markup applied */}
+                        {markedUpCustomItems.map((item, index) => {
                           const rowIdx = quotePDFData.scopeBreakdowns.length + index;
-                          const priceExGst = item.amount / 1.1;
+                          const priceExGst = item.chargeExGst;
+                          const totalIncGst = priceExGst * 1.1;
                           return (
                             <tr key={`custom-${index}`} style={{ backgroundColor: rowIdx % 2 === 0 ? "#f3f4f6" : "white" }}>
                               <td className="py-2 px-2 text-gray-900">{item.description}</td>
                               <td className="py-2 px-2 text-right text-gray-700">{formatCurrency(priceExGst)}</td>
                               <td className="py-2 px-2 text-right text-gray-700">1</td>
                               <td className="py-2 px-2 text-right text-gray-700">10%</td>
-                              <td className="py-2 px-2 text-right text-gray-900 font-medium">{formatCurrency(item.amount)}</td>
+                              <td className="py-2 px-2 text-right text-gray-900 font-medium">{formatCurrency(totalIncGst)}</td>
                             </tr>
                           );
                         })}
@@ -1177,26 +1180,31 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 const globalMargin = scopeData?._globalMargin || 0;
                 const markupMultiplier = 1 + (Number(globalMargin) / 100);
                 
-                // Custom line items from scope_data
+                // Custom line items from scope_data - also get markup applied
                 const customLineItems = quotePDFData.customLineItems || [];
-                const customLineItemsTotal = customLineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
-                
-                // Calculate marked-up totals for each scope
-                const markedUpScopes = quotePDFData.scopeBreakdowns.map(scope => ({
-                  ...scope,
-                  markedUpTotal: (scope.calculatedTotal || 0) * markupMultiplier
+                const markedUpCustomItems = customLineItems.map(item => ({
+                  ...item,
+                  chargeExGst: (item.amount || 0) * markupMultiplier
                 }));
                 
-                // Apply rounding adjustment to largest item to match estimate.total_amount
-                const markedUpSum = markedUpScopes.reduce((sum, s) => sum + s.markedUpTotal, 0) + customLineItemsTotal;
-                const roundingDiff = estimate.total_amount - markedUpSum;
+                // Calculate charge ex-GST for each scope (cost × markup)
+                const markedUpScopes = quotePDFData.scopeBreakdowns.map(scope => ({
+                  ...scope,
+                  chargeExGst: (scope.calculatedTotal || 0) * markupMultiplier
+                }));
+                
+                // Total ex-GST then inc-GST
+                const totalChargeExGst = markedUpScopes.reduce((sum, s) => sum + s.chargeExGst, 0)
+                  + markedUpCustomItems.reduce((sum, s) => sum + s.chargeExGst, 0);
+                const calculatedTotalIncGst = totalChargeExGst * 1.1;
+                const roundingDiff = estimate.total_amount - calculatedTotalIncGst;
                 
                 if (markedUpScopes.length > 0 && Math.abs(roundingDiff) > 0.001) {
                   const largestIdx = markedUpScopes.reduce(
-                    (maxIdx, scope, idx, arr) => scope.markedUpTotal > arr[maxIdx].markedUpTotal ? idx : maxIdx, 
+                    (maxIdx, scope, idx, arr) => scope.chargeExGst > arr[maxIdx].chargeExGst ? idx : maxIdx, 
                     0
                   );
-                  markedUpScopes[largestIdx].markedUpTotal += roundingDiff;
+                  markedUpScopes[largestIdx].chargeExGst += roundingDiff / 1.1;
                 }
 
                 return (
@@ -1227,8 +1235,8 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                         </thead>
                         <tbody>
                           {markedUpScopes.map((scope, index) => {
-                            const totalIncGst = scope.markedUpTotal;
-                            const priceExGst = totalIncGst / 1.1;
+                            const priceExGst = scope.chargeExGst;
+                            const totalIncGst = priceExGst * 1.1;
                             return (
                               <tr key={index} className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                                 <td className="py-3 px-4 text-sm border-b border-gray-100 text-gray-900">{scope.scopeName}</td>
@@ -1239,17 +1247,18 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                               </tr>
                             );
                           })}
-                          {/* Custom line items */}
-                          {customLineItems.map((item, index) => {
+                          {/* Custom line items - with markup applied */}
+                          {markedUpCustomItems.map((item, index) => {
                             const rowIdx = quotePDFData.scopeBreakdowns.length + index;
-                            const priceExGst = item.amount / 1.1;
+                            const priceExGst = item.chargeExGst;
+                            const totalIncGst = priceExGst * 1.1;
                             return (
                               <tr key={`custom-${index}`} className={rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}>
                                 <td className="py-3 px-4 text-sm border-b border-gray-100 text-gray-900">{item.description}</td>
                                 <td className="py-3 px-4 text-sm text-right border-b border-gray-100 text-gray-600">{formatCurrency(priceExGst)}</td>
                                 <td className="py-3 px-4 text-sm text-center border-b border-gray-100 text-gray-600">1</td>
                                 <td className="py-3 px-4 text-sm text-center border-b border-gray-100 text-gray-600">10%</td>
-                                <td className="py-3 px-4 text-sm text-right font-semibold border-b border-gray-100 text-gray-900">{formatCurrency(item.amount)}</td>
+                                <td className="py-3 px-4 text-sm text-right font-semibold border-b border-gray-100 text-gray-900">{formatCurrency(totalIncGst)}</td>
                               </tr>
                             );
                           })}
