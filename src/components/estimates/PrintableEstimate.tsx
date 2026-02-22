@@ -913,7 +913,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 const markupMultiplier = 1 + (Number(globalMargin) / 100);
                 
                 // Custom line items from scope_data
-                const customLineItems = quotePDFData.customLineItems || [];
+                const customLineItems = (quotePDFData.customLineItems || []).map(item => ({
+                  ...item,
+                  amount: (item.amount || 0) * markupMultiplier
+                }));
                 const customLineItemsTotal = customLineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
                 
                 // Calculate marked-up totals for each scope
@@ -1179,7 +1182,10 @@ export const PrintableEstimate = forwardRef<HTMLDivElement, PrintableEstimatePro
                 const markupMultiplier = 1 + (Number(globalMargin) / 100);
                 
                 // Custom line items from scope_data
-                const customLineItems = quotePDFData.customLineItems || [];
+                const customLineItems = (quotePDFData.customLineItems || []).map(item => ({
+                  ...item,
+                  amount: (item.amount || 0) * markupMultiplier
+                }));
                 const customLineItemsTotal = customLineItems.reduce((sum, item) => sum + (item.amount || 0), 0);
                 
                 // Calculate marked-up totals for each scope
