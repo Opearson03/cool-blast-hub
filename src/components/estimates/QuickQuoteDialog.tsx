@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Trash2, Loader2, Send, Save } from "lucide-react";
 import { toast } from "sonner";
 import { formatCurrency, roundToCents } from "@/lib/format-currency";
@@ -51,6 +53,10 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
   const [companyName, setCompanyName] = useState("");
   const [siteAddress, setSiteAddress] = useState("");
 
+  // Quote purpose
+  const [quotePurpose, setQuotePurpose] = useState<"new_job" | "variation">("new_job");
+  const [targetJobId, setTargetJobId] = useState("");
+
   // Line items
   const [items, setItems] = useState<LineItem[]>([emptyItem()]);
 
@@ -58,6 +64,29 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
   const [notes, setNotes] = useState("");
   const [includeGST, setIncludeGST] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Fetch active jobs for variation selector
+  const { data: activeJobs = [] } = useQuery({
+    queryKey: ["active-jobs-for-variation"],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .single();
+      if (!profile?.business_id) return [];
+      const { data } = await supabase
+        .from("jobs")
+        .select("id, name, job_number, site_address, builder_client")
+        .eq("business_id", profile.business_id)
+        .in("status", ["scheduled", "in_progress"])
+        .order("created_at", { ascending: false });
+      return data || [];
+    },
+    enabled: open && quotePurpose === "variation",
+  });
 
   const subtotal = roundToCents(items.reduce((sum, item) => sum + (item.total || 0), 0));
   const gstAmount = includeGST ? roundToCents(subtotal * 0.1) : 0;
@@ -93,6 +122,8 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
     setClientPhone("");
     setCompanyName("");
     setSiteAddress("");
+    setQuotePurpose("new_job");
+    setTargetJobId("");
     setItems([emptyItem()]);
     setNotes("");
     setIncludeGST(true);
@@ -115,6 +146,10 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
     }
     if (sendEmail && !clientEmail.trim()) {
       toast.error("Client email is required to send the quote");
+      return;
+    }
+    if (quotePurpose === "variation" && !targetJobId) {
+      toast.error("Please select a job for this variation");
       return;
     }
 
@@ -178,6 +213,10 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
           valid_until: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
             .toISOString()
             .split("T")[0],
+          scope_data: {
+            quote_purpose: quotePurpose,
+            target_job_id: quotePurpose === "variation" ? targetJobId : null,
+          } as any,
         })
         .select()
         .single();
@@ -368,6 +407,46 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
                 onChange={(e) => setSiteAddress(e.target.value)}
                 placeholder="e.g., 123 Main St, Sydney NSW"
               />
+            </div>
+
+            {/* Quote Purpose */}
+            <div className="space-y-3 border-t pt-4">
+              <Label className="text-sm font-medium">Quote Type</Label>
+              <RadioGroup
+                value={quotePurpose}
+                onValueChange={(v) => {
+                  setQuotePurpose(v as "new_job" | "variation");
+                  if (v === "new_job") setTargetJobId("");
+                }}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="new_job" id="qq-new-job" />
+                  <Label htmlFor="qq-new-job" className="text-sm cursor-pointer">New Job</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="variation" id="qq-variation" />
+                  <Label htmlFor="qq-variation" className="text-sm cursor-pointer">Variation</Label>
+                </div>
+              </RadioGroup>
+
+              {quotePurpose === "variation" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="qq-target-job">Select Job *</Label>
+                  <Select value={targetJobId} onValueChange={setTargetJobId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose an existing job..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activeJobs.map((job) => (
+                        <SelectItem key={job.id} value={job.id}>
+                          {job.job_number ? `${job.job_number} - ` : ""}{job.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
             {/* Line Items */}

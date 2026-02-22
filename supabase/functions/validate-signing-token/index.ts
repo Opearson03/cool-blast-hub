@@ -48,6 +48,7 @@ serve(async (req: Request) => {
           signed_at,
           signing_token_expires_at,
           business_id,
+          scope_data,
           businesses (
             name,
             address,
@@ -92,6 +93,22 @@ serve(async (req: Request) => {
       }
 
       const business = estimate.businesses as any;
+      const scopeData = (estimate.scope_data || {}) as Record<string, any>;
+      const quotePurpose = scopeData.quote_purpose || 'new_job';
+      const targetJobId = scopeData.target_job_id || null;
+
+      // If variation, fetch job name
+      let targetJobName: string | null = null;
+      if (quotePurpose === 'variation' && targetJobId) {
+        const { data: job } = await supabase
+          .from('jobs')
+          .select('name, job_number')
+          .eq('id', targetJobId)
+          .single();
+        if (job) {
+          targetJobName = job.job_number ? `${job.job_number} - ${job.name}` : job.name;
+        }
+      }
 
       return new Response(
         JSON.stringify({
@@ -105,6 +122,8 @@ serve(async (req: Request) => {
             totalAmount: estimate.total_amount,
             notes: estimate.notes,
             validUntil: estimate.valid_until,
+            quotePurpose,
+            targetJobName,
             business: {
               name: business?.name,
               address: business?.address,
