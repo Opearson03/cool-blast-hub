@@ -1,72 +1,69 @@
 
 
-## Convert Quick Quotes to Jobs or Variations
+## Integrate Quick Quote Variations with Job Variations
 
-### Overview
+### The Problem
 
-Add the ability to convert a quick quote into either a **new job** or a **variation on an existing job**. This is integrated at the QuickQuoteDialog's save/send stage so the user chooses the quote's purpose before sending, and the customer's signing page reflects whether it's a variation.
+There are two separate paths to create a variation, with significant overlap:
+1. **Quick Quote (Quotes page)** -- creates an estimate, sends for signing, then converts to a `job_variations` row on signature
+2. **Add Variation (Job page)** -- creates a `job_variations` row directly, then sends via a separate dialog
 
-### User Flow
+These share nearly identical line item editors but differ in useful ways. The goal is to unify them so they complement rather than duplicate each other.
 
-1. In the Quick Quote dialog, a new **"Quote Type"** selector appears above the line items:
-   - **New Job** (default) -- behaves as it does today; when the client signs, a new job is created
-   - **Variation** -- user picks an existing active job from a dropdown; when the client signs, a variation is created on that job instead
+### Approach: Add "Quick Quote Variation" to the Job Variations Tab
 
-2. When "Variation" is selected:
-   - A job selector dropdown appears listing active jobs (fetched from Supabase)
-   - The estimate is saved with metadata linking it to the target job (stored in `scope_data` as `{ quote_purpose: "variation", target_job_id: "..." }`)
-   - The email/PDF is sent the same way, but the signing page will show it as a variation
+Rather than merging the two into one component (which would make both more complex), the cleanest integration is to **make Quick Quote available directly from the Job Variations tab** and **add the missing variation-specific fields to Quick Quote when used for variations**.
 
-3. The **customer signing flow** (already verified working -- loads correctly with branding, signature canvas, and submit) will be enhanced:
-   - The `submit-signature` edge function checks if the accepted quote has `quote_purpose: "variation"` in its `scope_data`
-   - If so, instead of creating a new job, it creates a `job_variations` row on the target job
-   - If not (or "new_job"), it creates a new job as it does today
-
-### Signing Flow Verification
-
-The signing flow has been tested and is **working correctly**:
-- Quote loads with full business branding (logo, colors, contact details)
-- Client name, site address, and total amount display properly
-- Scope of works and terms/conditions render correctly
-- Signature canvas is functional (mouse and touch)
-- Terms acceptance checkbox and submit button are present
-- Token validation and expiry checks are operational
+This way:
+- **VariationFormDialog** remains the "quick internal draft" tool (no client details, no sending -- just log a variation)
+- **QuickQuoteDialog** becomes the "send a variation quote for client approval" tool, accessible from both the Quotes page AND the Job Variations tab
 
 ### Changes
 
 | File | Change |
 |---|---|
-| `src/components/estimates/QuickQuoteDialog.tsx` | Add "Quote Type" radio selector (New Job / Variation), job selector dropdown when Variation is chosen, save `quote_purpose` and `target_job_id` into estimate's `scope_data` |
-| `supabase/functions/submit-signature/index.ts` | In the quote signing handler, check `scope_data.quote_purpose`; if `"variation"`, create a `job_variations` row on `scope_data.target_job_id` instead of creating a new job |
-| `supabase/functions/validate-signing-token/index.ts` | Include `scope_data` in the response so the signing page can indicate if this is a variation quote |
-| `src/pages/public/SignQuote.tsx` | If the quote data indicates it's a variation, show a label like "Variation Quote for [Job Name]" instead of the standard heading |
+| `src/components/estimates/QuickQuoteDialog.tsx` | Accept optional `preselectedJobId` and `preselectedJobName` props. When provided, auto-select "Variation" mode and lock the job selector. Add `reason` and `daysExtension` fields (shown only in variation mode). |
+| `src/components/jobs/tabs/JobVariationsTab.tsx` | Add a "Send Quote for Variation" button (or menu item) that opens `QuickQuoteDialog` with the current job pre-selected. Pre-fill client details from the job's source estimate. |
 
-### Technical Details
+### Detailed Changes
 
 **QuickQuoteDialog.tsx**
 
-- Add state: `quotePurpose: "new_job" | "variation"` (default `"new_job"`), `targetJobId: string`
-- Fetch active jobs via `useQuery` when dialog opens: `supabase.from("jobs").select("id, name, job_number, site_address").in("status", ["scheduled", "active"])`
-- When saving, include in the estimate insert: `scope_data: { quote_purpose: quotePurpose, target_job_id: targetJobId || null }`
-- UI: Radio group or segmented toggle between "New Job" and "Variation", with a job select dropdown that appears conditionally
+- Add new optional props:
+  - `preselectedJobId?: string` -- locks the job selector
+  - `preselectedJobName?: string` -- display label for the locked job
+  - `defaultClientName?: string` -- pre-fill client name
+  - `defaultClientEmail?: string` -- pre-fill email
+  - `defaultClientPhone?: string` -- pre-fill phone
+  - `defaultSiteAddress?: string` -- pre-fill site address
+- When `preselectedJobId` is provided:
+  - Auto-set `quotePurpose` to `"variation"` and disable the radio toggle
+  - Show the job name as a read-only badge instead of the searchable dropdown
+  - Show additional variation-specific fields: **Reason** dropdown (same options as VariationFormDialog) and **Days Extension** input
+  - Store these in `scope_data` alongside `quote_purpose` and `target_job_id`
+- When opened from Quotes page (no props), behavior is unchanged
 
-**submit-signature/index.ts**
+**JobVariationsTab.tsx**
 
-- After accepting a quote signature, before creating a job, check: `const scopeData = estimate.scope_data || {}; const isVariation = scopeData.quote_purpose === "variation" && scopeData.target_job_id;`
-- If variation:
-  - Count existing variations on the target job to generate `variation_number`
-  - Insert into `job_variations` with the quote's line items, amount, and description
-  - Skip the job creation and BOQ generation
-  - Set variation status to `"approved"` with `approved_at` and `signed_at`
-- If new job: proceed as today (no changes to existing logic)
+- Add a new "Quote Variation" button next to (or within) "Add Variation"
+  - "Add Variation" stays for quick internal drafts
+  - "Quote Variation" opens QuickQuoteDialog with `preselectedJobId={jobId}` and pre-fills client details from the job
+- Import `QuickQuoteDialog` and manage its open state
+- Pre-fill client details by looking up the job's `builder_client` and source estimate's `client_email`/`client_phone`
 
-**validate-signing-token/index.ts**
+### User Experience
 
-- Add `scope_data` to the estimate select query
-- Include `quotePurpose` and optionally `targetJobName` in the response data (fetch job name if it's a variation)
+From the **Quotes page**: Same as today. User can choose New Job or Variation when creating a quick quote.
 
-**SignQuote.tsx**
+From the **Job Variations tab**: Two options:
+- **Add Variation** -- quick internal record (draft status, no client interaction)
+- **Quote Variation** -- opens a pre-filled Quick Quote dialog for this job, sends a branded quote to the client for e-signature approval. When signed, automatically creates an approved variation on the job.
 
-- Add `quotePurpose` and `targetJobName` to the `QuoteData` interface
-- If `quotePurpose === "variation"`, display "Variation Quote" badge and the linked job name in the header area
+### What This Achieves
+
+- No duplicate code -- one line-item editor, one sending pipeline
+- Clear separation: "Add Variation" = internal tracking, "Quote Variation" = client-facing quote
+- Variations created via Quick Quote go through the proper signing flow with branded PDFs
+- The job context is automatically passed through, reducing manual entry
+- Reason and days extension data flows through to the variation record created on signing
 
