@@ -2739,6 +2739,12 @@ const {
                     </div>
                   </div>
 
+                  {/* Column headers */}
+                  <div className="flex items-center justify-end gap-4 px-4 pb-1">
+                    <span className="text-xs font-medium text-muted-foreground min-w-[7rem] text-right">Cost</span>
+                    <span className="text-xs font-medium text-muted-foreground min-w-[7rem] text-right">Charge</span>
+                  </div>
+
                   {/* Simplified Scope breakdown with key metrics */}
                   <div className="space-y-2">
                     {selectedScopesArray.map((scope) => {
@@ -2769,6 +2775,7 @@ const {
                               return updated;
                             });
                           }}
+                          marginPercent={globalMarginPercent}
                         />
                       );
                     })}
@@ -2778,9 +2785,18 @@ const {
                   <SummaryLineItems
                     items={customSummaryLineItems}
                     onChange={setCustomSummaryLineItems}
+                    marginPercent={globalMarginPercent}
                   />
 
                   <div className="border-t pt-3 space-y-1">
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Subtotal (cost)</span>
+                      <span className="font-mono">{formatCurrency(combinedSubtotal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Markup ({globalMarginPercent.toFixed(1)}%)</span>
+                      <span className="font-mono">{formatCurrency(marginAmount)}</span>
+                    </div>
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total (ex GST)</span>
                       <span className="text-primary font-mono">{formatCurrency(combinedTotal)}</span>

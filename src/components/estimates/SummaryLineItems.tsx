@@ -12,9 +12,10 @@ export interface CustomSummaryLineItem {
 interface SummaryLineItemsProps {
   items: CustomSummaryLineItem[];
   onChange: (items: CustomSummaryLineItem[]) => void;
+  marginPercent?: number;
 }
 
-export function SummaryLineItems({ items, onChange }: SummaryLineItemsProps) {
+export function SummaryLineItems({ items, onChange, marginPercent = 0 }: SummaryLineItemsProps) {
   const handleAdd = () => {
     onChange([
       ...items,
@@ -63,6 +64,9 @@ export function SummaryLineItems({ items, onChange }: SummaryLineItemsProps) {
             min={0}
             step="0.01"
           />
+          <span className="text-sm font-bold font-mono text-primary w-28 text-right shrink-0">
+            {formatCurrency((item.amount || 0) * (1 + marginPercent / 100))}
+          </span>
           <Button
             variant="ghost"
             size="icon"

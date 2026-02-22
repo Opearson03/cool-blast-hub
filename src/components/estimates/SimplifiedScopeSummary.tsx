@@ -18,6 +18,7 @@ interface SimplifiedScopeSummaryProps {
   isOverridden?: boolean;
   originalTotal?: number;
   onReset?: () => void;
+  marginPercent?: number;
 }
 
 const formatScopeName = (scopeId: string): string => {
@@ -171,6 +172,7 @@ export function SimplifiedScopeSummary({
   isOverridden,
   originalTotal,
   onReset,
+  marginPercent = 0,
 }: SimplifiedScopeSummaryProps) {
   const scopeTotal = scopeEntry.calculatedTotal || 0;
   const displayTotal = isOverridden && originalTotal !== undefined ? scopeTotal : scopeTotal;
@@ -224,52 +226,62 @@ export function SimplifiedScopeSummary({
           </div>
         )}
       </div>
-      <div className="flex flex-col items-end gap-0.5">
-        {isEditing ? (
-          <Input
-            ref={inputRef}
-            type="number"
-            inputMode="decimal"
-            value={editValue}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={handleCommit}
-            onKeyDown={handleKeyDown}
-            className="h-7 w-28 text-sm font-semibold font-mono text-right"
-            min={0}
-            step="0.01"
-          />
-        ) : (
-          <button
-            type="button"
-            onClick={handleStartEdit}
-            disabled={!onTotalChange}
-            className={`flex items-center gap-1.5 group ${onTotalChange ? 'cursor-pointer' : 'cursor-default'}`}
-          >
-            <span className={`text-sm font-semibold font-mono ${scopeTotal > 0 ? 'text-primary' : 'text-muted-foreground'} ${isOverridden ? 'text-amber-600 dark:text-amber-400' : ''}`}>
-              {formatCurrency(scopeTotal)}
-            </span>
-            {onTotalChange && (
-              <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-            )}
-          </button>
-        )}
-        {isOverridden && originalTotal !== undefined && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-muted-foreground line-through font-mono">
-              {formatCurrency(originalTotal)}
-            </span>
-            {onReset && (
-              <button
-                type="button"
-                onClick={onReset}
-                className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
-              >
-                <RotateCcw className="w-2.5 h-2.5" />
-                reset
-              </button>
-            )}
-          </div>
-        )}
+      <div className="flex items-center gap-4">
+        {/* Cost column */}
+        <div className="flex flex-col items-end gap-0.5 min-w-[7rem]">
+          {isEditing ? (
+            <Input
+              ref={inputRef}
+              type="number"
+              inputMode="decimal"
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleCommit}
+              onKeyDown={handleKeyDown}
+              className="h-7 w-28 text-sm font-semibold font-mono text-right"
+              min={0}
+              step="0.01"
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={handleStartEdit}
+              disabled={!onTotalChange}
+              className={`flex items-center gap-1.5 group ${onTotalChange ? 'cursor-pointer' : 'cursor-default'}`}
+            >
+              <span className={`text-sm font-semibold font-mono ${scopeTotal > 0 ? 'text-foreground' : 'text-muted-foreground'} ${isOverridden ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                {formatCurrency(scopeTotal)}
+              </span>
+              {onTotalChange && (
+                <Pencil className="w-3 h-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+              )}
+            </button>
+          )}
+          {isOverridden && originalTotal !== undefined && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] text-muted-foreground line-through font-mono">
+                {formatCurrency(originalTotal)}
+              </span>
+              {onReset && (
+                <button
+                  type="button"
+                  onClick={onReset}
+                  className="text-[10px] text-primary hover:underline flex items-center gap-0.5"
+                >
+                  <RotateCcw className="w-2.5 h-2.5" />
+                  reset
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Charge column */}
+        <div className="flex flex-col items-end min-w-[7rem]">
+          <span className="text-sm font-bold font-mono text-primary">
+            {formatCurrency(scopeTotal * (1 + marginPercent / 100))}
+          </span>
+        </div>
       </div>
     </div>
   );
