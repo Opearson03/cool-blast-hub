@@ -17,6 +17,8 @@ interface QuoteData {
   totalAmount: number;
   notes: string | null;
   validUntil: string | null;
+  quotePurpose?: "new_job" | "variation";
+  targetJobName?: string | null;
   business: {
     name: string;
     address: string | null;
@@ -272,7 +274,14 @@ export default function SignQuote() {
               </h1>
             )}
             <p className="text-sm text-muted-foreground mt-1">
-              Quote #{quoteData.estimateNumber}
+              {quoteData.quotePurpose === "variation" && quoteData.targetJobName ? (
+                <>
+                  <span className="inline-block bg-amber-100 text-amber-800 text-xs font-medium px-2 py-0.5 rounded mr-2">Variation</span>
+                  for {quoteData.targetJobName} — Quote #{quoteData.estimateNumber}
+                </>
+              ) : (
+                <>Quote #{quoteData.estimateNumber}</>
+              )}
             </p>
             
             {/* Business Contact Details */}

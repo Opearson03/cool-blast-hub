@@ -1345,233 +1345,290 @@ serve(async (req: Request) => {
         // Continue without PDF - don't fail the whole request
       }
 
-      // Create job from estimate
-      console.log('Creating job from accepted quote...');
+      // Check if this is a variation quote or a new job quote
+      const scopeData = (estimate.scope_data || {}) as Record<string, any>;
+      const isVariation = scopeData.quote_purpose === 'variation' && scopeData.target_job_id;
+
       let newJobId: string | null = null;
-      
-      try {
-        const jobData = parseEstimateForJob(estimate);
-        const pours = jobData.pours;
-        delete (jobData as any).pours;
-        
-        const { data: newJob, error: jobError } = await supabase
-          .from('jobs')
-          .insert({
-            ...jobData,
-            business_id: estimate.business_id,
-            job_type: 'retail',
-            status: 'scheduled',
-            startup_completed: false // Mark as new job needing startup wizard
-          })
-          .select('id')
-          .single();
 
-        if (jobError) {
-          console.error('Failed to create job:', jobError);
-        } else {
-          newJobId = newJob.id;
-          console.log('Job created:', newJobId);
+      if (isVariation) {
+        // Create a variation on the target job instead of a new job
+        console.log('Creating variation from accepted quote on job:', scopeData.target_job_id);
+        try {
+          // Count existing variations to generate number
+          const { count } = await supabase
+            .from('job_variations')
+            .select('id', { count: 'exact', head: true })
+            .eq('job_id', scopeData.target_job_id);
 
-          // Create pours for the job
-          if (pours && pours.length > 0) {
-            const poursToInsert = pours.map((pour) => ({
-              job_id: newJob.id,
-              pour_name: pour.pour_name,
-              estimated_m3: pour.estimated_m3 || null,
-              mpa_strength: pour.mpa_strength || null,
-              slump: pour.slump || null,
-              notes: pour.notes || null,
-              status: 'scheduled'
-            }));
+          const varNum = String((count || 0) + 1).padStart(3, '0');
 
-            const { error: poursError } = await supabase
-              .from('job_pours')
-              .insert(poursToInsert);
-            
-            if (poursError) {
-              console.error('Failed to create pours:', poursError);
-            } else {
-              console.log('Pours created successfully');
-            }
+          // Fetch estimate items for variation line items
+          const { data: estimateItems } = await supabase
+            .from('estimate_items')
+            .select('description, quantity, unit, unit_price, total')
+            .eq('estimate_id', estimate.id)
+            .order('sort_order', { ascending: true });
+
+          const variationItems = (estimateItems || []).map(item => ({
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit || 'ea',
+            unit_price: item.unit_price,
+            total: item.total || (item.quantity * item.unit_price),
+          }));
+
+          const { data: newVariation, error: varError } = await supabase
+            .from('job_variations')
+            .insert({
+              job_id: scopeData.target_job_id,
+              business_id: estimate.business_id,
+              variation_number: `V-${varNum}`,
+              description: estimate.description || 'Variation from signed quote',
+              amount: estimate.total_amount || 0,
+              items: variationItems,
+              notes: estimate.notes || null,
+              status: 'approved',
+              approved_at: nowIso,
+              signed_at: nowIso,
+              client_signature: signature,
+              client_signature_name: signerName,
+              submitted_at: nowIso,
+              submitted_to_email: estimate.client_email || null,
+            })
+            .select('id')
+            .single();
+
+          if (varError) {
+            console.error('Failed to create variation:', varError);
+          } else {
+            console.log('Variation created:', newVariation?.id);
+            newJobId = scopeData.target_job_id; // Use target job for PDF storage
           }
-
-          // Generate BOQ from estimate data
-          console.log('Generating BOQ from estimate data...');
-          try {
-            const boqItems = generateBOQFromEstimateData(
-              estimate.scope_data as Record<string, any> | null,
-              estimate.selected_scopes as string[] | null,
-              estimate.description
-            );
-            
-            if (boqItems.length > 0) {
-              const { error: boqError } = await supabase
-                .from('job_boq')
-                .insert({
-                  job_id: newJob.id,
-                  items: boqItems,
-                  notes: `Auto-generated from signed quote ${estimate.estimate_number}`,
-                });
-              
-              if (boqError) {
-                console.error('Failed to create BOQ:', boqError);
-              } else {
-                console.log(`BOQ created with ${boqItems.length} items`);
-              }
-            }
-          } catch (boqErr) {
-            console.error('Error generating BOQ:', boqErr);
-          }
-
-          // Upload signed PDF to storage and create document record
-          if (signedPdfBase64) {
-            try {
-              // Convert base64 to Uint8Array
-              const binaryString = atob(signedPdfBase64);
-              const bytes = new Uint8Array(binaryString.length);
-              for (let i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-              }
-              
-              const fileName = `${newJob.id}/${Date.now()}-signed-quote-${estimate.estimate_number}.pdf`;
-              
-              const { error: uploadError } = await supabase.storage
-                .from('documents')
-                .upload(fileName, bytes, {
-                  contentType: 'application/pdf',
-                  upsert: false
-                });
-
-              if (uploadError) {
-                console.error('Failed to upload signed PDF:', uploadError);
-              } else {
-                const { data: urlData } = supabase.storage
-                  .from('documents')
-                  .getPublicUrl(fileName);
-
-                // Create document record linked to job
-                const { error: docError } = await supabase
-                  .from('documents')
-                  .insert({
-                    business_id: estimate.business_id,
-                    file_name: `Signed Quote - ${estimate.estimate_number}.pdf`,
-                    file_type: 'application/pdf',
-                    file_url: urlData.publicUrl,
-                    category: 'job',
-                    reference_id: newJob.id
-                  });
-
-                if (docError) {
-                  console.error('Failed to create document record:', docError);
-                } else {
-                  console.log('Signed PDF uploaded and linked to job');
-                }
-              }
-            } catch (uploadErr) {
-              console.error('Error uploading signed PDF:', uploadErr);
-            }
-          }
-
-          // Transfer quote plans to job documents
-          console.log('Transferring quote plans to job documents...');
-          try {
-            // First get the estimate's takeoff
-            const { data: takeoff, error: takeoffError } = await supabase
-              .from('estimate_takeoffs')
-              .select('id')
-              .eq('estimate_id', estimate.id)
-              .single();
-
-            if (takeoffError && takeoffError.code !== 'PGRST116') {
-              console.error('Error fetching takeoff:', takeoffError);
-            }
-
-            if (takeoff) {
-              // Get all takeoff files
-              const { data: takeoffFiles, error: filesError } = await supabase
-                .from('takeoff_files')
-                .select('*')
-                .eq('takeoff_id', takeoff.id)
-                .order('sort_order', { ascending: true });
-
-              if (filesError) {
-                console.error('Error fetching takeoff files:', filesError);
-              }
-
-              if (takeoffFiles && takeoffFiles.length > 0) {
-                console.log(`Found ${takeoffFiles.length} plan files to transfer`);
-                
-                for (let i = 0; i < takeoffFiles.length; i++) {
-                  const file = takeoffFiles[i];
-                  try {
-                    // Fetch the original file
-                    const response = await fetch(file.file_url);
-                    if (!response.ok) {
-                      console.error(`Failed to fetch file: ${file.file_name}`);
-                      continue;
-                    }
-                    
-                    const arrayBuffer = await response.arrayBuffer();
-                    const bytes = new Uint8Array(arrayBuffer);
-                    
-                    // Generate new filename for job documents
-                    const planNumber = takeoffFiles.length > 1 ? ` ${i + 1}` : '';
-                    const newFileName = `${newJob.id}/${Date.now()}-quote-plan${planNumber}-${file.file_name}`;
-                    
-                    // Upload to documents storage
-                    const { error: uploadError } = await supabase.storage
-                      .from('documents')
-                      .upload(newFileName, bytes, {
-                        contentType: file.file_type || 'application/pdf',
-                        upsert: false
-                      });
-
-                    if (uploadError) {
-                      console.error(`Failed to upload plan file: ${file.file_name}`, uploadError);
-                      continue;
-                    }
-
-                    const { data: urlData } = supabase.storage
-                      .from('documents')
-                      .getPublicUrl(newFileName);
-
-                    // Create document record
-                    const displayName = takeoffFiles.length > 1 
-                      ? `Quote Building Plans (${i + 1} of ${takeoffFiles.length})`
-                      : 'Quote Building Plans';
-                      
-                    const { error: docError } = await supabase
-                      .from('documents')
-                      .insert({
-                        business_id: estimate.business_id,
-                        file_name: displayName,
-                        file_type: file.file_type || 'application/pdf',
-                        file_url: urlData.publicUrl,
-                        category: 'job',
-                        reference_id: newJob.id
-                      });
-
-                    if (docError) {
-                      console.error('Failed to create plan document record:', docError);
-                    } else {
-                      console.log(`Plan transferred: ${displayName}`);
-                    }
-                  } catch (fileErr) {
-                    console.error(`Error transferring file ${file.file_name}:`, fileErr);
-                  }
-                }
-              } else {
-                console.log('No plan files found for this estimate');
-              }
-            } else {
-              console.log('No takeoff found for this estimate');
-            }
-          } catch (plansErr) {
-            console.error('Error transferring plans:', plansErr);
-          }
+        } catch (varErr) {
+          console.error('Error creating variation:', varErr);
         }
-      } catch (jobErr) {
-        console.error('Error creating job:', jobErr);
+      } else {
+        // Create job from estimate (existing logic)
+        console.log('Creating job from accepted quote...');
+        try {
+          const jobData = parseEstimateForJob(estimate);
+          const pours = jobData.pours;
+          delete (jobData as any).pours;
+          
+          const { data: newJob, error: jobError } = await supabase
+            .from('jobs')
+            .insert({
+              ...jobData,
+              business_id: estimate.business_id,
+              job_type: 'retail',
+              status: 'scheduled',
+              startup_completed: false
+            })
+            .select('id')
+            .single();
+
+          if (jobError) {
+            console.error('Failed to create job:', jobError);
+          } else {
+            newJobId = newJob.id;
+            console.log('Job created:', newJobId);
+
+            // Create pours for the job
+            if (pours && pours.length > 0) {
+              const poursToInsert = pours.map((pour) => ({
+                job_id: newJob.id,
+                pour_name: pour.pour_name,
+                estimated_m3: pour.estimated_m3 || null,
+                mpa_strength: pour.mpa_strength || null,
+                slump: pour.slump || null,
+                notes: pour.notes || null,
+                status: 'scheduled'
+              }));
+
+              const { error: poursError } = await supabase
+                .from('job_pours')
+                .insert(poursToInsert);
+              
+              if (poursError) {
+                console.error('Failed to create pours:', poursError);
+              } else {
+                console.log('Pours created successfully');
+              }
+            }
+
+            // Generate BOQ from estimate data
+            console.log('Generating BOQ from estimate data...');
+            try {
+              const boqItems = generateBOQFromEstimateData(
+                estimate.scope_data as Record<string, any> | null,
+                estimate.selected_scopes as string[] | null,
+                estimate.description
+              );
+              
+              if (boqItems.length > 0) {
+                const { error: boqError } = await supabase
+                  .from('job_boq')
+                  .insert({
+                    job_id: newJob.id,
+                    items: boqItems,
+                    notes: `Auto-generated from signed quote ${estimate.estimate_number}`,
+                  });
+                
+                if (boqError) {
+                  console.error('Failed to create BOQ:', boqError);
+                } else {
+                  console.log(`BOQ created with ${boqItems.length} items`);
+                }
+              }
+            } catch (boqErr) {
+              console.error('Error generating BOQ:', boqErr);
+            }
+          }
+        } catch (jobErr) {
+          console.error('Error creating job:', jobErr);
+        }
+      }
+
+      // Upload signed PDF to storage and create document record
+      if (signedPdfBase64 && newJobId) {
+        try {
+          const binaryString = atob(signedPdfBase64);
+          const bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+          
+          const fileName = `${newJobId}/${Date.now()}-signed-quote-${estimate.estimate_number}.pdf`;
+          
+          const { error: uploadError } = await supabase.storage
+            .from('documents')
+            .upload(fileName, bytes, {
+              contentType: 'application/pdf',
+              upsert: false
+            });
+
+          if (uploadError) {
+            console.error('Failed to upload signed PDF:', uploadError);
+          } else {
+            const { data: urlData } = supabase.storage
+              .from('documents')
+              .getPublicUrl(fileName);
+
+            const { error: docError } = await supabase
+              .from('documents')
+              .insert({
+                business_id: estimate.business_id,
+                file_name: `Signed Quote - ${estimate.estimate_number}.pdf`,
+                file_type: 'application/pdf',
+                file_url: urlData.publicUrl,
+                category: 'job',
+                reference_id: newJobId
+              });
+
+            if (docError) {
+              console.error('Failed to create document record:', docError);
+            } else {
+              console.log('Signed PDF uploaded and linked to job');
+            }
+          }
+        } catch (uploadErr) {
+          console.error('Error uploading signed PDF:', uploadErr);
+        }
+      }
+
+      // Transfer quote plans to job documents (only for new jobs, not variations)
+      if (newJobId && !isVariation) {
+        console.log('Transferring quote plans to job documents...');
+        try {
+          const { data: takeoff, error: takeoffError } = await supabase
+            .from('estimate_takeoffs')
+            .select('id')
+            .eq('estimate_id', estimate.id)
+            .single();
+
+          if (takeoffError && takeoffError.code !== 'PGRST116') {
+            console.error('Error fetching takeoff:', takeoffError);
+          }
+
+          if (takeoff) {
+            const { data: takeoffFiles, error: filesError } = await supabase
+              .from('takeoff_files')
+              .select('*')
+              .eq('takeoff_id', takeoff.id)
+              .order('sort_order', { ascending: true });
+
+            if (filesError) {
+              console.error('Error fetching takeoff files:', filesError);
+            }
+
+            if (takeoffFiles && takeoffFiles.length > 0) {
+              console.log(`Found ${takeoffFiles.length} plan files to transfer`);
+              
+              for (let i = 0; i < takeoffFiles.length; i++) {
+                const file = takeoffFiles[i];
+                try {
+                  const response = await fetch(file.file_url);
+                  if (!response.ok) {
+                    console.error(`Failed to fetch file: ${file.file_name}`);
+                    continue;
+                  }
+                  
+                  const arrayBuffer = await response.arrayBuffer();
+                  const fileBytes = new Uint8Array(arrayBuffer);
+                  
+                  const planNumber = takeoffFiles.length > 1 ? ` ${i + 1}` : '';
+                  const newFileName = `${newJobId}/${Date.now()}-quote-plan${planNumber}-${file.file_name}`;
+                  
+                  const { error: planUploadError } = await supabase.storage
+                    .from('documents')
+                    .upload(newFileName, fileBytes, {
+                      contentType: file.file_type || 'application/pdf',
+                      upsert: false
+                    });
+
+                  if (planUploadError) {
+                    console.error(`Failed to upload plan file: ${file.file_name}`, planUploadError);
+                    continue;
+                  }
+
+                  const { data: planUrlData } = supabase.storage
+                    .from('documents')
+                    .getPublicUrl(newFileName);
+
+                  const displayName = takeoffFiles.length > 1 
+                    ? `Quote Building Plans (${i + 1} of ${takeoffFiles.length})`
+                    : 'Quote Building Plans';
+                    
+                  const { error: planDocError } = await supabase
+                    .from('documents')
+                    .insert({
+                      business_id: estimate.business_id,
+                      file_name: displayName,
+                      file_type: file.file_type || 'application/pdf',
+                      file_url: planUrlData.publicUrl,
+                      category: 'job',
+                      reference_id: newJobId
+                    });
+
+                  if (planDocError) {
+                    console.error('Failed to create plan document record:', planDocError);
+                  } else {
+                    console.log(`Plan transferred: ${displayName}`);
+                  }
+                } catch (fileErr) {
+                  console.error(`Error transferring file ${file.file_name}:`, fileErr);
+                }
+              }
+            } else {
+              console.log('No plan files found for this estimate');
+            }
+          } else {
+            console.log('No takeoff found for this estimate');
+          }
+        } catch (plansErr) {
+          console.error('Error transferring plans:', plansErr);
+        }
       }
 
       // Send signed PDF to client
