@@ -1,69 +1,90 @@
 
 
-## Integrate Quick Quote Variations with Job Variations
+## Editable Scope Line Items at Review Stage
 
-### The Problem
+### Problem
 
-There are two separate paths to create a variation, with significant overlap:
-1. **Quick Quote (Quotes page)** -- creates an estimate, sends for signing, then converts to a `job_variations` row on signature
-2. **Add Variation (Job page)** -- creates a `job_variations` row directly, then sends via a separate dialog
+Users complete the takeoff and calculator steps, arrive at the summary/review page, and want to make quick adjustments -- either tweaking an individual scope's total price, or adding extra line items. Currently the summary step is read-only, forcing them to navigate back through the calculator to make changes.
 
-These share nearly identical line item editors but differ in useful ways. The goal is to unify them so they complement rather than duplicate each other.
+### Solution
 
-### Approach: Add "Quick Quote Variation" to the Job Variations Tab
+Replace the read-only `SimplifiedScopeSummary` rows on the summary step with **editable scope line items**. Each scope becomes a row where the user can:
 
-Rather than merging the two into one component (which would make both more complex), the cleanest integration is to **make Quick Quote available directly from the Job Variations tab** and **add the missing variation-specific fields to Quick Quote when used for variations**.
+1. **Override the scope total** by clicking the price and typing a new value (inline edit)
+2. **Add custom line items** below the scope list (e.g., "crane hire", "extra labour") with description, quantity, unit, rate, and total
+3. See the grand total update in real-time as they make changes
 
-This way:
-- **VariationFormDialog** remains the "quick internal draft" tool (no client details, no sending -- just log a variation)
-- **QuickQuoteDialog** becomes the "send a variation quote for client approval" tool, accessible from both the Quotes page AND the Job Variations tab
+The internal calculated cost is preserved as a reference -- the override is purely for the client-facing quote total.
+
+### User Experience
+
+On the summary step, each scope row will show:
+- Scope name + key metrics (area, length, etc.) as today
+- An **editable price field** (click to edit, shows a pencil icon on hover)
+- If edited, a small "reset" link to revert to the calculated value, plus a subtle indicator showing the original calculated cost
+
+Below the scope rows:
+- An **"Add Line Item"** button to add custom rows (description + amount)
+- Custom line items appear as editable rows that can be deleted
+
+The totals section updates to reflect any overrides and custom items.
 
 ### Changes
 
 | File | Change |
 |---|---|
-| `src/components/estimates/QuickQuoteDialog.tsx` | Accept optional `preselectedJobId` and `preselectedJobName` props. When provided, auto-select "Variation" mode and lock the job selector. Add `reason` and `daysExtension` fields (shown only in variation mode). |
-| `src/components/jobs/tabs/JobVariationsTab.tsx` | Add a "Send Quote for Variation" button (or menu item) that opens `QuickQuoteDialog` with the current job pre-selected. Pre-fill client details from the job's source estimate. |
+| `src/components/estimates/SimplifiedScopeSummary.tsx` | Add `onTotalChange` callback prop and inline-editable price field. Show original calculated total as reference when overridden. |
+| `src/components/estimates/EstimateFormDialogV2.tsx` | Add `scopeTotalOverrides` state (`Record<string, number>`), `customLineItems` state, pass callbacks to `SimplifiedScopeSummary`, update `combinedSubtotal` to use overrides, include custom line items in total, persist overrides in `scope_data`, and add "Add Line Item" UI on summary step. |
+| `src/components/estimates/EstimateFormDialog.tsx` | Mirror the same changes (V1 wizard). |
 
-### Detailed Changes
+### Technical Details
 
-**QuickQuoteDialog.tsx**
+**New state in EstimateFormDialogV2:**
 
-- Add new optional props:
-  - `preselectedJobId?: string` -- locks the job selector
-  - `preselectedJobName?: string` -- display label for the locked job
-  - `defaultClientName?: string` -- pre-fill client name
-  - `defaultClientEmail?: string` -- pre-fill email
-  - `defaultClientPhone?: string` -- pre-fill phone
-  - `defaultSiteAddress?: string` -- pre-fill site address
-- When `preselectedJobId` is provided:
-  - Auto-set `quotePurpose` to `"variation"` and disable the radio toggle
-  - Show the job name as a read-only badge instead of the searchable dropdown
-  - Show additional variation-specific fields: **Reason** dropdown (same options as VariationFormDialog) and **Days Extension** input
-  - Store these in `scope_data` alongside `quote_purpose` and `target_job_id`
-- When opened from Quotes page (no props), behavior is unchanged
+```
+scopeTotalOverrides: Record<ScopeType, number | null>
+// null = use calculated total, number = user override
 
-**JobVariationsTab.tsx**
+customSummaryLineItems: Array<{
+  id: string;
+  description: string;
+  amount: number;
+}>
+```
 
-- Add a new "Quote Variation" button next to (or within) "Add Variation"
-  - "Add Variation" stays for quick internal drafts
-  - "Quote Variation" opens QuickQuoteDialog with `preselectedJobId={jobId}` and pre-fills client details from the job
-- Import `QuickQuoteDialog` and manage its open state
-- Pre-fill client details by looking up the job's `builder_client` and source estimate's `client_email`/`client_phone`
+**Updated `combinedSubtotal` calculation:**
 
-### User Experience
+```typescript
+const combinedSubtotal = useMemo(() => {
+  const scopeSum = selectedScopesArray.reduce((sum, scope) => {
+    const override = scopeTotalOverrides[scope];
+    return sum + (override !== null && override !== undefined
+      ? override
+      : scopeTotals[scope].total);
+  }, 0);
+  const customSum = customSummaryLineItems.reduce((sum, item) => sum + item.amount, 0);
+  return scopeSum + customSum;
+}, [selectedScopesArray, scopeTotals, scopeTotalOverrides, customSummaryLineItems]);
+```
 
-From the **Quotes page**: Same as today. User can choose New Job or Variation when creating a quick quote.
+**SimplifiedScopeSummary changes:**
 
-From the **Job Variations tab**: Two options:
-- **Add Variation** -- quick internal record (draft status, no client interaction)
-- **Quote Variation** -- opens a pre-filled Quick Quote dialog for this job, sends a branded quote to the client for e-signature approval. When signed, automatically creates an approved variation on the job.
+- New props: `onTotalChange?: (newTotal: number) => void`, `isOverridden?: boolean`, `originalTotal?: number`, `onReset?: () => void`
+- Price becomes a clickable `Input` (type=number) in edit mode
+- When overridden, shows original value struck through or as a small label below
+
+**Persistence:**
+
+Overrides and custom line items are stored in `scope_data` under `_scopeTotalOverrides` and `_customSummaryLineItems`, and restored when reopening the estimate for revision.
+
+**Scope breakdown in notes:**
+
+The `SCOPE BREAKDOWN` section in notes will use the overridden values (if any) so the client-facing quote reflects the adjusted prices.
 
 ### What This Achieves
 
-- No duplicate code -- one line-item editor, one sending pipeline
-- Clear separation: "Add Variation" = internal tracking, "Quote Variation" = client-facing quote
-- Variations created via Quick Quote go through the proper signing flow with branded PDFs
-- The job context is automatically passed through, reducing manual entry
-- Reason and days extension data flows through to the variation record created on signing
+- Users can quickly adjust any scope's price at the final review step without navigating back
+- Custom one-off costs (crane hire, travel, etc.) can be added without going through a calculator module
+- The original calculated costs are preserved as a reference
+- All changes are persisted and restored on re-open
 
