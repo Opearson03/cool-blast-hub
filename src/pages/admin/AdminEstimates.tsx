@@ -33,6 +33,7 @@ import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet"
 import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracker";
 import { EstimateQuotaDialog } from "@/components/estimates/EstimateQuotaDialog";
 import { DuplicateEstimateDialog } from "@/components/estimates/DuplicateEstimateDialog";
+import { QuickQuoteDialog } from "@/components/estimates/QuickQuoteDialog";
 import { useEstimateQuota } from "@/hooks/useEstimateQuota";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { formatCurrency } from "@/lib/format-currency";
@@ -86,6 +87,7 @@ export default function AdminEstimates() {
   const [quotaDialogOpen, setQuotaDialogOpen] = useState(false);
   const [duplicatingEstimate, setDuplicatingEstimate] = useState<Estimate | null>(null);
   const [mobileWarningOpen, setMobileWarningOpen] = useState(false);
+  const [quickQuoteOpen, setQuickQuoteOpen] = useState(false);
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -566,6 +568,16 @@ export default function AdminEstimates() {
                 {used}/{limit} quotes this month
               </Badge>
             )}
+            <Button variant="outline" className="gap-2" onClick={() => {
+              if (!canCreate && limit !== null) {
+                setQuotaDialogOpen(true);
+                return;
+              }
+              setQuickQuoteOpen(true);
+            }}>
+              <Plus className="w-4 h-4" />
+              Quick Quote
+            </Button>
             <Button className="gap-2" onClick={handleNewEstimate}>
               <Plus className="w-4 h-4" />
               New Estimate
@@ -772,6 +784,11 @@ export default function AdminEstimates() {
         open={!!duplicatingEstimate}
         onOpenChange={(open) => !open && setDuplicatingEstimate(null)}
         onDuplicated={() => refreshQuota()}
+      />
+
+      <QuickQuoteDialog
+        open={quickQuoteOpen}
+        onOpenChange={setQuickQuoteOpen}
       />
 
       <AlertDialog open={mobileWarningOpen} onOpenChange={setMobileWarningOpen}>
