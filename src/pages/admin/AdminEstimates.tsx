@@ -1,4 +1,14 @@
 import { useState, useEffect } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import { AdminLayout } from "@/components/layout/AdminLayout";
@@ -75,6 +85,8 @@ export default function AdminEstimates() {
   const [viewingEstimate, setViewingEstimate] = useState<Estimate | null>(null);
   const [quotaDialogOpen, setQuotaDialogOpen] = useState(false);
   const [duplicatingEstimate, setDuplicatingEstimate] = useState<Estimate | null>(null);
+  const [mobileWarningOpen, setMobileWarningOpen] = useState(false);
+  const isMobile = useIsMobile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -269,6 +281,10 @@ export default function AdminEstimates() {
   };
 
   const handleNewEstimate = () => {
+    if (isMobile) {
+      setMobileWarningOpen(true);
+      return;
+    }
     // Check quota before allowing new estimate creation
     if (!canCreate && limit !== null) {
       setQuotaDialogOpen(true);
@@ -280,6 +296,10 @@ export default function AdminEstimates() {
   const handleRowClick = (estimate: Estimate) => {
     // For drafts, open the edit form to continue working
     if (estimate.status === "draft") {
+      if (isMobile) {
+        setMobileWarningOpen(true);
+        return;
+      }
       setEditingEstimate(estimate);
       setFormOpen(true);
     } else {
@@ -753,6 +773,20 @@ export default function AdminEstimates() {
         onOpenChange={(open) => !open && setDuplicatingEstimate(null)}
         onDuplicated={() => refreshQuota()}
       />
+
+      <AlertDialog open={mobileWarningOpen} onOpenChange={setMobileWarningOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Larger Screen Recommended</AlertDialogTitle>
+            <AlertDialogDescription>
+              For the best experience creating estimates and doing takeoffs, please use a tablet or desktop device.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => setMobileWarningOpen(false)}>Got it</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AdminLayout>
   );
 }
