@@ -89,12 +89,6 @@ export function SummaryLineItems({ items, onChange, marginPercent = 0 }: Summary
         Add Line Item
       </Button>
 
-      {items.length > 0 && total > 0 && (
-        <div className="flex justify-end items-center pt-1 px-4">
-          <span className="text-xs text-muted-foreground mr-2">Custom Items:</span>
-          <span className="text-sm font-semibold font-mono">{formatCurrency(total)}</span>
-        </div>
-      )}
     </div>
   );
 }
