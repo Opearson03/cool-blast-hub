@@ -1,90 +1,43 @@
 
+## Fix: Numbers Don't Line Up + Custom Items Missing from PDF
 
-## Editable Scope Line Items at Review Stage
+### The Problems
 
-### Problem
+1. **Numbers don't match**: The PDF pricing table uses `extractScopeBreakdowns()` which reads the **original** `calculatedTotal` from each scope in `scope_data`. It then applies a uniform markup multiplier to make these add up to `estimate.total_amount`. But when you've overridden a scope total or added custom line items, the multiplier becomes wildly wrong because the base numbers are different from what was actually saved.
 
-Users complete the takeoff and calculator steps, arrive at the summary/review page, and want to make quick adjustments -- either tweaking an individual scope's total price, or adding extra line items. Currently the summary step is read-only, forcing them to navigate back through the calculator to make changes.
+2. **Custom line items missing from PDF**: Items stored in `_scopeTotalOverrides` and `_customSummaryLineItems` are never read by the PDF renderer. The `getScopesFromData()` helper skips all keys starting with `_`, so custom line items simply don't appear.
+
+In your example: Small Slab calculated at $4,623.30, overridden to $5,000, plus $2,000 in custom items. The PDF sees only $4,623.30 for "Small Slab" and inflates it to match the $8,855 total -- producing one wrong line item and zero custom items.
 
 ### Solution
 
-Replace the read-only `SimplifiedScopeSummary` rows on the summary step with **editable scope line items**. Each scope becomes a row where the user can:
-
-1. **Override the scope total** by clicking the price and typing a new value (inline edit)
-2. **Add custom line items** below the scope list (e.g., "crane hire", "extra labour") with description, quantity, unit, rate, and total
-3. See the grand total update in real-time as they make changes
-
-The internal calculated cost is preserved as a reference -- the override is purely for the client-facing quote total.
-
-### User Experience
-
-On the summary step, each scope row will show:
-- Scope name + key metrics (area, length, etc.) as today
-- An **editable price field** (click to edit, shows a pencil icon on hover)
-- If edited, a small "reset" link to revert to the calculated value, plus a subtle indicator showing the original calculated cost
-
-Below the scope rows:
-- An **"Add Line Item"** button to add custom rows (description + amount)
-- Custom line items appear as editable rows that can be deleted
-
-The totals section updates to reflect any overrides and custom items.
+Make the PDF renderer aware of scope overrides and custom line items by updating `extractScopeBreakdowns()` and the `PrintableEstimate` rendering logic.
 
 ### Changes
 
 | File | Change |
 |---|---|
-| `src/components/estimates/SimplifiedScopeSummary.tsx` | Add `onTotalChange` callback prop and inline-editable price field. Show original calculated total as reference when overridden. |
-| `src/components/estimates/EstimateFormDialogV2.tsx` | Add `scopeTotalOverrides` state (`Record<string, number>`), `customLineItems` state, pass callbacks to `SimplifiedScopeSummary`, update `combinedSubtotal` to use overrides, include custom line items in total, persist overrides in `scope_data`, and add "Add Line Item" UI on summary step. |
-| `src/components/estimates/EstimateFormDialog.tsx` | Mirror the same changes (V1 wizard). |
+| `src/lib/quote-pdf-data.ts` | Update `extractScopeBreakdowns()` to accept and apply `_scopeTotalOverrides` from `scope_data`, overriding `calculatedTotal` per scope. Add a new `extractCustomLineItems()` function that reads `_customSummaryLineItems` from `scope_data`. Update `extractQuotePDFData()` to return custom line items. |
+| `src/components/estimates/PrintableEstimate.tsx` | Update both templates (minimal + classic) to render custom line items as additional rows in the pricing table alongside scopes. Use overridden scope totals when computing `markedUpScopes` so the markup multiplier calculation is correct (or becomes unnecessary when overrides are present). |
 
 ### Technical Details
 
-**New state in EstimateFormDialogV2:**
+**quote-pdf-data.ts**
 
-```
-scopeTotalOverrides: Record<ScopeType, number | null>
-// null = use calculated total, number = user override
+- In `extractScopeBreakdowns()`, after computing each scope's `calculatedTotal`, check if `scopeData._scopeTotalOverrides[scopeId]` exists and use that value instead
+- Add `extractCustomLineItems(scopeData)` that returns `_customSummaryLineItems` array (description + amount)
+- Add custom line items to `QuotePDFData` interface
 
-customSummaryLineItems: Array<{
-  id: string;
-  description: string;
-  amount: number;
-}>
-```
+**PrintableEstimate.tsx**
 
-**Updated `combinedSubtotal` calculation:**
+- When building `markedUpScopes`, the scope `calculatedTotal` values already include overrides (from the updated `extractScopeBreakdowns`), so the markup multiplier math works correctly
+- After scope rows, render custom line item rows from `quotePDFData.customLineItems`
+- Include custom line item amounts in the totals calculation so the sum matches `estimate.total_amount`
+- Both minimal and classic templates get the same fix
 
-```typescript
-const combinedSubtotal = useMemo(() => {
-  const scopeSum = selectedScopesArray.reduce((sum, scope) => {
-    const override = scopeTotalOverrides[scope];
-    return sum + (override !== null && override !== undefined
-      ? override
-      : scopeTotals[scope].total);
-  }, 0);
-  const customSum = customSummaryLineItems.reduce((sum, item) => sum + item.amount, 0);
-  return scopeSum + customSum;
-}, [selectedScopesArray, scopeTotals, scopeTotalOverrides, customSummaryLineItems]);
-```
+### Result
 
-**SimplifiedScopeSummary changes:**
-
-- New props: `onTotalChange?: (newTotal: number) => void`, `isOverridden?: boolean`, `originalTotal?: number`, `onReset?: () => void`
-- Price becomes a clickable `Input` (type=number) in edit mode
-- When overridden, shows original value struck through or as a small label below
-
-**Persistence:**
-
-Overrides and custom line items are stored in `scope_data` under `_scopeTotalOverrides` and `_customSummaryLineItems`, and restored when reopening the estimate for revision.
-
-**Scope breakdown in notes:**
-
-The `SCOPE BREAKDOWN` section in notes will use the overridden values (if any) so the client-facing quote reflects the adjusted prices.
-
-### What This Achieves
-
-- Users can quickly adjust any scope's price at the final review step without navigating back
-- Custom one-off costs (crane hire, travel, etc.) can be added without going through a calculator module
-- The original calculated costs are preserved as a reference
-- All changes are persisted and restored on re-open
-
+- Scope line items in the PDF will show the overridden prices (not the original calculated ones)
+- Custom line items (e.g. "crane hire $2,000") will appear as separate rows in the pricing table
+- The total in the PDF will match what the user sees in the review step
+- No changes needed to the review step UI itself -- the data is already saved correctly, just not read by the PDF
