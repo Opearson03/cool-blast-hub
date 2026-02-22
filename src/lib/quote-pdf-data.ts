@@ -41,11 +41,18 @@ export interface QuoteLineItem {
   category: string;
 }
 
+export interface CustomLineItem {
+  id: string;
+  description: string;
+  amount: number;
+}
+
 export interface QuotePDFData {
   projectSummary: ProjectSummary;
   reinforcement: ReinforcementDetails | null;
   scopeBreakdowns: ScopeBreakdown[];
   lineItems: QuoteLineItem[];
+  customLineItems: CustomLineItem[];
   inclusions: Record<string, string[]>;
   exclusions: Record<string, string[]>;
 }
@@ -432,8 +439,12 @@ export function extractScopeBreakdowns(
     // Extract surface finish
     const surfaceFinish = extractSurfaceFinish(moduleAnswers);
     
-    // Extract calculated total for this scope
-    const calculatedTotal = Number(scope.calculatedTotal) || 0;
+    // Extract calculated total for this scope - use override if present
+    const overrides = scopeData?._scopeTotalOverrides as Record<string, number> | undefined;
+    const overriddenTotal = overrides?.[scopeId];
+    const calculatedTotal = overriddenTotal !== undefined && overriddenTotal !== null
+      ? Number(overriddenTotal)
+      : Number(scope.calculatedTotal) || 0;
     
     breakdowns.push({
       scopeName: formatScopeName(scopeId),
@@ -582,6 +593,21 @@ export function collectExclusions(
 /**
  * Main function to extract all quote PDF data
  */
+/**
+ * Extract custom line items from scope_data
+ */
+export function extractCustomLineItems(
+  scopeData: Record<string, any> | null
+): CustomLineItem[] {
+  if (!scopeData) return [];
+  const items = scopeData._customSummaryLineItems;
+  if (!Array.isArray(items)) return [];
+  return items.filter((item: any) => item && item.description && typeof item.amount === 'number');
+}
+
+/**
+ * Main function to extract all quote PDF data
+ */
 export function extractQuotePDFData(
   scopeData: Record<string, any> | null,
   selectedScopes: string[] | null,
@@ -592,6 +618,7 @@ export function extractQuotePDFData(
     reinforcement: extractReinforcementDetails(scopeData),
     scopeBreakdowns: extractScopeBreakdowns(scopeData, selectedScopes),
     lineItems: generateLineItems(scopeData),
+    customLineItems: extractCustomLineItems(scopeData),
     inclusions: collectInclusions(scopeData),
     exclusions: collectExclusions(scopeData),
   };
