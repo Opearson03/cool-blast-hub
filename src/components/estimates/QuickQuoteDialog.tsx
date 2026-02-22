@@ -13,8 +13,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Loader2, Send, Save } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Plus, Trash2, Loader2, Send, Save, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatCurrency, roundToCents } from "@/lib/format-currency";
 import { ClientAutocomplete } from "@/components/contacts/ClientAutocomplete";
@@ -432,19 +434,54 @@ export function QuickQuoteDialog({ open, onOpenChange }: QuickQuoteDialogProps) 
 
               {quotePurpose === "variation" && (
                 <div className="space-y-1.5">
-                  <Label htmlFor="qq-target-job">Select Job *</Label>
-                  <Select value={targetJobId} onValueChange={setTargetJobId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose an existing job..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activeJobs.map((job) => (
-                        <SelectItem key={job.id} value={job.id}>
-                          {job.job_number ? `${job.job_number} - ` : ""}{job.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label>Select Job *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        role="combobox"
+                        className="w-full justify-between font-normal"
+                      >
+                        {targetJobId
+                          ? (() => {
+                              const job = activeJobs.find((j) => j.id === targetJobId);
+                              return job
+                                ? `${job.job_number ? `${job.job_number} - ` : ""}${job.name}`
+                                : "Choose an existing job...";
+                            })()
+                          : "Choose an existing job..."}
+                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                      <Command>
+                        <CommandInput placeholder="Search jobs..." />
+                        <CommandList>
+                          <CommandEmpty>No jobs found.</CommandEmpty>
+                          <CommandGroup>
+                            {activeJobs.map((job) => {
+                              const label = `${job.job_number ? `${job.job_number} - ` : ""}${job.name}`;
+                              return (
+                                <CommandItem
+                                  key={job.id}
+                                  value={`${job.job_number || ""} ${job.name} ${job.site_address || ""} ${job.builder_client || ""}`}
+                                  onSelect={() => setTargetJobId(job.id)}
+                                >
+                                  <Check className={cn("mr-2 h-4 w-4", targetJobId === job.id ? "opacity-100" : "opacity-0")} />
+                                  <div className="flex flex-col">
+                                    <span className="text-sm">{label}</span>
+                                    {job.site_address && (
+                                      <span className="text-xs text-muted-foreground">{job.site_address}</span>
+                                    )}
+                                  </div>
+                                </CommandItem>
+                              );
+                            })}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
                 </div>
               )}
             </div>
