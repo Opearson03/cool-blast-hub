@@ -1,145 +1,84 @@
-
-
-## Public Subcontractor Directory
+## Incorporate Directory into PourHub App (Admin-Only Access)
 
 ### Overview
 
-Build a standalone public-facing directory page at `/directory` where anyone (no login required) can browse and search verified subcontractors. This is independent from the existing PourHub app and will later be incorporated.
+Move the Subcontractor Directory from a standalone public page into the existing PourHub admin app. It becomes a section within the admin layout, accessible only to authenticated PourHub business users. The directory pages will be wrapped in `ProtectedRoute` and rendered inside `AdminLayout`.
 
-### New Route
+### Key Changes
 
-| Route | Auth | Description |
-|---|---|---|
-| `/directory` | Public (no login) | Browse/search subcontractor profiles |
-| `/directory/:id` | Public | Individual subcontractor profile page |
+**1. Move directory routes behind authentication**
 
-### Data Access
+- Change `/directory` to `/admin/directory` (protected, admin role)
+- Change `/directory/:id` to `/admin/directory/:id` (protected, admin role)
+- Remove the old public `/directory` routes
 
-A new database function `get_public_directory_profiles` will return only profiles that are:
-- ABN verified (`abn_verified = true`)
-- Have at least one trade type
-- Status is "available"
+**2. Wrap directory pages in AdminLayout**
 
-It will NOT expose sensitive fields (ABN, email, phone, insurance URLs, white card docs). Only public-safe fields are returned.
+Both `SubcontractorDirectory.tsx` and `SubcontractorProfilePage.tsx` will:
 
-### Page 1: Directory Listing (`/directory`)
+- Use `AdminLayout` instead of their own standalone header/layout
+- Remove the custom PourHub logo header (AdminLayout already provides it)
+- Keep all filtering, cards, and profile detail content as-is
 
-A polished, marketing-quality page with:
+**3. Add "Directory" as a link in the Subcontractors tab to the admin "contacts" page**
 
-**Header**
-- PourHub logo + "Subcontractor Directory" title
-- Tagline: "Find verified trades for your next project"
-- Link to `/sub-contractors/signup` ("Join the Directory")
+Add a new nav item in `AdminLayout.tsx`:
 
-**Search and Filters Bar**
-- Text search (name, postcode, legal name)
-- Trade type filter dropdown (Concreter, Steel Fixer, Formworker, etc.)
-- Availability filter (Available / All)
-- Postcode search with radius display
+- Label: "Directory"
+- Icon: `Search` (from lucide-react)
+- Route: `/admin/directory`
+- `requiresPro: true` (Pro tier feature)
 
-**Results Grid**
-- Card-based layout (responsive grid: 1 col mobile, 2 col tablet, 3 col desktop)
-- Each card shows:
-  - Profile photo (or initials avatar)
-  - First name + last initial (e.g. "John S.")
-  - Trade badges
-  - Years experience
-  - Service area (postcode + radius)
-  - ABN Verified badge
-  - White Card badge (if `has_white_card = true`)
-  - GST Registered badge
-  - Availability indicator
-  - "View Profile" button
-- Empty state when no results match filters
-- Result count display
+This sits alongside Dashboard, Jobs, Quotes, Schedule, Contact, Settings.
 
-### Page 2: Profile Detail (`/directory/:id`)
+**5. Update internal links**
 
-Individual profile page showing:
-- Large profile photo (or initials)
-- Full name, bio
-- Trade types with badges
-- Years of experience
-- Service area (postcode + radius km)
-- Verification badges (ABN Verified, White Card, GST)
-- Legal business name
-- "Contact" button (reveals a contact form or prompts login -- for now, links to `/sub-contractors` landing)
-- Back to directory link
+- DirectoryCard "View Profile" links: `/directory/:id` becomes `/admin/directory/:id`
+- Profile page "Back to Directory" link: `/directory` becomes `/admin/directory`
+- Remove "Join the Directory" CTA button (not relevant for admin users browsing)
+- Replace "Contact via PourHub" button on profile detail with a more useful action -- e.g. "Invite to Job" linking to the invite flow, or simply showing the subcontractor's contact details (since admin users are authenticated, we could expose phone/email to them via a separate authenticated RPC)
 
-### Database
+**6. Update the database RPCs (optional enhancement)**
 
-**New RPC function: `get_public_directory_profiles`**
+The existing `get_public_directory_profiles` RPC uses `SECURITY DEFINER` and returns limited fields. Since directory is now admin-only, we could optionally create an authenticated version that also returns email and phone for direct contact. However, for the initial move, the existing RPCs work fine since they're called via the Supabase client which will have the user's session.
 
-Returns only safe, public fields for verified subcontractors. No authentication required.
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_public_directory_profiles()
-RETURNS TABLE (
-  id uuid,
-  first_name text,
-  last_name text,
-  profile_photo_url text,
-  trade_types text[],
-  years_experience integer,
-  service_radius_km integer,
-  base_postcode text,
-  bio text,
-  availability_status text,
-  abn_verified boolean,
-  gst_registered boolean,
-  has_white_card boolean,
-  legal_name text
-)
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = 'public'
-AS $$
-  SELECT id, first_name, last_name, profile_photo_url,
-         trade_types, years_experience, service_radius_km,
-         base_postcode, bio, availability_status,
-         abn_verified, gst_registered, has_white_card, legal_name
-  FROM subcontractor_directory_profiles
-  WHERE abn_verified = true
-    AND trade_types IS NOT NULL
-    AND array_length(trade_types, 1) > 0
-  ORDER BY availability_status = 'available' DESC, years_experience DESC NULLS LAST;
-$$;
-```
-
-**New RPC function: `get_public_directory_profile`**
-
-Returns a single profile by ID (same safe fields).
-
-```sql
-CREATE OR REPLACE FUNCTION public.get_public_directory_profile(_id uuid)
-RETURNS TABLE ( ... same columns ... )
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = 'public'
-AS $$
-  SELECT ... FROM subcontractor_directory_profiles
-  WHERE id = _id AND abn_verified = true;
-$$;
-```
-
-### Files to Create
-
-| File | Purpose |
-|---|---|
-| `src/pages/directory/SubcontractorDirectory.tsx` | Main listing page with search/filters and card grid |
-| `src/pages/directory/SubcontractorProfilePage.tsx` | Individual profile detail page |
-| `src/components/directory/DirectoryCard.tsx` | Reusable profile card component |
-| `src/components/directory/DirectoryFilters.tsx` | Search + filter bar component |
-| `src/hooks/usePublicDirectory.ts` | React Query hooks for the two RPC functions |
+No RPC changes needed for the initial integration -- the existing functions work for authenticated users too.
 
 ### Files to Modify
 
-| File | Change |
-|---|---|
-| `src/App.tsx` | Add `/directory` and `/directory/:id` routes (public, no auth) |
 
-### Technical Details
+| File                                               | Change                                                                                                                     |
+| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `src/App.tsx`                                      | Change `/directory` and `/directory/:id` routes to `/admin/directory` and `/admin/directory/:id`, wrap in `ProtectedRoute` |
+| `src/components/layout/AdminLayout.tsx`            | Add "Directory" nav item                                                                                                   |
+| `src/components/layout/AdminBottomNav.tsx`         | Add "Directory" tab                                                                                                        |
+| `src/pages/directory/SubcontractorDirectory.tsx`   | Wrap content in `AdminLayout`, remove standalone header, update link paths                                                 |
+| `src/pages/directory/SubcontractorProfilePage.tsx` | Wrap content in `AdminLayout`, remove standalone header, update link paths                                                 |
+| `src/components/directory/DirectoryCard.tsx`       | Update "View Profile" link to `/admin/directory/:id`                                                                       |
 
-**Privacy**: No ABN numbers, emails, phone numbers, or document URLs are exposed through the public RPC. Last names are shown in full on the detail page but truncated to initial on cards.
 
-**No authentication required**: Both RPC functions use `SECURITY DEFINER` and don't check `auth.uid()`, making them callable by anonymous users via the Supabase anon key.
+### What Stays the Same
 
-**Card design**: Each card uses the existing `Card` component with a clean layout -- photo at top, name + trades in middle, badges and stats at bottom.
+- All directory filtering logic (trade, availability, search)
+- DirectoryCard design and badges
+- Profile detail page content (photo, bio, trades, verification badges)
+- The existing RPCs (`get_public_directory_profiles`, `get_public_directory_profile`)
+- Subcontractor portal routes (`/sub-contractors/*`) remain independent
+- Existing invite flow is untouched
 
-**Filtering**: All filtering is done client-side after fetching the full list (same pattern as `SubcontractorAdminTable`). The dataset is small enough that server-side pagination isn't needed yet.
+### Navigation Structure After Change
+
+```text
+Admin Sidebar:
+  Dashboard
+  Jobs
+  Quotes
+  Schedule
+  Contact
+      - sub-contractors
+         - search directory
+ 
+  Settings
+```
+
+&nbsp;
