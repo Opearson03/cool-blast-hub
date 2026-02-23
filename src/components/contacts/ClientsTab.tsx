@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useClients, useCreateClient, useUpdateClient, useDeleteClient, Client } from "@/hooks/useClients";
 import { ContactList, ContactListItem } from "./ContactList";
 import { ContactFormDialog } from "./ContactFormDialog";
+import { ClientDetailSheet } from "./ClientDetailSheet";
 
 export function ClientsTab() {
   const { data: clients = [], isLoading } = useClients();
@@ -11,6 +12,8 @@ export function ClientsTab() {
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const handleAdd = () => {
     setEditingClient(null);
@@ -27,6 +30,14 @@ export function ClientsTab() {
 
   const handleDelete = (id: string) => {
     deleteClient.mutate(id);
+  };
+
+  const handleSelect = (contact: ContactListItem) => {
+    const client = clients.find((c) => c.id === contact.id);
+    if (client) {
+      setSelectedClient(client);
+      setDetailOpen(true);
+    }
   };
 
   const handleSave = async (data: any) => {
@@ -73,6 +84,7 @@ export function ClientsTab() {
         onAdd={handleAdd}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onSelect={handleSelect}
       />
 
       <ContactFormDialog
@@ -93,6 +105,12 @@ export function ClientsTab() {
         } : undefined}
         onSave={handleSave}
         isPending={createClient.isPending || updateClient.isPending}
+      />
+
+      <ClientDetailSheet
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        client={selectedClient}
       />
     </>
   );

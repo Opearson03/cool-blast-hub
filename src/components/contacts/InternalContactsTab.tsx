@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { InternalContactDetailSheet } from "./InternalContactDetailSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,6 +38,8 @@ export function InternalContactsTab() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingContact, setEditingContact] = useState<InternalContact | null>(null);
+  const [selectedContact, setSelectedContact] = useState<InternalContact | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -228,7 +231,14 @@ export function InternalContactsTab() {
               </TableHeader>
               <TableBody>
                 {filteredContacts.map((contact) => (
-                  <TableRow key={contact.id}>
+                  <TableRow 
+                    key={contact.id} 
+                    className="cursor-pointer hover:bg-accent/50"
+                    onClick={() => {
+                      setSelectedContact(contact);
+                      setDetailOpen(true);
+                    }}
+                  >
                     <TableCell>
                       <div className="font-medium">{contact.name}</div>
                       {contact.role && (
@@ -316,6 +326,11 @@ export function InternalContactsTab() {
           await saveMutation.mutateAsync(data);
         }}
         isPending={saveMutation.isPending}
+      />
+      <InternalContactDetailSheet
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        contact={selectedContact}
       />
     </div>
   );
