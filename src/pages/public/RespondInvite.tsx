@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, Wrench, Check, X, Loader2, CalendarPlus, AlertCircle } from "lucide-react";
+import { Calendar, Clock, MapPin, Wrench, Check, X, Loader2, CalendarPlus, AlertCircle, Users } from "lucide-react";
 import { format } from "date-fns";
 
 interface SingleInviteDetails {
@@ -52,6 +52,23 @@ interface BatchInviteDetails {
 type InviteDetails = SingleInviteDetails | BatchInviteDetails;
 
 type ResponseChoice = "accepted" | "declined";
+
+const JoinDirectoryCTA = () => (
+  <div className="mt-6 space-y-4">
+    <Separator />
+    <div className="bg-gradient-to-br from-primary/10 via-primary/5 to-transparent p-5 rounded-xl border border-primary/20 text-center">
+      <Users className="h-6 w-6 text-primary mx-auto mb-2" />
+      <h3 className="font-bold text-base mb-1">Want more work?</h3>
+      <p className="text-sm text-muted-foreground mb-4">
+        Join the free PourHub directory to get discovered by local businesses.
+      </p>
+      <Button asChild className="w-full gap-2">
+        <a href="/sub-contractors">Join Free Directory</a>
+      </Button>
+    </div>
+    <p className="text-center text-xs text-muted-foreground">Powered by PourHub</p>
+  </div>
+);
 
 export default function RespondInvite() {
   const { token } = useParams<{ token: string }>();
@@ -277,8 +294,7 @@ export default function RespondInvite() {
               </Button>
             </div>
 
-            <Separator className="my-8" />
-            <p className="text-xs text-muted-foreground">Powered by PourHub</p>
+            <JoinDirectoryCTA />
           </CardContent>
         </Card>
       </div>
@@ -318,8 +334,7 @@ export default function RespondInvite() {
               </Button>
             </div>
 
-            <Separator className="my-8" />
-            <p className="text-xs text-muted-foreground">Powered by PourHub</p>
+            <JoinDirectoryCTA />
           </CardContent>
         </Card>
       </div>
@@ -498,8 +513,7 @@ export default function RespondInvite() {
               </Button>
             )}
 
-            <Separator className="my-4" />
-            <p className="text-center text-xs text-muted-foreground">Powered by PourHub</p>
+            <JoinDirectoryCTA />
           </CardContent>
         </Card>
       </div>
@@ -596,8 +610,7 @@ export default function RespondInvite() {
             </Button>
           </div>
 
-          <Separator className="my-4" />
-          <p className="text-center text-xs text-muted-foreground">Powered by PourHub</p>
+          <JoinDirectoryCTA />
         </CardContent>
       </Card>
     </div>
