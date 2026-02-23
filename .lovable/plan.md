@@ -1,209 +1,117 @@
 
 
-## Subcontractor Portal MVP -- PourHub Labour Marketplace
+## Advanced Subcontractor Dashboard with Navigation
 
 ### Overview
 
-A standalone subcontractor directory at `/sub-contractors` where Australian trades can create verified profiles using their ABN. Completely separate from the existing PourHub admin/staff/supplier portals.
+Transform the current single-page subcontractor dashboard into a full multi-page portal with sidebar navigation (mirroring the AdminLayout pattern), adding work management, scheduling, and settings pages.
 
-### Prerequisite -- ABR API GUID
+### New Routes
 
-Before we can implement ABN verification, you need to register for a free API key:
-
-1. Go to https://abr.business.gov.au/Tools/AbrApi
-2. Fill out the registration form (takes ~2 minutes)
-3. You'll receive a GUID via email
-4. Come back and I'll store it securely as `ABR_API_GUID`
-
----
-
-### Database Schema
-
-**New table: `subcontractor_directory_profiles`**
-
-| Column | Type | Notes |
+| Route | Page | Description |
 |---|---|---|
-| id | uuid (PK) | |
-| user_id | uuid (FK auth.users) | Unique, not null |
-| first_name | text | |
-| last_name | text | |
-| phone | text | |
-| email | text | |
-| abn | text | 11-digit string |
-| legal_name | text | From ABR API |
-| gst_registered | boolean | From ABR API |
-| entity_type | text | From ABR API |
-| abn_verified | boolean | Default false |
-| trade_types | text[] | Array of selected trades |
-| years_experience | integer | |
-| service_radius_km | integer | |
-| base_postcode | text | |
-| insurance_certificate_url | text | Storage path |
-| profile_photo_url | text | Storage path |
-| bio | text | Short description |
-| availability_status | text | "available" or "busy" |
-| created_at | timestamptz | |
-| updated_at | timestamptz | |
+| `/sub-contractors/dashboard` | Dashboard | Overview with profile completion, availability, upcoming work |
+| `/sub-contractors/work` | My Work | Accept/decline incoming job invites |
+| `/sub-contractors/schedule` | Schedule | Weekly calendar of accepted jobs |
+| `/sub-contractors/settings` | Settings | Edit profile, trade details, uploads, account |
 
-**New role value**: Add `'subcontractor'` to the existing `app_role` enum, or use the `user_roles` table with a text-based role check (following existing `is_supplier` pattern).
+### Architecture
 
-**New RPC function**: `is_subcontractor(_user_id uuid)` -- mirrors the existing `is_supplier` pattern.
+**New layout component: `SubcontractorLayout`**
 
-**RLS policies on `subcontractor_directory_profiles`**:
-- Authenticated users can read all profiles (future search feature)
-- Users can only insert/update/delete their own profile (`user_id = auth.uid()`)
-- Admins (PourHub staff) can read all
+Mirrors the existing `AdminLayout` pattern with:
+- Desktop: fixed left sidebar (w-64) with logo, nav items, sign out
+- Mobile: hamburger menu header + bottom tab navigation
+- Nav items: Dashboard, My Work, Schedule, Settings
+- No subscription gating (standalone portal)
 
-**Storage bucket**: `subcontractor-documents` (private) for insurance certificates; `subcontractor-photos` (public) for profile photos.
+**New bottom nav: `SubcontractorBottomNav`**
 
----
+Mobile-only bottom tab bar (same pattern as `AdminBottomNav`) with 4 tabs.
 
-### Edge Function: `verify-abn`
+### Pages
 
-- Accepts `{ abn: string }` in request body
-- Calls `https://abr.business.gov.au/json/AbnDetails.aspx?abn={ABN}&guid={ABR_API_GUID}`
-- The ABR API returns JSONP by default (callback wrapper); the function strips the callback wrapper to parse the JSON
-- Returns:
-  - `valid: boolean`
-  - `legal_name: string`
-  - `gst_registered: boolean`
-  - `entity_type: string`
-  - `abn_status: string`
-  - `error_message: string` (if invalid/cancelled)
-- JWT validation required (only authenticated users can verify)
-- Config: `verify_jwt = false` in config.toml (validate in code per project pattern)
+**1. Dashboard (refactored)**
+- Profile completion card (existing)
+- Business details card (existing)
+- Availability toggle (existing)
+- NEW: "Upcoming Work" summary card showing next 7 days of accepted jobs
+- NEW: "Pending Invites" count badge linking to My Work page
+- Wrapped in `SubcontractorLayout` instead of custom header
 
----
+**2. My Work page (new)**
+- Fetches `external_invites` where `recipient_email` or `recipient_phone` matches the subcontractor's profile
+- Shows pending invites as cards with:
+  - Job/pour name, date, time
+  - Business name
+  - Role requested
+  - Accept / Decline buttons
+- Calls the existing `respond-subtrade-invite` edge function to accept/decline
+- Tabs: "Pending" | "Accepted" | "Declined" for filtering
+- Links accepted invites to the subcontractor's profile via a new `subcontractor_user_id` column on `external_invites` (or matched by email/phone)
 
-### Frontend Pages and Components
+**3. Schedule page (new)**
+- Weekly view showing accepted jobs (from `external_invites` where status = "accepted")
+- Each day card shows pour name, time, site address
+- Week navigation (prev/next)
+- Similar pattern to `EmployeeSchedule.tsx`
 
-**Route: `/sub-contractors`** -- Landing + Login page
-- Hero section explaining the subcontractor marketplace
-- Login form for existing subcontractors
-- "Create Account" button leading to signup
-- Clean, standalone design (not using AdminLayout)
+**4. Settings page (new)**
+- Accordion-based settings (same pattern as `AdminSettings` with `SettingsGroup`/`SettingsAccordionItem`)
+- Sections:
+  - Personal Details (first name, last name, phone, email)
+  - Business Details (ABN display, legal name -- read-only verified fields)
+  - Trade Profile (trade types multi-select, years experience, service radius, base postcode, bio)
+  - Documents (upload/replace insurance certificate, profile photo)
+  - Account (change password, sign out)
 
-**Route: `/sub-contractors/signup`** -- Multi-step registration
-- Step 1: Email + password (Supabase auth signup)
-- Step 2: ABN entry + verification (calls `verify-abn` edge function)
-  - Shows spinner while verifying
-  - On success: auto-fills and locks legal name, GST status, entity type
-  - On failure: shows error, blocks proceeding
-- Step 3: Profile details (name, phone, trade types, experience, postcode, radius, bio)
-- Step 4: File uploads (insurance certificate, profile photo)
-- Redirects to dashboard on completion
+### Database Changes
 
-**Route: `/sub-contractors/dashboard`** -- Subcontractor dashboard
-- Protected route (checks `is_subcontractor` role, same pattern as `SupplierProtectedRoute`)
-- Shows: verified ABN badge, legal entity name, trade types, availability toggle
-- Profile completion percentage bar
-- Edit profile button
+**Add column to `external_invites`:**
+- `subcontractor_user_id uuid` (nullable, references no FK to avoid schema coupling) -- allows matching invites to logged-in subcontractors
 
-**Admin view** (within existing PourHub staff dashboard):
-- New tab "Subcontractors" in `StaffDashboard.tsx`
-- Table listing all `subcontractor_directory_profiles`
-- Filters: GST registered, entity type, trade type, postcode
-- ABN verified badge per row
+**Or simpler approach (no schema change):** Match invites by email/phone from the subcontractor's profile. This avoids any migration and works with the existing invite flow.
 
----
+We will use the simpler email/phone matching approach -- no database migration needed.
 
-### Component Structure
+### Files to Create
 
-```
-src/components/subcontractors/
-  SubcontractorProtectedRoute.tsx    -- Auth guard (mirrors SupplierProtectedRoute)
-  SubcontractorSignupFlow.tsx        -- Multi-step registration wizard
-  AbnVerificationStep.tsx            -- ABN input + API call + results display
-  ProfileDetailsStep.tsx             -- Trade types, experience, location
-  FileUploadStep.tsx                 -- Insurance + photo uploads
-  SubcontractorDashboard.tsx         -- Main dashboard content
-  SubcontractorProfileCard.tsx       -- Profile summary with completion %
-  AvailabilityToggle.tsx             -- Available/Busy switch
-  SubcontractorAdminTable.tsx        -- Staff view table with filters
-
-src/pages/subcontractors/
-  SubcontractorsLanding.tsx          -- Landing + login
-  SubcontractorSignup.tsx            -- Signup flow page
-  SubcontractorDashboardPage.tsx     -- Dashboard page
-
-src/hooks/
-  useSubcontractorProfile.ts         -- Fetch/update profile hook
-  useAbnVerification.ts              -- ABN verification mutation hook
-```
-
----
-
-### Route Registration (App.tsx)
-
-```
-/sub-contractors                     -- Landing/login (public)
-/sub-contractors/signup              -- Registration (public)
-/sub-contractors/dashboard           -- Dashboard (protected)
-```
-
----
-
-### Trade Type Options (multi-select)
-
-- Concreter
-- Steel Fixer
-- Formworker
-- Pump Operator
-- Excavation
-- Labourer
-
----
-
-### Profile Completion Calculation
-
-Score based on filled fields (each worth equal weight):
-- First/last name, phone, email (basic info)
-- ABN verified
-- At least 1 trade type selected
-- Years experience set
-- Service radius + base postcode set
-- Insurance certificate uploaded
-- Profile photo uploaded
-- Bio written
-
-Display as percentage bar on dashboard.
-
----
-
-### Files to Create/Modify
-
-| File | Action |
+| File | Purpose |
 |---|---|
-| 1 database migration | Create table, RPC, RLS, storage buckets |
-| `supabase/functions/verify-abn/index.ts` | New edge function |
-| `supabase/config.toml` | Add `verify-abn` function config |
-| `src/pages/subcontractors/SubcontractorsLanding.tsx` | New page |
-| `src/pages/subcontractors/SubcontractorSignup.tsx` | New page |
-| `src/pages/subcontractors/SubcontractorDashboardPage.tsx` | New page |
-| `src/components/subcontractors/SubcontractorProtectedRoute.tsx` | New component |
-| `src/components/subcontractors/SubcontractorSignupFlow.tsx` | New component |
-| `src/components/subcontractors/AbnVerificationStep.tsx` | New component |
-| `src/components/subcontractors/ProfileDetailsStep.tsx` | New component |
-| `src/components/subcontractors/FileUploadStep.tsx` | New component |
-| `src/components/subcontractors/SubcontractorDashboard.tsx` | New component |
-| `src/components/subcontractors/SubcontractorProfileCard.tsx` | New component |
-| `src/components/subcontractors/AvailabilityToggle.tsx` | New component |
-| `src/components/subcontractors/SubcontractorAdminTable.tsx` | New component |
-| `src/hooks/useSubcontractorProfile.ts` | New hook |
-| `src/hooks/useAbnVerification.ts` | New hook |
-| `src/App.tsx` | Add 3 new routes |
-| `src/pages/staff/StaffDashboard.tsx` | Add "Subcontractors" admin tab |
+| `src/components/layout/SubcontractorLayout.tsx` | Sidebar + header layout |
+| `src/components/layout/SubcontractorBottomNav.tsx` | Mobile bottom nav |
+| `src/pages/subcontractors/SubcontractorWork.tsx` | Accept/decline invites |
+| `src/pages/subcontractors/SubcontractorSchedule.tsx` | Weekly schedule view |
+| `src/pages/subcontractors/SubcontractorSettings.tsx` | Profile/account settings |
 
----
+### Files to Modify
 
-### Implementation Order
+| File | Change |
+|---|---|
+| `src/pages/subcontractors/SubcontractorDashboardPage.tsx` | Wrap in `SubcontractorLayout`, add upcoming work + pending invites cards |
+| `src/App.tsx` | Add 3 new routes: `/sub-contractors/work`, `/sub-contractors/schedule`, `/sub-contractors/settings` |
 
-1. Store `ABR_API_GUID` secret (after you register)
-2. Database migration (table, RPC, RLS, storage buckets, role)
-3. `verify-abn` edge function
-4. Frontend: landing page + login
-5. Frontend: signup flow with ABN verification
-6. Frontend: dashboard with profile management
-7. Admin tab in staff dashboard
-8. End-to-end testing
+### Technical Details
+
+**Work invite matching query:**
+```sql
+SELECT ei.*, jp.pour_name, jp.pour_date, jp.scheduled_time,
+       j.name as job_name, j.site_address, b.name as business_name
+FROM external_invites ei
+JOIN job_pours jp ON ei.job_pour_id = jp.id
+JOIN jobs j ON ei.job_id = j.id
+JOIN businesses b ON ei.business_id = b.id
+WHERE (ei.recipient_email = {subcontractor_email}
+   OR ei.recipient_phone = {subcontractor_phone})
+  AND ei.invite_type = 'sub_trade'
+ORDER BY jp.pour_date ASC
+```
+
+**Accept/decline:** Calls the existing `respond-subtrade-invite` edge function with the invite token -- but since subcontractors may not have the token, we'll need a new RPC or edge function that allows authenticated subcontractors to respond by invite ID. This will be a small new edge function `subcontractor-respond-invite`.
+
+**Nav items:**
+- Dashboard (LayoutDashboard icon)
+- My Work (Briefcase icon)
+- Schedule (Calendar icon)
+- Settings (Settings icon)
 
