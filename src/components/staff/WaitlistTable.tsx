@@ -120,7 +120,7 @@ export function WaitlistTable() {
   return (
     <>
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
+        <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
           <div>
             <CardTitle>Waiting List</CardTitle>
             <CardDescription>
@@ -170,11 +170,11 @@ export function WaitlistTable() {
                   <TableRow>
                     <TableHead>Email</TableHead>
                     <TableHead>Full Name</TableHead>
-                    <TableHead>Business Name</TableHead>
-                    <TableHead>Phone</TableHead>
-                    <TableHead>Referrals</TableHead>
+                    <TableHead className="hidden md:table-cell">Business Name</TableHead>
+                    <TableHead className="hidden md:table-cell">Phone</TableHead>
+                    <TableHead className="hidden md:table-cell">Referrals</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Joined</TableHead>
+                    <TableHead className="hidden md:table-cell">Joined</TableHead>
                     <TableHead className="w-[120px]"></TableHead>
                   </TableRow>
                 </TableHeader>
@@ -182,9 +182,9 @@ export function WaitlistTable() {
                   {filtered?.map((entry) => (
                     <TableRow key={entry.id} className={entry.outreach_status === "converted" ? "opacity-60" : ""}>
                       <TableCell className="font-medium">{entry.email}</TableCell>
-                      <TableCell>{entry.full_name || "-"}</TableCell>
-                      <TableCell>{entry.business_name || "-"}</TableCell>
-                      <TableCell>
+                      <TableCell className="hidden sm:table-cell">{entry.full_name || "-"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{entry.business_name || "-"}</TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {entry.phone ? (
                           <a href={`tel:${entry.phone}`} className="text-primary hover:underline">
                             {entry.phone}
@@ -193,7 +193,7 @@ export function WaitlistTable() {
                           <span className="text-muted-foreground">-</span>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {entry.referral_count > 0 ? (
                           <span className="text-primary font-medium">{entry.referral_count}</span>
                         ) : (
@@ -208,7 +208,7 @@ export function WaitlistTable() {
                           </p>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {format(new Date(entry.created_at), "MMM d, yyyy")}
                       </TableCell>
                       <TableCell>
