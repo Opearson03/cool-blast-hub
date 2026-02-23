@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { SubcontractorLayout } from "@/components/layout/SubcontractorLayout";
 import {
   useSubcontractorProfile,
@@ -14,6 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import {
   User,
@@ -25,6 +26,9 @@ import {
   Loader2,
   ShieldCheck,
   Save,
+  Upload,
+  Eye,
+  ImageIcon,
 } from "lucide-react";
 
 const TRADE_OPTIONS = [
@@ -48,6 +52,22 @@ export default function SubcontractorSettings() {
   // Form state
   const [personalForm, setPersonalForm] = useState<Record<string, string>>({});
   const [tradeForm, setTradeForm] = useState<Record<string, any>>({});
+
+  // Document upload state
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [uploadingInsurance, setUploadingInsurance] = useState(false);
+  const [uploadingWhiteCard, setUploadingWhiteCard] = useState(false);
+  const [whiteCardEnabled, setWhiteCardEnabled] = useState<boolean | null>(null);
+  const [whiteCardNumber, setWhiteCardNumber] = useState("");
+  const [whiteCardFile, setWhiteCardFile] = useState<File | null>(null);
+  const [savingWhiteCard, setSavingWhiteCard] = useState(false);
+
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const insuranceInputRef = useRef<HTMLInputElement>(null);
+
+  // Derived white card state
+  const isWhiteCardOn = whiteCardEnabled ?? profile?.has_white_card ?? false;
+  const currentWhiteCardNumber = whiteCardNumber || profile?.white_card_number || "";
 
   const handleSavePersonal = () => {
     if (Object.keys(personalForm).length === 0) return;
@@ -75,6 +95,111 @@ export default function SubcontractorSettings() {
       ? current.filter((t: string) => t !== trade)
       : [...current, trade];
     setTradeForm((prev) => ({ ...prev, trade_types: updated }));
+  };
+
+  const handleUploadPhoto = async (file: File) => {
+    if (!profile) return;
+    setUploadingPhoto(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${profile.user_id}/photo.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("subcontractor-photos")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicUrlData } = supabase.storage
+        .from("subcontractor-photos")
+        .getPublicUrl(path);
+      updateProfile.mutate({ profile_photo_url: publicUrlData.publicUrl } as any, {
+        onSuccess: () => toast({ title: "Profile photo updated" }),
+      });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const handleUploadInsurance = async (file: File) => {
+    if (!profile) return;
+    setUploadingInsurance(true);
+    try {
+      const ext = file.name.split(".").pop();
+      const path = `${profile.user_id}/insurance.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from("subcontractor-documents")
+        .upload(path, file, { upsert: true });
+      if (uploadError) throw uploadError;
+      updateProfile.mutate({ insurance_certificate_url: path } as any, {
+        onSuccess: () => toast({ title: "Insurance certificate updated" }),
+      });
+    } catch (error: any) {
+      toast({ title: "Upload failed", description: error.message, variant: "destructive" });
+    } finally {
+      setUploadingInsurance(false);
+    }
+  };
+
+  const handleViewInsurance = async () => {
+    if (!profile?.insurance_certificate_url) return;
+    const { data, error } = await supabase.storage
+      .from("subcontractor-documents")
+      .createSignedUrl(profile.insurance_certificate_url, 3600);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Could not open document", variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
+  };
+
+  const handleSaveWhiteCard = async () => {
+    if (!profile) return;
+    setSavingWhiteCard(true);
+    try {
+      let whiteCardDocUrl = profile.white_card_document_url;
+
+      if (isWhiteCardOn && whiteCardFile) {
+        const ext = whiteCardFile.name.split(".").pop();
+        const path = `${profile.user_id}/whitecard.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("subcontractor-documents")
+          .upload(path, whiteCardFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        whiteCardDocUrl = path;
+      }
+
+      updateProfile.mutate(
+        {
+          has_white_card: isWhiteCardOn,
+          white_card_number: isWhiteCardOn ? currentWhiteCardNumber || null : null,
+          white_card_document_url: isWhiteCardOn ? whiteCardDocUrl : null,
+        } as any,
+        {
+          onSuccess: () => {
+            toast({ title: "White card details updated" });
+            setWhiteCardFile(null);
+            setWhiteCardEnabled(null);
+            setWhiteCardNumber("");
+          },
+        }
+      );
+    } catch (error: any) {
+      toast({ title: "Save failed", description: error.message, variant: "destructive" });
+    } finally {
+      setSavingWhiteCard(false);
+    }
+  };
+
+  const handleViewWhiteCard = async () => {
+    if (!profile?.white_card_document_url) return;
+    const { data, error } = await supabase.storage
+      .from("subcontractor-documents")
+      .createSignedUrl(profile.white_card_document_url, 3600);
+    if (error || !data?.signedUrl) {
+      toast({ title: "Could not open document", variant: "destructive" });
+      return;
+    }
+    window.open(data.signedUrl, "_blank");
   };
 
   const handleLogout = async () => {
@@ -238,27 +363,141 @@ export default function SubcontractorSettings() {
             </div>
           </SettingsAccordionItem>
 
-          <SettingsAccordionItem value="documents" icon={FileText} title="Documents" description="Insurance, profile photo">
-            <div className="space-y-4 text-sm text-muted-foreground">
-              <div>
-                <Label className="text-xs">Insurance Certificate</Label>
-                {profile?.insurance_certificate_url ? (
-                  <a href={profile.insurance_certificate_url} target="_blank" rel="noopener noreferrer" className="text-primary underline block mt-1">
-                    View Certificate
-                  </a>
-                ) : (
-                  <p className="mt-1">Not uploaded</p>
+          <SettingsAccordionItem value="documents" icon={FileText} title="Documents" description="Insurance, profile photo, white card">
+            <div className="space-y-6">
+              {/* Profile Photo */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Profile Photo</Label>
+                <div className="flex items-center gap-4">
+                  {profile?.profile_photo_url ? (
+                    <img src={profile.profile_photo_url} alt="Profile" className="w-16 h-16 rounded-full object-cover border" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center border">
+                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                    </div>
+                  )}
+                  <div>
+                    <input
+                      ref={photoInputRef}
+                      type="file"
+                      accept=".jpg,.jpeg,.png,.webp"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (f) handleUploadPhoto(f);
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => photoInputRef.current?.click()}
+                      disabled={uploadingPhoto}
+                    >
+                      {uploadingPhoto ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
+                      {profile?.profile_photo_url ? "Replace" : "Upload"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Insurance Certificate */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Insurance Certificate</Label>
+                <div className="flex items-center gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    {profile?.insurance_certificate_url ? "Uploaded" : "Not uploaded"}
+                  </p>
+                  {profile?.insurance_certificate_url && (
+                    <Button variant="ghost" size="sm" onClick={handleViewInsurance}>
+                      <Eye className="h-4 w-4 mr-1" /> View
+                    </Button>
+                  )}
+                </div>
+                <div>
+                  <input
+                    ref={insuranceInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) handleUploadInsurance(f);
+                    }}
+                  />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => insuranceInputRef.current?.click()}
+                    disabled={uploadingInsurance}
+                  >
+                    {uploadingInsurance ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Upload className="h-4 w-4 mr-1" />}
+                    {profile?.insurance_certificate_url ? "Replace" : "Upload"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* White Card */}
+              <div className="space-y-4 border rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Construction White Card</Label>
+                    <p className="text-xs text-muted-foreground">Do you hold a Construction White Card?</p>
+                  </div>
+                  <Switch
+                    checked={isWhiteCardOn}
+                    onCheckedChange={(checked) => setWhiteCardEnabled(checked)}
+                  />
+                </div>
+
+                {isWhiteCardOn && (
+                  <div className="space-y-4 pt-2 border-t">
+                    <div className="space-y-1.5">
+                      <Label>White Card Number</Label>
+                      <Input
+                        value={currentWhiteCardNumber}
+                        onChange={(e) => setWhiteCardNumber(e.target.value)}
+                        placeholder="Enter your white card number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>White Card Photo or USI Transcript</Label>
+                      {profile?.white_card_document_url && (
+                        <Button variant="ghost" size="sm" onClick={handleViewWhiteCard}>
+                          <Eye className="h-4 w-4 mr-1" /> View current document
+                        </Button>
+                      )}
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                        {whiteCardFile ? (
+                          <div className="flex items-center justify-center gap-2 text-primary">
+                            <ShieldCheck className="h-5 w-5" />
+                            <span className="text-sm font-medium">{whiteCardFile.name}</span>
+                          </div>
+                        ) : (
+                          <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+                        )}
+                        <Input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                          className="mt-2"
+                          onChange={(e) => setWhiteCardFile(e.target.files?.[0] || null)}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Upload one of: White Card photo or USI Transcript</p>
+                      </div>
+                    </div>
+                    <Button onClick={handleSaveWhiteCard} disabled={savingWhiteCard} size="sm">
+                      {savingWhiteCard ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                      Save White Card
+                    </Button>
+                  </div>
+                )}
+
+                {!isWhiteCardOn && profile?.has_white_card && (
+                  <Button onClick={handleSaveWhiteCard} disabled={savingWhiteCard} size="sm" variant="outline">
+                    {savingWhiteCard ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="h-4 w-4 mr-1" />}
+                    Save (remove white card)
+                  </Button>
                 )}
               </div>
-              <div>
-                <Label className="text-xs">Profile Photo</Label>
-                {profile?.profile_photo_url ? (
-                  <img src={profile.profile_photo_url} alt="Profile" className="w-16 h-16 rounded-full object-cover mt-1" />
-                ) : (
-                  <p className="mt-1">Not uploaded</p>
-                )}
-              </div>
-              <p className="text-xs">Document upload coming soon.</p>
             </div>
           </SettingsAccordionItem>
         </SettingsGroup>

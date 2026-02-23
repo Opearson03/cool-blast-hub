@@ -21,6 +21,9 @@ export interface SubcontractorProfile {
   profile_photo_url: string | null;
   bio: string | null;
   availability_status: string;
+  has_white_card: boolean;
+  white_card_number: string | null;
+  white_card_document_url: string | null;
   created_at: string;
   updated_at: string;
 }

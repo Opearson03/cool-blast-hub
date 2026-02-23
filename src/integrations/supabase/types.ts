@@ -2639,6 +2639,7 @@ export type Database = {
           entity_type: string | null
           first_name: string | null
           gst_registered: boolean | null
+          has_white_card: boolean | null
           id: string
           insurance_certificate_url: string | null
           last_name: string | null
@@ -2649,6 +2650,8 @@ export type Database = {
           trade_types: string[] | null
           updated_at: string
           user_id: string
+          white_card_document_url: string | null
+          white_card_number: string | null
           years_experience: number | null
         }
         Insert: {
@@ -2662,6 +2665,7 @@ export type Database = {
           entity_type?: string | null
           first_name?: string | null
           gst_registered?: boolean | null
+          has_white_card?: boolean | null
           id?: string
           insurance_certificate_url?: string | null
           last_name?: string | null
@@ -2672,6 +2676,8 @@ export type Database = {
           trade_types?: string[] | null
           updated_at?: string
           user_id: string
+          white_card_document_url?: string | null
+          white_card_number?: string | null
           years_experience?: number | null
         }
         Update: {
@@ -2685,6 +2691,7 @@ export type Database = {
           entity_type?: string | null
           first_name?: string | null
           gst_registered?: boolean | null
+          has_white_card?: boolean | null
           id?: string
           insurance_certificate_url?: string | null
           last_name?: string | null
@@ -2695,6 +2702,8 @@ export type Database = {
           trade_types?: string[] | null
           updated_at?: string
           user_id?: string
+          white_card_document_url?: string | null
+          white_card_number?: string | null
           years_experience?: number | null
         }
         Relationships: []
@@ -3428,6 +3437,7 @@ export type Database = {
           entity_type: string | null
           first_name: string | null
           gst_registered: boolean | null
+          has_white_card: boolean | null
           id: string
           insurance_certificate_url: string | null
           last_name: string | null
@@ -3438,6 +3448,8 @@ export type Database = {
           trade_types: string[] | null
           updated_at: string
           user_id: string
+          white_card_document_url: string | null
+          white_card_number: string | null
           years_experience: number | null
         }[]
         SetofOptions: {
