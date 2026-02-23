@@ -197,7 +197,7 @@ export default function SubcontractorProfilePage() {
                         </span>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Complete a job with this subcontractor to leave a review</p>
+                        <p>You can leave a review after a completed pour with this subcontractor</p>
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
