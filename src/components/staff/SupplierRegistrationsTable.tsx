@@ -132,11 +132,11 @@ export function SupplierRegistrationsTable() {
                   <TableRow>
                     <TableHead>Company</TableHead>
                     <TableHead>Contact</TableHead>
-                    <TableHead>Categories</TableHead>
-                    <TableHead>Service Areas</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Submitted</TableHead>
-                    <TableHead className="w-[50px]"></TableHead>
+                     <TableHead className="hidden md:table-cell">Categories</TableHead>
+                     <TableHead className="hidden md:table-cell">Service Areas</TableHead>
+                     <TableHead>Status</TableHead>
+                     <TableHead className="hidden md:table-cell">Submitted</TableHead>
+                     <TableHead className="w-[50px]"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -184,7 +184,7 @@ export function SupplierRegistrationsTable() {
                         </div>
                       </TableCell>
                       <TableCell>{getStatusBadge(reg.status)}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
+                      <TableCell className="hidden md:table-cell text-muted-foreground text-sm">
                         {format(new Date(reg.created_at), "dd MMM yyyy")}
                       </TableCell>
                       <TableCell>

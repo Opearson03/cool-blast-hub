@@ -121,7 +121,7 @@ export function SubscribersTable() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div>
           <CardTitle>All Subscribers</CardTitle>
           <CardDescription>
@@ -150,11 +150,11 @@ export function SubscribersTable() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Business</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Signed Up</TableHead>
-                  <TableHead>Subscription End</TableHead>
-                  <TableHead className="w-[100px]">Actions</TableHead>
+                   <TableHead className="hidden md:table-cell">Email</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead>Signed Up</TableHead>
+                   <TableHead className="hidden md:table-cell">Subscription End</TableHead>
+                   <TableHead className="w-[100px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -163,14 +163,14 @@ export function SubscribersTable() {
                   return (
                     <TableRow key={subscriber.id}>
                       <TableCell className="font-medium">{subscriber.business_name}</TableCell>
-                      <TableCell>{subscriber.email || "-"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{subscriber.email || "-"}</TableCell>
                       <TableCell>
                         <Badge variant={status.variant}>{status.label}</Badge>
                       </TableCell>
                       <TableCell>
                         {format(new Date(subscriber.created_at), "MMM d, yyyy")}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         {subscriber.current_period_end
                           ? format(new Date(subscriber.current_period_end), "MMM d, yyyy")
                           : "-"}

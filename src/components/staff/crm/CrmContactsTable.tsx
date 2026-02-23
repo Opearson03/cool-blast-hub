@@ -150,9 +150,9 @@ export function CrmContactsTable({ onEmailSelected }: CrmContactsTableProps) {
                 <TableHead>Type</TableHead>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
-                <TableHead>Company</TableHead>
-                <TableHead>Phone</TableHead>
-                <TableHead>Source / Status</TableHead>
+                 <TableHead className="hidden md:table-cell">Company</TableHead>
+                 <TableHead className="hidden md:table-cell">Phone</TableHead>
+                 <TableHead className="hidden md:table-cell">Source / Status</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -176,9 +176,9 @@ export function CrmContactsTable({ onEmailSelected }: CrmContactsTableProps) {
                     </TableCell>
                     <TableCell className="font-medium">{c.full_name || "—"}</TableCell>
                     <TableCell>{c.email}</TableCell>
-                    <TableCell>{c.company_name || "—"}</TableCell>
-                    <TableCell>{c.phone || "—"}</TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">{c.company_name || "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell">{c.phone || "—"}</TableCell>
+                    <TableCell className="hidden md:table-cell">
                       <span className="text-xs text-muted-foreground">{c.source_detail || "—"}</span>
                     </TableCell>
                   </TableRow>

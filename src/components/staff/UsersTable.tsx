@@ -106,7 +106,7 @@ export function UsersTable() {
 
   return (
     <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+      <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
         <div>
           <CardTitle>All Users</CardTitle>
           <CardDescription>
@@ -135,18 +135,18 @@ export function UsersTable() {
               <TableHeader>
                 <TableRow>
                   <TableHead>User</TableHead>
-                  <TableHead>Business</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Quotes Created</TableHead>
-                  <TableHead>Quotes Sent</TableHead>
-                  <TableHead>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      Last Login
-                    </div>
-                  </TableHead>
-                  <TableHead>Joined</TableHead>
+                   <TableHead className="hidden md:table-cell">Business</TableHead>
+                   <TableHead>Role</TableHead>
+                   <TableHead>Status</TableHead>
+                   <TableHead className="hidden md:table-cell">Quotes Created</TableHead>
+                   <TableHead className="hidden md:table-cell">Quotes Sent</TableHead>
+                   <TableHead>
+                     <div className="flex items-center gap-1">
+                       <Clock className="h-4 w-4" />
+                       Last Login
+                     </div>
+                   </TableHead>
+                   <TableHead className="hidden md:table-cell">Joined</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -158,7 +158,7 @@ export function UsersTable() {
                         <span className="text-xs text-muted-foreground">{user.email}</span>
                       </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {user.business_name || <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
@@ -171,10 +171,10 @@ export function UsersTable() {
                         {getSubscriptionLabel(user)}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {user.estimates_created ? user.estimates_created : <span className="text-muted-foreground">—</span>}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {user.estimates_sent ? user.estimates_sent : <span className="text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
@@ -182,7 +182,7 @@ export function UsersTable() {
                         {formatLastLogin(user.last_sign_in_at)}
                       </span>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="hidden md:table-cell">
                       {format(new Date(user.created_at), "MMM d, yyyy")}
                     </TableCell>
                   </TableRow>

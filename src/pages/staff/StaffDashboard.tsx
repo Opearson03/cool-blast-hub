@@ -154,7 +154,7 @@ export default function StaffDashboard() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-2 sm:px-4 py-4 sm:py-8">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <Card 
@@ -237,30 +237,30 @@ export default function StaffDashboard() {
 
         {/* Tabs for different views */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList>
+          <TabsList className="w-full justify-start overflow-x-auto flex-nowrap">
             <TabsTrigger value="overview">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              Overview
+              <TrendingUp className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Overview</span>
             </TabsTrigger>
             <TabsTrigger value="users">
-              <UserCheck className="h-4 w-4 mr-2" />
-              Users
+              <UserCheck className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Users</span>
             </TabsTrigger>
             <TabsTrigger value="waitlist">
-              <List className="h-4 w-4 mr-2" />
-              Waiting List
+              <List className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Waiting List</span>
             </TabsTrigger>
             <TabsTrigger value="subscriptions">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Subscriptions
+              <CreditCard className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Subscriptions</span>
             </TabsTrigger>
             <TabsTrigger value="suppliers">
-              <Truck className="h-4 w-4 mr-2" />
-              Suppliers
+              <Truck className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Suppliers</span>
             </TabsTrigger>
             <TabsTrigger value="crm">
-              <Mail className="h-4 w-4 mr-2" />
-              CRM
+              <Mail className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">CRM</span>
             </TabsTrigger>
           </TabsList>
 
