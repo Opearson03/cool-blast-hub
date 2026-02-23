@@ -3,6 +3,7 @@ import { MapPin, Clock, ShieldCheck, CreditCard, HardHat } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { StarRating } from "./StarRating";
 import type { DirectoryProfile } from "@/hooks/usePublicDirectory";
 
 function getInitials(first: string, last: string) {
@@ -68,6 +69,16 @@ export function DirectoryCard({ profile }: { profile: DirectoryProfile }) {
               </div>
             )}
           </div>
+
+          {/* Rating */}
+          {profile.review_count > 0 && (
+            <div className="flex items-center gap-1.5">
+              <StarRating rating={profile.avg_rating} size="sm" />
+              <span className="text-xs text-muted-foreground">
+                {profile.avg_rating} ({profile.review_count})
+              </span>
+            </div>
+          )}
 
           {/* Verification badges */}
           <div className="flex flex-wrap gap-1.5">

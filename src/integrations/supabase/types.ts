@@ -2708,6 +2708,47 @@ export type Database = {
         }
         Relationships: []
       }
+      subcontractor_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          rating: number
+          reviewer_business_name: string | null
+          reviewer_name: string | null
+          reviewer_user_id: string
+          subcontractor_profile_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          reviewer_business_name?: string | null
+          reviewer_name?: string | null
+          reviewer_user_id: string
+          subcontractor_profile_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          reviewer_business_name?: string | null
+          reviewer_name?: string | null
+          reviewer_user_id?: string
+          subcontractor_profile_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subcontractor_reviews_subcontractor_profile_id_fkey"
+            columns: ["subcontractor_profile_id"]
+            isOneToOne: false
+            referencedRelation: "subcontractor_directory_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subcontractors: {
         Row: {
           business_id: string
@@ -3496,6 +3537,7 @@ export type Database = {
         Returns: {
           abn_verified: boolean
           availability_status: string
+          avg_rating: number
           base_postcode: string
           bio: string
           first_name: string
@@ -3505,6 +3547,7 @@ export type Database = {
           last_name: string
           legal_name: string
           profile_photo_url: string
+          review_count: number
           service_radius_km: number
           trade_types: string[]
           years_experience: number
@@ -3515,6 +3558,7 @@ export type Database = {
         Returns: {
           abn_verified: boolean
           availability_status: string
+          avg_rating: number
           base_postcode: string
           bio: string
           first_name: string
@@ -3524,6 +3568,7 @@ export type Database = {
           last_name: string
           legal_name: string
           profile_photo_url: string
+          review_count: number
           service_radius_km: number
           trade_types: string[]
           years_experience: number

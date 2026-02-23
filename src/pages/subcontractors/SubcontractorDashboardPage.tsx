@@ -23,13 +23,18 @@ import {
   Calendar,
   ArrowRight,
   Clock,
+  Star,
 } from "lucide-react";
+import { useOwnReviews } from "@/hooks/useSubcontractorReviews";
+import { StarRating } from "@/components/directory/StarRating";
+import { ReviewsList } from "@/components/directory/ReviewsList";
 import { format, isAfter, addDays } from "date-fns";
 
 export default function SubcontractorDashboardPage() {
   const { toast } = useToast();
   const { data: profile, isLoading } = useSubcontractorProfile();
   const { data: invites } = useSubcontractorInvites();
+  const { data: ownReviews = [] } = useOwnReviews();
   const updateProfile = useUpdateSubcontractorProfile();
 
   const handleAvailabilityToggle = (checked: boolean) => {
@@ -175,6 +180,38 @@ export default function SubcontractorDashboardPage() {
             </CardContent>
           </Card>
         )}
+
+        {/* My Reviews */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Star className="h-5 w-5 text-[hsl(var(--warning))]" />
+              My Reviews
+              {ownReviews.length > 0 && (
+                <span className="text-sm font-normal text-muted-foreground">
+                  ({ownReviews.length})
+                </span>
+              )}
+            </CardTitle>
+            {ownReviews.length > 0 && (
+              <div className="mt-1">
+                <StarRating
+                  rating={ownReviews.reduce((sum, r) => sum + r.rating, 0) / ownReviews.length}
+                  size="md"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  {(ownReviews.reduce((sum, r) => sum + r.rating, 0) / ownReviews.length).toFixed(1)} average from {ownReviews.length} review{ownReviews.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <ReviewsList
+              reviews={ownReviews.slice(0, 3)}
+              emptyMessage="No reviews yet. Reviews from businesses you've worked with will appear here."
+            />
+          </CardContent>
+        </Card>
 
         {/* ABN & Business Info */}
         <Card>
