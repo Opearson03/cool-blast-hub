@@ -62,6 +62,11 @@ export default function SubcontractorSignup() {
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // White Card
+  const [hasWhiteCard, setHasWhiteCard] = useState(false);
+  const [whiteCardNumber, setWhiteCardNumber] = useState("");
+  const [whiteCardFile, setWhiteCardFile] = useState<File | null>(null);
+
   // Check if already logged in
   useEffect(() => {
     const checkSession = async () => {
@@ -159,6 +164,7 @@ export default function SubcontractorSignup() {
     try {
       let insuranceUrl = null;
       let photoUrl = null;
+      let whiteCardDocUrl = null;
 
       // Upload insurance certificate
       if (insuranceFile) {
@@ -185,6 +191,17 @@ export default function SubcontractorSignup() {
         photoUrl = publicUrlData.publicUrl;
       }
 
+      // Upload white card document
+      if (hasWhiteCard && whiteCardFile) {
+        const ext = whiteCardFile.name.split(".").pop();
+        const path = `${userId}/whitecard.${ext}`;
+        const { error: uploadError } = await supabase.storage
+          .from("subcontractor-documents")
+          .upload(path, whiteCardFile, { upsert: true });
+        if (uploadError) throw uploadError;
+        whiteCardDocUrl = path;
+      }
+
       // Create profile
       const { error } = await supabase
         .from("subcontractor_directory_profiles" as any)
@@ -207,6 +224,9 @@ export default function SubcontractorSignup() {
           profile_photo_url: photoUrl,
           bio: bio || null,
           availability_status: "available",
+          has_white_card: hasWhiteCard,
+          white_card_number: hasWhiteCard ? whiteCardNumber || null : null,
+          white_card_document_url: whiteCardDocUrl,
         });
 
       if (error) throw error;
@@ -498,12 +518,38 @@ export default function SubcontractorSignup() {
             <CardHeader>
               <CardTitle>Upload Documents</CardTitle>
               <CardDescription>
-                Add your insurance certificate and profile photo (optional but recommended).
+                Add your insurance certificate, profile photo, and white card details.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Profile Photo */}
               <div className="space-y-2">
-                <Label>Insurance Certificate (PDF)</Label>
+                <Label>Profile Photo</Label>
+                <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                  {photoFile ? (
+                    <div className="flex flex-col items-center gap-2">
+                      <img
+                        src={URL.createObjectURL(photoFile)}
+                        alt="Preview"
+                        className="w-20 h-20 rounded-full object-cover"
+                      />
+                      <span className="text-sm font-medium text-primary">{photoFile.name}</span>
+                    </div>
+                  ) : (
+                    <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                  )}
+                  <Input
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    className="mt-2"
+                    onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+                  />
+                </div>
+              </div>
+
+              {/* Insurance Certificate */}
+              <div className="space-y-2">
+                <Label>Insurance Certificate (PDF or Image)</Label>
                 <div className="border-2 border-dashed rounded-lg p-6 text-center">
                   {insuranceFile ? (
                     <div className="flex items-center justify-center gap-2 text-primary">
@@ -521,25 +567,54 @@ export default function SubcontractorSignup() {
                   />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label>Profile Photo</Label>
-                <div className="border-2 border-dashed rounded-lg p-6 text-center">
-                  {photoFile ? (
-                    <div className="flex items-center justify-center gap-2 text-primary">
-                      <CheckCircle2 className="h-5 w-5" />
-                      <span className="text-sm font-medium">{photoFile.name}</span>
-                    </div>
-                  ) : (
-                    <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                  )}
-                  <Input
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    className="mt-2"
-                    onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+
+              {/* White Card */}
+              <div className="space-y-4 border rounded-lg p-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <Checkbox
+                    checked={hasWhiteCard}
+                    onCheckedChange={(checked) => setHasWhiteCard(checked === true)}
                   />
-                </div>
+                  <div>
+                    <span className="font-medium text-sm">I hold a Construction White Card</span>
+                    <p className="text-xs text-muted-foreground">Required for most construction sites in Australia</p>
+                  </div>
+                </label>
+
+                {hasWhiteCard && (
+                  <div className="space-y-4 pt-2 border-t">
+                    <div className="space-y-2">
+                      <Label>White Card Number</Label>
+                      <Input
+                        value={whiteCardNumber}
+                        onChange={(e) => setWhiteCardNumber(e.target.value)}
+                        placeholder="Enter your white card number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Upload White Card Photo or USI Transcript</Label>
+                      <div className="border-2 border-dashed rounded-lg p-4 text-center">
+                        {whiteCardFile ? (
+                          <div className="flex items-center justify-center gap-2 text-primary">
+                            <CheckCircle2 className="h-5 w-5" />
+                            <span className="text-sm font-medium">{whiteCardFile.name}</span>
+                          </div>
+                        ) : (
+                          <Upload className="h-6 w-6 text-muted-foreground mx-auto mb-1" />
+                        )}
+                        <Input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png,.webp"
+                          className="mt-2"
+                          onChange={(e) => setWhiteCardFile(e.target.files?.[0] || null)}
+                        />
+                      </div>
+                      <p className="text-xs text-muted-foreground">Upload one of: White Card photo or USI Transcript</p>
+                    </div>
+                  </div>
+                )}
               </div>
+
               <div className="flex gap-2 pt-4">
                 <Button variant="outline" onClick={() => setStep(3)}>
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
