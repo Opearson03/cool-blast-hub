@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, MapPin, Clock, ShieldCheck, CreditCard, HardHat, Star } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, ShieldCheck, CreditCard, HardHat, Star, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,13 +10,26 @@ import { useSubcontractorReviews, useMyReviewForProfile } from "@/hooks/useSubco
 import { StarRating } from "@/components/directory/StarRating";
 import { ReviewsList } from "@/components/directory/ReviewsList";
 import { WriteReviewDialog } from "@/components/directory/WriteReviewDialog";
+import { ScheduleSubbieDialog } from "@/components/schedule/ScheduleSubbieDialog";
+import { useDirectoryContactInfo } from "@/hooks/useDirectoryContactInfo";
+import type { PastSubbie } from "@/hooks/useBusinessSubbies";
 
 export default function SubcontractorProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { data: profile, isLoading } = usePublicDirectoryProfile(id);
   const { data: reviews = [] } = useSubcontractorReviews(id);
   const { data: myReview } = useMyReviewForProfile(id);
+  const { data: contactInfo } = useDirectoryContactInfo(id);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
+  const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+
+  const preselectedSubbie: PastSubbie | undefined = profile && contactInfo ? {
+    recipient_name: `${profile.first_name} ${profile.last_name}`,
+    recipient_phone: contactInfo.phone,
+    recipient_email: contactInfo.email,
+    role: profile.trade_types?.[0] ?? "Concreter",
+    lastUsed: new Date().toISOString(),
+  } : undefined;
 
   if (isLoading) {
     return (
@@ -147,9 +160,14 @@ export default function SubcontractorProfilePage() {
                   </span>
                 )}
               </CardTitle>
-              <Button size="sm" onClick={() => setReviewDialogOpen(true)}>
-                {myReview ? "Edit Review" : "Write a Review"}
-              </Button>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setInviteDialogOpen(true)}>
+                  <UserPlus className="h-3.5 w-3.5" /> Invite to Job
+                </Button>
+                <Button size="sm" onClick={() => setReviewDialogOpen(true)}>
+                  {myReview ? "Edit Review" : "Write a Review"}
+                </Button>
+              </div>
             </div>
             {profile.review_count > 0 && (
               <div className="mt-2">
@@ -168,6 +186,14 @@ export default function SubcontractorProfilePage() {
           subcontractorProfileId={id!}
           existingReview={myReview}
         />
+
+        {preselectedSubbie && (
+          <ScheduleSubbieDialog
+            open={inviteDialogOpen}
+            onOpenChange={setInviteDialogOpen}
+            preselectedSubbie={preselectedSubbie}
+          />
+        )}
       </div>
     </AdminLayout>
   );
