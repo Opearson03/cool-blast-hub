@@ -164,12 +164,12 @@ export function WaitlistTable() {
                 : `No ${statusFilter} entries`}
             </div>
           ) : (
-            <div className="rounded-md border">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Email</TableHead>
-                    <TableHead>Full Name</TableHead>
+                    <TableHead className="hidden sm:table-cell">Full Name</TableHead>
                     <TableHead className="hidden md:table-cell">Business Name</TableHead>
                     <TableHead className="hidden md:table-cell">Phone</TableHead>
                     <TableHead className="hidden md:table-cell">Referrals</TableHead>
