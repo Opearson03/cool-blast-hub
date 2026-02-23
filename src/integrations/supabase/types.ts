@@ -3491,6 +3491,44 @@ export type Database = {
         }[]
       }
       get_dashboard_stats: { Args: { p_business_id: string }; Returns: Json }
+      get_public_directory_profile: {
+        Args: { _id: string }
+        Returns: {
+          abn_verified: boolean
+          availability_status: string
+          base_postcode: string
+          bio: string
+          first_name: string
+          gst_registered: boolean
+          has_white_card: boolean
+          id: string
+          last_name: string
+          legal_name: string
+          profile_photo_url: string
+          service_radius_km: number
+          trade_types: string[]
+          years_experience: number
+        }[]
+      }
+      get_public_directory_profiles: {
+        Args: never
+        Returns: {
+          abn_verified: boolean
+          availability_status: string
+          base_postcode: string
+          bio: string
+          first_name: string
+          gst_registered: boolean
+          has_white_card: boolean
+          id: string
+          last_name: string
+          legal_name: string
+          profile_photo_url: string
+          service_radius_km: number
+          trade_types: string[]
+          years_experience: number
+        }[]
+      }
       get_referrer_by_code: { Args: { code: string }; Returns: string }
       get_signup_trends: {
         Args: { days_back?: number }

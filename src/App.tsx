@@ -46,6 +46,8 @@ import SubcontractorSettings from "./pages/subcontractors/SubcontractorSettings"
 import { SubcontractorProtectedRoute } from "./components/subcontractors/SubcontractorProtectedRoute";
 import Articles from "./pages/Articles";
 import ArticlePage from "./pages/ArticlePage";
+import SubcontractorDirectory from "./pages/directory/SubcontractorDirectory";
+import SubcontractorProfilePage from "./pages/directory/SubcontractorProfilePage";
 import NotFound from "./pages/NotFound";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
@@ -123,6 +125,10 @@ const AppContent = () => {
       {/* Articles */}
       <Route path="/articles" element={<Articles />} />
       <Route path="/articles/:slug" element={<ArticlePage />} />
+      
+      {/* Public Directory */}
+      <Route path="/directory" element={<SubcontractorDirectory />} />
+      <Route path="/directory/:id" element={<SubcontractorProfilePage />} />
       
       {/* Public Signing Routes - no auth required */}
       <Route path="/sign/quote/:token" element={<SignQuote />} />
