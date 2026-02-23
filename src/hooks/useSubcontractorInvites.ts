@@ -22,8 +22,8 @@ export function useSubcontractorInvites() {
   const { data: profile } = useSubcontractorProfile();
 
   return useQuery({
-    queryKey: ["subcontractor-invites", profile?.email, profile?.phone],
-    enabled: !!(profile?.email || profile?.phone),
+    queryKey: ["subcontractor-invites", profile?.email, profile?.phone, !!profile],
+    enabled: !!profile,
     queryFn: async () => {
       // We need to use the edge function to fetch invites since RLS on external_invites
       // is scoped to business users. We'll use a new edge function for this.
