@@ -1,121 +1,76 @@
 
 
-## Subcontractor Reviews System
+## Invite Subcontractors from Directory
 
 ### Overview
 
-Add a reviews feature where authenticated PourHub admin/staff users can leave star ratings and written reviews on subcontractor profiles. Reviews are visible in two places:
-1. **Admin Directory** -- on each subcontractor's profile page (`/admin/directory/:id`)
-2. **Subcontractor Portal** -- on the subcontractor's own dashboard, so they can see feedback they've received
+Add an "Invite to Job" button on each directory profile page that opens the existing `ScheduleSubbieDialog` pre-filled with the subcontractor's name, trade, email, and phone from their directory profile. After the invite is sent (SMS + email), the invite also appears in the subcontractor's dashboard via the existing matching logic. Additionally, add a "Login to Dashboard" link on the SMS/email response confirmation page so subcontractors can easily access their portal.
 
-### Database
+### How It Works
 
-**New table: `subcontractor_reviews`**
+The existing infrastructure already supports everything needed:
+- `ScheduleSubbieDialog` handles job/pour selection and sends invites via SMS and email
+- `subcontractor-get-invites` edge function matches invites to subcontractors by email/phone
+- The subcontractor dashboard "My Work" tab already shows matched invites
+- When a subcontractor accepts/declines via SMS/email link, the status updates in `external_invites`, which the dashboard reads
 
-| Column | Type | Notes |
-|---|---|---|
-| `id` | uuid | PK, default `gen_random_uuid()` |
-| `subcontractor_profile_id` | uuid | FK to `subcontractor_directory_profiles.id`, NOT NULL |
-| `reviewer_user_id` | uuid | FK to `auth.users(id)`, NOT NULL |
-| `reviewer_name` | text | Display name of reviewer (captured at write time) |
-| `reviewer_business_name` | text | Business name (captured at write time) |
-| `rating` | integer | 1-5, NOT NULL |
-| `comment` | text | Optional written review, max 1000 chars |
-| `created_at` | timestamptz | default `now()` |
+The only new pieces are:
+1. A button + data bridge on the directory profile page
+2. A "Login to Dashboard" link on the response confirmation page
 
-**RLS Policies:**
-- **SELECT**: All authenticated users can read reviews (needed for both admin directory and subcontractor portal views)
-- **INSERT**: Authenticated users with admin or staff role can insert reviews (check `reviewer_user_id = auth.uid()`)
-- **UPDATE**: Users can update their own reviews (`reviewer_user_id = auth.uid()`)
-- **DELETE**: Users can delete their own reviews (`reviewer_user_id = auth.uid()`)
+### Changes
 
-**Constraint**: One review per reviewer per subcontractor (`UNIQUE(subcontractor_profile_id, reviewer_user_id)`)
+**1. Fetch email/phone for directory profiles (authenticated admin query)**
 
-**New RPC: `get_subcontractor_review_summary`**
+Create a small hook or inline query that fetches `email` and `phone` from `subcontractor_directory_profiles` by ID. This is needed because the existing `get_public_directory_profile` RPC intentionally omits these fields. Since the directory is admin-only, a direct query is safe (RLS allows authenticated reads).
 
-Returns aggregate rating data (average rating, total count) for a given subcontractor, used to display star averages on directory cards and profile pages.
+**2. Add "Invite to Job" button on `SubcontractorProfilePage`**
 
-### Directory Card Enhancement
+- Add a prominent "Invite to Job" button next to the "Write a Review" button
+- When clicked, open the existing `ScheduleSubbieDialog` with `preselectedSubbie` populated from the directory profile data (name, trade types, phone, email)
+- The dialog handles job/pour selection and sends the SMS + email invite
 
-Each `DirectoryCard` will show an average star rating and review count beneath the trade badges (e.g. "4.3 (12 reviews)"). The average rating data will be included in the `get_public_directory_profiles` RPC return (add `avg_rating` and `review_count` columns to the function output).
+**3. Add "Invite to Job" button on `DirectoryCard`**
 
-### Profile Page -- Reviews Section
+- Add a secondary "Invite" button alongside the existing "View Profile" button on each directory card
+- Opens the same `ScheduleSubbieDialog` pre-filled with that subcontractor's details
 
-On `SubcontractorProfilePage` (`/admin/directory/:id`), add a new section below the "About" bio:
+**4. Add "Login to Dashboard" link on `RespondInvite` confirmation pages**
 
-- **Average rating** display with filled stars
-- **Review count**
-- **List of reviews** showing: reviewer name, business name, star rating, comment, date
-- **"Write a Review" button** that opens a dialog with:
-  - Star rating selector (1-5, required)
-  - Comment textarea (optional, max 1000 chars)
-  - Submit button
-- If the current user has already reviewed this subcontractor, show "Edit Review" instead
-
-### Subcontractor Dashboard -- Reviews Card
-
-On `SubcontractorDashboardPage`, add a new card:
-
-- Title: "My Reviews"
-- Shows average rating and total count
-- Lists the 3 most recent reviews with reviewer name, rating, and comment
-- "View All" link to a simple reviews list (or expandable section)
-
-The subcontractor fetches their own reviews using a query filtered by their profile ID.
-
-### New Files
-
-| File | Purpose |
-|---|---|
-| `src/hooks/useSubcontractorReviews.ts` | React Query hooks: fetch reviews for a profile, submit/edit/delete a review, fetch own reviews |
-| `src/components/directory/ReviewsList.tsx` | Displays a list of review cards (reused in both directory and subcontractor portal) |
-| `src/components/directory/WriteReviewDialog.tsx` | Dialog form for writing/editing a review (star selector + comment) |
-| `src/components/directory/StarRating.tsx` | Reusable star display component (filled/half/empty stars) |
+After a subcontractor accepts or declines via the SMS/email link, add a "Go to Dashboard" button that links to `/sub-contractors/work`. This appears on:
+- Single invite confirmation screen
+- Batch invite confirmation screen
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/pages/directory/SubcontractorProfilePage.tsx` | Add reviews section below bio with list + write review button |
-| `src/pages/subcontractors/SubcontractorDashboardPage.tsx` | Add "My Reviews" card showing received reviews |
-| `src/components/directory/DirectoryCard.tsx` | Show average rating + review count on each card |
-| `src/hooks/usePublicDirectory.ts` | Update `DirectoryProfile` interface to include `avg_rating` and `review_count` |
+| `src/pages/directory/SubcontractorProfilePage.tsx` | Add "Invite to Job" button, fetch email/phone, open `ScheduleSubbieDialog` with `preselectedSubbie` |
+| `src/components/directory/DirectoryCard.tsx` | Add "Invite" button that opens `ScheduleSubbieDialog` |
+| `src/pages/public/RespondInvite.tsx` | Add "Login to Dashboard" link on both single and batch confirmation screens |
 
-### Updated RPC: `get_public_directory_profiles`
+### Files Unchanged
 
-Add a LEFT JOIN to aggregate review data:
+- All edge functions (send-subtrade-invite, send-batch-subtrade-invite, respond-subtrade-invite, subcontractor-get-invites) -- these already handle the full invite + dashboard sync flow
+- `ScheduleSubbieDialog` -- already supports `preselectedSubbie` prop
+- Subcontractor dashboard pages -- already display matched invites
 
-```sql
-CREATE OR REPLACE FUNCTION public.get_public_directory_profiles()
-RETURNS TABLE (
-  -- existing columns ...
-  avg_rating numeric,
-  review_count bigint
-)
-...
-AS $$
-  SELECT sdp.id, sdp.first_name, ...,
-         COALESCE(r.avg_rating, 0) as avg_rating,
-         COALESCE(r.review_count, 0) as review_count
-  FROM subcontractor_directory_profiles sdp
-  LEFT JOIN (
-    SELECT subcontractor_profile_id,
-           ROUND(AVG(rating)::numeric, 1) as avg_rating,
-           COUNT(*) as review_count
-    FROM subcontractor_reviews
-    GROUP BY subcontractor_profile_id
-  ) r ON r.subcontractor_profile_id = sdp.id
-  WHERE sdp.abn_verified = true
-    AND sdp.trade_types IS NOT NULL
-    AND array_length(sdp.trade_types, 1) > 0
-  ORDER BY ...
-$$;
+### Data Flow
+
+```text
+Admin clicks "Invite to Job" on directory profile
+  -> ScheduleSubbieDialog opens (pre-filled with name, trade, phone, email)
+  -> Admin selects job + pours
+  -> send-subtrade-invite / send-batch-subtrade-invite edge function fires
+  -> SMS sent via Twilio, Email sent via Resend
+  -> external_invites row created
+  -> Subcontractor sees invite in "My Work" dashboard tab (matched by email/phone)
+  -> Subcontractor can accept/decline from dashboard OR SMS/email link
+  -> Response confirmation page shows "Login to Dashboard" button
 ```
 
-### Technical Notes
+### Technical Details
 
-- Reviews are tied to the reviewer's `auth.uid()` to prevent duplicates and enable edit/delete
-- Reviewer name and business name are captured at write time (denormalized) so reviews remain readable even if the reviewer's account changes
-- Star rating uses a validation trigger to enforce 1-5 range
-- The subcontractor cannot review themselves (enforced via a check: `subcontractor_profile_id` cannot reference a profile owned by `reviewer_user_id`)
-
+- The `preselectedSubbie` prop on `ScheduleSubbieDialog` expects: `{ recipient_name, role, recipient_phone, recipient_email, lastUsed }`. We map the directory profile fields to this shape.
+- For `DirectoryCard`, the invite button needs email/phone. Since the card only has the public `DirectoryProfile` data (no email/phone), clicking "Invite" will navigate to the profile page where the full data is available. Alternatively, we can add a lightweight fetch inline. The simpler approach is to only put the "Invite to Job" button on the profile detail page (not on cards) to avoid extra queries per card.
+- The "Login to Dashboard" link on `RespondInvite` uses a simple anchor to `/sub-contractors/work`. If the subcontractor isn't registered, it will redirect to login -- which is expected and acceptable.
