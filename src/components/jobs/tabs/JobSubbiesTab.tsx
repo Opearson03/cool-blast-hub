@@ -89,12 +89,6 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
               Invite sub-contractors to help coordinate your job
             </p>
             <div className="flex gap-2 justify-center">
-              <Button asChild variant="outline">
-                <Link to="/admin/directory">
-                  <Search className="w-4 h-4 mr-2" />
-                  Find in Directory
-                </Link>
-              </Button>
               <Button onClick={() => setInviteDialogOpen(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
                 Invite Sub-Contractor
@@ -114,12 +108,6 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
   return (
     <>
       <div className="flex justify-end gap-2 mb-4">
-        <Button asChild variant="outline">
-          <Link to="/admin/directory">
-            <Search className="w-4 h-4 mr-2" />
-            Find in Directory
-          </Link>
-        </Button>
         <Button onClick={() => setInviteDialogOpen(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
           Invite Sub-Contractor
