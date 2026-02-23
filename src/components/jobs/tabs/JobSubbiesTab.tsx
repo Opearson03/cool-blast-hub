@@ -88,7 +88,7 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
             <p className="text-muted-foreground mb-4">
               Invite sub-contractors to help coordinate your job
             </p>
-            <div className="flex gap-2">
+            <div className="flex gap-2 justify-center">
               <Button asChild variant="outline">
                 <Link to="/admin/directory">
                   <Search className="w-4 h-4 mr-2" />
