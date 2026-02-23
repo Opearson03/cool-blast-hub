@@ -265,12 +265,17 @@ export default function RespondInvite() {
               )}
             </div>
 
-            {batchResults.accepted_count > 0 && icsData && (
-              <Button onClick={downloadCalendar} variant="outline" className="gap-2">
-                <CalendarPlus className="h-4 w-4" />
-                Add to Calendar
+            <div className="flex flex-col gap-3">
+              {batchResults.accepted_count > 0 && icsData && (
+                <Button onClick={downloadCalendar} variant="outline" className="gap-2">
+                  <CalendarPlus className="h-4 w-4" />
+                  Add to Calendar
+                </Button>
+              )}
+              <Button asChild variant="secondary" className="gap-2">
+                <a href="/sub-contractors/work">Login to Dashboard</a>
               </Button>
-            )}
+            </div>
 
             <Separator className="my-8" />
             <p className="text-xs text-muted-foreground">Powered by PourHub</p>
@@ -301,12 +306,17 @@ export default function RespondInvite() {
               {invite?.business_name || "The business"} has been notified.
             </p>
 
-            {response === "accepted" && icsData && (
-              <Button onClick={downloadCalendar} variant="outline" className="gap-2">
-                <CalendarPlus className="h-4 w-4" />
-                Add to Calendar
+            <div className="flex flex-col gap-3">
+              {response === "accepted" && icsData && (
+                <Button onClick={downloadCalendar} variant="outline" className="gap-2">
+                  <CalendarPlus className="h-4 w-4" />
+                  Add to Calendar
+                </Button>
+              )}
+              <Button asChild variant="secondary" className="gap-2">
+                <a href="/sub-contractors/work">Login to Dashboard</a>
               </Button>
-            )}
+            </div>
 
             <Separator className="my-8" />
             <p className="text-xs text-muted-foreground">Powered by PourHub</p>
