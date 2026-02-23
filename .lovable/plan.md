@@ -1,95 +1,145 @@
 
-## Document Uploads and White Card for Subcontractors
+
+## Public Subcontractor Directory
 
 ### Overview
 
-Add working file upload functionality to both the **Signup flow** (Step 4) and the **Settings page** (Documents section), plus a new **White Card** field with a two-step flow: ask if they hold one, then upload proof.
+Build a standalone public-facing directory page at `/directory` where anyone (no login required) can browse and search verified subcontractors. This is independent from the existing PourHub app and will later be incorporated.
 
-### Database Changes
+### New Route
 
-Add 3 new columns to `subcontractor_directory_profiles`:
+| Route | Auth | Description |
+|---|---|---|
+| `/directory` | Public (no login) | Browse/search subcontractor profiles |
+| `/directory/:id` | Public | Individual subcontractor profile page |
 
-| Column | Type | Nullable | Purpose |
-|---|---|---|---|
-| `white_card_number` | text | Yes | The white card number |
-| `white_card_document_url` | text | Yes | URL to uploaded white card photo or USI transcript |
-| `has_white_card` | boolean | Yes (default false) | Whether they hold a white card |
+### Data Access
 
-### Storage Buckets
+A new database function `get_public_directory_profiles` will return only profiles that are:
+- ABN verified (`abn_verified = true`)
+- Have at least one trade type
+- Status is "available"
 
-Both `subcontractor-documents` (private) and `subcontractor-photos` (public) already exist. No new buckets needed. Insurance certs and white card docs go to `subcontractor-documents`; profile photos go to `subcontractor-photos`.
+It will NOT expose sensitive fields (ABN, email, phone, insurance URLs, white card docs). Only public-safe fields are returned.
 
-### Changes to Signup Flow (SubcontractorSignup.tsx)
+### Page 1: Directory Listing (`/directory`)
 
-**Step 4 becomes a richer upload step:**
+A polished, marketing-quality page with:
 
-1. **Profile Photo** -- drag-and-drop or browse, with image preview thumbnail
-2. **Insurance Certificate** -- PDF/image upload with filename confirmation
-3. **White Card section:**
-   - Checkbox: "Do you hold a Construction White Card?"
-   - If Yes: text input for White Card Number + file upload for White Card Photo OR USI Transcript
-   - If No: nothing extra, proceed
+**Header**
+- PourHub logo + "Subcontractor Directory" title
+- Tagline: "Find verified trades for your next project"
+- Link to `/sub-contractors/signup` ("Join the Directory")
 
-All uploads happen in `handleSubmitProfile` (existing logic), extended to also upload white card docs and save the 3 new fields.
+**Search and Filters Bar**
+- Text search (name, postcode, legal name)
+- Trade type filter dropdown (Concreter, Steel Fixer, Formworker, etc.)
+- Availability filter (Available / All)
+- Postcode search with radius display
 
-### Changes to Settings Page (SubcontractorSettings.tsx)
+**Results Grid**
+- Card-based layout (responsive grid: 1 col mobile, 2 col tablet, 3 col desktop)
+- Each card shows:
+  - Profile photo (or initials avatar)
+  - First name + last initial (e.g. "John S.")
+  - Trade badges
+  - Years experience
+  - Service area (postcode + radius)
+  - ABN Verified badge
+  - White Card badge (if `has_white_card = true`)
+  - GST Registered badge
+  - Availability indicator
+  - "View Profile" button
+- Empty state when no results match filters
+- Result count display
 
-Replace the static "Document upload coming soon" placeholder in the Documents accordion with working upload/replace functionality:
+### Page 2: Profile Detail (`/directory/:id`)
 
-1. **Profile Photo** -- show current photo (or placeholder), with "Upload" / "Replace" button. Uploads to `subcontractor-photos/{userId}/photo.{ext}`, saves public URL to `profile_photo_url`.
-2. **Insurance Certificate** -- show current filename or "Not uploaded", with "Upload" / "Replace" button. Uploads to `subcontractor-documents/{userId}/insurance.{ext}`, saves path to `insurance_certificate_url`. "View" link if already uploaded.
-3. **White Card** -- toggle for "I hold a Construction White Card"
-   - If toggled on: show White Card Number input + file upload for card photo/USI transcript
-   - Uploads to `subcontractor-documents/{userId}/whitecard.{ext}`
-   - Save button persists all 3 fields (`has_white_card`, `white_card_number`, `white_card_document_url`)
+Individual profile page showing:
+- Large profile photo (or initials)
+- Full name, bio
+- Trade types with badges
+- Years of experience
+- Service area (postcode + radius km)
+- Verification badges (ABN Verified, White Card, GST)
+- Legal business name
+- "Contact" button (reveals a contact form or prompts login -- for now, links to `/sub-contractors` landing)
+- Back to directory link
 
-### Profile Completion Update (useSubcontractorProfile.ts)
+### Database
 
-Update `calculateProfileCompletion` to include white card as an optional bonus (not required), keeping the existing 10 checks. Alternatively, keep it at 10 checks so white card doesn't affect completion -- since not all subbies will have one.
+**New RPC function: `get_public_directory_profiles`**
 
-No change to completion logic -- white card stays optional.
+Returns only safe, public fields for verified subcontractors. No authentication required.
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_public_directory_profiles()
+RETURNS TABLE (
+  id uuid,
+  first_name text,
+  last_name text,
+  profile_photo_url text,
+  trade_types text[],
+  years_experience integer,
+  service_radius_km integer,
+  base_postcode text,
+  bio text,
+  availability_status text,
+  abn_verified boolean,
+  gst_registered boolean,
+  has_white_card boolean,
+  legal_name text
+)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = 'public'
+AS $$
+  SELECT id, first_name, last_name, profile_photo_url,
+         trade_types, years_experience, service_radius_km,
+         base_postcode, bio, availability_status,
+         abn_verified, gst_registered, has_white_card, legal_name
+  FROM subcontractor_directory_profiles
+  WHERE abn_verified = true
+    AND trade_types IS NOT NULL
+    AND array_length(trade_types, 1) > 0
+  ORDER BY availability_status = 'available' DESC, years_experience DESC NULLS LAST;
+$$;
+```
+
+**New RPC function: `get_public_directory_profile`**
+
+Returns a single profile by ID (same safe fields).
+
+```sql
+CREATE OR REPLACE FUNCTION public.get_public_directory_profile(_id uuid)
+RETURNS TABLE ( ... same columns ... )
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = 'public'
+AS $$
+  SELECT ... FROM subcontractor_directory_profiles
+  WHERE id = _id AND abn_verified = true;
+$$;
+```
+
+### Files to Create
+
+| File | Purpose |
+|---|---|
+| `src/pages/directory/SubcontractorDirectory.tsx` | Main listing page with search/filters and card grid |
+| `src/pages/directory/SubcontractorProfilePage.tsx` | Individual profile detail page |
+| `src/components/directory/DirectoryCard.tsx` | Reusable profile card component |
+| `src/components/directory/DirectoryFilters.tsx` | Search + filter bar component |
+| `src/hooks/usePublicDirectory.ts` | React Query hooks for the two RPC functions |
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/pages/subcontractors/SubcontractorSignup.tsx` | Add white card fields to Step 4, keep existing photo/insurance uploads |
-| `src/pages/subcontractors/SubcontractorSettings.tsx` | Replace "coming soon" with working upload/replace for photo, insurance, and white card |
-| `src/hooks/useSubcontractorProfile.ts` | Add `white_card_number`, `white_card_document_url`, `has_white_card` to interface |
+| `src/App.tsx` | Add `/directory` and `/directory/:id` routes (public, no auth) |
 
 ### Technical Details
 
-**Upload pattern (reused from existing signup logic):**
-```typescript
-// Profile photo -> public bucket
-const path = `${userId}/photo.${ext}`;
-await supabase.storage.from("subcontractor-photos").upload(path, file, { upsert: true });
-const { data } = supabase.storage.from("subcontractor-photos").getPublicUrl(path);
-// Save data.publicUrl to profile_photo_url
+**Privacy**: No ABN numbers, emails, phone numbers, or document URLs are exposed through the public RPC. Last names are shown in full on the detail page but truncated to initial on cards.
 
-// Insurance / White card -> private bucket
-const path = `${userId}/insurance.${ext}`;
-await supabase.storage.from("subcontractor-documents").upload(path, file, { upsert: true });
-// Save path to insurance_certificate_url
-// For viewing, generate signed URL:
-const { data } = await supabase.storage.from("subcontractor-documents").createSignedUrl(path, 3600);
-```
+**No authentication required**: Both RPC functions use `SECURITY DEFINER` and don't check `auth.uid()`, making them callable by anonymous users via the Supabase anon key.
 
-**White Card UI flow in Settings:**
-```
-[Toggle] Do you hold a Construction White Card?
-  |
-  +-- Yes --> [Input: White Card Number]
-              [Upload: White Card Photo or USI Transcript]
-              [Save button]
-  |
-  +-- No  --> (nothing shown, toggle saves has_white_card: false)
-```
+**Card design**: Each card uses the existing `Card` component with a clean layout -- photo at top, name + trades in middle, badges and stats at bottom.
 
-**Migration SQL:**
-```sql
-ALTER TABLE subcontractor_directory_profiles
-  ADD COLUMN has_white_card boolean DEFAULT false,
-  ADD COLUMN white_card_number text,
-  ADD COLUMN white_card_document_url text;
-```
+**Filtering**: All filtering is done client-side after fetching the full list (same pattern as `SubcontractorAdminTable`). The dataset is small enough that server-side pagination isn't needed yet.
