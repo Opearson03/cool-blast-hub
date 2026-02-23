@@ -1,4 +1,7 @@
 import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
+import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useSubcontractors, useCreateSubcontractor, useUpdateSubcontractor, useDeleteSubcontractor, Subcontractor } from "@/hooks/useSubcontractors";
 import { useBusinessSubbies } from "@/hooks/useBusinessSubbies";
 import { ContactList, ContactListItem } from "./ContactList";
@@ -110,6 +113,15 @@ export function SubbiesTab() {
 
   return (
     <>
+      <div className="mb-4">
+        <Button asChild variant="outline" size="sm" className="gap-1.5">
+          <Link to="/admin/directory">
+            <Search className="h-4 w-4" />
+            Search Directory
+          </Link>
+        </Button>
+      </div>
+
       <ContactList
         type="subcontractor"
         contacts={mergedContacts}

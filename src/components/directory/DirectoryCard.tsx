@@ -89,7 +89,7 @@ export function DirectoryCard({ profile }: { profile: DirectoryProfile }) {
           </div>
 
           <Button asChild className="w-full mt-1" size="sm">
-            <Link to={`/directory/${profile.id}`}>View Profile</Link>
+            <Link to={`/admin/directory/${profile.id}`}>View Profile</Link>
           </Button>
         </div>
       </CardContent>

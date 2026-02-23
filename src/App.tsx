@@ -126,9 +126,9 @@ const AppContent = () => {
       <Route path="/articles" element={<Articles />} />
       <Route path="/articles/:slug" element={<ArticlePage />} />
       
-      {/* Public Directory */}
-      <Route path="/directory" element={<SubcontractorDirectory />} />
-      <Route path="/directory/:id" element={<SubcontractorProfilePage />} />
+      {/* Admin Directory */}
+      <Route path="/admin/directory" element={<ProtectedRoute allowedRole="admin"><SubcontractorDirectory /></ProtectedRoute>} />
+      <Route path="/admin/directory/:id" element={<ProtectedRoute allowedRole="admin"><SubcontractorProfilePage /></ProtectedRoute>} />
       
       {/* Public Signing Routes - no auth required */}
       <Route path="/sign/quote/:token" element={<SignQuote />} />
