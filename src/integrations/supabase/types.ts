@@ -2627,6 +2627,78 @@ export type Database = {
           },
         ]
       }
+      subcontractor_directory_profiles: {
+        Row: {
+          abn: string | null
+          abn_verified: boolean | null
+          availability_status: string | null
+          base_postcode: string | null
+          bio: string | null
+          created_at: string
+          email: string | null
+          entity_type: string | null
+          first_name: string | null
+          gst_registered: boolean | null
+          id: string
+          insurance_certificate_url: string | null
+          last_name: string | null
+          legal_name: string | null
+          phone: string | null
+          profile_photo_url: string | null
+          service_radius_km: number | null
+          trade_types: string[] | null
+          updated_at: string
+          user_id: string
+          years_experience: number | null
+        }
+        Insert: {
+          abn?: string | null
+          abn_verified?: boolean | null
+          availability_status?: string | null
+          base_postcode?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string | null
+          entity_type?: string | null
+          first_name?: string | null
+          gst_registered?: boolean | null
+          id?: string
+          insurance_certificate_url?: string | null
+          last_name?: string | null
+          legal_name?: string | null
+          phone?: string | null
+          profile_photo_url?: string | null
+          service_radius_km?: number | null
+          trade_types?: string[] | null
+          updated_at?: string
+          user_id: string
+          years_experience?: number | null
+        }
+        Update: {
+          abn?: string | null
+          abn_verified?: boolean | null
+          availability_status?: string | null
+          base_postcode?: string | null
+          bio?: string | null
+          created_at?: string
+          email?: string | null
+          entity_type?: string | null
+          first_name?: string | null
+          gst_registered?: boolean | null
+          id?: string
+          insurance_certificate_url?: string | null
+          last_name?: string | null
+          legal_name?: string | null
+          phone?: string | null
+          profile_photo_url?: string | null
+          service_radius_km?: number | null
+          trade_types?: string[] | null
+          updated_at?: string
+          user_id?: string
+          years_experience?: number | null
+        }
+        Relationships: []
+      }
       subcontractors: {
         Row: {
           business_id: string
@@ -3343,6 +3415,38 @@ export type Database = {
         Args: { business_name: string }
         Returns: string
       }
+      get_all_subcontractor_profiles: {
+        Args: never
+        Returns: {
+          abn: string | null
+          abn_verified: boolean | null
+          availability_status: string | null
+          base_postcode: string | null
+          bio: string | null
+          created_at: string
+          email: string | null
+          entity_type: string | null
+          first_name: string | null
+          gst_registered: boolean | null
+          id: string
+          insurance_certificate_url: string | null
+          last_name: string | null
+          legal_name: string | null
+          phone: string | null
+          profile_photo_url: string | null
+          service_radius_km: number | null
+          trade_types: string[] | null
+          updated_at: string
+          user_id: string
+          years_experience: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "subcontractor_directory_profiles"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_all_users_for_staff: {
         Args: never
         Returns: {
@@ -3455,6 +3559,7 @@ export type Database = {
       }
       import_crm_leads: { Args: { _leads: Json }; Returns: Json }
       is_pourhub_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_subcontractor: { Args: { _user_id: string }; Returns: boolean }
       is_supplier: { Args: { _user_id: string }; Returns: boolean }
       join_waitlist: {
         Args: {
@@ -3480,7 +3585,12 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "staff" | "pourhub_staff" | "supplier"
+      app_role:
+        | "admin"
+        | "staff"
+        | "pourhub_staff"
+        | "supplier"
+        | "subcontractor"
       booking_status: "pending" | "contacted" | "converted" | "cancelled"
       customer_type: "retail" | "industrial"
       document_category:
@@ -3642,7 +3752,13 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "staff", "pourhub_staff", "supplier"],
+      app_role: [
+        "admin",
+        "staff",
+        "pourhub_staff",
+        "supplier",
+        "subcontractor",
+      ],
       booking_status: ["pending", "contacted", "converted", "cancelled"],
       customer_type: ["retail", "industrial"],
       document_category: [

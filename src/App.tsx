@@ -37,6 +37,10 @@ import RespondInvite from "./pages/public/RespondInvite";
 import SuppliersLanding from "./pages/suppliers/SuppliersLanding";
 import SupplierDashboard from "./pages/suppliers/SupplierDashboard";
 import { SupplierProtectedRoute } from "./components/suppliers/SupplierProtectedRoute";
+import SubcontractorsLanding from "./pages/subcontractors/SubcontractorsLanding";
+import SubcontractorSignup from "./pages/subcontractors/SubcontractorSignup";
+import SubcontractorDashboardPage from "./pages/subcontractors/SubcontractorDashboardPage";
+import { SubcontractorProtectedRoute } from "./components/subcontractors/SubcontractorProtectedRoute";
 import Articles from "./pages/Articles";
 import ArticlePage from "./pages/ArticlePage";
 import NotFound from "./pages/NotFound";
@@ -104,6 +108,11 @@ const AppContent = () => {
       {/* Supplier Routes - accessible via suppliers.pourhub.com.au or /suppliers path */}
       <Route path="/suppliers" element={<SuppliersLanding />} />
       <Route path="/suppliers/dashboard" element={<SupplierProtectedRoute><SupplierDashboard /></SupplierProtectedRoute>} />
+      
+      {/* Subcontractor Routes */}
+      <Route path="/sub-contractors" element={<SubcontractorsLanding />} />
+      <Route path="/sub-contractors/signup" element={<SubcontractorSignup />} />
+      <Route path="/sub-contractors/dashboard" element={<SubcontractorProtectedRoute><SubcontractorDashboardPage /></SubcontractorProtectedRoute>} />
       
       {/* Articles */}
       <Route path="/articles" element={<Articles />} />
