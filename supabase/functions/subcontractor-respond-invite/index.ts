@@ -103,7 +103,6 @@ Deno.serve(async (req) => {
     // Auto-add subcontractor to business contacts on accept
     if (response === "accepted") {
       try {
-        // Get the invite's business_id
         const { data: fullInvite } = await supabaseAdmin
           .from("external_invites")
           .select("business_id, recipient_name, recipient_email, recipient_phone, role")
@@ -111,22 +110,31 @@ Deno.serve(async (req) => {
           .single();
 
         if (fullInvite) {
+          const orConditions: string[] = [];
+          if (fullInvite.recipient_email) orConditions.push(`email.ilike.${fullInvite.recipient_email}`);
+          if (fullInvite.recipient_phone) orConditions.push(`phone.eq.${fullInvite.recipient_phone}`);
+          orConditions.push(`name.ilike.${fullInvite.recipient_name}`);
+
           const { data: existing } = await supabaseAdmin
             .from("subcontractors")
             .select("id")
             .eq("business_id", fullInvite.business_id)
-            .ilike("name", fullInvite.recipient_name)
+            .or(orConditions.join(","))
             .maybeSingle();
 
           if (!existing) {
-            await supabaseAdmin.from("subcontractors").insert({
-              business_id: fullInvite.business_id,
-              name: fullInvite.recipient_name,
-              email: fullInvite.recipient_email || null,
-              phone: fullInvite.recipient_phone || null,
-              trade: fullInvite.role || null,
-            });
-            console.log("Auto-added subcontractor to contacts (dashboard)");
+            try {
+              await supabaseAdmin.from("subcontractors").insert({
+                business_id: fullInvite.business_id,
+                name: fullInvite.recipient_name,
+                email: fullInvite.recipient_email || null,
+                phone: fullInvite.recipient_phone || null,
+                trade: fullInvite.role || null,
+              });
+              console.log("Auto-added subcontractor to contacts (dashboard)");
+            } catch (insertErr) {
+              console.log("Subcontractor contact already exists (constraint):", insertErr);
+            }
           }
         }
       } catch (err) {
