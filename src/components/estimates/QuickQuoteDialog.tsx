@@ -384,7 +384,7 @@ export function QuickQuoteDialog({ open, onOpenChange, preselectedJobId, presele
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+      <DialogContent className="max-h-[100dvh] h-[100dvh] sm:h-auto sm:max-h-[90vh] sm:max-w-lg rounded-none sm:rounded-lg p-4 sm:p-6 flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle>{isPreselectedVariation ? "Quote Variation" : "Quick Quote"}</DialogTitle>
         </DialogHeader>
@@ -481,11 +481,11 @@ export function QuickQuoteDialog({ open, onOpenChange, preselectedJobId, presele
                   <div className="space-y-1.5">
                     <Label>Days Extension</Label>
                     <Input
-                      type="number"
+                      type="text"
+                      inputMode="decimal"
                       value={daysExtension || ""}
                       onChange={(e) => setDaysExtension(e.target.value === "" ? 0 : Number(e.target.value))}
                       placeholder="0"
-                      min={0}
                       className="w-32"
                     />
                   </div>
@@ -594,54 +594,46 @@ export function QuickQuoteDialog({ open, onOpenChange, preselectedJobId, presele
                       }
                       className="h-8 text-sm"
                     />
-                    <div className="flex gap-2 items-center">
-                      <div className="flex-1">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder="Qty"
-                          value={item.quantity ?? ""}
-                          onChange={(e) =>
-                            handleUpdateItem(
-                              item.id,
-                              "quantity",
-                              e.target.value === "" ? 0 : Number(e.target.value)
-                            )
-                          }
-                          className="h-8 text-sm text-center"
-                          min={0}
-                          step="any"
-                        />
-                      </div>
-                      <div className="w-16">
-                        <Input
-                          placeholder="Unit"
-                          value={item.unit}
-                          onChange={(e) =>
-                            handleUpdateItem(item.id, "unit", e.target.value)
-                          }
-                          className="h-8 text-sm text-center"
-                        />
-                      </div>
-                      <div className="flex-1">
-                        <Input
-                          type="number"
-                          inputMode="decimal"
-                          placeholder="Price"
-                          value={item.unitPrice ?? ""}
-                          onChange={(e) =>
-                            handleUpdateItem(
-                              item.id,
-                              "unitPrice",
-                              e.target.value === "" ? 0 : Number(e.target.value)
-                            )
-                          }
-                          className="h-8 text-sm text-center"
-                          min={0}
-                          step="0.01"
-                        />
-                      </div>
-                      <span className="text-sm font-medium w-20 text-right shrink-0">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Qty"
+                        value={item.quantity ?? ""}
+                        onChange={(e) =>
+                          handleUpdateItem(
+                            item.id,
+                            "quantity",
+                            e.target.value === "" ? 0 : Number(e.target.value)
+                          )
+                        }
+                        className="h-8 text-sm text-center"
+                      />
+                      <Input
+                        placeholder="Unit"
+                        value={item.unit}
+                        onChange={(e) =>
+                          handleUpdateItem(item.id, "unit", e.target.value)
+                        }
+                        className="h-8 text-sm text-center"
+                      />
+                      <Input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="Price"
+                        value={item.unitPrice ?? ""}
+                        onChange={(e) =>
+                          handleUpdateItem(
+                            item.id,
+                            "unitPrice",
+                            e.target.value === "" ? 0 : Number(e.target.value)
+                          )
+                        }
+                        className="h-8 text-sm text-center"
+                      />
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium">
                         {formatCurrency(item.total)}
                       </span>
                       <Button
