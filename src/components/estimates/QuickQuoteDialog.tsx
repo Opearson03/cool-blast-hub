@@ -270,7 +270,7 @@ export function QuickQuoteDialog({ open, onOpenChange, preselectedJobId, presele
         quantity: item.quantity,
         unit: item.unit,
         unit_price: item.unitPrice,
-        total: item.total,
+        
         sort_order: index,
       }));
 
@@ -282,7 +282,7 @@ export function QuickQuoteDialog({ open, onOpenChange, preselectedJobId, presele
           quantity: 1,
           unit: "ea",
           unit_price: gstAmount,
-          total: gstAmount,
+          
           sort_order: validItems.length,
         });
       }
