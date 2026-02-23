@@ -1,76 +1,132 @@
 
 
-## Invite Subcontractors from Directory
+## Subcontractor Reviews Gate + Auto-Add Contacts + Directory Link from Jobs
 
 ### Overview
 
-Add an "Invite to Job" button on each directory profile page that opens the existing `ScheduleSubbieDialog` pre-filled with the subcontractor's name, trade, email, and phone from their directory profile. After the invite is sent (SMS + email), the invite also appears in the subcontractor's dashboard via the existing matching logic. Additionally, add a "Login to Dashboard" link on the SMS/email response confirmation page so subcontractors can easily access their portal.
+Three related changes:
 
-### How It Works
+1. **Reviews restricted to verified working relationships** -- Only allow a user to leave a review for a subcontractor they have actually worked with (i.e. have at least one "accepted" invite that has been completed/past date).
 
-The existing infrastructure already supports everything needed:
-- `ScheduleSubbieDialog` handles job/pour selection and sends invites via SMS and email
-- `subcontractor-get-invites` edge function matches invites to subcontractors by email/phone
-- The subcontractor dashboard "My Work" tab already shows matched invites
-- When a subcontractor accepts/declines via SMS/email link, the status updates in `external_invites`, which the dashboard reads
+2. **Auto-add subcontractors to contacts after working together** -- When a subcontractor accepts an invite and the job is completed (or the pour date passes), automatically add them to the business's `subcontractors` contact list so they appear in the Sub-Contractors tab without needing the directory.
 
-The only new pieces are:
-1. A button + data bridge on the directory profile page
-2. A "Login to Dashboard" link on the response confirmation page
+3. **"Find New Sub-Contractors" button on the Jobs sub-contractors tab** -- Add a button in `JobSubbiesTab` that routes to `/admin/directory`.
 
-### Changes
+---
 
-**1. Fetch email/phone for directory profiles (authenticated admin query)**
+### 1. Reviews Gated by Working Relationship
 
-Create a small hook or inline query that fetches `email` and `phone` from `subcontractor_directory_profiles` by ID. This is needed because the existing `get_public_directory_profile` RPC intentionally omits these fields. Since the directory is admin-only, a direct query is safe (RLS allows authenticated reads).
+**Approach**: Create a database function `has_worked_with_subcontractor(user_id, profile_id)` that checks if the user's business has any `external_invites` with status `accepted` for that subcontractor (matched by email/phone from `subcontractor_directory_profiles`). Use this to:
 
-**2. Add "Invite to Job" button on `SubcontractorProfilePage`**
+- **RLS**: Update the INSERT policy on `subcontractor_reviews` to require `has_worked_with_subcontractor`
+- **UI**: In `SubcontractorProfilePage`, query whether the current user has worked with this subcontractor. If not, hide or disable the "Write a Review" button with a tooltip explaining "You can only review subcontractors you've worked with"
 
-- Add a prominent "Invite to Job" button next to the "Write a Review" button
-- When clicked, open the existing `ScheduleSubbieDialog` with `preselectedSubbie` populated from the directory profile data (name, trade types, phone, email)
-- The dialog handles job/pour selection and sends the SMS + email invite
+**New RPC function:**
+```sql
+CREATE OR REPLACE FUNCTION public.has_worked_with_subcontractor(
+  _user_id uuid,
+  _profile_id uuid
+)
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM external_invites ei
+    JOIN subcontractor_directory_profiles sdp ON sdp.id = _profile_id
+    WHERE ei.business_id = get_user_business_id(_user_id)
+      AND ei.invite_type = 'sub_trade'
+      AND ei.status = 'accepted'
+      AND (
+        (sdp.email IS NOT NULL AND LOWER(ei.recipient_email) = LOWER(sdp.email))
+        OR
+        (sdp.phone IS NOT NULL AND ei.recipient_phone = sdp.phone)
+      )
+  );
+$$;
+```
 
-**3. Add "Invite to Job" button on `DirectoryCard`**
+**UI changes in `SubcontractorProfilePage.tsx`:**
+- Add a query using `supabase.rpc("has_worked_with_subcontractor", { _user_id, _profile_id })` 
+- Conditionally show/disable the "Write a Review" button based on the result
+- Show a message like "Complete a job with this subcontractor to leave a review"
 
-- Add a secondary "Invite" button alongside the existing "View Profile" button on each directory card
-- Opens the same `ScheduleSubbieDialog` pre-filled with that subcontractor's details
+**RLS update:**
+- Replace the INSERT policy on `subcontractor_reviews` to also require `has_worked_with_subcontractor(auth.uid(), subcontractor_profile_id)`
 
-**4. Add "Login to Dashboard" link on `RespondInvite` confirmation pages**
+---
 
-After a subcontractor accepts or declines via the SMS/email link, add a "Go to Dashboard" button that links to `/sub-contractors/work`. This appears on:
-- Single invite confirmation screen
-- Batch invite confirmation screen
+### 2. Auto-Add to Subcontractor Contacts
+
+**Approach**: When the `respond-subtrade-invite` edge function processes an "accepted" response, check if the subcontractor already exists in the business's `subcontractors` table. If not, insert them automatically.
+
+**Changes to `respond-subtrade-invite/index.ts`:**
+
+After updating the invite status to "accepted", add logic:
+```typescript
+if (response === "accepted") {
+  // Check if this subbie is already in the business's contacts
+  const { data: existing } = await supabase
+    .from("subcontractors")
+    .select("id")
+    .eq("business_id", invite.business_id)
+    .eq("name", invite.recipient_name)
+    .maybeSingle();
+
+  if (!existing) {
+    await supabase.from("subcontractors").insert({
+      business_id: invite.business_id,
+      name: invite.recipient_name,
+      email: invite.recipient_email || null,
+      phone: invite.recipient_phone || null,
+      trade: invite.role || null,
+    });
+  }
+}
+```
+
+This same logic is added to both the single-response and batch-response handlers.
+
+**Also update `subcontractor-respond-invite/index.ts`** (the dashboard-based response handler) with the same auto-add logic.
+
+---
+
+### 3. "Find New Sub-Contractors" Button on Job Subbies Tab
+
+**Changes to `JobSubbiesTab.tsx`:**
+
+Add a "Find in Directory" button next to the existing "Invite Sub-Contractor" button that links to `/admin/directory`:
+
+```tsx
+<Button asChild variant="outline">
+  <Link to="/admin/directory">
+    <Search className="w-4 h-4 mr-2" />
+    Find in Directory
+  </Link>
+</Button>
+```
+
+This appears in both the empty state and the populated state header.
+
+---
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/pages/directory/SubcontractorProfilePage.tsx` | Add "Invite to Job" button, fetch email/phone, open `ScheduleSubbieDialog` with `preselectedSubbie` |
-| `src/components/directory/DirectoryCard.tsx` | Add "Invite" button that opens `ScheduleSubbieDialog` |
-| `src/pages/public/RespondInvite.tsx` | Add "Login to Dashboard" link on both single and batch confirmation screens |
+| `supabase/migrations/...` | Create `has_worked_with_subcontractor` function; update INSERT RLS policy on `subcontractor_reviews` |
+| `supabase/functions/respond-subtrade-invite/index.ts` | Auto-add subcontractor to contacts on accept (single + batch) |
+| `supabase/functions/subcontractor-respond-invite/index.ts` | Auto-add subcontractor to contacts on accept (dashboard response) |
+| `src/pages/directory/SubcontractorProfilePage.tsx` | Gate review button behind `has_worked_with_subcontractor` check |
+| `src/components/jobs/tabs/JobSubbiesTab.tsx` | Add "Find in Directory" button |
 
-### Files Unchanged
+### What Stays the Same
 
-- All edge functions (send-subtrade-invite, send-batch-subtrade-invite, respond-subtrade-invite, subcontractor-get-invites) -- these already handle the full invite + dashboard sync flow
-- `ScheduleSubbieDialog` -- already supports `preselectedSubbie` prop
-- Subcontractor dashboard pages -- already display matched invites
+- All existing review display logic (ReviewsList, StarRating, DirectoryCard ratings)
+- Existing invite flow and ScheduleSubbieDialog
+- SubbiesTab contact list (will naturally show auto-added contacts)
+- Subcontractor portal dashboard
 
-### Data Flow
-
-```text
-Admin clicks "Invite to Job" on directory profile
-  -> ScheduleSubbieDialog opens (pre-filled with name, trade, phone, email)
-  -> Admin selects job + pours
-  -> send-subtrade-invite / send-batch-subtrade-invite edge function fires
-  -> SMS sent via Twilio, Email sent via Resend
-  -> external_invites row created
-  -> Subcontractor sees invite in "My Work" dashboard tab (matched by email/phone)
-  -> Subcontractor can accept/decline from dashboard OR SMS/email link
-  -> Response confirmation page shows "Login to Dashboard" button
-```
-
-### Technical Details
-
-- The `preselectedSubbie` prop on `ScheduleSubbieDialog` expects: `{ recipient_name, role, recipient_phone, recipient_email, lastUsed }`. We map the directory profile fields to this shape.
-- For `DirectoryCard`, the invite button needs email/phone. Since the card only has the public `DirectoryProfile` data (no email/phone), clicking "Invite" will navigate to the profile page where the full data is available. Alternatively, we can add a lightweight fetch inline. The simpler approach is to only put the "Invite to Job" button on the profile detail page (not on cards) to avoid extra queries per card.
-- The "Login to Dashboard" link on `RespondInvite` uses a simple anchor to `/sub-contractors/work`. If the subcontractor isn't registered, it will redirect to login -- which is expected and acceptable.
