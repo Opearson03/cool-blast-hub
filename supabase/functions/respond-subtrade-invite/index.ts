@@ -205,22 +205,32 @@ const handler = async (req: Request): Promise<Response> => {
     // Auto-add subcontractor to business contacts on accept
     if (response === "accepted") {
       try {
+        const orConditions: string[] = [];
+        if (invite.recipient_email) orConditions.push(`email.ilike.${invite.recipient_email}`);
+        if (invite.recipient_phone) orConditions.push(`phone.eq.${invite.recipient_phone}`);
+        orConditions.push(`name.ilike.${invite.recipient_name}`);
+
         const { data: existing } = await supabase
           .from("subcontractors")
           .select("id")
           .eq("business_id", invite.business_id)
-          .ilike("name", invite.recipient_name)
+          .or(orConditions.join(","))
           .maybeSingle();
 
         if (!existing) {
-          await supabase.from("subcontractors").insert({
-            business_id: invite.business_id,
-            name: invite.recipient_name,
-            email: invite.recipient_email || null,
-            phone: invite.recipient_phone || null,
-            trade: invite.role || null,
-          });
-          console.log("Auto-added subcontractor to contacts");
+          try {
+            await supabase.from("subcontractors").insert({
+              business_id: invite.business_id,
+              name: invite.recipient_name,
+              email: invite.recipient_email || null,
+              phone: invite.recipient_phone || null,
+              trade: invite.role || null,
+            });
+            console.log("Auto-added subcontractor to contacts");
+          } catch (insertErr) {
+            // Unique index violation is expected in race conditions — treat as no-op
+            console.log("Subcontractor contact already exists (constraint):", insertErr);
+          }
         }
       } catch (err) {
         console.error("Error auto-adding subcontractor contact:", err);
@@ -418,22 +428,31 @@ async function handleBatchResponses(
 
       // Auto-add subcontractor to business contacts on accept
       try {
+        const orConditions: string[] = [];
+        if (invite.recipient_email) orConditions.push(`email.ilike.${invite.recipient_email}`);
+        if (invite.recipient_phone) orConditions.push(`phone.eq.${invite.recipient_phone}`);
+        orConditions.push(`name.ilike.${invite.recipient_name}`);
+
         const { data: existing } = await supabase
           .from("subcontractors")
           .select("id")
           .eq("business_id", invite.business_id)
-          .ilike("name", invite.recipient_name)
+          .or(orConditions.join(","))
           .maybeSingle();
 
         if (!existing) {
-          await supabase.from("subcontractors").insert({
-            business_id: invite.business_id,
-            name: invite.recipient_name,
-            email: invite.recipient_email || null,
-            phone: invite.recipient_phone || null,
-            trade: invite.role || null,
-          });
-          console.log("Auto-added subcontractor to contacts (batch)");
+          try {
+            await supabase.from("subcontractors").insert({
+              business_id: invite.business_id,
+              name: invite.recipient_name,
+              email: invite.recipient_email || null,
+              phone: invite.recipient_phone || null,
+              trade: invite.role || null,
+            });
+            console.log("Auto-added subcontractor to contacts (batch)");
+          } catch (insertErr) {
+            console.log("Subcontractor contact already exists (constraint):", insertErr);
+          }
         }
       } catch (err) {
         console.error("Error auto-adding subcontractor contact:", err);
