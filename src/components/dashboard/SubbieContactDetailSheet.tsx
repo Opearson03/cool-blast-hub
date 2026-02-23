@@ -32,11 +32,14 @@ import {
   Check, 
   X,
   Briefcase,
-  Clock
+  Clock,
+  Send,
+  Loader2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { SubTradeStatusBadge } from "@/components/jobs/SubTradeStatusBadge";
 import { ScheduleSubbieDialog } from "@/components/schedule/ScheduleSubbieDialog";
+import { useResendSubTradeNotification } from "@/hooks/useSubTradeInvites";
 import { toast } from "sonner";
 import type { PastSubbie } from "@/hooks/useBusinessSubbies";
 import type { SubTradeInvite } from "@/hooks/useSubTradeInvites";
@@ -67,7 +70,9 @@ export function SubbieContactDetailSheet({
 }: SubbieContactDetailSheetProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const resendMutation = useResendSubTradeNotification();
 
   const form = useForm<ContactFormData>({
     resolver: zodResolver(contactSchema),
@@ -189,6 +194,23 @@ export function SubbieContactDetailSheet({
   const pastJobs = allInvites.filter(
     (inv) => !inv.pour?.pour_date || new Date(inv.pour.pour_date) < today
   );
+  const handleResendInvite = (invite: typeof allInvites[0]) => {
+    setResendingId(invite.id);
+    resendMutation.mutate(
+      { inviteId: invite.id, jobPourId: invite.job_pour_id },
+      {
+        onSuccess: () => {
+          toast.success("Invite resent");
+          setResendingId(null);
+          queryClient.invalidateQueries({ queryKey: ["subbie-all-invites"] });
+        },
+        onError: () => {
+          toast.error("Failed to resend invite");
+          setResendingId(null);
+        },
+      }
+    );
+  };
 
   if (!subbie) return null;
 
@@ -372,7 +394,25 @@ export function SubbieContactDetailSheet({
                               </p>
                             )}
                           </div>
-                          <SubTradeStatusBadge status={invite.status as any} />
+                          <div className="flex flex-col items-end gap-1.5 shrink-0">
+                            <SubTradeStatusBadge status={invite.status as any} />
+                            {invite.status !== "accepted" && invite.status !== "declined" && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-6 px-2 text-xs"
+                                onClick={() => handleResendInvite(invite)}
+                                disabled={resendingId === invite.id}
+                              >
+                                {resendingId === invite.id ? (
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                ) : (
+                                  <Send className="h-3 w-3 mr-1" />
+                                )}
+                                Resend
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
