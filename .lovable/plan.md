@@ -1,117 +1,95 @@
 
-
-## Advanced Subcontractor Dashboard with Navigation
+## Document Uploads and White Card for Subcontractors
 
 ### Overview
 
-Transform the current single-page subcontractor dashboard into a full multi-page portal with sidebar navigation (mirroring the AdminLayout pattern), adding work management, scheduling, and settings pages.
-
-### New Routes
-
-| Route | Page | Description |
-|---|---|---|
-| `/sub-contractors/dashboard` | Dashboard | Overview with profile completion, availability, upcoming work |
-| `/sub-contractors/work` | My Work | Accept/decline incoming job invites |
-| `/sub-contractors/schedule` | Schedule | Weekly calendar of accepted jobs |
-| `/sub-contractors/settings` | Settings | Edit profile, trade details, uploads, account |
-
-### Architecture
-
-**New layout component: `SubcontractorLayout`**
-
-Mirrors the existing `AdminLayout` pattern with:
-- Desktop: fixed left sidebar (w-64) with logo, nav items, sign out
-- Mobile: hamburger menu header + bottom tab navigation
-- Nav items: Dashboard, My Work, Schedule, Settings
-- No subscription gating (standalone portal)
-
-**New bottom nav: `SubcontractorBottomNav`**
-
-Mobile-only bottom tab bar (same pattern as `AdminBottomNav`) with 4 tabs.
-
-### Pages
-
-**1. Dashboard (refactored)**
-- Profile completion card (existing)
-- Business details card (existing)
-- Availability toggle (existing)
-- NEW: "Upcoming Work" summary card showing next 7 days of accepted jobs
-- NEW: "Pending Invites" count badge linking to My Work page
-- Wrapped in `SubcontractorLayout` instead of custom header
-
-**2. My Work page (new)**
-- Fetches `external_invites` where `recipient_email` or `recipient_phone` matches the subcontractor's profile
-- Shows pending invites as cards with:
-  - Job/pour name, date, time
-  - Business name
-  - Role requested
-  - Accept / Decline buttons
-- Calls the existing `respond-subtrade-invite` edge function to accept/decline
-- Tabs: "Pending" | "Accepted" | "Declined" for filtering
-- Links accepted invites to the subcontractor's profile via a new `subcontractor_user_id` column on `external_invites` (or matched by email/phone)
-
-**3. Schedule page (new)**
-- Weekly view showing accepted jobs (from `external_invites` where status = "accepted")
-- Each day card shows pour name, time, site address
-- Week navigation (prev/next)
-- Similar pattern to `EmployeeSchedule.tsx`
-
-**4. Settings page (new)**
-- Accordion-based settings (same pattern as `AdminSettings` with `SettingsGroup`/`SettingsAccordionItem`)
-- Sections:
-  - Personal Details (first name, last name, phone, email)
-  - Business Details (ABN display, legal name -- read-only verified fields)
-  - Trade Profile (trade types multi-select, years experience, service radius, base postcode, bio)
-  - Documents (upload/replace insurance certificate, profile photo)
-  - Account (change password, sign out)
+Add working file upload functionality to both the **Signup flow** (Step 4) and the **Settings page** (Documents section), plus a new **White Card** field with a two-step flow: ask if they hold one, then upload proof.
 
 ### Database Changes
 
-**Add column to `external_invites`:**
-- `subcontractor_user_id uuid` (nullable, references no FK to avoid schema coupling) -- allows matching invites to logged-in subcontractors
+Add 3 new columns to `subcontractor_directory_profiles`:
 
-**Or simpler approach (no schema change):** Match invites by email/phone from the subcontractor's profile. This avoids any migration and works with the existing invite flow.
+| Column | Type | Nullable | Purpose |
+|---|---|---|---|
+| `white_card_number` | text | Yes | The white card number |
+| `white_card_document_url` | text | Yes | URL to uploaded white card photo or USI transcript |
+| `has_white_card` | boolean | Yes (default false) | Whether they hold a white card |
 
-We will use the simpler email/phone matching approach -- no database migration needed.
+### Storage Buckets
 
-### Files to Create
+Both `subcontractor-documents` (private) and `subcontractor-photos` (public) already exist. No new buckets needed. Insurance certs and white card docs go to `subcontractor-documents`; profile photos go to `subcontractor-photos`.
 
-| File | Purpose |
-|---|---|
-| `src/components/layout/SubcontractorLayout.tsx` | Sidebar + header layout |
-| `src/components/layout/SubcontractorBottomNav.tsx` | Mobile bottom nav |
-| `src/pages/subcontractors/SubcontractorWork.tsx` | Accept/decline invites |
-| `src/pages/subcontractors/SubcontractorSchedule.tsx` | Weekly schedule view |
-| `src/pages/subcontractors/SubcontractorSettings.tsx` | Profile/account settings |
+### Changes to Signup Flow (SubcontractorSignup.tsx)
+
+**Step 4 becomes a richer upload step:**
+
+1. **Profile Photo** -- drag-and-drop or browse, with image preview thumbnail
+2. **Insurance Certificate** -- PDF/image upload with filename confirmation
+3. **White Card section:**
+   - Checkbox: "Do you hold a Construction White Card?"
+   - If Yes: text input for White Card Number + file upload for White Card Photo OR USI Transcript
+   - If No: nothing extra, proceed
+
+All uploads happen in `handleSubmitProfile` (existing logic), extended to also upload white card docs and save the 3 new fields.
+
+### Changes to Settings Page (SubcontractorSettings.tsx)
+
+Replace the static "Document upload coming soon" placeholder in the Documents accordion with working upload/replace functionality:
+
+1. **Profile Photo** -- show current photo (or placeholder), with "Upload" / "Replace" button. Uploads to `subcontractor-photos/{userId}/photo.{ext}`, saves public URL to `profile_photo_url`.
+2. **Insurance Certificate** -- show current filename or "Not uploaded", with "Upload" / "Replace" button. Uploads to `subcontractor-documents/{userId}/insurance.{ext}`, saves path to `insurance_certificate_url`. "View" link if already uploaded.
+3. **White Card** -- toggle for "I hold a Construction White Card"
+   - If toggled on: show White Card Number input + file upload for card photo/USI transcript
+   - Uploads to `subcontractor-documents/{userId}/whitecard.{ext}`
+   - Save button persists all 3 fields (`has_white_card`, `white_card_number`, `white_card_document_url`)
+
+### Profile Completion Update (useSubcontractorProfile.ts)
+
+Update `calculateProfileCompletion` to include white card as an optional bonus (not required), keeping the existing 10 checks. Alternatively, keep it at 10 checks so white card doesn't affect completion -- since not all subbies will have one.
+
+No change to completion logic -- white card stays optional.
 
 ### Files to Modify
 
 | File | Change |
 |---|---|
-| `src/pages/subcontractors/SubcontractorDashboardPage.tsx` | Wrap in `SubcontractorLayout`, add upcoming work + pending invites cards |
-| `src/App.tsx` | Add 3 new routes: `/sub-contractors/work`, `/sub-contractors/schedule`, `/sub-contractors/settings` |
+| `src/pages/subcontractors/SubcontractorSignup.tsx` | Add white card fields to Step 4, keep existing photo/insurance uploads |
+| `src/pages/subcontractors/SubcontractorSettings.tsx` | Replace "coming soon" with working upload/replace for photo, insurance, and white card |
+| `src/hooks/useSubcontractorProfile.ts` | Add `white_card_number`, `white_card_document_url`, `has_white_card` to interface |
 
 ### Technical Details
 
-**Work invite matching query:**
-```sql
-SELECT ei.*, jp.pour_name, jp.pour_date, jp.scheduled_time,
-       j.name as job_name, j.site_address, b.name as business_name
-FROM external_invites ei
-JOIN job_pours jp ON ei.job_pour_id = jp.id
-JOIN jobs j ON ei.job_id = j.id
-JOIN businesses b ON ei.business_id = b.id
-WHERE (ei.recipient_email = {subcontractor_email}
-   OR ei.recipient_phone = {subcontractor_phone})
-  AND ei.invite_type = 'sub_trade'
-ORDER BY jp.pour_date ASC
+**Upload pattern (reused from existing signup logic):**
+```typescript
+// Profile photo -> public bucket
+const path = `${userId}/photo.${ext}`;
+await supabase.storage.from("subcontractor-photos").upload(path, file, { upsert: true });
+const { data } = supabase.storage.from("subcontractor-photos").getPublicUrl(path);
+// Save data.publicUrl to profile_photo_url
+
+// Insurance / White card -> private bucket
+const path = `${userId}/insurance.${ext}`;
+await supabase.storage.from("subcontractor-documents").upload(path, file, { upsert: true });
+// Save path to insurance_certificate_url
+// For viewing, generate signed URL:
+const { data } = await supabase.storage.from("subcontractor-documents").createSignedUrl(path, 3600);
 ```
 
-**Accept/decline:** Calls the existing `respond-subtrade-invite` edge function with the invite token -- but since subcontractors may not have the token, we'll need a new RPC or edge function that allows authenticated subcontractors to respond by invite ID. This will be a small new edge function `subcontractor-respond-invite`.
+**White Card UI flow in Settings:**
+```
+[Toggle] Do you hold a Construction White Card?
+  |
+  +-- Yes --> [Input: White Card Number]
+              [Upload: White Card Photo or USI Transcript]
+              [Save button]
+  |
+  +-- No  --> (nothing shown, toggle saves has_white_card: false)
+```
 
-**Nav items:**
-- Dashboard (LayoutDashboard icon)
-- My Work (Briefcase icon)
-- Schedule (Calendar icon)
-- Settings (Settings icon)
-
+**Migration SQL:**
+```sql
+ALTER TABLE subcontractor_directory_profiles
+  ADD COLUMN has_white_card boolean DEFAULT false,
+  ADD COLUMN white_card_number text,
+  ADD COLUMN white_card_document_url text;
+```
