@@ -50,6 +50,7 @@ interface ContactListProps {
   onDelete: (id: string) => void;
   onSelect?: (contact: ContactListItem) => void;
   groupBy?: "trade" | "category";
+  extraAction?: React.ReactNode;
 }
 
 const TYPE_CONFIG = {
@@ -88,6 +89,7 @@ export function ContactList({
   onDelete,
   onSelect,
   groupBy,
+  extraAction,
 }: ContactListProps) {
   const config = TYPE_CONFIG[type];
   const EmptyIcon = config.emptyIcon;
@@ -210,22 +212,27 @@ export function ContactList({
   return (
     <>
       <div className="space-y-4">
-        <div className="flex items-center justify-between gap-4">
-          {contacts.length > 3 && (
-            <div className="relative flex-1 max-w-md">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={config.searchPlaceholder}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-          )}
-          <Button onClick={onAdd}>
-            <Plus className="h-4 w-4 mr-2" />
-            {config.addLabel}
-          </Button>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex-1 max-w-md w-full">
+            {contacts.length > 3 && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder={config.searchPlaceholder}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 w-full"
+                />
+              </div>
+            )}
+          </div>
+          <div className="flex flex-col gap-2 w-full sm:w-auto shrink-0">
+            <Button onClick={onAdd} className="w-full sm:w-auto">
+              <Plus className="h-4 w-4 mr-2" />
+              {config.addLabel}
+            </Button>
+            {extraAction}
+          </div>
         </div>
 
         {isLoading ? (
