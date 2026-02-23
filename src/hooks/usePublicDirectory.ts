@@ -16,6 +16,8 @@ export interface DirectoryProfile {
   gst_registered: boolean;
   has_white_card: boolean;
   legal_name: string | null;
+  avg_rating: number;
+  review_count: number;
 }
 
 export function usePublicDirectoryProfiles() {

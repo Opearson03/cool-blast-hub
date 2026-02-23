@@ -1,14 +1,22 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, MapPin, Clock, ShieldCheck, CreditCard, HardHat } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, ShieldCheck, CreditCard, HardHat, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { usePublicDirectoryProfile } from "@/hooks/usePublicDirectory";
+import { useSubcontractorReviews, useMyReviewForProfile } from "@/hooks/useSubcontractorReviews";
+import { StarRating } from "@/components/directory/StarRating";
+import { ReviewsList } from "@/components/directory/ReviewsList";
+import { WriteReviewDialog } from "@/components/directory/WriteReviewDialog";
 
 export default function SubcontractorProfilePage() {
   const { id } = useParams<{ id: string }>();
   const { data: profile, isLoading } = usePublicDirectoryProfile(id);
+  const { data: reviews = [] } = useSubcontractorReviews(id);
+  const { data: myReview } = useMyReviewForProfile(id);
+  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -125,6 +133,41 @@ export default function SubcontractorProfilePage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Reviews Section */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Star className="h-5 w-5 text-[hsl(var(--warning))]" />
+                Reviews
+                {profile.review_count > 0 && (
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {profile.avg_rating} avg · {profile.review_count} review{profile.review_count !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </CardTitle>
+              <Button size="sm" onClick={() => setReviewDialogOpen(true)}>
+                {myReview ? "Edit Review" : "Write a Review"}
+              </Button>
+            </div>
+            {profile.review_count > 0 && (
+              <div className="mt-2">
+                <StarRating rating={profile.avg_rating} size="md" />
+              </div>
+            )}
+          </CardHeader>
+          <CardContent>
+            <ReviewsList reviews={reviews} />
+          </CardContent>
+        </Card>
+
+        <WriteReviewDialog
+          open={reviewDialogOpen}
+          onOpenChange={setReviewDialogOpen}
+          subcontractorProfileId={id!}
+          existingReview={myReview}
+        />
       </div>
     </AdminLayout>
   );
