@@ -1,84 +1,121 @@
-## Incorporate Directory into PourHub App (Admin-Only Access)
+
+
+## Subcontractor Reviews System
 
 ### Overview
 
-Move the Subcontractor Directory from a standalone public page into the existing PourHub admin app. It becomes a section within the admin layout, accessible only to authenticated PourHub business users. The directory pages will be wrapped in `ProtectedRoute` and rendered inside `AdminLayout`.
+Add a reviews feature where authenticated PourHub admin/staff users can leave star ratings and written reviews on subcontractor profiles. Reviews are visible in two places:
+1. **Admin Directory** -- on each subcontractor's profile page (`/admin/directory/:id`)
+2. **Subcontractor Portal** -- on the subcontractor's own dashboard, so they can see feedback they've received
 
-### Key Changes
+### Database
 
-**1. Move directory routes behind authentication**
+**New table: `subcontractor_reviews`**
 
-- Change `/directory` to `/admin/directory` (protected, admin role)
-- Change `/directory/:id` to `/admin/directory/:id` (protected, admin role)
-- Remove the old public `/directory` routes
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid | PK, default `gen_random_uuid()` |
+| `subcontractor_profile_id` | uuid | FK to `subcontractor_directory_profiles.id`, NOT NULL |
+| `reviewer_user_id` | uuid | FK to `auth.users(id)`, NOT NULL |
+| `reviewer_name` | text | Display name of reviewer (captured at write time) |
+| `reviewer_business_name` | text | Business name (captured at write time) |
+| `rating` | integer | 1-5, NOT NULL |
+| `comment` | text | Optional written review, max 1000 chars |
+| `created_at` | timestamptz | default `now()` |
 
-**2. Wrap directory pages in AdminLayout**
+**RLS Policies:**
+- **SELECT**: All authenticated users can read reviews (needed for both admin directory and subcontractor portal views)
+- **INSERT**: Authenticated users with admin or staff role can insert reviews (check `reviewer_user_id = auth.uid()`)
+- **UPDATE**: Users can update their own reviews (`reviewer_user_id = auth.uid()`)
+- **DELETE**: Users can delete their own reviews (`reviewer_user_id = auth.uid()`)
 
-Both `SubcontractorDirectory.tsx` and `SubcontractorProfilePage.tsx` will:
+**Constraint**: One review per reviewer per subcontractor (`UNIQUE(subcontractor_profile_id, reviewer_user_id)`)
 
-- Use `AdminLayout` instead of their own standalone header/layout
-- Remove the custom PourHub logo header (AdminLayout already provides it)
-- Keep all filtering, cards, and profile detail content as-is
+**New RPC: `get_subcontractor_review_summary`**
 
-**3. Add "Directory" as a link in the Subcontractors tab to the admin "contacts" page**
+Returns aggregate rating data (average rating, total count) for a given subcontractor, used to display star averages on directory cards and profile pages.
 
-Add a new nav item in `AdminLayout.tsx`:
+### Directory Card Enhancement
 
-- Label: "Directory"
-- Icon: `Search` (from lucide-react)
-- Route: `/admin/directory`
-- `requiresPro: true` (Pro tier feature)
+Each `DirectoryCard` will show an average star rating and review count beneath the trade badges (e.g. "4.3 (12 reviews)"). The average rating data will be included in the `get_public_directory_profiles` RPC return (add `avg_rating` and `review_count` columns to the function output).
 
-This sits alongside Dashboard, Jobs, Quotes, Schedule, Contact, Settings.
+### Profile Page -- Reviews Section
 
-**5. Update internal links**
+On `SubcontractorProfilePage` (`/admin/directory/:id`), add a new section below the "About" bio:
 
-- DirectoryCard "View Profile" links: `/directory/:id` becomes `/admin/directory/:id`
-- Profile page "Back to Directory" link: `/directory` becomes `/admin/directory`
-- Remove "Join the Directory" CTA button (not relevant for admin users browsing)
-- Replace "Contact via PourHub" button on profile detail with a more useful action -- e.g. "Invite to Job" linking to the invite flow, or simply showing the subcontractor's contact details (since admin users are authenticated, we could expose phone/email to them via a separate authenticated RPC)
+- **Average rating** display with filled stars
+- **Review count**
+- **List of reviews** showing: reviewer name, business name, star rating, comment, date
+- **"Write a Review" button** that opens a dialog with:
+  - Star rating selector (1-5, required)
+  - Comment textarea (optional, max 1000 chars)
+  - Submit button
+- If the current user has already reviewed this subcontractor, show "Edit Review" instead
 
-**6. Update the database RPCs (optional enhancement)**
+### Subcontractor Dashboard -- Reviews Card
 
-The existing `get_public_directory_profiles` RPC uses `SECURITY DEFINER` and returns limited fields. Since directory is now admin-only, we could optionally create an authenticated version that also returns email and phone for direct contact. However, for the initial move, the existing RPCs work fine since they're called via the Supabase client which will have the user's session.
+On `SubcontractorDashboardPage`, add a new card:
 
-No RPC changes needed for the initial integration -- the existing functions work for authenticated users too.
+- Title: "My Reviews"
+- Shows average rating and total count
+- Lists the 3 most recent reviews with reviewer name, rating, and comment
+- "View All" link to a simple reviews list (or expandable section)
+
+The subcontractor fetches their own reviews using a query filtered by their profile ID.
+
+### New Files
+
+| File | Purpose |
+|---|---|
+| `src/hooks/useSubcontractorReviews.ts` | React Query hooks: fetch reviews for a profile, submit/edit/delete a review, fetch own reviews |
+| `src/components/directory/ReviewsList.tsx` | Displays a list of review cards (reused in both directory and subcontractor portal) |
+| `src/components/directory/WriteReviewDialog.tsx` | Dialog form for writing/editing a review (star selector + comment) |
+| `src/components/directory/StarRating.tsx` | Reusable star display component (filled/half/empty stars) |
 
 ### Files to Modify
 
+| File | Change |
+|---|---|
+| `src/pages/directory/SubcontractorProfilePage.tsx` | Add reviews section below bio with list + write review button |
+| `src/pages/subcontractors/SubcontractorDashboardPage.tsx` | Add "My Reviews" card showing received reviews |
+| `src/components/directory/DirectoryCard.tsx` | Show average rating + review count on each card |
+| `src/hooks/usePublicDirectory.ts` | Update `DirectoryProfile` interface to include `avg_rating` and `review_count` |
 
-| File                                               | Change                                                                                                                     |
-| -------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
-| `src/App.tsx`                                      | Change `/directory` and `/directory/:id` routes to `/admin/directory` and `/admin/directory/:id`, wrap in `ProtectedRoute` |
-| `src/components/layout/AdminLayout.tsx`            | Add "Directory" nav item                                                                                                   |
-| `src/components/layout/AdminBottomNav.tsx`         | Add "Directory" tab                                                                                                        |
-| `src/pages/directory/SubcontractorDirectory.tsx`   | Wrap content in `AdminLayout`, remove standalone header, update link paths                                                 |
-| `src/pages/directory/SubcontractorProfilePage.tsx` | Wrap content in `AdminLayout`, remove standalone header, update link paths                                                 |
-| `src/components/directory/DirectoryCard.tsx`       | Update "View Profile" link to `/admin/directory/:id`                                                                       |
+### Updated RPC: `get_public_directory_profiles`
 
+Add a LEFT JOIN to aggregate review data:
 
-### What Stays the Same
-
-- All directory filtering logic (trade, availability, search)
-- DirectoryCard design and badges
-- Profile detail page content (photo, bio, trades, verification badges)
-- The existing RPCs (`get_public_directory_profiles`, `get_public_directory_profile`)
-- Subcontractor portal routes (`/sub-contractors/*`) remain independent
-- Existing invite flow is untouched
-
-### Navigation Structure After Change
-
-```text
-Admin Sidebar:
-  Dashboard
-  Jobs
-  Quotes
-  Schedule
-  Contact
-      - sub-contractors
-         - search directory
- 
-  Settings
+```sql
+CREATE OR REPLACE FUNCTION public.get_public_directory_profiles()
+RETURNS TABLE (
+  -- existing columns ...
+  avg_rating numeric,
+  review_count bigint
+)
+...
+AS $$
+  SELECT sdp.id, sdp.first_name, ...,
+         COALESCE(r.avg_rating, 0) as avg_rating,
+         COALESCE(r.review_count, 0) as review_count
+  FROM subcontractor_directory_profiles sdp
+  LEFT JOIN (
+    SELECT subcontractor_profile_id,
+           ROUND(AVG(rating)::numeric, 1) as avg_rating,
+           COUNT(*) as review_count
+    FROM subcontractor_reviews
+    GROUP BY subcontractor_profile_id
+  ) r ON r.subcontractor_profile_id = sdp.id
+  WHERE sdp.abn_verified = true
+    AND sdp.trade_types IS NOT NULL
+    AND array_length(sdp.trade_types, 1) > 0
+  ORDER BY ...
+$$;
 ```
 
-&nbsp;
+### Technical Notes
+
+- Reviews are tied to the reviewer's `auth.uid()` to prevent duplicates and enable edit/delete
+- Reviewer name and business name are captured at write time (denormalized) so reviews remain readable even if the reviewer's account changes
+- Star rating uses a validation trigger to enforce 1-5 range
+- The subcontractor cannot review themselves (enforced via a check: `subcontractor_profile_id` cannot reference a profile owned by `reviewer_user_id`)
+
