@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { ContactList, ContactListItem } from "./ContactList";
 import { ContactFormDialog } from "./ContactFormDialog";
+import { SupplierDetailSheet } from "./SupplierDetailSheet";
 
 interface SupplierContact {
   id: string;
@@ -19,6 +20,8 @@ export function SuppliersTab() {
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<SupplierContact | null>(null);
+  const [selectedSupplier, setSelectedSupplier] = useState<SupplierContact | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const { data: suppliers = [], isLoading } = useQuery({
     queryKey: ["supplier-contacts"],
@@ -59,10 +62,7 @@ export function SuppliersTab() {
 
       const { data: supplier, error } = await supabase
         .from("supplier_contacts")
-        .insert({
-          business_id: profile.business_id,
-          ...data,
-        })
+        .insert({ business_id: profile.business_id, ...data })
         .select()
         .single();
 
@@ -133,6 +133,14 @@ export function SuppliersTab() {
     deleteMutation.mutate(id);
   };
 
+  const handleSelect = (contact: ContactListItem) => {
+    const supplier = suppliers.find((s) => s.id === contact.id);
+    if (supplier) {
+      setSelectedSupplier(supplier);
+      setDetailOpen(true);
+    }
+  };
+
   const handleSave = async (data: any) => {
     if (editingSupplier?.id) {
       await updateMutation.mutateAsync({
@@ -177,6 +185,7 @@ export function SuppliersTab() {
         onAdd={handleAdd}
         onEdit={handleEdit}
         onDelete={handleDelete}
+        onSelect={handleSelect}
         groupBy="category"
       />
 
@@ -198,6 +207,12 @@ export function SuppliersTab() {
         } : undefined}
         onSave={handleSave}
         isPending={createMutation.isPending || updateMutation.isPending}
+      />
+
+      <SupplierDetailSheet
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        supplier={selectedSupplier}
       />
     </>
   );
