@@ -1,132 +1,70 @@
 
 
-## Subcontractor Reviews Gate + Auto-Add Contacts + Directory Link from Jobs
+## Prevent Duplicate Subcontractor Contacts on Auto-Add
 
-### Overview
+### Problem
 
-Three related changes:
+The current auto-add logic in both edge functions (`respond-subtrade-invite` and `subcontractor-respond-invite`) only checks for duplicates by matching the subcontractor's **name** (case-insensitive). This means:
+- "John Smith" vs "john smith" is caught, but "John Smith" with a different phone/email creates a duplicate
+- A subcontractor invited multiple times with slight name variations (e.g. "J Smith" vs "John Smith") but the same email/phone will be added twice
 
-1. **Reviews restricted to verified working relationships** -- Only allow a user to leave a review for a subcontractor they have actually worked with (i.e. have at least one "accepted" invite that has been completed/past date).
+### Solution
 
-2. **Auto-add subcontractors to contacts after working together** -- When a subcontractor accepts an invite and the job is completed (or the pour date passes), automatically add them to the business's `subcontractors` contact list so they appear in the Sub-Contractors tab without needing the directory.
+Improve the duplicate detection to check by **email OR phone OR name** (within the same business). If any of these match an existing contact, skip the insert. Also add a database-level unique constraint as a safety net.
 
-3. **"Find New Sub-Contractors" button on the Jobs sub-contractors tab** -- Add a button in `JobSubbiesTab` that routes to `/admin/directory`.
+### Changes
 
----
+**1. Database migration -- add a unique index**
 
-### 1. Reviews Gated by Working Relationship
+Add a partial unique index on `subcontractors` to prevent duplicates at the database level:
 
-**Approach**: Create a database function `has_worked_with_subcontractor(user_id, profile_id)` that checks if the user's business has any `external_invites` with status `accepted` for that subcontractor (matched by email/phone from `subcontractor_directory_profiles`). Use this to:
-
-- **RLS**: Update the INSERT policy on `subcontractor_reviews` to require `has_worked_with_subcontractor`
-- **UI**: In `SubcontractorProfilePage`, query whether the current user has worked with this subcontractor. If not, hide or disable the "Write a Review" button with a tooltip explaining "You can only review subcontractors you've worked with"
-
-**New RPC function:**
 ```sql
-CREATE OR REPLACE FUNCTION public.has_worked_with_subcontractor(
-  _user_id uuid,
-  _profile_id uuid
-)
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM external_invites ei
-    JOIN subcontractor_directory_profiles sdp ON sdp.id = _profile_id
-    WHERE ei.business_id = get_user_business_id(_user_id)
-      AND ei.invite_type = 'sub_trade'
-      AND ei.status = 'accepted'
-      AND (
-        (sdp.email IS NOT NULL AND LOWER(ei.recipient_email) = LOWER(sdp.email))
-        OR
-        (sdp.phone IS NOT NULL AND ei.recipient_phone = sdp.phone)
-      )
-  );
-$$;
+-- Prevent duplicate contacts by email within a business
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subcontractors_business_email
+  ON subcontractors (business_id, LOWER(email))
+  WHERE email IS NOT NULL;
+
+-- Prevent duplicate contacts by phone within a business  
+CREATE UNIQUE INDEX IF NOT EXISTS idx_subcontractors_business_phone
+  ON subcontractors (business_id, phone)
+  WHERE phone IS NOT NULL;
 ```
 
-**UI changes in `SubcontractorProfilePage.tsx`:**
-- Add a query using `supabase.rpc("has_worked_with_subcontractor", { _user_id, _profile_id })` 
-- Conditionally show/disable the "Write a Review" button based on the result
-- Show a message like "Complete a job with this subcontractor to leave a review"
+This ensures that even if the application-level check has a race condition, the database won't allow two contacts with the same email or phone for the same business.
 
-**RLS update:**
-- Replace the INSERT policy on `subcontractor_reviews` to also require `has_worked_with_subcontractor(auth.uid(), subcontractor_profile_id)`
+**2. Update edge function duplicate check logic**
 
----
+In all three locations (respond-subtrade-invite single, respond-subtrade-invite batch, subcontractor-respond-invite), replace the name-only check with a broader query:
 
-### 2. Auto-Add to Subcontractor Contacts
-
-**Approach**: When the `respond-subtrade-invite` edge function processes an "accepted" response, check if the subcontractor already exists in the business's `subcontractors` table. If not, insert them automatically.
-
-**Changes to `respond-subtrade-invite/index.ts`:**
-
-After updating the invite status to "accepted", add logic:
 ```typescript
-if (response === "accepted") {
-  // Check if this subbie is already in the business's contacts
-  const { data: existing } = await supabase
-    .from("subcontractors")
-    .select("id")
-    .eq("business_id", invite.business_id)
-    .eq("name", invite.recipient_name)
-    .maybeSingle();
+// Build OR conditions for matching
+let query = supabase
+  .from("subcontractors")
+  .select("id, name, email, phone")
+  .eq("business_id", invite.business_id);
 
-  if (!existing) {
-    await supabase.from("subcontractors").insert({
-      business_id: invite.business_id,
-      name: invite.recipient_name,
-      email: invite.recipient_email || null,
-      phone: invite.recipient_phone || null,
-      trade: invite.role || null,
-    });
-  }
+// Check by email OR phone OR name
+const orConditions = [];
+if (invite.recipient_email) orConditions.push(`email.ilike.${invite.recipient_email}`);
+if (invite.recipient_phone) orConditions.push(`phone.eq.${invite.recipient_phone}`);
+orConditions.push(`name.ilike.${invite.recipient_name}`);
+
+const { data: existing } = await query.or(orConditions.join(",")).maybeSingle();
+
+if (!existing) {
+  // Insert new contact
+} else {
+  // Optionally update missing fields (e.g. add email if only phone existed)
 }
 ```
 
-This same logic is added to both the single-response and batch-response handlers.
+Additionally, wrap the insert in a try/catch to gracefully handle the unique index violation as a no-op.
 
-**Also update `subcontractor-respond-invite/index.ts`** (the dashboard-based response handler) with the same auto-add logic.
-
----
-
-### 3. "Find New Sub-Contractors" Button on Job Subbies Tab
-
-**Changes to `JobSubbiesTab.tsx`:**
-
-Add a "Find in Directory" button next to the existing "Invite Sub-Contractor" button that links to `/admin/directory`:
-
-```tsx
-<Button asChild variant="outline">
-  <Link to="/admin/directory">
-    <Search className="w-4 h-4 mr-2" />
-    Find in Directory
-  </Link>
-</Button>
-```
-
-This appears in both the empty state and the populated state header.
-
----
-
-### Files to Modify
+**3. Files to modify**
 
 | File | Change |
 |---|---|
-| `supabase/migrations/...` | Create `has_worked_with_subcontractor` function; update INSERT RLS policy on `subcontractor_reviews` |
-| `supabase/functions/respond-subtrade-invite/index.ts` | Auto-add subcontractor to contacts on accept (single + batch) |
-| `supabase/functions/subcontractor-respond-invite/index.ts` | Auto-add subcontractor to contacts on accept (dashboard response) |
-| `src/pages/directory/SubcontractorProfilePage.tsx` | Gate review button behind `has_worked_with_subcontractor` check |
-| `src/components/jobs/tabs/JobSubbiesTab.tsx` | Add "Find in Directory" button |
-
-### What Stays the Same
-
-- All existing review display logic (ReviewsList, StarRating, DirectoryCard ratings)
-- Existing invite flow and ScheduleSubbieDialog
-- SubbiesTab contact list (will naturally show auto-added contacts)
-- Subcontractor portal dashboard
+| New migration SQL | Add partial unique indexes on email and phone per business |
+| `supabase/functions/respond-subtrade-invite/index.ts` | Update duplicate check in single handler (lines 206-228) and batch handler (lines 419-440) |
+| `supabase/functions/subcontractor-respond-invite/index.ts` | Update duplicate check (lines 103-135) |
 
