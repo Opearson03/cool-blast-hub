@@ -154,3 +154,9 @@ verify_jwt = false
 
 [functions.verify-abn]
 verify_jwt = false
+
+[functions.subcontractor-get-invites]
+verify_jwt = false
+
+[functions.subcontractor-respond-invite]
+verify_jwt = false

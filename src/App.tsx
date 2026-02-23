@@ -40,6 +40,9 @@ import { SupplierProtectedRoute } from "./components/suppliers/SupplierProtected
 import SubcontractorsLanding from "./pages/subcontractors/SubcontractorsLanding";
 import SubcontractorSignup from "./pages/subcontractors/SubcontractorSignup";
 import SubcontractorDashboardPage from "./pages/subcontractors/SubcontractorDashboardPage";
+import SubcontractorWork from "./pages/subcontractors/SubcontractorWork";
+import SubcontractorSchedule from "./pages/subcontractors/SubcontractorSchedule";
+import SubcontractorSettings from "./pages/subcontractors/SubcontractorSettings";
 import { SubcontractorProtectedRoute } from "./components/subcontractors/SubcontractorProtectedRoute";
 import Articles from "./pages/Articles";
 import ArticlePage from "./pages/ArticlePage";
@@ -113,6 +116,9 @@ const AppContent = () => {
       <Route path="/sub-contractors" element={<SubcontractorsLanding />} />
       <Route path="/sub-contractors/signup" element={<SubcontractorSignup />} />
       <Route path="/sub-contractors/dashboard" element={<SubcontractorProtectedRoute><SubcontractorDashboardPage /></SubcontractorProtectedRoute>} />
+      <Route path="/sub-contractors/work" element={<SubcontractorProtectedRoute><SubcontractorWork /></SubcontractorProtectedRoute>} />
+      <Route path="/sub-contractors/schedule" element={<SubcontractorProtectedRoute><SubcontractorSchedule /></SubcontractorProtectedRoute>} />
+      <Route path="/sub-contractors/settings" element={<SubcontractorProtectedRoute><SubcontractorSettings /></SubcontractorProtectedRoute>} />
       
       {/* Articles */}
       <Route path="/articles" element={<Articles />} />
