@@ -3652,6 +3652,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      has_worked_with_subcontractor: {
+        Args: { _profile_id: string; _user_id: string }
+        Returns: boolean
+      }
       import_crm_leads: { Args: { _leads: Json }; Returns: Json }
       is_pourhub_staff: { Args: { _user_id: string }; Returns: boolean }
       is_subcontractor: { Args: { _user_id: string }; Returns: boolean }

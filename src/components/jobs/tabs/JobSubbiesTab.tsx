@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Users, Phone, Mail, ChevronRight, UserPlus } from "lucide-react";
+import { Users, Phone, Mail, ChevronRight, UserPlus, Search } from "lucide-react";
 import { SubTradeStatusBadge } from "@/components/jobs/SubTradeStatusBadge";
 import { SubbieDetailSheet } from "@/components/jobs/SubbieDetailSheet";
 import { ScheduleSubbieDialog } from "@/components/schedule/ScheduleSubbieDialog";
@@ -87,10 +88,18 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
             <p className="text-muted-foreground mb-4">
               Invite sub-contractors to help coordinate your job
             </p>
-            <Button onClick={() => setInviteDialogOpen(true)}>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Invite Sub-Contractor
-            </Button>
+            <div className="flex gap-2">
+              <Button asChild variant="outline">
+                <Link to="/admin/directory">
+                  <Search className="w-4 h-4 mr-2" />
+                  Find in Directory
+                </Link>
+              </Button>
+              <Button onClick={() => setInviteDialogOpen(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Invite Sub-Contractor
+              </Button>
+            </div>
           </CardContent>
         </Card>
         <ScheduleSubbieDialog
@@ -104,7 +113,13 @@ export function JobSubbiesTab({ jobId }: JobSubbiesTabProps) {
 
   return (
     <>
-      <div className="flex justify-end mb-4">
+      <div className="flex justify-end gap-2 mb-4">
+        <Button asChild variant="outline">
+          <Link to="/admin/directory">
+            <Search className="w-4 h-4 mr-2" />
+            Find in Directory
+          </Link>
+        </Button>
         <Button onClick={() => setInviteDialogOpen(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
           Invite Sub-Contractor

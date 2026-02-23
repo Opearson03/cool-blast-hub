@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, MapPin, Clock, ShieldCheck, CreditCard, HardHat, Star, UserPlus } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +25,21 @@ export default function SubcontractorProfilePage() {
   const { data: contactInfo } = useDirectoryContactInfo(id);
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
   const [inviteDialogOpen, setInviteDialogOpen] = useState(false);
+
+  const { data: hasWorkedWith = false } = useQuery({
+    queryKey: ["has-worked-with", id],
+    queryFn: async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return false;
+      const { data, error } = await supabase.rpc("has_worked_with_subcontractor" as any, {
+        _user_id: session.user.id,
+        _profile_id: id,
+      });
+      if (error) return false;
+      return !!data;
+    },
+    enabled: !!id,
+  });
 
   const preselectedSubbie: PastSubbie | undefined = profile && contactInfo ? {
     recipient_name: `${profile.first_name} ${profile.last_name}`,
@@ -164,9 +182,26 @@ export default function SubcontractorProfilePage() {
                 <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setInviteDialogOpen(true)}>
                   <UserPlus className="h-3.5 w-3.5" /> Invite to Job
                 </Button>
-                <Button size="sm" onClick={() => setReviewDialogOpen(true)}>
-                  {myReview ? "Edit Review" : "Write a Review"}
-                </Button>
+                {hasWorkedWith ? (
+                  <Button size="sm" onClick={() => setReviewDialogOpen(true)}>
+                    {myReview ? "Edit Review" : "Write a Review"}
+                  </Button>
+                ) : (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span>
+                          <Button size="sm" disabled>
+                            Write a Review
+                          </Button>
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>Complete a job with this subcontractor to leave a review</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
               </div>
             </div>
             {profile.review_count > 0 && (

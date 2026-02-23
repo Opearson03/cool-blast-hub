@@ -202,6 +202,31 @@ const handler = async (req: Request): Promise<Response> => {
 
     console.log("Invite updated to:", response);
 
+    // Auto-add subcontractor to business contacts on accept
+    if (response === "accepted") {
+      try {
+        const { data: existing } = await supabase
+          .from("subcontractors")
+          .select("id")
+          .eq("business_id", invite.business_id)
+          .ilike("name", invite.recipient_name)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase.from("subcontractors").insert({
+            business_id: invite.business_id,
+            name: invite.recipient_name,
+            email: invite.recipient_email || null,
+            phone: invite.recipient_phone || null,
+            trade: invite.role || null,
+          });
+          console.log("Auto-added subcontractor to contacts");
+        }
+      } catch (err) {
+        console.error("Error auto-adding subcontractor contact:", err);
+      }
+    }
+
     // Log audit event
     await supabase.from("external_invite_events").insert({
       external_invite_id: invite.id,
@@ -390,6 +415,29 @@ async function handleBatchResponses(
 
     if (resp.response === "accepted") {
       acceptedInvites.push(invite);
+
+      // Auto-add subcontractor to business contacts on accept
+      try {
+        const { data: existing } = await supabase
+          .from("subcontractors")
+          .select("id")
+          .eq("business_id", invite.business_id)
+          .ilike("name", invite.recipient_name)
+          .maybeSingle();
+
+        if (!existing) {
+          await supabase.from("subcontractors").insert({
+            business_id: invite.business_id,
+            name: invite.recipient_name,
+            email: invite.recipient_email || null,
+            phone: invite.recipient_phone || null,
+            trade: invite.role || null,
+          });
+          console.log("Auto-added subcontractor to contacts (batch)");
+        }
+      } catch (err) {
+        console.error("Error auto-adding subcontractor contact:", err);
+      }
     } else {
       declinedInvites.push(invite);
     }

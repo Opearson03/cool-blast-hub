@@ -100,6 +100,40 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Auto-add subcontractor to business contacts on accept
+    if (response === "accepted") {
+      try {
+        // Get the invite's business_id
+        const { data: fullInvite } = await supabaseAdmin
+          .from("external_invites")
+          .select("business_id, recipient_name, recipient_email, recipient_phone, role")
+          .eq("id", invite_id)
+          .single();
+
+        if (fullInvite) {
+          const { data: existing } = await supabaseAdmin
+            .from("subcontractors")
+            .select("id")
+            .eq("business_id", fullInvite.business_id)
+            .ilike("name", fullInvite.recipient_name)
+            .maybeSingle();
+
+          if (!existing) {
+            await supabaseAdmin.from("subcontractors").insert({
+              business_id: fullInvite.business_id,
+              name: fullInvite.recipient_name,
+              email: fullInvite.recipient_email || null,
+              phone: fullInvite.recipient_phone || null,
+              trade: fullInvite.role || null,
+            });
+            console.log("Auto-added subcontractor to contacts (dashboard)");
+          }
+        }
+      } catch (err) {
+        console.error("Error auto-adding subcontractor contact:", err);
+      }
+    }
+
     // Log the event
     await supabaseAdmin.from("external_invite_events").insert({
       external_invite_id: invite_id,
