@@ -1,47 +1,209 @@
 
 
-## Mobile Optimisation for Quick Quote Dialog
+## Subcontractor Portal MVP -- PourHub Labour Marketplace
 
-### Issues Found
+### Overview
 
-1. **Dialog sizing**: Uses `sm:max-w-lg` but doesn't go full-screen on mobile, leaving cramped side margins and limited vertical space.
-2. **Line item row is too tight**: Qty, Unit, Price, Total, and Delete button are all crammed into one row -- overflows or squishes on narrow screens (especially iPhone SE at 320px).
-3. **Fixed-width elements**: `w-20` (total) and `w-16` (unit) compete for space with flex items on small screens.
-4. **Number input spinners**: `type="number"` shows browser-native spinner arrows, which conflicts with the project standard of `type="text" inputMode="decimal"`.
-5. **Footer buttons**: Already stack on mobile (`flex-col sm:flex-row`) -- this is fine.
-6. **Padding**: The scrollable area `pr-1` is minimal, and dialog `p-6` is generous for mobile -- could be tightened.
+A standalone subcontractor directory at `/sub-contractors` where Australian trades can create verified profiles using their ABN. Completely separate from the existing PourHub admin/staff/supplier portals.
 
-### Planned Changes
+### Prerequisite -- ABR API GUID
 
-**File: `src/components/estimates/QuickQuoteDialog.tsx`**
+Before we can implement ABN verification, you need to register for a free API key:
 
-1. **Full-screen dialog on mobile**: Change DialogContent class to include `max-h-[100dvh] h-[100dvh] sm:h-auto sm:max-h-[90vh] rounded-none sm:rounded-lg p-4 sm:p-6` so it fills the screen on phones.
+1. Go to https://abr.business.gov.au/Tools/AbrApi
+2. Fill out the registration form (takes ~2 minutes)
+3. You'll receive a GUID via email
+4. Come back and I'll store it securely as `ABR_API_GUID`
 
-2. **Stack line item fields on very small screens**: Wrap the Qty / Unit / Price row to use a 3-column grid instead of flex, and move the total + delete below the inputs on mobile:
-   - Description input: full width (already is)
-   - Qty / Unit / Price: `grid grid-cols-3 gap-2` (equal thirds, always fits)
-   - Total + Delete: separate row below, `flex justify-between items-center`
+---
 
-3. **Fix input types**: Change Qty and Price inputs from `type="number"` to `type="text" inputMode="decimal"` per project standards (no spinner arrows, numeric keyboard on mobile).
+### Database Schema
 
-4. **Reduce total width**: Change `w-20` to `w-auto` since it'll be on its own row on mobile.
+**New table: `subcontractor_directory_profiles`**
 
-5. **Reduce dialog padding on mobile**: `p-4 sm:p-6` for breathing room without waste.
+| Column | Type | Notes |
+|---|---|---|
+| id | uuid (PK) | |
+| user_id | uuid (FK auth.users) | Unique, not null |
+| first_name | text | |
+| last_name | text | |
+| phone | text | |
+| email | text | |
+| abn | text | 11-digit string |
+| legal_name | text | From ABR API |
+| gst_registered | boolean | From ABR API |
+| entity_type | text | From ABR API |
+| abn_verified | boolean | Default false |
+| trade_types | text[] | Array of selected trades |
+| years_experience | integer | |
+| service_radius_km | integer | |
+| base_postcode | text | |
+| insurance_certificate_url | text | Storage path |
+| profile_photo_url | text | Storage path |
+| bio | text | Short description |
+| availability_status | text | "available" or "busy" |
+| created_at | timestamptz | |
+| updated_at | timestamptz | |
 
-### Technical Details
+**New role value**: Add `'subcontractor'` to the existing `app_role` enum, or use the `user_roles` table with a text-based role check (following existing `is_supplier` pattern).
 
-```text
-Line item layout change:
+**New RPC function**: `is_subcontractor(_user_id uuid)` -- mirrors the existing `is_supplier` pattern.
 
-Before (single flex row):
-  [Description                              ]
-  [Qty] [Unit] [Price]  $Total  [X]
+**RLS policies on `subcontractor_directory_profiles`**:
+- Authenticated users can read all profiles (future search feature)
+- Users can only insert/update/delete their own profile (`user_id = auth.uid()`)
+- Admins (PourHub staff) can read all
 
-After (mobile-friendly):
-  [Description                              ]
-  [  Qty  ] [ Unit ] [ Price ]
-  $Total                              [X]
+**Storage bucket**: `subcontractor-documents` (private) for insurance certificates; `subcontractor-photos` (public) for profile photos.
+
+---
+
+### Edge Function: `verify-abn`
+
+- Accepts `{ abn: string }` in request body
+- Calls `https://abr.business.gov.au/json/AbnDetails.aspx?abn={ABN}&guid={ABR_API_GUID}`
+- The ABR API returns JSONP by default (callback wrapper); the function strips the callback wrapper to parse the JSON
+- Returns:
+  - `valid: boolean`
+  - `legal_name: string`
+  - `gst_registered: boolean`
+  - `entity_type: string`
+  - `abn_status: string`
+  - `error_message: string` (if invalid/cancelled)
+- JWT validation required (only authenticated users can verify)
+- Config: `verify_jwt = false` in config.toml (validate in code per project pattern)
+
+---
+
+### Frontend Pages and Components
+
+**Route: `/sub-contractors`** -- Landing + Login page
+- Hero section explaining the subcontractor marketplace
+- Login form for existing subcontractors
+- "Create Account" button leading to signup
+- Clean, standalone design (not using AdminLayout)
+
+**Route: `/sub-contractors/signup`** -- Multi-step registration
+- Step 1: Email + password (Supabase auth signup)
+- Step 2: ABN entry + verification (calls `verify-abn` edge function)
+  - Shows spinner while verifying
+  - On success: auto-fills and locks legal name, GST status, entity type
+  - On failure: shows error, blocks proceeding
+- Step 3: Profile details (name, phone, trade types, experience, postcode, radius, bio)
+- Step 4: File uploads (insurance certificate, profile photo)
+- Redirects to dashboard on completion
+
+**Route: `/sub-contractors/dashboard`** -- Subcontractor dashboard
+- Protected route (checks `is_subcontractor` role, same pattern as `SupplierProtectedRoute`)
+- Shows: verified ABN badge, legal entity name, trade types, availability toggle
+- Profile completion percentage bar
+- Edit profile button
+
+**Admin view** (within existing PourHub staff dashboard):
+- New tab "Subcontractors" in `StaffDashboard.tsx`
+- Table listing all `subcontractor_directory_profiles`
+- Filters: GST registered, entity type, trade type, postcode
+- ABN verified badge per row
+
+---
+
+### Component Structure
+
+```
+src/components/subcontractors/
+  SubcontractorProtectedRoute.tsx    -- Auth guard (mirrors SupplierProtectedRoute)
+  SubcontractorSignupFlow.tsx        -- Multi-step registration wizard
+  AbnVerificationStep.tsx            -- ABN input + API call + results display
+  ProfileDetailsStep.tsx             -- Trade types, experience, location
+  FileUploadStep.tsx                 -- Insurance + photo uploads
+  SubcontractorDashboard.tsx         -- Main dashboard content
+  SubcontractorProfileCard.tsx       -- Profile summary with completion %
+  AvailabilityToggle.tsx             -- Available/Busy switch
+  SubcontractorAdminTable.tsx        -- Staff view table with filters
+
+src/pages/subcontractors/
+  SubcontractorsLanding.tsx          -- Landing + login
+  SubcontractorSignup.tsx            -- Signup flow page
+  SubcontractorDashboardPage.tsx     -- Dashboard page
+
+src/hooks/
+  useSubcontractorProfile.ts         -- Fetch/update profile hook
+  useAbnVerification.ts              -- ABN verification mutation hook
 ```
 
-Only one file changes: `src/components/estimates/QuickQuoteDialog.tsx`. No database or backend changes needed.
+---
+
+### Route Registration (App.tsx)
+
+```
+/sub-contractors                     -- Landing/login (public)
+/sub-contractors/signup              -- Registration (public)
+/sub-contractors/dashboard           -- Dashboard (protected)
+```
+
+---
+
+### Trade Type Options (multi-select)
+
+- Concreter
+- Steel Fixer
+- Formworker
+- Pump Operator
+- Excavation
+- Labourer
+
+---
+
+### Profile Completion Calculation
+
+Score based on filled fields (each worth equal weight):
+- First/last name, phone, email (basic info)
+- ABN verified
+- At least 1 trade type selected
+- Years experience set
+- Service radius + base postcode set
+- Insurance certificate uploaded
+- Profile photo uploaded
+- Bio written
+
+Display as percentage bar on dashboard.
+
+---
+
+### Files to Create/Modify
+
+| File | Action |
+|---|---|
+| 1 database migration | Create table, RPC, RLS, storage buckets |
+| `supabase/functions/verify-abn/index.ts` | New edge function |
+| `supabase/config.toml` | Add `verify-abn` function config |
+| `src/pages/subcontractors/SubcontractorsLanding.tsx` | New page |
+| `src/pages/subcontractors/SubcontractorSignup.tsx` | New page |
+| `src/pages/subcontractors/SubcontractorDashboardPage.tsx` | New page |
+| `src/components/subcontractors/SubcontractorProtectedRoute.tsx` | New component |
+| `src/components/subcontractors/SubcontractorSignupFlow.tsx` | New component |
+| `src/components/subcontractors/AbnVerificationStep.tsx` | New component |
+| `src/components/subcontractors/ProfileDetailsStep.tsx` | New component |
+| `src/components/subcontractors/FileUploadStep.tsx` | New component |
+| `src/components/subcontractors/SubcontractorDashboard.tsx` | New component |
+| `src/components/subcontractors/SubcontractorProfileCard.tsx` | New component |
+| `src/components/subcontractors/AvailabilityToggle.tsx` | New component |
+| `src/components/subcontractors/SubcontractorAdminTable.tsx` | New component |
+| `src/hooks/useSubcontractorProfile.ts` | New hook |
+| `src/hooks/useAbnVerification.ts` | New hook |
+| `src/App.tsx` | Add 3 new routes |
+| `src/pages/staff/StaffDashboard.tsx` | Add "Subcontractors" admin tab |
+
+---
+
+### Implementation Order
+
+1. Store `ABR_API_GUID` secret (after you register)
+2. Database migration (table, RPC, RLS, storage buckets, role)
+3. `verify-abn` edge function
+4. Frontend: landing page + login
+5. Frontend: signup flow with ABN verification
+6. Frontend: dashboard with profile management
+7. Admin tab in staff dashboard
+8. End-to-end testing
 
