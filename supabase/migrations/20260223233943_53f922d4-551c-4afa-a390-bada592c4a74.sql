@@ -1,0 +1,1 @@
+ALTER TABLE external_invites ADD COLUMN responder_user_id uuid;

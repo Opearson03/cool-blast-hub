@@ -37,12 +37,6 @@ Deno.serve(async (req) => {
 
     const { email, phone } = await req.json();
 
-    if (!email && !phone) {
-      return new Response(JSON.stringify({ invites: [] }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Build filter conditions
     let query = supabaseAdmin
       .from("external_invites")
@@ -55,13 +49,12 @@ Deno.serve(async (req) => {
       .eq("invite_type", "sub_trade")
       .order("created_at", { ascending: false });
 
-    if (email && phone) {
-      query = query.or(`recipient_email.eq.${email},recipient_phone.eq.${phone}`);
-    } else if (email) {
-      query = query.eq("recipient_email", email);
-    } else {
-      query = query.eq("recipient_phone", phone);
-    }
+    // Also match by responder_user_id for invites accepted via the authenticated portal
+    const orConditions: string[] = [];
+    if (email) orConditions.push(`recipient_email.eq.${email}`);
+    if (phone) orConditions.push(`recipient_phone.eq.${phone}`);
+    orConditions.push(`responder_user_id.eq.${user.id}`);
+    query = query.or(orConditions.join(","));
 
     const { data, error } = await query;
 

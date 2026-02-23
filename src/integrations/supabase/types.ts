@@ -924,6 +924,7 @@ export type Database = {
           recipient_name: string
           recipient_phone: string | null
           responded_at: string | null
+          responder_user_id: string | null
           role: string
           sent_at: string | null
           sent_via: string | null
@@ -955,6 +956,7 @@ export type Database = {
           recipient_name: string
           recipient_phone?: string | null
           responded_at?: string | null
+          responder_user_id?: string | null
           role: string
           sent_at?: string | null
           sent_via?: string | null
@@ -986,6 +988,7 @@ export type Database = {
           recipient_name?: string
           recipient_phone?: string | null
           responded_at?: string | null
+          responder_user_id?: string | null
           role?: string
           sent_at?: string | null
           sent_via?: string | null

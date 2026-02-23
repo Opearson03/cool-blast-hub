@@ -89,6 +89,7 @@ Deno.serve(async (req) => {
       .update({
         status: response,
         responded_at: new Date().toISOString(),
+        responder_user_id: user.id,
       })
       .eq("id", invite_id);
 
