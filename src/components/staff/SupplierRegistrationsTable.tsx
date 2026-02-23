@@ -126,7 +126,7 @@ export function SupplierRegistrationsTable() {
               No registrations yet
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="rounded-md border overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -155,7 +155,7 @@ export function SupplierRegistrationsTable() {
                           <div className="text-xs text-muted-foreground">{reg.phone}</div>
                         )}
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <div className="flex flex-wrap gap-1">
                           {reg.categories.slice(0, 2).map((cat) => (
                             <Badge key={cat} variant="secondary" className="text-xs">
@@ -169,7 +169,7 @@ export function SupplierRegistrationsTable() {
                           )}
                         </div>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="hidden md:table-cell">
                         <div className="flex flex-wrap gap-1">
                           {reg.service_areas.slice(0, 2).map((area) => (
                             <Badge key={area} variant="outline" className="text-xs">
