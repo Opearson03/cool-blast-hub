@@ -406,7 +406,14 @@ export default function SubcontractorSignup() {
                 </Button>
                 <Button
                   className="flex-1"
-                  onClick={() => setStep(3)}
+                  onClick={() => {
+                    if (!firstName && fullName) {
+                      const parts = fullName.trim().split(" ");
+                      setFirstName(parts[0] || "");
+                      setLastName(parts.slice(1).join(" ") || "");
+                    }
+                    setStep(3);
+                  }}
                   disabled={!abnData?.valid}
                 >
                   Continue <ArrowRight className="ml-2 h-4 w-4" />
@@ -424,16 +431,6 @@ export default function SubcontractorSignup() {
               <CardDescription>Tell us about your trade and experience.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>First Name</Label>
-                  <Input value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Last Name</Label>
-                  <Input value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                </div>
-              </div>
               <div className="space-y-2">
                 <Label>Phone Number</Label>
                 <Input
