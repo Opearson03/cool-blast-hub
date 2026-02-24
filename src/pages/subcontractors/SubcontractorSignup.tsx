@@ -61,6 +61,7 @@ export default function SubcontractorSignup() {
   const [insuranceFile, setInsuranceFile] = useState<File | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [independentAcknowledged, setIndependentAcknowledged] = useState(false);
 
   // White Card
   const [hasWhiteCard, setHasWhiteCard] = useState(false);
@@ -610,6 +611,30 @@ export default function SubcontractorSignup() {
                 )}
               </div>
 
+              {/* Independent Contractor Acknowledgement */}
+              <div className="border rounded-lg p-4 bg-muted/30 space-y-3">
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <Checkbox
+                    checked={independentAcknowledged}
+                    onCheckedChange={(checked) => setIndependentAcknowledged(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-2">
+                    <span className="font-medium text-sm">
+                      I acknowledge that I am an independent contractor and not employed, engaged or supplied by PourHub.
+                    </span>
+                    <p className="text-xs text-muted-foreground">I am solely responsible for my own:</p>
+                    <ul className="list-disc pl-5 text-xs text-muted-foreground space-y-0.5">
+                      <li>Insurance</li>
+                      <li>Licensing</li>
+                      <li>WHS compliance</li>
+                      <li>Tax obligations</li>
+                      <li>Superannuation</li>
+                    </ul>
+                  </div>
+                </label>
+              </div>
+
               <div className="flex gap-2 pt-4">
                 <Button variant="outline" onClick={() => setStep(3)}>
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
@@ -617,7 +642,7 @@ export default function SubcontractorSignup() {
                 <Button
                   className="flex-1"
                   onClick={handleSubmitProfile}
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !independentAcknowledged}
                 >
                   {isSubmitting ? (
                     <>

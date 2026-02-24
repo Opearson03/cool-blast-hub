@@ -23,6 +23,7 @@ export default function Signup() {
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [directoryAcknowledged, setDirectoryAcknowledged] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -221,7 +222,27 @@ export default function Signup() {
                     </Link>
                   </Label>
                 </div>
-                <Button type="submit" className="w-full touch-target" disabled={loading || !termsAccepted}>
+                <div className="flex items-start space-x-2">
+                  <Checkbox
+                    id="directory-ack"
+                    checked={directoryAcknowledged}
+                    onCheckedChange={(checked) => setDirectoryAcknowledged(checked === true)}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="directory-ack" className="text-sm leading-tight cursor-pointer">
+                    <span>
+                      I acknowledge that any subcontractor contacted via PourHub is independently engaged by me and not supplied by PourHub. I am solely responsible for:
+                    </span>
+                    <ul className="list-disc pl-5 mt-1 text-muted-foreground space-y-0.5">
+                      <li>Site safety</li>
+                      <li>Induction</li>
+                      <li>Supervision</li>
+                      <li>Insurance</li>
+                      <li>WHS obligations</li>
+                    </ul>
+                  </Label>
+                </div>
+                <Button type="submit" className="w-full touch-target" disabled={loading || !termsAccepted || !directoryAcknowledged}>
                   {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   Continue to Payment
                 </Button>
