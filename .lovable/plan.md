@@ -1,46 +1,52 @@
 
 
-## Add Month View and Event Detail Sheet to Subcontractor Schedule
+## Add Unavailable Days and Directory Availability Visibility
 
-### Overview
-Add a week/month view toggle and a detail sheet that opens when clicking on a scheduled event, following the same patterns used in the admin schedule.
+### What this does
+1. Subcontractors can mark specific dates as "unavailable" on their schedule page
+2. Subcontractors can opt in/out of showing their availability status on the public directory card
+3. The directory card shows a simple available/busy indicator only when the subcontractor has opted in -- no sensitive info exposed
 
-### Changes
+### Database Changes
 
-**File: `src/pages/subcontractors/SubcontractorSchedule.tsx`**
+**New table: `subcontractor_unavailable_dates`**
+- `id` (uuid, PK)
+- `user_id` (uuid, NOT NULL) -- the subcontractor
+- `date` (date, NOT NULL)
+- `reason` (text, nullable) -- optional private note (never shown publicly)
+- `created_at` (timestamptz)
+- Unique constraint on `(user_id, date)`
+- RLS: users can only manage their own rows
 
-1. **View toggle state**: Add `viewMode` state (`"week" | "month"`) and toggle buttons (Week / Month) next to the Today button.
+**New column on `subcontractor_directory_profiles`:**
+- `show_availability_in_directory` (boolean, default false) -- opt-in toggle
 
-2. **Month view date logic**: Import `startOfMonth`, `endOfMonth`, `startOfWeek`, `endOfWeek`, `eachDayOfInterval`, `isSameMonth` from `date-fns`. Compute a full 6-week month grid (starting Monday) when in month view. Update navigation to step by months instead of weeks.
+### Frontend Changes
 
-3. **Month grid layout**: Render a 7-column CSS grid with day-of-week headers (Mon-Sun). Each cell shows the day number, highlights today, dims days outside the current month, and shows compact event indicators (colored dots + count). The `invitesByDate` map will cover all visible days (not just 7).
+**1. Schedule page (`SubcontractorSchedule.tsx`)**
+- Add ability to click on any day (week or month view) and toggle it as "unavailable"
+- Unavailable days shown with a distinct visual (e.g. red/grey striped background, "Unavailable" label)
+- Clicking an unavailable day opens a confirmation to remove the block
+- New hook `useUnavailableDates` to fetch/insert/delete from the new table
 
-4. **Week view**: Keep existing week card layout unchanged.
+**2. Settings page (`SubcontractorSettings.tsx`)**
+- Add a toggle under the existing Availability section: "Show my availability on the directory"
+- Description text: "When enabled, builders can see if you're available or busy. No schedule details are shared."
 
-5. **Event click handler**: Add `selectedInvite` state. Clicking any event card (week view) or dot/cell (month view) opens a detail sheet.
+**3. Dashboard page (`SubcontractorDashboardPage.tsx`)**
+- Auto-derive availability: if any unavailable date matches today, treat status as "busy". Otherwise "available". (Or keep manual toggle -- both work alongside each other.)
 
-6. **Navigation header update**: In month view, show "February 2026" format and navigate by month. In week view, keep existing "MMM d - MMM d, yyyy" format.
+**4. Directory card (`DirectoryCard.tsx`)**
+- Only show the green/grey availability dot if the profile has `show_availability_in_directory === true`
+- No change to what info is displayed -- just the existing dot indicator, conditionally shown
 
-**New component: `src/components/subcontractor/SubcontractorEventDetailSheet.tsx`**
+**5. Directory RPC (`get_public_directory_profiles`)**
+- Add `show_availability_in_directory` to the returned columns so the frontend knows whether to display the dot
 
-A `Sheet` component that displays full details for a selected invite:
-- Pour/visit name and role badge
-- Business name
-- Site address (with MapPin icon)
-- Date and time (with Clock/Calendar icons)
-- Notes (if any)
-- Close button
+### New Files
+- `src/hooks/useUnavailableDates.ts` -- CRUD hook for the new table
 
-### UI Behaviour
-- Default view: **Week** (matches current behaviour)
-- Month view cells: show day number + colored dots for events, "+N more" if many. Clicking a cell with one event opens detail; clicking a cell with multiple shows them listed.
-- Week view cards: clicking opens the detail sheet
-- Today button works in both views
-- Prev/Next navigates by week or month depending on active view
-
-### Technical Notes
-- Reuses `SubcontractorInvite` type from the existing hook -- no new data fetching needed
-- Follows the admin schedule pattern for view toggle (uses simple Button group, not Tabs)
-- Sheet uses existing shadcn Sheet component
-- No database changes required
-
+### Privacy
+- The `reason` field is never exposed publicly
+- The directory only shows "available" or "busy" (the existing dot), and only when the subcontractor has explicitly opted in
+- No schedule details, job names, or dates are visible to directory viewers
