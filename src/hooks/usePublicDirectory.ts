@@ -18,6 +18,7 @@ export interface DirectoryProfile {
   legal_name: string | null;
   avg_rating: number;
   review_count: number;
+  show_availability_in_directory: boolean;
 }
 
 export function usePublicDirectoryProfiles() {

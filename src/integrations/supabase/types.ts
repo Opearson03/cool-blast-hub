@@ -2650,6 +2650,7 @@ export type Database = {
           phone: string | null
           profile_photo_url: string | null
           service_radius_km: number | null
+          show_availability_in_directory: boolean
           trade_types: string[] | null
           updated_at: string
           user_id: string
@@ -2676,6 +2677,7 @@ export type Database = {
           phone?: string | null
           profile_photo_url?: string | null
           service_radius_km?: number | null
+          show_availability_in_directory?: boolean
           trade_types?: string[] | null
           updated_at?: string
           user_id: string
@@ -2702,6 +2704,7 @@ export type Database = {
           phone?: string | null
           profile_photo_url?: string | null
           service_radius_km?: number | null
+          show_availability_in_directory?: boolean
           trade_types?: string[] | null
           updated_at?: string
           user_id?: string
@@ -2751,6 +2754,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subcontractor_unavailable_dates: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       subcontractors: {
         Row: {
@@ -3493,6 +3520,7 @@ export type Database = {
           phone: string | null
           profile_photo_url: string | null
           service_radius_km: number | null
+          show_availability_in_directory: boolean
           trade_types: string[] | null
           updated_at: string
           user_id: string
@@ -3556,6 +3584,7 @@ export type Database = {
           profile_photo_url: string
           review_count: number
           service_radius_km: number
+          show_availability_in_directory: boolean
           trade_types: string[]
           years_experience: number
         }[]
@@ -3577,6 +3606,7 @@ export type Database = {
           profile_photo_url: string
           review_count: number
           service_radius_km: number
+          show_availability_in_directory: boolean
           trade_types: string[]
           years_experience: number
         }[]
