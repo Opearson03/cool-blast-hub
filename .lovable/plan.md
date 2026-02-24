@@ -1,25 +1,46 @@
 
 
-## Add ABN Lookup to Admin Onboarding
+## Add Month View and Event Detail Sheet to Subcontractor Schedule
 
-### What changes
-Add an ABN verification button next to the existing ABN field in the onboarding wizard (Step 1: Business Details). When the user enters an ABN and clicks "Verify", it calls the `verify-abn` edge function and shows the result (business name, GST status, entity type) or an error. ABN remains optional -- users can skip without verifying.
+### Overview
+Add a week/month view toggle and a detail sheet that opens when clicking on a scheduled event, following the same patterns used in the admin schedule.
 
-### File: `src/components/onboarding/OnboardingWizard.tsx`
+### Changes
 
-1. **Import** `useAbnVerification` hook and the `CheckCircle2` / `XCircle` icons (already have `CheckCircle`)
-2. **Add state** for ABN verification result (`abnData`, `abnVerified`)
-3. **Replace** the plain ABN input (lines 322-331) with:
-   - ABN input + "Verify" button side by side
-   - Below: verification result card showing legal name, entity type, GST status (green) or error message (red)
-   - If verified, auto-populate the `businessName` display if desired
-4. **Update `handleSaveBusinessDetails`** to also save the verified legal name if available (the `businesses` table already has a `name` column)
-5. The "Continue" and "Skip" buttons remain unchanged -- ABN verification is optional
+**File: `src/pages/subcontractors/SubcontractorSchedule.tsx`**
+
+1. **View toggle state**: Add `viewMode` state (`"week" | "month"`) and toggle buttons (Week / Month) next to the Today button.
+
+2. **Month view date logic**: Import `startOfMonth`, `endOfMonth`, `startOfWeek`, `endOfWeek`, `eachDayOfInterval`, `isSameMonth` from `date-fns`. Compute a full 6-week month grid (starting Monday) when in month view. Update navigation to step by months instead of weeks.
+
+3. **Month grid layout**: Render a 7-column CSS grid with day-of-week headers (Mon-Sun). Each cell shows the day number, highlights today, dims days outside the current month, and shows compact event indicators (colored dots + count). The `invitesByDate` map will cover all visible days (not just 7).
+
+4. **Week view**: Keep existing week card layout unchanged.
+
+5. **Event click handler**: Add `selectedInvite` state. Clicking any event card (week view) or dot/cell (month view) opens a detail sheet.
+
+6. **Navigation header update**: In month view, show "February 2026" format and navigate by month. In week view, keep existing "MMM d - MMM d, yyyy" format.
+
+**New component: `src/components/subcontractor/SubcontractorEventDetailSheet.tsx`**
+
+A `Sheet` component that displays full details for a selected invite:
+- Pour/visit name and role badge
+- Business name
+- Site address (with MapPin icon)
+- Date and time (with Clock/Calendar icons)
+- Notes (if any)
+- Close button
 
 ### UI Behaviour
-- User types ABN, clicks "Verify"
-- Spinner shows while calling the edge function
-- On success: green card with legal name, entity type, GST status
-- On failure: red message with error
-- User can clear and re-enter a different ABN
-- Skipping or continuing without verifying is allowed
+- Default view: **Week** (matches current behaviour)
+- Month view cells: show day number + colored dots for events, "+N more" if many. Clicking a cell with one event opens detail; clicking a cell with multiple shows them listed.
+- Week view cards: clicking opens the detail sheet
+- Today button works in both views
+- Prev/Next navigates by week or month depending on active view
+
+### Technical Notes
+- Reuses `SubcontractorInvite` type from the existing hook -- no new data fetching needed
+- Follows the admin schedule pattern for view toggle (uses simple Button group, not Tabs)
+- Sheet uses existing shadcn Sheet component
+- No database changes required
+
