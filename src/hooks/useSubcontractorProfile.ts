@@ -24,6 +24,7 @@ export interface SubcontractorProfile {
   has_white_card: boolean;
   white_card_number: string | null;
   white_card_document_url: string | null;
+  show_availability_in_directory: boolean;
   created_at: string;
   updated_at: string;
 }

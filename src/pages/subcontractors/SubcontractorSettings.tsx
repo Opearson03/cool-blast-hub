@@ -502,6 +502,27 @@ export default function SubcontractorSettings() {
           </SettingsAccordionItem>
         </SettingsGroup>
 
+        <SettingsGroup title="Privacy">
+          <SettingsAccordionItem value="privacy" icon={Eye} title="Directory Visibility" description="Control what builders see">
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Show my availability on the directory</Label>
+                  <p className="text-xs text-muted-foreground">When enabled, builders can see if you're available or busy. No schedule details are shared.</p>
+                </div>
+                <Switch
+                  checked={profile?.show_availability_in_directory ?? false}
+                  onCheckedChange={(checked) => {
+                    updateProfile.mutate({ show_availability_in_directory: checked } as any, {
+                      onSuccess: () => toast({ title: checked ? "Availability visible on directory" : "Availability hidden from directory" }),
+                    });
+                  }}
+                />
+              </div>
+            </div>
+          </SettingsAccordionItem>
+        </SettingsGroup>
+
         <SettingsGroup title="Account">
           <SettingsAccordionItem value="account" icon={SettingsIcon} title="Account" description="Password, sign out">
             <div className="space-y-4">

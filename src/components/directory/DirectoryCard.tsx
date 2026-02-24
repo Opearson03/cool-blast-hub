@@ -36,12 +36,14 @@ export function DirectoryCard({ profile }: { profile: DirectoryProfile }) {
           {/* Name + availability */}
           <div className="flex items-start justify-between gap-2">
             <h3 className="font-semibold text-lg leading-tight">{displayName}</h3>
-            <span
-              className={`shrink-0 inline-block h-2.5 w-2.5 rounded-full mt-1.5 ${
-                isAvailable ? "bg-[hsl(var(--success))]" : "bg-muted-foreground/40"
-              }`}
-              title={isAvailable ? "Available" : "Unavailable"}
-            />
+            {profile.show_availability_in_directory && (
+              <span
+                className={`shrink-0 inline-block h-2.5 w-2.5 rounded-full mt-1.5 ${
+                  isAvailable ? "bg-[hsl(var(--success))]" : "bg-muted-foreground/40"
+                }`}
+                title={isAvailable ? "Available" : "Unavailable"}
+              />
+            )}
           </div>
 
           {/* Trades */}

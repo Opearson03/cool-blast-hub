@@ -2,6 +2,7 @@ import { useState, useMemo } from "react";
 import { SubcontractorLayout } from "@/components/layout/SubcontractorLayout";
 import { useSubcontractorInvites } from "@/hooks/useSubcontractorInvites";
 import type { SubcontractorInvite } from "@/hooks/useSubcontractorInvites";
+import { useUnavailableDates, useToggleUnavailableDate } from "@/hooks/useUnavailableDates";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -26,9 +27,11 @@ import {
   Clock,
   Building2,
   Calendar,
+  Ban,
 } from "lucide-react";
 import { SubcontractorEventDetailSheet } from "@/components/subcontractor/SubcontractorEventDetailSheet";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 type ViewMode = "week" | "month";
 
@@ -37,10 +40,18 @@ export default function SubcontractorSchedule() {
   const [viewMode, setViewMode] = useState<ViewMode>("week");
   const [selectedInvite, setSelectedInvite] = useState<SubcontractorInvite | null>(null);
   const { data: invites, isLoading } = useSubcontractorInvites();
+  const { data: unavailableDates = [] } = useUnavailableDates();
+  const toggleUnavailable = useToggleUnavailableDate();
+  const { toast } = useToast();
 
   const acceptedInvites = useMemo(
     () => invites?.filter((i) => i.status === "accepted") || [],
     [invites]
+  );
+
+  const unavailableDateSet = useMemo(
+    () => new Set(unavailableDates.map((d) => d.date)),
+    [unavailableDates]
   );
 
   const weekStart = useMemo(
@@ -96,6 +107,19 @@ export default function SubcontractorSchedule() {
     }
     return `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d, yyyy")}`;
   }, [viewMode, currentDate, weekStart]);
+
+  const handleToggleUnavailable = (dateKey: string) => {
+    toggleUnavailable.mutate(
+      { date: dateKey },
+      {
+        onSuccess: ({ action }) => {
+          toast({
+            title: action === "added" ? "Marked as unavailable" : "Marked as available",
+          });
+        },
+      }
+    );
+  };
 
   return (
     <SubcontractorLayout>
@@ -153,23 +177,38 @@ export default function SubcontractorSchedule() {
               const dateKey = format(day, "yyyy-MM-dd");
               const dayInvites = invitesByDate[dateKey] || [];
               const isToday = isSameDay(day, new Date());
+              const isUnavailable = unavailableDateSet.has(dateKey);
 
               return (
-                <Card key={dateKey} className={isToday ? "border-primary" : ""}>
+                <Card key={dateKey} className={cn(isToday && "border-primary", isUnavailable && "bg-destructive/5 border-destructive/30")}>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium flex items-center gap-2">
-                      <span className={isToday ? "text-primary font-bold" : "text-muted-foreground"}>
-                        {format(day, "EEEE")}
-                      </span>
-                      <span className={isToday ? "text-primary" : ""}>
-                        {format(day, "MMM d")}
-                      </span>
-                      {isToday && <Badge variant="default" className="text-xs">Today</Badge>}
+                    <CardTitle className="text-sm font-medium flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={isToday ? "text-primary font-bold" : "text-muted-foreground"}>
+                          {format(day, "EEEE")}
+                        </span>
+                        <span className={isToday ? "text-primary" : ""}>
+                          {format(day, "MMM d")}
+                        </span>
+                        {isToday && <Badge variant="default" className="text-xs">Today</Badge>}
+                        {isUnavailable && <Badge variant="destructive" className="text-xs gap-1"><Ban className="h-3 w-3" />Unavailable</Badge>}
+                      </div>
+                      <Button
+                        variant={isUnavailable ? "outline" : "ghost"}
+                        size="sm"
+                        className="text-xs h-7"
+                        onClick={() => handleToggleUnavailable(dateKey)}
+                        disabled={toggleUnavailable.isPending}
+                      >
+                        {isUnavailable ? "Mark Available" : "Mark Unavailable"}
+                      </Button>
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
                     {dayInvites.length === 0 ? (
-                      <p className="text-sm text-muted-foreground py-2">No scheduled work</p>
+                      <p className="text-sm text-muted-foreground py-2">
+                        {isUnavailable ? "You've marked this day as unavailable" : "No scheduled work"}
+                      </p>
                     ) : (
                       <div className="space-y-2">
                         {dayInvites.map((inv) => (
@@ -225,6 +264,7 @@ export default function SubcontractorSchedule() {
                 const dayInvites = invitesByDate[dateKey] || [];
                 const isToday = isSameDay(day, new Date());
                 const isCurrentMonth = isSameMonth(day, currentDate);
+                const isUnavailable = unavailableDateSet.has(dateKey);
 
                 return (
                   <div
@@ -233,21 +273,27 @@ export default function SubcontractorSchedule() {
                       "border rounded-lg p-1.5 min-h-[70px] transition-colors",
                       isToday && "border-primary bg-primary/5",
                       !isCurrentMonth && "opacity-40",
-                      dayInvites.length > 0 && "cursor-pointer hover:bg-muted/50"
+                      isUnavailable && "bg-destructive/5 border-destructive/30",
+                      "cursor-pointer hover:bg-muted/50"
                     )}
                     onClick={() => {
                       if (dayInvites.length === 1) {
                         setSelectedInvite(dayInvites[0]);
+                      } else if (dayInvites.length === 0) {
+                        handleToggleUnavailable(dateKey);
                       }
                     }}
                   >
-                    <div
-                      className={cn(
-                        "text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center",
-                        isToday && "bg-primary text-primary-foreground rounded-full"
-                      )}
-                    >
-                      {format(day, "d")}
+                    <div className="flex items-center justify-between">
+                      <div
+                        className={cn(
+                          "text-xs font-medium mb-1 w-6 h-6 flex items-center justify-center",
+                          isToday && "bg-primary text-primary-foreground rounded-full"
+                        )}
+                      >
+                        {format(day, "d")}
+                      </div>
+                      {isUnavailable && <Ban className="h-3 w-3 text-destructive" />}
                     </div>
                     {dayInvites.length > 0 && (
                       <div className="space-y-0.5">
