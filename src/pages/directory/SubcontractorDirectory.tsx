@@ -1,19 +1,31 @@
 import { useState, useMemo } from "react";
-import { Users } from "lucide-react";
+import { Users, Info } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { DirectoryFilters } from "@/components/directory/DirectoryFilters";
 import { DirectoryCard } from "@/components/directory/DirectoryCard";
 import { usePublicDirectoryProfiles } from "@/hooks/usePublicDirectory";
+import { useDirectoryByPostcode } from "@/hooks/useDirectoryByPostcode";
 
 export default function SubcontractorDirectory() {
-  const { data: profiles, isLoading } = usePublicDirectoryProfiles();
   const [search, setSearch] = useState("");
   const [tradeFilter, setTradeFilter] = useState("all");
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
+  const [postcodeFilter, setPostcodeFilter] = useState("");
+
+  const isPostcodeActive = /^\d{4}$/.test(postcodeFilter.trim());
+
+  const { data: allProfiles, isLoading: allLoading } = usePublicDirectoryProfiles();
+  const { data: nearbyProfiles, isLoading: nearbyLoading, isError: nearbyError } = useDirectoryByPostcode(postcodeFilter);
+
+  const isLoading = isPostcodeActive ? nearbyLoading : allLoading;
+  const baseProfiles = isPostcodeActive && nearbyProfiles?.length ? nearbyProfiles : null;
+  const showFallback = isPostcodeActive && !nearbyLoading && (!nearbyProfiles || nearbyProfiles.length === 0) && !nearbyError;
+
+  const profiles = baseProfiles ?? allProfiles;
 
   const filtered = useMemo(() => {
     if (!profiles) return [];
-    let list = profiles;
+    let list = [...profiles];
 
     if (tradeFilter !== "all") {
       list = list.filter((p) => p.trade_types?.includes(tradeFilter));
@@ -27,7 +39,6 @@ export default function SubcontractorDirectory() {
         (p) =>
           p.first_name?.toLowerCase().includes(q) ||
           p.last_name?.toLowerCase().includes(q) ||
-          p.base_postcode?.toLowerCase().includes(q) ||
           p.legal_name?.toLowerCase().includes(q)
       );
     }
@@ -47,11 +58,21 @@ export default function SubcontractorDirectory() {
           onTradeFilterChange={setTradeFilter}
           availabilityFilter={availabilityFilter}
           onAvailabilityFilterChange={setAvailabilityFilter}
+          postcodeFilter={postcodeFilter}
+          onPostcodeFilterChange={setPostcodeFilter}
         />
+
+        {showFallback && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+            <Info className="h-4 w-4 shrink-0" />
+            <span>No subcontractors found near postcode {postcodeFilter}. Showing all results instead.</span>
+          </div>
+        )}
 
         {!isLoading && (
           <p className="text-sm text-muted-foreground">
             {filtered.length} result{filtered.length !== 1 ? "s" : ""}
+            {isPostcodeActive && baseProfiles ? ` near ${postcodeFilter}` : ""}
           </p>
         )}
 
@@ -69,7 +90,11 @@ export default function SubcontractorDirectory() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((p) => (
-              <DirectoryCard key={p.id} profile={p} />
+              <DirectoryCard
+                key={p.id}
+                profile={p}
+                distanceKm={"distance_km" in p ? (p as any).distance_km : undefined}
+              />
             ))}
           </div>
         )}
