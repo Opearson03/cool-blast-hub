@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      au_postcode_coords: {
+        Row: {
+          lat: number
+          lng: number
+          locality: string | null
+          postcode: string
+        }
+        Insert: {
+          lat: number
+          lng: number
+          locality?: string | null
+          postcode: string
+        }
+        Update: {
+          lat?: number
+          lng?: number
+          locality?: string | null
+          postcode?: string
+        }
+        Relationships: []
+      }
       business_subscriptions: {
         Row: {
           business_id: string
@@ -3567,6 +3588,29 @@ export type Database = {
         }[]
       }
       get_dashboard_stats: { Args: { p_business_id: string }; Returns: Json }
+      get_directory_profiles_near_postcode: {
+        Args: { _postcode: string }
+        Returns: {
+          abn_verified: boolean
+          availability_status: string
+          avg_rating: number
+          base_postcode: string
+          bio: string
+          distance_km: number
+          first_name: string
+          gst_registered: boolean
+          has_white_card: boolean
+          id: string
+          last_name: string
+          legal_name: string
+          profile_photo_url: string
+          review_count: number
+          service_radius_km: number
+          show_availability_in_directory: boolean
+          trade_types: string[]
+          years_experience: number
+        }[]
+      }
       get_public_directory_profile: {
         Args: { _id: string }
         Returns: {

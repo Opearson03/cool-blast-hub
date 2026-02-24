@@ -10,7 +10,7 @@ function getInitials(first: string, last: string) {
   return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toUpperCase();
 }
 
-export function DirectoryCard({ profile }: { profile: DirectoryProfile }) {
+export function DirectoryCard({ profile, distanceKm }: { profile: DirectoryProfile; distanceKm?: number }) {
   const displayName = `${profile.first_name} ${profile.last_name?.[0] ?? ""}.`;
   const isAvailable = profile.availability_status === "available";
 
@@ -67,7 +67,11 @@ export function DirectoryCard({ profile }: { profile: DirectoryProfile }) {
               <div className="flex items-center gap-1.5">
                 <MapPin className="h-3.5 w-3.5" />
                 {profile.base_postcode}
-                {profile.service_radius_km ? ` · ${profile.service_radius_km}km radius` : ""}
+                {distanceKm != null
+                  ? ` · ${distanceKm}km away`
+                  : profile.service_radius_km
+                    ? ` · ${profile.service_radius_km}km radius`
+                    : ""}
               </div>
             )}
           </div>
