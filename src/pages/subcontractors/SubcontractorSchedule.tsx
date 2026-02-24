@@ -214,28 +214,27 @@ export default function SubcontractorSchedule() {
                         {dayInvites.map((inv) => (
                           <div
                             key={inv.id}
-                            className="p-3 rounded-lg bg-muted/50 border border-border cursor-pointer hover:bg-muted transition-colors"
+                            className="bg-card border rounded-lg p-3 cursor-pointer hover:border-primary/50 transition-colors"
                             onClick={() => setSelectedInvite(inv)}
                           >
-                            <div className="flex items-start justify-between gap-2 mb-2">
-                              <div className="font-medium text-sm">{inv.pour_name}</div>
-                              <Badge variant="outline">{inv.role}</Badge>
-                            </div>
-                            <div className="space-y-1 text-xs text-muted-foreground">
-                              <div className="flex items-center gap-1.5">
-                                <Building2 className="h-3.5 w-3.5" />
-                                <span>{inv.business_name}</span>
-                              </div>
-                              <div className="flex items-center gap-1.5">
-                                <MapPin className="h-3.5 w-3.5" />
-                                <span>{inv.site_address}</span>
-                              </div>
-                              {(inv.start_time || inv.scheduled_time) && (
-                                <div className="flex items-center gap-1.5">
-                                  <Clock className="h-3.5 w-3.5" />
-                                  <span>{inv.start_time || inv.scheduled_time}</span>
+                            <div className="flex items-start gap-2">
+                              <div className="w-1 h-full min-h-[40px] rounded-full shrink-0 bg-blue-500" />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm font-medium truncate">{inv.pour_name}</p>
+                                  {(inv.start_time || inv.scheduled_time) && (
+                                    <span className="text-xs text-muted-foreground shrink-0">
+                                      {(inv.start_time || inv.scheduled_time)?.slice(0, 5)}
+                                    </span>
+                                  )}
                                 </div>
-                              )}
+                                <p className="text-xs text-muted-foreground truncate">{inv.job_name}</p>
+                                <p className="text-xs text-muted-foreground/70 truncate">{inv.site_address}</p>
+                                <div className="flex gap-1 mt-1">
+                                  <Badge variant="outline" className="text-xs">{inv.role}</Badge>
+                                  <Badge variant="secondary" className="text-xs">{inv.business_name}</Badge>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         ))}
