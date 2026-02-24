@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Separator } from "@/components/ui/separator";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Users, Briefcase, CheckCircle, ArrowRight, ArrowLeft, Palette, Upload, FileText, DollarSign } from "lucide-react";
+import { Loader2, Building2, Users, Briefcase, CheckCircle, CheckCircle2, XCircle, ArrowRight, ArrowLeft, Palette, Upload, FileText, DollarSign, Search } from "lucide-react";
+import { useAbnVerification } from "@/hooks/useAbnVerification";
 import { OnboardingPriceList } from "./OnboardingPriceList";
 import { LivePDFPreview } from "@/components/settings/LivePDFPreview";
 import { DEFAULT_PRICE_LIST } from "@/lib/price-list-defaults";
@@ -42,12 +43,22 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const abnVerification = useAbnVerification();
 
   // Business details
   const [businessName, setBusinessName] = useState("");
   const [abn, setAbn] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
+  const [abnVerified, setAbnVerified] = useState(false);
+  const [abnData, setAbnData] = useState<{
+    legal_name?: string;
+    entity_type?: string;
+    gst_registered?: boolean;
+    abn_status?: string;
+    error_message?: string;
+    valid: boolean;
+  } | null>(null);
 
   // Branding
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
@@ -71,14 +82,18 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
   const handleSaveBusinessDetails = async () => {
     setLoading(true);
     try {
+      const updateData: Record<string, any> = {
+        abn,
+        address,
+        phone,
+        onboarding_step: 2,
+      };
+      if (abnVerified && abnData?.legal_name) {
+        updateData.name = abnData.legal_name;
+      }
       const { error } = await supabase
         .from("businesses")
-        .update({
-          abn,
-          address,
-          phone,
-          onboarding_step: 2,
-        })
+        .update(updateData)
         .eq("id", businessId);
 
       if (error) throw error;
@@ -321,13 +336,69 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label htmlFor="abn">ABN (Optional)</Label>
-                <Input
-                  id="abn"
-                  value={abn}
-                  onChange={(e) => setAbn(e.target.value)}
-                  placeholder="XX XXX XXX XXX"
-                  disabled={loading}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="abn"
+                    value={abn}
+                    onChange={(e) => {
+                      setAbn(e.target.value);
+                      setAbnVerified(false);
+                      setAbnData(null);
+                    }}
+                    placeholder="XX XXX XXX XXX"
+                    disabled={loading || abnVerification.isPending}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="default"
+                    disabled={!abn.replace(/\s/g, "").length || abnVerification.isPending || loading}
+                    onClick={async () => {
+                      try {
+                        const result = await abnVerification.mutateAsync(abn);
+                        setAbnData(result);
+                        setAbnVerified(result.valid);
+                        if (result.valid && result.legal_name) {
+                          setBusinessName(result.legal_name);
+                        }
+                      } catch (err: any) {
+                        setAbnData({ valid: false, error_message: err.message || "Verification failed" });
+                        setAbnVerified(false);
+                      }
+                    }}
+                  >
+                    {abnVerification.isPending ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <>
+                        <Search className="h-4 w-4 mr-1" />
+                        Verify
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {/* ABN Verification Result */}
+                {abnData && abnData.valid && (
+                  <div className="rounded-lg border border-green-200 bg-green-50 dark:bg-green-950/30 dark:border-green-800 p-3 space-y-1">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      <span className="text-sm font-medium text-green-800 dark:text-green-300">{abnData.legal_name}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground pl-6">
+                      {abnData.entity_type && <span>{abnData.entity_type}</span>}
+                      <span>GST: {abnData.gst_registered ? "Registered" : "Not registered"}</span>
+                      <span>Status: {abnData.abn_status}</span>
+                    </div>
+                  </div>
+                )}
+                {abnData && !abnData.valid && (
+                  <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3">
+                    <div className="flex items-center gap-2">
+                      <XCircle className="h-4 w-4 text-destructive" />
+                      <span className="text-sm text-destructive">{abnData.error_message || "ABN could not be verified"}</span>
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="address">Business Address (Optional)</Label>
