@@ -105,11 +105,9 @@ export default function SubcontractorSignup() {
       if (data.user) {
         setUserId(data.user.id);
 
-        // Assign subcontractor role
-        const supabaseAdmin = supabase;
-        await supabaseAdmin.from("user_roles" as any).insert({
-          user_id: data.user.id,
-          role: "subcontractor",
+        // Assign subcontractor role via secure RPC (bypasses RLS)
+        await supabase.rpc("assign_subcontractor_role" as any, {
+          _user_id: data.user.id,
         });
 
         setStep(2);
