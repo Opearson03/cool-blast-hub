@@ -13,9 +13,24 @@ import { useSubcontractorReviews, useMyReviewForProfile } from "@/hooks/useSubco
 import { StarRating } from "@/components/directory/StarRating";
 import { ReviewsList } from "@/components/directory/ReviewsList";
 import { WriteReviewDialog } from "@/components/directory/WriteReviewDialog";
+import { AvailabilityCalendar } from "@/components/directory/AvailabilityCalendar";
 import { ScheduleSubbieDialog } from "@/components/schedule/ScheduleSubbieDialog";
 import { useDirectoryContactInfo } from "@/hooks/useDirectoryContactInfo";
+import { usePublicUnavailableDates } from "@/hooks/usePublicUnavailableDates";
 import type { PastSubbie } from "@/hooks/useBusinessSubbies";
+
+function AvailabilityCalendarBlock({ profileId }: { profileId: string }) {
+  const { data: unavailableDates } = usePublicUnavailableDates(profileId, true);
+  if (!unavailableDates) return null;
+  return (
+    <div className="mt-6 pt-6 border-t">
+      <h2 className="font-semibold mb-3">Availability</h2>
+      <div className="max-w-xs">
+        <AvailabilityCalendar unavailableDates={unavailableDates} />
+      </div>
+    </div>
+  );
+}
 
 export default function SubcontractorProfilePage() {
   const { id } = useParams<{ id: string }>();
@@ -162,6 +177,8 @@ export default function SubcontractorProfilePage() {
                 <p className="text-muted-foreground whitespace-pre-line">{profile.bio}</p>
               </div>
             )}
+
+            {profile.show_availability_in_directory && <AvailabilityCalendarBlock profileId={profile.id} />}
           </CardContent>
         </Card>
 
