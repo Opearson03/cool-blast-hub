@@ -24,7 +24,7 @@ export default function TermsConditions() {
         <Card>
           <CardHeader>
             <CardTitle className="text-2xl">Terms and Conditions</CardTitle>
-            <p className="text-sm text-muted-foreground">Last updated: December 2024</p>
+            <p className="text-sm text-muted-foreground">Last updated: February 2025</p>
           </CardHeader>
           <CardContent className="prose prose-invert max-w-none space-y-6">
             <section>
@@ -46,7 +46,34 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">3. User Accounts</h2>
+              <h2 className="text-lg font-semibold text-foreground">3. Platform Role and Disclaimer</h2>
+              <p className="text-muted-foreground">
+                PourHub does not employ, engage, recommend, assign or supply subcontractors to any user.
+              </p>
+              <p className="text-muted-foreground">
+                PourHub operates solely as a technology platform that enables independent users to connect 
+                and enter into their own commercial arrangements.
+              </p>
+              <p className="text-muted-foreground">
+                All agreements for the provision of services are made directly between users.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold text-foreground">4. Subcontractor Directory</h2>
+              <p className="text-muted-foreground">
+                The Subcontractor Directory is a listing service only. Inclusion in the directory does not 
+                constitute an endorsement, recommendation, or guarantee of any subcontractor's qualifications, 
+                insurance, or work quality.
+              </p>
+              <p className="text-muted-foreground">
+                Users engage subcontractors at their own risk and are responsible for conducting their own 
+                due diligence.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-lg font-semibold text-foreground">5. User Accounts</h2>
               <p className="text-muted-foreground">
                 You are responsible for maintaining the confidentiality of your account credentials 
                 and for all activities under your account. Business administrators are responsible 
@@ -55,7 +82,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">4. Subscription & Payment</h2>
+              <h2 className="text-lg font-semibold text-foreground">6. Subscription & Payment</h2>
               <p className="text-muted-foreground">
                 Subscriptions are billed monthly. Prices are in Australian Dollars (AUD) and 
                 include GST where applicable. You may cancel your subscription at any time, 
@@ -64,7 +91,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">5. Acceptable Use</h2>
+              <h2 className="text-lg font-semibold text-foreground">7. Acceptable Use</h2>
               <p className="text-muted-foreground">You agree not to:</p>
               <ul className="list-disc pl-6 text-muted-foreground space-y-1">
                 <li>Use the Service for any unlawful purpose</li>
@@ -76,7 +103,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">6. Data Ownership</h2>
+              <h2 className="text-lg font-semibold text-foreground">8. Data Ownership</h2>
               <p className="text-muted-foreground">
                 You retain ownership of all data you submit to the Service. By using PourHub, 
                 you grant us a licence to process and store your data as necessary to provide 
@@ -85,7 +112,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">7. Limitation of Liability</h2>
+              <h2 className="text-lg font-semibold text-foreground">9. Limitation of Liability</h2>
               <p className="text-muted-foreground">
                 To the maximum extent permitted by Australian Consumer Law, PourHub shall not be 
                 liable for any indirect, incidental, special, or consequential damages. Our total 
@@ -94,7 +121,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">8. Compliance Documents</h2>
+              <h2 className="text-lg font-semibold text-foreground">10. Compliance Documents</h2>
               <p className="text-muted-foreground">
                 PourHub provides templates and tools for ITPs, SWMS, and other compliance documents. 
                 These are provided as guidance only. It is your responsibility to ensure all 
@@ -104,7 +131,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">9. Termination</h2>
+              <h2 className="text-lg font-semibold text-foreground">11. Termination</h2>
               <p className="text-muted-foreground">
                 We may suspend or terminate your access if you breach these Terms. Upon termination, 
                 your right to use the Service ceases immediately. You may request data export 
@@ -113,7 +140,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">10. Governing Law</h2>
+              <h2 className="text-lg font-semibold text-foreground">12. Governing Law</h2>
               <p className="text-muted-foreground">
                 These Terms are governed by the laws of New South Wales, Australia. Any disputes 
                 shall be subject to the exclusive jurisdiction of the courts of New South Wales.
@@ -121,7 +148,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">11. Changes to Terms</h2>
+              <h2 className="text-lg font-semibold text-foreground">13. Changes to Terms</h2>
               <p className="text-muted-foreground">
                 We may update these Terms from time to time. Continued use of the Service after 
                 changes constitutes acceptance of the new Terms.
@@ -129,7 +156,7 @@ export default function TermsConditions() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold text-foreground">12. Contact</h2>
+              <h2 className="text-lg font-semibold text-foreground">14. Contact</h2>
               <p className="text-muted-foreground">
                 For questions about these Terms, contact us at legal@pourhub.com.au
               </p>
