@@ -1,23 +1,16 @@
 
+## Remove Duplicate Name Fields from Subcontractor Signup
 
-## Hide Directory Buttons (Beta Feature)
+### Problem
+Step 1 ("Create Your Account") asks for "Full Name", then Step 3 ("Profile Details") asks for "First Name" and "Last Name" again.
 
-### Overview
-Hide the "Search Directory" / "Find in Directory" buttons from two admin pages while keeping all directory functionality intact (routes, pages, data collection). This way the feature continues to work if accessed directly, but isn't surfaced to users yet.
+### Solution
+Remove the First Name / Last Name fields from Step 3 and auto-populate them from the Full Name entered in Step 1.
 
 ### Changes
 
-**1. `src/components/contacts/SubbiesTab.tsx`**
-- Remove the `extraAction` prop being passed to `ContactList` (the "Search Directory" button)
-- This removes the button from the Sub-Contractors tab on the Contacts page
+**File: `src/pages/subcontractors/SubcontractorSignup.tsx`**
 
-**2. `src/components/jobs/tabs/JobSubbiesTab.tsx`**
-- Remove the "Find in Directory" button from the empty state (line ~92-96)
-- Remove the "Find in Directory" button from the header area (line ~117-121)
-
-### What stays
-- All `/admin/directory` routes remain functional
-- Directory data collection continues working
-- Subcontractor registration and profiles remain active
-- The buttons can be re-added later when the feature is ready to publish
-
+1. When the user moves from Step 2 to Step 3, auto-split the `fullName` into `firstName` and `lastName` (if not already set)
+2. Remove the First Name / Last Name input fields from the Step 3 UI (lines ~427-436)
+3. The profile insert already has the fallback logic (`firstName || fullName.split(" ")[0]`), so no changes needed there
