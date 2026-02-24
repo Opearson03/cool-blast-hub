@@ -1,40 +1,25 @@
 
 
-## Fix: Subcontractor Role Not Being Assigned on Signup
+## Add ABN Lookup to Admin Onboarding
 
-### Root Cause
-The `user_roles` table has Row-Level Security enabled but **no INSERT policy**. When the signup code runs:
-```tsx
-await supabase.from("user_roles").insert({ user_id: data.user.id, role: "subcontractor" });
-```
-RLS silently blocks the insert. The user account is created, but has no `subcontractor` role. When they try to log in, the `is_subcontractor` check returns false, showing "this account does not have subcontractor access".
+### What changes
+Add an ABN verification button next to the existing ABN field in the onboarding wizard (Step 1: Business Details). When the user enters an ABN and clicks "Verify", it calls the `verify-abn` edge function and shows the result (business name, GST status, entity type) or an error. ABN remains optional -- users can skip without verifying.
 
-### Solution
-Create a database function that assigns the subcontractor role using `SECURITY DEFINER` (bypasses RLS safely), and call it from the signup code instead of a direct table insert.
+### File: `src/components/onboarding/OnboardingWizard.tsx`
 
-### Changes
+1. **Import** `useAbnVerification` hook and the `CheckCircle2` / `XCircle` icons (already have `CheckCircle`)
+2. **Add state** for ABN verification result (`abnData`, `abnVerified`)
+3. **Replace** the plain ABN input (lines 322-331) with:
+   - ABN input + "Verify" button side by side
+   - Below: verification result card showing legal name, entity type, GST status (green) or error message (red)
+   - If verified, auto-populate the `businessName` display if desired
+4. **Update `handleSaveBusinessDetails`** to also save the verified legal name if available (the `businesses` table already has a `name` column)
+5. The "Continue" and "Skip" buttons remain unchanged -- ABN verification is optional
 
-**1. Database Migration -- Create a secure role-assignment function**
-```sql
-CREATE OR REPLACE FUNCTION public.assign_subcontractor_role(_user_id uuid)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-BEGIN
-  INSERT INTO public.user_roles (user_id, role)
-  VALUES (_user_id, 'subcontractor')
-  ON CONFLICT (user_id, role) DO NOTHING;
-END;
-$$;
-```
-
-**2. `src/pages/subcontractors/SubcontractorSignup.tsx`**
-Replace the direct `user_roles` insert (lines 109-113) with an RPC call:
-```tsx
-await supabase.rpc("assign_subcontractor_role", { _user_id: data.user.id });
-```
-
-This mirrors the pattern used elsewhere in the app (e.g., `has_role` is already a SECURITY DEFINER function).
-
+### UI Behaviour
+- User types ABN, clicks "Verify"
+- Spinner shows while calling the edge function
+- On success: green card with legal name, entity type, GST status
+- On failure: red message with error
+- User can clear and re-enter a different ABN
+- Skipping or continuing without verifying is allowed
