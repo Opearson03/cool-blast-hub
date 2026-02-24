@@ -3461,6 +3461,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_subcontractor_role: {
+        Args: { _user_id: string }
+        Returns: undefined
+      }
       calculate_queue_position: { Args: { _user_id: string }; Returns: number }
       check_employee_limit: { Args: { _business_id: string }; Returns: Json }
       check_invite_email: { Args: { _email: string }; Returns: boolean }
