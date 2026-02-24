@@ -3611,6 +3611,12 @@ export type Database = {
           years_experience: number
         }[]
       }
+      get_public_unavailable_dates: {
+        Args: { _id: string }
+        Returns: {
+          date: string
+        }[]
+      }
       get_referrer_by_code: { Args: { code: string }; Returns: string }
       get_signup_trends: {
         Args: { days_back?: number }
