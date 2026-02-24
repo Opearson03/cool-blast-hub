@@ -4,8 +4,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { StarRating } from "./StarRating";
-import { AvailabilityCalendar } from "./AvailabilityCalendar";
-import { usePublicUnavailableDates } from "@/hooks/usePublicUnavailableDates";
 import type { DirectoryProfile } from "@/hooks/usePublicDirectory";
 
 function getInitials(first: string, last: string) {
@@ -15,8 +13,6 @@ function getInitials(first: string, last: string) {
 export function DirectoryCard({ profile }: { profile: DirectoryProfile }) {
   const displayName = `${profile.first_name} ${profile.last_name?.[0] ?? ""}.`;
   const isAvailable = profile.availability_status === "available";
-  const showCalendar = profile.show_availability_in_directory;
-  const { data: unavailableDates } = usePublicUnavailableDates(profile.id, showCalendar);
 
   return (
     <Card className="overflow-hidden hover:shadow-md transition-shadow">
@@ -104,11 +100,6 @@ export function DirectoryCard({ profile }: { profile: DirectoryProfile }) {
               </Badge>
             )}
           </div>
-
-          {/* Availability Calendar */}
-          {showCalendar && unavailableDates && (
-            <AvailabilityCalendar unavailableDates={unavailableDates} />
-          )}
 
           <Button asChild className="w-full mt-1" size="sm">
             <Link to={`/admin/directory/${profile.id}`}>View Profile</Link>
