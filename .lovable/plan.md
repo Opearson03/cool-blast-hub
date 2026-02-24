@@ -1,84 +1,53 @@
 
 
-## Improve Directory Location Search with Postcode Radius Filtering
+## Add Platform Disclaimer and Role-Specific Acknowledgements
 
-### Problem
-Currently, searching by postcode does an exact text match. A subcontractor based in 2000 (Sydney CBD) with a 50km radius won't show up if you search for 2010 (Surry Hills, 1km away). The `service_radius_km` field is stored but completely unused.
+### Overview
+Add legal disclaimers to three places: the Terms and Conditions page, the subcontractor signup flow, and the business (user) signup flow. These protect PourHub by clearly establishing it as a technology platform only -- not an employer, recruiter, or labour hire company.
 
-### Solution
-Add a dedicated "Postcode" filter that calculates actual geographic distance between the searcher's postcode and each subcontractor's base postcode, then filters using each subcontractor's `service_radius_km`.
+### 1. Terms and Conditions Page (`src/pages/TermsConditions.tsx`)
 
-### Step 1 -- Australian Postcode Coordinates Table
+Add two new sections after the existing "Service Description" (section 2):
 
-Create a new database table `au_postcode_coords` with columns:
-- `postcode` (text, primary key)
-- `locality` (text) -- suburb/town name
-- `lat` (numeric)
-- `lng` (numeric)
+**Section 3: Platform Role and Disclaimer**
+- PourHub does not employ, engage, recommend, assign or supply subcontractors to any user.
+- PourHub operates solely as a technology platform that enables independent users to connect and enter into their own commercial arrangements.
+- All agreements for the provision of services are made directly between users.
 
-Seed it with Australian postcode coordinate data (~2,800 postcodes). This is static reference data from the Australia Post / ABS dataset.
+**Section 4: Subcontractor Directory**
+- The Subcontractor Directory is a listing service only. Inclusion in the directory does not constitute an endorsement, recommendation, or guarantee of any subcontractor's qualifications, insurance, or work quality.
+- Users engage subcontractors at their own risk and are responsible for conducting their own due diligence.
 
-### Step 2 -- New RPC: `get_directory_profiles_near_postcode`
+All subsequent sections will be renumbered (current sections 3-12 become 5-14). The "Last updated" date will change to February 2025.
 
-Create a server-side function that:
-1. Looks up the lat/lng of the searcher's input postcode
-2. Calculates the Haversine distance between that point and each subcontractor's `base_postcode`
-3. Returns only subcontractors where the distance is within their `service_radius_km`
-4. Falls back to showing all profiles if the postcode isn't found
+### 2. Subcontractor Signup (`src/pages/subcontractors/SubcontractorSignup.tsx`)
 
-```text
-Input:  _postcode text (e.g. "2010")
-Output: Same columns as get_public_directory_profiles + distance_km
-Logic:
-  1. Lookup lat/lng for _postcode from au_postcode_coords
-  2. Lookup lat/lng for each subcontractor's base_postcode
-  3. Calculate Haversine distance
-  4. Filter: distance <= subcontractor's service_radius_km
-  5. Order by distance ASC
-```
+Add a mandatory acknowledgement checkbox on **Step 4** (the final step, before "Complete Profile"):
 
-### Step 3 -- Update Directory Filters
+The checkbox text will read:
 
-Add a dedicated **"Your Postcode"** input field to `DirectoryFilters`:
-- A small text input (4-digit, Australian format)
-- When populated, triggers the radius-based RPC instead of the basic one
-- Shows distance on each card (e.g. "12km away")
-- Clear button to reset back to showing all
+> I acknowledge that I am an independent contractor and not employed, engaged or supplied by PourHub. I am solely responsible for my own insurance, licensing, WHS compliance, tax obligations, and superannuation.
 
-### Step 4 -- Update Directory Page Logic
+- New state variable `independentAcknowledged` (boolean, default false)
+- The "Complete Profile" button will be disabled until this checkbox is ticked
+- The responsibilities will be displayed as a styled list for readability
 
-In `SubcontractorDirectory.tsx`:
-- When a postcode is entered, call the new `get_directory_profiles_near_postcode` RPC
-- When no postcode is entered, use the existing `get_public_directory_profiles` RPC
-- Display distance badge on each card when postcode filtering is active
+### 3. Business Signup (`src/pages/Signup.tsx`)
 
-### Step 5 -- Show Distance on Cards
+Update the existing terms checkbox area to include an additional acknowledgement. Below the existing "I agree to Terms and Privacy Policy" checkbox, add a second mandatory checkbox:
 
-When postcode search is active, display a small badge like "12km away" on each `DirectoryCard` to help the user understand proximity.
+> You acknowledge that any subcontractor contacted via PourHub is independently engaged by you and not supplied by PourHub. You are solely responsible for site safety, induction, supervision, insurance, and WHS obligations.
 
----
+- New state variable `directoryAcknowledged` (boolean, default false)
+- The "Continue to Payment" button will be disabled until both checkboxes are ticked
+- Responsibilities displayed as a compact list
 
 ### Technical Details
 
-**Haversine formula in SQL:**
-```text
--- Calculates distance in km between two lat/lng points
-2 * 6371 * asin(sqrt(
-  sin(radians(lat2 - lat1) / 2) ^ 2 +
-  cos(radians(lat1)) * cos(radians(lat2)) *
-  sin(radians(lng2 - lng1) / 2) ^ 2
-))
-```
+**Files to modify:**
+- `src/pages/TermsConditions.tsx` -- add 2 new sections, renumber existing ones, update date
+- `src/pages/subcontractors/SubcontractorSignup.tsx` -- add acknowledgement checkbox + state on step 4
+- `src/pages/Signup.tsx` -- add second acknowledgement checkbox + state
 
-**Postcode data source:** Australian Bureau of Statistics publishes postcode-to-coordinate mappings. We'll seed the table with ~2,800 rows covering all valid Australian postcodes.
+**No database changes required.** These are purely frontend/legal content additions. The acknowledgements are enforced via disabled submit buttons (same pattern as the existing terms checkbox on the business signup).
 
-**Privacy:** No new personal data is exposed. The searcher's postcode is only used for distance calculation server-side and isn't stored.
-
-**Fallback behaviour:** If a subcontractor hasn't set a `service_radius_km`, default to 50km. If the entered postcode isn't found in the lookup table, show all results with a small info message.
-
-### Files to Create/Modify
-- **New migration**: Create `au_postcode_coords` table + seed data + new RPC
-- **New hook**: `src/hooks/useDirectoryByPostcode.ts`
-- **Edit**: `src/components/directory/DirectoryFilters.tsx` -- add postcode input
-- **Edit**: `src/pages/directory/SubcontractorDirectory.tsx` -- conditional RPC logic
-- **Edit**: `src/components/directory/DirectoryCard.tsx` -- optional distance badge
