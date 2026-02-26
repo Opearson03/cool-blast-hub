@@ -3704,6 +3704,7 @@ export type Database = {
           position: string
         }[]
       }
+      get_total_quoted_value: { Args: never; Returns: number }
       get_user_business_id: { Args: { _user_id: string }; Returns: string }
       get_user_crew_ids: { Args: { _user_id: string }; Returns: string[] }
       get_user_estimate_ids: { Args: { _user_id: string }; Returns: string[] }
