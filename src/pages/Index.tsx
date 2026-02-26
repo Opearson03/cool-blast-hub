@@ -13,6 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { WaitlistForm } from "@/components/waitlist/WaitlistForm";
 import { useWaitlistCount } from "@/hooks/useWaitlistCount";
+import { useTotalQuotedValue } from "@/hooks/useTotalQuotedValue";
+import { formatCurrency } from "@/lib/format-currency";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -20,6 +22,7 @@ const Index = () => {
   const [checking, setChecking] = useState(true);
   const isNative = Capacitor.isNativePlatform();
   const { data: waitlistCount, isLoading: isCountLoading } = useWaitlistCount();
+  const { data: totalQuotedValue, isLoading: isQuoteLoading } = useTotalQuotedValue();
   
   // Get referral code from URL
   const referralCode = searchParams.get('ref') || undefined;
@@ -112,6 +115,20 @@ const Index = () => {
                     ) : (
                       <span className="text-primary font-bold">{waitlistCount}</span>
                     )} concreters on the waiting list
+                  </span>
+                </div>
+              )}
+
+              {/* Total Quoted Value Counter */}
+              {(isQuoteLoading || (totalQuotedValue != null && totalQuotedValue > 0)) && (
+                <div className="flex items-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mb-4">
+                  <Calculator className="w-5 h-5 text-primary" />
+                  <span className="text-primary-foreground font-medium">
+                    {isQuoteLoading ? (
+                      <span className="inline-block w-24 h-5 animate-pulse bg-primary/30 rounded align-middle" />
+                    ) : (
+                      <span className="text-primary font-bold">{formatCurrency(totalQuotedValue ?? 0)}</span>
+                    )} quoted through PourHub
                   </span>
                 </div>
               )}
