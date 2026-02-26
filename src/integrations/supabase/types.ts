@@ -2214,6 +2214,33 @@ export type Database = {
           },
         ]
       }
+      platform_counted_estimates: {
+        Row: {
+          estimate_id: string
+        }
+        Insert: {
+          estimate_id: string
+        }
+        Update: {
+          estimate_id?: string
+        }
+        Relationships: []
+      }
+      platform_counters: {
+        Row: {
+          id: string
+          total_quoted_value: number
+        }
+        Insert: {
+          id?: string
+          total_quoted_value?: number
+        }
+        Update: {
+          id?: string
+          total_quoted_value?: number
+        }
+        Relationships: []
+      }
       pour_employees: {
         Row: {
           created_at: string
