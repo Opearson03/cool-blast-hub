@@ -14,6 +14,146 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliate_commissions: {
+        Row: {
+          affiliate_id: string
+          amount_cents: number
+          created_at: string
+          id: string
+          month_number: number
+          paid_at: string | null
+          referral_id: string
+          status: string
+        }
+        Insert: {
+          affiliate_id: string
+          amount_cents: number
+          created_at?: string
+          id?: string
+          month_number: number
+          paid_at?: string | null
+          referral_id: string
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          month_number?: number
+          paid_at?: string | null
+          referral_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_commissions_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "affiliate_commissions_referral_id_fkey"
+            columns: ["referral_id"]
+            isOneToOne: false
+            referencedRelation: "affiliate_referrals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliate_referrals: {
+        Row: {
+          affiliate_id: string
+          commission_rate: number
+          created_at: string
+          customer_email: string
+          id: string
+          monthly_amount: number
+          months_remaining: number
+          status: string
+          stripe_subscription_id: string | null
+          subscription_tier: string | null
+          updated_at: string
+        }
+        Insert: {
+          affiliate_id: string
+          commission_rate?: number
+          created_at?: string
+          customer_email: string
+          id?: string
+          monthly_amount?: number
+          months_remaining?: number
+          status?: string
+          stripe_subscription_id?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+        }
+        Update: {
+          affiliate_id?: string
+          commission_rate?: number
+          created_at?: string
+          customer_email?: string
+          id?: string
+          monthly_amount?: number
+          months_remaining?: number
+          status?: string
+          stripe_subscription_id?: string | null
+          subscription_tier?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliate_referrals_affiliate_id_fkey"
+            columns: ["affiliate_id"]
+            isOneToOne: false
+            referencedRelation: "affiliates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      affiliates: {
+        Row: {
+          affiliate_code: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          instagram_handle: string | null
+          payout_details: Json | null
+          payout_method: string | null
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          affiliate_code: string
+          created_at?: string
+          email: string
+          full_name: string
+          id?: string
+          instagram_handle?: string | null
+          payout_details?: Json | null
+          payout_method?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          affiliate_code?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          instagram_handle?: string | null
+          payout_details?: Json | null
+          payout_method?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       au_postcode_coords: {
         Row: {
           lat: number
@@ -3547,6 +3687,21 @@ export type Database = {
         Args: { business_name: string }
         Returns: string
       }
+      get_all_affiliates: {
+        Args: never
+        Returns: {
+          affiliate_code: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          instagram_handle: string
+          payout_method: string
+          referral_count: number
+          status: string
+          total_earned: number
+        }[]
+      }
       get_all_subcontractor_profiles: {
         Args: never
         Returns: {
@@ -3783,6 +3938,10 @@ export type Database = {
           _phone?: string
           _referred_by?: string
         }
+        Returns: Json
+      }
+      register_affiliate: {
+        Args: { _email: string; _full_name: string; _instagram_handle?: string }
         Returns: Json
       }
       update_waitlist_outreach: {
