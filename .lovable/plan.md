@@ -1,58 +1,47 @@
 
 
-## Live "Total Value Quoted" Counter on Landing Page
+## Update Counter to Include All Non-Draft Estimates
 
-### What it does
-Displays a live-updating dollar figure on the landing page showing the total value of all quotes finalized through PourHub. This number grows as businesses send and accept quotes, creating social proof and showing platform traction.
+### Changes
 
-### How it works
+**1. Update the trigger function** (`increment_platform_quoted_value`)
+- Change the qualifying condition from `status IN ('sent', 'accepted') OR signed_at IS NOT NULL` to `status != 'draft'`
+- This means any estimate that moves out of draft (to pending, sent, accepted, or any future status) gets counted
 
-**1. New database function** (`get_total_quoted_value`)
-- A secure server-side function that sums `total_amount` from the `estimates` table
-- Only counts estimates with status `sent`, `accepted`, or that have been signed (`signed_at IS NOT NULL`)
-- Returns a single number (the aggregate total, ex-GST)
-- Accessible publicly (no auth required) since it only returns a single aggregate number -- no business or client data is exposed
-
-**2. New React hook** (`useTotalQuotedValue`)
-- Mirrors the existing `useWaitlistCount` pattern
-- Calls the new RPC function
-- Caches for 5 minutes, refreshes in the background
-- Returns the formatted total
-
-**3. Landing page update** (`src/pages/Index.tsx`)
-- Adds a second counter badge below the existing waitlist counter in the hero section
-- Displays something like: **"$1,250,000+ quoted through PourHub"**
-- Uses `formatCurrency` for consistent AUD formatting
-- Shows a loading skeleton while fetching (same pattern as waitlist counter)
-
-### Where it appears
-In the hero section, below the existing "X concreters on the waiting list" badge -- creating a pair of social proof indicators:
-- "42 concreters on the waiting list"
-- "$1,250,000+ quoted through PourHub"
+**2. Resync the counter**
+- Recalculate `platform_counters.total_quoted_value` from all non-draft estimates with `total_amount > 0`
+- Rebuild `platform_counted_estimates` to track all non-draft estimates
+- New total will be approximately **$300,676.11**
 
 ### Technical Details
 
-**Database migration:**
+Single database migration that:
+
 ```sql
-CREATE OR REPLACE FUNCTION public.get_total_quoted_value()
-RETURNS numeric
-LANGUAGE sql
-SECURITY DEFINER
-STABLE
-AS $$
+-- 1. Update trigger to count all non-draft estimates
+CREATE OR REPLACE FUNCTION public.increment_platform_quoted_value()
+RETURNS trigger LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
+BEGIN
+  IF NEW.status != 'draft' AND COALESCE(NEW.total_amount, 0) > 0 THEN
+    IF NOT EXISTS (SELECT 1 FROM platform_counted_estimates WHERE estimate_id = NEW.id) THEN
+      INSERT INTO platform_counted_estimates (estimate_id) VALUES (NEW.id);
+      UPDATE platform_counters
+        SET total_quoted_value = total_quoted_value + NEW.total_amount
+        WHERE id = 'singleton';
+    END IF;
+  END IF;
+  RETURN NEW;
+END; $$;
+
+-- 2. Resync: clear and rebuild from current data
+TRUNCATE platform_counted_estimates;
+INSERT INTO platform_counted_estimates (estimate_id)
+  SELECT id FROM estimates WHERE status != 'draft' AND COALESCE(total_amount, 0) > 0;
+
+UPDATE platform_counters SET total_quoted_value = (
   SELECT COALESCE(SUM(total_amount), 0)
-  FROM public.estimates
-  WHERE status IN ('sent', 'accepted')
-     OR signed_at IS NOT NULL;
-$$;
+  FROM estimates WHERE status != 'draft' AND COALESCE(total_amount, 0) > 0
+) WHERE id = 'singleton';
 ```
 
-`SECURITY DEFINER` ensures the function runs with elevated permissions (bypasses RLS) but only returns a single aggregate number -- no row-level data is leaked.
-
-**Files to create:**
-- `src/hooks/useTotalQuotedValue.ts` -- new hook (mirrors `useWaitlistCount`)
-
-**Files to modify:**
-- `src/pages/Index.tsx` -- add the counter badge in the hero section
-- Database migration for the new RPC function
-
+No frontend changes needed -- the hook and landing page already display whatever the counter holds.
