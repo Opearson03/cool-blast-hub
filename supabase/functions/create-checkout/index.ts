@@ -19,6 +19,9 @@ const PRICE_IDS = {
   legacy: "price_1Sn7u2S7UIjxyz7VMeUH1Kct",     // $100/month (legacy)
 };
 
+// Affiliate discount coupon (50% off for 2 months)
+const AFFILIATE_COUPON_ID = "QD21rPWf";
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -32,8 +35,8 @@ serve(async (req) => {
     logStep("Stripe key verified");
 
     const body = await req.json();
-    const { email, fullName, businessName, upgrade, tier = "pro" } = body;
-    logStep("Request data received", { email, businessName, upgrade, tier });
+    const { email, fullName, businessName, upgrade, tier = "pro", affiliateCode } = body;
+    logStep("Request data received", { email, businessName, upgrade, tier, affiliateCode });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -113,8 +116,32 @@ serve(async (req) => {
     
     logStep("Creating checkout for new signup", { tier: signupTier, priceId });
 
-    // Create checkout session with 30-day free trial
-    const session = await stripe.checkout.sessions.create({
+    // Validate affiliate code if provided
+    let validAffiliateCode: string | null = null;
+    if (affiliateCode) {
+      const supabaseClient = createClient(
+        Deno.env.get("SUPABASE_URL") ?? "",
+        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
+        { auth: { persistSession: false } }
+      );
+      
+      const { data: affiliate } = await supabaseClient
+        .from("affiliates")
+        .select("id, affiliate_code, status")
+        .eq("affiliate_code", affiliateCode)
+        .eq("status", "approved")
+        .single();
+      
+      if (affiliate) {
+        validAffiliateCode = affiliate.affiliate_code;
+        logStep("Valid affiliate code found", { affiliateCode: validAffiliateCode });
+      } else {
+        logStep("Invalid or unapproved affiliate code, ignoring", { affiliateCode });
+      }
+    }
+
+    // Build checkout session options
+    const sessionParams: any = {
       customer: customerId,
       customer_email: customerId ? undefined : email,
       line_items: [
@@ -133,16 +160,30 @@ serve(async (req) => {
           full_name: fullName,
           business_name: businessName,
           tier: signupTier,
+          ...(validAffiliateCode ? { affiliate_code: validAffiliateCode } : {}),
         },
       },
       metadata: {
         full_name: fullName,
         business_name: businessName,
         tier: signupTier,
+        ...(validAffiliateCode ? { affiliate_code: validAffiliateCode } : {}),
       },
-    });
+    };
 
-    logStep("Checkout session created", { sessionId: session.id, url: session.url, tier: signupTier });
+    // Apply affiliate coupon if valid code
+    if (validAffiliateCode) {
+      sessionParams.discounts = [{ coupon: AFFILIATE_COUPON_ID }];
+      // Can't use discounts with trial, so remove trial for affiliate signups
+      // Instead give them 50% off first 2 months - better value proposition
+      delete sessionParams.subscription_data.trial_period_days;
+      logStep("Affiliate coupon applied, trial removed in favor of 50% discount");
+    }
+
+    // Create checkout session
+    const session = await stripe.checkout.sessions.create(sessionParams);
+
+    logStep("Checkout session created", { sessionId: session.id, url: session.url, tier: signupTier, affiliate: validAffiliateCode });
 
     return new Response(JSON.stringify({ url: session.url, sessionId: session.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

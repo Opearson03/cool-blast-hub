@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck, Truck, Mail, HardHat } from "lucide-react";
+import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck, Truck, Mail, HardHat, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "@/components/ui/Logo";
 import { WaitlistTable } from "@/components/staff/WaitlistTable";
@@ -17,6 +17,7 @@ import { SupplierRegistrationsTable } from "@/components/staff/SupplierRegistrat
 import { ChurnMetrics } from "@/components/staff/ChurnMetrics";
 import { CrmTab } from "@/components/staff/crm/CrmTab";
 import { SubcontractorAdminTable } from "@/components/subcontractors/SubcontractorAdminTable";
+import { AffiliatesTab } from "@/components/staff/AffiliatesTab";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -267,6 +268,10 @@ export default function StaffDashboard() {
               <HardHat className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Subcontractors</span>
             </TabsTrigger>
+            <TabsTrigger value="affiliates">
+              <Megaphone className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Affiliates</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -300,6 +305,10 @@ export default function StaffDashboard() {
 
           <TabsContent value="subcontractors">
             <SubcontractorAdminTable />
+          </TabsContent>
+
+          <TabsContent value="affiliates">
+            <AffiliatesTab />
           </TabsContent>
         </Tabs>
       </main>

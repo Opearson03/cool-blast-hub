@@ -224,6 +224,60 @@ serve(async (req) => {
         if (updateError) {
           logStep("Error updating subscription after payment", { error: updateError.message });
         }
+
+        // Generate affiliate commission if applicable
+        const { data: referral } = await supabaseClient
+          .from("affiliate_referrals")
+          .select("id, affiliate_id, monthly_amount, commission_rate, months_remaining")
+          .eq("stripe_subscription_id", subscriptionId)
+          .eq("status", "active")
+          .gt("months_remaining", 0)
+          .single();
+
+        if (referral) {
+          const invoiceAmount = invoice.amount_paid || 0; // in cents
+          const commissionAmount = Math.round(invoiceAmount * Number(referral.commission_rate));
+          const monthNumber = 11 - referral.months_remaining; // 1-10
+
+          logStep("Generating affiliate commission", {
+            referralId: referral.id,
+            invoiceAmount,
+            commissionAmount,
+            monthNumber,
+          });
+
+          // Insert commission
+          const { error: commError } = await supabaseClient
+            .from("affiliate_commissions")
+            .insert({
+              referral_id: referral.id,
+              affiliate_id: referral.affiliate_id,
+              amount_cents: commissionAmount,
+              month_number: monthNumber,
+              status: "pending",
+            });
+
+          if (commError) {
+            logStep("Error creating commission", { error: commError.message });
+          }
+
+          // Decrement months remaining
+          const newMonths = referral.months_remaining - 1;
+          const { error: decError } = await supabaseClient
+            .from("affiliate_referrals")
+            .update({
+              months_remaining: newMonths,
+              status: newMonths <= 0 ? "completed" : "active",
+            })
+            .eq("id", referral.id);
+
+          if (decError) {
+            logStep("Error updating referral months", { error: decError.message });
+          } else {
+            logStep("Affiliate referral updated", { monthsRemaining: newMonths });
+          }
+        }
+
         break;
       }
 
@@ -248,6 +302,53 @@ serve(async (req) => {
             logStep("Waitlist entry marked as converted", { email: customerEmail });
           }
         }
+
+        // Handle affiliate referral tracking
+        const affiliateCode = (session.metadata as any)?.affiliate_code;
+        if (affiliateCode && session.subscription) {
+          logStep("Affiliate code found in checkout metadata", { affiliateCode, subscriptionId: session.subscription });
+          
+          // Find the affiliate
+          const { data: affiliate, error: affError } = await supabaseClient
+            .from("affiliates")
+            .select("id")
+            .eq("affiliate_code", affiliateCode)
+            .eq("status", "approved")
+            .single();
+          
+          if (affiliate && !affError) {
+            // Get subscription details for amount
+            const subscription = await stripe.subscriptions.retrieve(session.subscription as string);
+            const monthlyAmount = subscription.items.data[0]?.price?.unit_amount || 0;
+            const productId = subscription.items.data[0]?.price?.product as string;
+            const subTier = getTierFromProductId(productId);
+
+            // Create referral record
+            const { data: referral, error: refError } = await supabaseClient
+              .from("affiliate_referrals")
+              .insert({
+                affiliate_id: affiliate.id,
+                customer_email: customerEmail || "",
+                stripe_subscription_id: session.subscription as string,
+                subscription_tier: subTier,
+                monthly_amount: monthlyAmount,
+                commission_rate: 0.10,
+                months_remaining: 10,
+                status: "active",
+              })
+              .select("id")
+              .single();
+
+            if (refError) {
+              logStep("Error creating affiliate referral", { error: refError.message });
+            } else {
+              logStep("Affiliate referral created", { referralId: referral?.id, affiliateId: affiliate.id });
+            }
+          } else {
+            logStep("Affiliate not found or not approved for code", { affiliateCode });
+          }
+        }
+
         break;
       }
 

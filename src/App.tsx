@@ -49,6 +49,8 @@ import ArticlePage from "./pages/ArticlePage";
 import SubcontractorDirectory from "./pages/directory/SubcontractorDirectory";
 import SubcontractorProfilePage from "./pages/directory/SubcontractorProfilePage";
 import NotFound from "./pages/NotFound";
+import AffiliateRegistration from "./pages/AffiliateRegistration";
+import AffiliateDashboard from "./pages/AffiliateDashboard";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
@@ -135,6 +137,10 @@ const AppContent = () => {
       <Route path="/sign/variation/:token" element={<SignVariation />} />
       <Route path="/i/:token" element={<RespondInvite />} />
       
+      {/* Affiliate Routes */}
+      <Route path="/affiliates" element={<AffiliateRegistration />} />
+      <Route path="/affiliates/dashboard" element={<AffiliateDashboard />} />
+
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>
