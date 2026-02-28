@@ -17,6 +17,7 @@ const tierConfig = SUBSCRIPTION_TIERS.standard;
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
+  const affiliateCode = searchParams.get("aff") || "";
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -59,6 +60,7 @@ export default function Signup() {
           email,
           fullName,
           businessName,
+          affiliateCode: affiliateCode || undefined,
         },
       });
 
