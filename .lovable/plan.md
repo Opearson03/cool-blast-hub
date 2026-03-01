@@ -1,44 +1,22 @@
 
 
-## Visual Polish for the Landing Page
+## Fix "Get Started" to Use the $240/mo Pro Plan
 
-### Summary
-Refine the existing landing page layout with improved spacing, subtle visual enhancements, shadows, and typography tweaks -- keeping the same structure and content intact.
+### Problem
+The "Get Started" buttons link to `/signup` without specifying a tier, and the Signup page defaults to the legacy `standard` tier ($100/mo) instead of the current Pro tier ($240/mo).
 
-### Changes (all in `src/pages/Index.tsx`)
+### Changes
 
-**1. Hero Section**
-- Add a sticky top navigation bar with the Logo, "Pricing" link, and "Sign In" link for a more professional feel (moves "Already have an account?" out of the hero body)
-- Increase the hero heading font weight tracking and add a subtle text-shadow for depth
-- Give the CTA card a stronger glass-morphism effect: increased backdrop blur, a subtle primary-tinted border glow, and a slight shadow-xl lift
-- Add a small "Trusted by Australian concreters" tagline or badge near the quoted value counter
+**1. `src/pages/Index.tsx` -- Add `tier=pro` to signup links**
+- Update both "Get Started" and "Get Started Today" links to include `?tier=pro` (preserving existing affiliate code logic)
 
-**2. Feature Cards Grid**
-- Add `shadow-md hover:shadow-lg` transitions to each card for lift on hover
-- Add a subtle top-border accent (`border-t-2 border-primary`) to each card for visual pop
-- Increase padding slightly and add a `group` class for icon colour animation on hover
+**2. `src/pages/Signup.tsx` -- Read tier from URL, default to `pro`**
+- Read the `tier` query parameter from the URL
+- Use it to select the correct tier config from `SUBSCRIPTION_TIERS` (defaulting to `pro` if not specified)
+- Pass the selected tier to the `create-checkout` edge function call
+- The plan summary card on the left will automatically show the correct name, price, and features
 
-**3. App Showcase Section**
-- Make the screenshots taller on desktop (`lg:h-96` instead of `lg:h-80`) for more visual impact
-- Add a subtle `ring-1 ring-primary/20` around images for cohesion with the orange theme
-- Slightly increase gap between text and image columns
-
-**4. CTA Banner**
-- Add a subtle gradient (`bg-gradient-to-r from-primary to-orange-dark`) instead of flat `bg-primary`
-- Increase vertical padding for more breathing room
-
-**5. Footer**
-- Add a thin `border-t border-border/30` separator above footer
-- Slightly increase footer padding
-
-**6. Global Enhancements**
-- Add smooth scroll behaviour via `scroll-smooth` on the page wrapper
-- Ensure consistent `transition-all duration-300` on all interactive hover states
-
-### Technical Details
-
-- All changes are in `src/pages/Index.tsx` and `src/index.css` (if needed for a utility)
-- No new dependencies or components required
-- Existing `FeatureCard` component updated in-place with enhanced styling
-- Navigation bar added as inline JSX at the top of the page (no new component file needed)
+### Technical Detail
+- Line 15 of Signup.tsx changes from `const tierConfig = SUBSCRIPTION_TIERS.standard` to reading from the URL param with a `pro` default
+- The `create-checkout` function already accepts a `tier` parameter and maps it to the correct Stripe price ID, so no backend changes needed
 
