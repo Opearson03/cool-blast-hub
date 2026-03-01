@@ -2,7 +2,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, ArrowRight, Loader2, FileText, Calculator, MessageSquare, Users } from "lucide-react";
+import { Calendar, CheckCircle, ArrowRight, Loader2, FileText, Calculator, MessageSquare } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import heroPourBackground from "@/assets/hero-pour-background.png";
 import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
@@ -11,8 +11,6 @@ import scheduleScreenshot from "@/assets/schedule-screenshot.png";
 import { Logo } from "@/components/ui/Logo";
 import { supabase } from "@/integrations/supabase/client";
 import { SEOHead } from "@/components/seo/SEOHead";
-import { WaitlistForm } from "@/components/waitlist/WaitlistForm";
-import { useWaitlistCount } from "@/hooks/useWaitlistCount";
 import { useTotalQuotedValue } from "@/hooks/useTotalQuotedValue";
 import { formatCurrency } from "@/lib/format-currency";
 
@@ -21,11 +19,8 @@ const Index = () => {
   const [searchParams] = useSearchParams();
   const [checking, setChecking] = useState(true);
   const isNative = Capacitor.isNativePlatform();
-  const { data: waitlistCount, isLoading: isCountLoading } = useWaitlistCount();
   const { data: totalQuotedValue, isLoading: isQuoteLoading } = useTotalQuotedValue();
-  
-  // Get referral code from URL
-  const referralCode = searchParams.get('ref') || undefined;
+  const affCode = searchParams.get('aff') || searchParams.get('ref') || '';
 
   useEffect(() => {
     const checkPlatformAndAuth = async () => {
@@ -72,7 +67,7 @@ const Index = () => {
     <>
       <SEOHead
         title="PourHub - Concreting Business Management Software | Australia"
-        description="PourHub is the all-in-one management platform for Australian concreting businesses. Manage jobs, estimates, schedules, and concrete test results."
+        description="PourHub is the all-in-one management platform for Australian concreting businesses. Manage jobs, estimates, schedules, and concrete test results. Start your free trial today."
         canonicalPath="/"
         keywords="concreting software, concrete business management, job scheduling, estimates, Australian concreting"
       />
@@ -105,20 +100,6 @@ const Index = () => {
                 Jobs, estimates, schedules, and test results — all in one place. Built for Aussie concreters who want to work smarter.
               </p>
               
-              {/* Waitlist Counter */}
-              {(isCountLoading || (waitlistCount != null && waitlistCount > 0)) && (
-                <div className="flex items-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mb-4">
-                  <Users className="w-5 h-5 text-primary" />
-                  <span className="text-primary-foreground font-medium">
-                    {isCountLoading ? (
-                      <span className="inline-block w-8 h-5 animate-pulse bg-primary/30 rounded align-middle" />
-                    ) : (
-                      <span className="text-primary font-bold">{waitlistCount}</span>
-                    )} concreters on the waiting list
-                  </span>
-                </div>
-              )}
-
               {/* Total Quoted Value Counter */}
               {(isQuoteLoading || (totalQuotedValue != null && totalQuotedValue > 0)) && (
                 <div className="flex items-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mb-4">
@@ -135,36 +116,31 @@ const Index = () => {
               
               <Link to="/auth">
                 <Button size="sm" variant="ghost" className="text-primary-foreground/70 hover:text-primary-foreground hover:bg-primary-foreground/10">
-                  Already have access? Sign In
+                  Already have an account? Sign In
                 </Button>
               </Link>
             </div>
             
-            {/* Right side - Waitlist Form */}
-            <div className="bg-charcoal/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 lg:p-8">
-              <h3 className="text-2xl font-bold text-primary-foreground mb-2">Join the Waiting List</h3>
-              <p className="text-muted-foreground mb-4">
-                We're launching soon. Get early access when we go live.
+            {/* Right side - CTA */}
+            <div className="bg-charcoal/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 lg:p-8 flex flex-col items-center justify-center text-center">
+              <h3 className="text-2xl font-bold text-primary-foreground mb-2">Start Managing Jobs Today</h3>
+              <p className="text-muted-foreground mb-6">
+                Sign up in under 2 minutes. No credit card required for your free trial.
               </p>
               
-              {/* Show different banner based on referral */}
-              {referralCode ? (
-                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-3 mb-6">
-                  <p className="text-green-400 font-semibold text-sm">🎉 You've been referred!</p>
-                  <p className="text-primary-foreground/80 text-sm">
-                    You'll get your <span className="text-green-400 font-bold">first month FREE</span> when you join.
-                  </p>
-                </div>
-              ) : (
-                <div className="bg-primary/10 border border-primary/30 rounded-lg p-3 mb-6">
-                  <p className="text-primary font-semibold text-sm">🎉 Early Bird Offer</p>
-                  <p className="text-primary-foreground/80 text-sm">
-                    Refer a mate and you <span className="text-primary font-bold">BOTH get your first month FREE!</span>
-                  </p>
-                </div>
-              )}
-              
-              <WaitlistForm referralCode={referralCode} />
+              <div className="flex flex-col sm:flex-row gap-3 w-full">
+                <Link to={affCode ? `/signup?aff=${affCode}` : '/signup'} className="flex-1">
+                  <Button size="lg" className="w-full text-lg px-8 py-6 touch-target">
+                    Get Started Free
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
+                <Link to="/pricing" className="flex-1">
+                  <Button size="lg" variant="outline" className="w-full text-lg px-8 py-6 touch-target">
+                    View Pricing
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
@@ -360,20 +336,14 @@ const Index = () => {
             Ready to Get Organised?
           </h3>
           <p className="text-primary-foreground/90 mb-8 max-w-xl mx-auto">
-            {isCountLoading ? (
-              <>Join <span className="inline-block w-8 h-5 animate-pulse bg-primary-foreground/30 rounded align-middle" /> other concreters on the waiting list. Be first in line when we launch.</>
-            ) : waitlistCount != null && waitlistCount > 0 ? (
-              <>Join {waitlistCount} other concreters on the waiting list. Be first in line when we launch.</>
-            ) : (
-              <>Join the waiting list. Be first in line when we launch.</>
-            )}
+            Join hundreds of concreters already using PourHub to run their business smarter.
           </p>
-          <a href="#top">
+          <Link to={affCode ? `/signup?aff=${affCode}` : '/signup'}>
             <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">
-              Join the Waiting List
+              Start Your Free Trial
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
-          </a>
+          </Link>
         </div>
       </div>
 
