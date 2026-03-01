@@ -353,12 +353,19 @@ const Index = () => {
           <div className="flex items-center justify-center gap-3 mb-4">
             <HardHat className="w-8 h-8 text-primary" />
             <h2 className="text-3xl sm:text-4xl font-bold text-center tracking-tight">
-              Are You a <span className="text-primary">Tradie</span>?
+              Are You a <span className="text-primary">Subbie</span>?
             </h2>
           </div>
-          <p className="text-muted-foreground text-center mb-14 max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-center mb-4 max-w-2xl mx-auto">
             Join the free directory and get found by local concreting businesses looking for reliable subbies.
           </p>
+          <div className="flex flex-wrap justify-center gap-2 mb-14">
+            {["Concreter", "Steel Fixer", "Formworker", "Concrete Finisher", "Pump Operator", "Concrete Cutter", "Labourer"].map((trade) => (
+              <span key={trade} className="inline-flex items-center rounded-full border border-border bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground">
+                {trade}
+              </span>
+            ))}
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
             <div className="group bg-card border border-border border-t-2 border-t-primary rounded-lg p-7 shadow-md hover:shadow-lg hover:border-primary/50 transition-all duration-300">
