@@ -55,9 +55,10 @@ export default function Auth() {
 
   const redirectBasedOnRole = async (userId: string) => {
     try {
-      const [{ data: isAdmin }, { data: isStaff }] = await Promise.all([
+      const [{ data: isAdmin }, { data: isStaff }, { data: isSub }] = await Promise.all([
         supabase.rpc("has_role", { _role: "admin", _user_id: userId }),
         supabase.rpc("has_role", { _role: "staff", _user_id: userId }),
+        supabase.rpc("is_subcontractor", { _user_id: userId }),
       ]);
 
       if (isAdmin) {
@@ -70,12 +71,18 @@ export default function Auth() {
         return;
       }
 
+      if (isSub) {
+        navigate("/sub-contractors/dashboard");
+        return;
+      }
+
       // If no role yet, try to accept any pending invite for this user's email, then re-check
       const { error: acceptErr } = await supabase.functions.invoke("accept-invite", { body: {} });
       if (!acceptErr) {
-        const [{ data: isAdmin2 }, { data: isStaff2 }] = await Promise.all([
+        const [{ data: isAdmin2 }, { data: isStaff2 }, { data: isSub2 }] = await Promise.all([
           supabase.rpc("has_role", { _role: "admin", _user_id: userId }),
           supabase.rpc("has_role", { _role: "staff", _user_id: userId }),
+          supabase.rpc("is_subcontractor", { _user_id: userId }),
         ]);
 
         if (isAdmin2) {
@@ -84,6 +91,10 @@ export default function Auth() {
         }
         if (isStaff2) {
           navigate("/employee");
+          return;
+        }
+        if (isSub2) {
+          navigate("/sub-contractors/dashboard");
           return;
         }
       }

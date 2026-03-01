@@ -2,7 +2,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
-import { Calendar, CheckCircle, ArrowRight, Loader2, FileText, Calculator, MessageSquare } from "lucide-react";
+import { Calendar, CheckCircle, ArrowRight, Loader2, FileText, Calculator, MessageSquare, HardHat, Search, Bell, CalendarDays, LayoutDashboard } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import heroPourBackground from "@/assets/hero-pour-background.png";
 import jobDetailsScreenshot from "@/assets/job-details-screenshot.png";
@@ -343,6 +343,74 @@ const Index = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* For Tradies / Subcontractor Section */}
+      <div className="bg-background py-24 px-4">
+        <div className="max-w-6xl mx-auto">
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <HardHat className="w-8 h-8 text-primary" />
+            <h2 className="text-3xl sm:text-4xl font-bold text-center tracking-tight">
+              Are You a <span className="text-primary">Tradie</span>?
+            </h2>
+          </div>
+          <p className="text-muted-foreground text-center mb-14 max-w-2xl mx-auto">
+            Join the free directory and get found by local concreting businesses looking for reliable subbies.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <div className="group bg-card border border-border border-t-2 border-t-primary rounded-lg p-7 shadow-md hover:shadow-lg hover:border-primary/50 transition-all duration-300">
+              <div className="text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
+                <Search className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Free Directory Listing</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Get listed and visible to local concreting businesses actively looking for subbies in your area.</p>
+            </div>
+            <div className="group bg-card border border-border border-t-2 border-t-primary rounded-lg p-7 shadow-md hover:shadow-lg hover:border-primary/50 transition-all duration-300">
+              <div className="text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
+                <CheckCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">ABN-Verified Profile</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Build trust and credibility with a verified profile that shows businesses you're legit.</p>
+            </div>
+            <div className="group bg-card border border-border border-t-2 border-t-primary rounded-lg p-7 shadow-md hover:shadow-lg hover:border-primary/50 transition-all duration-300">
+              <div className="text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
+                <Bell className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Job Invitations</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Receive job invitations directly from businesses in your area — no chasing work.</p>
+            </div>
+            <div className="group bg-card border border-border border-t-2 border-t-primary rounded-lg p-7 shadow-md hover:shadow-lg hover:border-primary/50 transition-all duration-300">
+              <div className="text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
+                <CalendarDays className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Availability Calendar</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Set your availability so businesses know when you're free and can book you in.</p>
+            </div>
+            <div className="group bg-card border border-border border-t-2 border-t-primary rounded-lg p-7 shadow-md hover:shadow-lg hover:border-primary/50 transition-all duration-300">
+              <div className="text-primary mb-4 group-hover:scale-110 transition-transform duration-300">
+                <LayoutDashboard className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Work Dashboard</h3>
+              <p className="text-muted-foreground text-sm leading-relaxed">Track invited jobs, manage your schedule, and stay on top of upcoming work.</p>
+            </div>
+            <div className="flex items-center justify-center">
+              <div className="text-center p-7">
+                <p className="text-2xl font-bold text-primary mb-2">100% Free</p>
+                <p className="text-muted-foreground text-sm">No credit card required.<br />No hidden fees. Ever.</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="text-center">
+            <Link to="/sub-contractors/signup">
+              <Button size="lg" className="text-lg px-10 py-6 touch-target transition-all duration-300 hover:scale-[1.02]">
+                Sign Up Free
+                <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
           </div>
         </div>
       </div>
