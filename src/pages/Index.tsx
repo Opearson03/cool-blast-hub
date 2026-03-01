@@ -145,7 +145,7 @@ const Index = () => {
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 w-full">
-                <Link to={affCode ? `/signup?aff=${affCode}` : '/signup'} className="flex-1">
+                <Link to={affCode ? `/signup?tier=pro&aff=${affCode}` : '/signup?tier=pro'} className="flex-1">
                   <Button size="lg" className="w-full text-lg px-8 py-6 touch-target transition-all duration-300 hover:scale-[1.02]">
                     Get Started
                     <ArrowRight className="ml-2 w-5 h-5" />
@@ -356,7 +356,7 @@ const Index = () => {
           <p className="text-primary-foreground/90 mb-8 max-w-xl mx-auto">
             Join hundreds of concreters already using PourHub to run their business smarter.
           </p>
-          <Link to={affCode ? `/signup?aff=${affCode}` : '/signup'}>
+          <Link to={affCode ? `/signup?tier=pro&aff=${affCode}` : '/signup?tier=pro'}>
             <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target transition-all duration-300 hover:scale-[1.02]">
               Get Started Today
               <ArrowRight className="ml-2 w-5 h-5" />
