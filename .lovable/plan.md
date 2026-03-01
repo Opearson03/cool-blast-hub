@@ -1,35 +1,27 @@
 
 
-## Update Subscription Breakdown Widget for Current Pricing
+## Delete Test Account: oliver@wattledigital.com
 
-### Problem
-The staff portal's "Subscription Breakdown" widget hardcodes the old "$100 per month" plan label and uses creation date (30-day threshold) to distinguish paid vs trial. It needs to reflect the current two-tier model: Estimating ($99/mo) and Pro ($240/mo), and use the actual `plan_tier` and `status` columns from `business_subscriptions`.
+### What Will Be Deleted
+- **User**: Oliver Pearson (oliver@wattledigital.com)
+- **User ID**: `40804101-be90-4cf4-b300-340b31c7830a`
+- **Business**: Wattle Infrastructure (`294ca231-1d8c-458f-a48f-93d827fdb8a3`)
+- **Subscription**: `1050924a-dde2-4d7c-abeb-f5307635b465` (estimating tier)
+- **User role**: 1 role entry
+- **No estimates or other users** are tied to this business, so it's safe to fully remove.
 
-### Current Data
-The `business_subscriptions` table already stores `plan_tier` (values: `estimating`, `pro`, `standard`) and `status` (values: `active`, `trialing`, `canceled`, etc.). The DB currently has 1 estimating and 5 pro active subscriptions.
+### Approach
+Create a temporary backend function that:
+1. Deletes `business_subscriptions` for the business
+2. Deletes `user_roles` for the user
+3. Deletes `profiles` for the user
+4. Deletes `businesses` record
+5. Deletes the auth user account
+6. Returns confirmation
 
-### Changes
+After confirming deletion, the temporary function will be removed from the codebase.
 
-**1. Update `get_subscription_stats` database function (migration)**
-Replace the hardcoded `paid_100_plan` / `trial_100_plan` fields with tier-specific counts:
-- `estimating_paid` -- plan_tier = 'estimating' AND status = 'active'
-- `estimating_trial` -- plan_tier = 'estimating' AND status = 'trialing'
-- `pro_paid` -- plan_tier = 'pro' AND status = 'active'
-- `pro_trial` -- plan_tier = 'pro' AND status = 'trialing'
-- `legacy_paid` -- plan_tier = 'standard' AND status IN ('active', 'trialing')
-- Keep existing fields: `total_businesses`, `total_users`, `demo_accounts`, `waiting_list_count`, `recent_signups_*`, `active_today`
-
-**2. Update `SubscriptionMetrics.tsx` component**
-- Update the `SubscriptionStats` interface to match the new fields
-- Calculate MRR as: `(estimating_paid * 99) + (pro_paid * 240) + (legacy_paid * 100)`
-- Show separate rows for each tier:
-  - Estimating $99/mo (paid) -- count
-  - Estimating $99/mo (trial) -- count (only shown if > 0)
-  - Pro $240/mo (paid) -- count
-  - Pro $240/mo (trial) -- count (only shown if > 0)
-  - Legacy $100/mo -- count (only shown if > 0)
-  - Demo accounts (exempt) -- count
-- Keep the MRR card and total businesses summary
-
-**3. Update `StaffDashboard.tsx` interface**
-- Update the `SubscriptionStats` interface to match the new DB function return shape
+### Technical Detail
+- A new edge function `delete-test-account` will be created with hardcoded IDs for safety
+- It will use the service role key to bypass RLS
+- After successful execution, the function file will be deleted from the project
