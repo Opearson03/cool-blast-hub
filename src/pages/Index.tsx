@@ -125,7 +125,7 @@ const Index = () => {
             <div className="bg-charcoal/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 lg:p-8 flex flex-col items-center justify-center text-center">
               <h3 className="text-2xl font-bold text-primary-foreground mb-2">Start Managing Jobs Today</h3>
               <p className="text-muted-foreground mb-6">
-                Sign up in under 2 minutes. No credit card required for your free trial.
+                Sign up in under 2 minutes and start your 30-day free trial.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 w-full">
