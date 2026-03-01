@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const corsHeaders = {
@@ -39,7 +38,6 @@ serve(async (req) => {
 
     const userId = claimsData.claims.sub;
 
-    // Verify the caller is pourhub staff using the service role client
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -66,79 +64,25 @@ serve(async (req) => {
       });
     }
 
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
-      apiVersion: "2025-08-27.basil",
-    });
-
-    // Price IDs from subscription-tiers config
-    const priceIdMap: Record<string, string> = {
-      estimating: "price_1SxfDWS7UIjxyz7V3CrcxMT4",
-      pro: "price_1SxfE0S7UIjxyz7Vdj3W8vBx",
-    };
-
-    const priceId = priceIdMap[tier];
-    if (!priceId) {
-      return new Response(JSON.stringify({ error: `Invalid tier: ${tier}` }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
     // Free months: 1 base + 1 per referral
     const freeMonths = 1 + (referralCount ?? 0);
-    const trialDays = 30 * freeMonths;
-
-    // Check if Stripe customer already exists
-    const customers = await stripe.customers.list({ email, limit: 1 });
-    let customerId: string | undefined;
-    if (customers.data.length > 0) {
-      customerId = customers.data[0].id;
-    } else {
-      // Pre-create the customer with name info for better Stripe records
-      const newCustomer = await stripe.customers.create({
-        email,
-        name: fullName || undefined,
-        metadata: {
-          business_name: businessName || "",
-          onboarded_by_staff: "true",
-        },
-      });
-      customerId = newCustomer.id;
-    }
 
     const origin = Deno.env.get("APP_URL") || "https://cool-blast-hub.lovable.app";
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
-      mode: "subscription",
-      subscription_data: {
-        trial_period_days: trialDays,
-        metadata: {
-          full_name: fullName || "",
-          business_name: businessName || "",
-          tier,
-          onboarded_by_staff: "true",
-        },
-      },
-      customer_update: {
-        name: "auto",
-      },
-      success_url: `${origin}/signup/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/`,
-      metadata: {
-        full_name: fullName || "",
-        business_name: businessName || "",
-        tier,
-        onboarded_by_staff: "true",
-      },
+    // Build a pre-filled signup URL instead of a Stripe checkout session
+    const params = new URLSearchParams({
+      tier,
+      email,
+      ...(fullName ? { name: fullName } : {}),
+      ...(businessName ? { business: businessName } : {}),
+      freeMonths: String(freeMonths),
     });
+
+    const signupUrl = `${origin}/signup?${params.toString()}`;
 
     return new Response(
       JSON.stringify({
-        url: session.url,
-        sessionId: session.id,
-        trialDays,
+        url: signupUrl,
         freeMonths,
       }),
       {
