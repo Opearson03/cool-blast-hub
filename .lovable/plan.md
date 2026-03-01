@@ -1,20 +1,20 @@
 
 
-## Create PourHub Demo Business Account
+## Update Landing Page: "Are You a Subbie?" + Trade List
 
-Use the existing `create-demo-account` edge function to provision the account with these details:
+### Changes (single file: `src/pages/Index.tsx`)
 
-- **Email**: admin@pourhub.com.au
-- **Password**: Demo123
-- **Owner Name**: Admin
-- **Business Name**: Pourhub Demo Business
-- **Subscription Exempt**: Yes (handled by the function)
+**1. Heading change**
+- "Are You a **Tradie**?" becomes "Are You a **Subbie**?"
+- Update the subtitle to mention the relevant trade types
 
-### Steps
-1. Call the `create-demo-account` edge function with the required parameters
-2. Seed the `pourhub_staff` role for this user using the `seed-staff-users` function (if needed for internal access)
-3. Verify the account was created successfully by querying the database
+**2. Add trade type badges**
+- Below the subtitle, add a row of badge/chip elements listing the key sub-trades relevant to concreting:
+  - Concreter, Steel Fixer, Formworker, Concrete Finisher, Concrete Pump Operator, Concrete Cutter, Labourer
+- Styled as subtle pill badges (similar to how trade badges appear on directory cards) so visitors can quickly see if their trade is covered
 
-### Technical Detail
-The `create-demo-account` function already sets `subscription_exempt: true` and `onboarding_completed: false`, creates the business, profile, and assigns the admin role -- so no custom code changes are needed.
+### What stays the same
+- All 5 benefit cards + "100% Free" card remain unchanged
+- "Sign Up Free" CTA button unchanged
+- No database or backend changes needed
 
