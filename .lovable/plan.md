@@ -1,35 +1,39 @@
 
 
-## Convert Landing Page from Waitlist to Live Signup
+## Remove Free Trial & Free Tier, Make Pricing Page Live
 
 ### Summary
-Replace the waitlist form and counter on the landing page with a direct "Get Started" call-to-action that sends users to `/signup`. Remove all waitlist-related references. Keep the "Total Quoted" counter as social proof.
+Remove all "free trial", "free tier", and "waitlist" references across the landing page, pricing page, and signup page. Replace with direct purchase CTAs that send users to Stripe checkout.
 
 ### Changes
 
-**1. `src/pages/Index.tsx` -- Landing Page**
+**1. `src/pages/Pricing.tsx` -- Full overhaul**
+- Remove `WaitlistForm` and `useWaitlistCount` imports and usage
+- Remove the Free tier card entirely (only show Estimating and Pro)
+- Remove waitlist counter from hero
+- Update hero subtitle from "Start free with 2 quotes..." to something like "Choose the plan that fits your business."
+- Change all "Join Waiting List" buttons to "Get Started" linking to `/signup` (passing the selected tier)
+- Remove the "Join waitlist = 1 month FREE" badge on Pro card
+- Remove the bottom CTA section with WaitlistForm, replace with a simple CTA linking to `/signup`
+- Update comparison table to only show Estimating and Pro columns (remove Free column)
+- Update SEO title/description to remove "Free" references
 
-- **Remove imports**: `WaitlistForm`, `useWaitlistCount`
-- **Remove state/data**: `waitlistCount`, `isCountLoading`, `referralCode`
-- **Hero right side**: Replace the waitlist form card with two clear CTA buttons:
-  - Primary: "Get Started Free" linking to `/signup`
-  - Secondary: "View Pricing" linking to `/pricing`
-  - Keep the affiliate link passthrough (`?aff=` param forwarded to `/signup`)
-- **Hero left side**:
-  - Remove the "X concreters on the waiting list" counter (lines 108-120)
-  - Keep the "Total Quoted through PourHub" counter as social proof
-  - Change "Already have access? Sign In" to just "Already have an account? Sign In"
-- **Referral banner area** (lines 150-165): Remove the waitlist referral/early bird banners entirely
-- **CTA section** (bottom): Change from "Join the Waiting List" to "Start Your Free Trial" linking to `/signup`
-  - Update copy from "Join X concreters on the waiting list" to something like "Join hundreds of concreters already using PourHub"
-- **SEO description**: Update to reflect live product (remove any "waiting list" or "launching soon" language)
+**2. `src/pages/Index.tsx` -- Landing page updates**
+- Change hero CTA text from "Get Started Free" to "Get Started"
+- Change hero card copy from "start your 30-day free trial" to "Sign up in under 2 minutes."
+- Change bottom CTA button from "Start Your Free Trial" to "Get Started Today"
+- Update SEO description to remove "free trial" reference
 
-**2. No backend changes needed** -- The `/signup` page and checkout flow already exist and work.
+**3. `src/pages/Signup.tsx` -- Signup page updates**
+- Remove the "One month free trial" badge from the plan summary card
+- The signup still defaults to the legacy `standard` tier config -- this could optionally accept a `tier` query param to show the correct plan, but we can keep it simple for now
 
-### What stays the same
-- All feature sections, screenshots, and app showcase content
-- The "Total Quoted through PourHub" counter
-- Footer with links, feedback dialog
-- The Signup page itself (already handles direct signups via Stripe checkout)
-- Native platform redirect logic
+**4. `supabase/functions/create-checkout/index.ts` -- Remove trial**
+- Remove `trial_period_days: 30` from subscription_data for non-affiliate signups (affiliate flow already removes it)
+- Users go straight to paid subscription after checkout
+
+### No changes needed
+- Subscription tiers config (`subscription-tiers.ts`) -- free tier stays in code for potential future use
+- Subscription gates -- they already handle all tiers correctly
+- Stripe webhook -- no trial-related logic to change
 
