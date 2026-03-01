@@ -25,8 +25,11 @@ interface SubscriptionStats {
   active_subscriptions: number;
   trial_subscriptions: number;
   demo_accounts: number;
-  paid_100_plan: number;
-  trial_100_plan: number;
+  estimating_paid: number;
+  estimating_trial: number;
+  pro_paid: number;
+  pro_trial: number;
+  legacy_paid: number;
   waiting_list_count: number;
   recent_signups_7d: number;
   recent_signups_30d: number;

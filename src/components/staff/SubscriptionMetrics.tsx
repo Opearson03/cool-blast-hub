@@ -8,11 +8,15 @@ interface SubscriptionStats {
   active_subscriptions: number;
   trial_subscriptions: number;
   demo_accounts: number;
-  paid_100_plan: number;
-  trial_100_plan: number;
+  estimating_paid: number;
+  estimating_trial: number;
+  pro_paid: number;
+  pro_trial: number;
+  legacy_paid: number;
   waiting_list_count: number;
   recent_signups_7d: number;
   recent_signups_30d: number;
+  active_today: number;
 }
 
 interface SubscriptionMetricsProps {
@@ -22,15 +26,15 @@ interface SubscriptionMetricsProps {
 }
 
 export function SubscriptionMetrics({ stats, isLoading, fullWidth }: SubscriptionMetricsProps) {
-  // Single tier at $100/month
-  const paidPrice = 100;
-  const paidCount = stats?.paid_100_plan ?? 0;
-  const trialCount = stats?.trial_100_plan ?? 0;
+  const estimatingPaid = stats?.estimating_paid ?? 0;
+  const estimatingTrial = stats?.estimating_trial ?? 0;
+  const proPaid = stats?.pro_paid ?? 0;
+  const proTrial = stats?.pro_trial ?? 0;
+  const legacyPaid = stats?.legacy_paid ?? 0;
   const demoCount = stats?.demo_accounts ?? 0;
   const totalBusinesses = stats?.total_businesses ?? 0;
-  
-  // Calculate MRR (Monthly Recurring Revenue) - only from paid, not trials
-  const mrr = paidCount * paidPrice;
+
+  const mrr = (estimatingPaid * 99) + (proPaid * 240) + (legacyPaid * 100);
 
   if (isLoading) {
     return (
@@ -47,6 +51,15 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
     );
   }
 
+  const tiers = [
+    { label: "Pro $240/mo (paid)", count: proPaid, color: "" },
+    { label: "Pro $240/mo (trial)", count: proTrial, color: "[&>div]:bg-blue-500", textColor: "text-blue-600", showIfZero: false },
+    { label: "Estimating $99/mo (paid)", count: estimatingPaid, color: "" },
+    { label: "Estimating $99/mo (trial)", count: estimatingTrial, color: "[&>div]:bg-blue-500", textColor: "text-blue-600", showIfZero: false },
+    { label: "Legacy $100/mo", count: legacyPaid, color: "[&>div]:bg-orange-500", textColor: "text-orange-600", showIfZero: false },
+    { label: "Demo accounts (exempt)", count: demoCount, color: "[&>div]:bg-amber-500", textColor: "text-muted-foreground", showIfZero: true },
+  ];
+
   return (
     <Card className={fullWidth ? "col-span-full" : ""}>
       <CardHeader>
@@ -59,44 +72,27 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
           <div className="text-sm font-medium text-muted-foreground">Monthly Recurring Revenue</div>
           <div className="text-3xl font-bold text-primary">${mrr.toLocaleString()}</div>
           <div className="text-xs text-muted-foreground mt-1">
-            Based on {paidCount} paid subscription{paidCount !== 1 ? 's' : ''}
+            Based on {estimatingPaid + proPaid + legacyPaid} paid subscription{(estimatingPaid + proPaid + legacyPaid) !== 1 ? 's' : ''}
           </div>
         </div>
 
         {/* Plan breakdown */}
         <div className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium">$100 per month plan (paid)</span>
-              <span className="font-medium">{paidCount}</span>
-            </div>
-            <Progress 
-              value={totalBusinesses > 0 ? (paidCount / totalBusinesses) * 100 : 0} 
-              className="h-2"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-blue-600">$100 per month plan (trial)</span>
-              <span className="font-medium">{trialCount}</span>
-            </div>
-            <Progress 
-              value={totalBusinesses > 0 ? (trialCount / totalBusinesses) * 100 : 0} 
-              className="h-2 [&>div]:bg-blue-500"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">Demo accounts (exempt)</span>
-              <span className="font-medium">{demoCount}</span>
-            </div>
-            <Progress 
-              value={totalBusinesses > 0 ? (demoCount / totalBusinesses) * 100 : 0} 
-              className="h-2 [&>div]:bg-amber-500"
-            />
-          </div>
+          {tiers.map((tier) => {
+            if (!tier.showIfZero && tier.count === 0) return null;
+            return (
+              <div key={tier.label} className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className={`font-medium ${tier.textColor ?? ''}`}>{tier.label}</span>
+                  <span className="font-medium">{tier.count}</span>
+                </div>
+                <Progress
+                  value={totalBusinesses > 0 ? (tier.count / totalBusinesses) * 100 : 0}
+                  className={`h-2 ${tier.color}`}
+                />
+              </div>
+            );
+          })}
         </div>
 
         {/* Summary */}
