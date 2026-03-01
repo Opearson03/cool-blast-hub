@@ -1,39 +1,44 @@
 
 
-## Remove Free Trial & Free Tier, Make Pricing Page Live
+## Visual Polish for the Landing Page
 
 ### Summary
-Remove all "free trial", "free tier", and "waitlist" references across the landing page, pricing page, and signup page. Replace with direct purchase CTAs that send users to Stripe checkout.
+Refine the existing landing page layout with improved spacing, subtle visual enhancements, shadows, and typography tweaks -- keeping the same structure and content intact.
 
-### Changes
+### Changes (all in `src/pages/Index.tsx`)
 
-**1. `src/pages/Pricing.tsx` -- Full overhaul**
-- Remove `WaitlistForm` and `useWaitlistCount` imports and usage
-- Remove the Free tier card entirely (only show Estimating and Pro)
-- Remove waitlist counter from hero
-- Update hero subtitle from "Start free with 2 quotes..." to something like "Choose the plan that fits your business."
-- Change all "Join Waiting List" buttons to "Get Started" linking to `/signup` (passing the selected tier)
-- Remove the "Join waitlist = 1 month FREE" badge on Pro card
-- Remove the bottom CTA section with WaitlistForm, replace with a simple CTA linking to `/signup`
-- Update comparison table to only show Estimating and Pro columns (remove Free column)
-- Update SEO title/description to remove "Free" references
+**1. Hero Section**
+- Add a sticky top navigation bar with the Logo, "Pricing" link, and "Sign In" link for a more professional feel (moves "Already have an account?" out of the hero body)
+- Increase the hero heading font weight tracking and add a subtle text-shadow for depth
+- Give the CTA card a stronger glass-morphism effect: increased backdrop blur, a subtle primary-tinted border glow, and a slight shadow-xl lift
+- Add a small "Trusted by Australian concreters" tagline or badge near the quoted value counter
 
-**2. `src/pages/Index.tsx` -- Landing page updates**
-- Change hero CTA text from "Get Started Free" to "Get Started"
-- Change hero card copy from "start your 30-day free trial" to "Sign up in under 2 minutes."
-- Change bottom CTA button from "Start Your Free Trial" to "Get Started Today"
-- Update SEO description to remove "free trial" reference
+**2. Feature Cards Grid**
+- Add `shadow-md hover:shadow-lg` transitions to each card for lift on hover
+- Add a subtle top-border accent (`border-t-2 border-primary`) to each card for visual pop
+- Increase padding slightly and add a `group` class for icon colour animation on hover
 
-**3. `src/pages/Signup.tsx` -- Signup page updates**
-- Remove the "One month free trial" badge from the plan summary card
-- The signup still defaults to the legacy `standard` tier config -- this could optionally accept a `tier` query param to show the correct plan, but we can keep it simple for now
+**3. App Showcase Section**
+- Make the screenshots taller on desktop (`lg:h-96` instead of `lg:h-80`) for more visual impact
+- Add a subtle `ring-1 ring-primary/20` around images for cohesion with the orange theme
+- Slightly increase gap between text and image columns
 
-**4. `supabase/functions/create-checkout/index.ts` -- Remove trial**
-- Remove `trial_period_days: 30` from subscription_data for non-affiliate signups (affiliate flow already removes it)
-- Users go straight to paid subscription after checkout
+**4. CTA Banner**
+- Add a subtle gradient (`bg-gradient-to-r from-primary to-orange-dark`) instead of flat `bg-primary`
+- Increase vertical padding for more breathing room
 
-### No changes needed
-- Subscription tiers config (`subscription-tiers.ts`) -- free tier stays in code for potential future use
-- Subscription gates -- they already handle all tiers correctly
-- Stripe webhook -- no trial-related logic to change
+**5. Footer**
+- Add a thin `border-t border-border/30` separator above footer
+- Slightly increase footer padding
+
+**6. Global Enhancements**
+- Add smooth scroll behaviour via `scroll-smooth` on the page wrapper
+- Ensure consistent `transition-all duration-300` on all interactive hover states
+
+### Technical Details
+
+- All changes are in `src/pages/Index.tsx` and `src/index.css` (if needed for a utility)
+- No new dependencies or components required
+- Existing `FeatureCard` component updated in-place with enhanced styling
+- Navigation bar added as inline JSX at the top of the page (no new component file needed)
 
