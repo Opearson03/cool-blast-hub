@@ -110,13 +110,13 @@ serve(async (req) => {
                       </div>
 
                       <p style="margin: 0 0 24px 0; color: #a3a3a3; font-size: 16px; line-height: 1.6;">
-                        Click below to set up your account. You'll enter your card details (won't be charged until your free period ends), then you'll be taken through the setup process.
+                        Click below to set up your account. You'll create your login, enter your business details, and then complete payment — your free period starts from there.
                       </p>
                       
                       <!-- CTA Button -->
                       <div style="text-align: center; margin: 32px 0;">
                         <a href="${checkoutUrl}" style="display: inline-block; background-color: #F97316; color: #ffffff; padding: 16px 40px; border-radius: 8px; text-decoration: none; font-weight: 700; font-size: 18px; letter-spacing: 0.2px;">
-                          Get Started →
+                          Set Up Your Account →
                         </a>
                       </div>
 

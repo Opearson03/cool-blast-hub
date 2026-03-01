@@ -21,10 +21,15 @@ export default function Signup() {
   const selectedTier = (searchParams.get("tier") || "pro") as keyof typeof SUBSCRIPTION_TIERS;
   const tierConfig = SUBSCRIPTION_TIERS[selectedTier] || SUBSCRIPTION_TIERS.pro;
   
-  const [email, setEmail] = useState("");
+  const prefillEmail = searchParams.get("email") || "";
+  const prefillName = searchParams.get("name") || "";
+  const prefillBusiness = searchParams.get("business") || "";
+  const freeMonths = searchParams.get("freeMonths") || "";
+
+  const [email, setEmail] = useState(prefillEmail);
   const [password, setPassword] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [businessName, setBusinessName] = useState("");
+  const [fullName, setFullName] = useState(prefillName);
+  const [businessName, setBusinessName] = useState(prefillBusiness);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [directoryAcknowledged, setDirectoryAcknowledged] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -62,7 +67,9 @@ export default function Signup() {
           email,
           fullName,
           businessName,
+          tier: selectedTier,
           affiliateCode: affiliateCode || undefined,
+          ...(freeMonths ? { freeMonths: Number(freeMonths) } : {}),
         },
       });
 

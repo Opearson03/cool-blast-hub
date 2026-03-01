@@ -95,20 +95,24 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
     if (!entry) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke("staff-create-checkout", {
-        body: {
-          email: entry.email,
-          fullName: entry.full_name,
-          businessName: entry.business_name,
-          tier: selectedTier,
-          referralCount: entry.referral_count,
-        },
+      // Build signup URL client-side instead of calling Stripe
+      const origin = window.location.origin;
+      const params = new URLSearchParams();
+      params.set("tier", selectedTier);
+      if (entry.email) params.set("email", entry.email);
+      if (entry.full_name) params.set("name", entry.full_name);
+      if (entry.business_name) params.set("business", entry.business_name);
+      params.set("freeMonths", String(freeMonths));
+
+      const signupUrl = `${origin}/signup?${params.toString()}`;
+      setCheckoutResult({
+        url: signupUrl,
+        sessionId: "",
+        trialDays: 30 * freeMonths,
+        freeMonths,
       });
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-      setCheckoutResult(data);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to create checkout link";
+      const message = err instanceof Error ? err.message : "Failed to generate link";
       toast.error(message);
     } finally {
       setIsLoading(false);
@@ -183,7 +187,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
         <DialogHeader>
           <DialogTitle>Onboard Waitlist Member</DialogTitle>
           <DialogDescription>
-            Generate a Stripe checkout link and reach out via email or phone.
+            Generate a signup link and reach out via email or phone.
           </DialogDescription>
         </DialogHeader>
 
@@ -264,7 +268,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
                       Generating link…
                     </>
                   ) : (
-                    "Generate Checkout Link"
+                    "Generate Signup Link"
                   )}
                 </Button>
               </>
@@ -273,7 +277,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
                 <div className="flex items-center gap-2 rounded-lg bg-muted border border-border px-3 py-2">
                   <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Checkout link ready</p>
+                    <p className="text-sm font-medium text-foreground">Signup link ready</p>
                     <p className="text-xs text-muted-foreground">
                       {checkoutResult.freeMonths} month{checkoutResult.freeMonths !== 1 ? "s" : ""} free · {SUBSCRIPTION_TIERS[selectedTier].name}
                     </p>
@@ -368,7 +372,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
                       Generating link…
                     </>
                   ) : (
-                    "Create Checkout Link"
+                    "Generate Signup Link"
                   )}
                 </Button>
               </>
@@ -377,7 +381,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
                 <div className="flex items-center gap-2 rounded-lg bg-muted border border-border px-3 py-2">
                   <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-medium text-foreground">Checkout link ready</p>
+                    <p className="text-sm font-medium text-foreground">Signup link ready</p>
                     <p className="text-xs text-muted-foreground">
                       {checkoutResult.freeMonths} month{checkoutResult.freeMonths !== 1 ? "s" : ""} free · {SUBSCRIPTION_TIERS[selectedTier].name}
                     </p>
@@ -386,8 +390,8 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
 
                 <Button onClick={handleOpenCheckout} className="w-full" variant="default">
                   <ExternalLink className="h-4 w-4 mr-2" />
-                  Open Checkout
-                  <span className="ml-1 text-xs opacity-70">(enter card while on call)</span>
+                  Open Signup Page
+                  <span className="ml-1 text-xs opacity-70">(guide them through setup)</span>
                 </Button>
 
                 <div className="grid grid-cols-2 gap-2">
@@ -408,7 +412,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
                     const subject = encodeURIComponent("Your PourHub Account – Get Started");
                     const tierName = SUBSCRIPTION_TIERS[selectedTier].name;
                     const body = encodeURIComponent(
-                      `Hi ${entry.full_name || "there"},\n\nGreat chatting with you! Here's your personalised PourHub signup link:\n\n${checkoutResult.url}\n\nYou're starting with ${checkoutResult.freeMonths} month${checkoutResult.freeMonths !== 1 ? "s" : ""} free on the ${tierName} plan.\n\nClick the link to enter your card details and complete signup.\n\nWelcome aboard!\nThe PourHub Team`
+                      `Hi ${entry.full_name || "there"},\n\nGreat chatting with you! Here's your personalised PourHub signup link:\n\n${checkoutResult.url}\n\nYou're starting with ${checkoutResult.freeMonths} month${checkoutResult.freeMonths !== 1 ? "s" : ""} free on the ${tierName} plan.\n\nClick the link to set up your account and get started.\n\nWelcome aboard!\nThe PourHub Team`
                     );
                     window.open(`mailto:${entry.email}?subject=${subject}&body=${body}`, "_blank");
                   }}>
