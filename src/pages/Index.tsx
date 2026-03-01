@@ -67,7 +67,7 @@ const Index = () => {
     <>
       <SEOHead
         title="PourHub - Concreting Business Management Software | Australia"
-        description="PourHub is the all-in-one management platform for Australian concreting businesses. Manage jobs, estimates, schedules, and concrete test results. Start your free trial today."
+        description="PourHub is the all-in-one management platform for Australian concreting businesses. Manage jobs, estimates, schedules, and concrete test results. Get started today."
         canonicalPath="/"
         keywords="concreting software, concrete business management, job scheduling, estimates, Australian concreting"
       />
@@ -125,13 +125,13 @@ const Index = () => {
             <div className="bg-charcoal/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 lg:p-8 flex flex-col items-center justify-center text-center">
               <h3 className="text-2xl font-bold text-primary-foreground mb-2">Start Managing Jobs Today</h3>
               <p className="text-muted-foreground mb-6">
-                Sign up in under 2 minutes and start your 30-day free trial.
+                Sign up in under 2 minutes.
               </p>
               
               <div className="flex flex-col sm:flex-row gap-3 w-full">
                 <Link to={affCode ? `/signup?aff=${affCode}` : '/signup'} className="flex-1">
                   <Button size="lg" className="w-full text-lg px-8 py-6 touch-target">
-                    Get Started Free
+                    Get Started
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
@@ -340,7 +340,7 @@ const Index = () => {
           </p>
           <Link to={affCode ? `/signup?aff=${affCode}` : '/signup'}>
             <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">
-              Start Your Free Trial
+              Get Started Today
               <ArrowRight className="ml-2 w-5 h-5" />
             </Button>
           </Link>
