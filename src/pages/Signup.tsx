@@ -12,12 +12,14 @@ import { Loader2, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
 
-const tierConfig = SUBSCRIPTION_TIERS.standard;
+// Tier is determined dynamically inside the component from URL params
 
 export default function Signup() {
   const [searchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
   const affiliateCode = searchParams.get("aff") || "";
+  const selectedTier = (searchParams.get("tier") || "pro") as keyof typeof SUBSCRIPTION_TIERS;
+  const tierConfig = SUBSCRIPTION_TIERS[selectedTier] || SUBSCRIPTION_TIERS.pro;
   
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
