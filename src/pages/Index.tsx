@@ -411,11 +411,16 @@ const Index = () => {
             </div>
           </div>
 
-          <div className="text-center">
+          <div className="text-center flex flex-col items-center gap-3">
             <Link to="/sub-contractors/signup">
               <Button size="lg" className="text-lg px-10 py-6 touch-target transition-all duration-300 hover:scale-[1.02]">
                 Sign Up Free
                 <ArrowRight className="ml-2 w-5 h-5" />
+              </Button>
+            </Link>
+            <Link to="/sub-contractors">
+              <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                More Info
               </Button>
             </Link>
           </div>
