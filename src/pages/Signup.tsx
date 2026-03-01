@@ -112,9 +112,6 @@ export default function Signup() {
                   <span className="text-3xl font-bold text-primary">${tierConfig.price}</span>
                   <span className="text-muted-foreground"> / month</span>
                 </div>
-                <Badge variant="secondary" className="mt-2 bg-green-500/20 text-green-400 border-green-500/30">
-                  One month free trial
-                </Badge>
               </div>
               <ul className="space-y-2">
                 {tierConfig.features.slice(0, 6).map((feature, idx) => (

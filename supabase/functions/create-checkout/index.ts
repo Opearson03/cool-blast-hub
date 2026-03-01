@@ -155,7 +155,6 @@ serve(async (req) => {
       cancel_url: `${req.headers.get("origin")}/signup?cancelled=true`,
       payment_method_collection: "always",
       subscription_data: {
-        trial_period_days: 30,
         metadata: {
           full_name: fullName,
           business_name: businessName,

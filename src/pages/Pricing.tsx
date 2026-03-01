@@ -2,24 +2,20 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Check, ArrowRight, ArrowLeft, Users } from "lucide-react";
+import { Check, ArrowRight, ArrowLeft } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
-import { WaitlistForm } from "@/components/waitlist/WaitlistForm";
-import { useWaitlistCount } from "@/hooks/useWaitlistCount";
 
 const Pricing = () => {
-  const freeTier = SUBSCRIPTION_TIERS.free;
   const estimatingTier = SUBSCRIPTION_TIERS.estimating;
   const proTier = SUBSCRIPTION_TIERS.pro;
-  const { data: waitlistCount, isLoading: isCountLoading } = useWaitlistCount();
 
   return (
     <>
       <SEOHead
-        title="PourHub Pricing - Free, Estimating & Pro Plans | Concreting Software Australia"
-        description="Simple pricing for PourHub concreting business management software. Start free with 2 quotes/month, Estimating at $99/month, or Pro for $240/month."
+        title="PourHub Pricing - Estimating & Pro Plans | Concreting Software Australia"
+        description="Simple pricing for PourHub concreting business management software. Estimating at $99/month or Pro for $240/month. Choose the plan that fits your business."
         canonicalPath="/pricing"
         keywords="concreting software pricing, construction management software cost, concrete quoting software"
       />
@@ -47,61 +43,15 @@ const Pricing = () => {
             <h1 className="text-4xl sm:text-5xl font-bold text-primary-foreground mb-4">
               Simple, Transparent Pricing
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-6">
-              Start free with 2 quotes per month. Upgrade when you're ready.
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+              Choose the plan that fits your business.
             </p>
-            {/* Waitlist Counter */}
-            {(isCountLoading || (waitlistCount != null && waitlistCount > 0)) && (
-              <div className="flex items-center justify-center gap-3 bg-primary/20 rounded-lg px-4 py-3 w-fit mx-auto">
-                <Users className="w-5 h-5 text-primary" />
-                <span className="text-primary-foreground font-medium">
-                  {isCountLoading ? (
-                    <span className="inline-block w-8 h-5 animate-pulse bg-primary/30 rounded align-middle" />
-                  ) : (
-                    <span className="text-primary font-bold">{waitlistCount}</span>
-                  )} concreters on the waiting list
-                </span>
-              </div>
-            )}
           </div>
         </div>
 
         {/* Pricing Cards */}
         <div className="px-4 pb-20">
-          <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Free Tier */}
-            <Card className="border-border">
-              <CardHeader className="text-center pb-2">
-                <h2 className="text-2xl font-bold">{freeTier.name}</h2>
-                <div className="mt-4">
-                  <span className="text-5xl font-bold text-primary">$0</span>
-                  <span className="text-muted-foreground"> / month</span>
-                </div>
-                <p className="text-sm text-muted-foreground mt-3">
-                  {freeTier.description}
-                </p>
-              </CardHeader>
-              <CardContent className="flex-1 flex flex-col">
-                <div className="mb-4 p-2 bg-muted/50 rounded text-center text-sm text-muted-foreground">
-                  Quotes page only
-                </div>
-                <ul className="space-y-3 flex-1">
-                  {freeTier.features.map((feature, idx) => (
-                    <li key={idx} className="flex items-start gap-3">
-                      <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                      <span className="text-sm">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-                <Link to="/" className="mt-6">
-                  <Button variant="outline" className="w-full touch-target" size="lg">
-                    Join Waiting List
-                    <ArrowRight className="ml-2 w-4 h-4" />
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-
+          <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Estimating Tier */}
             <Card className="border-border">
               <CardHeader className="text-center pb-2">
@@ -126,9 +76,9 @@ const Pricing = () => {
                     </li>
                   ))}
                 </ul>
-                <Link to="/" className="mt-6">
+                <Link to="/signup?tier=estimating" className="mt-6">
                   <Button variant="outline" className="w-full touch-target" size="lg">
-                    Join Waiting List
+                    Get Started
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </Link>
@@ -145,11 +95,6 @@ const Pricing = () => {
                 <div className="mt-4">
                   <span className="text-5xl font-bold text-primary">${proTier.price}</span>
                   <span className="text-muted-foreground"> / month</span>
-                </div>
-                <div className="mt-2">
-                  <Badge variant="secondary" className="bg-green-500/20 text-green-400 border-green-500/30">
-                    Join waitlist = 1 month FREE
-                  </Badge>
                 </div>
                 <p className="text-sm text-muted-foreground mt-3">
                   {proTier.description}
@@ -172,9 +117,9 @@ const Pricing = () => {
                     </li>
                   )}
                 </ul>
-                <Link to="/" className="mt-6">
+                <Link to="/signup?tier=pro" className="mt-6">
                   <Button className="w-full touch-target" size="lg">
-                    Join Waiting List
+                    Get Started
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
                 </Link>
@@ -194,7 +139,6 @@ const Pricing = () => {
                 <thead>
                   <tr className="border-b border-border">
                     <th className="text-left py-3 px-4 text-muted-foreground">Feature</th>
-                    <th className="text-center py-3 px-4">Free</th>
                     <th className="text-center py-3 px-4">Estimating</th>
                     <th className="text-center py-3 px-4 text-primary">Pro</th>
                   </tr>
@@ -202,7 +146,6 @@ const Pricing = () => {
                 <tbody className="text-primary-foreground">
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Quotes per month</td>
-                    <td className="text-center py-3 px-4">2</td>
                     <td className="text-center py-3 px-4">Unlimited</td>
                     <td className="text-center py-3 px-4">Unlimited</td>
                   </tr>
@@ -210,41 +153,34 @@ const Pricing = () => {
                     <td className="py-3 px-4">Professional PDFs</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
-                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Quote signing</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
-                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Email delivery</td>
-                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Job management</td>
                     <td className="text-center py-3 px-4 text-muted-foreground">—</td>
-                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Scheduling</td>
-                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Test result tracking</td>
                     <td className="text-center py-3 px-4 text-muted-foreground">—</td>
-                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Priority support</td>
-                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
@@ -277,19 +213,22 @@ const Pricing = () => {
           </div>
         </div>
 
-        {/* CTA with Waitlist Form */}
+        {/* CTA */}
         <div className="bg-primary py-16 px-4">
-          <div className="max-w-xl mx-auto">
-            <h3 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4 text-center">
-              Join the Waiting List
+          <div className="max-w-xl mx-auto text-center">
+            <h3 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4">
+              Ready to Get Started?
             </h3>
-            <p className="text-primary-foreground/90 mb-8 text-center">
-              Be first in line when PourHub launches. We'll notify you as soon as you can get started.
+            <p className="text-primary-foreground/90 mb-8">
+              Join hundreds of concreters already using PourHub to run their business smarter.
             </p>
-            <div className="bg-charcoal/50 backdrop-blur-sm border border-border/30 rounded-xl p-6">
-              <WaitlistForm />
-            </div>
-            <div className="mt-6 text-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Link to="/signup">
+                <Button size="lg" variant="secondary" className="text-lg px-8 py-6 touch-target">
+                  Get Started
+                  <ArrowRight className="ml-2 w-5 h-5" />
+                </Button>
+              </Link>
               <Link to="/">
                 <Button size="lg" variant="outline" className="text-lg px-8 py-6 touch-target bg-transparent border-primary-foreground/30 text-primary-foreground hover:bg-primary-foreground/10">
                   <ArrowLeft className="mr-2 w-5 h-5" />
