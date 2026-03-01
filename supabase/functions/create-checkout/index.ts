@@ -35,8 +35,8 @@ serve(async (req) => {
     logStep("Stripe key verified");
 
     const body = await req.json();
-    const { email, fullName, businessName, upgrade, tier = "pro", affiliateCode } = body;
-    logStep("Request data received", { email, businessName, upgrade, tier, affiliateCode });
+    const { email, fullName, businessName, upgrade, tier = "pro", affiliateCode, freeMonths } = body;
+    logStep("Request data received", { email, businessName, upgrade, tier, affiliateCode, freeMonths });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
 
@@ -169,6 +169,13 @@ serve(async (req) => {
         ...(validAffiliateCode ? { affiliate_code: validAffiliateCode } : {}),
       },
     };
+
+    // Apply free months trial if provided (waitlist onboarding)
+    if (freeMonths && Number(freeMonths) > 0 && !validAffiliateCode) {
+      const trialDays = 30 * Number(freeMonths);
+      sessionParams.subscription_data.trial_period_days = trialDays;
+      logStep("Free months trial applied", { freeMonths, trialDays });
+    }
 
     // Apply affiliate coupon if valid code
     if (validAffiliateCode) {
