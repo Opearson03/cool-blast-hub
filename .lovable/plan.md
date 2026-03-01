@@ -1,38 +1,20 @@
 
 
-## Unified Login + Subcontractor Landing Page Section
+## Create PourHub Demo Business Account
 
-### Part 1: Unified Login for All User Types
+Use the existing `create-demo-account` edge function to provision the account with these details:
 
-Currently, the `/auth` login page only recognises `admin` and `staff` roles. If a subcontractor logs in there, they get "Access Denied" and are signed out. 
+- **Email**: admin@pourhub.com.au
+- **Password**: Demo123
+- **Owner Name**: Admin
+- **Business Name**: Pourhub Demo Business
+- **Subscription Exempt**: Yes (handled by the function)
 
-**Changes to `src/pages/Auth.tsx`:**
-- Update `redirectBasedOnRole` to also check the `subcontractor` role via `supabase.rpc("is_subcontractor", { _user_id: userId })`
-- If the user is a subcontractor, redirect to `/sub-contractors/dashboard`
-- The check order will be: admin -> staff -> subcontractor -> try accept-invite -> re-check all three -> sign out with "Access Denied"
+### Steps
+1. Call the `create-demo-account` edge function with the required parameters
+2. Seed the `pourhub_staff` role for this user using the `seed-staff-users` function (if needed for internal access)
+3. Verify the account was created successfully by querying the database
 
-This means admins, employees, and subcontractors can all sign in from the same login page and get sent to the right place automatically.
-
-### Part 2: Subcontractor Free Signup CTA on Landing Page
-
-**Changes to `src/pages/Index.tsx`:**
-
-Add a new section between the App Showcase and the final CTA section, styled to match the existing landing page design. This section will:
-
-- Have a heading like "Are You a Tradie? Join the Free Directory"
-- Explain the free benefits subcontractors get:
-  - **Free directory listing** visible to local concreting businesses
-  - **ABN-verified profile** to build trust and credibility
-  - **Job invitations** directly from businesses in your area
-  - **Availability calendar** so businesses know when you're free
-  - **Work management dashboard** to track invited jobs and schedules
-- Include a prominent "Sign Up Free" button linking to `/sub-contractors/signup`
-- Use the existing dark section styling (bg-background) to contrast with adjacent sections
-
-### Files Modified
-1. **`src/pages/Auth.tsx`** - Add subcontractor role check in `redirectBasedOnRole`
-2. **`src/pages/Index.tsx`** - Add new "For Tradies" section with free signup CTA
-
-### No Database Changes Required
-The `is_subcontractor` RPC function already exists and works correctly.
+### Technical Detail
+The `create-demo-account` function already sets `subscription_exempt: true` and `onboarding_completed: false`, creates the business, profile, and assigns the admin role -- so no custom code changes are needed.
 
