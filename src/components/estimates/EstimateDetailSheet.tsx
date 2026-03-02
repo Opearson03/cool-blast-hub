@@ -45,6 +45,7 @@ import { InternalBreakdownSection } from "./InternalBreakdownSection";
 import { EditClientDetailsDialog } from "./EditClientDetailsDialog";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 
 type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
 
@@ -108,6 +109,7 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isConnected: isXeroConnected } = useXeroConnection();
+  const showXero = useFeatureFlag('xero_integration');
   const { data: xeroSync } = useXeroSyncLog("estimate", estimateProp?.id || "");
   const sendToXero = useSendToXero();
 
@@ -802,7 +804,7 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
           )}
 
           {/* Send to Xero - only for accepted quotes when Xero is connected */}
-          {estimate.status === "accepted" && isXeroConnected && (
+          {estimate.status === "accepted" && showXero && isXeroConnected && (
             <div className="border rounded-lg p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <h3 className="font-semibold text-sm text-muted-foreground uppercase">Xero Invoice</h3>
