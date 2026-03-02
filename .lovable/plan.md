@@ -1,86 +1,48 @@
 
-Goal: make the Xero connection recoverable and diagnosable with a true “start again” flow, because right now clearing local state alone is unlikely to fix this specific failure.
+## Remove All Xero Integration Code
 
-What I found from the current code and runtime:
-1) `xero-auth` is succeeding (HTTP 200) and returning a valid authorization URL.
-2) `xero-auth-callback` is not being hit during failed attempts (no callback logs).
-3) `xero_connections` currently has no rows, so there is no stale connection record to remove.
-4) This means the failure is occurring on Xero’s authorize side before callback (the “unauthorized_client / invalid scope” stage), so “delete local connection and retry” by itself won’t resolve root cause.
+Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
 
-Implementation approach
+### Files to Delete
+- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
+- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
+- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
+- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
+- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
 
-1. Add a true “Reset Xero integration” action in settings (UI + backend call)
-- File: `src/components/settings/XeroIntegrationSettings.tsx`
-- Add a visible reset action even when not connected:
-  - Calls a backend action that always clears any local Xero state for the current business (`xero_connections` + optional related sync rows if desired).
-  - Then immediately starts a fresh connect flow.
-- UX copy:
-  - “Reset and reconnect” (for users stuck in loop).
-  - Show clear toast states: reset started, reset complete, redirecting to Xero.
+### Files to Edit
 
-2. Strengthen backend reset logic so it is idempotent
-- File: `supabase/functions/xero-api/index.ts`
-- Extend `action: "disconnect"` (or add `action: "reset_connection"`) to:
-  - Succeed even when no connection exists.
-  - Best-effort token revocation.
-  - Delete by `business_id` (not just `id`) to guarantee cleanup.
-  - Optionally clear `xero_sync_log` entries for that business if we want a full clean slate.
-- Return structured response:
-  - `{ success: true, hadConnection: boolean, clearedSyncLog: number }`
+1. **`src/pages/admin/AdminSettings.tsx`**
+   - Remove `XeroIntegrationSettings` import
+   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
+   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
+   - Remove the `Plug` icon import if no longer used
 
-3. Add OAuth diagnostics in `xero-auth` (no secrets exposed)
-- File: `supabase/functions/xero-auth/index.ts`
-- Keep current minimal scope set, but add strong logging and optional diagnostic payload:
-  - log requested scope string, redirect URI, and client ID prefix/suffix only.
-  - include a debug-friendly response field in non-production mode (or always safe) like:
-    - `requested_scopes`
-    - `redirect_uri`
-- This helps verify exactly what Xero is receiving each attempt.
+2. **`src/components/estimates/EstimateDetailSheet.tsx`**
+   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
+   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-4. Improve callback error forwarding for faster triage
-- File: `supabase/functions/xero-auth-callback/index.ts`
-- Capture and forward all returned OAuth error details:
-  - `error`, `error_description`
-- Redirect with encoded reason that admin settings can display:
-  - e.g. `?xero=error&reason=unauthorized_client&details=invalid_scope_for_client`
-- Keep sanitization so no sensitive values leak.
+3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
+   - Remove `useXeroConnection, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
+   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-5. Improve frontend error display in settings
-- File: `src/components/settings/XeroIntegrationSettings.tsx`
-- Decode and display clearer failure reason:
-  - “Authorization was rejected before callback” vs generic “failed”.
-- Add a “Copy debug details” button for support-level troubleshooting.
+4. **`src/hooks/useFeatureFlag.ts`**
+   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
 
-6. Optional fallback for scope compatibility testing (controlled)
-- File: `supabase/functions/xero-auth/index.ts`
-- Add temporary query/body toggle to request progressively smaller scopes for diagnosis:
-  - Tier A: `offline_access accounting.transactions accounting.contacts`
-  - Tier B: add `openid profile email`
-- This helps identify if Xero is rejecting identity scopes or accounting scopes for this app.
-- Keep this behind a debug flag and remove once confirmed.
+### Database Migration
+- Drop tables: `xero_sync_log` and `xero_connections`
 
-Why this sequence
-1) Reset path first gives immediate operational recovery mechanism.
-2) Diagnostics next ensures each retry gives actionable evidence.
-3) Callback/UI improvements reduce ambiguity and repeated guesswork.
-4) Scope-tier test isolates provider-side mismatch quickly.
+### Edge Function Cleanup
+- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
 
-Acceptance criteria
-1) User can click “Reset and reconnect” from Settings regardless of current connection state.
-2) Reset call always returns success and leaves local connection state empty.
-3) New connect attempt shows explicit diagnostic values (scope + redirect URI).
-4) If provider rejects authorization, UI shows exact reason/details from callback when available.
-5) If provider accepts, callback stores `xero_connections` and settings shows “Connected”.
+### Secrets
+- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
 
-Technical notes and risks
-- Main risk: provider-side app configuration mismatch still exists; this plan won’t magically change Xero app permissions but will expose precise evidence.
-- No database schema change required.
-- No change required to feature-flag gating logic.
-- Existing auth call in `xero-api` currently uses `getClaims`; aligning it to `getUser` (as already done in `xero-auth`) is recommended for consistency and fewer auth edge cases.
-
-Validation plan (end-to-end)
-1) From `/admin/settings`, click Reset and reconnect.
-2) Confirm reset success toast and redirect to Xero.
-3) Complete provider auth.
-4) Confirm return to settings with connected state + org name.
-5) Trigger a “Send to Xero” action from an estimate/variation and verify sync log updates.
+### Technical Notes
+- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
+- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
+- No routing changes needed -- there are no dedicated Xero routes
