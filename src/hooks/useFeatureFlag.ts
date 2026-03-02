@@ -5,7 +5,7 @@ const POURHUB_BUSINESS_ID = '600d2b3e-f736-4533-8957-52aa3e8e18cc';
 
 const FEATURE_FLAGS: Record<string, string[]> = {
   'estimate_wizard_v2': [DEMO_BUSINESS_ID],
-  'xero_integration': [DEMO_BUSINESS_ID, POURHUB_BUSINESS_ID],
+  
 };
 
 export function useFeatureFlag(flagName: string): boolean {

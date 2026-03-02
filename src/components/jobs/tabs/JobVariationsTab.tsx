@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useXeroConnection, useSendToXero } from "@/hooks/useXeroConnection";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -30,12 +30,12 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, MoreHorizontal, Pencil, Trash2, Send, CheckCircle, XCircle, FileText, Loader2, ArrowUpRight } from "lucide-react";
+import { Plus, MoreHorizontal, Pencil, Trash2, Send, CheckCircle, XCircle, FileText, Loader2 } from "lucide-react";
 import { VariationFormDialog } from "@/components/jobs/VariationFormDialog";
 import { SendVariationDialog } from "@/components/jobs/SendVariationDialog";
 import { QuickQuoteDialog } from "@/components/estimates/QuickQuoteDialog";
 import { format } from "date-fns";
-import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+
 
 interface Job {
   id: string;
@@ -106,9 +106,6 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
   const [sendVariation, setSendVariation] = useState<Variation | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isConnected: isXeroConnected } = useXeroConnection();
-  const showXero = useFeatureFlag('xero_integration');
-  const sendToXero = useSendToXero();
 
   // Fetch source estimate for client details pre-fill
   const { data: sourceEstimate } = useQuery({
@@ -350,29 +347,6 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
                               <FileText className="w-4 h-4 mr-2" />
                               Mark Invoiced
                             </DropdownMenuItem>
-                            {showXero && isXeroConnected && (
-                              <DropdownMenuItem
-                                disabled={sendToXero.isPending}
-                                onClick={() => {
-                                  sendToXero.mutate({
-                                    sourceType: "variation",
-                                    sourceId: variation.id,
-                                    clientName: sourceEstimate?.client_name || job.builder_client || "Client",
-                                    clientEmail: sourceEstimate?.client_email,
-                                    clientPhone: sourceEstimate?.client_phone,
-                                    lineItems: variation.items.map((item) => ({
-                                      description: item.description,
-                                      quantity: item.quantity,
-                                      unit_price: item.unit_price,
-                                    })),
-                                    reference: `${job.job_number || ""} ${variation.variation_number}`.trim(),
-                                  });
-                                }}
-                              >
-                                <ArrowUpRight className="w-4 h-4 mr-2" />
-                                Send to Xero
-                              </DropdownMenuItem>
-                            )}
                           </>
                         )}
                         {(variation.status === "draft" || variation.status === "declined") && (
@@ -460,29 +434,6 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
                                   <FileText className="w-4 h-4 mr-2" />
                                   Mark Invoiced
                                 </DropdownMenuItem>
-                                {showXero && isXeroConnected && (
-                                  <DropdownMenuItem
-                                    disabled={sendToXero.isPending}
-                                    onClick={() => {
-                                      sendToXero.mutate({
-                                        sourceType: "variation",
-                                        sourceId: variation.id,
-                                        clientName: sourceEstimate?.client_name || job.builder_client || "Client",
-                                        clientEmail: sourceEstimate?.client_email,
-                                        clientPhone: sourceEstimate?.client_phone,
-                                        lineItems: variation.items.map((item) => ({
-                                          description: item.description,
-                                          quantity: item.quantity,
-                                          unit_price: item.unit_price,
-                                        })),
-                                        reference: `${job.job_number || ""} ${variation.variation_number}`.trim(),
-                                      });
-                                    }}
-                                  >
-                                    <ArrowUpRight className="w-4 h-4 mr-2" />
-                                    Send to Xero
-                                  </DropdownMenuItem>
-                                )}
                               </>
                             )}
                             {(variation.status === "draft" || variation.status === "declined") && (
