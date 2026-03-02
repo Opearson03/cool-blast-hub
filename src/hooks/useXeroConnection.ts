@@ -30,13 +30,17 @@ export function useXeroConnection() {
   });
 
   const connectMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (scopeTier?: string) => {
       const { data, error } = await supabase.functions.invoke("xero-auth", {
         method: "POST",
-        body: {},
+        body: { scope_tier: scopeTier || "full" },
       });
       if (error) throw error;
       if (data?.url) {
+        // Store debug info for display
+        if (data?._debug) {
+          sessionStorage.setItem("xero_debug", JSON.stringify(data._debug));
+        }
         window.location.href = data.url;
       } else {
         throw new Error("No authorization URL returned");
@@ -73,6 +77,34 @@ export function useXeroConnection() {
     },
   });
 
+  const resetMutation = useMutation({
+    mutationFn: async (scopeTier?: string) => {
+      // Step 1: Reset all local state
+      const { data, error } = await supabase.functions.invoke("xero-api", {
+        method: "POST",
+        body: { action: "reset_connection" },
+      });
+      if (error) throw error;
+      return { resetResult: data, scopeTier };
+    },
+    onSuccess: async ({ resetResult, scopeTier }) => {
+      queryClient.invalidateQueries({ queryKey: ["xero-connection"] });
+      toast({
+        title: "Xero reset complete",
+        description: `Connection cleared${resetResult.clearedSyncLog > 0 ? ` (${resetResult.clearedSyncLog} sync logs removed)` : ""}. Redirecting to Xero...`,
+      });
+      // Step 2: Immediately start fresh connect
+      setTimeout(() => connectMutation.mutate(scopeTier), 500);
+    },
+    onError: (err: any) => {
+      toast({
+        title: "Failed to reset Xero",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
     connection: connectionQuery.data,
     isLoading: connectionQuery.isLoading,
@@ -81,6 +113,8 @@ export function useXeroConnection() {
     isConnecting: connectMutation.isPending,
     disconnect: disconnectMutation.mutate,
     isDisconnecting: disconnectMutation.isPending,
+    reset: resetMutation.mutate,
+    isResetting: resetMutation.isPending,
   };
 }
 

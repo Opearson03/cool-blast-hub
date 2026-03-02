@@ -1,8 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Unplug } from "lucide-react";
+import { Loader2, Unplug, RotateCcw, Copy, ChevronDown } from "lucide-react";
 import { useXeroConnection } from "@/hooks/useXeroConnection";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -17,31 +17,53 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export function XeroIntegrationSettings() {
-  const { connection, isLoading, isConnected, connect, isConnecting, disconnect, isDisconnecting } = useXeroConnection();
+  const { connection, isLoading, isConnected, connect, isConnecting, disconnect, isDisconnecting, reset, isResetting } = useXeroConnection();
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [lastError, setLastError] = useState<{ reason: string; details?: string } | null>(null);
 
-  // Handle ?xero=connected callback
+  // Handle ?xero=connected or ?xero=error callback
   useEffect(() => {
     const xeroParam = searchParams.get("xero");
     if (xeroParam === "connected") {
       toast({ title: "Xero connected!", description: "Your Xero account is now linked." });
+      setLastError(null);
       searchParams.delete("xero");
       setSearchParams(searchParams, { replace: true });
     } else if (xeroParam === "error") {
       const reason = searchParams.get("reason") || "Unknown error";
+      const details = searchParams.get("details") || undefined;
+      setLastError({ reason, details });
       toast({
         title: "Xero connection failed",
-        description: reason.replace(/_/g, " "),
+        description: `${reason.replace(/_/g, " ")}${details ? `: ${details}` : ""}`,
         variant: "destructive",
       });
       searchParams.delete("xero");
       searchParams.delete("reason");
+      searchParams.delete("details");
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams]);
+
+  const handleCopyDebug = () => {
+    const debugData = sessionStorage.getItem("xero_debug");
+    const info = {
+      lastError,
+      oauthRequest: debugData ? JSON.parse(debugData) : null,
+      timestamp: new Date().toISOString(),
+    };
+    navigator.clipboard.writeText(JSON.stringify(info, null, 2));
+    toast({ title: "Debug info copied to clipboard" });
+  };
 
   if (isLoading) {
     return (
@@ -113,10 +135,47 @@ export function XeroIntegrationSettings() {
       <p className="text-sm text-muted-foreground">
         Connect your Xero account to push quotes and variations as invoices, sync contacts, and track payment status.
       </p>
-      <Button onClick={() => connect()} disabled={isConnecting} className="gap-2 touch-target">
-        {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-        Connect to Xero
-      </Button>
+
+      {/* Last error display */}
+      {lastError && (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+          <p className="text-sm font-medium text-destructive">
+            Last error: {lastError.reason.replace(/_/g, " ")}
+          </p>
+          {lastError.details && (
+            <p className="text-xs text-muted-foreground">{lastError.details}</p>
+          )}
+          <Button variant="ghost" size="sm" className="gap-1.5 h-7 text-xs" onClick={handleCopyDebug}>
+            <Copy className="w-3 h-3" />
+            Copy debug info
+          </Button>
+        </div>
+      )}
+
+      <div className="flex items-center gap-2">
+        <Button onClick={() => connect("full")} disabled={isConnecting || isResetting} className="gap-2 touch-target">
+          {isConnecting ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          Connect to Xero
+        </Button>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5" disabled={isResetting || isConnecting}>
+              {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+              Reset
+              <ChevronDown className="w-3 h-3" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => reset("full")}>
+              Reset & reconnect (full scopes)
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => reset("minimal")}>
+              Reset & reconnect (minimal scopes)
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   );
 }
