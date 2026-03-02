@@ -10,7 +10,8 @@ import { CardContent, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, CreditCard, ExternalLink, Lock, Palette, FileText, Eye, DollarSign, MessageSquare, Truck, Mail } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, CreditCard, ExternalLink, Lock, Palette, FileText, Eye, DollarSign, MessageSquare, Truck, Mail, Plug } from "lucide-react";
+import { XeroIntegrationSettings } from "@/components/settings/XeroIntegrationSettings";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { LivePDFPreview } from "@/components/settings/LivePDFPreview";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -714,6 +715,18 @@ export default function AdminSettings() {
                 />
               </SettingsAccordionItem>
             )}
+          </SettingsGroup>
+
+          {/* INTEGRATIONS GROUP */}
+          <SettingsGroup title="Integrations">
+            <SettingsAccordionItem
+              value="xero"
+              icon={Plug}
+              title="Xero Accounting"
+              description="Sync invoices and contacts with Xero"
+            >
+              <XeroIntegrationSettings />
+            </SettingsAccordionItem>
           </SettingsGroup>
 
           {/* SUPPORT GROUP */}
