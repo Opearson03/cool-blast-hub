@@ -1,50 +1,42 @@
 
 
-## Fix Signup Trends to Use Sydney Timezone
+## Fix Waitlist "Converted" Status Detection
 
-The `get_signup_trends` database function currently uses UTC for date grouping. Since the business operates in Sydney (AEDT, UTC+11), signups made after 11am UTC appear on the previous day in the chart.
+### Problem
+5 waitlist members have signed up and have active subscriptions, but their status still shows "invited" instead of "converted". The conversion was supposed to happen via the Stripe webhook (`checkout.session.completed`), but the webhook either didn't fire or the email match failed. The `stripe_session_id` column is null for all 5.
 
-### Root Cause
-The SQL function uses `CURRENT_DATE` (UTC) and `DATE(b.created_at)` (also UTC) to group signups by day. Three signups today (March 2nd Sydney time) are stored as March 1st UTC, so the chart shows them on the wrong day.
+### Solution (two-part fix)
 
-### Fix
-Update the `get_signup_trends` database function to convert timestamps to `Australia/Sydney` timezone before grouping:
+**1. Immediate data fix -- update the 5 existing entries**
 
-- Change `CURRENT_DATE` to `(NOW() AT TIME ZONE 'Australia/Sydney')::date`
-- Change `DATE(b.created_at)` to `(b.created_at AT TIME ZONE 'Australia/Sydney')::date`
-- Same for profiles: `(p.created_at AT TIME ZONE 'Australia/Sydney')::date`
+Run an UPDATE that cross-references `waiting_list` emails against `auth.users` who have a business with an active subscription, and set their `outreach_status` to "converted".
 
-### Technical Detail (single DB migration)
+**2. Resilient detection -- update the `get_waiting_list_entries` RPC**
+
+Modify the `get_waiting_list_entries` database function so the returned `outreach_status` is computed dynamically: if a waitlist email matches a user who has an active business subscription, return "converted" regardless of the stored status. This makes the staff dashboard self-healing -- it won't rely solely on the webhook having fired correctly.
+
+### Technical Detail
+
+**Migration SQL:**
 
 ```sql
-CREATE OR REPLACE FUNCTION public.get_signup_trends(days_back integer DEFAULT 30)
-  RETURNS TABLE(signup_date date, business_count bigint, user_count bigint)
-  LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path TO 'public'
-AS $$
-BEGIN
-  IF NOT is_pourhub_staff(auth.uid()) THEN
-    RAISE EXCEPTION 'Access denied';
-  END IF;
+-- Part 1: Fix existing data
+UPDATE waiting_list w
+SET outreach_status = 'converted'
+FROM auth.users u
+JOIN profiles p ON p.id = u.id
+JOIN business_subscriptions bs ON bs.business_id = p.business_id
+WHERE LOWER(u.email) = LOWER(w.email)
+  AND bs.status IN ('active', 'trialing')
+  AND w.outreach_status != 'converted';
 
-  RETURN QUERY
-  SELECT
-    d.date::date AS signup_date,
-    COUNT(DISTINCT b.id) AS business_count,
-    COUNT(DISTINCT p.id) AS user_count
-  FROM generate_series(
-    (NOW() AT TIME ZONE 'Australia/Sydney')::date - (days_back || ' days')::interval,
-    (NOW() AT TIME ZONE 'Australia/Sydney')::date,
-    '1 day'::interval
-  ) AS d(date)
-  LEFT JOIN public.businesses b
-    ON (b.created_at AT TIME ZONE 'Australia/Sydney')::date = d.date::date
-  LEFT JOIN public.profiles p
-    ON (p.created_at AT TIME ZONE 'Australia/Sydney')::date = d.date::date
-  GROUP BY d.date
-  ORDER BY d.date;
-END;
+-- Part 2: Update the RPC to auto-detect conversions
+CREATE OR REPLACE FUNCTION public.get_waiting_list_entries()
+RETURNS TABLE(...) -- same signature
+AS $$
+  -- Add a CASE that overrides outreach_status to 'converted'
+  -- when the email exists in auth.users with an active subscription
 $$;
 ```
 
-No frontend changes needed -- the chart component already works with whatever the function returns.
-
+No frontend changes needed -- the `WaitlistTable` component already reads from this RPC and renders the status badge based on the returned `outreach_status`.
