@@ -101,8 +101,8 @@ serve(async (req: Request) => {
           .replace(/{company}/g, recipient.company || "");
 
         const emailResult = await resend.emails.send({
-          from: "PourHub <hello@pourhub.au>",
-          replyTo: "hello@pourhub.au",
+          from: "PourHub <hello@contact.pourhub.com.au>",
+          replyTo: "hello@contact.pourhub.com.au",
           to: [recipient.email],
           subject,
           html: personalizedHtml,
