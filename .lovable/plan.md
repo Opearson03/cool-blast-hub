@@ -1,42 +1,50 @@
 
 
-## Fix Waitlist "Converted" Status Detection
+## Add SMS Sending to Onboard Waitlist Modal
 
-### Problem
-5 waitlist members have signed up and have active subscriptions, but their status still shows "invited" instead of "converted". The conversion was supposed to happen via the Stripe webhook (`checkout.session.completed`), but the webhook either didn't fire or the email match failed. The `stripe_session_id` column is null for all 5.
+### Overview
+Add an "SMS" tab to the onboarding popup so staff can compose a custom SMS message (with the personalised signup link auto-inserted), and send it via Twilio.
 
-### Solution (two-part fix)
+### Changes
 
-**1. Immediate data fix -- update the 5 existing entries**
+**1. New Edge Function: `send-waitlist-sms`**
 
-Run an UPDATE that cross-references `waiting_list` emails against `auth.users` who have a business with an active subscription, and set their `outreach_status` to "converted".
+A backend function that:
+- Validates the staff JWT and confirms `pourhub_staff` role
+- Accepts `{ waitlistId, phone, message }` in the request body
+- Formats the phone to AU E.164 format
+- Sends the SMS via Twilio REST API (using existing `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` secrets)
+- Updates the waitlist entry's `outreach_status` to "invited" and sets `invited_at`
+- Returns success/failure status
 
-**2. Resilient detection -- update the `get_waiting_list_entries` RPC**
+**2. Update `supabase/config.toml`**
+- Add `[functions.send-waitlist-sms]` with `verify_jwt = false` (validation done in code)
 
-Modify the `get_waiting_list_entries` database function so the returned `outreach_status` is computed dynamically: if a waitlist email matches a user who has an active business subscription, return "converted" regardless of the stored status. This makes the staff dashboard self-healing -- it won't rely solely on the webhook having fired correctly.
+**3. Update `OnboardWaitlistModal.tsx`**
+- Add a third tab: "SMS" (with a `MessageCircle` icon)
+- The SMS tab reuses the existing plan selection and link generation flow
+- Once the link is generated, show:
+  - A `Textarea` pre-filled with a default message template including the signup link, e.g.: *"Hey [name], it's PourHub! Here's your personalised signup link with [X] months free: [link]"*
+  - The staff member can edit the message freely
+  - A "Send SMS" button that calls the new edge function
+  - Show the recipient's phone number (from the waitlist entry)
+  - If no phone number exists, show a message saying SMS is unavailable for this contact
 
-### Technical Detail
+### No database changes needed
+The existing `waiting_list.phone` column and `outreach_status` field are sufficient. The `update_waitlist_outreach` RPC already handles status updates.
 
-**Migration SQL:**
+### Technical Details
 
-```sql
--- Part 1: Fix existing data
-UPDATE waiting_list w
-SET outreach_status = 'converted'
-FROM auth.users u
-JOIN profiles p ON p.id = u.id
-JOIN business_subscriptions bs ON bs.business_id = p.business_id
-WHERE LOWER(u.email) = LOWER(w.email)
-  AND bs.status IN ('active', 'trialing')
-  AND w.outreach_status != 'converted';
+The edge function follows the same pattern as the existing `send-subtrade-invite` Twilio integration:
 
--- Part 2: Update the RPC to auto-detect conversions
-CREATE OR REPLACE FUNCTION public.get_waiting_list_entries()
-RETURNS TABLE(...) -- same signature
-AS $$
-  -- Add a CASE that overrides outreach_status to 'converted'
-  -- when the email exists in auth.users with an active subscription
-$$;
+```text
+POST /send-waitlist-sms
+Authorization: Bearer <staff-jwt>
+Body: { waitlistId, phone, message }
+
+1. Validate JWT + pourhub_staff role
+2. Format phone to E.164
+3. POST to Twilio Messages API
+4. Update waitlist outreach_status via RPC
+5. Return { success, sms_status }
 ```
-
-No frontend changes needed -- the `WaitlistTable` component already reads from this RPC and renders the status badge based on the returned `outreach_status`.
