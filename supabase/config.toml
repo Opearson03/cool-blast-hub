@@ -163,3 +163,12 @@ verify_jwt = false
 
 [functions.send-waitlist-sms]
 verify_jwt = false
+
+[functions.xero-auth]
+verify_jwt = false
+
+[functions.xero-auth-callback]
+verify_jwt = false
+
+[functions.xero-api]
+verify_jwt = false
