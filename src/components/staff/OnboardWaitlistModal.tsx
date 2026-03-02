@@ -20,6 +20,7 @@ import {
   Gift,
   Loader2,
   Send,
+  MessageCircle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
@@ -29,6 +30,7 @@ interface WaitlistEntry {
   email: string;
   full_name: string | null;
   business_name: string | null;
+  phone?: string | null;
   referral_count: number;
   outreach_status?: string;
   checkout_url?: string | null;
@@ -71,18 +73,29 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
   const [selectedTier, setSelectedTier] = useState<Tier>("estimating");
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingEmail, setIsSendingEmail] = useState(false);
+  const [isSendingSms, setIsSendingSms] = useState(false);
   const [checkoutResult, setCheckoutResult] = useState<CheckoutResult | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [smsSent, setSmsSent] = useState(false);
+  const [smsMessage, setSmsMessage] = useState("");
   const [staffNotes, setStaffNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
 
   const freeMonths = 1 + (entry?.referral_count ?? 0);
 
+  const buildDefaultSmsMessage = (url: string) => {
+    const name = entry?.full_name?.split(" ")[0] || "there";
+    const tierName = SUBSCRIPTION_TIERS[selectedTier].name;
+    return `Hey ${name}, it's PourHub! Here's your personalised signup link with ${freeMonths} month${freeMonths !== 1 ? "s" : ""} free on ${tierName}: ${url}`;
+  };
+
   const handleReset = () => {
     setCheckoutResult(null);
     setLinkCopied(false);
     setEmailSent(false);
+    setSmsSent(false);
+    setSmsMessage("");
     setStaffNotes(entry?.staff_notes ?? "");
   };
 
@@ -95,7 +108,6 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
     if (!entry) return;
     setIsLoading(true);
     try {
-      // Build signup URL client-side instead of calling Stripe
       const origin = window.location.origin;
       const params = new URLSearchParams();
       params.set("tier", selectedTier);
@@ -105,12 +117,14 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
       params.set("freeMonths", String(freeMonths));
 
       const signupUrl = `${origin}/signup?${params.toString()}`;
-      setCheckoutResult({
+      const result: CheckoutResult = {
         url: signupUrl,
         sessionId: "",
         trialDays: 30 * freeMonths,
         freeMonths,
-      });
+      };
+      setCheckoutResult(result);
+      setSmsMessage(buildDefaultSmsMessage(signupUrl));
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to generate link";
       toast.error(message);
@@ -159,6 +173,34 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
     }
   };
 
+  const handleSendSms = async () => {
+    if (!entry || !checkoutResult?.url || !entry.phone) return;
+    if (!smsMessage.trim()) {
+      toast.error("Please enter a message");
+      return;
+    }
+    setIsSendingSms(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("send-waitlist-sms", {
+        body: {
+          waitlistId: entry.id,
+          phone: entry.phone,
+          message: smsMessage,
+        },
+      });
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      setSmsSent(true);
+      toast.success("SMS sent successfully");
+      onStatusChange?.();
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to send SMS";
+      toast.error(message);
+    } finally {
+      setIsSendingSms(false);
+    }
+  };
+
   const handleSaveNotes = async () => {
     if (!entry) return;
     setIsSavingNotes(true);
@@ -180,6 +222,61 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
   if (!entry) return null;
 
   const alreadyInvited = entry.outreach_status === "invited" || entry.outreach_status === "converted";
+  const hasPhone = !!entry.phone;
+
+  // Shared plan selection UI
+  const renderPlanSelection = () => (
+    <>
+      <div className="space-y-2">
+        <p className="text-sm font-medium">Select plan</p>
+        <div className="grid grid-cols-2 gap-2">
+          {tierOptions.map((tier) => (
+            <button
+              key={tier.key}
+              onClick={() => setSelectedTier(tier.key)}
+              className={`rounded-lg border p-3 text-left transition-all ${
+                selectedTier === tier.key
+                  ? "border-primary bg-primary/5 ring-1 ring-primary"
+                  : "border-border hover:border-primary/50"
+              }`}
+            >
+              <p className="text-sm font-semibold">{tier.label}</p>
+              <p className="text-lg font-bold mt-0.5">
+                ${tier.price}
+                <span className="text-xs font-normal text-muted-foreground">/mo</span>
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-tight">
+                {tier.description}
+              </p>
+            </button>
+          ))}
+        </div>
+      </div>
+      <Separator />
+      <Button onClick={createCheckout} disabled={isLoading} className="w-full">
+        {isLoading ? (
+          <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            Generating link…
+          </>
+        ) : (
+          "Generate Signup Link"
+        )}
+      </Button>
+    </>
+  );
+
+  const renderLinkReady = () => (
+    <div className="flex items-center gap-2 rounded-lg bg-muted border border-border px-3 py-2">
+      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
+      <div>
+        <p className="text-sm font-medium text-foreground">Signup link ready</p>
+        <p className="text-xs text-muted-foreground">
+          {checkoutResult!.freeMonths} month{checkoutResult!.freeMonths !== 1 ? "s" : ""} free · {SUBSCRIPTION_TIERS[selectedTier].name}
+        </p>
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -187,7 +284,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
         <DialogHeader>
           <DialogTitle>Onboard Waitlist Member</DialogTitle>
           <DialogDescription>
-            Generate a signup link and reach out via email or phone.
+            Generate a signup link and reach out via email, phone, or SMS.
           </DialogDescription>
         </DialogHeader>
 
@@ -223,66 +320,25 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
           <TabsList className="w-full">
             <TabsTrigger value="email" className="flex-1">
               <Mail className="h-4 w-4 mr-2" />
-              Email Invite
+              Email
+            </TabsTrigger>
+            <TabsTrigger value="sms" className="flex-1">
+              <MessageCircle className="h-4 w-4 mr-2" />
+              SMS
             </TabsTrigger>
             <TabsTrigger value="phone" className="flex-1">
               <Phone className="h-4 w-4 mr-2" />
-              Phone Call
+              Call
             </TabsTrigger>
           </TabsList>
 
           {/* EMAIL TAB */}
           <TabsContent value="email" className="space-y-4 mt-4">
             {!checkoutResult ? (
-              <>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Select plan</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {tierOptions.map((tier) => (
-                      <button
-                        key={tier.key}
-                        onClick={() => setSelectedTier(tier.key)}
-                        className={`rounded-lg border p-3 text-left transition-all ${
-                          selectedTier === tier.key
-                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                      >
-                        <p className="text-sm font-semibold">{tier.label}</p>
-                        <p className="text-lg font-bold mt-0.5">
-                          ${tier.price}
-                          <span className="text-xs font-normal text-muted-foreground">/mo</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1 leading-tight">
-                          {tier.description}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <Separator />
-                <Button onClick={createCheckout} disabled={isLoading} className="w-full">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Generating link…
-                    </>
-                  ) : (
-                    "Generate Signup Link"
-                  )}
-                </Button>
-              </>
+              renderPlanSelection()
             ) : (
               <>
-                <div className="flex items-center gap-2 rounded-lg bg-muted border border-border px-3 py-2">
-                  <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Signup link ready</p>
-                    <p className="text-xs text-muted-foreground">
-                      {checkoutResult.freeMonths} month{checkoutResult.freeMonths !== 1 ? "s" : ""} free · {SUBSCRIPTION_TIERS[selectedTier].name}
-                    </p>
-                  </div>
-                </div>
+                {renderLinkReady()}
 
                 <Button
                   onClick={handleSendInviteEmail}
@@ -335,58 +391,81 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
             )}
           </TabsContent>
 
+          {/* SMS TAB */}
+          <TabsContent value="sms" className="space-y-4 mt-4">
+            {!hasPhone ? (
+              <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 text-center">
+                <MessageCircle className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  No phone number on file for this contact.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  SMS is unavailable — use Email or Call instead.
+                </p>
+              </div>
+            ) : !checkoutResult ? (
+              renderPlanSelection()
+            ) : (
+              <>
+                {renderLinkReady()}
+
+                <div className="rounded-lg border bg-muted/40 px-3 py-2">
+                  <p className="text-xs text-muted-foreground mb-1">Sending to</p>
+                  <p className="text-sm font-medium">{entry.phone}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <p className="text-sm font-medium">Message</p>
+                  <Textarea
+                    value={smsMessage}
+                    onChange={(e) => setSmsMessage(e.target.value)}
+                    className="min-h-[100px] text-sm resize-none"
+                    placeholder="Type your SMS message…"
+                    maxLength={1600}
+                  />
+                  <p className="text-xs text-muted-foreground text-right">
+                    {smsMessage.length} / 1600
+                  </p>
+                </div>
+
+                <Button
+                  onClick={handleSendSms}
+                  disabled={isSendingSms || smsSent || !smsMessage.trim()}
+                  className="w-full"
+                >
+                  {isSendingSms ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Sending…
+                    </>
+                  ) : smsSent ? (
+                    <>
+                      <CheckCircle className="h-4 w-4 mr-2 text-primary" />
+                      SMS Sent!
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-4 w-4 mr-2" />
+                      Send SMS
+                    </>
+                  )}
+                </Button>
+
+                <Separator />
+                <Button variant="ghost" size="sm" onClick={handleReset} className="w-full text-muted-foreground">
+                  ← Change plan or regenerate
+                </Button>
+              </>
+            )}
+          </TabsContent>
+
           {/* PHONE TAB */}
           <TabsContent value="phone" className="space-y-4 mt-4">
             {!checkoutResult ? (
-              <>
-                <div className="space-y-2">
-                  <p className="text-sm font-medium">Select plan</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {tierOptions.map((tier) => (
-                      <button
-                        key={tier.key}
-                        onClick={() => setSelectedTier(tier.key)}
-                        className={`rounded-lg border p-3 text-left transition-all ${
-                          selectedTier === tier.key
-                            ? "border-primary bg-primary/5 ring-1 ring-primary"
-                            : "border-border hover:border-primary/50"
-                        }`}
-                      >
-                        <p className="text-sm font-semibold">{tier.label}</p>
-                        <p className="text-lg font-bold mt-0.5">
-                          ${tier.price}
-                          <span className="text-xs font-normal text-muted-foreground">/mo</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1 leading-tight">
-                          {tier.description}
-                        </p>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <Separator />
-                <Button onClick={createCheckout} disabled={isLoading} className="w-full">
-                  {isLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Generating link…
-                    </>
-                  ) : (
-                    "Generate Signup Link"
-                  )}
-                </Button>
-              </>
+              renderPlanSelection()
             ) : (
               <>
-                <div className="flex items-center gap-2 rounded-lg bg-muted border border-border px-3 py-2">
-                  <CheckCircle className="h-4 w-4 text-primary flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Signup link ready</p>
-                    <p className="text-xs text-muted-foreground">
-                      {checkoutResult.freeMonths} month{checkoutResult.freeMonths !== 1 ? "s" : ""} free · {SUBSCRIPTION_TIERS[selectedTier].name}
-                    </p>
-                  </div>
-                </div>
+                {renderLinkReady()}
 
                 <Button onClick={handleOpenCheckout} className="w-full" variant="default">
                   <ExternalLink className="h-4 w-4 mr-2" />

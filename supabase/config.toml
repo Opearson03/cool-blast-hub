@@ -160,3 +160,6 @@ verify_jwt = false
 
 [functions.subcontractor-respond-invite]
 verify_jwt = false
+
+[functions.send-waitlist-sms]
+verify_jwt = false
