@@ -37,6 +37,15 @@ Deno.serve(async (req) => {
 
     const userId = user.id;
 
+    // Parse body for optional scope_tier
+    let scopeTier = "full";
+    try {
+      const body = await req.json();
+      if (body?.scope_tier) scopeTier = body.scope_tier;
+    } catch {
+      // No body or invalid JSON is fine
+    }
+
     // Get business_id from profile
     const { data: profile, error: profileErr } = await supabase
       .from("profiles")
@@ -60,7 +69,15 @@ Deno.serve(async (req) => {
     }
 
     const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/xero-auth-callback`;
-    const scopes = "offline_access openid profile email accounting.transactions accounting.contacts";
+
+    // Scope tiers for diagnosing provider-side rejections
+    let scopes: string;
+    if (scopeTier === "minimal") {
+      scopes = "offline_access accounting.transactions accounting.contacts";
+    } else {
+      scopes = "offline_access openid profile email accounting.transactions accounting.contacts";
+    }
+
     const state = btoa(JSON.stringify({ business_id: profile.business_id, user_id: userId }));
 
     const authUrl = new URL("https://login.xero.com/identity/connect/authorize");
@@ -70,7 +87,26 @@ Deno.serve(async (req) => {
     authUrl.searchParams.set("scope", scopes);
     authUrl.searchParams.set("state", state);
 
-    return new Response(JSON.stringify({ url: authUrl.toString() }), {
+    // Diagnostic logging (safe: no secrets exposed)
+    const clientIdHint = `${clientId.slice(0, 4)}...${clientId.slice(-4)}`;
+    console.log("[xero-auth] OAuth request diagnostics:", JSON.stringify({
+      client_id_hint: clientIdHint,
+      redirect_uri: redirectUri,
+      requested_scopes: scopes,
+      scope_tier: scopeTier,
+      business_id: profile.business_id,
+    }));
+
+    return new Response(JSON.stringify({
+      url: authUrl.toString(),
+      // Diagnostic fields for frontend debug display
+      _debug: {
+        redirect_uri: redirectUri,
+        requested_scopes: scopes,
+        scope_tier: scopeTier,
+        client_id_hint: clientIdHint,
+      },
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

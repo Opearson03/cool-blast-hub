@@ -106,12 +106,12 @@ Deno.serve(async (req) => {
     );
 
     const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
+    const { data: { user }, error: userError } = await supabase.auth.getUser(token);
+    if (userError || !user) {
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    const userId = claimsData.claims.sub;
+    const userId = user.id;
 
     // Get business_id
     const { data: profile } = await supabase
@@ -140,8 +140,12 @@ Deno.serve(async (req) => {
       .eq("business_id", businessId)
       .single();
 
-    if (action === "disconnect") {
+    if (action === "disconnect" || action === "reset_connection") {
+      let hadConnection = false;
+      let clearedSyncLog = 0;
+
       if (connection) {
+        hadConnection = true;
         // Try to revoke the token (best effort)
         try {
           await fetch("https://identity.xero.com/connect/revocation", {
@@ -150,13 +154,25 @@ Deno.serve(async (req) => {
             body: new URLSearchParams({ token: connection.refresh_token }),
           });
         } catch {}
-
-        await supabaseAdmin
-          .from("xero_connections")
-          .delete()
-          .eq("id", connection.id);
       }
-      return jsonResponse({ success: true });
+
+      // Always delete by business_id to guarantee cleanup
+      await supabaseAdmin
+        .from("xero_connections")
+        .delete()
+        .eq("business_id", businessId);
+
+      // For reset, also clear sync log
+      if (action === "reset_connection") {
+        const { data: deletedLogs } = await supabaseAdmin
+          .from("xero_sync_log")
+          .delete()
+          .eq("business_id", businessId)
+          .select("id");
+        clearedSyncLog = deletedLogs?.length || 0;
+      }
+
+      return jsonResponse({ success: true, hadConnection, clearedSyncLog });
     }
 
     if (connErr || !connection) {

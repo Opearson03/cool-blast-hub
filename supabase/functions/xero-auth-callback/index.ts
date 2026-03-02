@@ -6,13 +6,21 @@ Deno.serve(async (req) => {
     const code = url.searchParams.get("code");
     const stateParam = url.searchParams.get("state");
     const error = url.searchParams.get("error");
+    const errorDescription = url.searchParams.get("error_description");
 
     // Determine the app URL for redirects
     const appUrl = Deno.env.get("APP_URL") || "https://cool-blast-hub.lovable.app";
 
     if (error) {
-      console.error("Xero auth error:", error);
-      return Response.redirect(`${appUrl}/admin/settings?xero=error&reason=${encodeURIComponent(error)}`, 302);
+      console.error("Xero auth error:", error, "description:", errorDescription);
+      const params = new URLSearchParams({
+        xero: "error",
+        reason: error,
+      });
+      if (errorDescription) {
+        params.set("details", errorDescription);
+      }
+      return Response.redirect(`${appUrl}/admin/settings?${params.toString()}`, 302);
     }
 
     if (!code || !stateParam) {
@@ -47,7 +55,7 @@ Deno.serve(async (req) => {
     if (!tokenRes.ok) {
       const errText = await tokenRes.text();
       console.error("Token exchange failed:", errText);
-      return Response.redirect(`${appUrl}/admin/settings?xero=error&reason=token_exchange_failed`, 302);
+      return Response.redirect(`${appUrl}/admin/settings?xero=error&reason=token_exchange_failed&details=${encodeURIComponent(errText.slice(0, 200))}`, 302);
     }
 
     const tokens = await tokenRes.json();
