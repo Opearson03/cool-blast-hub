@@ -563,8 +563,8 @@ async function sendSubbieConfirmation(
 
       // Use business-specific alias if available for subbie confirmation
       const fromEmail = business?.inbound_email_alias 
-        ? `${business.inbound_email_alias}@contact.pourhub.com.au`
-        : 'Hello@contact.pourhub.com.au';
+        ? `${business.inbound_email_alias}@pourhub.au`
+        : 'Hello@pourhub.au';
       
       await resend.emails.send({
         from: `${business?.name || 'PourHub'} <${fromEmail}>`,
@@ -597,8 +597,8 @@ async function sendBusinessNotification(
 
       // Use business-specific alias if available for business notification
       const fromEmail = business?.inbound_email_alias 
-        ? `${business.inbound_email_alias}@contact.pourhub.com.au`
-        : 'Hello@contact.pourhub.com.au';
+        ? `${business.inbound_email_alias}@pourhub.au`
+        : 'Hello@pourhub.au';
       
       await resend.emails.send({
         from: `${business?.name || 'PourHub'} <${fromEmail}>`,
@@ -679,8 +679,8 @@ async function sendBatchConfirmation(
 
       // Use business-specific alias if available
       const fromEmail = business?.inbound_email_alias 
-        ? `${business.inbound_email_alias}@contact.pourhub.com.au`
-        : 'Hello@contact.pourhub.com.au';
+        ? `${business.inbound_email_alias}@pourhub.au`
+        : 'Hello@pourhub.au';
       
       await resend.emails.send({
         from: `${business?.name || 'PourHub'} <${fromEmail}>`,
@@ -735,8 +735,8 @@ async function sendBatchBusinessNotification(
 
     // Use business-specific alias if available
     const fromEmail = business?.inbound_email_alias 
-      ? `${business.inbound_email_alias}@contact.pourhub.com.au`
-      : 'Hello@contact.pourhub.com.au';
+      ? `${business.inbound_email_alias}@pourhub.au`
+      : 'Hello@pourhub.au';
     
     await resend.emails.send({
       from: `${business?.name || 'PourHub'} <${fromEmail}>`,

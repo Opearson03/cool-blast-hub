@@ -70,8 +70,8 @@ serve(async (req) => {
     const tierPrice = tier === "pro" ? "$240" : "$99";
 
     const emailResponse = await resend.emails.send({
-      from: "PourHub <hello@contact.pourhub.com.au>",
-      reply_to: "hello@contact.pourhub.com.au",
+      from: "PourHub <hello@pourhub.au>",
+      reply_to: "hello@pourhub.au",
       to: [email],
       subject: `Your PourHub access is ready — ${months} month${months !== 1 ? "s" : ""} free 🎉`,
       html: `

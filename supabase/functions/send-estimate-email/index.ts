@@ -148,8 +148,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Resend expects base64 string directly for attachments, not Uint8Array
     // Use business-specific alias if available, otherwise fallback to generic address
     const fromEmail = businessEmailAlias 
-      ? `${businessEmailAlias}@contact.pourhub.com.au`
-      : 'Hello@contact.pourhub.com.au';
+      ? `${businessEmailAlias}@pourhub.au`
+      : 'Hello@pourhub.au';
     
     const { data: emailData, error: emailError } = await resend.emails.send({
       from: `${businessName} <${fromEmail}>`,

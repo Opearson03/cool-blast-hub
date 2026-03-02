@@ -832,7 +832,7 @@ function BusinessInboxEmailInline({ businessId, currentAlias }: { businessId: st
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   
-  const emailAddress = currentAlias ? `${currentAlias}@contact.pourhub.com.au` : null;
+  const emailAddress = currentAlias ? `${currentAlias}@pourhub.au` : null;
 
   const handleCopy = async () => {
     if (!emailAddress) return;

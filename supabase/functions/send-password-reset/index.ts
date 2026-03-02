@@ -75,7 +75,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log("Reset link generated, sending email...");
 
     const emailResponse = await resend.emails.send({
-      from: "PourHub <Hello@contact.pourhub.com.au>",
+      from: "PourHub <Hello@pourhub.au>",
       to: [email],
       subject: "Reset your PourHub password",
       html: `

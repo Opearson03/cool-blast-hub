@@ -37,7 +37,7 @@ const handler = async (req: Request): Promise<Response> => {
     console.log(`Sending welcome email to ${email} with referral code ${referralCode}`);
 
     const emailResponse = await resend.emails.send({
-      from: "PourHub <hello@contact.pourhub.com.au>",
+      from: "PourHub <hello@pourhub.au>",
       to: [email],
       subject: "You're on the PourHub waitlist! 🎉",
       html: `

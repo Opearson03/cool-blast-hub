@@ -1,61 +1,48 @@
 
+## Remove All Xero Integration Code
 
-## Update Email Domain to @contact.pourhub.com.au
+Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
 
-### Overview
-Change all email sending and receiving from `@pourhub.au` to `@contact.pourhub.com.au` across the entire codebase, and update the Resend API key to match the new domain's Resend account.
+### Files to Delete
+- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
+- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
+- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
+- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
+- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
 
-### Step 1: Update Resend API Key
-- Use the secret update tool to let you enter the new `RESEND_API_KEY` for the `contact.pourhub.com.au` domain
+### Files to Edit
 
-### Step 2: Update Edge Functions (20 files)
-Replace every `@pourhub.au` reference with `@contact.pourhub.com.au` in all edge functions:
+1. **`src/pages/admin/AdminSettings.tsx`**
+   - Remove `XeroIntegrationSettings` import
+   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
+   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
+   - Remove the `Plug` icon import if no longer used
 
-| File | What changes |
-|------|-------------|
-| `send-waitlist-welcome` | `from: "PourHub <hello@pourhub.au>"` |
-| `send-waitlist-invite` | `from` and `reply_to` addresses |
-| `send-invite-email` | `from: "PourHub <Hello@pourhub.au>"` |
-| `send-feedback` | `from: "PourHub Feedback <Hello@pourhub.au>"` |
-| `send-password-reset` | `from: "PourHub <Hello@pourhub.au>"` |
-| `send-estimate-email` | Business alias pattern + fallback |
-| `send-variation-email` | Fallback address + footer link |
-| `send-site-visit-email` | Business alias pattern + fallback |
-| `send-misc-job-confirmation` | Business alias pattern + fallback |
-| `send-purchase-order` | Business alias pattern + fallback |
-| `send-subtrade-invite` | Business alias pattern + fallback |
-| `send-batch-subtrade-invite` | Business alias pattern + fallback |
-| `respond-subtrade-invite` | 4 occurrences of alias pattern + fallback |
-| `notify-subtrade-reschedule` | Business alias pattern + fallback |
-| `notify-referral-success` | `from` address |
-| `send-position-update` | `from` address |
-| `send-referral-invite` | `from` address |
-| `send-crm-email` | `from` and `reply_to` addresses |
-| `receive-test-email` | Inbound routing logic (`hello` alias check) |
-| `receive-crm-reply` | Any inbound domain references |
+2. **`src/components/estimates/EstimateDetailSheet.tsx`**
+   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
+   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-The pattern used across most files is:
-```
-// Business-specific alias
-`${business.inbound_email_alias}@pourhub.au`
-// Fallback
-'Hello@pourhub.au'
-```
-Both become `@contact.pourhub.com.au`.
+3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
+   - Remove `useXeroConnection, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
+   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-### Step 3: Update Frontend (2 files)
-- `src/pages/admin/AdminSettings.tsx` -- update the displayed email address pattern from `@pourhub.au` to `@contact.pourhub.com.au`
-- `src/components/settings/TestResultEmailSection.tsx` -- same display update
+4. **`src/hooks/useFeatureFlag.ts`**
+   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
 
-### Step 4: Deploy All Updated Edge Functions
-Redeploy all modified edge functions in one batch.
+### Database Migration
+- Drop tables: `xero_sync_log` and `xero_connections`
 
-### Prerequisites (on your side before approving)
-- The new domain `contact.pourhub.com.au` must be verified in Resend with DNS records (MX, SPF, DKIM) configured
-- You need the new Resend API key ready to paste when prompted
-- If using inbound email (document inbox), the Resend inbound webhook must be configured for the new domain
+### Edge Function Cleanup
+- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
+
+### Secrets
+- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
 
 ### Technical Notes
-- No database schema changes needed -- the `inbound_email_alias` column stores only the prefix (e.g. `jefconptyltd`), the domain suffix is hardcoded in edge functions, so only code changes are required
-- The `receive-test-email` function handles inbound routing and needs its domain checks updated for the new domain
-- All ~20 edge functions will be redeployed after the changes
+- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
+- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
+- No routing changes needed -- there are no dedicated Xero routes

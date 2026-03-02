@@ -798,7 +798,7 @@ serve(async (req) => {
       );
     }
 
-    const aliasMatch = recipientEmail.toLowerCase().match(/^([a-z0-9_-]+)@contact\.pourhub\.com\.au$/);
+    const aliasMatch = recipientEmail.toLowerCase().match(/^([a-z0-9_-]+)@pourhub\.au$/);
     if (!aliasMatch) {
       console.error('Invalid recipient format:', recipientEmail);
       return new Response(

@@ -148,7 +148,7 @@ async function handler(req: Request): Promise<Response> {
 
       try {
         const emailResult = await resend.emails.send({
-          from: "PourHub <Hello@contact.pourhub.com.au>",
+          from: "PourHub <Hello@pourhub.au>",
           to: [user.email],
           subject: `📈 You're now #${currentPosition} on the PourHub waitlist!`,
           html: htmlContent,
