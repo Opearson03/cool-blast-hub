@@ -1,50 +1,26 @@
 
 
-## Add SMS Sending to Onboard Waitlist Modal
+## Allow Manual Phone Number Entry in SMS Tab
 
-### Overview
-Add an "SMS" tab to the onboarding popup so staff can compose a custom SMS message (with the personalised signup link auto-inserted), and send it via Twilio.
+### Problem
+When a waitlist entry has no phone number, the SMS tab shows a static "SMS unavailable" message with no way to proceed. Staff should be able to manually type in a phone number and send the SMS anyway.
 
-### Changes
+### Solution
+Replace the "SMS unavailable" placeholder with an inline phone number input field. Once a number is entered, the normal SMS flow (plan selection, link generation, message composition, send) proceeds as usual, using the manually entered number instead of the stored one.
 
-**1. New Edge Function: `send-waitlist-sms`**
+### Technical Changes
 
-A backend function that:
-- Validates the staff JWT and confirms `pourhub_staff` role
-- Accepts `{ waitlistId, phone, message }` in the request body
-- Formats the phone to AU E.164 format
-- Sends the SMS via Twilio REST API (using existing `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_PHONE_NUMBER` secrets)
-- Updates the waitlist entry's `outreach_status` to "invited" and sets `invited_at`
-- Returns success/failure status
+**File: `src/components/staff/OnboardWaitlistModal.tsx`**
 
-**2. Update `supabase/config.toml`**
-- Add `[functions.send-waitlist-sms]` with `verify_jwt = false` (validation done in code)
+1. Add a `manualPhone` state variable to hold a manually entered phone number
+2. Use `entry.phone || manualPhone` throughout the SMS tab logic to determine the active phone number
+3. Replace the "No phone number" empty state with an input field:
+   - Label: "Enter phone number"
+   - Standard text input with placeholder like "04XX XXX XXX"
+   - Once a number is entered, show the plan selection and normal SMS flow below it
+4. When displaying "Sending to" in the SMS tab, show whichever number is active (stored or manual)
+5. Reset `manualPhone` in `handleReset`
+6. Pass `entry.phone || manualPhone` to the `send-waitlist-sms` edge function call
 
-**3. Update `OnboardWaitlistModal.tsx`**
-- Add a third tab: "SMS" (with a `MessageCircle` icon)
-- The SMS tab reuses the existing plan selection and link generation flow
-- Once the link is generated, show:
-  - A `Textarea` pre-filled with a default message template including the signup link, e.g.: *"Hey [name], it's PourHub! Here's your personalised signup link with [X] months free: [link]"*
-  - The staff member can edit the message freely
-  - A "Send SMS" button that calls the new edge function
-  - Show the recipient's phone number (from the waitlist entry)
-  - If no phone number exists, show a message saying SMS is unavailable for this contact
+No backend or database changes needed -- the edge function already accepts any phone number in the request body.
 
-### No database changes needed
-The existing `waiting_list.phone` column and `outreach_status` field are sufficient. The `update_waitlist_outreach` RPC already handles status updates.
-
-### Technical Details
-
-The edge function follows the same pattern as the existing `send-subtrade-invite` Twilio integration:
-
-```text
-POST /send-waitlist-sms
-Authorization: Bearer <staff-jwt>
-Body: { waitlistId, phone, message }
-
-1. Validate JWT + pourhub_staff role
-2. Format phone to E.164
-3. POST to Twilio Messages API
-4. Update waitlist outreach_status via RPC
-5. Return { success, sms_status }
-```
