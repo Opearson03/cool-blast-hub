@@ -479,8 +479,8 @@
  
            // Use business-specific alias if available
            const fromEmail = business.inbound_email_alias 
-             ? `${business.inbound_email_alias}@pourhub.au`
-             : 'Hello@pourhub.au';
+             ? `${business.inbound_email_alias}@contact.pourhub.com.au`
+             : 'Hello@contact.pourhub.com.au';
            
            const emailResponse = await resend.emails.send({
              from: `${business.name} <${fromEmail}>`,
