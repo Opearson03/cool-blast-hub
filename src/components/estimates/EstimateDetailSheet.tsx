@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from "react";
-import { useXeroConnection, useXeroSyncLog, useSendToXero } from "@/hooks/useXeroConnection";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
@@ -45,7 +44,7 @@ import { InternalBreakdownSection } from "./InternalBreakdownSection";
 import { EditClientDetailsDialog } from "./EditClientDetailsDialog";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+
 
 type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
 
@@ -108,10 +107,6 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
   const printRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { isConnected: isXeroConnected } = useXeroConnection();
-  const showXero = useFeatureFlag('xero_integration');
-  const { data: xeroSync } = useXeroSyncLog("estimate", estimateProp?.id || "");
-  const sendToXero = useSendToXero();
 
   // Get the latest estimate data from cache to ensure we always display fresh data after updates
   const cachedEstimates = queryClient.getQueryData<Estimate[]>(["estimates"]);
@@ -799,77 +794,6 @@ export function EstimateDetailSheet({ estimate: estimateProp, open, onOpenChange
                 <p className="text-xs text-muted-foreground">
                   Signed document not found. The PDF may still be generating.
                 </p>
-              )}
-            </div>
-          )}
-
-          {/* Send to Xero - only for accepted quotes when Xero is connected */}
-          {estimate.status === "accepted" && showXero && isXeroConnected && (
-            <div className="border rounded-lg p-4 space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-semibold text-sm text-muted-foreground uppercase">Xero Invoice</h3>
-                {xeroSync?.xero_invoice_number && (
-                  <Badge variant="outline">{xeroSync.xero_invoice_number}</Badge>
-                )}
-              </div>
-              {xeroSync ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-muted-foreground">Status:</span>
-                    <Badge variant="secondary">{xeroSync.xero_status || "DRAFT"}</Badge>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    disabled={sendToXero.isPending}
-                    onClick={async () => {
-                      if (!xeroSync.xero_invoice_id) return;
-                      const { data, error } = await supabase.functions.invoke("xero-api", {
-                        method: "POST",
-                        body: { action: "get_invoice_status", invoice_id: xeroSync.xero_invoice_id },
-                      });
-                      if (!error) {
-                        queryClient.invalidateQueries({ queryKey: ["xero-sync-log"] });
-                        toast({ title: "Status refreshed", description: `Invoice is ${data.status}` });
-                      }
-                    }}
-                  >
-                    Refresh Status
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  className="gap-2"
-                  disabled={sendToXero.isPending}
-                  onClick={() => {
-                    if (!estimate) return;
-                    // Build line items from scope_data or use a single line item
-                    const lineItems = estimate.scope_data
-                      ? Object.entries(estimate.scope_data as Record<string, any>)
-                          .filter(([key]) => !estimate.selected_scopes || (estimate.selected_scopes as string[]).includes(key))
-                          .map(([_, scope]: [string, any]) => ({
-                            description: scope.label || scope.name || "Item",
-                            quantity: 1,
-                            unit_price: scope.total || 0,
-                          }))
-                          .filter((i) => i.unit_price > 0)
-                      : [{ description: estimate.description || "Quote", quantity: 1, unit_price: estimate.total_amount }];
-
-                    sendToXero.mutate({
-                      sourceType: "estimate",
-                      sourceId: estimate.id,
-                      clientName: estimate.client_name,
-                      clientEmail: estimate.client_email,
-                      clientPhone: estimate.client_phone,
-                      lineItems,
-                      reference: estimate.estimate_number,
-                    });
-                  }}
-                >
-                  {sendToXero.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                  Send to Xero
-                </Button>
               )}
             </div>
           )}
