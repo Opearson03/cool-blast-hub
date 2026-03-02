@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Building2, Save, Plus, X, Upload, CreditCard, ExternalLink, Lock, Palette, FileText, Eye, DollarSign, MessageSquare, Truck, Mail, Plug } from "lucide-react";
 import { XeroIntegrationSettings } from "@/components/settings/XeroIntegrationSettings";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { LivePDFPreview } from "@/components/settings/LivePDFPreview";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -59,6 +60,7 @@ export default function AdminSettings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const subscription = useSubscription();
+  const showXero = useFeatureFlag('xero_integration');
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["business"],
@@ -718,16 +720,18 @@ export default function AdminSettings() {
           </SettingsGroup>
 
           {/* INTEGRATIONS GROUP */}
-          <SettingsGroup title="Integrations">
-            <SettingsAccordionItem
-              value="xero"
-              icon={Plug}
-              title="Xero Accounting"
-              description="Sync invoices and contacts with Xero"
-            >
-              <XeroIntegrationSettings />
-            </SettingsAccordionItem>
-          </SettingsGroup>
+          {showXero && (
+            <SettingsGroup title="Integrations">
+              <SettingsAccordionItem
+                value="xero"
+                icon={Plug}
+                title="Xero Accounting"
+                description="Sync invoices and contacts with Xero"
+              >
+                <XeroIntegrationSettings />
+              </SettingsAccordionItem>
+            </SettingsGroup>
+          )}
 
           {/* SUPPORT GROUP */}
           <SettingsGroup title="Support">

@@ -35,6 +35,7 @@ import { VariationFormDialog } from "@/components/jobs/VariationFormDialog";
 import { SendVariationDialog } from "@/components/jobs/SendVariationDialog";
 import { QuickQuoteDialog } from "@/components/estimates/QuickQuoteDialog";
 import { format } from "date-fns";
+import { useFeatureFlag } from "@/hooks/useFeatureFlag";
 
 interface Job {
   id: string;
@@ -106,6 +107,7 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { isConnected: isXeroConnected } = useXeroConnection();
+  const showXero = useFeatureFlag('xero_integration');
   const sendToXero = useSendToXero();
 
   // Fetch source estimate for client details pre-fill
@@ -348,7 +350,7 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
                               <FileText className="w-4 h-4 mr-2" />
                               Mark Invoiced
                             </DropdownMenuItem>
-                            {isXeroConnected && (
+                            {showXero && isXeroConnected && (
                               <DropdownMenuItem
                                 disabled={sendToXero.isPending}
                                 onClick={() => {
@@ -458,7 +460,7 @@ export function JobVariationsTab({ jobId, businessId, job }: JobVariationsTabPro
                                   <FileText className="w-4 h-4 mr-2" />
                                   Mark Invoiced
                                 </DropdownMenuItem>
-                                {isXeroConnected && (
+                                {showXero && isXeroConnected && (
                                   <DropdownMenuItem
                                     disabled={sendToXero.isPending}
                                     onClick={() => {
