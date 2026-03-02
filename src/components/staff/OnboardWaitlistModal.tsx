@@ -81,6 +81,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
   const [smsMessage, setSmsMessage] = useState("");
   const [staffNotes, setStaffNotes] = useState("");
   const [isSavingNotes, setIsSavingNotes] = useState(false);
+  const [manualPhone, setManualPhone] = useState("");
 
   const freeMonths = 1 + (entry?.referral_count ?? 0);
 
@@ -96,6 +97,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
     setEmailSent(false);
     setSmsSent(false);
     setSmsMessage("");
+    setManualPhone("");
     setStaffNotes(entry?.staff_notes ?? "");
   };
 
@@ -174,7 +176,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
   };
 
   const handleSendSms = async () => {
-    if (!entry || !checkoutResult?.url || !entry.phone) return;
+    if (!entry || !checkoutResult?.url || !activePhone) return;
     if (!smsMessage.trim()) {
       toast.error("Please enter a message");
       return;
@@ -184,7 +186,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
       const { data, error } = await supabase.functions.invoke("send-waitlist-sms", {
         body: {
           waitlistId: entry.id,
-          phone: entry.phone,
+          phone: activePhone,
           message: smsMessage,
         },
       });
@@ -222,7 +224,8 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
   if (!entry) return null;
 
   const alreadyInvited = entry.outreach_status === "invited" || entry.outreach_status === "converted";
-  const hasPhone = !!entry.phone;
+  const activePhone = entry.phone || manualPhone.trim();
+  const hasPhone = !!activePhone;
 
   // Shared plan selection UI
   const renderPlanSelection = () => (
@@ -393,16 +396,22 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
 
           {/* SMS TAB */}
           <TabsContent value="sms" className="space-y-4 mt-4">
-            {!hasPhone ? (
-              <div className="rounded-lg border border-dashed border-muted-foreground/30 p-4 text-center">
-                <MessageCircle className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  No phone number on file for this contact.
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  SMS is unavailable — use Email or Call instead.
-                </p>
+            {!entry.phone && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Recipient phone number</p>
+                <input
+                  type="tel"
+                  placeholder="04XX XXX XXX"
+                  value={manualPhone}
+                  onChange={(e) => setManualPhone(e.target.value)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                />
               </div>
+            )}
+            {!hasPhone ? (
+              <p className="text-xs text-muted-foreground text-center py-2">
+                Enter a phone number above to enable SMS.
+              </p>
             ) : !checkoutResult ? (
               renderPlanSelection()
             ) : (
@@ -411,7 +420,7 @@ export function OnboardWaitlistModal({ entry, open, onOpenChange, onStatusChange
 
                 <div className="rounded-lg border bg-muted/40 px-3 py-2">
                   <p className="text-xs text-muted-foreground mb-1">Sending to</p>
-                  <p className="text-sm font-medium">{entry.phone}</p>
+                  <p className="text-sm font-medium">{activePhone}</p>
                 </div>
 
                 <div className="space-y-2">
