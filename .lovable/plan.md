@@ -1,48 +1,20 @@
 
-## Remove All Xero Integration Code
 
-Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
+## Fix: Sub-Contractor Invite Link 404
 
-### Files to Delete
-- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
-- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
-- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
-- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
-- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
+### Root Cause
+The `APP_URL` secret contains an incorrect value (includes `/xero` or a full path instead of just the base domain). All edge functions build invite links as `${APP_URL}/i/${token}`, so the generated URLs end up as `pourhub.com.au/xero/i/{token}` instead of `pourhub.com.au/i/{token}`, which doesn't match any route.
 
-### Files to Edit
+### Fix
+Update the `APP_URL` secret to `https://pourhub.com.au` (no trailing path or slash).
 
-1. **`src/pages/admin/AdminSettings.tsx`**
-   - Remove `XeroIntegrationSettings` import
-   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
-   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
-   - Remove the `Plug` icon import if no longer used
+No code changes are needed -- the edge functions (`send-subtrade-invite`, `send-batch-subtrade-invite`, `notify-subtrade-reschedule`) already strip trailing slashes via `.replace(/\/+$/, "")`. The only issue is the secret value itself.
 
-2. **`src/components/estimates/EstimateDetailSheet.tsx`**
-   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
-   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+### Affected Links
+All invite types use `APP_URL`:
+- Single sub-trade invites
+- Batch sub-trade invites
+- Reschedule notifications
 
-3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
-   - Remove `useXeroConnection, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
-   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+Once updated, new invite links will be correct. Previously sent broken links will remain broken -- those subbies will need a resend.
 
-4. **`src/hooks/useFeatureFlag.ts`**
-   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
-
-### Database Migration
-- Drop tables: `xero_sync_log` and `xero_connections`
-
-### Edge Function Cleanup
-- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
-
-### Secrets
-- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
-
-### Technical Notes
-- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
-- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
-- No routing changes needed -- there are no dedicated Xero routes
