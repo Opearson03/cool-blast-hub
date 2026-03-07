@@ -1,45 +1,48 @@
 
+## Remove All Xero Integration Code
 
-## Fix: Sub-Trade Invite "non-2xx" Error Handling
+Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
 
-### Root Cause
-When the `send-subtrade-invite` edge function returns a 409 (duplicate invite), `supabase.functions.invoke()` puts the HTTP error in its `error` field as a generic `FunctionsHttpError` with the message "Edge Function returned a non-2xx status code". The JSON body containing the actual error message and `DUPLICATE_INVITE` code is lost.
+### Files to Delete
+- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
+- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
+- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
+- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
+- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
 
-The same issue affects `send-batch-subtrade-invite`.
+### Files to Edit
 
-### Fix
+1. **`src/pages/admin/AdminSettings.tsx`**
+   - Remove `XeroIntegrationSettings` import
+   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
+   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
+   - Remove the `Plug` icon import if no longer used
 
-**1. Update `useSendSubTradeInvite` hook** (`src/hooks/useSubTradeInvites.ts`)
+2. **`src/components/estimates/EstimateDetailSheet.tsx`**
+   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
+   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-Change the `mutationFn` to handle non-2xx responses by reading the response body from the error object. `FunctionsHttpError` has a `.context` property containing the original `Response`, which can be parsed to extract the error message and code.
+3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
+   - Remove `useXeroConnection, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
+   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-```typescript
-const { data: result, error } = await supabase.functions.invoke(...);
+4. **`src/hooks/useFeatureFlag.ts`**
+   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
 
-if (error) {
-  // Try to extract the JSON body from FunctionsHttpError
-  try {
-    const errorBody = await error.context.json();
-    const err = new Error(errorBody.error || error.message) as any;
-    err.code = errorBody.code;
-    throw err;
-  } catch {
-    throw error;
-  }
-}
-```
+### Database Migration
+- Drop tables: `xero_sync_log` and `xero_connections`
 
-Apply the same pattern to `useSendBatchSubTradeInvite`.
+### Edge Function Cleanup
+- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
 
-**2. Add DUPLICATE_INVITE handling to SubTradeInviteDialog** (`src/components/jobs/SubTradeInviteDialog.tsx`)
+### Secrets
+- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
 
-In both `handleSendExistingSubbie` and `onSubmit` catch blocks, check for `error.code === "DUPLICATE_INVITE"` and show a user-friendly toast instead of the generic error.
-
-**3. Add DUPLICATE_INVITE handling to ScheduleSubbieDialog** (`src/components/schedule/ScheduleSubbieDialog.tsx`)
-
-Same pattern -- show a clear "already invited" message when the duplicate code is detected.
-
-### Impact
-- All invite flows will show clear "already has an active invite" messages instead of cryptic errors
-- No edge function changes needed -- only client-side error parsing
-
+### Technical Notes
+- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
+- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
+- No routing changes needed -- there are no dedicated Xero routes

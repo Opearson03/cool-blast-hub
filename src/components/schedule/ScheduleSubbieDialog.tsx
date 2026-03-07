@@ -377,7 +377,11 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
       );
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Failed to send invites");
+      if (error.code === "DUPLICATE_INVITE") {
+        toast.warning("Already invited", { description: error.message });
+      } else {
+        toast.error(error.message || "Failed to send invites");
+      }
     }
   };
 
@@ -407,7 +411,11 @@ export function ScheduleSubbieDialog({ open, onOpenChange, preselectedJobId, pre
       );
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Failed to send invites");
+      if (error.code === "DUPLICATE_INVITE") {
+        toast.warning("Already invited", { description: error.message });
+      } else {
+        toast.error(error.message || "Failed to send invites");
+      }
     }
   };
 

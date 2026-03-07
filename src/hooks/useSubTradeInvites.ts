@@ -81,7 +81,19 @@ export function useSendSubTradeInvite() {
         body: data,
       });
 
-      if (error) throw error;
+      if (error) {
+        try {
+          const errorBody = await (error as any).context?.json();
+          if (errorBody?.error) {
+            const err = new Error(errorBody.error) as any;
+            err.code = errorBody.code;
+            throw err;
+          }
+        } catch (parseErr: any) {
+          if (parseErr?.code) throw parseErr;
+        }
+        throw error;
+      }
       if (result.error) {
         const err = new Error(result.error) as any;
         err.code = result.code;
@@ -113,7 +125,19 @@ export function useSendBatchSubTradeInvite() {
         body: data,
       });
 
-      if (error) throw error;
+      if (error) {
+        try {
+          const errorBody = await (error as any).context?.json();
+          if (errorBody?.error) {
+            const err = new Error(errorBody.error) as any;
+            err.code = errorBody.code;
+            throw err;
+          }
+        } catch (parseErr: any) {
+          if (parseErr?.code) throw parseErr;
+        }
+        throw error;
+      }
       if (result.error) {
         const err = new Error(result.error) as any;
         err.code = result.code;
