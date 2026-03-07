@@ -199,7 +199,11 @@ export function SubTradeInviteDialog({
 
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Failed to send invite");
+      if (error.code === "DUPLICATE_INVITE") {
+        toast.warning("Already invited", { description: error.message });
+      } else {
+        toast.error(error.message || "Failed to send invite");
+      }
     }
   };
 
@@ -259,7 +263,11 @@ export function SubTradeInviteDialog({
       form.reset();
       onOpenChange(false);
     } catch (error: any) {
-      toast.error(error.message || "Failed to send invite");
+      if (error.code === "DUPLICATE_INVITE") {
+        toast.warning("Already invited", { description: error.message });
+      } else {
+        toast.error(error.message || "Failed to send invite");
+      }
     }
   };
 
