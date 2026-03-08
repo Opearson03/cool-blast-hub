@@ -1,48 +1,24 @@
 
-## Remove All Xero Integration Code
 
-Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
+## Skip Signup — Go Straight to Stripe Checkout from Booking Confirmation
 
-### Files to Delete
-- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
-- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
-- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
-- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
-- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
+### Current Flow
+Booking form collects name, email, company → confirmation page → "Start Your Free Month" links to `/signup?tier=pro&freeMonths=1` → user re-enters all info → clicks "Continue to Payment" → Stripe checkout.
 
-### Files to Edit
+### New Flow
+Booking form collects name, email, company → confirmation page → "Start Your Free Month" button directly calls the `create-checkout` edge function with the already-collected data → user lands on Stripe checkout immediately. No `/signup` page in between.
 
-1. **`src/pages/admin/AdminSettings.tsx`**
-   - Remove `XeroIntegrationSettings` import
-   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
-   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
-   - Remove the `Plug` icon import if no longer used
+### Changes
 
-2. **`src/components/estimates/EstimateDetailSheet.tsx`**
-   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
-   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+**1. `BookingConfirmation.tsx`** — Pass email and company from booking form data. Replace the `<Link>` button with an `onClick` handler that:
+- Calls `supabase.functions.invoke("create-checkout", { body: { email, fullName: name, businessName: company, tier: "pro", freeMonths: 1 } })`
+- Redirects to the returned Stripe checkout URL
+- Shows a loading spinner while the checkout session is being created
 
-3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
-   - Remove `useXeroConnection, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
-   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+**2. `Bookings.tsx`** — Pass `email` and `company` into `BookingConfirmation` (these are available from the form submission data already in state).
 
-4. **`src/hooks/useFeatureFlag.ts`**
-   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
+**3. Update confirmation state** — Extend the `confirmation` state object to include `email` and `company` from the form data so it can be forwarded to `BookingConfirmation`.
 
-### Database Migration
-- Drop tables: `xero_sync_log` and `xero_connections`
+### No backend changes needed
+The `create-checkout` edge function already accepts unauthenticated calls with `email`, `fullName`, `businessName`, `tier`, and `freeMonths`. It already applies the 30-day trial. The user goes straight to Stripe with card collection.
 
-### Edge Function Cleanup
-- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
-
-### Secrets
-- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
-
-### Technical Notes
-- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
-- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
-- No routing changes needed -- there are no dedicated Xero routes
