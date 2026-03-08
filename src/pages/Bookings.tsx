@@ -115,6 +115,9 @@ export default function Bookings() {
             <Link to="/">
               <Logo className="h-8" />
             </Link>
+            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              ← Back to Home
+            </Link>
           </div>
         </header>
 
