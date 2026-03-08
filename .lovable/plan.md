@@ -1,48 +1,22 @@
 
-## Remove All Xero Integration Code
 
-Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
+## Free Trial for Zoom Booking Users
 
-### Files to Delete
-- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
-- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
-- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
-- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
-- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
+### What changes
 
-### Files to Edit
+**1. Booking confirmation CTA** — Update `BookingConfirmation.tsx` to link to `/signup?tier=pro&freeMonths=1` instead of plain `/signup`. Update copy to say "Start Your Free Month" instead of "Start Free Trial".
 
-1. **`src/pages/admin/AdminSettings.tsx`**
-   - Remove `XeroIntegrationSettings` import
-   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
-   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
-   - Remove the `Plug` icon import if no longer used
+**2. Signup page pricing display** — When `freeMonths=1` is in the URL, show the price as ~~$199~~ **$0 for your first month** in the plan summary card. The "Continue to Payment" button text stays the same (card is still required).
 
-2. **`src/components/estimates/EstimateDetailSheet.tsx`**
-   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
-   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+**3. Edge function trial logic** — The `create-checkout` edge function already supports `freeMonths` and converts it to `trial_period_days` (line 175-178). It passes `freeMonths * 30` as `trial_period_days` to Stripe, which gives a free period while still collecting the card. No backend changes needed.
 
-3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
-   - Remove `useXeroConnection, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
-   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+### Files to change
 
-4. **`src/hooks/useFeatureFlag.ts`**
-   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
+| File | Change |
+|------|--------|
+| `src/components/bookings/BookingConfirmation.tsx` | Update CTA link to `/signup?tier=pro&freeMonths=1`, update button/copy text |
+| `src/pages/Signup.tsx` | When `freeMonths` param exists, show crossed-out price with "$0 first month" styling in the plan summary card |
 
-### Database Migration
-- Drop tables: `xero_sync_log` and `xero_connections`
+### No database or edge function changes required
+The `create-checkout` function already handles `freeMonths` → Stripe `trial_period_days`. Stripe's `payment_method_collection: "always"` ensures the card is collected even during trial.
 
-### Edge Function Cleanup
-- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
-
-### Secrets
-- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
-
-### Technical Notes
-- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
-- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
-- No routing changes needed -- there are no dedicated Xero routes
