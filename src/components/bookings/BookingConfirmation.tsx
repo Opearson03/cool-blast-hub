@@ -13,8 +13,8 @@ export function BookingConfirmation({ bookingTime, zoomLink, name }: BookingConf
   return (
     <div className="text-center space-y-6 py-8">
       <div className="flex justify-center">
-        <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-          <CheckCircle className="h-8 w-8 text-green-600" />
+        <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+          <CheckCircle className="h-8 w-8 text-primary" />
         </div>
       </div>
 

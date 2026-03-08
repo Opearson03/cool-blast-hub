@@ -101,7 +101,7 @@ export default function Bookings() {
       <SEOHead
         title="Book a Free Onboarding Call | PourHub"
         description="Book a free 30 minute Zoom call with the PourHub team. We'll show you how to create quotes and help you set up your first job."
-        path="/bookings"
+        canonicalPath="/bookings"
       />
 
       <div className="min-h-screen bg-background">

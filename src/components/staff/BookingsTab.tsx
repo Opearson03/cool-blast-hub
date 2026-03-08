@@ -72,9 +72,9 @@ export function BookingsTab() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "booked":
-        return <Badge variant="default" className="bg-blue-500 hover:bg-blue-600"><Clock className="h-3 w-3 mr-1" />Booked</Badge>;
+        return <Badge variant="default"><Clock className="h-3 w-3 mr-1" />Booked</Badge>;
       case "completed":
-        return <Badge variant="default" className="bg-green-600 hover:bg-green-700"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
+        return <Badge variant="outline" className="border-green-600 text-green-600"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
       case "cancelled":
         return <Badge variant="secondary"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
       default:

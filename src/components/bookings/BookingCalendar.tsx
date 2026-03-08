@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { format, addDays, isWeekend, isBefore, startOfDay, setHours, setMinutes, isSameDay } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
+
 import { Button } from "@/components/ui/button";
 import { Clock } from "lucide-react";
 
