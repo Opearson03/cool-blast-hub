@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Users, Send, Inbox, History } from "lucide-react";
+import { Users, Send, Inbox, History, CalendarDays } from "lucide-react";
 import { CrmContactsTable } from "./CrmContactsTable";
 import { ComposeEmail } from "./ComposeEmail";
 import { CrmInbox } from "./CrmInbox";
 import { SentEmailsLog } from "./SentEmailsLog";
+import { BookingsTab } from "@/components/staff/BookingsTab";
 
 interface CrmContact {
   contact_type: string;
@@ -64,6 +65,10 @@ export function CrmTab() {
             </Badge>
           )}
         </TabsTrigger>
+        <TabsTrigger value="bookings">
+          <CalendarDays className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Bookings</span>
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="contacts">
@@ -90,6 +95,10 @@ export function CrmTab() {
 
       <TabsContent value="inbox">
         <CrmInbox />
+      </TabsContent>
+
+      <TabsContent value="bookings">
+        <BookingsTab />
       </TabsContent>
     </Tabs>
   );
