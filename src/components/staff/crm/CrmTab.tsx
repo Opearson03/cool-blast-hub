@@ -3,11 +3,12 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Users, Send, Inbox, History } from "lucide-react";
+import { Users, Send, Inbox, History, CalendarDays } from "lucide-react";
 import { CrmContactsTable } from "./CrmContactsTable";
 import { ComposeEmail } from "./ComposeEmail";
 import { CrmInbox } from "./CrmInbox";
 import { SentEmailsLog } from "./SentEmailsLog";
+import { BookingsTab } from "@/components/staff/BookingsTab";
 
 interface CrmContact {
   contact_type: string;
