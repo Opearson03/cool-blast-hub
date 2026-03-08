@@ -154,6 +154,21 @@ Deno.serve(async (req) => {
       throw new Error(`Insert failed: ${insertError.message}`);
     }
 
+    // Add to CRM as a lead
+    try {
+      await supabase
+        .from("crm_leads")
+        .upsert({
+          email,
+          full_name: name,
+          company_name: company,
+          phone: phone || null,
+          source: "booking",
+        }, { onConflict: "email", ignoreDuplicates: true });
+    } catch (crmErr) {
+      console.error("CRM lead insert failed:", crmErr);
+    }
+
     // Send confirmation email via Resend
     const resendKey = Deno.env.get("RESEND_API_KEY");
     if (resendKey) {

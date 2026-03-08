@@ -1,33 +1,48 @@
 
+## Remove All Xero Integration Code
 
-## Auto-add Booking Contacts to CRM Leads
+Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
 
-### Change
+### Files to Delete
+- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
+- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
+- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
+- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
+- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
 
-In `supabase/functions/create-booking/index.ts`, after the booking is successfully inserted, upsert a row into `crm_leads` with the booking contact's details. Use `ON CONFLICT (email) DO NOTHING` to avoid duplicates.
+### Files to Edit
 
-### Implementation
+1. **`src/pages/admin/AdminSettings.tsx`**
+   - Remove `XeroIntegrationSettings` import
+   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
+   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
+   - Remove the `Plug` icon import if no longer used
 
-**File: `supabase/functions/create-booking/index.ts`** — After the booking insert (around line 155), add:
+2. **`src/components/estimates/EstimateDetailSheet.tsx`**
+   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
+   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-```typescript
-// Add to CRM as a lead
-try {
-  await supabase
-    .from("crm_leads")
-    .upsert({
-      email: email,
-      full_name: name,
-      company_name: company,
-      phone: phone || null,
-      source: "booking",
-    }, { onConflict: "email", ignoreDuplicates: true });
-} catch (crmErr) {
-  console.error("CRM lead insert failed:", crmErr);
-}
-```
+3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
+   - Remove `useXeroConnection, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
+   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-This uses the service role client already in scope, so RLS (staff-only) is bypassed. If the email already exists in `crm_leads`, the insert is silently skipped. The `source` is set to `"booking"` so staff can filter/identify these leads.
+4. **`src/hooks/useFeatureFlag.ts`**
+   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
 
-No database changes needed — `crm_leads` table already has all the required columns.
+### Database Migration
+- Drop tables: `xero_sync_log` and `xero_connections`
 
+### Edge Function Cleanup
+- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
+
+### Secrets
+- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
+
+### Technical Notes
+- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
+- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
+- No routing changes needed -- there are no dedicated Xero routes
