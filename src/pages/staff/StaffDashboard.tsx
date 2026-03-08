@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck, Truck, Mail, HardHat, Megaphone } from "lucide-react";
+import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, List, UserCheck, Truck, Mail, HardHat, Megaphone, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "@/components/ui/Logo";
 import { WaitlistTable } from "@/components/staff/WaitlistTable";
@@ -18,6 +18,7 @@ import { ChurnMetrics } from "@/components/staff/ChurnMetrics";
 import { CrmTab } from "@/components/staff/crm/CrmTab";
 import { SubcontractorAdminTable } from "@/components/subcontractors/SubcontractorAdminTable";
 import { AffiliatesTab } from "@/components/staff/AffiliatesTab";
+import { BookingsTab } from "@/components/staff/BookingsTab";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -120,6 +121,14 @@ export default function StaffDashboard() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'crm_inbox' },
         () => handleRealtimeUpdate()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => {
+          handleRealtimeUpdate();
+          queryClient.invalidateQueries({ queryKey: ["staff-bookings"] });
+        }
       )
       .subscribe();
 
@@ -275,6 +284,10 @@ export default function StaffDashboard() {
               <Megaphone className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Affiliates</span>
             </TabsTrigger>
+            <TabsTrigger value="bookings">
+              <CalendarDays className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Bookings</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -312,6 +325,10 @@ export default function StaffDashboard() {
 
           <TabsContent value="affiliates">
             <AffiliatesTab />
+          </TabsContent>
+
+          <TabsContent value="bookings">
+            <BookingsTab />
           </TabsContent>
         </Tabs>
       </main>

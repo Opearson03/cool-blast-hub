@@ -51,6 +51,7 @@ import SubcontractorProfilePage from "./pages/directory/SubcontractorProfilePage
 import NotFound from "./pages/NotFound";
 import AffiliateRegistration from "./pages/AffiliateRegistration";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
+import Bookings from "./pages/Bookings";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
@@ -140,6 +141,9 @@ const AppContent = () => {
       {/* Affiliate Routes */}
       <Route path="/affiliates" element={<AffiliateRegistration />} />
       <Route path="/affiliates/dashboard" element={<AffiliateDashboard />} />
+
+      {/* Booking Route */}
+      <Route path="/bookings" element={<Bookings />} />
 
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
