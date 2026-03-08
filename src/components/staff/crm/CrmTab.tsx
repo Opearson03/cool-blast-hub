@@ -65,6 +65,10 @@ export function CrmTab() {
             </Badge>
           )}
         </TabsTrigger>
+        <TabsTrigger value="bookings">
+          <CalendarDays className="h-4 w-4 sm:mr-2" />
+          <span className="hidden sm:inline">Bookings</span>
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="contacts">
@@ -91,6 +95,10 @@ export function CrmTab() {
 
       <TabsContent value="inbox">
         <CrmInbox />
+      </TabsContent>
+
+      <TabsContent value="bookings">
+        <BookingsTab />
       </TabsContent>
     </Tabs>
   );
