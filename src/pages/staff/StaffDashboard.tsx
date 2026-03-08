@@ -122,6 +122,14 @@ export default function StaffDashboard() {
         { event: '*', schema: 'public', table: 'crm_inbox' },
         () => handleRealtimeUpdate()
       )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'bookings' },
+        () => {
+          handleRealtimeUpdate();
+          queryClient.invalidateQueries({ queryKey: ["staff-bookings"] });
+        }
+      )
       .subscribe();
 
     return () => {
