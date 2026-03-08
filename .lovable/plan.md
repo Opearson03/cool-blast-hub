@@ -1,48 +1,27 @@
 
-## Remove All Xero Integration Code
 
-Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
+## Change PourHub Pro Price from $240 to $199
 
-### Files to Delete
-- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
-- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
-- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
-- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
-- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
+### What needs to change
 
-### Files to Edit
+**1. Create a new Stripe price** for the Pro product (`prod_TvWGfsM4uQs4od`) at $199/month (19900 cents AUD). The current price (`price_1SxfE0S7UIjxyz7Vdj3W8vBx`) is $240/month. Stripe prices are immutable, so a new price must be created and the old one archived.
 
-1. **`src/pages/admin/AdminSettings.tsx`**
-   - Remove `XeroIntegrationSettings` import
-   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
-   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
-   - Remove the `Plug` icon import if no longer used
+**2. Update code references** (6 files):
 
-2. **`src/components/estimates/EstimateDetailSheet.tsx`**
-   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
-   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+| File | Change |
+|------|--------|
+| `src/lib/subscription-tiers.ts` | `price: 240` → `price: 199`, update `price_id` to new price, update comment |
+| `supabase/functions/create-checkout/index.ts` | Update `PRICE_IDS.pro` to new price ID, update comment |
+| `src/components/staff/SubscriptionMetrics.tsx` | `$240/mo` labels → `$199/mo`, MRR calc `proPaid * 240` → `proPaid * 199` |
+| `src/pages/Pricing.tsx` | SEO description `$240` → `$199`, value prop `$240` → `$199` |
+| `src/pages/AffiliateRegistration.tsx` | Example earnings text `$240/mo` → `$199/mo`, recalculate example ($1,990) |
+| `supabase/functions/send-waitlist-invite/index.ts` | `"$240"` → `"$199"` |
 
-3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
-   - Remove `useXeroConnection, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
-   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+### Existing subscribers
+Existing Pro subscribers on the $240 price will remain on $240 until they cancel/re-subscribe, unless you want to migrate them (that would be a separate Stripe action). New signups will use the $199 price.
 
-4. **`src/hooks/useFeatureFlag.ts`**
-   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
+### Steps
+1. Create new Stripe price on `prod_TvWGfsM4uQs4od` at 19900 AUD/month recurring
+2. Update all 6 code files with the new price ID and $199 amount
+3. Optionally archive the old $240 price in Stripe
 
-### Database Migration
-- Drop tables: `xero_sync_log` and `xero_connections`
-
-### Edge Function Cleanup
-- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
-
-### Secrets
-- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
-
-### Technical Notes
-- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
-- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
-- No routing changes needed -- there are no dedicated Xero routes
