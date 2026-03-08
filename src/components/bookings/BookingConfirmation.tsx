@@ -1,15 +1,48 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Video, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { CheckCircle, Video, ArrowRight, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface BookingConfirmationProps {
   bookingTime: Date;
   zoomLink?: string;
   name: string;
+  email: string;
+  company: string;
 }
 
-export function BookingConfirmation({ bookingTime, zoomLink, name }: BookingConfirmationProps) {
+export function BookingConfirmation({ bookingTime, zoomLink, name, email, company }: BookingConfirmationProps) {
+  const [isRedirecting, setIsRedirecting] = useState(false);
+
+  const handleStartTrial = async () => {
+    setIsRedirecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("create-checkout", {
+        body: {
+          email,
+          fullName: name,
+          businessName: company,
+          tier: "pro",
+          freeMonths: 1,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.error) throw new Error(data.error);
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error("No checkout URL returned");
+      }
+    } catch (err: any) {
+      console.error("Checkout error:", err);
+      toast.error("Something went wrong. Please try again.");
+      setIsRedirecting(false);
+    }
+  };
+
   return (
     <div className="text-center space-y-6 py-8">
       <div className="flex justify-center">
@@ -60,11 +93,23 @@ export function BookingConfirmation({ bookingTime, zoomLink, name }: BookingConf
         <p className="text-foreground font-medium">
           As a thank you for booking, enjoy your first month of PourHub Pro free!
         </p>
-        <Button asChild size="lg" className="w-full">
-          <Link to="/signup?tier=pro&freeMonths=1">
-            Start Your Free Month
-            <ArrowRight className="h-4 w-4 ml-2" />
-          </Link>
+        <Button
+          size="lg"
+          className="w-full"
+          onClick={handleStartTrial}
+          disabled={isRedirecting}
+        >
+          {isRedirecting ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              Redirecting to checkout...
+            </>
+          ) : (
+            <>
+              Start Your Free Month
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </>
+          )}
         </Button>
       </div>
     </div>
