@@ -1,48 +1,118 @@
 
-## Remove All Xero Integration Code
 
-Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
+## Booking System for PourHub
 
-### Files to Delete
-- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
-- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
-- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
-- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
-- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
+### Overview
 
-### Files to Edit
+Public `/bookings` page with calendar-based time slot selection, form capture, Zoom meeting auto-creation, and staff management in the staff dashboard.
 
-1. **`src/pages/admin/AdminSettings.tsx`**
-   - Remove `XeroIntegrationSettings` import
-   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
-   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
-   - Remove the `Plug` icon import if no longer used
+### 1. Database
 
-2. **`src/components/estimates/EstimateDetailSheet.tsx`**
-   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
-   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+Create a `bookings` table:
 
-3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
-   - Remove `useXeroConnection, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
-   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+```sql
+CREATE TABLE public.bookings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  phone TEXT,
+  company TEXT NOT NULL,
+  quotes_per_week TEXT,
+  booking_time TIMESTAMPTZ NOT NULL,
+  timezone TEXT NOT NULL DEFAULT 'Australia/Sydney',
+  status TEXT NOT NULL DEFAULT 'booked',
+  zoom_link TEXT,
+  zoom_meeting_id TEXT,
+  staff_notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
 
-4. **`src/hooks/useFeatureFlag.ts`**
-   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
+-- RLS: public can insert (anonymous booking), staff can read/update
+ALTER TABLE public.bookings ENABLE ROW LEVEL SECURITY;
 
-### Database Migration
-- Drop tables: `xero_sync_log` and `xero_connections`
+CREATE POLICY "Anyone can insert bookings" ON public.bookings FOR INSERT TO anon, authenticated WITH CHECK (true);
+CREATE POLICY "Anyone can read booking times" ON public.bookings FOR SELECT TO anon, authenticated USING (true);
+CREATE POLICY "Staff can update bookings" ON public.bookings FOR UPDATE TO authenticated USING (public.is_pourhub_staff(auth.uid()));
+CREATE POLICY "Staff can delete bookings" ON public.bookings FOR DELETE TO authenticated USING (public.is_pourhub_staff(auth.uid()));
+```
 
-### Edge Function Cleanup
-- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
+The SELECT policy is open so the public page can check which slots are taken (only `booking_time` and `status` are queried publicly).
 
-### Secrets
-- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
+### 2. Zoom Integration
 
-### Technical Notes
-- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
-- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
-- No routing changes needed -- there are no dedicated Xero routes
+**Secret required**: `ZOOM_ACCOUNT_ID`, `ZOOM_CLIENT_ID`, `ZOOM_CLIENT_SECRET` (Server-to-Server OAuth app from Zoom Marketplace).
+
+**Edge function**: `create-zoom-meeting`
+- Authenticates via Zoom Server-to-Server OAuth (account credentials grant)
+- Creates a 30-min meeting for the booked time
+- Returns the join URL and meeting ID
+- Called from a `create-booking` edge function
+
+**Edge function**: `create-booking`
+- Receives booking details from the public form
+- Validates no double-booking for the requested time slot
+- Calls `create-zoom-meeting` internally
+- Inserts the booking row with zoom_link
+- Sends confirmation email via Resend (already configured)
+- Returns confirmation to the client
+
+### 3. Public Page — `/bookings`
+
+New file: `src/pages/Bookings.tsx`
+
+- PourHub-branded header with logo
+- Description text as specified
+- Two-column layout (desktop): calendar on left, time slots + form on right
+- Mobile: stacked vertically
+- Calendar component using the existing `Calendar` (react-day-picker)
+- Only Mon-Fri selectable, past dates disabled
+- Time slots: 9:00-17:00 AEST in 30-min blocks, greyed out if already booked
+- Auto-detect user timezone, convert display times
+- Form fields: Name, Email, Phone (optional), Company, Quotes per week (select)
+- "Book Zoom Call" CTA button
+- On success: confirmation screen with Zoom link, "Start Free Trial" button linking to `/signup`
+
+### 4. Staff Dashboard — Bookings Tab
+
+Add a "Bookings" tab to `StaffDashboard.tsx` with a `CalendarIcon`.
+
+New component: `src/components/staff/BookingsTab.tsx`
+- Two views: calendar view (mini calendar with dot indicators) and list view (table of upcoming bookings)
+- Columns: Name, Email, Phone, Company, Quotes/week, Booking Time, Status
+- Actions per row: Mark Complete, Cancel, Reschedule (date picker dialog)
+- Filter by status (all/booked/completed/cancelled)
+- Add realtime subscription for the `bookings` table
+
+### 5. Routing
+
+Add to `App.tsx`:
+```tsx
+<Route path="/bookings" element={<Bookings />} />
+```
+
+### 6. Zoom API Setup
+
+Before implementation, I will need you to:
+1. Create a **Server-to-Server OAuth app** in the [Zoom Marketplace](https://marketplace.zoom.us/)
+2. Grant the `meeting:write:admin` scope
+3. Provide the Account ID, Client ID, and Client Secret (I will prompt you securely)
+
+### 7. File Summary
+
+| File | Action |
+|------|--------|
+| `src/pages/Bookings.tsx` | Create — public booking page |
+| `src/components/bookings/BookingCalendar.tsx` | Create — calendar + slot picker |
+| `src/components/bookings/BookingForm.tsx` | Create — contact form |
+| `src/components/bookings/BookingConfirmation.tsx` | Create — success screen |
+| `src/components/staff/BookingsTab.tsx` | Create — staff management |
+| `supabase/functions/create-booking/index.ts` | Create — booking + Zoom creation |
+| `src/pages/staff/StaffDashboard.tsx` | Edit — add Bookings tab |
+| `src/App.tsx` | Edit — add /bookings route |
+| Database migration | Create `bookings` table + RLS |
+
+### Future Extensibility
+
+The `bookings` table includes `staff_notes` and `zoom_meeting_id` fields. The edge function architecture separates Zoom meeting creation, making it straightforward to later add multiple staff calendars (add `staff_user_id` column), different meeting types (add `meeting_type` column), Google Calendar sync (additional edge function), and automated reminders (scheduled edge function).
+
