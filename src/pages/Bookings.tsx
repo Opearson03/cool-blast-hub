@@ -17,6 +17,8 @@ export default function Bookings() {
     bookingTime: Date;
     zoomLink?: string;
     name: string;
+    email: string;
+    company: string;
   } | null>(null);
 
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
@@ -80,6 +82,8 @@ export default function Bookings() {
         bookingTime: new Date(bookingTimeISO),
         zoomLink: data?.zoom_link,
         name: formData.name,
+        email: formData.email.trim().toLowerCase(),
+        company: formData.company.trim(),
       });
 
       toast.success("Your call has been booked!");
@@ -120,6 +124,8 @@ export default function Bookings() {
               bookingTime={confirmation.bookingTime}
               zoomLink={confirmation.zoomLink}
               name={confirmation.name}
+              email={confirmation.email}
+              company={confirmation.company}
             />
           ) : (
             <>
