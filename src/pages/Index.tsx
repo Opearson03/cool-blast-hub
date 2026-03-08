@@ -157,6 +157,14 @@ const Index = () => {
                   </Button>
                 </Link>
               </div>
+              <div className="flex justify-center w-full mt-3">
+                <Link to="/bookings">
+                  <Button size="lg" variant="ghost" className="text-lg px-8 py-6 touch-target transition-all duration-300 hover:scale-[1.02]">
+                    <CalendarDays className="mr-2 w-5 h-5" />
+                    Book a Call
+                  </Button>
+                </Link>
+              </div>
             </div>
           </div>
         </div>
