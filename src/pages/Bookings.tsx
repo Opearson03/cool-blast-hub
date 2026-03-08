@@ -110,16 +110,19 @@ export default function Bookings() {
 
       <div className="min-h-screen bg-background">
         {/* Header */}
-        <header className="border-b bg-card">
-          <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-            <Link to="/">
-              <Logo className="h-8" />
+        <nav className="sticky top-0 z-50 bg-charcoal-dark/80 backdrop-blur-md border-b border-border/20">
+          <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
+            <Link to="/" className="flex items-center gap-2">
+              <Logo size="sm" className="w-8 h-8 rounded-lg" />
+              <span className="text-xl font-bold text-primary-foreground">
+                Pour<span className="text-primary">Hub</span>
+              </span>
             </Link>
             <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
               ← Back to Home
             </Link>
           </div>
-        </header>
+        </nav>
 
         <main className="container mx-auto px-4 py-8 max-w-5xl">
           {confirmation ? (
