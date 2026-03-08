@@ -118,8 +118,19 @@ export default function Signup() {
               <div className="mb-4">
                 <h2 className="text-2xl font-bold">{tierConfig.name}</h2>
                 <div className="mt-2">
-                  <span className="text-3xl font-bold text-primary">${tierConfig.price}</span>
-                  <span className="text-muted-foreground"> / month</span>
+                  {freeMonths ? (
+                    <>
+                      <span className="text-xl font-bold text-muted-foreground line-through">${tierConfig.price}</span>
+                      <span className="text-3xl font-bold text-primary ml-2">$0</span>
+                      <span className="text-muted-foreground"> / first month</span>
+                      <p className="text-sm text-primary mt-1">🎉 Free month included with your booking!</p>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-3xl font-bold text-primary">${tierConfig.price}</span>
+                      <span className="text-muted-foreground"> / month</span>
+                    </>
+                  )}
                 </div>
               </div>
               <ul className="space-y-2">

@@ -58,11 +58,11 @@ export function BookingConfirmation({ bookingTime, zoomLink, name }: BookingConf
 
       <div className="pt-4 space-y-3 max-w-md mx-auto">
         <p className="text-foreground font-medium">
-          While you wait, you can start your free PourHub trial here.
+          As a thank you for booking, enjoy your first month of PourHub Pro free!
         </p>
         <Button asChild size="lg" className="w-full">
-          <Link to="/signup">
-            Start Free Trial
+          <Link to="/signup?tier=pro&freeMonths=1">
+            Start Your Free Month
             <ArrowRight className="h-4 w-4 ml-2" />
           </Link>
         </Button>
