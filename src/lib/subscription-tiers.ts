@@ -34,9 +34,9 @@ export const SUBSCRIPTION_TIERS = {
   },
   pro: {
     name: "PourHub Pro",
-    price: 240,
-    price_id: "price_1SxfE0S7UIjxyz7Vdj3W8vBx",
-    product_id: "prod_TvWGfsM4uQs4od",
+    price: 199,
+    price_id: "price_1T8YHhS7UIjxyz7VUdHtglc8",
+    product_id: "prod_U6lpws80KASuHx",
     employee_limit: 999,
     monthly_estimate_limit: null, // Unlimited
     has_full_app_access: true,
@@ -75,13 +75,15 @@ export type SubscriptionTier = keyof typeof SUBSCRIPTION_TIERS;
 // Product ID to tier mapping for edge functions
 export const PRODUCT_ID_TO_TIER: Record<string, SubscriptionTier> = {
   "prod_TvWGele4WOtuLp": "estimating",
-  "prod_TvWGfsM4uQs4od": "pro",
+  "prod_U6lpws80KASuHx": "pro",
+  "prod_TvWGfsM4uQs4od": "pro", // Legacy $240 product
   "prod_TkdAIRs15o1Omv": "standard", // Legacy
 };
 
 // Price ID to tier mapping
 export const PRICE_ID_TO_TIER: Record<string, SubscriptionTier> = {
   "price_1SxfDWS7UIjxyz7V3CrcxMT4": "estimating",
-  "price_1SxfE0S7UIjxyz7Vdj3W8vBx": "pro",
+  "price_1T8YHhS7UIjxyz7VUdHtglc8": "pro",
+  "price_1SxfE0S7UIjxyz7Vdj3W8vBx": "pro", // Legacy $240 price
   "price_1Sn7u2S7UIjxyz7VMeUH1Kct": "standard", // Legacy
 };

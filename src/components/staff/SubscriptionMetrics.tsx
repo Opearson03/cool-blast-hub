@@ -34,7 +34,7 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
   const demoCount = stats?.demo_accounts ?? 0;
   const totalBusinesses = stats?.total_businesses ?? 0;
 
-  const mrr = (estimatingPaid * 99) + (proPaid * 240) + (legacyPaid * 100);
+  const mrr = (estimatingPaid * 99) + (proPaid * 199) + (legacyPaid * 100);
 
   if (isLoading) {
     return (
@@ -52,8 +52,8 @@ export function SubscriptionMetrics({ stats, isLoading, fullWidth }: Subscriptio
   }
 
   const tiers = [
-    { label: "Pro $240/mo (paid)", count: proPaid, color: "" },
-    { label: "Pro $240/mo (trial)", count: proTrial, color: "[&>div]:bg-blue-500", textColor: "text-blue-600", showIfZero: false },
+    { label: "Pro $199/mo (paid)", count: proPaid, color: "" },
+    { label: "Pro $199/mo (trial)", count: proTrial, color: "[&>div]:bg-blue-500", textColor: "text-blue-600", showIfZero: false },
     { label: "Estimating $99/mo (paid)", count: estimatingPaid, color: "" },
     { label: "Estimating $99/mo (trial)", count: estimatingTrial, color: "[&>div]:bg-blue-500", textColor: "text-blue-600", showIfZero: false },
     { label: "Legacy $100/mo", count: legacyPaid, color: "[&>div]:bg-orange-500", textColor: "text-orange-600", showIfZero: false },

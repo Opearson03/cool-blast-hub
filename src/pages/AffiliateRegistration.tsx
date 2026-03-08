@@ -160,7 +160,7 @@ export default function AffiliateRegistration() {
             <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
               <p className="text-sm font-medium text-primary">Example earnings</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Refer 10 PourHub Pro subscribers ($240/mo) → Earn <span className="font-semibold text-foreground">$2,400</span> over 10 months.
+                Refer 10 PourHub Pro subscribers ($199/mo) → Earn <span className="font-semibold text-foreground">$1,990</span> over 10 months.
               </p>
             </div>
           </div>

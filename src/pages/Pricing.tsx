@@ -15,7 +15,7 @@ const Pricing = () => {
     <>
       <SEOHead
         title="PourHub Pricing - Estimating & Pro Plans | Concreting Software Australia"
-        description="Simple pricing for PourHub concreting business management software. Estimating at $99/month or Pro for $240/month. Choose the plan that fits your business."
+        description="Simple pricing for PourHub concreting business management software. Estimating at $99/month or Pro for $199/month. Choose the plan that fits your business."
         canonicalPath="/pricing"
         keywords="concreting software pricing, construction management software cost, concrete quoting software"
       />
@@ -198,7 +198,7 @@ const Pricing = () => {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 text-center">
               <div>
-                <div className="text-4xl font-bold text-primary mb-2">$240</div>
+                <div className="text-4xl font-bold text-primary mb-2">$199</div>
                 <p className="text-muted-foreground">Less than 2 hours of labour per month</p>
               </div>
               <div>

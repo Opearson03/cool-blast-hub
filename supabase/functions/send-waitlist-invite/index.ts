@@ -67,7 +67,7 @@ serve(async (req) => {
     const displayName = fullName || "there";
     const months = freeMonths ?? 1;
     const tierLabel = tier === "pro" ? "PourHub Pro" : "PourHub Estimating";
-    const tierPrice = tier === "pro" ? "$240" : "$99";
+    const tierPrice = tier === "pro" ? "$199" : "$99";
 
     const emailResponse = await resend.emails.send({
       from: "PourHub <hello@pourhub.au>",
