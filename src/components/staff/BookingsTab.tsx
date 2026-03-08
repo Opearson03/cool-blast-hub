@@ -74,7 +74,7 @@ export function BookingsTab() {
       case "booked":
         return <Badge variant="default"><Clock className="h-3 w-3 mr-1" />Booked</Badge>;
       case "completed":
-        return <Badge variant="outline" className="border-green-600 text-green-600"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
+        return <Badge variant="outline"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
       case "cancelled":
         return <Badge variant="secondary"><XCircle className="h-3 w-3 mr-1" />Cancelled</Badge>;
       default:
