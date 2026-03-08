@@ -15,7 +15,7 @@ const logStep = (step: string, details?: any) => {
 // Price IDs for each tier
 const PRICE_IDS = {
   estimating: "price_1SxfDWS7UIjxyz7V3CrcxMT4", // $99/month
-  pro: "price_1SxfE0S7UIjxyz7Vdj3W8vBx",        // $240/month
+  pro: "price_1T8YHhS7UIjxyz7VUdHtglc8",        // $199/month
   legacy: "price_1Sn7u2S7UIjxyz7VMeUH1Kct",     // $100/month (legacy)
 };
 
