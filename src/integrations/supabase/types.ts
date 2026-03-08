@@ -175,6 +175,57 @@ export type Database = {
         }
         Relationships: []
       }
+      bookings: {
+        Row: {
+          booking_time: string
+          company: string
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          phone: string | null
+          quotes_per_week: string | null
+          staff_notes: string | null
+          status: string
+          timezone: string
+          updated_at: string | null
+          zoom_link: string | null
+          zoom_meeting_id: string | null
+        }
+        Insert: {
+          booking_time: string
+          company: string
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          phone?: string | null
+          quotes_per_week?: string | null
+          staff_notes?: string | null
+          status?: string
+          timezone?: string
+          updated_at?: string | null
+          zoom_link?: string | null
+          zoom_meeting_id?: string | null
+        }
+        Update: {
+          booking_time?: string
+          company?: string
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          phone?: string | null
+          quotes_per_week?: string | null
+          staff_notes?: string | null
+          status?: string
+          timezone?: string
+          updated_at?: string | null
+          zoom_link?: string | null
+          zoom_meeting_id?: string | null
+        }
+        Relationships: []
+      }
       business_subscriptions: {
         Row: {
           business_id: string
