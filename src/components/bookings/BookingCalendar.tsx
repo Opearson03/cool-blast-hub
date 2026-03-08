@@ -15,17 +15,13 @@ interface BookingCalendarProps {
   timezone: string;
 }
 
-const BUSINESS_HOURS_START = 9;
-const BUSINESS_HOURS_END = 17;
 const SLOT_DURATION = 30; // minutes
 
-function generateTimeSlots(): string[] {
+function generateTimeSlots(startHour: number, endHour: number): string[] {
   const slots: string[] = [];
-  for (let hour = BUSINESS_HOURS_START; hour < BUSINESS_HOURS_END; hour++) {
+  for (let hour = startHour; hour < endHour; hour++) {
     slots.push(`${hour.toString().padStart(2, "0")}:00`);
-    if (hour < BUSINESS_HOURS_END || SLOT_DURATION === 30) {
-      slots.push(`${hour.toString().padStart(2, "0")}:30`);
-    }
+    slots.push(`${hour.toString().padStart(2, "0")}:30`);
   }
   return slots;
 }
@@ -38,7 +34,11 @@ export function BookingCalendar({
   bookedSlots,
   timezone,
 }: BookingCalendarProps) {
-  const timeSlots = useMemo(() => generateTimeSlots(), []);
+  const timeSlots = useMemo(() => {
+    if (!selectedDate) return [];
+    const weekend = isWeekend(selectedDate);
+    return generateTimeSlots(weekend ? 9 : 16, weekend ? 17 : 20);
+  }, [selectedDate]);
 
   const isSlotBooked = (date: Date, time: string) => {
     const [hours, minutes] = time.split(":").map(Number);
@@ -62,7 +62,7 @@ export function BookingCalendar({
   };
 
   const disabledDays = (date: Date) => {
-    return isWeekend(date) || isBefore(startOfDay(date), startOfDay(new Date()));
+    return isBefore(startOfDay(date), startOfDay(new Date()));
   };
 
   return (
@@ -86,7 +86,7 @@ export function BookingCalendar({
             Available times — {format(selectedDate, "EEEE, d MMMM")}
           </h3>
           <p className="text-xs text-muted-foreground mb-3">
-            Times shown in AEST (Australia/Sydney)
+            {isWeekend(selectedDate) ? "Weekend: 9am–5pm" : "Weekday: 4pm–8pm"} — Times in AEST
           </p>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
             {timeSlots.map((time) => {
