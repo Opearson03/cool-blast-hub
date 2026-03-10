@@ -1,48 +1,27 @@
 
-## Remove All Xero Integration Code
 
-Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
+## Root Cause: Hardcoded AEST Offset During Daylight Saving Time
 
-### Files to Delete
-- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
-- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
-- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
-- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
-- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
+The bug is in `src/pages/Bookings.tsx` line 63. The timezone offset is hardcoded as `+10:00` (AEST), but Sydney is currently in **AEDT (Australian Eastern Daylight Time)** which is `+11:00`.
 
-### Files to Edit
+**What happens:**
+1. User selects 4:00 PM on the calendar
+2. Code builds: `2026-03-14T16:00:00+10:00` (wrong — assumes AEST)
+3. This converts to UTC `06:00:00Z`
+4. Zoom receives this with `timezone: "Australia/Sydney"` and correctly interprets/displays it as 4:00 PM AEDT
+5. Staff portal reads the UTC value `06:00Z` and converts to Sydney time (AEDT +11) = **5:00 PM** — off by one hour
 
-1. **`src/pages/admin/AdminSettings.tsx`**
-   - Remove `XeroIntegrationSettings` import
-   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
-   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
-   - Remove the `Plug` icon import if no longer used
+The core issue: `const aestOffset = "+10:00"` doesn't account for daylight saving. Sydney switches between +10:00 (AEST, Apr–Oct) and +11:00 (AEDT, Oct–Apr).
 
-2. **`src/components/estimates/EstimateDetailSheet.tsx`**
-   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
-   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+## Fix
 
-3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
-   - Remove `useXeroConnection, useSendToXero` import
-   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
-   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
-   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
+**File: `src/pages/Bookings.tsx`** — Replace the hardcoded offset with a proper timezone-aware conversion. Instead of manually constructing an ISO string with a fixed offset, use the `Intl.DateTimeFormat` API to determine the actual current Sydney UTC offset, or construct the date string without an offset and let the backend handle timezone context.
 
-4. **`src/hooks/useFeatureFlag.ts`**
-   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
+The cleanest approach: use JavaScript's timezone-aware formatting to get the real offset for `Australia/Sydney` on the selected date, accounting for DST automatically.
 
-### Database Migration
-- Drop tables: `xero_sync_log` and `xero_connections`
+**File: `supabase/functions/create-booking/index.ts`** — No changes needed; the Zoom side already handles timezone correctly via the `timezone: "Australia/Sydney"` setting.
 
-### Edge Function Cleanup
-- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
+**File: `src/components/bookings/BookingCalendar.tsx`** — The `isSlotBooked` and `isSlotPast` comparisons may also be slightly off during DST but are lower priority since they compare local-to-local.
 
-### Secrets
-- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
+This is a single-file fix in `Bookings.tsx` replacing ~8 lines of manual offset construction with a DST-aware approach.
 
-### Technical Notes
-- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
-- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
-- No routing changes needed -- there are no dedicated Xero routes
