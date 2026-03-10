@@ -48,20 +48,27 @@ export default function Bookings() {
 
     setIsSubmitting(true);
     try {
-      // Build booking_time in AEST
+      // Build booking_time in Australia/Sydney timezone (handles AEST/AEDT automatically)
       const [hours, minutes] = selectedTime.split(":").map(Number);
-      const bookingDate = new Date(selectedDate);
-      bookingDate.setHours(hours, minutes, 0, 0);
-
-      // Convert to AEST ISO string
-      // The date was selected as a local date, we need to create the AEST equivalent
-      const aestOffset = "+10:00"; // AEST
-      const year = bookingDate.getFullYear();
-      const month = String(bookingDate.getMonth() + 1).padStart(2, "0");
-      const day = String(bookingDate.getDate()).padStart(2, "0");
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(selectedDate.getDate()).padStart(2, "0");
       const h = String(hours).padStart(2, "0");
       const m = String(minutes).padStart(2, "0");
-      const bookingTimeISO = `${year}-${month}-${day}T${h}:${m}:00${aestOffset}`;
+
+      // Determine the real UTC offset for Australia/Sydney on the selected date
+      const tempDate = new Date(`${year}-${month}-${day}T${h}:${m}:00`);
+      const sydneyParts = new Intl.DateTimeFormat("en-AU", {
+        timeZone: "Australia/Sydney",
+        timeZoneName: "shortOffset",
+      }).formatToParts(tempDate);
+      const offsetPart = sydneyParts.find((p) => p.type === "timeZoneName")?.value || "+10";
+      // offsetPart is like "GMT+11" or "GMT+10" — extract the numeric offset
+      const offsetMatch = offsetPart.match(/([+-]?\d+)/);
+      const offsetHours = offsetMatch ? parseInt(offsetMatch[1], 10) : 10;
+      const sydneyOffset = `${offsetHours >= 0 ? "+" : "-"}${String(Math.abs(offsetHours)).padStart(2, "0")}:00`;
+
+      const bookingTimeISO = `${year}-${month}-${day}T${h}:${m}:00${sydneyOffset}`;
 
       const { data, error } = await supabase.functions.invoke("create-booking", {
         body: {
