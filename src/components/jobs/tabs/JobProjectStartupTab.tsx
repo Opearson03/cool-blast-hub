@@ -30,7 +30,7 @@ export function JobProjectStartupTab({ jobId, job }: JobProjectStartupTabProps) 
   const queryClient = useQueryClient();
   const [isSaving, setIsSaving] = useState(false);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const hasInitialized = useRef(false);
   const [autoFilledFields, setAutoFilledFields] = useState<string[]>([]);
 
