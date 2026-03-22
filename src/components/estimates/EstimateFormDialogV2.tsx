@@ -434,7 +434,17 @@ function migrateLegacyScopeData(
   return result;
 }
 
-export function EstimateFormDialogV2({ open, onOpenChange, editEstimate, onFinalized }: EstimateFormDialogV2Props) {
+const FIRST_QUOTE_HINTS_V2: Record<string, string> = {
+  client: "Start by entering your client's name and the site address. Email and phone are optional for now.",
+  scopes: "Select the type of work you're quoting — you can pick multiple scopes.",
+  takeoff: "Upload a PDF plan to measure areas directly, or skip this and enter quantities manually.",
+  configure: "Fill in the quantities for each item. The calculator will work out the costs from your price list.",
+  margin: "Set your profit margin percentage. This is applied on top of all costs.",
+  conditions: "Add payment terms and any conditions for the quote.",
+  summary: "Review everything, then finalise to generate a professional PDF quote.",
+};
+
+export function EstimateFormDialogV2({ open, onOpenChange, editEstimate, onFinalized, isFirstQuote }: EstimateFormDialogV2Props) {
   const hasInitializedOnOpenRef = useRef(false);
   
   const [currentStep, setCurrentStep] = useState<WizardStep>("client");
