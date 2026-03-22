@@ -805,6 +805,18 @@ export default function AdminEstimates() {
         onOpenChange={setQuickQuoteOpen}
       />
 
+      <FirstQuoteGuide
+        open={firstQuoteGuideOpen}
+        onStart={() => {
+          setFirstQuoteGuideOpen(false);
+          setFormOpen(true);
+        }}
+        onSkip={() => {
+          setFirstQuoteGuideOpen(false);
+          setIsFirstQuote(false);
+        }}
+      />
+
       <AlertDialog open={mobileWarningOpen} onOpenChange={setMobileWarningOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
