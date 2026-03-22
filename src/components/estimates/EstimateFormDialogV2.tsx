@@ -2936,10 +2936,10 @@ const {
                       <Button 
                         type="button"
                         variant="outline"
-                        onClick={handleSubmit}
-                        disabled={mutation.isPending || selectedScopes.size === 0}
+                        onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
+                        disabled={saveDraftMutation.isPending || selectedScopes.size === 0}
                       >
-                        {mutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                        {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
                         Save as Draft
                       </Button>
                       <Button 
