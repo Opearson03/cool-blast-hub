@@ -1012,28 +1012,27 @@ const {
         toast({ title: "Please fix the errors", description: "Some required fields need attention", variant: "destructive" });
         return;
       }
-      // Save client to contacts when leaving client step (fire-and-forget)
+      // Save client to contacts when leaving client step
       if (formData.client_name) {
-        (async () => {
-          let bid = businessId;
-          if (!bid) {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user) {
-              const { data: p } = await supabase.from("profiles").select("business_id").eq("id", user.id).single();
-              bid = p?.business_id ?? null;
-            }
+        let bid = businessId;
+        if (!bid) {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user) {
+            const { data: p } = await supabase.from("profiles").select("business_id").eq("id", user.id).single();
+            bid = p?.business_id ?? null;
           }
-          if (bid) {
-            saveEstimateClient({
-              businessId: bid,
-              clientName: formData.client_name,
-              clientEmail: formData.client_email,
-              clientPhone: formData.client_phone,
-              companyName: formData.company_name,
-              siteAddress: formData.site_address,
-            });
-          }
-        })();
+        }
+        if (bid) {
+          await saveEstimateClient({
+            businessId: bid,
+            clientName: formData.client_name,
+            clientEmail: formData.client_email,
+            clientPhone: formData.client_phone,
+            companyName: formData.company_name,
+            siteAddress: formData.site_address,
+          });
+          queryClient.invalidateQueries({ queryKey: ["clients"] });
+        }
       }
     }
     
@@ -1344,6 +1343,31 @@ const {
    * Consolidates logic from saveDraftMutation, finalizeMutation, and mutation
    */
   const saveEstimate = async (status: 'draft' | 'pending'): Promise<string> => {
+    // Also save/update the client contact when saving the estimate
+    if (formData.client_name && formData.client_name !== "Draft Estimate") {
+      try {
+        const bid = businessId || (await (async () => {
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user) return null;
+          const { data: p } = await supabase.from("profiles").select("business_id").eq("id", user.id).single();
+          return p?.business_id ?? null;
+        })());
+        if (bid) {
+          await saveEstimateClient({
+            businessId: bid,
+            clientName: formData.client_name,
+            clientEmail: formData.client_email,
+            clientPhone: formData.client_phone,
+            companyName: formData.company_name,
+            siteAddress: formData.site_address,
+          });
+          queryClient.invalidateQueries({ queryKey: ["clients"] });
+        }
+      } catch (err) {
+        console.error("Failed to save client during estimate save:", err);
+      }
+    }
+
     // Validation for non-draft saves
     if (status !== 'draft') {
       if (!formData.client_name || !formData.site_address) {
@@ -2936,10 +2960,10 @@ const {
                       <Button 
                         type="button"
                         variant="outline"
-                        onClick={handleSubmit}
-                        disabled={mutation.isPending || selectedScopes.size === 0}
+                        onClick={() => saveDraftMutation.mutate({ closeAfter: true, showToast: true })}
+                        disabled={saveDraftMutation.isPending || selectedScopes.size === 0}
                       >
-                        {mutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                        {saveDraftMutation.isPending && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
                         Save as Draft
                       </Button>
                       <Button 
