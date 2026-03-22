@@ -1,7 +1,14 @@
+## "Create Your First Quote" Guided Onboarding Flow — COMPLETED
 
-## Remove All Xero Integration Code
+### Changes Made
 
-Complete removal of the Xero accounting integration from the codebase, including edge functions, frontend components, hooks, database tables, and feature flags.
+1. **`src/components/onboarding/OnboardingWizard.tsx`** — Step 4 now shows "Create your first quote" as the primary CTA (highlighted card) with "Create a job instead" as secondary. Navigates to `/admin/estimates` with `{ startFirstQuote: true }` state.
+
+2. **`src/components/onboarding/FirstQuoteGuide.tsx`** — New dialog component showing a 6-step visual preview of the quote creation process with "Create My First Quote" CTA and "Skip" option.
+
+3. **`src/pages/admin/AdminEstimates.tsx`** — Detects `startFirstQuote` navigation state, shows FirstQuoteGuide dialog, passes `isFirstQuote` prop to the estimate form dialog.
+
+4. **`src/components/estimates/EstimateFormDialog.tsx`** & **`EstimateFormDialogV2.tsx`** — Added `isFirstQuote` prop and dismissible contextual hint banners that show step-specific guidance for first-time users.
 
 ### Files to Delete
 - `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
