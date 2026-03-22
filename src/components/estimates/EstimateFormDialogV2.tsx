@@ -1012,16 +1012,28 @@ const {
         toast({ title: "Please fix the errors", description: "Some required fields need attention", variant: "destructive" });
         return;
       }
-      // Save client to contacts when leaving client step
-      if (businessId && formData.client_name) {
-        saveEstimateClient({
-          businessId,
-          clientName: formData.client_name,
-          clientEmail: formData.client_email,
-          clientPhone: formData.client_phone,
-          companyName: formData.company_name,
-          siteAddress: formData.site_address,
-        });
+      // Save client to contacts when leaving client step (fire-and-forget)
+      if (formData.client_name) {
+        (async () => {
+          let bid = businessId;
+          if (!bid) {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              const { data: p } = await supabase.from("profiles").select("business_id").eq("id", user.id).single();
+              bid = p?.business_id ?? null;
+            }
+          }
+          if (bid) {
+            saveEstimateClient({
+              businessId: bid,
+              clientName: formData.client_name,
+              clientEmail: formData.client_email,
+              clientPhone: formData.client_phone,
+              companyName: formData.company_name,
+              siteAddress: formData.site_address,
+            });
+          }
+        })();
       }
     }
     
