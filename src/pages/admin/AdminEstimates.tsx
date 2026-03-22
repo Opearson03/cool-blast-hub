@@ -89,6 +89,8 @@ export default function AdminEstimates() {
   const [duplicatingEstimate, setDuplicatingEstimate] = useState<Estimate | null>(null);
   const [mobileWarningOpen, setMobileWarningOpen] = useState(false);
   const [quickQuoteOpen, setQuickQuoteOpen] = useState(false);
+  const [firstQuoteGuideOpen, setFirstQuoteGuideOpen] = useState(false);
+  const [isFirstQuote, setIsFirstQuote] = useState(false);
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -98,6 +100,17 @@ export default function AdminEstimates() {
 
   const showWizardV2 = useFeatureFlag('estimate_wizard_v2');
   const ActiveEstimateFormDialog = showWizardV2 ? EstimateFormDialogV2 : EstimateFormDialog;
+
+  // Detect startFirstQuote navigation state from onboarding
+  useEffect(() => {
+    const state = location.state as { startFirstQuote?: boolean } | null;
+    if (state?.startFirstQuote) {
+      setFirstQuoteGuideOpen(true);
+      setIsFirstQuote(true);
+      // Clear the state to prevent re-triggering on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const { data: estimates = [], isLoading } = useQuery({
     queryKey: ["estimates"],
