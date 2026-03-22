@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+import { saveEstimateClient } from "@/utils/saveEstimateClient";
 import { 
   Loader2, 
   Calculator, 
