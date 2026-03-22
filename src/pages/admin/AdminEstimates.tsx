@@ -27,8 +27,7 @@ import {
 import { SEOHead } from "@/components/seo/SEOHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
-import { EstimateFormDialogV2 } from "@/components/estimates/EstimateFormDialogV2";
+import { EstimateFormDialogV2 as ActiveEstimateFormDialog } from "@/components/estimates/EstimateFormDialogV2";
 import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracker";
 import { EstimateQuotaDialog } from "@/components/estimates/EstimateQuotaDialog";
