@@ -25,12 +25,17 @@ export async function saveEstimateClient({
 
   try {
     // Check if client already exists by name (case-insensitive) within this business
-    const { data: existing } = await supabase
+    const { data: existing, error: selectError } = await supabase
       .from("clients")
       .select("id, email, phone, company_name, address")
       .eq("business_id", businessId)
       .ilike("name", clientName.trim())
       .maybeSingle();
+
+    if (selectError) {
+      console.error("Failed to check existing client:", selectError);
+      return;
+    }
 
     if (existing) {
       // Update with any new info (only fill in blanks, don't overwrite existing data)
@@ -41,11 +46,17 @@ export async function saveEstimateClient({
       if (!existing.address && siteAddress) updates.address = siteAddress;
 
       if (Object.keys(updates).length > 0) {
-        await supabase.from("clients").update(updates).eq("id", existing.id);
+        const { error: updateError } = await supabase
+          .from("clients")
+          .update(updates)
+          .eq("id", existing.id);
+        if (updateError) {
+          console.error("Failed to update client:", updateError);
+        }
       }
     } else {
       // Create new client
-      await supabase.from("clients").insert({
+      const { error: insertError } = await supabase.from("clients").insert({
         business_id: businessId,
         name: clientName.trim(),
         email: clientEmail || null,
@@ -53,6 +64,9 @@ export async function saveEstimateClient({
         company_name: companyName || null,
         address: siteAddress || null,
       });
+      if (insertError) {
+        console.error("Failed to insert client:", insertError);
+      }
     }
   } catch (err) {
     console.error("Failed to save client from estimate:", err);
