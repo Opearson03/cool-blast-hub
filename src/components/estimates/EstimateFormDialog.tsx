@@ -448,6 +448,7 @@ export function EstimateFormDialog({ open, onOpenChange, editEstimate, onFinaliz
   const hasInitializedOnOpenRef = useRef(false);
   
   const [currentStep, setCurrentStep] = useState<WizardStep>("client");
+  const [firstQuoteHintDismissed, setFirstQuoteHintDismissed] = useState(false);
   const [estimateType, setEstimateType] = useState<EstimateType>(DEFAULT_ESTIMATE_TYPE);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [selectedInclusions, setSelectedInclusions] = useState<Record<string, Set<string>>>({});
