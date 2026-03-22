@@ -150,7 +150,6 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
 interface ScopeSelectorProps {
   selectedScopes: Set<ScopeType>;
   onScopesChange: (scopes: Set<ScopeType>) => void;
-  allowedFeatureFlags?: Set<string>;
 }
 
 export function ScopeSelector({ selectedScopes, onScopesChange, allowedFeatureFlags }: ScopeSelectorProps) {
