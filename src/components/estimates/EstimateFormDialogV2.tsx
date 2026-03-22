@@ -1012,6 +1012,17 @@ const {
         toast({ title: "Please fix the errors", description: "Some required fields need attention", variant: "destructive" });
         return;
       }
+      // Save client to contacts when leaving client step
+      if (businessId && formData.client_name) {
+        saveEstimateClient({
+          businessId,
+          clientName: formData.client_name,
+          clientEmail: formData.client_email,
+          clientPhone: formData.client_phone,
+          companyName: formData.company_name,
+          siteAddress: formData.site_address,
+        });
+      }
     }
     
     transitioningRef.current = true;
