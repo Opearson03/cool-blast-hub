@@ -27,15 +27,14 @@ import {
 import { SEOHead } from "@/components/seo/SEOHead";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { EstimateFormDialog } from "@/components/estimates/EstimateFormDialog";
-import { EstimateFormDialogV2 } from "@/components/estimates/EstimateFormDialogV2";
+import { EstimateFormDialogV2 as ActiveEstimateFormDialog } from "@/components/estimates/EstimateFormDialogV2";
 import { EstimateDetailSheet } from "@/components/estimates/EstimateDetailSheet";
 import { DraftProgressTracker } from "@/components/estimates/DraftProgressTracker";
 import { EstimateQuotaDialog } from "@/components/estimates/EstimateQuotaDialog";
 import { DuplicateEstimateDialog } from "@/components/estimates/DuplicateEstimateDialog";
 import { QuickQuoteDialog } from "@/components/estimates/QuickQuoteDialog";
 import { useEstimateQuota } from "@/hooks/useEstimateQuota";
-import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+
 import { FirstQuoteGuide } from "@/components/onboarding/FirstQuoteGuide";
 import { formatCurrency } from "@/lib/format-currency";
 
@@ -98,8 +97,6 @@ export default function AdminEstimates() {
   const location = useLocation();
   const { canCreate, used, limit, resetsAt, tier, refresh: refreshQuota } = useEstimateQuota();
 
-  const showWizardV2 = useFeatureFlag('estimate_wizard_v2');
-  const ActiveEstimateFormDialog = showWizardV2 ? EstimateFormDialogV2 : EstimateFormDialog;
 
   // Detect startFirstQuote navigation state from onboarding
   useEffect(() => {

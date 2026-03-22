@@ -2076,7 +2076,6 @@ const {
               <ScopeSelector
                 selectedScopes={selectedScopes}
                 onScopesChange={handleScopesChange}
-                allowedFeatureFlags={new Set(['estimate_wizard_v2'])}
               />
 
               {selectedScopes.size > 0 && (
