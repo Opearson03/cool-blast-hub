@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { formatCurrency, roundToCents } from "@/lib/format-currency";
 import { ClientAutocomplete } from "@/components/contacts/ClientAutocomplete";
 import type { Client } from "@/hooks/useClients";
+import { saveEstimateClient } from "@/utils/saveEstimateClient";
 
 interface QuickQuoteDialogProps {
   open: boolean;
@@ -262,6 +263,18 @@ export function QuickQuoteDialog({ open, onOpenChange, preselectedJobId, presele
         .single();
 
       if (estError) throw estError;
+
+      // Save client to contacts (fire-and-forget)
+      if (profile.business_id && clientName.trim()) {
+        saveEstimateClient({
+          businessId: profile.business_id,
+          clientName: clientName.trim(),
+          clientEmail: clientEmail.trim() || null,
+          clientPhone: clientPhone.trim() || null,
+          companyName: companyName.trim() || null,
+          siteAddress: siteAddress.trim() || null,
+        });
+      }
 
       // Insert line items
       const itemInserts = validItems.map((item, index) => ({

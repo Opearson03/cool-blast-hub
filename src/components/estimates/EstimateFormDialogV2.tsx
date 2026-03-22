@@ -18,6 +18,7 @@ import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+import { saveEstimateClient } from "@/utils/saveEstimateClient";
 import { 
   Loader2, 
   Calculator, 
@@ -1504,6 +1505,17 @@ const {
     mutationFn: () => saveEstimate('pending'),
     onSuccess: (estimateId: string) => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      // Save client to contacts (fire-and-forget)
+      if (businessId && formData.client_name) {
+        saveEstimateClient({
+          businessId,
+          clientName: formData.client_name,
+          clientEmail: formData.client_email,
+          clientPhone: formData.client_phone,
+          companyName: formData.company_name,
+          siteAddress: formData.site_address,
+        });
+      }
       toast({ 
         title: "Quote finalised", 
         description: "Ready to send to the client when you're ready." 
