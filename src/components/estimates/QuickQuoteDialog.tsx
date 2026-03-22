@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { formatCurrency, roundToCents } from "@/lib/format-currency";
 import { ClientAutocomplete } from "@/components/contacts/ClientAutocomplete";
 import type { Client } from "@/hooks/useClients";
+import { saveEstimateClient } from "@/utils/saveEstimateClient";
 
 interface QuickQuoteDialogProps {
   open: boolean;
