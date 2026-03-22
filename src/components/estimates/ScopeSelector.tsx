@@ -130,7 +130,6 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     description: "Concrete surround around a pool (with cutout for pool area)",
     availableFor: ["house_slab", "commercial_slab", "driveway"],
     category: "external",
-    featureGated: "estimate_wizard_v2"
   },
   {
     id: "kerb",
@@ -138,7 +137,6 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     description: "Concrete kerbing — narrow profile, linear measurement",
     availableFor: ["house_slab", "commercial_slab", "driveway"],
     category: "foundations",
-    featureGated: "estimate_wizard_v2"
   },
   {
     id: "insitu_walls",
@@ -146,7 +144,6 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     description: "Cast-in-place concrete walls with formwork both faces",
     availableFor: ["house_slab", "commercial_slab", "driveway"],
     category: "foundations",
-    featureGated: "estimate_wizard_v2"
   },
 ];
 
