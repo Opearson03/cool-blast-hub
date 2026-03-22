@@ -152,12 +152,8 @@ interface ScopeSelectorProps {
   onScopesChange: (scopes: Set<ScopeType>) => void;
 }
 
-export function ScopeSelector({ selectedScopes, onScopesChange, allowedFeatureFlags }: ScopeSelectorProps) {
-  // Filter scopes by feature flags
-  const availableScopes = SCOPE_OPTIONS.filter(scope => {
-    if (!scope.featureGated) return true;
-    return allowedFeatureFlags?.has(scope.featureGated) ?? false;
-  });
+export function ScopeSelector({ selectedScopes, onScopesChange }: ScopeSelectorProps) {
+  const availableScopes = SCOPE_OPTIONS;
 
   // Group scopes by category
   const groupedScopes = availableScopes.reduce((acc, scope) => {

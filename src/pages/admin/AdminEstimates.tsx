@@ -97,8 +97,6 @@ export default function AdminEstimates() {
   const location = useLocation();
   const { canCreate, used, limit, resetsAt, tier, refresh: refreshQuota } = useEstimateQuota();
 
-  const showWizardV2 = useFeatureFlag('estimate_wizard_v2');
-  const ActiveEstimateFormDialog = showWizardV2 ? EstimateFormDialogV2 : EstimateFormDialog;
 
   // Detect startFirstQuote navigation state from onboarding
   useEffect(() => {
