@@ -2039,6 +2039,13 @@ const {
         </DialogHeader>
 
         <div ref={dialogScrollRef} className="flex-1 overflow-y-auto py-2">
+          {isFirstQuote && !firstQuoteHintDismissed && FIRST_QUOTE_HINTS_V2[currentStep] && (
+            <div className="mx-1 mb-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
+              <span className="text-primary font-medium shrink-0">💡</span>
+              <span className="flex-1">{FIRST_QUOTE_HINTS_V2[currentStep]}</span>
+              <button onClick={() => setFirstQuoteHintDismissed(true)} className="text-muted-foreground hover:text-foreground text-xs shrink-0 ml-1">✕</button>
+            </div>
+          )}
           {/* Step 1: Scope Selection */}
           {currentStep === "scopes" && (
             <div className="space-y-4">
