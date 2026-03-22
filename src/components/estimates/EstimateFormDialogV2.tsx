@@ -1504,6 +1504,17 @@ const {
     mutationFn: () => saveEstimate('pending'),
     onSuccess: (estimateId: string) => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
+      // Save client to contacts (fire-and-forget)
+      if (profile?.business_id && formData.client_name) {
+        saveEstimateClient({
+          businessId: profile.business_id,
+          clientName: formData.client_name,
+          clientEmail: formData.client_email,
+          clientPhone: formData.client_phone,
+          companyName: formData.company_name,
+          siteAddress: formData.site_address,
+        });
+      }
       toast({ 
         title: "Quote finalised", 
         description: "Ready to send to the client when you're ready." 
