@@ -263,6 +263,18 @@ export function QuickQuoteDialog({ open, onOpenChange, preselectedJobId, presele
 
       if (estError) throw estError;
 
+      // Save client to contacts (fire-and-forget)
+      if (profile.business_id && clientName.trim()) {
+        saveEstimateClient({
+          businessId: profile.business_id,
+          clientName: clientName.trim(),
+          clientEmail: clientEmail.trim() || null,
+          clientPhone: clientPhone.trim() || null,
+          companyName: companyName.trim() || null,
+          siteAddress: siteAddress.trim() || null,
+        });
+      }
+
       // Insert line items
       const itemInserts = validItems.map((item, index) => ({
         estimate_id: estimate.id,

@@ -1506,9 +1506,9 @@ const {
     onSuccess: (estimateId: string) => {
       queryClient.invalidateQueries({ queryKey: ["estimates"] });
       // Save client to contacts (fire-and-forget)
-      if (profile?.business_id && formData.client_name) {
+      if (businessId && formData.client_name) {
         saveEstimateClient({
-          businessId: profile.business_id,
+          businessId,
           clientName: formData.client_name,
           clientEmail: formData.client_email,
           clientPhone: formData.client_phone,
