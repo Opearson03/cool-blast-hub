@@ -77,6 +77,7 @@ interface EstimateFormDialogProps {
   onOpenChange: (open: boolean) => void;
   editEstimate?: Estimate | null;
   onFinalized?: (estimateId: string) => void;
+  isFirstQuote?: boolean;
 }
 
 interface FormData {
