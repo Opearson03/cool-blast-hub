@@ -768,13 +768,17 @@ export default function AdminEstimates() {
 
       <ActiveEstimateFormDialog
         open={formOpen}
-        onOpenChange={handleFormClose}
+        onOpenChange={(open: boolean) => {
+          handleFormClose();
+          if (!open) setIsFirstQuote(false);
+        }}
         editEstimate={editingEstimate ? {
           ...editingEstimate,
           scope_data: editingEstimate.scope_data as any,
           selected_scopes: editingEstimate.selected_scopes as any,
         } : null}
         onFinalized={handleEstimateFinalized}
+        isFirstQuote={isFirstQuote}
       />
 
       <EstimateDetailSheet
