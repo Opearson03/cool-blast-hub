@@ -33,7 +33,6 @@ export interface ScopeOption {
   description: string;
   availableFor: EstimateType[];
   category: ScopeCategory;
-  featureGated?: string;
 }
 
 const CATEGORY_CONFIG: Record<ScopeCategory, { label: string; icon: React.ComponentType<{ className?: string }> }> = {
