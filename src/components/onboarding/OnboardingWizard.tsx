@@ -712,26 +712,25 @@ export function OnboardingWizard({ businessId, onComplete }: OnboardingWizardPro
               </div>
             </div>
             <div className="space-y-3">
+              <Card className="cursor-pointer hover:border-primary/50 transition-colors border-primary/30 bg-primary/5" onClick={() => { handleComplete(); navigate("/admin/estimates", { state: { startFirstQuote: true } }); }}>
+                <CardContent className="p-4 flex items-center gap-3">
+                  <FileText className="w-5 h-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Create your first quote</p>
+                    <p className="text-sm text-muted-foreground">Build and send a professional estimate to a client</p>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-primary ml-auto" />
+                </CardContent>
+              </Card>
               <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { handleComplete(); navigate("/admin/jobs"); }}>
                 <CardContent className="p-4 flex items-center gap-3">
-                  <Briefcase className="w-5 h-5 text-primary" />
+                  <Briefcase className="w-5 h-5 text-muted-foreground" />
                   <div>
-                    <p className="font-medium">Create your first job</p>
+                    <p className="font-medium text-muted-foreground">Create a job instead</p>
                     <p className="text-sm text-muted-foreground">Add a job with scheduling and compliance docs</p>
                   </div>
                 </CardContent>
               </Card>
-              {/* HIDDEN: Employee management is currently disabled
-              <Card className="cursor-pointer hover:border-primary/50 transition-colors" onClick={() => { handleComplete(); navigate("/admin/employees"); }}>
-                <CardContent className="p-4 flex items-center gap-3">
-                  <Users className="w-5 h-5 text-primary" />
-                  <div>
-                    <p className="font-medium">Add more employees</p>
-                    <p className="text-sm text-muted-foreground">Invite your crew to join PourHub</p>
-                  </div>
-                </CardContent>
-              </Card>
-              */}
             </div>
             <div className="flex gap-2 pt-4">
               <Button variant="outline" onClick={() => setStep(3)} disabled={loading}>
