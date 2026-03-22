@@ -34,7 +34,7 @@ import { EstimateQuotaDialog } from "@/components/estimates/EstimateQuotaDialog"
 import { DuplicateEstimateDialog } from "@/components/estimates/DuplicateEstimateDialog";
 import { QuickQuoteDialog } from "@/components/estimates/QuickQuoteDialog";
 import { useEstimateQuota } from "@/hooks/useEstimateQuota";
-import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+
 import { FirstQuoteGuide } from "@/components/onboarding/FirstQuoteGuide";
 import { formatCurrency } from "@/lib/format-currency";
 
