@@ -36,6 +36,8 @@ import { DuplicateEstimateDialog } from "@/components/estimates/DuplicateEstimat
 import { QuickQuoteDialog } from "@/components/estimates/QuickQuoteDialog";
 import { useEstimateQuota } from "@/hooks/useEstimateQuota";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { FirstQuoteGuide } from "@/components/onboarding/FirstQuoteGuide";
+import { formatCurrency } from "@/lib/format-currency";
 import { formatCurrency } from "@/lib/format-currency";
 
 type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
