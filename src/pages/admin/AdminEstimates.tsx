@@ -36,6 +36,7 @@ import { DuplicateEstimateDialog } from "@/components/estimates/DuplicateEstimat
 import { QuickQuoteDialog } from "@/components/estimates/QuickQuoteDialog";
 import { useEstimateQuota } from "@/hooks/useEstimateQuota";
 import { useFeatureFlag } from "@/hooks/useFeatureFlag";
+import { FirstQuoteGuide } from "@/components/onboarding/FirstQuoteGuide";
 import { formatCurrency } from "@/lib/format-currency";
 
 type EstimateStatus = "draft" | "pending" | "sent" | "accepted" | "declined";
@@ -88,6 +89,8 @@ export default function AdminEstimates() {
   const [duplicatingEstimate, setDuplicatingEstimate] = useState<Estimate | null>(null);
   const [mobileWarningOpen, setMobileWarningOpen] = useState(false);
   const [quickQuoteOpen, setQuickQuoteOpen] = useState(false);
+  const [firstQuoteGuideOpen, setFirstQuoteGuideOpen] = useState(false);
+  const [isFirstQuote, setIsFirstQuote] = useState(false);
   const isMobile = useIsMobile();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -97,6 +100,17 @@ export default function AdminEstimates() {
 
   const showWizardV2 = useFeatureFlag('estimate_wizard_v2');
   const ActiveEstimateFormDialog = showWizardV2 ? EstimateFormDialogV2 : EstimateFormDialog;
+
+  // Detect startFirstQuote navigation state from onboarding
+  useEffect(() => {
+    const state = location.state as { startFirstQuote?: boolean } | null;
+    if (state?.startFirstQuote) {
+      setFirstQuoteGuideOpen(true);
+      setIsFirstQuote(true);
+      // Clear the state to prevent re-triggering on refresh
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   const { data: estimates = [], isLoading } = useQuery({
     queryKey: ["estimates"],
@@ -754,13 +768,17 @@ export default function AdminEstimates() {
 
       <ActiveEstimateFormDialog
         open={formOpen}
-        onOpenChange={handleFormClose}
+        onOpenChange={(open: boolean) => {
+          handleFormClose();
+          if (!open) setIsFirstQuote(false);
+        }}
         editEstimate={editingEstimate ? {
           ...editingEstimate,
           scope_data: editingEstimate.scope_data as any,
           selected_scopes: editingEstimate.selected_scopes as any,
         } : null}
         onFinalized={handleEstimateFinalized}
+        isFirstQuote={isFirstQuote}
       />
 
       <EstimateDetailSheet
@@ -789,6 +807,18 @@ export default function AdminEstimates() {
       <QuickQuoteDialog
         open={quickQuoteOpen}
         onOpenChange={setQuickQuoteOpen}
+      />
+
+      <FirstQuoteGuide
+        open={firstQuoteGuideOpen}
+        onStart={() => {
+          setFirstQuoteGuideOpen(false);
+          setFormOpen(true);
+        }}
+        onSkip={() => {
+          setFirstQuoteGuideOpen(false);
+          setIsFirstQuote(false);
+        }}
       />
 
       <AlertDialog open={mobileWarningOpen} onOpenChange={setMobileWarningOpen}>

@@ -1,54 +1,55 @@
+## "Create Your First Quote" Guided Onboarding Flow — COMPLETED
 
+### Changes Made
 
-# "Create Your First Quote" Guided Onboarding Flow
+1. **`src/components/onboarding/OnboardingWizard.tsx`** — Step 4 now shows "Create your first quote" as the primary CTA (highlighted card) with "Create a job instead" as secondary. Navigates to `/admin/estimates` with `{ startFirstQuote: true }` state.
 
-## What Changes
+2. **`src/components/onboarding/FirstQuoteGuide.tsx`** — New dialog component showing a 6-step visual preview of the quote creation process with "Create My First Quote" CTA and "Skip" option.
 
-### 1. Onboarding Wizard Completion Step (Step 4)
-**File: `src/components/onboarding/OnboardingWizard.tsx`**
+3. **`src/pages/admin/AdminEstimates.tsx`** — Detects `startFirstQuote` navigation state, shows FirstQuoteGuide dialog, passes `isFirstQuote` prop to the estimate form dialog.
 
-Replace the "Create your first job" card with a "Create your first quote" card that navigates to `/admin/estimates` with a state flag (`{ startFirstQuote: true }`). Also add a secondary option for "Create your first job" as a less prominent alternative.
+4. **`src/components/estimates/EstimateFormDialog.tsx`** & **`EstimateFormDialogV2.tsx`** — Added `isFirstQuote` prop and dismissible contextual hint banners that show step-specific guidance for first-time users.
 
-### 2. First-Quote Guided Overlay on Estimates Page
-**File: `src/pages/admin/AdminEstimates.tsx`**
+### Files to Delete
+- `supabase/functions/xero-auth/index.ts` -- OAuth initiation edge function
+- `supabase/functions/xero-auth-callback/index.ts` -- OAuth callback edge function
+- `supabase/functions/xero-api/index.ts` -- Xero API operations edge function
+- `src/components/settings/XeroIntegrationSettings.tsx` -- Settings UI component
+- `src/hooks/useXeroConnection.ts` -- All Xero hooks (connection, sync log, send)
 
-- Detect the `startFirstQuote` navigation state flag
-- Track whether the user has zero estimates (first-time user)
-- When triggered, show a welcoming intro modal/card explaining the quote wizard steps before opening the estimate form
-- Auto-open the `ActiveEstimateFormDialog` after the user clicks "Let's Go"
+### Files to Edit
 
-### 3. New Component: `FirstQuoteGuide`
-**File: `src/components/onboarding/FirstQuoteGuide.tsx`**
+1. **`src/pages/admin/AdminSettings.tsx`**
+   - Remove `XeroIntegrationSettings` import
+   - Remove `useFeatureFlag('xero_integration')` and `showXero` variable
+   - Remove the entire `{showXero && (...Integrations group...)}` block (lines ~722-734)
+   - Remove the `Plug` icon import if no longer used
 
-A dialog/modal that shows before the estimate form opens, with:
-- Welcome message: "Let's create your first quote!"
-- Visual step-by-step preview of what they'll do:
-  1. **Client Details** — Enter client name, email, and site address
-  2. **Select Scope** — Choose what type of work (driveway, slab, etc.)
-  3. **Plan Takeoff** *(optional)* — Upload plans and measure from PDF
-  4. **Configure Costs** — Fill in quantities, the calculator does the rest
-  5. **Margin & Conditions** — Set your markup and terms
-  6. **Review & Send** — Preview the PDF and send to your client
-- A prominent "Create My First Quote" CTA button
-- A "Skip, I'll explore first" secondary option
+2. **`src/components/estimates/EstimateDetailSheet.tsx`**
+   - Remove `useXeroConnection, useXeroSyncLog, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `xeroSync`, `sendToXero` variables
+   - Remove the "Send to Xero" section (the entire Xero Invoice block for accepted quotes, ~lines 806-873)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-### 4. Step-by-step tooltips inside the Estimate Form (lightweight)
-**File: `src/components/estimates/EstimateFormDialog.tsx`**
+3. **`src/components/jobs/tabs/JobVariationsTab.tsx`**
+   - Remove `useXeroConnection, useSendToXero` import
+   - Remove `isXeroConnected`, `showXero`, `sendToXero` variables
+   - Remove both "Send to Xero" dropdown menu items (mobile and desktop table views)
+   - Remove `useFeatureFlag` import if no longer used elsewhere in this file
 
-- Accept an optional `isFirstQuote` prop
-- When `isFirstQuote` is true, show a small contextual hint banner at the top of each step with a brief explanation of what to do (e.g., on the "client" step: "Start by entering your client's name and the site address. You can add their email and phone later.")
-- These hints are dismissible and non-blocking
+4. **`src/hooks/useFeatureFlag.ts`**
+   - Remove the `'xero_integration'` entry from `FEATURE_FLAGS`
 
-## Technical Details
+### Database Migration
+- Drop tables: `xero_sync_log` and `xero_connections`
 
-- The `startFirstQuote` flag is passed via React Router's `navigate("/admin/estimates", { state: { startFirstQuote: true } })` and consumed via `useLocation().state`
-- The `FirstQuoteGuide` component is a standard `Dialog` with step icons matching the estimate wizard's `STEP_ORDER`
-- The hint banners inside `EstimateFormDialog` use the existing card/badge patterns and only render when `isFirstQuote={true}`
-- No database changes required — this is purely a frontend UX enhancement
+### Edge Function Cleanup
+- Delete the three deployed edge functions: `xero-auth`, `xero-auth-callback`, `xero-api`
 
-## Files Modified
-1. `src/components/onboarding/OnboardingWizard.tsx` — Change Step 4 CTA from "first job" to "first quote"
-2. `src/pages/admin/AdminEstimates.tsx` — Detect `startFirstQuote` state, show guide, auto-open form
-3. `src/components/estimates/EstimateFormDialog.tsx` — Add optional `isFirstQuote` prop for contextual hints
-4. `src/components/onboarding/FirstQuoteGuide.tsx` — New component: intro modal with step preview
+### Secrets
+- The `XERO_CLIENT_ID`, `XERO_CLIENT_SECRET`, and `APP_URL` secrets will remain but become unused. They can be left as-is since they cause no harm.
 
+### Technical Notes
+- No other features depend on the Xero code; it is fully gated behind the `xero_integration` feature flag
+- The `useFeatureFlag` hook itself stays since `estimate_wizard_v2` still uses it
+- No routing changes needed -- there are no dedicated Xero routes

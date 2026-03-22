@@ -77,6 +77,7 @@ interface EstimateFormDialogV2Props {
   onOpenChange: (open: boolean) => void;
   editEstimate?: Estimate | null;
   onFinalized?: (estimateId: string) => void;
+  isFirstQuote?: boolean;
 }
 
 interface FormData {
@@ -433,10 +434,21 @@ function migrateLegacyScopeData(
   return result;
 }
 
-export function EstimateFormDialogV2({ open, onOpenChange, editEstimate, onFinalized }: EstimateFormDialogV2Props) {
+const FIRST_QUOTE_HINTS_V2: Record<string, string> = {
+  client: "Start by entering your client's name and the site address. Email and phone are optional for now.",
+  scopes: "Select the type of work you're quoting — you can pick multiple scopes.",
+  takeoff: "Upload a PDF plan to measure areas directly, or skip this and enter quantities manually.",
+  configure: "Fill in the quantities for each item. The calculator will work out the costs from your price list.",
+  margin: "Set your profit margin percentage. This is applied on top of all costs.",
+  conditions: "Add payment terms and any conditions for the quote.",
+  summary: "Review everything, then finalise to generate a professional PDF quote.",
+};
+
+export function EstimateFormDialogV2({ open, onOpenChange, editEstimate, onFinalized, isFirstQuote }: EstimateFormDialogV2Props) {
   const hasInitializedOnOpenRef = useRef(false);
   
   const [currentStep, setCurrentStep] = useState<WizardStep>("client");
+  const [firstQuoteHintDismissed, setFirstQuoteHintDismissed] = useState(false);
   const [estimateType, setEstimateType] = useState<EstimateType>(DEFAULT_ESTIMATE_TYPE);
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [selectedInclusions, setSelectedInclusions] = useState<Record<string, Set<string>>>({});
@@ -2027,6 +2039,13 @@ const {
         </DialogHeader>
 
         <div ref={dialogScrollRef} className="flex-1 overflow-y-auto py-2">
+          {isFirstQuote && !firstQuoteHintDismissed && FIRST_QUOTE_HINTS_V2[currentStep] && (
+            <div className="mx-1 mb-3 flex items-start gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm text-foreground">
+              <span className="text-primary font-medium shrink-0">💡</span>
+              <span className="flex-1">{FIRST_QUOTE_HINTS_V2[currentStep]}</span>
+              <button onClick={() => setFirstQuoteHintDismissed(true)} className="text-muted-foreground hover:text-foreground text-xs shrink-0 ml-1">✕</button>
+            </div>
+          )}
           {/* Step 1: Scope Selection */}
           {currentStep === "scopes" && (
             <div className="space-y-4">
