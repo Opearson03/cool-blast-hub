@@ -311,6 +311,7 @@ export default function Signup() {
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
     </div>
   );
