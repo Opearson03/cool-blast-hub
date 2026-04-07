@@ -16,13 +16,14 @@ const logStep = (step: string, details?: Record<string, unknown>) => {
 const PRODUCT_IDS = {
   estimating: "prod_TvWGele4WOtuLp",
   pro: "prod_TvWGfsM4uQs4od",
+  pro_new: "prod_U6lpws80KASuHx", // New $199 Pro product
   legacy: "prod_TkdAIRs15o1Omv", // Legacy $100 plan - treat as pro
 };
 
 function getTierFromProductId(productId: string): string {
   if (productId === PRODUCT_IDS.estimating) {
     return "estimating";
-  } else if (productId === PRODUCT_IDS.pro) {
+  } else if (productId === PRODUCT_IDS.pro || productId === PRODUCT_IDS.pro_new) {
     return "pro";
   } else if (productId === PRODUCT_IDS.legacy) {
     return "pro"; // Legacy subscribers get pro access

@@ -11,15 +11,27 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Tier is determined dynamically inside the component from URL params
 
 export default function Signup() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
   const affiliateCode = searchParams.get("aff") || "";
   const selectedTier = (searchParams.get("tier") || "pro") as keyof typeof SUBSCRIPTION_TIERS;
   const tierConfig = SUBSCRIPTION_TIERS[selectedTier] || SUBSCRIPTION_TIERS.pro;
+  const [isSubcontractor, setIsSubcontractor] = useState(false);
+
+  // Check if logged-in user is a subcontractor
+  useEffect(() => {
+    if (user) {
+      supabase.rpc("is_subcontractor", { _user_id: user.id }).then(({ data }) => {
+        if (data) setIsSubcontractor(true);
+      });
+    }
+  }, [user]);
   
   const prefillEmail = searchParams.get("email") || "";
   const prefillName = searchParams.get("name") || "";
