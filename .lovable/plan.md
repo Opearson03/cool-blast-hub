@@ -1,37 +1,39 @@
 
-Fix both estimate wizard issues in V2 only, since that is now the universal flow.
 
-1. Correct the draft/finalise wiring on the summary step
-- In `src/components/estimates/EstimateFormDialogV2.tsx`, change the new-estimate summary action so:
-  - `Save as Draft` calls the draft mutation/status `"draft"`
-  - `Finalize Quote` calls the finalize mutation/status `"pending"`
-- Also review `handleSubmit`/`mutation` naming so there is no ambiguous “update” path still saving as pending.
-- Result: clicking any draft button will never finalise the quote.
+# Fix jbrown@formandcrete.com + Prevent Future Conflicts
 
-2. Make client saving reliable instead of fire-and-forget
-- Replace the current unawaited `saveEstimateClient(...)` call in `goNext()` with an awaited helper so step 1 completion actually finishes the client upsert before moving on.
-- Reuse that same helper inside the shared estimate save flow (`saveEstimate`) so clients are also saved when users jump straight to Save Draft / Finalize from later steps.
-- Keep the existing “don’t overwrite existing filled fields” behavior.
+## Part 1: Manual Data Fix (database migration)
 
-3. Refresh the contact list/autocomplete after client save
-- After a successful client upsert, invalidate the `["clients"]` query so the contacts page and client autocomplete reflect newly saved clients immediately.
-- This avoids the situation where the database row exists but the UI still looks empty/stale.
+Run a migration that:
+1. Creates a `businesses` row for "Form and Crete" with `email = 'jbrown@formandcrete.com'` and `owner_id` = their user ID
+2. Creates a `profiles` row linking their user ID to the new business
+3. Removes the `subcontractor` role from `user_roles` and adds `admin` role
+4. Creates a `business_subscriptions` row linking to their Stripe customer (`cus_UHhrAaB2KaOhn4`) and subscription (`sub_1TJ8SGS7UIjxyz7VTPMU0nMU`) with `plan_tier = 'estimating'`, `status = 'active'`
 
-4. Tighten edge cases
-- Normalize client name matching when saving (trim consistently, optionally case-insensitive exact match as already intended).
-- Ensure placeholder draft records like `Draft Estimate` still do not create contacts.
-- Preserve existing estimate update behavior for real drafts vs already-finalised quotes.
+## Part 2: Fix the webhook product ID mapping
 
-5. Verify against current data flow
-- The current backend state already shows:
-  - recent estimates being saved as `pending`
-  - at least one client row created for the active business
-- After implementation, I would validate these exact scenarios:
-  - new quote → Save as Draft stays `draft`
-  - existing draft → Update Draft stays `draft`
-  - step 1 Continue creates/updates a client
-  - Contacts and autocomplete show the saved client without needing a manual refresh
+The webhook's `PRODUCT_IDS` is missing the new $199 Pro product (`prod_U6lpws80KASuHx`). It only has the legacy `prod_TvWGfsM4uQs4od`. Add the new product ID so future Pro subscriptions are correctly categorized instead of falling through to the default.
 
-Technical notes
-- Root cause 1: in `EstimateFormDialogV2.tsx`, the new-estimate summary button labeled `Save as Draft` currently calls `handleSubmit`, and `handleSubmit` uses `saveEstimate('pending')`, which finalises the quote.
-- Root cause 2: client saving currently happens only in `goNext()` on the client step and is launched in an async IIFE without awaiting completion or invalidating the `clients` query, so the UX appears unreliable even when inserts do succeed.
+**File:** `supabase/functions/stripe-webhook/index.ts`
+
+## Part 3: Handle existing-user conflict in SignupSuccess
+
+Currently `SignupSuccess` calls `supabase.auth.signUp()` which fails silently if the email already exists. Fix it to:
+- Detect the "user already exists" error
+- Show a message: "An account with this email already exists. Please sign in instead."
+- Provide a link to `/auth` with the email pre-filled
+
+**File:** `src/pages/SignupSuccess.tsx`
+
+## Part 4: Prevent subcontractors from reaching business checkout
+
+Add a guard in the `/signup` page: if the user is already logged in with a subcontractor role, show a message explaining they already have a subcontractor account and need to use a different email to sign up for quoting, or contact support.
+
+**File:** `src/pages/Signup.tsx`
+
+## Summary
+
+- Part 1 fixes this specific user immediately
+- Parts 2-4 prevent it from happening again
+- No changes to the Stripe subscription itself — they keep the $99 Estimating plan
+
