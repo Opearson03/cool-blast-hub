@@ -11,15 +11,27 @@ import { useToast } from "@/hooks/use-toast";
 import { Loader2, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Tier is determined dynamically inside the component from URL params
 
 export default function Signup() {
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const cancelled = searchParams.get("cancelled") === "true";
   const affiliateCode = searchParams.get("aff") || "";
   const selectedTier = (searchParams.get("tier") || "pro") as keyof typeof SUBSCRIPTION_TIERS;
   const tierConfig = SUBSCRIPTION_TIERS[selectedTier] || SUBSCRIPTION_TIERS.pro;
+  const [isSubcontractor, setIsSubcontractor] = useState(false);
+
+  // Check if logged-in user is a subcontractor
+  useEffect(() => {
+    if (user) {
+      supabase.rpc("is_subcontractor", { _user_id: user.id }).then(({ data }) => {
+        if (data) setIsSubcontractor(true);
+      });
+    }
+  }, [user]);
   
   const prefillEmail = searchParams.get("email") || "";
   const prefillName = searchParams.get("name") || "";
@@ -108,6 +120,29 @@ export default function Signup() {
       </div>
       
       <div className="flex-1 flex items-center justify-center p-4">
+        {isSubcontractor ? (
+          <Card className="w-full max-w-md text-center">
+            <CardHeader>
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-destructive/20 rounded-full flex items-center justify-center">
+                  <AlertCircle className="w-10 h-10 text-destructive" />
+                </div>
+              </div>
+              <CardTitle className="text-xl">Subcontractor Account Detected</CardTitle>
+              <CardDescription>
+                You're currently logged in as a subcontractor ({user?.email}). To sign up for a business quoting account, please use a different email address or contact support at support@pourhub.com.au.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <Button onClick={() => supabase.auth.signOut()} variant="outline" className="w-full">
+                Sign Out & Use Different Email
+              </Button>
+              <Button asChild className="w-full">
+                <Link to="/sub-contractors/dashboard">Back to Subcontractor Dashboard</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
         <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Plan Summary */}
           <Card className="bg-card/80 backdrop-blur-sm">
@@ -276,6 +311,7 @@ export default function Signup() {
             </CardContent>
           </Card>
         </div>
+        )}
       </div>
     </div>
   );

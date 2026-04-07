@@ -105,7 +105,21 @@ export default function SignupSuccess() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        // Handle "user already exists" case
+        if (error.message?.toLowerCase().includes("already registered") || 
+            error.message?.toLowerCase().includes("already been registered") ||
+            error.message?.toLowerCase().includes("user already exists")) {
+          toast({
+            title: "Account already exists",
+            description: "An account with this email already exists. Please sign in instead.",
+            variant: "destructive",
+          });
+          navigate(`/auth?email=${encodeURIComponent(email)}`);
+          return;
+        }
+        throw error;
+      }
 
       toast({
         title: "Account created!",
