@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -8,8 +9,15 @@ import { SEOHead } from "@/components/seo/SEOHead";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
 
 const Pricing = () => {
+  const [interval, setInterval] = useState<"monthly" | "annual">("monthly");
   const estimatingTier = SUBSCRIPTION_TIERS.estimating;
   const proTier = SUBSCRIPTION_TIERS.pro;
+
+  const isAnnual = interval === "annual";
+  const estimatingPrice = isAnnual ? estimatingTier.annual_price : estimatingTier.price;
+  const proPrice = isAnnual ? proTier.annual_price : proTier.price;
+  const estimatingSaving = estimatingTier.price * 12 - estimatingTier.annual_price;
+  const proSaving = proTier.price * 12 - proTier.annual_price;
 
   return (
     <>
@@ -43,9 +51,34 @@ const Pricing = () => {
             <h1 className="text-4xl sm:text-5xl font-bold text-primary-foreground mb-4">
               Simple, Transparent Pricing
             </h1>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
               Choose the plan that fits your business.
             </p>
+
+            {/* Monthly / Annual Toggle */}
+            <div className="inline-flex items-center gap-1 bg-muted/30 rounded-full p-1">
+              <button
+                onClick={() => setInterval("monthly")}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${
+                  !isAnnual
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-primary-foreground"
+                }`}
+              >
+                Monthly
+              </button>
+              <button
+                onClick={() => setInterval("annual")}
+                className={`px-5 py-2 rounded-full text-sm font-medium transition-colors ${
+                  isAnnual
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-primary-foreground"
+                }`}
+              >
+                Annual
+                <Badge variant="secondary" className="ml-2 text-xs">Save</Badge>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -57,9 +90,14 @@ const Pricing = () => {
               <CardHeader className="text-center pb-2">
                 <h2 className="text-2xl font-bold">{estimatingTier.name}</h2>
                 <div className="mt-4">
-                  <span className="text-5xl font-bold text-primary">${estimatingTier.price}</span>
-                  <span className="text-muted-foreground"> / month</span>
+                  <span className="text-5xl font-bold text-primary">${estimatingPrice}</span>
+                  <span className="text-muted-foreground"> / {isAnnual ? "year" : "month"}</span>
                 </div>
+                {isAnnual && (
+                  <Badge variant="secondary" className="mt-2">
+                    Save ${estimatingSaving}/year
+                  </Badge>
+                )}
                 <p className="text-sm text-muted-foreground mt-3">
                   {estimatingTier.description}
                 </p>
@@ -76,7 +114,7 @@ const Pricing = () => {
                     </li>
                   ))}
                 </ul>
-                <Link to="/signup?tier=estimating" className="mt-6">
+                <Link to={`/signup?tier=estimating${isAnnual ? "&interval=annual" : ""}`} className="mt-6">
                   <Button variant="outline" className="w-full touch-target" size="lg">
                     Get Started
                     <ArrowRight className="ml-2 w-4 h-4" />
@@ -93,9 +131,14 @@ const Pricing = () => {
               <CardHeader className="text-center pb-2">
                 <h2 className="text-2xl font-bold">{proTier.name}</h2>
                 <div className="mt-4">
-                  <span className="text-5xl font-bold text-primary">${proTier.price}</span>
-                  <span className="text-muted-foreground"> / month</span>
+                  <span className="text-5xl font-bold text-primary">${proPrice}</span>
+                  <span className="text-muted-foreground"> / {isAnnual ? "year" : "month"}</span>
                 </div>
+                {isAnnual && (
+                  <Badge variant="secondary" className="mt-2">
+                    Save ${proSaving}/year
+                  </Badge>
+                )}
                 <p className="text-sm text-muted-foreground mt-3">
                   {proTier.description}
                 </p>
@@ -117,7 +160,7 @@ const Pricing = () => {
                     </li>
                   )}
                 </ul>
-                <Link to="/signup?tier=pro" className="mt-6">
+                <Link to={`/signup?tier=pro${isAnnual ? "&interval=annual" : ""}`} className="mt-6">
                   <Button className="w-full touch-target" size="lg">
                     Get Started
                     <ArrowRight className="ml-2 w-4 h-4" />
