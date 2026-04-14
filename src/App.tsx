@@ -145,6 +145,7 @@ const AppContent = () => {
 
       {/* Booking Route */}
       <Route path="/bookings" element={<Bookings />} />
+      <Route path="/eofy" element={<EOFY />} />
 
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
