@@ -150,8 +150,41 @@ const EOFY = () => {
           </div>
         </div>
 
-        {/* Value Props */}
+        {/* Tax Deduction Callout */}
         <div className="bg-charcoal py-16 px-4">
+          <div className="max-w-3xl mx-auto text-center">
+            <Badge className="mb-6 px-4 py-2 text-sm font-semibold bg-primary/20 text-primary border border-primary/30">
+              💰 TAX DEDUCTION
+            </Badge>
+            <h2 className="text-2xl sm:text-3xl font-bold text-primary-foreground mb-4">
+              Claim It as a Business Expense
+            </h2>
+            <p className="text-lg text-muted-foreground mb-3">
+              PourHub is a <span className="text-primary font-semibold">100% tax-deductible business expense</span>. Pay before June 30 and claim the full amount on this year's tax return.
+            </p>
+            <p className="text-muted-foreground mb-8">
+              An annual plan means a bigger upfront deduction — bring forward 12 months of software costs into this financial year instead of claiming month-by-month.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto text-left">
+              <div className="bg-background/50 rounded-lg p-4 border border-border/50">
+                <p className="text-sm text-muted-foreground mb-1">Estimating — claim up to</p>
+                <p className="text-2xl font-bold text-primary">${estimatingTier.annual_price}</p>
+                <p className="text-xs text-muted-foreground mt-1">as a deduction this FY</p>
+              </div>
+              <div className="bg-background/50 rounded-lg p-4 border border-primary/30">
+                <p className="text-sm text-muted-foreground mb-1">Pro — claim up to</p>
+                <p className="text-2xl font-bold text-primary">${proTier.annual_price}</p>
+                <p className="text-xs text-muted-foreground mt-1">as a deduction this FY</p>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground mt-6 italic">
+              *Consult your accountant for advice specific to your situation. PourHub does not provide tax advice.
+            </p>
+          </div>
+        </div>
+
+        {/* Value Props */}
+        <div className="bg-charcoal-dark py-16 px-4">
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl sm:text-3xl font-bold text-center mb-12 text-primary-foreground">
               Why Go Annual?
