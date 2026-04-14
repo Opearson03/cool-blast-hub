@@ -1,39 +1,45 @@
 
 
-# Fix jbrown@formandcrete.com + Prevent Future Conflicts
+# Add Annual Plan Options
 
-## Part 1: Manual Data Fix (database migration)
+## Overview
+Add yearly billing options: **$999/year for Estimating** and **$1,999/year for Pro** (saving ~$189/yr and ~$389/yr respectively). Users choose monthly or annual at checkout.
 
-Run a migration that:
-1. Creates a `businesses` row for "Form and Crete" with `email = 'jbrown@formandcrete.com'` and `owner_id` = their user ID
-2. Creates a `profiles` row linking their user ID to the new business
-3. Removes the `subcontractor` role from `user_roles` and adds `admin` role
-4. Creates a `business_subscriptions` row linking to their Stripe customer (`cus_UHhrAaB2KaOhn4`) and subscription (`sub_1TJ8SGS7UIjxyz7VTPMU0nMU`) with `plan_tier = 'estimating'`, `status = 'active'`
+## Step 1: Create Stripe Prices
+Create two new recurring yearly prices on the existing products:
+- `prod_TvWGele4WOtuLp` (Estimating) → $999/year
+- `prod_U6lpws80KASuHx` (Pro) → $1,999/year
 
-## Part 2: Fix the webhook product ID mapping
+## Step 2: Update `subscription-tiers.ts`
+Add annual price IDs and annual prices to each tier config so the UI can reference them.
 
-The webhook's `PRODUCT_IDS` is missing the new $199 Pro product (`prod_U6lpws80KASuHx`). It only has the legacy `prod_TvWGfsM4uQs4od`. Add the new product ID so future Pro subscriptions are correctly categorized instead of falling through to the default.
+## Step 3: Update Pricing Page
+Add a monthly/annual toggle at the top. When annual is selected, show the annual price with a "Save $X" badge on each card. The "Get Started" links pass `&interval=annual` to the signup page.
 
-**File:** `supabase/functions/stripe-webhook/index.ts`
+## Step 4: Update Signup Page
+Read the `interval` URL param. Show "monthly" or "annual" pricing in the plan summary card. Pass `interval` to the `create-checkout` function.
 
-## Part 3: Handle existing-user conflict in SignupSuccess
+## Step 5: Update `create-checkout` Edge Function
+Accept an `interval` param (`monthly` | `annual`). Use the corresponding price ID when creating the checkout session. Add annual price IDs to the `PRICE_IDS` map.
 
-Currently `SignupSuccess` calls `supabase.auth.signUp()` which fails silently if the email already exists. Fix it to:
-- Detect the "user already exists" error
-- Show a message: "An account with this email already exists. Please sign in instead."
-- Provide a link to `/auth` with the email pre-filled
+## Step 6: Update Upgrade Dialogs
+Update `EstimateQuotaDialog` and `FullAppAccessGate` to pass `interval` (default monthly for upgrades, or add a toggle).
 
-**File:** `src/pages/SignupSuccess.tsx`
+## Step 7: Update Price ID Mappings
+Add the new annual price IDs to `PRICE_ID_TO_TIER` so the webhook and check-subscription functions correctly identify the tier from annual subscriptions.
 
-## Part 4: Prevent subcontractors from reaching business checkout
+## Technical Details
 
-Add a guard in the `/signup` page: if the user is already logged in with a subcontractor role, show a message explaining they already have a subcontractor account and need to use a different email to sign up for quoting, or contact support.
+**Files to modify:**
+- `src/lib/subscription-tiers.ts` — add `annual_price`, `annual_price_id` fields
+- `src/pages/Pricing.tsx` — monthly/annual toggle UI
+- `src/pages/Signup.tsx` — read `interval` param, display correct price
+- `supabase/functions/create-checkout/index.ts` — accept `interval`, select correct price ID
+- `src/components/estimates/EstimateQuotaDialog.tsx` — show monthly price (no change needed for MVP)
+- `src/components/subscription/FullAppAccessGate.tsx` — show monthly price (no change needed for MVP)
 
-**File:** `src/pages/Signup.tsx`
+**Stripe tools needed:**
+- `create_stripe_product_and_price` × 2 (annual prices on existing products)
 
-## Summary
-
-- Part 1 fixes this specific user immediately
-- Parts 2-4 prevent it from happening again
-- No changes to the Stripe subscription itself — they keep the $99 Estimating plan
+**Edge function redeployment:** `create-checkout`
 
