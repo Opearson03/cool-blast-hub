@@ -76,7 +76,7 @@ const EOFY = () => {
                   <span className="text-5xl font-bold text-primary">${estimatingTier.annual_price}</span>
                   <span className="text-muted-foreground"> / year</span>
                 </div>
-                <Badge variant="secondary" className="mt-3 bg-green-500/20 text-green-400 border-green-500/30">
+                <Badge variant="secondary" className="mt-3">
                   Save ${estimatingSaving}/year
                 </Badge>
                 <p className="text-sm text-muted-foreground mt-3">
@@ -120,7 +120,7 @@ const EOFY = () => {
                   <span className="text-5xl font-bold text-primary">${proTier.annual_price}</span>
                   <span className="text-muted-foreground"> / year</span>
                 </div>
-                <Badge variant="secondary" className="mt-3 bg-green-500/20 text-green-400 border-green-500/30">
+                <Badge variant="secondary" className="mt-3">
                   Save ${proSaving}/year
                 </Badge>
                 <p className="text-sm text-muted-foreground mt-3">
