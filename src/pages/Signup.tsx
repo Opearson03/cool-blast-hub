@@ -22,6 +22,9 @@ export default function Signup() {
   const affiliateCode = searchParams.get("aff") || "";
   const selectedTier = (searchParams.get("tier") || "pro") as keyof typeof SUBSCRIPTION_TIERS;
   const tierConfig = SUBSCRIPTION_TIERS[selectedTier] || SUBSCRIPTION_TIERS.pro;
+  const billingInterval = searchParams.get("interval") === "annual" ? "annual" : "monthly";
+  const isAnnual = billingInterval === "annual";
+  const displayPrice = isAnnual ? tierConfig.annual_price : tierConfig.price;
   const [isSubcontractor, setIsSubcontractor] = useState(false);
 
   // Check if logged-in user is a subcontractor
@@ -80,6 +83,7 @@ export default function Signup() {
           fullName,
           businessName,
           tier: selectedTier,
+          interval: billingInterval,
           affiliateCode: affiliateCode || undefined,
           ...(freeMonths ? { freeMonths: Number(freeMonths) } : {}),
         },
@@ -155,15 +159,15 @@ export default function Signup() {
                 <div className="mt-2">
                   {freeMonths ? (
                     <>
-                      <span className="text-xl font-bold text-muted-foreground line-through">${tierConfig.price}</span>
+                      <span className="text-xl font-bold text-muted-foreground line-through">${displayPrice}</span>
                       <span className="text-3xl font-bold text-primary ml-2">$0</span>
                       <span className="text-muted-foreground"> / first month</span>
                       <p className="text-sm text-primary mt-1">🎉 Free month included with your booking!</p>
                     </>
                   ) : (
                     <>
-                      <span className="text-3xl font-bold text-primary">${tierConfig.price}</span>
-                      <span className="text-muted-foreground"> / month</span>
+                      <span className="text-3xl font-bold text-primary">${displayPrice}</span>
+                      <span className="text-muted-foreground"> / {isAnnual ? "year" : "month"}</span>
                     </>
                   )}
                 </div>

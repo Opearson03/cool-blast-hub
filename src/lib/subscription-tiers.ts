@@ -1,10 +1,12 @@
-// Subscription tier configuration - Free, Estimating ($99/mo), Pro ($240/mo)
+// Subscription tier configuration - Free, Estimating ($99/mo), Pro ($199/mo)
 export const SUBSCRIPTION_TIERS = {
   free: {
     name: "Free",
     price: 0,
     price_id: null,
     product_id: null,
+    annual_price: 0,
+    annual_price_id: null,
     employee_limit: 999,
     monthly_estimate_limit: 2,
     has_full_app_access: false,
@@ -20,6 +22,8 @@ export const SUBSCRIPTION_TIERS = {
     price: 99,
     price_id: "price_1SxfDWS7UIjxyz7V3CrcxMT4",
     product_id: "prod_TvWGele4WOtuLp",
+    annual_price: 999,
+    annual_price_id: "price_1TM2ewS7UIjxyz7VFLM6Zqet",
     employee_limit: 999,
     monthly_estimate_limit: null, // Unlimited
     has_full_app_access: false,
@@ -37,6 +41,8 @@ export const SUBSCRIPTION_TIERS = {
     price: 199,
     price_id: "price_1T8YHhS7UIjxyz7VUdHtglc8",
     product_id: "prod_U6lpws80KASuHx",
+    annual_price: 1999,
+    annual_price_id: "price_1TM3DAS7UIjxyz7VcUHGZ5Qp",
     employee_limit: 999,
     monthly_estimate_limit: null, // Unlimited
     has_full_app_access: true,
@@ -59,6 +65,8 @@ export const SUBSCRIPTION_TIERS = {
     price: 100,
     price_id: "price_1Sn7u2S7UIjxyz7VMeUH1Kct",
     product_id: "prod_TkdAIRs15o1Omv",
+    annual_price: 100,
+    annual_price_id: null,
     employee_limit: 999,
     monthly_estimate_limit: null,
     has_full_app_access: true,
@@ -83,7 +91,9 @@ export const PRODUCT_ID_TO_TIER: Record<string, SubscriptionTier> = {
 // Price ID to tier mapping
 export const PRICE_ID_TO_TIER: Record<string, SubscriptionTier> = {
   "price_1SxfDWS7UIjxyz7V3CrcxMT4": "estimating",
+  "price_1TM2ewS7UIjxyz7VFLM6Zqet": "estimating", // Annual
   "price_1T8YHhS7UIjxyz7VUdHtglc8": "pro",
+  "price_1TM3DAS7UIjxyz7VcUHGZ5Qp": "pro", // Annual
   "price_1SxfE0S7UIjxyz7Vdj3W8vBx": "pro", // Legacy $240 price
   "price_1Sn7u2S7UIjxyz7VMeUH1Kct": "standard", // Legacy
 };
