@@ -52,6 +52,7 @@ import NotFound from "./pages/NotFound";
 import AffiliateRegistration from "./pages/AffiliateRegistration";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import Bookings from "./pages/Bookings";
+import EOFY from "./pages/EOFY";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
