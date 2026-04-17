@@ -84,21 +84,25 @@ const Pricing = () => {
 
         {/* Pricing Cards */}
         <div className="px-4 pb-20">
-          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
             {/* Estimating Tier */}
             <Card className="border-border flex flex-col">
-              <CardHeader className="text-center pb-2">
-                <h2 className="text-2xl font-bold">{estimatingTier.name}</h2>
-                <div className="mt-4">
+              <CardHeader className="text-center pb-2 pt-8">
+                {/* Badge slot — invisible to align heights */}
+                <Badge variant="outline" className="mx-auto mb-2 text-xs invisible">
+                  PLACEHOLDER
+                </Badge>
+                <h2 className="text-2xl font-bold min-h-[2rem]">{estimatingTier.name}</h2>
+                <div className="mt-4 min-h-[4rem] flex items-baseline justify-center">
                   <span className="text-5xl font-bold text-primary">${estimatingPrice}</span>
                   <span className="text-muted-foreground"> / {isAnnual ? "year" : "month"}</span>
                 </div>
-                {isAnnual && (
-                  <Badge variant="secondary" className="mt-2">
-                    Save ${estimatingSaving}/year
-                  </Badge>
-                )}
-                <p className="text-sm text-muted-foreground mt-3">
+                <div className="min-h-[1.75rem] mt-2 flex items-center justify-center">
+                  {isAnnual ? (
+                    <Badge variant="secondary">Save ${estimatingSaving}/year</Badge>
+                  ) : null}
+                </div>
+                <p className="text-sm text-muted-foreground mt-3 min-h-[3rem]">
                   {estimatingTier.description}
                 </p>
               </CardHeader>
@@ -128,18 +132,21 @@ const Pricing = () => {
               <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
                 Most Popular
               </Badge>
-              <CardHeader className="text-center pb-2">
-                <h2 className="text-2xl font-bold">{proTier.name}</h2>
-                <div className="mt-4">
+              <CardHeader className="text-center pb-2 pt-8">
+                <Badge variant="outline" className="mx-auto mb-2 text-xs invisible">
+                  PLACEHOLDER
+                </Badge>
+                <h2 className="text-2xl font-bold min-h-[2rem]">{proTier.name}</h2>
+                <div className="mt-4 min-h-[4rem] flex items-baseline justify-center">
                   <span className="text-5xl font-bold text-primary">${proPrice}</span>
                   <span className="text-muted-foreground"> / {isAnnual ? "year" : "month"}</span>
                 </div>
-                {isAnnual && (
-                  <Badge variant="secondary" className="mt-2">
-                    Save ${proSaving}/year
-                  </Badge>
-                )}
-                <p className="text-sm text-muted-foreground mt-3">
+                <div className="min-h-[1.75rem] mt-2 flex items-center justify-center">
+                  {isAnnual ? (
+                    <Badge variant="secondary">Save ${proSaving}/year</Badge>
+                  ) : null}
+                </div>
+                <p className="text-sm text-muted-foreground mt-3 min-h-[3rem]">
                   {proTier.description}
                 </p>
               </CardHeader>
@@ -171,18 +178,16 @@ const Pricing = () => {
 
             {/* Enterprise Tier */}
             <Card className="border-border bg-charcoal flex flex-col">
-              <CardHeader className="text-center pb-2">
+              <CardHeader className="text-center pb-2 pt-8">
                 <Badge variant="outline" className="mx-auto mb-2 border-primary/40 text-primary text-xs">
                   ENTERPRISE
                 </Badge>
-                <h2 className="text-2xl font-bold text-primary-foreground">Enterprise</h2>
-                <div className="mt-4">
+                <h2 className="text-2xl font-bold text-primary-foreground min-h-[2rem]">Enterprise</h2>
+                <div className="mt-4 min-h-[4rem] flex items-baseline justify-center">
                   <span className="text-5xl font-bold text-primary">Custom</span>
                 </div>
-                <Badge variant="secondary" className="mt-2 invisible">
-                  placeholder
-                </Badge>
-                <p className="text-sm text-muted-foreground mt-3">
+                <div className="min-h-[1.75rem] mt-2" aria-hidden />
+                <p className="text-sm text-muted-foreground mt-3 min-h-[3rem]">
                   Fully custom platform for large commercial concreting companies.
                 </p>
               </CardHeader>
