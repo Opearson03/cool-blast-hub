@@ -2785,8 +2785,6 @@ export const SCOPE_REGISTRY: Record<string, ScopeDefinition> = {
   pad_footings: PAD_FOOTINGS_SCOPE,
   retaining_walls: RETAINING_WALLS_SCOPE,
   pool_surround: POOL_SURROUND_SCOPE,
-  kerb: KERB_SCOPE,
-  insitu_walls: INSITU_WALLS_SCOPE,
 };
 
 // Get scope by ID
