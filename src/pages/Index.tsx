@@ -2,6 +2,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { Capacitor } from '@capacitor/core';
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Calendar, CheckCircle, ArrowRight, Loader2, FileText, Calculator, MessageSquare, HardHat, Search, Bell, CalendarDays, LayoutDashboard } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import heroPourBackground from "@/assets/hero-pour-background.png";
