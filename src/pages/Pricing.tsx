@@ -84,9 +84,9 @@ const Pricing = () => {
 
         {/* Pricing Cards */}
         <div className="px-4 pb-20">
-          <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Estimating Tier */}
-            <Card className="border-border">
+            <Card className="border-border flex flex-col">
               <CardHeader className="text-center pb-2">
                 <h2 className="text-2xl font-bold">{estimatingTier.name}</h2>
                 <div className="mt-4">
@@ -124,7 +124,7 @@ const Pricing = () => {
             </Card>
 
             {/* Pro Tier */}
-            <Card className="relative border-primary shadow-lg shadow-primary/20">
+            <Card className="relative border-primary shadow-lg shadow-primary/20 flex flex-col">
               <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1">
                 Most Popular
               </Badge>
@@ -168,6 +168,53 @@ const Pricing = () => {
                 </Link>
               </CardContent>
             </Card>
+
+            {/* Enterprise Tier */}
+            <Card className="border-border bg-charcoal flex flex-col">
+              <CardHeader className="text-center pb-2">
+                <Badge variant="outline" className="mx-auto mb-2 border-primary/40 text-primary text-xs">
+                  ENTERPRISE
+                </Badge>
+                <h2 className="text-2xl font-bold text-primary-foreground">Enterprise</h2>
+                <div className="mt-4">
+                  <span className="text-5xl font-bold text-primary">Custom</span>
+                </div>
+                <Badge variant="secondary" className="mt-2 invisible">
+                  placeholder
+                </Badge>
+                <p className="text-sm text-muted-foreground mt-3">
+                  Fully custom platform for large commercial concreting companies.
+                </p>
+              </CardHeader>
+              <CardContent className="flex-1 flex flex-col">
+                <div className="mb-4 p-2 bg-primary/10 rounded text-center text-sm font-medium text-primary border border-primary/20">
+                  Bespoke build
+                </div>
+                <ul className="space-y-3 flex-1 text-primary-foreground">
+                  {[
+                    "Everything in Pro",
+                    "Custom workflows",
+                    "Tool & equipment logs",
+                    "Plant & vehicle tracking",
+                    "Multi-site scheduling",
+                    "Custom integrations",
+                    "Dedicated onboarding",
+                    "Priority support",
+                  ].map((feature, idx) => (
+                    <li key={idx} className="flex items-start gap-3">
+                      <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                      <span className="text-sm">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link to="/enterprise" className="mt-6">
+                  <Button variant="outline" className="w-full touch-target border-primary/50 text-primary-foreground hover:bg-primary/10" size="lg">
+                    Enquire Now
+                    <ArrowRight className="ml-2 w-4 h-4" />
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
@@ -184,6 +231,7 @@ const Pricing = () => {
                     <th className="text-left py-3 px-4 text-muted-foreground">Feature</th>
                     <th className="text-center py-3 px-4">Estimating</th>
                     <th className="text-center py-3 px-4 text-primary">Pro</th>
+                    <th className="text-center py-3 px-4 text-primary">Enterprise</th>
                   </tr>
                 </thead>
                 <tbody className="text-primary-foreground">
@@ -191,9 +239,11 @@ const Pricing = () => {
                     <td className="py-3 px-4">Quotes per month</td>
                     <td className="text-center py-3 px-4">Unlimited</td>
                     <td className="text-center py-3 px-4">Unlimited</td>
+                    <td className="text-center py-3 px-4">Unlimited</td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Professional PDFs</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
@@ -201,9 +251,11 @@ const Pricing = () => {
                     <td className="py-3 px-4">Quote signing</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Email delivery</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
@@ -211,19 +263,47 @@ const Pricing = () => {
                     <td className="py-3 px-4">Job management</td>
                     <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Scheduling</td>
                     <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4">Multi-site</td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Test result tracking</td>
                     <td className="text-center py-3 px-4 text-muted-foreground">—</td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Tool & equipment logs</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Plant & vehicle tracking</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Custom integrations</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
+                  </tr>
+                  <tr className="border-b border-border/50">
+                    <td className="py-3 px-4">Dedicated onboarding</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4 text-muted-foreground">—</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>
                   <tr className="border-b border-border/50">
                     <td className="py-3 px-4">Priority support</td>
+                    <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                     <td className="text-center py-3 px-4"><Check className="w-4 h-4 text-primary mx-auto" /></td>
                   </tr>

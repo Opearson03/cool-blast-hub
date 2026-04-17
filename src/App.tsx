@@ -53,6 +53,7 @@ import AffiliateRegistration from "./pages/AffiliateRegistration";
 import AffiliateDashboard from "./pages/AffiliateDashboard";
 import Bookings from "./pages/Bookings";
 import EOFY from "./pages/EOFY";
+import Enterprise from "./pages/Enterprise";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
@@ -146,6 +147,7 @@ const AppContent = () => {
       {/* Booking Route */}
       <Route path="/bookings" element={<Bookings />} />
       <Route path="/eofy" element={<EOFY />} />
+      <Route path="/enterprise" element={<Enterprise />} />
 
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
