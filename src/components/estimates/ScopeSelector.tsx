@@ -131,20 +131,6 @@ export const SCOPE_OPTIONS: ScopeOption[] = [
     availableFor: ["house_slab", "commercial_slab", "driveway"],
     category: "external",
   },
-  {
-    id: "kerb",
-    label: "Kerb",
-    description: "Concrete kerbing — narrow profile, linear measurement",
-    availableFor: ["house_slab", "commercial_slab", "driveway"],
-    category: "foundations",
-  },
-  {
-    id: "insitu_walls",
-    label: "Insitu Walls",
-    description: "Cast-in-place concrete walls with formwork both faces",
-    availableFor: ["house_slab", "commercial_slab", "driveway"],
-    category: "foundations",
-  },
 ];
 
 interface ScopeSelectorProps {
