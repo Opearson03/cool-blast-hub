@@ -435,6 +435,36 @@ const Index = () => {
         </div>
       </div>
 
+      {/* Enterprise Banner */}
+      <div className="bg-charcoal-dark py-20 px-4 border-y border-primary/20">
+        <div className="max-w-5xl mx-auto">
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-charcoal via-charcoal-dark to-charcoal border border-primary/30 p-8 sm:p-12">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+            <div className="relative z-10 flex flex-col lg:flex-row lg:items-center gap-8">
+              <div className="flex-1">
+                <Badge className="mb-4 px-3 py-1 text-xs font-semibold bg-primary/20 text-primary border border-primary/40">
+                  ✨ NEW
+                </Badge>
+                <h2 className="text-3xl sm:text-4xl font-bold text-primary-foreground mb-4 tracking-tight">
+                  Introducing PourHub <span className="text-primary">Enterprise</span>
+                </h2>
+                <p className="text-lg text-muted-foreground max-w-2xl">
+                  A fully custom platform for large commercial concreting operations — from estimating and project management to tool logs, plant tracking, and bespoke reporting.
+                </p>
+              </div>
+              <div className="flex-shrink-0">
+                <Link to="/enterprise">
+                  <Button size="lg" className="text-lg px-8 py-6 touch-target">
+                    Learn More
+                    <ArrowRight className="ml-2 w-5 h-5" />
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CTA Section */}
       <div className="bg-gradient-to-r from-primary to-orange-600 py-20 px-4">
         <div className="max-w-4xl mx-auto text-center">
