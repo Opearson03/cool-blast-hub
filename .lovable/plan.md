@@ -1,31 +1,52 @@
 
 
-# EOFY Sale Landing Page (`/eofy`)
+# Introducing PourHub Enterprise
 
 ## What we're building
-A standalone promotional landing page at `/eofy` designed for ad traffic. It presents the annual plans as an "End of Financial Year Sale" with urgency-driven copy, crossed-out monthly pricing to highlight savings, and direct signup CTAs. No monthly toggle — annual only.
+1. A new public **/enterprise** info page describing the bespoke offering for large commercial concreting companies
+2. An **"Introducing PourHub Enterprise"** banner/section on the home page (`/`) linking to it
+3. A third **Enterprise** card on the **/pricing** page with an "Enquire Now" CTA (no price — links to enterprise page or a contact action)
 
-## Page design
-- Same dark `bg-charcoal-dark` theme as the Pricing page
-- PourHub logo header with "Sign In" button
-- Hero section: "End of Financial Year Sale" headline with urgency tagline ("Lock in your annual rate before June 30")
-- Sale badge / countdown feel (e.g. "EOFY SALE" badge, "Limited Time" callout)
-- Two pricing cards (Estimating $999/yr, Pro $1,999/yr) showing:
-  - Crossed-out monthly-equivalent price (e.g. ~~$1,188~~ → $999/yr)
-  - "Save $189/yr" and "Save $389/yr" badges
-  - Feature lists (same as Pricing page)
-  - CTA buttons linking to `/signup?tier=estimating&interval=annual` and `/signup?tier=pro&interval=annual`
-- Brief value props section
-- Footer with links
+## Page design — `/enterprise`
+- Same `bg-charcoal-dark` theme as Pricing/EOFY
+- Header: PourHub logo + "Sign In" button
+- **Hero**: "Introducing PourHub Enterprise" + subhead "A fully custom-built platform for large commercial concreting companies"
+- **What we manage** section — end-to-end coverage with feature blocks:
+  - Estimating & tendering at scale
+  - Job & project management
+  - Crew & subcontractor coordination
+  - Scheduling across multiple sites
+  - Concrete testing & compliance
+  - Equipment & tool logs
+  - Plant & vehicle tracking
+  - Custom reporting & dashboards
+- **"Built for your business"** section — copy explaining it's a fully custom build (custom workflows, integrations with your existing systems, dedicated onboarding, white-glove support)
+- **Who it's for** — large commercial concreters, multi-crew operations, businesses needing bespoke workflows
+- **CTA**: "Enquire Now" button → `/bookings` (existing booking page) with prefilled context, plus a `mailto:` fallback
+- Footer matching site style
+
+## Home page (`/`) addition
+- Insert a new **"Introducing PourHub Enterprise"** banner section between the existing "Subbie" section and the final CTA (~line 437)
+- Dark gradient panel with badge ("NEW"), heading, short pitch ("Fully custom platform for large commercial operations — from estimating to tool logs"), and "Learn More" button → `/enterprise`
+
+## Pricing page addition
+- Switch the pricing grid from 2 columns to 3 columns on `md+` (`md:grid-cols-3`)
+- Add a third **Enterprise** card:
+  - Title: "Enterprise"
+  - Price: "Custom" (no $ figure)
+  - Description: "Fully custom platform for large commercial concreting companies"
+  - Features: Everything in Pro + Custom workflows, Tool & equipment logs, Multi-site scheduling, Dedicated onboarding, Priority support, Custom integrations
+  - CTA: "Enquire Now" → `/enterprise`
+- Add an **Enterprise** column to the comparison table (mostly checks + "Custom" entries)
 
 ## Technical details
 
-**New file:** `src/pages/EOFY.tsx`
-- Imports `SUBSCRIPTION_TIERS`, `SEOHead`, `Logo`, shared UI components
-- Purely static/presentational — no new hooks or backend changes
+**New file:** `src/pages/Enterprise.tsx` — purely presentational, uses `SEOHead`, `Logo`, `Button`, `Card`, `Badge`, lucide icons
 
-**Modified file:** `src/App.tsx`
-- Add route: `<Route path="/eofy" element={<EOFY />} />`
+**Modified files:**
+- `src/App.tsx` — add `<Route path="/enterprise" element={<Enterprise />} />`
+- `src/pages/Index.tsx` — insert Enterprise banner section before final CTA
+- `src/pages/Pricing.tsx` — add third tier card + comparison column, switch grid to 3 cols
 
-No database, edge function, or Stripe changes needed — the signup flow already handles `tier` + `interval=annual` params.
+No database, edge function, or Stripe changes. Enterprise enquiries route to the existing `/bookings` flow.
 
