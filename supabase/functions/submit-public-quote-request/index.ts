@@ -150,6 +150,81 @@ serve(async (req) => {
       return bad(500, 'Failed to record submission');
     }
 
+    // Send notification email to the business (best-effort, non-blocking)
+    try {
+      const notifyTo = (business.email || '').trim();
+      const resendKey = Deno.env.get('RESEND_API_KEY');
+      if (notifyTo && resendKey) {
+        const fromName = business.name?.replace(/[<>"]/g, '') || 'PourHub';
+        const fromAddress = `${fromName} <${business.inbound_email_alias}@pourhub.au>`;
+        const escape = (s: string) =>
+          s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        const html = `
+<!DOCTYPE html>
+<html><body style="font-family:Arial,sans-serif;background:#f6f6f6;margin:0;padding:24px;color:#1a1a1a">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;margin:0 auto;background:#ffffff;border-radius:8px;overflow:hidden;border:1px solid #e5e5e5">
+    <tr><td style="background:#f97316;padding:20px 24px;color:#ffffff">
+      <h1 style="margin:0;font-size:20px;font-weight:600">New Quote Request</h1>
+      <p style="margin:4px 0 0;font-size:13px;opacity:0.95">Submitted via your website widget</p>
+    </td></tr>
+    <tr><td style="padding:24px">
+      <p style="margin:0 0 16px;font-size:15px"><strong>${escape(customerName)}</strong> just submitted a quote request through your website.</p>
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="border-collapse:collapse;font-size:14px;margin-bottom:20px">
+        <tr><td style="padding:8px 0;color:#666;width:120px">Name</td><td style="padding:8px 0">${escape(customerName)}</td></tr>
+        <tr><td style="padding:8px 0;color:#666">Email</td><td style="padding:8px 0"><a href="mailto:${escape(customerEmail)}" style="color:#f97316;text-decoration:none">${escape(customerEmail)}</a></td></tr>
+        <tr><td style="padding:8px 0;color:#666">Phone</td><td style="padding:8px 0">${escape(customerPhone || '(not provided)')}</td></tr>
+        <tr><td style="padding:8px 0;color:#666">Site address</td><td style="padding:8px 0">${escape(siteAddress)}</td></tr>
+      </table>
+      ${description ? `<div style="background:#f9f9f9;border-left:3px solid #f97316;padding:12px 16px;margin-bottom:20px;font-size:14px;line-height:1.5"><strong style="display:block;margin-bottom:6px;color:#666;font-size:12px;text-transform:uppercase;letter-spacing:0.05em">Project description</strong>${escape(description).replace(/\n/g, '<br>')}</div>` : ''}
+      <p style="margin:0 0 16px;font-size:14px;color:#555">The building plan is attached to this email and is also available in your PourHub Inbox.</p>
+      <p style="margin:24px 0 0;text-align:center">
+        <a href="https://pourhub.com.au/admin/jobs" style="display:inline-block;background:#f97316;color:#ffffff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px">View in PourHub Inbox</a>
+      </p>
+    </td></tr>
+    <tr><td style="padding:16px 24px;background:#fafafa;border-top:1px solid #eee;font-size:12px;color:#999;text-align:center">
+      Sent by PourHub on behalf of ${escape(business.name)}
+    </td></tr>
+  </table>
+</body></html>`.trim();
+
+        // Convert bytes to base64 for Resend attachment
+        let binary = '';
+        const chunkSize = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunkSize) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+        }
+        const base64 = btoa(binary);
+
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${resendKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            from: fromAddress,
+            to: [notifyTo],
+            reply_to: customerEmail,
+            subject: `New quote request from ${customerName} — ${siteAddress}`,
+            html,
+            attachments: [{ filename: safeName, content: base64 }],
+          }),
+        });
+
+        if (!emailRes.ok) {
+          const errText = await emailRes.text();
+          console.error('Resend notification failed:', emailRes.status, errText);
+        } else {
+          console.log('Notification email sent to', notifyTo);
+        }
+      } else if (!notifyTo) {
+        console.log('No business notification email configured; skipping email');
+      }
+    } catch (notifyErr) {
+      console.error('Notification email error (non-fatal):', notifyErr);
+    }
+
     return new Response(
       JSON.stringify({ success: true, business_name: business.name }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
