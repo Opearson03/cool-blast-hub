@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,13 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Code2, Globe, Sparkles, Eye, Loader2, MessageSquareWarning } from "lucide-react";
+import { Copy, Code2, Globe, Sparkles, Eye, Loader2, MessageSquareWarning, Mail, AlertCircle } from "lucide-react";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 
 export default function WidgetSettings() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [color, setColor] = useState("#f97316");
   const [label, setLabel] = useState("Request a Quote");
+  const [notifyEmail, setNotifyEmail] = useState("");
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["business-for-widget"],
@@ -30,11 +32,34 @@ export default function WidgetSettings() {
       if (!profile?.business_id) throw new Error("No business");
       const { data, error } = await supabase
         .from("businesses")
-        .select("id, name, inbound_email_alias")
+        .select("id, name, inbound_email_alias, email")
         .eq("id", profile.business_id)
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  useEffect(() => {
+    if (business?.email) setNotifyEmail(business.email);
+  }, [business?.email]);
+
+  const saveEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      if (!business?.id) throw new Error("No business");
+      const { error } = await supabase
+        .from("businesses")
+        .update({ email: email.trim() || null })
+        .eq("id", business.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["business-for-widget"] });
+      queryClient.invalidateQueries({ queryKey: ["business-for-widget-embed"] });
+      toast({ title: "Saved", description: "Notification email updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -57,6 +82,8 @@ export default function WidgetSettings() {
       toast({ title: "Copy failed", description: "Please copy manually", variant: "destructive" });
     }
   };
+
+  const emailDirty = notifyEmail.trim() !== (business?.email || "").trim();
 
   return (
     <AdminLayout>
@@ -126,6 +153,41 @@ export default function WidgetSettings() {
                       maxLength={7}
                     />
                   </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
+                  <Label htmlFor="notify-email" className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Notification email
+                  </Label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      id="notify-email"
+                      type="email"
+                      value={notifyEmail}
+                      onChange={(e) => setNotifyEmail(e.target.value)}
+                      placeholder="you@yourcompany.com.au"
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={() => saveEmailMutation.mutate(notifyEmail)}
+                      disabled={!emailDirty || saveEmailMutation.isPending}
+                      variant="secondary"
+                    >
+                      {saveEmailMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    We'll send each quote submission to this address with the customer's plan attached. Leave blank to disable email notifications.
+                  </p>
+                  {!notifyEmail.trim() && (
+                    <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <span>No notification email set — submissions will only appear in your PourHub Inbox.</span>
+                    </div>
+                  )}
                 </div>
 
                 <Separator />
