@@ -14,8 +14,10 @@ import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 
 export default function WidgetSettings() {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [color, setColor] = useState("#f97316");
   const [label, setLabel] = useState("Request a Quote");
+  const [notifyEmail, setNotifyEmail] = useState("");
 
   const { data: business, isLoading } = useQuery({
     queryKey: ["business-for-widget"],
@@ -30,11 +32,34 @@ export default function WidgetSettings() {
       if (!profile?.business_id) throw new Error("No business");
       const { data, error } = await supabase
         .from("businesses")
-        .select("id, name, inbound_email_alias")
+        .select("id, name, inbound_email_alias, email")
         .eq("id", profile.business_id)
         .single();
       if (error) throw error;
       return data;
+    },
+  });
+
+  useEffect(() => {
+    if (business?.email) setNotifyEmail(business.email);
+  }, [business?.email]);
+
+  const saveEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      if (!business?.id) throw new Error("No business");
+      const { error } = await supabase
+        .from("businesses")
+        .update({ email: email.trim() || null })
+        .eq("id", business.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["business-for-widget"] });
+      queryClient.invalidateQueries({ queryKey: ["business-for-widget-embed"] });
+      toast({ title: "Saved", description: "Notification email updated" });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
     },
   });
 
@@ -57,6 +82,8 @@ export default function WidgetSettings() {
       toast({ title: "Copy failed", description: "Please copy manually", variant: "destructive" });
     }
   };
+
+  const emailDirty = notifyEmail.trim() !== (business?.email || "").trim();
 
   return (
     <AdminLayout>
