@@ -1,24 +1,30 @@
+import xeroLogo from "@/assets/integrations/xero.png";
+import myobLogo from "@/assets/integrations/myob.png";
+import quickbooksLogo from "@/assets/integrations/quickbooks.png";
+import teamsLogo from "@/assets/integrations/teams.png";
+import procoreLogo from "@/assets/integrations/procore.png";
+import aconexLogo from "@/assets/integrations/aconex.png";
+import employmentHeroLogo from "@/assets/integrations/employment-hero.png";
+import connecteamLogo from "@/assets/integrations/connecteam.png";
+import deputyLogo from "@/assets/integrations/deputy.png";
+import dropboxLogo from "@/assets/integrations/dropbox.png";
+
 interface Integration {
   name: string;
   src: string;
-  href?: string;
 }
 
-// Placeholder logos — replace `src` values with the URLs you provide.
-// Drop logos into /public/integrations/ or use external URLs.
 const integrations: Integration[] = [
-  { name: "Xero", src: "/integrations/xero.svg" },
-  { name: "MYOB", src: "/integrations/myob.svg" },
-  { name: "QuickBooks", src: "/integrations/quickbooks.svg" },
-  { name: "Microsoft Teams", src: "/integrations/teams.svg" },
-  { name: "Microsoft 365", src: "/integrations/microsoft365.svg" },
-  { name: "Procore", src: "/integrations/procore.svg" },
-  { name: "Aconex", src: "/integrations/aconex.svg" },
-  { name: "Hammertech", src: "/integrations/hammertech.svg" },
-  { name: "EstimateOne", src: "/integrations/estimateone.svg" },
-  { name: "Employment Hero", src: "/integrations/employment-hero.svg" },
-  { name: "Deputy", src: "/integrations/deputy.svg" },
-  { name: "Dropbox", src: "/integrations/dropbox.svg" },
+  { name: "Xero", src: xeroLogo },
+  { name: "MYOB", src: myobLogo },
+  { name: "QuickBooks", src: quickbooksLogo },
+  { name: "Microsoft Teams", src: teamsLogo },
+  { name: "Procore", src: procoreLogo },
+  { name: "Aconex", src: aconexLogo },
+  { name: "Employment Hero", src: employmentHeroLogo },
+  { name: "Connecteam", src: connecteamLogo },
+  { name: "Deputy", src: deputyLogo },
+  { name: "Dropbox", src: dropboxLogo },
 ];
 
 export const IntegrationsMarquee = () => {
@@ -53,24 +59,14 @@ export const IntegrationsMarquee = () => {
             {loop.map((logo, idx) => (
               <div
                 key={`${logo.name}-${idx}`}
-                className="flex items-center justify-center mx-8 sm:mx-12 shrink-0"
+                className="flex items-center justify-center mx-10 sm:mx-14 shrink-0 h-16"
                 title={logo.name}
               >
                 <img
                   src={logo.src}
                   alt={`${logo.name} logo`}
-                  className="h-10 sm:h-12 w-auto object-contain opacity-80 grayscale hover:grayscale-0 hover:opacity-100 transition-all duration-300"
+                  className="max-h-12 sm:max-h-14 w-auto object-contain bg-white rounded-md px-3 py-2 opacity-95 hover:opacity-100 transition-opacity duration-300"
                   loading="lazy"
-                  onError={(e) => {
-                    // Fallback: show name as text if image fails
-                    const target = e.currentTarget;
-                    target.style.display = "none";
-                    const fallback = document.createElement("span");
-                    fallback.textContent = logo.name;
-                    fallback.className =
-                      "text-primary-foreground/70 font-semibold text-lg whitespace-nowrap";
-                    target.parentElement?.appendChild(fallback);
-                  }}
                 />
               </div>
             ))}
