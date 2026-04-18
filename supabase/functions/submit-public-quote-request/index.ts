@@ -86,7 +86,7 @@ serve(async (req) => {
     // Look up business by inbound_email_alias
     const { data: business, error: bizError } = await supabase
       .from('businesses')
-      .select('id, name, inbound_email_alias')
+      .select('id, name, inbound_email_alias, email')
       .eq('inbound_email_alias', businessAlias)
       .maybeSingle();
 
