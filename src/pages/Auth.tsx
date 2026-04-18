@@ -55,6 +55,39 @@ export default function Auth() {
 
   const redirectBasedOnRole = async (userId: string) => {
     try {
+      // Enterprise subdomain redirect — check before normal role routing
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        const userEmail = user?.email?.toLowerCase();
+        if (userEmail) {
+          const hostname = window.location.hostname;
+          const isDevHost =
+            hostname === "localhost" ||
+            hostname.endsWith(".lovable.app") ||
+            hostname.endsWith(".lovableproject.com");
+
+          if (!isDevHost) {
+            const { data: redirectRow } = await supabase
+              .from("enterprise_redirects")
+              .select("subdomain")
+              .eq("email", userEmail)
+              .maybeSingle();
+
+            if (redirectRow?.subdomain) {
+              const targetHost = `${redirectRow.subdomain}.pourhub.com.au`;
+              if (hostname !== targetHost) {
+                // Sign out of the main project session, then redirect (each project has its own auth).
+                await supabase.auth.signOut();
+                window.location.href = `https://${targetHost}/auth?email=${encodeURIComponent(userEmail)}`;
+                return;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Enterprise redirect lookup failed (continuing normal flow):", err);
+      }
+
       const [{ data: isAdmin }, { data: isStaff }, { data: isSub }] = await Promise.all([
         supabase.rpc("has_role", { _role: "admin", _user_id: userId }),
         supabase.rpc("has_role", { _role: "staff", _user_id: userId }),

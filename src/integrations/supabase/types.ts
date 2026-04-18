@@ -792,6 +792,36 @@ export type Database = {
           },
         ]
       }
+      enterprise_redirects: {
+        Row: {
+          business_name: string | null
+          created_at: string
+          email: string
+          id: string
+          notes: string | null
+          subdomain: string
+          updated_at: string
+        }
+        Insert: {
+          business_name?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          notes?: string | null
+          subdomain: string
+          updated_at?: string
+        }
+        Update: {
+          business_name?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          notes?: string | null
+          subdomain?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       equipment: {
         Row: {
           business_id: string
