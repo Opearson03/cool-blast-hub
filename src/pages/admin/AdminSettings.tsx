@@ -10,7 +10,8 @@ import { CardContent, CardDescription } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Building2, Save, Plus, X, Upload, CreditCard, ExternalLink, Lock, Palette, FileText, Eye, DollarSign, MessageSquare, Truck, Mail } from "lucide-react";
+import { Loader2, Building2, Save, Plus, X, Upload, CreditCard, ExternalLink, Lock, Palette, FileText, Eye, DollarSign, MessageSquare, Truck, Mail, Code2 } from "lucide-react";
+import { WidgetEmbedSection } from "@/components/settings/WidgetEmbedSection";
 import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 import { LivePDFPreview } from "@/components/settings/LivePDFPreview";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -715,6 +716,16 @@ export default function AdminSettings() {
                 />
               </SettingsAccordionItem>
             )}
+
+            {/* Website Widget */}
+            <SettingsAccordionItem
+              value="website-widget"
+              icon={Code2}
+              title="Website Widget"
+              description="Embed a 'Request a Quote' button on your website"
+            >
+              <WidgetEmbedSection />
+            </SettingsAccordionItem>
           </SettingsGroup>
 
           {/* SUPPORT GROUP */}
