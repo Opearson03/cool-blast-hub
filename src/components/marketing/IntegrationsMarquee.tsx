@@ -20,15 +20,15 @@ const integrations: Integration[] = [
   { name: "Xero", src: xeroLogo },
   { name: "MYOB", src: myobLogo },
   { name: "QuickBooks", src: quickbooksLogo },
+  { name: "Boral Connect", src: boralLogo },
   { name: "Microsoft Teams", src: teamsLogo },
+  { name: "Heidelberg Hub", src: heidelbergLogo },
   { name: "Procore", src: procoreLogo },
   { name: "Aconex", src: aconexLogo },
   { name: "Employment Hero", src: employmentHeroLogo },
   { name: "Connecteam", src: connecteamLogo },
   { name: "Deputy", src: deputyLogo },
   { name: "Dropbox", src: dropboxLogo },
-  { name: "Boral Connect", src: boralLogo },
-  { name: "Heidelberg Hub", src: heidelbergLogo },
 ];
 
 export const IntegrationsMarquee = () => {
