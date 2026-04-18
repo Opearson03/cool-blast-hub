@@ -259,6 +259,7 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
               <div className="space-y-3 pr-4">
                 {pendingPlans.map((plan) => {
                   const extracted = plan.extracted_data || {};
+                  const isWidget = extracted?.source === 'website_widget';
                   
                   return (
                     <Card key={plan.id} className="overflow-hidden">
@@ -273,10 +274,17 @@ export function PendingPlansSheet({ open, onOpenChange, businessId }: PendingPla
                               {plan.from_name || plan.from_email}
                             </p>
                           </div>
-                          <Badge variant="secondary" className="shrink-0">
-                            <Calendar className="w-3 h-3 mr-1" />
-                            {format(new Date(plan.received_at), "d MMM")}
-                          </Badge>
+                          <div className="flex flex-col items-end gap-1 shrink-0">
+                            <Badge variant="secondary">
+                              <Calendar className="w-3 h-3 mr-1" />
+                              {format(new Date(plan.received_at), "d MMM")}
+                            </Badge>
+                            {isWidget && (
+                              <Badge variant="outline" className="text-[10px] py-0 px-1.5">
+                                Website Widget
+                              </Badge>
+                            )}
+                          </div>
                         </div>
 
                         {/* AI Extracted Data */}
