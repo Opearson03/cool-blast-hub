@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, Mail, CalendarDays, Handshake } from "lucide-react";
+import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, Mail, CalendarDays, Handshake, Globe } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "@/components/ui/Logo";
 import { SubscriptionMetrics } from "@/components/staff/SubscriptionMetrics";
@@ -14,6 +14,7 @@ import { ChurnMetrics } from "@/components/staff/ChurnMetrics";
 import { CrmTab } from "@/components/staff/crm/CrmTab";
 import { CustomersTab } from "@/components/staff/CustomersTab";
 import { PartnersTab } from "@/components/staff/PartnersTab";
+import { EnterpriseRedirectsTab } from "@/components/staff/EnterpriseRedirectsTab";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -269,6 +270,10 @@ export default function StaffDashboard() {
               <Handshake className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Partners</span>
             </TabsTrigger>
+            <TabsTrigger value="enterprise">
+              <Globe className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Enterprise</span>
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -289,6 +294,10 @@ export default function StaffDashboard() {
 
           <TabsContent value="partners">
             <PartnersTab />
+          </TabsContent>
+
+          <TabsContent value="enterprise">
+            <EnterpriseRedirectsTab />
           </TabsContent>
         </Tabs>
       </main>
