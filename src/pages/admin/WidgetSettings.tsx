@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { Copy, Code2, Globe, Sparkles, Eye, Loader2 } from "lucide-react";
+import { Copy, Code2, Globe, Sparkles, Eye, Loader2, MessageSquareWarning } from "lucide-react";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 
 export default function WidgetSettings() {
   const { toast } = useToast();
@@ -59,17 +60,27 @@ export default function WidgetSettings() {
   return (
     <AdminLayout>
       <div className="container max-w-6xl py-8 space-y-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <h1 className="text-3xl font-bold">Website Widget</h1>
-            <Badge variant="secondary" className="gap-1">
-              <Sparkles className="w-3 h-3" />
-              New
-            </Badge>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-3xl font-bold">Website Widget</h1>
+              <Badge variant="secondary" className="gap-1">
+                <Sparkles className="w-3 h-3" />
+                New
+              </Badge>
+            </div>
+            <p className="text-muted-foreground">
+              Add a "Request a Quote" button to your website. Customers can submit details and upload building plans — they land straight in your PourHub inbox.
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Add a "Request a Quote" button to your website. Customers can submit details and upload building plans — they land straight in your PourHub inbox.
-          </p>
+          <FeedbackDialog
+            trigger={
+              <Button variant="outline" className="shrink-0 border-orange-500/50 text-orange-500 hover:bg-orange-500/10 hover:text-orange-600">
+                <MessageSquareWarning className="w-4 h-4 mr-2" />
+                Get help with this
+              </Button>
+            }
+          />
         </div>
 
         {isLoading ? (
