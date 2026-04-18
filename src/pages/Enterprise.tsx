@@ -151,9 +151,6 @@ const Enterprise = () => {
           </div>
         </div>
 
-        {/* Integrations marquee */}
-        <IntegrationsMarquee />
-
         {/* Built for your business */}
         <div className="bg-charcoal-dark py-20 px-4">
           <div className="max-w-4xl mx-auto">
