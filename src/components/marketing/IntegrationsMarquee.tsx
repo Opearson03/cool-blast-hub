@@ -55,17 +55,17 @@ export const IntegrationsMarquee = () => {
               "linear-gradient(to right, transparent, black 10%, black 90%, transparent)",
           }}
         >
-          <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused]">
+          <div className="flex w-max animate-marquee group-hover:[animation-play-state:paused] items-center">
             {loop.map((logo, idx) => (
               <div
                 key={`${logo.name}-${idx}`}
-                className="flex items-center justify-center mx-10 sm:mx-14 shrink-0 h-16"
+                className="flex items-center justify-center mx-6 sm:mx-8 shrink-0 h-24 w-44 sm:w-52 bg-white rounded-lg px-5 py-3 grayscale hover:grayscale-0 opacity-80 hover:opacity-100 transition-all duration-300"
                 title={logo.name}
               >
                 <img
                   src={logo.src}
                   alt={`${logo.name} logo`}
-                  className="max-h-12 sm:max-h-14 w-auto object-contain bg-white rounded-md px-3 py-2 opacity-95 hover:opacity-100 transition-opacity duration-300"
+                  className="max-h-16 sm:max-h-20 max-w-full w-auto object-contain"
                   loading="lazy"
                 />
               </div>
