@@ -8,6 +8,8 @@ import employmentHeroLogo from "@/assets/integrations/employment-hero.png";
 import connecteamLogo from "@/assets/integrations/connecteam.png";
 import deputyLogo from "@/assets/integrations/deputy.png";
 import dropboxLogo from "@/assets/integrations/dropbox.png";
+import boralLogo from "@/assets/integrations/boral.png";
+import heidelbergLogo from "@/assets/integrations/heidelberg.png";
 
 interface Integration {
   name: string;
@@ -25,6 +27,8 @@ const integrations: Integration[] = [
   { name: "Connecteam", src: connecteamLogo },
   { name: "Deputy", src: deputyLogo },
   { name: "Dropbox", src: dropboxLogo },
+  { name: "Boral Connect", src: boralLogo },
+  { name: "Heidelberg Hub", src: heidelbergLogo },
 ];
 
 export const IntegrationsMarquee = () => {
