@@ -36,10 +36,10 @@ export function WidgetEmbedSection() {
     },
   });
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://pourhub.com.au";
+  const PUBLIC_ORIGIN = "https://pourhub.com.au";
   const alias = business?.inbound_email_alias || "your-business";
 
-  const snippet = `<script src="${origin}/widget.js"
+  const snippet = `<script src="${PUBLIC_ORIGIN}/widget.js"
         data-business="${alias}"
         data-color="${color}"
         data-label="${label}"></script>`;

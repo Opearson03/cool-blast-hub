@@ -38,15 +38,16 @@ export default function WidgetSettings() {
     },
   });
 
-  const origin = typeof window !== "undefined" ? window.location.origin : "https://pourhub.com.au";
+  const PUBLIC_ORIGIN = "https://pourhub.com.au";
+  const previewOrigin = typeof window !== "undefined" ? window.location.origin : PUBLIC_ORIGIN;
   const alias = business?.inbound_email_alias || "your-business";
 
-  const snippet = `<script src="${origin}/widget.js"
+  const snippet = `<script src="${PUBLIC_ORIGIN}/widget.js"
         data-business="${alias}"
         data-color="${color}"
         data-label="${label}"></script>`;
 
-  const previewSrc = `${origin}/embed/quote-request?business=${encodeURIComponent(alias)}&color=${encodeURIComponent(color)}`;
+  const previewSrc = `${previewOrigin}/embed/quote-request?business=${encodeURIComponent(alias)}&color=${encodeURIComponent(color)}`;
 
   const copySnippet = async () => {
     try {
