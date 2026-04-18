@@ -1,44 +1,68 @@
 
 
-## Goal
-When a customer submits a quote via the website widget, email the PourHub member a notification ("XYZ submitted a quote request…") with the uploaded plan attached as a PDF/image.
+## Enterprise Subdomain Redirect (after login)
 
-## Where the notification goes
-The `businesses` table already has an `email` column (the business's primary contact email). I'll reuse that as the notification destination — no new schema needed.
+When an enterprise client logs in at `pourhub.com.au/auth`, look up their email in a new `enterprise_redirects` table and, if matched, redirect them to their dedicated subdomain (e.g. `https://acme.pourhub.com.au/auth?redirect=1`) instead of `/admin`. Each enterprise project remains a separate Lovable app with its own database.
 
-To make it explicit and editable from the widget context, I'll add a small **"Notification email"** input to the widget settings (both the `WidgetEmbedSection` accordion and the full `/admin/widget` page). This input reads/writes `businesses.email` directly, so changes flow through to all the places that already use it. If the field is empty, the notification is skipped (graceful no-op) and we'll show a small inline warning.
+### 1. New table: `enterprise_redirects` (main project only)
 
-## Email content
-- **From**: `{Business Name} <{alias}@pourhub.au>` (matches existing outbound pattern)
-- **To**: `businesses.email`
-- **Subject**: `New quote request from {Customer Name} — {Site Address}`
-- **Body** (branded HTML, plain styling consistent with other PourHub emails):
-  - "{Customer Name} just submitted a quote request through your website."
-  - Customer details: name, email, phone, site address
-  - Project description (if provided)
-  - "View this submission in your PourHub Inbox" CTA → `https://pourhub.com.au/admin/jobs` (Inbox)
-- **Attachment**: the uploaded plan file (PDF/PNG/JPG), passed as base64 via Resend's `attachments` field — file already lives in memory at the point of email sending, so no extra download needed.
+| Column        | Type        | Notes                                              |
+|---------------|-------------|----------------------------------------------------|
+| `id`          | uuid PK     | `gen_random_uuid()`                                |
+| `email`       | text UNIQUE | Lowercased on insert via trigger                   |
+| `subdomain`   | text        | e.g. `acme` → resolves to `acme.pourhub.com.au`    |
+| `business_name` | text      | Display label for staff portal                     |
+| `notes`       | text        | Optional                                           |
+| `created_at`  | timestamptz | `now()`                                            |
 
-## Files
+**RLS:**
+- Staff can manage all rows (`is_pourhub_staff(auth.uid())`)
+- Authenticated users can SELECT their own row (`lower(email) = lower(auth.email())`) — needed so the client-side post-login lookup works without exposing other clients' mappings.
+
+### 2. Login redirect logic (`src/pages/Auth.tsx`)
+
+In `redirectBasedOnRole`, after successful sign-in but **before** the existing role-based navigation:
+
+```text
+1. Query enterprise_redirects where lower(email) = user.email
+2. If a row exists AND current hostname !== `${subdomain}.pourhub.com.au`:
+     window.location.href = `https://${subdomain}.pourhub.com.au/auth?email=${email}`
+     return  (skip rest of redirect logic)
+3. Otherwise continue to /admin / /employee / etc.
+```
+
+The redirect uses `window.location.href` (not `navigate`) because it's cross-origin. The target enterprise project's `/auth` page already exists (same codebase pattern) and will accept the email param so the user just types their password again — no shared session is needed since each project has its own Supabase backend.
+
+A safety check skips the redirect when already on the correct subdomain (prevents loops) and on `localhost` / `lovable.app` (so dev/preview keeps working).
+
+### 3. Staff portal: manage enterprise mappings
+
+Add a small **"Enterprise Redirects"** section in the staff portal (under an existing tab like Customers or Partners) with:
+- Table view of all mappings (email, subdomain, business name)
+- "Add mapping" dialog (email + subdomain + business name)
+- Edit / delete buttons
+
+### 4. DNS / hosting (manual, one-time per enterprise)
+
+For each enterprise client, in the **main pourhub.com.au DNS**:
+- Add a CNAME or A record for `{business}.pourhub.com.au` pointing to that enterprise's Lovable project
+- Connect the subdomain inside the enterprise project's Lovable settings
+
+This is outside the code change but documented in the staff portal section ("After adding a mapping here, configure DNS and connect the subdomain in the enterprise project's Lovable settings").
+
+### Files
+
+**New:**
+- DB migration creating `enterprise_redirects` + RLS policies
+- `src/pages/staff/sections/EnterpriseRedirects.tsx` — staff CRUD UI
+- Hook into existing staff dashboard navigation
 
 **Modified:**
-1. `supabase/functions/submit-public-quote-request/index.ts`
-   - After successfully inserting into `pending_plans`, fetch `business.email` (already loaded), and if present, send a notification via Resend
-   - Use the in-memory `bytes` (already read for upload) as the attachment — no re-download
-   - Wrap in try/catch so notification failure does not fail the submission
-   - Log result; existing `RESEND_API_KEY` secret is already configured
+- `src/pages/Auth.tsx` — add the lookup + cross-origin redirect at the top of `redirectBasedOnRole`
 
-2. `src/components/settings/WidgetEmbedSection.tsx`
-   - Add a "Notification email" `<Input>` bound to `businesses.email` with a small "Save" button (mutation updates `businesses.email`)
-   - Helper text: "We'll send quote submissions to this address. Leave blank to disable notifications."
-
-3. `src/pages/admin/WidgetSettings.tsx`
-   - Mirror the same notification email input inside the "Customise" card so it's visible on the dedicated widget page too
-
-**No DB migration**, no new edge function, no new secret.
-
-## Edge cases
-- If `business.email` is null/empty → skip the email send silently, log to console
-- If Resend send fails → log error but still return `{ success: true }` to the customer (the submission is already saved)
-- Attachment size: file is capped at 20MB at upload time; Resend's per-email attachment limit is ~40MB — well within range
+### Edge cases handled
+- Already on correct subdomain → no redirect (prevents infinite loop)
+- On localhost or `*.lovable.app` → skip redirect (dev safe)
+- No matching row → normal flow continues
+- Lookup fails / errors → log and fall through to normal flow (never block login)
 
