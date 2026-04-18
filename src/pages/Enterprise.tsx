@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { IntegrationsMarquee } from "@/components/marketing/IntegrationsMarquee";
 
 const Enterprise = () => {
   const capabilities = [
@@ -146,6 +147,9 @@ const Enterprise = () => {
             </div>
           </div>
         </div>
+
+        {/* Integrations marquee */}
+        <IntegrationsMarquee />
 
         {/* Built for your business */}
         <div className="bg-charcoal-dark py-20 px-4">
