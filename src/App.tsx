@@ -54,6 +54,8 @@ import AffiliateDashboard from "./pages/AffiliateDashboard";
 import Bookings from "./pages/Bookings";
 import EOFY from "./pages/EOFY";
 import Enterprise from "./pages/Enterprise";
+import WidgetSettings from "./pages/admin/WidgetSettings";
+import QuoteRequestWidget from "./pages/embed/QuoteRequestWidget";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
@@ -103,6 +105,10 @@ const AppContent = () => {
       <Route path="/admin/estimates" element={<ProtectedRoute allowedRole="admin"><AdminEstimates /></ProtectedRoute>} />
       <Route path="/admin/contacts" element={<ProtectedRoute allowedRole="admin"><AdminContacts /></ProtectedRoute>} />
       <Route path="/admin/settings" element={<ProtectedRoute allowedRole="admin"><AdminSettings /></ProtectedRoute>} />
+      <Route path="/admin/widget" element={<ProtectedRoute allowedRole="admin"><WidgetSettings /></ProtectedRoute>} />
+      
+      {/* Public embed route - no auth, no chrome */}
+      <Route path="/embed/quote-request" element={<QuoteRequestWidget />} />
       
       {/* Employee Routes - Hidden for now - keeping code for future: */}
       {/* <Route path="/employee" element={<ProtectedRoute allowedRole="staff"><EmployeeDashboard /></ProtectedRoute>} /> */}
