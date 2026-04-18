@@ -158,6 +158,41 @@ export default function WidgetSettings() {
                 <Separator />
 
                 <div className="space-y-2">
+                  <Label htmlFor="notify-email" className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    Notification email
+                  </Label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input
+                      id="notify-email"
+                      type="email"
+                      value={notifyEmail}
+                      onChange={(e) => setNotifyEmail(e.target.value)}
+                      placeholder="you@yourcompany.com.au"
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={() => saveEmailMutation.mutate(notifyEmail)}
+                      disabled={!emailDirty || saveEmailMutation.isPending}
+                      variant="secondary"
+                    >
+                      {saveEmailMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    We'll send each quote submission to this address with the customer's plan attached. Leave blank to disable email notifications.
+                  </p>
+                  {!notifyEmail.trim() && (
+                    <div className="flex items-start gap-2 text-xs text-amber-600 dark:text-amber-500 bg-amber-500/10 border border-amber-500/20 rounded px-2 py-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                      <span>No notification email set — submissions will only appear in your PourHub Inbox.</span>
+                    </div>
+                  )}
+                </div>
+
+                <Separator />
+
+                <div className="space-y-2">
                   <Label className="flex items-center gap-2">
                     <Code2 className="w-4 h-4" />
                     Embed code
