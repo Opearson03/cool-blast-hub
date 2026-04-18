@@ -213,7 +213,7 @@ const Pricing = () => {
                   ))}
                 </ul>
                 <Link to="/enterprise" className="mt-6">
-                  <Button variant="outline" className="w-full touch-target border-primary/50 text-primary-foreground hover:bg-primary/10" size="lg">
+                  <Button className="w-full touch-target bg-primary text-primary-foreground hover:bg-primary/90" size="lg">
                     Enquire Now
                     <ArrowRight className="ml-2 w-4 h-4" />
                   </Button>
