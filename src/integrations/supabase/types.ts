@@ -792,6 +792,204 @@ export type Database = {
           },
         ]
       }
+      enterprise_quote_pricing_config: {
+        Row: {
+          complexity_multipliers: Json
+          created_at: string
+          default_assumptions: string | null
+          id: string
+          integrations: Json
+          modules: Json
+          strategic_fees: Json
+          support_plans: Json
+          tiers: Json
+          updated_at: string
+          urgency_multipliers: Json
+        }
+        Insert: {
+          complexity_multipliers?: Json
+          created_at?: string
+          default_assumptions?: string | null
+          id?: string
+          integrations?: Json
+          modules?: Json
+          strategic_fees?: Json
+          support_plans?: Json
+          tiers?: Json
+          updated_at?: string
+          urgency_multipliers?: Json
+        }
+        Update: {
+          complexity_multipliers?: Json
+          created_at?: string
+          default_assumptions?: string | null
+          id?: string
+          integrations?: Json
+          modules?: Json
+          strategic_fees?: Json
+          support_plans?: Json
+          tiers?: Json
+          updated_at?: string
+          urgency_multipliers?: Json
+        }
+        Relationships: []
+      }
+      enterprise_quote_templates: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          integrations: Json
+          is_active: boolean
+          modules: Json
+          name: string
+          support_key: string | null
+          tier_key: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          integrations?: Json
+          is_active?: boolean
+          modules?: Json
+          name: string
+          support_key?: string | null
+          tier_key?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          integrations?: Json
+          is_active?: boolean
+          modules?: Json
+          name?: string
+          support_key?: string | null
+          tier_key?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      enterprise_quotes: {
+        Row: {
+          base_subtotal_high: number
+          base_subtotal_low: number
+          business_name: string | null
+          client_email: string | null
+          client_name: string
+          client_phone: string | null
+          complexity_multiplier: number
+          complexity_settings: Json
+          concurrent_jobs: number | null
+          confidence_rating: string | null
+          created_at: string
+          created_by: string | null
+          crew_count: number | null
+          estimate_high: number
+          estimate_low: number
+          estimated_hours: number | null
+          id: string
+          integrations_subtotal: number
+          internal_notes: string | null
+          meeting_notes: string | null
+          modules_subtotal: number
+          monthly_support: number
+          profit_margin_pct: number | null
+          quote_number: string
+          recommended_quote: number
+          region: string | null
+          selected_integrations: Json
+          selected_modules: Json
+          selected_support: Json | null
+          selected_tier: Json | null
+          status: string
+          strategic_fees: Json
+          strategic_fees_total: number
+          team_size: number | null
+          updated_at: string
+          urgency_multiplier: number
+        }
+        Insert: {
+          base_subtotal_high?: number
+          base_subtotal_low?: number
+          business_name?: string | null
+          client_email?: string | null
+          client_name: string
+          client_phone?: string | null
+          complexity_multiplier?: number
+          complexity_settings?: Json
+          concurrent_jobs?: number | null
+          confidence_rating?: string | null
+          created_at?: string
+          created_by?: string | null
+          crew_count?: number | null
+          estimate_high?: number
+          estimate_low?: number
+          estimated_hours?: number | null
+          id?: string
+          integrations_subtotal?: number
+          internal_notes?: string | null
+          meeting_notes?: string | null
+          modules_subtotal?: number
+          monthly_support?: number
+          profit_margin_pct?: number | null
+          quote_number: string
+          recommended_quote?: number
+          region?: string | null
+          selected_integrations?: Json
+          selected_modules?: Json
+          selected_support?: Json | null
+          selected_tier?: Json | null
+          status?: string
+          strategic_fees?: Json
+          strategic_fees_total?: number
+          team_size?: number | null
+          updated_at?: string
+          urgency_multiplier?: number
+        }
+        Update: {
+          base_subtotal_high?: number
+          base_subtotal_low?: number
+          business_name?: string | null
+          client_email?: string | null
+          client_name?: string
+          client_phone?: string | null
+          complexity_multiplier?: number
+          complexity_settings?: Json
+          concurrent_jobs?: number | null
+          confidence_rating?: string | null
+          created_at?: string
+          created_by?: string | null
+          crew_count?: number | null
+          estimate_high?: number
+          estimate_low?: number
+          estimated_hours?: number | null
+          id?: string
+          integrations_subtotal?: number
+          internal_notes?: string | null
+          meeting_notes?: string | null
+          modules_subtotal?: number
+          monthly_support?: number
+          profit_margin_pct?: number | null
+          quote_number?: string
+          recommended_quote?: number
+          region?: string | null
+          selected_integrations?: Json
+          selected_modules?: Json
+          selected_support?: Json | null
+          selected_tier?: Json | null
+          status?: string
+          strategic_fees?: Json
+          strategic_fees_total?: number
+          team_size?: number | null
+          updated_at?: string
+          urgency_multiplier?: number
+        }
+        Relationships: []
+      }
       enterprise_redirects: {
         Row: {
           business_name: string | null
