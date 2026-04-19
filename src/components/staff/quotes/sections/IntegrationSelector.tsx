@@ -1,12 +1,6 @@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 import type { PricingIntegration } from "@/hooks/useEnterpriseQuotePricing";
 import type { SelectedIntegration } from "@/hooks/useEnterpriseQuoteCalculation";
 
@@ -16,6 +10,12 @@ interface IntegrationSelectorProps {
   onToggle: (key: string) => void;
   onComplexityChange: (key: string, complexity: "simple" | "moderate" | "advanced") => void;
 }
+
+const COMPLEXITY_OPTIONS: Array<{ value: "simple" | "moderate" | "advanced"; label: string }> = [
+  { value: "simple", label: "Simple" },
+  { value: "moderate", label: "Moderate" },
+  { value: "advanced", label: "Advanced" },
+];
 
 export function IntegrationSelector({
   integrations,
@@ -39,39 +39,43 @@ export function IntegrationSelector({
         return (
           <div
             key={integ.key}
-            className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
+            className="flex flex-wrap items-center gap-3 p-3 rounded-lg border border-border bg-card hover:bg-muted/50 transition-colors"
           >
             <Checkbox
               checked={isSelected}
               onCheckedChange={() => onToggle(integ.key)}
             />
-            <Label className="flex-1 cursor-pointer font-medium text-foreground">
+            <Label
+              className="flex-1 min-w-[140px] cursor-pointer font-medium text-foreground"
+              onClick={() => onToggle(integ.key)}
+            >
               {integ.name}
             </Label>
             {isSelected && (
-              <Select
-                value={complexity}
-                onValueChange={(v) =>
-                  onComplexityChange(integ.key, v as "simple" | "moderate" | "advanced")
-                }
-              >
-                <SelectTrigger className="w-36 h-8 text-xs">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="simple">
-                    Simple (${integ.price_simple.toLocaleString()})
-                  </SelectItem>
-                  <SelectItem value="moderate">
-                    Moderate (${integ.price_moderate.toLocaleString()})
-                  </SelectItem>
-                  <SelectItem value="advanced">
-                    Advanced (${integ.price_advanced.toLocaleString()})
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              <div className="flex gap-1 order-3 sm:order-2 w-full sm:w-auto">
+                {COMPLEXITY_OPTIONS.map((opt) => {
+                  const isActive = complexity === opt.value;
+                  const price = getPrice(integ, opt.value);
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => onComplexityChange(integ.key, opt.value)}
+                      className={cn(
+                        "h-9 px-3 text-xs font-medium rounded-md border transition-colors flex-1 sm:flex-none whitespace-nowrap",
+                        isActive
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-card border-border text-foreground hover:bg-muted",
+                      )}
+                      title={`$${price.toLocaleString()}`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
             )}
-            <span className="text-xs font-semibold text-primary whitespace-nowrap w-20 text-right">
+            <span className="text-xs font-semibold text-primary whitespace-nowrap w-20 text-right order-2 sm:order-3 ml-auto">
               {isSelected
                 ? `$${getPrice(integ, complexity).toLocaleString()}`
                 : `from $${integ.price_simple.toLocaleString()}`}
