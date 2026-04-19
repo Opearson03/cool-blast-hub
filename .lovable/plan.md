@@ -1,72 +1,101 @@
 
 
-## Scrolling "Integrates With" Widget on /enterprise
+## Enterprise Quoting Tool (Internal — Staff Dashboard)
 
-Add a horizontally auto-scrolling logo marquee to the `/enterprise` page that showcases the major software platforms PourHub Enterprise integrates with. Recommend a curated list relevant to Australian commercial concreting businesses, then wait for the user to supply logo URLs.
+A live, in-meeting quoting tool inside `/staff` that lets you build a custom PourHub Enterprise quote on the fly. Modelled directly on Wattle Workspace's quoting tool, but adapted to PourHub Enterprise's actual offering (concreting ops platform — not a generic agency).
 
-### Recommended integrations (Australian concreting context)
+### Where it lives
+- New tab on the Staff Dashboard: **"Quoting"** (between CRM and Partners)
+- Routes:
+  - `/staff/quotes` — list of saved quotes
+  - `/staff/quotes/new` — live quote builder (the main meeting tool)
+  - `/staff/quotes/:id` — quote detail / share view
 
-Based on the typical software stack for large commercial concreters in AU:
+### The builder UI (sticky 2-column layout)
 
-**Accounting / Finance**
-- Xero
-- MYOB
-- QuickBooks
+**Left column — selections (collapsible cards):**
 
-**Communication / Collaboration**
-- Microsoft Teams
-- Microsoft 365 / Outlook
-- Slack
-- Google Workspace
+A. **Client details** — Business name, contact, email, phone, est. team size, # of crews, # of concurrent jobs, region.
 
-**Construction / Project Management**
-- Procore
-- Aconex (Oracle)
-- Buildxact
-- Hammertech (safety/compliance — big in AU commercial)
+B. **Base platform tier** (price range, pick one):
+- Enterprise Starter — $25k–$40k setup
+- Enterprise Standard — $45k–$75k setup
+- Enterprise Custom Build — $80k–$150k+ setup
 
-**Tendering / Estimating**
-- EstimateOne
-- BCI Central
+C. **Module add-ons** (multi-select, each adds to subtotal):
+Estimating at scale, Multi-site scheduling, Plant & vehicle tracking, Tool/equipment logs, Concrete testing & ITP compliance, Subbie marketplace integration, Custom dashboards & reporting, White-label client portal, Mobile crew app, Document management, Safety/SWMS module.
 
-**Payroll / HR / Workforce**
-- Employment Hero
-- Deputy
-- KeyPay
+D. **Integrations** (multi-select, each with simple/moderate/advanced complexity):
+Xero, MYOB, QuickBooks, Microsoft Teams, Procore, Aconex, Boral Connect, Heidelberg Hub, Employment Hero, Connecteam, Deputy, Dropbox, custom ERP.
 
-**Concrete / Plant specific**
-- Command Alkon (batch plant)
-- Holcim / Boral / Hanson supplier portals (logos only — informational)
+E. **Complexity & urgency multipliers:**
+- Complexity: Low (×1.0), Medium (×1.25), High (×1.5)
+- Urgency: Standard (×1.0), Fast-track (×1.2), Rush (×1.4)
 
-**Cloud storage / Files**
-- Dropbox
-- Google Drive
-- OneDrive
+F. **Strategic / one-off fees:** Discovery & scoping, Data migration, Onboarding & training, Custom branding pack.
 
-I'll ask the user to pick which ones they want shown so the strip stays clean (recommend 8–14 logos for best visual rhythm).
+G. **Ongoing monthly support / SaaS plan:**
+- Standard ($1,500/mo), Premium ($3,000/mo), White-glove ($5,000+/mo)
 
-### Implementation
+H. **Internal notes** — confidence rating, profit margin %, est. dev hours.
 
-**New component:** `src/components/marketing/IntegrationsMarquee.tsx`
-- Section with heading "Integrates with the tools you already use"
-- Horizontally scrolling strip using a pure-CSS marquee (`@keyframes` translateX -50% on a doubled list — no JS, no library)
-- Pauses on hover
-- Logos rendered as `<img>` with consistent `h-10` (≈40px), grayscale by default, full colour on hover, with adequate horizontal gap
-- Edge fade masks (left/right gradient) so logos fade in/out instead of hard-clipping
-- Responsive: same height on mobile, smooth scroll, no horizontal page overflow
+**Right column — sticky live calculation panel** showing:
+- Base tier range
+- Modules subtotal
+- Integrations subtotal
+- Multipliers applied
+- Strategic fees
+- **Estimate range** (low–high)
+- **Recommended fixed setup quote** (bold, primary colour)
+- **Monthly recurring** (support plan)
 
-**Edited:** `src/pages/Enterprise.tsx`
-- Insert the new `<IntegrationsMarquee />` section between the "End-to-End Coverage" grid and the "Built for Your Business" section (logical placement: capabilities → integrations → custom build pitch)
-- Background `bg-charcoal-dark` to alternate with neighbouring `bg-charcoal` sections
+Mobile: calculation panel docks to bottom bar with the recommended quote always visible.
 
-**Logos:**
-- Stored as a typed array `{ name: string; src: string; href?: string }` inside the component for easy editing
-- Initially scaffolded with placeholder paths; the user will provide actual image URLs (either hosted externally or to drop into `public/integrations/`)
+### Actions
+- **Save as draft** — persists to DB
+- **Save & view summary** — shareable internal summary page
+- **Export PDF** (phase 2 — not in v1)
+- **Quick-start templates** — pre-filled common configurations (e.g. "Mid-size 50-crew commercial", "Multi-state operator")
 
-### Tailwind animation
-Add a `marquee` keyframe + utility to `tailwind.config.ts` (`translateX(0)` → `translateX(-50%)`, 30s linear infinite) so the section is self-contained and reusable elsewhere later.
+### Database (1 migration)
 
-### What I need from the user
-1. Which integrations from the recommended list (or others) to include
-2. The logo image URLs (or confirmation to use placeholders that you'll swap later)
+**`enterprise_quote_pricing_config`** — single config row, staff-editable later:
+- `tiers`, `modules`, `integrations`, `support_plans`, `strategic_fees`, `complexity_multipliers`, `urgency_multipliers` (all JSONB)
+- Seeded with defaults above
+
+**`enterprise_quotes`** — saved quotes:
+- Client fields, all selections (JSONB), all calculated totals, status, `created_by`, timestamps
+- RLS: staff-only (uses existing `is_pourhub_staff()`)
+
+**`enterprise_quote_templates`** — quick-start presets (JSONB selections + name)
+
+### Files
+
+**New:**
+- `src/hooks/useEnterpriseQuotePricing.ts` — fetches config
+- `src/hooks/useEnterpriseQuoteCalculation.ts` — pure calc logic (mirrors Wattle's)
+- `src/components/staff/quotes/QuotingTab.tsx` — entry tab (recent quotes + "New Quote" CTA)
+- `src/components/staff/quotes/QuoteBuilder.tsx` — main builder (left column)
+- `src/components/staff/quotes/QuoteCalculationPanel.tsx` — sticky right panel
+- `src/components/staff/quotes/sections/` — `ClientDetailsSection`, `TierSelector`, `ModuleSelector`, `IntegrationSelector`, `ComplexityControls`, `StrategicFeesSelector`, `SupportPlanSelector`
+- `src/pages/staff/QuotesListPage.tsx`, `NewQuotePage.tsx`, `QuoteDetailPage.tsx`
+
+**Modified:**
+- `src/pages/staff/StaffDashboard.tsx` — add "Quoting" tab with `Calculator` icon
+- `src/App.tsx` — add 3 staff quote routes (protected by existing staff guard)
+
+### Calculation logic (same shape as Wattle)
+```
+buildLow  = (tierLow + modulesTotal + integrationsTotal) × complexity × urgency
+buildHigh = (tierHigh + modulesTotal + integrationsTotal) × complexity × urgency
+estimateLow  = round(buildLow × 0.9)
+estimateHigh = round(buildHigh × 1.15)
+recommendedQuote = round((buildLow + buildHigh) / 2 + strategicFees)
+monthlySupport = selected support plan price
+```
+
+### Out of scope for v1
+- Public-facing quote page / signature capture
+- PDF export (placeholder button only)
+- Editing pricing config via UI (edit rows directly in DB for now; admin UI is phase 2)
 
