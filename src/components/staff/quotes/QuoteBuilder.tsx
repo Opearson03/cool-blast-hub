@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import {
   useEnterpriseQuotePricing,
   type PricingTier,
@@ -380,16 +381,30 @@ export function QuoteBuilder() {
               </div>
               <div>
                 <Label>Confidence</Label>
-                <Select value={confidenceRating} onValueChange={setConfidenceRating}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="low">Low</SelectItem>
-                    <SelectItem value="medium">Medium</SelectItem>
-                    <SelectItem value="high">High</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  {[
+                    { value: "low", label: "Low" },
+                    { value: "medium", label: "Medium" },
+                    { value: "high", label: "High" },
+                  ].map((opt) => {
+                    const selected = confidenceRating === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setConfidenceRating(opt.value)}
+                        className={cn(
+                          "h-9 px-3 text-xs font-medium rounded-md border transition-colors",
+                          selected
+                            ? "bg-primary text-primary-foreground border-primary"
+                            : "bg-card border-border text-foreground hover:bg-muted",
+                        )}
+                      >
+                        {opt.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
             <div>
