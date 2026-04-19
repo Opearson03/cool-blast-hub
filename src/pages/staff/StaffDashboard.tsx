@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, Mail, CalendarDays, Handshake, Globe } from "lucide-react";
+import { Loader2, LogOut, Users, Building2, CreditCard, TrendingUp, Mail, CalendarDays, Handshake, Globe, Calculator } from "lucide-react";
 import { toast } from "sonner";
 import Logo from "@/components/ui/Logo";
 import { SubscriptionMetrics } from "@/components/staff/SubscriptionMetrics";
@@ -15,6 +15,7 @@ import { CrmTab } from "@/components/staff/crm/CrmTab";
 import { CustomersTab } from "@/components/staff/CustomersTab";
 import { PartnersTab } from "@/components/staff/PartnersTab";
 import { EnterpriseRedirectsTab } from "@/components/staff/EnterpriseRedirectsTab";
+import { QuotingTab } from "@/components/staff/quotes/QuotingTab";
 
 interface SubscriptionStats {
   total_businesses: number;
@@ -266,6 +267,10 @@ export default function StaffDashboard() {
               <Mail className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">CRM</span>
             </TabsTrigger>
+            <TabsTrigger value="quoting">
+              <Calculator className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Quoting</span>
+            </TabsTrigger>
             <TabsTrigger value="partners">
               <Handshake className="h-4 w-4 sm:mr-2" />
               <span className="hidden sm:inline">Partners</span>
@@ -290,6 +295,10 @@ export default function StaffDashboard() {
 
           <TabsContent value="crm">
             <CrmTab />
+          </TabsContent>
+
+          <TabsContent value="quoting">
+            <QuotingTab />
           </TabsContent>
 
           <TabsContent value="partners">

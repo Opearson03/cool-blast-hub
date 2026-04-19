@@ -31,6 +31,8 @@ import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import EmployeeLeave from "./pages/employee/EmployeeLeave";
 import StaffAuth from "./pages/staff/StaffAuth";
 import StaffDashboard from "./pages/staff/StaffDashboard";
+import NewQuotePage from "./pages/staff/NewQuotePage";
+import QuoteDetailPage from "./pages/staff/QuoteDetailPage";
 import SignQuote from "./pages/public/SignQuote";
 import SignVariation from "./pages/public/SignVariation";
 import RespondInvite from "./pages/public/RespondInvite";
@@ -120,6 +122,8 @@ const AppContent = () => {
       {/* Staff Routes - accessible via staff.pourhub.com.au or /staff path */}
       <Route path="/staff" element={<StaffAuth />} />
       <Route path="/staff/dashboard" element={<StaffProtectedRoute><StaffDashboard /></StaffProtectedRoute>} />
+      <Route path="/staff/quotes/new" element={<StaffProtectedRoute><NewQuotePage /></StaffProtectedRoute>} />
+      <Route path="/staff/quotes/:id" element={<StaffProtectedRoute><QuoteDetailPage /></StaffProtectedRoute>} />
       
       {/* Supplier Routes - accessible via suppliers.pourhub.com.au or /suppliers path */}
       <Route path="/suppliers" element={<SuppliersLanding />} />
