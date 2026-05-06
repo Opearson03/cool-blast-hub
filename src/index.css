@@ -115,6 +115,29 @@
   .safe-area-inset {
     padding-bottom: env(safe-area-inset-bottom);
   }
+
+  .section {
+    @apply px-4 py-20 md:py-28;
+  }
+
+  .eyebrow {
+    @apply inline-block text-xs font-semibold uppercase tracking-[0.18em] text-primary;
+  }
+
+  .font-display {
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(16px);
+    transition: opacity 700ms ease-out, transform 700ms ease-out;
+  }
+  .reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Print styles for estimate documents */
