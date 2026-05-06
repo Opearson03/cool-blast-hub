@@ -87,17 +87,20 @@ export function AdminLayout({ children }: { children: ReactNode }) {
   const renderNavItem = (item: NavItem, isMobile: boolean = false) => {
     const isActive = location.pathname === item.href;
     const isLocked = item.requiresPro && !hasFullAppAccess;
-    
+
     const baseClasses = cn(
-      isMobile
-        ? "flex items-center gap-3 px-4 py-3 rounded-lg text-lg touch-target"
-        : "flex items-center gap-3 px-3 py-2 rounded-lg transition-colors",
+      "relative flex items-center gap-3 rounded-md transition-colors",
+      isMobile ? "px-4 py-3 text-base touch-target" : "px-3 py-2 text-sm",
       isActive && !isLocked
-        ? "bg-primary text-primary-foreground" 
+        ? "bg-primary/10 text-foreground font-medium"
         : isLocked
           ? "text-muted-foreground/60 cursor-not-allowed"
-          : "hover:bg-muted"
+          : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
     );
+
+    const activeBar = isActive && !isLocked ? (
+      <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-full bg-primary" />
+    ) : null;
 
     // If locked, render as a non-navigating element
     if (isLocked) {
@@ -110,13 +113,13 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           onClick={(e) => handleLockedItemClick(e, item)}
           className={baseClasses}
         >
-          <item.icon className="w-5 h-5 opacity-50" />
-          <span className="flex-1 opacity-70">{item.label}</span>
-          <Lock className="w-4 h-4 opacity-50" />
+          <item.icon className="w-4 h-4 opacity-60" />
+          <span className="flex-1">{item.label}</span>
+          <Lock className="w-3.5 h-3.5 opacity-60" />
         </div>
       );
     }
-    
+
     return (
       <Link
         key={item.href}
@@ -124,7 +127,8 @@ export function AdminLayout({ children }: { children: ReactNode }) {
         onClick={() => isMobile && setMobileMenuOpen(false)}
         className={baseClasses}
       >
-        <item.icon className="w-5 h-5" />
+        {activeBar}
+        <item.icon className={cn("w-4 h-4", isActive ? "text-primary" : "")} />
         <span className="flex-1">{item.label}</span>
       </Link>
     );
