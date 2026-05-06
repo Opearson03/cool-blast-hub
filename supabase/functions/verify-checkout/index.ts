@@ -24,7 +24,9 @@ serve(async (req) => {
     logStep("Stripe key verified");
 
     const { sessionId } = await req.json();
-    if (!sessionId) throw new Error("Session ID is required");
+    if (!sessionId || typeof sessionId !== "string" || sessionId.length > 200 || !/^cs_[A-Za-z0-9_]+$/.test(sessionId)) {
+      throw new Error("Invalid sessionId");
+    }
     logStep("Session ID received", { sessionId });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
