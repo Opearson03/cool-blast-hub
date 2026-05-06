@@ -92,12 +92,8 @@ export default function Signup() {
       if (error) throw error;
 
       if (data.url) {
-        // Store signup data in sessionStorage before redirect
-        sessionStorage.setItem("signup_email", email);
-        sessionStorage.setItem("signup_business", businessName);
-        sessionStorage.setItem("signup_name", fullName);
-        sessionStorage.setItem("signup_terms_accepted", "true");
-        
+        // Signup data is stored in Stripe checkout session metadata
+        // and retrieved server-side via verify-checkout after payment.
         // Redirect to Stripe Checkout
         window.location.href = data.url;
       } else {
