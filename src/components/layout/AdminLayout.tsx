@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, Briefcase, Calendar, Users, FileText, Settings, LogOut, Menu, X, Lock, Crown, Loader2, Globe } from "lucide-react";
+import { LayoutDashboard, Briefcase, Calendar, Users, FileText, Settings, LogOut, Menu, X, Lock, Crown, Loader2 } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
@@ -29,7 +29,6 @@ const navItems: NavItem[] = [
   { href: "/admin/estimates", label: "Quotes", icon: FileText, requiresPro: false },
   { href: "/admin/schedule", label: "Schedule", icon: Calendar, requiresPro: true },
   { href: "/admin/contacts", label: "Contact", icon: Users, requiresPro: true },
-  { href: "/admin/widget", label: "Widget", icon: Globe, requiresPro: false },
   { href: "/admin/settings", label: "Settings", icon: Settings, requiresPro: false },
 ];
 
