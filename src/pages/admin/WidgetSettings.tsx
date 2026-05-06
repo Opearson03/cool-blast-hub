@@ -91,7 +91,7 @@ export default function WidgetSettings() {
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <h1 className="text-3xl font-bold">Website Widget</h1>
+              <h1 className="page-title">Website Widget</h1>
               <Badge variant="secondary" className="gap-1">
                 <Sparkles className="w-3 h-3" />
                 New
