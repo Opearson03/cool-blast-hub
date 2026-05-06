@@ -62,14 +62,14 @@ export default function SignupSuccess() {
         trackBeginCheckoutConversion();
 
         setCheckoutData({
-          email: data.email || sessionStorage.getItem("signup_email") || "",
-          fullName: data.fullName || sessionStorage.getItem("signup_name") || "",
-          businessName: data.businessName || sessionStorage.getItem("signup_business") || "",
-          plan: data.plan || sessionStorage.getItem("signup_plan") || planFromUrl,
+          email: data.email || "",
+          fullName: data.fullName || "",
+          businessName: data.businessName || "",
+          plan: data.plan || planFromUrl,
           customerId: data.customerId || "",
           subscriptionId: data.subscriptionId || "",
         });
-        setEmail(data.email || sessionStorage.getItem("signup_email") || "");
+        setEmail(data.email || "");
         setStep("create");
       } catch (error: any) {
         console.error("Verification error:", error);
@@ -140,12 +140,6 @@ export default function SignupSuccess() {
         navigate("/auth");
         return;
       }
-
-      // Clear session storage
-      sessionStorage.removeItem("signup_email");
-      sessionStorage.removeItem("signup_business");
-      sessionStorage.removeItem("signup_name");
-      sessionStorage.removeItem("signup_plan");
 
       setStep("complete");
       
