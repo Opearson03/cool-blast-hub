@@ -191,7 +191,7 @@ export default function AdminJobDetail() {
                   <Badge variant="secondary">{crewName}</Badge>
                 )}
               </div>
-              <h1 className="text-2xl font-bold">{job.name}</h1>
+              <h1 className="page-title">{job.name}</h1>
               <p className="text-muted-foreground">{job.site_address}</p>
             </div>
 

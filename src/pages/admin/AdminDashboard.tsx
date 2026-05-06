@@ -11,6 +11,7 @@ import { ActionsRequiredDialog } from "@/components/dashboard/ActionsRequiredDia
 import { TodayTasksDialog } from "@/components/dashboard/TodayTasksDialog";
 import { PendingResponsesDialog } from "@/components/dashboard/PendingResponsesDialog";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { PageHeader } from "@/components/layout/PageHeader";
 
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -76,8 +77,8 @@ export default function AdminDashboard() {
         <OnboardingWizard businessId={businessId} onComplete={handleOnboardingComplete} />
       )}
       
-      <div className="space-y-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+      <div className="space-y-8">
+        <PageHeader eyebrow="Operations" title="Dashboard" description="Today at a glance — tasks, subbie responses, and items needing your attention." />
         
         {/* Summary Cards */}
         <SummaryCards

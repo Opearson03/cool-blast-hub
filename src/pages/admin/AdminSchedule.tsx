@@ -776,7 +776,7 @@ export default function AdminSchedule() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">Schedule</h1>
+              <h1 className="page-title">Schedule</h1>
               <AddToScheduleMenu
                 onScheduleSubbie={() => setSubbieDialogOpen(true)}
                 onAddPour={() => setPourDialogOpen(true)}

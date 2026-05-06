@@ -102,7 +102,7 @@ export function TomorrowPreviewWidget({ businessId }: TomorrowPreviewWidgetProps
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <CardTitle className="section-title flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
             Tomorrow's Preview
           </CardTitle>

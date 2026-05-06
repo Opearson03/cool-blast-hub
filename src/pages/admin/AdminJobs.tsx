@@ -238,7 +238,7 @@ export default function AdminJobs() {
       <div className="space-y-4">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h1 className="text-2xl font-bold">Jobs</h1>
+          <h1 className="page-title">Jobs</h1>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => setIsMiscOpen(true)} className="touch-target">
               <Briefcase className="w-4 h-4 mr-2" />
