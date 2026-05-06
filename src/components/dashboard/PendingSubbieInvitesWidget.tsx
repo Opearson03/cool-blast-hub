@@ -203,7 +203,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <CardTitle className="section-title flex items-center gap-2">
             <Users className="h-5 w-5 text-warning" />
             Subcontractors Awaiting Response
           </CardTitle>
@@ -221,7 +221,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
     return (
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <CardTitle className="section-title flex items-center gap-2">
             <Users className="h-5 w-5 text-muted-foreground" />
             Subcontractors Awaiting Response
           </CardTitle>
@@ -240,7 +240,7 @@ export function PendingSubbieInvitesWidget({ businessId }: PendingSubbieInvitesW
     <>
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+          <CardTitle className="section-title flex items-center gap-2">
             <Users className="h-5 w-5 text-warning" />
             Subcontractors Awaiting Response
             <Badge variant="secondary" className="ml-1">
