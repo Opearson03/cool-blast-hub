@@ -566,35 +566,35 @@ export default function AdminEstimates() {
         description="Create and manage job estimates and quotes"
       />
       
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">Quotes</h1>
-            <p className="text-muted-foreground">Estimates become quotes once sent</p>
-          </div>
-          <div className="flex items-center gap-3">
-            {tier === "free" && limit !== null && (
-              <Badge variant="outline" className="text-sm">
-                {used}/{limit} quotes this month
-              </Badge>
-            )}
-            <Button variant="outline" className="gap-2" onClick={() => {
-              if (!canCreate && limit !== null) {
-                setQuotaDialogOpen(true);
-                return;
-              }
-              setQuickQuoteOpen(true);
-            }}>
-              <Plus className="w-4 h-4" />
-              Quick Quote
-            </Button>
-            <Button className="gap-2" onClick={handleNewEstimate}>
-              <Plus className="w-4 h-4" />
-              New Estimate
-            </Button>
-          </div>
-        </div>
+      <div className="space-y-8">
+        <PageHeader
+          eyebrow="Sales"
+          title="Quotes"
+          description="Estimates become quotes once sent."
+          actions={
+            <>
+              {tier === "free" && limit !== null && (
+                <Badge variant="outline" className="text-sm">
+                  {used}/{limit} this month
+                </Badge>
+              )}
+              <Button variant="outline" className="gap-2" onClick={() => {
+                if (!canCreate && limit !== null) {
+                  setQuotaDialogOpen(true);
+                  return;
+                }
+                setQuickQuoteOpen(true);
+              }}>
+                <Plus className="w-4 h-4" />
+                Quick Quote
+              </Button>
+              <Button className="gap-2" onClick={handleNewEstimate}>
+                <Plus className="w-4 h-4" />
+                New Estimate
+              </Button>
+            </>
+          }
+        />
 
         {/* Search */}
         <div className="relative max-w-md">
@@ -607,40 +607,19 @@ export default function AdminEstimates() {
           />
         </div>
 
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{estimates.length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Drafts</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{estimates.filter(e => e.status === "draft").length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Pending</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{estimates.filter(e => e.status === "sent").length}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">Total Value</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold">{formatCurrency(estimates.reduce((sum, e) => sum + (e.total_amount || 0), 0))}</p>
-            </CardContent>
-          </Card>
+        {/* Stats */}
+        <div className="rounded-xl border border-border/70 bg-card grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-border/70">
+          {[
+            { label: "Total", value: estimates.length },
+            { label: "Drafts", value: estimates.filter(e => e.status === "draft").length },
+            { label: "Pending", value: estimates.filter(e => e.status === "sent").length },
+            { label: "Total Value", value: formatCurrency(estimates.reduce((sum, e) => sum + (e.total_amount || 0), 0)) },
+          ].map((s) => (
+            <div key={s.label} className="p-5 flex flex-col gap-2">
+              <span className="eyebrow-muted">{s.label}</span>
+              <span className="stat-number">{s.value}</span>
+            </div>
+          ))}
         </div>
 
         {/* Loading State */}
