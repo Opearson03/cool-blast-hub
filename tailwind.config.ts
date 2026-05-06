@@ -100,6 +100,10 @@ export default {
       fontSize: {
         'touch': ['1rem', { lineHeight: '1.5' }],
       },
+      fontFamily: {
+        display: ['"Space Grotesk"', 'system-ui', 'sans-serif'],
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+      },
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
