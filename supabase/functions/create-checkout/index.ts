@@ -50,6 +50,28 @@ serve(async (req) => {
 
     const body = await req.json();
     const { email, fullName, businessName, upgrade, tier = "pro", interval = "monthly", affiliateCode, freeMonths } = body;
+
+    // Input validation
+    const isStr = (v: unknown, max: number) => typeof v === "string" && v.length > 0 && v.length <= max;
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const allowedTiers = ["estimating", "pro", "legacy"];
+    const allowedIntervals = ["monthly", "annual"];
+
+    if (email !== undefined && (!isStr(email, 255) || !emailRe.test(email))) {
+      throw new Error("Invalid email");
+    }
+    if (fullName !== undefined && !isStr(fullName, 100)) throw new Error("Invalid fullName");
+    if (businessName !== undefined && !isStr(businessName, 200)) throw new Error("Invalid businessName");
+    if (!allowedTiers.includes(tier)) throw new Error("Invalid tier");
+    if (!allowedIntervals.includes(interval)) throw new Error("Invalid interval");
+    if (affiliateCode !== undefined && affiliateCode !== null && !isStr(String(affiliateCode), 64)) {
+      throw new Error("Invalid affiliateCode");
+    }
+    if (freeMonths !== undefined && freeMonths !== null) {
+      const n = Number(freeMonths);
+      if (!Number.isFinite(n) || n < 0 || n > 12) throw new Error("Invalid freeMonths");
+    }
+
     logStep("Request data received", { email, businessName, upgrade, tier, interval, affiliateCode, freeMonths });
 
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
