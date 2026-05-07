@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle, ArrowRight, AlertCircle } from "lucide-react";
+import { recordLandingConversion, clearStoredLandingVariant } from "@/hooks/useLandingTracker";
 
 interface CheckoutData {
   email: string;
@@ -142,6 +143,11 @@ export default function SignupSuccess() {
       }
 
       setStep("complete");
+
+      // Record A/B/C landing conversion if visitor came from a tracked landing page
+      void recordLandingConversion({ plan: checkoutData.plan }).finally(() => {
+        clearStoredLandingVariant();
+      });
       
       // Redirect to admin after a short delay
       setTimeout(() => {

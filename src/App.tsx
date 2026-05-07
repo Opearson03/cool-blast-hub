@@ -58,6 +58,9 @@ import EOFY from "./pages/EOFY";
 import Enterprise from "./pages/Enterprise";
 import WidgetSettings from "./pages/admin/WidgetSettings";
 import QuoteRequestWidget from "./pages/embed/QuoteRequestWidget";
+import LandingA from "./pages/landing/LandingA";
+import LandingB from "./pages/landing/LandingB";
+import LandingC from "./pages/landing/LandingC";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { StaffProtectedRoute } from "./components/staff/StaffProtectedRoute";
 import { useNativeCapabilities } from "./hooks/useNativeCapabilities";
@@ -158,6 +161,11 @@ const AppContent = () => {
       <Route path="/bookings" element={<Bookings />} />
       <Route path="/eofy" element={<EOFY />} />
       <Route path="/enterprise" element={<Enterprise />} />
+
+      {/* A/B/C Ad Landing Pages */}
+      <Route path="/lp/a" element={<LandingA />} />
+      <Route path="/lp/b" element={<LandingB />} />
+      <Route path="/lp/c" element={<LandingC />} />
 
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
