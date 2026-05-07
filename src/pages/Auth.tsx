@@ -435,9 +435,28 @@ export default function Auth() {
                 </button>
               </div>
             )}
-          </CardContent>
-        </Card>
+      </CardContent>
+    </Card>
+  );
+
+  if (isNativeDevice) {
+    return (
+      <div
+        className="min-h-screen flex flex-col bg-background"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="flex-1 flex items-center justify-center p-4">
+          {cardInner}
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Start free">
+      <div className="bg-charcoal-dark min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 py-12">
+        {cardInner}
+      </div>
+    </LandingShell>
   );
 }
