@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { ArrowRight, Calendar, Users, Truck, Receipt } from "lucide-react";
 import { Link } from "react-router-dom";
+import heroBg from "@/assets/hero-industrial.jpg";
 
 export default function LandingC() {
   const { trackCTA } = useLandingTracker("c");
@@ -17,18 +18,22 @@ export default function LandingC() {
         description="Quote, schedule pours, book subbies, track dockets, get paid — one system for the whole concreting business."
         canonicalPath="/lp/c"
       />
-      <LandingShell ctaHref={ctaHref} onCtaClick={() => trackCTA("header")}>
-        {/* Hero */}
-        <section className="py-20 md:py-28 bg-gradient-to-br from-background via-background to-primary/10">
-          <div className="container mx-auto px-4 max-w-4xl text-center">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-6">
+      <LandingShell ctaHref={ctaHref} ctaLabel="See plans" onCtaClick={() => trackCTA("header")}>
+        {/* Hero with industrial background */}
+        <section
+          className="relative py-20 md:py-32 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroBg})` }}
+        >
+          <div className="absolute inset-0 bg-black/65" aria-hidden />
+          <div className="container relative mx-auto px-4 max-w-4xl text-center text-white">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur text-white px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/20">
               From quote to paid
             </div>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
               One system. <br className="md:hidden" />
               <span className="text-primary">Whole concreting business.</span>
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-xl md:text-2xl text-white/85 mb-8 max-w-2xl mx-auto">
               Quotes, schedule, subbies, dockets, invoices — stop juggling 6 apps and 3 group chats.
             </p>
             <Button size="lg" asChild className="h-14 px-8 text-base" onClick={() => trackCTA("hero")}>
@@ -36,7 +41,7 @@ export default function LandingC() {
                 See it in action <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <p className="text-sm text-muted-foreground mt-4">14-day free trial • No card required</p>
+            <p className="text-sm text-white/70 mt-4">From $99/mo • Cancel anytime</p>
           </div>
         </section>
 
@@ -94,7 +99,7 @@ export default function LandingC() {
             </p>
             <Button size="lg" variant="secondary" asChild className="h-14 px-8" onClick={() => trackCTA("footer")}>
               <Link to={ctaHref}>
-                Start free trial <ArrowRight className="ml-2 h-5 w-5" />
+                See plans <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
           </div>
