@@ -701,38 +701,53 @@ export type Database = {
       documents: {
         Row: {
           business_id: string
+          caption: string | null
           category: Database["public"]["Enums"]["document_category"]
           created_at: string | null
+          diary_stage: string | null
           file_name: string
           file_type: string | null
           file_url: string
           id: string
+          is_cover: boolean
+          pour_id: string | null
           reference_id: string | null
           subfolder: string | null
+          taken_at: string | null
           uploaded_by: string | null
         }
         Insert: {
           business_id: string
+          caption?: string | null
           category: Database["public"]["Enums"]["document_category"]
           created_at?: string | null
+          diary_stage?: string | null
           file_name: string
           file_type?: string | null
           file_url: string
           id?: string
+          is_cover?: boolean
+          pour_id?: string | null
           reference_id?: string | null
           subfolder?: string | null
+          taken_at?: string | null
           uploaded_by?: string | null
         }
         Update: {
           business_id?: string
+          caption?: string | null
           category?: Database["public"]["Enums"]["document_category"]
           created_at?: string | null
+          diary_stage?: string | null
           file_name?: string
           file_type?: string | null
           file_url?: string
           id?: string
+          is_cover?: boolean
+          pour_id?: string | null
           reference_id?: string | null
           subfolder?: string | null
+          taken_at?: string | null
           uploaded_by?: string | null
         }
         Relationships: [
@@ -741,6 +756,13 @@ export type Database = {
             columns: ["business_id"]
             isOneToOne: false
             referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_pour_id_fkey"
+            columns: ["pour_id"]
+            isOneToOne: false
+            referencedRelation: "job_pours"
             referencedColumns: ["id"]
           },
         ]
