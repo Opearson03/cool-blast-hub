@@ -307,7 +307,8 @@ export default function Signup() {
           </Card>
         </div>
         )}
+        </div>
       </div>
-    </div>
+    </LandingShell>
   );
 }
