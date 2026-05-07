@@ -480,32 +480,6 @@ const Pricing = () => {
               </div>
             </div>
           </section>
-
-          {/* Final CTA */}
-          <section className="bg-primary px-4 py-16">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="font-display text-3xl sm:text-4xl font-bold text-primary-foreground">
-                Ready to quote your next job?
-              </h2>
-              <p className="text-primary-foreground/85 mt-3">
-                Join Aussie concreters running calmer, faster operations on PourHub.
-              </p>
-              <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
-                <Link to="/signup?tier=pro">
-                  <Button size="lg" variant="secondary" className="h-12 px-7 touch-target font-medium">
-                    Start free
-                    <ArrowRight className="ml-2 w-5 h-5" />
-                  </Button>
-                </Link>
-                <Link to="/">
-                  <Button size="lg" variant="outline" className="h-12 px-7 touch-target font-medium bg-transparent border-primary-foreground/40 text-primary-foreground hover:bg-primary-foreground/10">
-                    <ArrowLeft className="mr-2 w-5 h-5" />
-                    Back to home
-                  </Button>
-                </Link>
-              </div>
-            </div>
-          </section>
         </div>
       </LandingShell>
     </>
