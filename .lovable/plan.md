@@ -1,66 +1,54 @@
+## Goal
+Remove all "free trial" messaging from the three ad landing pages, add concreting hero background imagery to each variant, and make at least one variant route directly into Stripe checkout ("Try it now") instead of the pricing page.
 
-# A/B/C Landing Page Test
+## 1. Remove "free trial" / "14-day" messaging
+Sweep `LandingA.tsx`, `LandingB.tsx`, `LandingC.tsx` and replace every trial reference with neutral, no-trial CTAs. Examples:
 
-Three lean, ad-focused landing pages targeting different angles, each on its own URL so you can point individual ad campaigns at them and compare conversion.
+- `Start free trial` → `Get started` (or variant-specific: `Start quoting`, `Send a quote`, `See it in action`)
+- `Try free for 14 days` → `Get started today`
+- `No credit card • 14-day trial` → remove the line entirely
+- `Try PourHub free for 14 days. Cancel anytime.` → `Cancel anytime. Pay monthly or annually.`
+- `14-day free trial • No card required` → remove the line entirely
+- `Send your first branded quote tonight.` → keep (no trial language)
 
-## The three variants
+No "free trial" wording will remain on any of the three pages.
 
-Each page is a single-purpose landing page (sticky CTA, no global nav, minimal footer, one primary action: **Start free trial**). Suggested angles — happy to swap:
+## 2. Add concreting hero background images
+Use existing assets (no new generation needed):
 
-- **/lp/a — "Quote Faster"** — Speed/estimating angle. Hero: "Quote a slab in 10 minutes." Proof: time saved per quote, screenshots of takeoff. For builders/concreters drowning in quotes.
-- **/lp/b — "Win More Jobs"** — Professional quote/branding angle. Hero: "Send quotes that win." Proof: branded PDF preview, e-sign, client portal. For owner-operators losing jobs to slicker competitors.
-- **/lp/c — "Run the Whole Job"** — Operations angle. Hero: "From quote to pour to paid." Proof: scheduling, subbie network, dockets, BOQ. For growing crews wanting one system.
+- **Variant A (Speed)** → `hero-concrete-pour.jpg` as hero background
+- **Variant B (Win more jobs)** → `concrete-finishing.jpg` as hero background
+- **Variant C (Whole business)** → `hero-industrial.jpg` as hero background
 
-Each page: hero + sub-headline + primary CTA → 3 benefit blocks → social proof (quoted value counter, logos) → secondary CTA → minimal footer (privacy/terms only).
+Apply via the hero `<section>`: background image + dark overlay (`bg-black/55` or gradient `from-background/90 to-background/60`) so existing text/buttons stay readable in both light and dark mode. Use `bg-cover bg-center`. Keep the existing benefit/closing CTA sections clean (no background image) so the page stays light and fast.
 
-## Routing
+Also add a subtle background image strip behind the closing CTA on Variant C using `concrete-formwork.jpg` for visual rhythm.
 
-Add three public routes in `src/App.tsx` above the catch-all:
-- `/lp/a` → `LandingA`
-- `/lp/b` → `LandingB`
-- `/lp/c` → `LandingC`
+## 3. "Try it now" — direct Stripe checkout on Variant A
+Variant A becomes the **direct-checkout** variant. Variants B and C continue routing to `/pricing?variant=b|c`.
 
-CTAs route to `/signup?variant=a` (etc.) so the variant is preserved into signup.
+### Behaviour
+- Primary hero CTA on `/lp/a` → "Try it now — $99/mo" → calls `create-checkout` edge function with the **Estimating** plan price_id (`price_1SxfDWS7UIjxyz7V3CrcxMT4`) and opens Stripe Checkout in a new tab.
+- If the user is **not signed in**, we route them to `/signup?variant=a&checkout=estimating` first; after signup completes, `SignupSuccess` (or the post-signup landing) detects `?checkout=estimating` and immediately invokes `create-checkout` so the user lands in Stripe Checkout with no extra clicks.
+- If the user **is** signed in, the CTA invokes `create-checkout` directly from the landing page.
+- Track both paths via the existing `useLandingTracker` hook: fire `trackCTA("hero_direct_checkout")` and (on success) `recordLandingConversion` with `{ event_type: "checkout_started", plan: "estimating" }`.
+- Header CTA on Variant A and the closing CTA also point to the same direct-checkout flow for consistency.
 
-## Tracking
+### Existing infrastructure
+- `supabase/functions/create-checkout` already exists and accepts a price/tier — we'll reuse it as-is.
+- `src/lib/subscription-tiers.ts` already exports the Estimating price_id.
+- `useAuth()` from `AuthContext` provides the current user; we'll branch on `user` presence.
+- A small toast on failure + loading state on the button.
 
-**Database** — new `landing_page_events` table:
-- `variant` (text: 'a' | 'b' | 'c')
-- `event_type` (text: 'view' | 'cta_click' | 'signup_started' | 'signup_completed')
-- `session_id` (text — random uuid stored in localStorage for stitching events to sessions)
-- `utm_source`, `utm_medium`, `utm_campaign`, `utm_content` (text, nullable — captured from URL)
-- `referrer` (text), `user_agent` (text), `path` (text)
+## 4. Files to change
+- `src/pages/landing/LandingA.tsx` — strip trial copy, add hero bg image + overlay, swap CTAs to a new `<TryItNowButton variant="a" />` that triggers direct checkout (or signup-then-checkout).
+- `src/pages/landing/LandingB.tsx` — strip trial copy, add hero bg image + overlay, keep `/pricing?variant=b` CTA, retune labels.
+- `src/pages/landing/LandingC.tsx` — strip trial copy, add hero bg image + overlay, keep `/pricing?variant=c` CTA.
+- `src/components/landing/LandingShell.tsx` — allow either an `href` link CTA or an `onClick` handler (so Variant A's header CTA can also fire direct checkout). Keep default behaviour for B/C.
+- `src/components/landing/TryItNowButton.tsx` *(new, small)* — encapsulates the "signed-in → checkout / not-signed-in → /signup?variant=a&checkout=estimating" logic + loading state + tracking.
+- `src/pages/SignupSuccess.tsx` — when `?checkout=estimating` is present in the post-signup URL, auto-invoke `create-checkout` and redirect to the returned `session.url`.
 
-RLS: public `INSERT` allowed (anonymous tracking); `SELECT` restricted to authenticated staff only.
-
-A small `useLandingTracker(variant)` hook will:
-1. On mount, generate/reuse `session_id`, capture UTM params, insert a `view` row.
-2. Expose `trackCTA()` for buttons to call before navigation.
-3. Fire matching GA4 events via `window.gtag` (`landing_view`, `landing_cta_click`, with `variant` + UTM params as event params).
-
-Signup completion: hook into the existing signup success flow (`SignupSuccess` page) — if `?variant=` is present (carried through from `/signup?variant=x`), insert a `signup_completed` event.
-
-**Reporting** — a simple `/admin/lp-results` staff page listing per-variant counts: views, CTA clicks, signup starts, signup completes, with conversion %. (Can defer to a follow-up if you want the variants live first.)
-
-## Ad workflow
-
-In Google/Meta ads, point each ad set's destination URL at the relevant `/lp/X?utm_source=google&utm_campaign=...&utm_content=variant_a`. UTM params will land in both DB and GA4, so you can slice by ad as well as by page.
-
-## Files to add/change
-
-```text
-src/pages/landing/LandingA.tsx          new
-src/pages/landing/LandingB.tsx          new
-src/pages/landing/LandingC.tsx          new
-src/components/landing/LandingShell.tsx new — shared minimal header/footer/CTA bar
-src/hooks/useLandingTracker.ts          new
-src/App.tsx                             add 3 routes
-src/pages/SignupSuccess.tsx             record signup_completed when ?variant present
-supabase migration                      create landing_page_events + RLS
-```
-
-## Out of scope (ask if wanted)
-
-- Single-URL random A/B/C splitter (you chose distinct URLs).
-- Results dashboard UI (can do as follow-up).
-- Meta/Google Ads pixel install (you said you'll rely on GA + DB; pixels can be added later if needed).
+## Out of scope
+- No changes to `/pricing`, the Stripe products, or `create-checkout` itself.
+- No new images generated — using existing `src/assets/*.jpg`.
+- Variants B and C keep the "view pricing" flow (this gives us a real A/B/C signal: direct-checkout vs pricing-page).
