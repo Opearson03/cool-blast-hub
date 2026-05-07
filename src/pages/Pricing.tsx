@@ -30,11 +30,11 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Do I need a credit card to start?",
-    a: "No. The Free plan is genuinely free and doesn't ask for card details. You only enter payment info when you decide to upgrade.",
+    a: "Yes — all plans are paid and start at $99/month, so we ask for card details up front. There's no lock-in and you can cancel anytime from settings.",
   },
   {
-    q: "What happens if I exceed 2 quotes a month on Free?",
-    a: "You'll be prompted to upgrade before sending the third quote. Existing quotes stay accessible — nothing gets deleted.",
+    q: "Is there a free trial?",
+    a: "We don't run a free trial — instead, every plan is month-to-month with no contract, so you can try Estimating or Pro for a single month and cancel if it's not the right fit.",
   },
   {
     q: "Can I switch between Estimating and Pro?",
