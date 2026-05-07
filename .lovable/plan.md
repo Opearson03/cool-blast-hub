@@ -1,35 +1,40 @@
 ## Goal
-Replace the AI-generated hero backgrounds on `/lp/a`, `/lp/b`, `/lp/c` with real, commercially-licensed concreting photos from Unsplash.
+Bring `/eofy` in line with the new landing-page design language used on `/lp/a`, `/lp/b`, `/lp/c` (and matching the main `/`): shared `LandingShell` chrome, `font-display` headings, `eyebrow` chips, consistent logo size + rounded corners.
 
-## Photos selected (Unsplash, free for commercial use, no attribution required)
+## Current vs target
 
-| Page | Photo | Why it fits |
+| Element | EOFY today | Target (new design language) |
 |---|---|---|
-| `/lp/a` "Quote a slab in 10 minutes" | [Workers pouring concrete on a foundation](https://unsplash.com/photos/d2zNp3mdtRo) by Nihar Reddy Jangam | Active pour shot — matches "speed / get it done" message |
-| `/lp/b` "Send quotes that win" | [Concrete being leveled with a screed](https://unsplash.com/photos/4YbgiADkpYE) | Clean finishing shot — matches "polished / professional" message |
-| `/lp/c` "Run every concrete job from one place" | [Workers pouring and leveling concrete (wide jobsite)](https://unsplash.com/photos/VHPFxU6eqto) by Nihar Reddy Jangam | Wide jobsite with crew — matches "whole business in one system" |
+| Header | Bespoke header, `Logo size="lg"` (40px) + `text-2xl` wordmark, "Sign In" outline button | Use `<LandingShell>` → sticky `bg-charcoal-dark/95` header, `Logo size="sm" w-8 h-8 rounded-lg` + `text-lg font-display` wordmark, single primary CTA |
+| Footer | Bespoke charcoal footer with 3 links | `<LandingShell>` footer (Privacy / Terms) — drop "All Plans" link or keep as third item |
+| Headings (h1/h2/h3) | `font-bold` (Inter) | `font-display font-bold` (Space Grotesk) |
+| Eyebrow chips | Custom `Badge` components (e.g. "🔥 EOFY SALE", "💰 TAX DEDUCTION", "EOFY DEAL") | Replace top-of-section chips with `<span className="eyebrow text-primary">` style; keep card-level "EOFY DEAL" / "BEST VALUE" badges as-is (they're functional pricing badges, not section eyebrows) |
+| Page background | `bg-charcoal-dark` | Keep — same as new pages |
 
-## Implementation steps
+## Changes — single file: `src/pages/EOFY.tsx`
 
-1. **Download** each Unsplash photo at 1920px wide via `curl` into `src/assets/`:
-   - `src/assets/lp-a-pour.jpg`
-   - `src/assets/lp-b-finishing.jpg`
-   - `src/assets/lp-c-jobsite.jpg`
-   (Resolved direct URLs by fetching the Unsplash page `og:image` and stripping query params, then re-requesting at `?w=1920&q=80&fm=jpg`.)
+1. **Wrap content in `<LandingShell>`**
+   - Import `LandingShell` from `@/components/landing/LandingShell`.
+   - `ctaHref="/signup?tier=pro&interval=annual"`, `ctaLabel="Get EOFY deal"`.
+   - Remove the bespoke `<header>` (lines 29–43) and bespoke `<footer>` (lines 237–256).
+   - Drop the outer `<div className="min-h-screen bg-charcoal-dark">` wrapper (LandingShell handles it). Apply `bg-charcoal-dark` to `<main>` content sections instead, or wrap children in a charcoal-dark container so the visual feel stays the same.
 
-2. **Update imports** in:
-   - `src/pages/landing/LandingA.tsx` → swap `hero-concrete-pour.jpg` → `lp-a-pour.jpg`
-   - `src/pages/landing/LandingB.tsx` → swap `concrete-finishing.jpg` → `lp-b-finishing.jpg`
-   - `src/pages/landing/LandingC.tsx` → swap `lp-hero-c-jobsite.jpg` → `lp-c-jobsite.jpg`
+2. **Typography pass**
+   - Add `font-display` to every h1/h2/h3 in the file (hero h1, "Claim It as a Business Expense", "Why Go Annual?", "Don't Miss Out", card h2s).
 
-3. **Keep** the existing dark overlay (`bg-black/65` / `bg-black/70`) so headline text stays legible over the real photos.
+3. **Eyebrow chips**
+   - Replace the destructive Badge "🔥 EOFY SALE — LIMITED TIME" with `<span className="eyebrow text-primary">EOFY sale — limited time</span>`.
+   - Replace the "💰 TAX DEDUCTION" Badge with `<span className="eyebrow text-primary">Tax deduction</span>`.
+   - Keep the in-card `Badge`s ("EOFY DEAL", "BEST VALUE") unchanged — they're pricing-card chrome, consistent with shadcn Badge use elsewhere.
 
-4. **Verify**: screenshot each page after the swap to confirm the photos load, look natural, and the text remains readable. Adjust overlay opacity per-page if a photo is unusually bright/dark.
+4. **Sign-in link**
+   - Removed when we switch to LandingShell (which only renders the single primary CTA). Acceptable trade-off for visual consistency; users can still reach `/auth` from `/pricing` and the main nav.
 
 ## Out of scope
-- Deleting the old AI-generated assets (still imported in other places — leave them alone).
-- Layout, copy, font, or CTA changes.
-- Adding photo credits in the footer (Unsplash licence doesn't require it; the user has not asked for it).
+- Pricing data, tier feature lists, copy, tax-deduction wording.
+- Stripe / signup routing.
+- Any change to `LandingShell` itself.
+- New images or hero photos (EOFY is currently solid charcoal — leaving it that way).
 
-## Fallback
-If any of the three Unsplash downloads fail (HTTP error, image too small, etc.), I'll pick the next-best result from the same Unsplash search and document the swap in the final response.
+## Verification
+After the edit, visit `/eofy` and confirm: dark sticky header with small rounded PourHub logo + wordmark matches `/lp/c`; headings render in Space Grotesk; eyebrow chips have the same uppercase tracked styling as `/`; footer matches the ABC pages.
