@@ -277,8 +277,8 @@ const Pricing = () => {
               {[
                 {
                   icon: <CreditCard className="w-5 h-5 text-primary" />,
-                  title: "No card to start",
-                  body: "Free tier forever — no payment details required.",
+                  title: "Month-to-month",
+                  body: "No annual contracts required. Pay monthly, cancel any time.",
                 },
                 {
                   icon: <ShieldCheck className="w-5 h-5 text-primary" />,
