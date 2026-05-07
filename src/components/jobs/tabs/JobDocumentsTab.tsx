@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { PendingDocumentsSheet } from "@/components/jobs/PendingDocumentsSheet";
+import { SiteDiarySection } from "@/components/jobs/tabs/diary/SiteDiarySection";
 
 type Document = Tables<"documents"> & { subfolder?: string };
 
@@ -33,6 +34,7 @@ interface JobDocumentsTabProps {
 
 const FOLDER_TABS = [
   { value: 'all', label: 'All' },
+  { value: 'site_diary', label: 'Site Diary' },
   { value: 'delivery_dockets', label: 'Dockets' },
   { value: 'plans', label: 'Plans' },
   { value: 'quotes_retentions', label: 'Quotes' },
@@ -320,7 +322,9 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
         </TabsList>
       </Tabs>
 
-      {filteredDocuments.length === 0 ? (
+      {activeFolder === 'site_diary' ? (
+        <SiteDiarySection jobId={jobId} businessId={businessId} />
+      ) : filteredDocuments.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />

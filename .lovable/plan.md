@@ -1,81 +1,88 @@
-# Modernise `/pricing`
+## Site Diary — Photos tied to each pour
 
-Bring the pricing page in line with the new design language used on EOFY, Articles, and Enterprise — and add the missing trust/conversion elements identified in the gap review.
+A new **Site Diary** sub-section inside a job's Files tab. Each pour (Project Plan / Schedule Works) gets its own card with three photo buckets — **Before**, **During**, **After** — plus optional captions. Mobile-first capture, web-friendly review.
 
-## Changes — `src/pages/Pricing.tsx` (full rewrite)
+### Why this matters
+- Defends against client/client-of-client disputes ("the slab wasn't prepped", "there was a crack day one").
+- Builds a defensible record of workmanship for warranty + insurance.
+- Becomes export-able evidence for the Job Pack PDF.
+- Differentiator vs generic file dumps competitors offer.
 
-### 1. Chrome
-- Wrap in `<LandingShell ctaHref="/signup?tier=pro" ctaLabel="Start free" />`. Remove the bespoke `<header>` and `<footer>`.
-- Keep `SEOHead`.
+### Where it lives
 
-### 2. Hero
-- `eyebrow` chip: `Pricing`.
-- `font-display` h1: `Simple pricing. No surprises.`
-- Sub: `Start free with 2 quotes a month — upgrade when you're ready.` (matches actual Free tier behaviour from `subscription-tiers.ts` — there's no time-limited trial).
-- Trust strip directly under: `No credit card to start • Cancel anytime • Built in Australia`.
-- Keep the Monthly/Annual toggle but restyle to match the rest of the site (charcoal pill, primary fill on active, `font-display` on labels).
+`Job → Files tab` already has folder chips (`All / Dockets / Plans / Quotes / Photos / Other`).
 
-### 3. Plan cards (3-column)
-- Restyle all three `Card`s to match the EOFY/Enterprise treatment: `border-border/70 bg-card/80 backdrop-blur`, hover `border-primary/50` lift, rounded-3xl.
-- Plan name in `font-display font-semibold`.
-- Price in `font-display` extra-bold.
-- Replace the invisible placeholder `Badge` height-aligners with a flex layout that handles alignment cleanly.
-- "Most popular" badge restyled to the new eyebrow chip style (primary outline + bg).
-- CTAs: Estimating → outline; Pro → primary; Enterprise → secondary outline → `/enterprise`.
-- Add a per-card one-line "best for" sub-label under price (e.g. "For solo estimators", "For growing crews", "For commercial operations").
+We add a new chip: **Site Diary** (becomes the default view when pours exist).
 
-### 4. NEW — Risk-reversal strip (between cards and comparison table)
-Three small icon+text columns:
-- **No card to start** — Free tier forever, no payment details required.
-- **Cancel anytime** — Monthly plans cancel from settings in two clicks.
-- **Your data stays yours** — Export quotes, jobs and contacts to CSV anytime.
+```text
+Files
+[ All ] [ Site Diary* ] [ Dockets ] [ Plans ] [ Quotes ] [ Photos ] [ Other ]
+                ▼
+   ┌─ Pour 1 — "Driveway slab" — 14 May ─────────────┐
+   │  Before (3)        During (5)        After (2)   │
+   │  [📷+] thumbs…     [📷+] thumbs…     [📷+] thumbs│
+   └──────────────────────────────────────────────────┘
+   ┌─ Pour 2 — "Shed footings" — 18 May ──────────────┐
+   │  Before (0)        During (0)        After (0)   │
+   └──────────────────────────────────────────────────┘
+```
 
-### 5. Comparison table
-- Keep the same rows (data is correct).
-- Restyle: `font-display` heading, lighter borders (`border-border/40`), zebra-stripe on hover, `text-primary-foreground/80` for body cells, sticky-feeling header row using `bg-charcoal/60`.
-- Wrap in a `rounded-2xl border border-border/40 overflow-hidden` container so it visually matches the other surfaces.
+The plain `Photos` chip stays for ad-hoc site photos not tied to a pour.
 
-### 6. Replace the "Why concreters choose PourHub" stats strip
-- Drop the made-up stats (`$199`, `100%`, `0`).
-- Replace with a small "What you get on day one" 3-column block (icon + title + 1 line):
-  - **Quote in minutes** — Modular calculators handle the maths.
-  - **Schedule the week** — Drag-and-drop pours across crews.
-  - **Track every test** — MPa, slump and supplier dockets, matched automatically.
-- Apply `font-display` to titles, charcoal card backgrounds.
+### User flows
 
-### 7. NEW — FAQ section
-Accordion (use existing `@/components/ui/accordion`) with these Qs (all answers ≤2 sentences, written in Aussie tone):
-1. Is there a contract?
-2. Do I need a credit card to start?
-3. What happens if I exceed 2 quotes a month on Free?
-4. Can I switch between Estimating and Pro?
-5. Do you offer onboarding or training?
-6. Can I import my existing price list?
-7. What payment methods do you accept?
-8. Is my data backed up and secure?
-9. Do you support sole traders / single-user accounts?
-10. Can I cancel and come back later?
+**Capture (mobile / tablet)**
+1. Open job → Files → Site Diary.
+2. Tap a pour card → tap `Before / During / After` → native camera or gallery picker.
+3. Multi-select supported. Optional caption per photo (defaults to timestamp).
+4. Auto-uploads with progress; failures retry-able.
 
-Section uses `eyebrow` chip "Questions?" and `font-display` h2 "Common questions, straight answers."
+**Review (web)**
+- Lightbox carousel per stage with caption, taken-at, uploader.
+- Drag-and-drop upload.
+- Move a photo to another stage or delete.
+- "Mark as cover" — pinned thumbnail on the pour card.
 
-### 8. NEW — "Still deciding?" pre-footer block
-Two-button row matching the EOFY closing CTA pattern:
-- Primary: `Start free` → `/signup?tier=pro`
-- Outline: `Book a 15-min walkthrough` → `/bookings` (currently only surfaced on landing — bring it onto pricing too).
-- Single line above: "Free forever on the starter plan. Upgrade in 30 seconds when you're ready."
+**Export**
+- Job Pack PDF gains an optional "Site Diary" section: each pour with a tidy 3-column Before/During/After contact sheet (out-of-scope for v1 implementation, but data model supports it).
 
-### 9. Final CTA strip
-- Keep `bg-primary` band, but use `font-display` heading and tighten button row to match EOFY.
-- Buttons: `Start free` (secondary) + `Back to home` (ghost outline) — keep current structure, just restyled.
+### Data model
 
-## Out of scope
-- No changes to `src/lib/subscription-tiers.ts` (prices, features, IDs stay as-is).
-- No changes to `create-checkout` edge function or signup flow.
-- No new routes.
-- No copy changes to any other page.
-- No light-mode work — page stays dark-charcoal to match the rest of the marketing surfaces.
+Reuse the existing `documents` table — photos already land here. Add two nullable columns:
 
-## Files touched
-- `src/pages/Pricing.tsx` (full rewrite, ~450 lines).
+| Column | Type | Purpose |
+|---|---|---|
+| `pour_id` | `uuid` | Link to `job_pours.id` (FK, on delete set null). |
+| `diary_stage` | `text` | `'before' | 'during' | 'after'`, validated by trigger (no CHECK constraint per memory rules). |
+| `caption` | `text` | Optional user note. |
+| `taken_at` | `timestamptz` | EXIF or upload time fallback. |
+| `is_cover` | `boolean default false` | Pinned thumbnail per pour. |
 
-That's it — single-file change, no DB or backend impact.
+Index: `(reference_id, pour_id, diary_stage)`.
+
+`subfolder = 'site_diary'` for back-compat with the existing folder filter.
+
+### Files to add / change
+
+**New**
+- `src/components/jobs/tabs/diary/SiteDiarySection.tsx` — list of pour cards.
+- `src/components/jobs/tabs/diary/PourDiaryCard.tsx` — single pour, 3 stage columns, counts, cover thumb.
+- `src/components/jobs/tabs/diary/DiaryStageGrid.tsx` — thumb grid + upload button per stage.
+- `src/components/jobs/tabs/diary/DiaryPhotoLightbox.tsx` — full-screen viewer with caption editing, move, delete, set-cover.
+- `src/hooks/useSiteDiaryPhotos.ts` — react-query fetch/insert/update/delete keyed by `jobId`.
+
+**Edit**
+- `src/components/jobs/tabs/JobDocumentsTab.tsx` — add `site_diary` to `FOLDER_TABS`; render `<SiteDiarySection>` when active; keep existing photos/folder behaviour intact.
+- `supabase/migrations/...` — add columns + index + validation trigger on `documents`.
+
+### Out of scope for v1
+- AI scope detection on photos.
+- Comparing before/after with sliders.
+- Job Pack PDF site-diary section (data is captured; PDF rendering is a follow-up).
+- Subbie portal photo capture (only logged-in business users for now).
+- Geo-pinning on a map.
+
+### Open questions
+1. Should every photo require a stage (Before/During/After), or allow "Unsorted" within a pour?
+2. Should we cap photo size / auto-compress on upload (e.g. resize >2560px) to keep storage costs sane?
+3. Do you want the Site Diary chip to become the default tab on Files when the job has pours?
