@@ -108,7 +108,7 @@ const Index = () => {
                 Sign in
               </Link>
               <Link to={signupHref}>
-                <Button size="sm" className="font-medium">Start free</Button>
+                <Button size="sm" className="font-medium">Get started</Button>
               </Link>
             </div>
           </div>
