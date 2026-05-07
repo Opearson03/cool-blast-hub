@@ -34,6 +34,7 @@ interface JobDocumentsTabProps {
 
 const FOLDER_TABS = [
   { value: 'all', label: 'All' },
+  { value: 'site_diary', label: 'Site Diary' },
   { value: 'delivery_dockets', label: 'Dockets' },
   { value: 'plans', label: 'Plans' },
   { value: 'quotes_retentions', label: 'Quotes' },
