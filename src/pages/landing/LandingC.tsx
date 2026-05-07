@@ -19,7 +19,7 @@ export default function LandingC() {
         description="Quote, schedule pours, book subbies, track dockets, get paid — one system for the whole concreting business."
         canonicalPath="/lp/c"
       />
-      <LandingShell ctaHref={ctaHref} ctaLabel="See plans" onCtaClick={() => trackCTA("header")}>
+      <LandingShell ctaHref={ctaHref} ctaLabel={ctaLabel} onCtaClick={() => trackCTA("header")}>
         {/* Hero with industrial background */}
         <section
           className="relative py-20 md:py-32 bg-cover bg-center"
@@ -39,10 +39,10 @@ export default function LandingC() {
             </p>
             <Button size="lg" asChild className="h-14 px-8 text-base" onClick={() => trackCTA("hero")}>
               <Link to={ctaHref}>
-                See it in action <ArrowRight className="ml-2 h-5 w-5" />
+                {ctaLabel} <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <p className="text-sm text-white/70 mt-4">From $99/mo • Cancel anytime</p>
+            <p className="text-sm text-white/70 mt-4">$199/mo • Cancel anytime • Be live in 5 minutes</p>
           </div>
         </section>
 
