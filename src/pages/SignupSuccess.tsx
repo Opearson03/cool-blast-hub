@@ -143,6 +143,11 @@ export default function SignupSuccess() {
       }
 
       setStep("complete");
+
+      // Record A/B/C landing conversion if visitor came from a tracked landing page
+      void recordLandingConversion({ plan: checkoutData.plan }).finally(() => {
+        clearStoredLandingVariant();
+      });
       
       // Redirect to admin after a short delay
       setTimeout(() => {
