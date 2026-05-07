@@ -64,7 +64,7 @@ export function useLandingTracker(variant: LandingVariant) {
 
       // Fire DB event (best-effort, non-blocking)
       try {
-        await supabase.from("landing_page_events").insert(payload);
+        await supabase.from("landing_page_events").insert([payload]);
       } catch (err) {
         console.warn("[lp-tracker] insert failed", err);
       }
