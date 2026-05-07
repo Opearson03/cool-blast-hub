@@ -322,7 +322,9 @@ export function JobDocumentsTab({ jobId, businessId }: JobDocumentsTabProps) {
         </TabsList>
       </Tabs>
 
-      {filteredDocuments.length === 0 ? (
+      {activeFolder === 'site_diary' ? (
+        <SiteDiarySection jobId={jobId} businessId={businessId} />
+      ) : filteredDocuments.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
