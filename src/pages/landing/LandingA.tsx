@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { ArrowRight, Clock, Zap, Calculator, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
-import heroBg from "@/assets/hero-concrete-pour.jpg";
+import heroBg from "@/assets/lp-a-pour.jpg";
 
 export default function LandingA() {
   const { trackCTA } = useLandingTracker("a");
