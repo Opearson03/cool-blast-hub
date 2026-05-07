@@ -162,6 +162,11 @@ const AppContent = () => {
       <Route path="/eofy" element={<EOFY />} />
       <Route path="/enterprise" element={<Enterprise />} />
 
+      {/* A/B/C Ad Landing Pages */}
+      <Route path="/lp/a" element={<LandingA />} />
+      <Route path="/lp/b" element={<LandingB />} />
+      <Route path="/lp/c" element={<LandingC />} />
+
       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
       <Route path="*" element={<NotFound />} />
     </Routes>
