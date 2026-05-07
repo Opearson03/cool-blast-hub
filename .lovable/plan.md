@@ -1,34 +1,36 @@
-Write full content for the 10 placeholder articles, matching the structure and tone of the existing reference article (`ContingencyConcreteQuote.tsx`):
+## Goal
 
-- Lead paragraph
-- `<h2 id="...">` section headings (anchored, used by TableOfContents)
-- Practical lists, tables where useful
-- `<Link to="/articles/...">` internal links to related articles
-- Australian English spelling, AUD pricing, AU standards/state references
-- Plain TSX (no MDX, no extra imports beyond `react-router-dom` `Link` when needed)
-- Length matches `readTimeMinutes` from `articles.ts` (~250 words/min)
+Bring `/enterprise` in line with the new design language used on EOFY and Articles (LandingShell chrome, eyebrow chips, `font-display` headings, consistent dark-charcoal sectioning).
 
-## Files to write
+## Changes — `src/pages/Enterprise.tsx`
 
-| File | Topic | Read time |
-|---|---|---|
-| `WhatIsConcreteVariation.tsx` | What a variation is + how to price | 7 min |
-| `ChargeForVariationsAfterPour.tsx` | Charging variations after pour | 6 min |
-| `DocumentConcreteVariations.tsx` | Documenting variations properly | 6 min |
-| `RetentionMoneyConstruction.tsx` | Retention money for concreters | 8 min |
-| `ClientDisputesConcreteInvoice.tsx` | Handling disputed invoices | 7 min |
-| `RunProfitableConcretingBusiness.tsx` | Running a profitable business | 10 min |
-| `HourlyVsFixedPrice.tsx` | Hourly vs fixed-price charging | 6 min |
-| `ConcretingBusinessFailReasons.tsx` | Why concreting businesses fail | 8 min |
-| `TrackJobProfitability.tsx` | Tracking job profitability | 7 min |
-| `TrueCostUnderquoting.tsx` | True cost of underquoting | 6 min |
+1. **Replace bespoke header/footer with `LandingShell`**
+   - Wrap content in `<LandingShell ctaHref="/bookings" ctaLabel="Enquire now" />`.
+   - Remove the custom `<header>` (Logo + Sign In) and `<footer>` blocks.
 
-## Approach
+2. **Hero**
+   - Swap the gradient `Badge` ("NEW — INTRODUCING" with Sparkles icon) for an `eyebrow` span (e.g. `New — introducing`), matching EOFY/Articles.
+   - Add `font-display` to the `h1`.
+   - Keep the "Enquire Now" + "Email Us" buttons but tighten styling to match EOFY (primary CTA + outline secondary).
 
-Write each article directly using `code--write` (full TSX file replaces the placeholder). I'll author the copy myself rather than calling the AI gateway — keeps tone consistent and avoids brittle batch generation. Cross-link articles using the `relatedSlugs` already declared in `articles.ts`.
+3. **Section headings**
+   - Apply `font-display` to all `h2` / `h3` headings ("End-to-End Coverage…", "Built for Your Business", "Who It's For", "Let's Talk About Your Operation").
+   - Replace the `Badge variant="outline"` "FULLY CUSTOM BUILD" with an `eyebrow` chip.
+
+4. **Capability cards (8-grid)**
+   - Keep the layout, but switch titles to `font-display font-semibold` and standardise card styling to match the EOFY/Articles card treatment (`border-border/70`, hover `border-primary/50`, subtle lift).
+
+5. **"Built for Your Business" 4-grid**
+   - Use `font-display` on the sub-headings; align padding/border with the other landing surfaces.
+
+6. **"Who It's For" stats**
+   - Apply `font-display` to the three large stat numbers.
+
+7. **Final CTA strip**
+   - Keep `bg-primary` background but use `font-display` heading and tighten button row (Enquire Now primary `secondary` + secondary outline back to `/pricing`), matching EOFY's closing CTA.
 
 ## Out of scope
-- Changing `articles.ts` metadata or routes
-- Editing existing complete articles
-- Images or media
-- SEO schema (already handled by ArticleLayout/ArticleSchema)
+
+- Copy/content changes beyond chip wording.
+- Changes to `IntegrationsMarquee`, SEO metadata, routes, or any business logic.
+- Light/dark token changes — continue using existing semantic tokens (`charcoal-dark`, `charcoal`, `primary`, `muted-foreground`, etc.).
