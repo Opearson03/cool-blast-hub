@@ -2076,6 +2076,7 @@ export type Database = {
           slump: string | null
           source_estimate_id: string | null
           startup_completed: boolean | null
+          startup_dismissed_at: string | null
           status: Database["public"]["Enums"]["job_status"] | null
           updated_at: string | null
         }
@@ -2102,6 +2103,7 @@ export type Database = {
           slump?: string | null
           source_estimate_id?: string | null
           startup_completed?: boolean | null
+          startup_dismissed_at?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
           updated_at?: string | null
         }
@@ -2128,6 +2130,7 @@ export type Database = {
           slump?: string | null
           source_estimate_id?: string | null
           startup_completed?: boolean | null
+          startup_dismissed_at?: string | null
           status?: Database["public"]["Enums"]["job_status"] | null
           updated_at?: string | null
         }

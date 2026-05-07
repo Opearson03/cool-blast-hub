@@ -121,12 +121,24 @@ export default function AdminJobDetail() {
     },
   });
 
-  // Auto-open startup wizard for new jobs
+  // Auto-open startup wizard for new jobs — only once. If user dismisses, don't reopen.
   useEffect(() => {
-    if (job && job.startup_completed === false) {
+    if (job && job.startup_completed === false && !(job as any).startup_dismissed_at) {
       setIsStartupOpen(true);
     }
-  }, [job?.id, job?.startup_completed]);
+  }, [job?.id, job?.startup_completed, (job as any)?.startup_dismissed_at]);
+
+  const handleStartupOpenChange = async (open: boolean) => {
+    setIsStartupOpen(open);
+    // If closing without completion, stamp dismissed_at so it won't auto-reopen
+    if (!open && job && job.startup_completed === false && !(job as any).startup_dismissed_at) {
+      await supabase
+        .from("jobs")
+        .update({ startup_dismissed_at: new Date().toISOString() } as any)
+        .eq("id", job.id);
+      queryClient.invalidateQueries({ queryKey: ["job", id] });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -328,7 +340,7 @@ export default function AdminJobDetail() {
       {/* Job Startup Wizard */}
       <JobStartupWizard
         open={isStartupOpen}
-        onOpenChange={setIsStartupOpen}
+        onOpenChange={handleStartupOpenChange}
         job={{
           id: job.id,
           name: job.name,
