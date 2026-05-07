@@ -1,31 +1,34 @@
-Bring `/articles` (index) and individual article pages in line with the new landing-page design language (font-display headings, eyebrow chips, primary accents, LandingShell chrome).
+Write full content for the 10 placeholder articles, matching the structure and tone of the existing reference article (`ContingencyConcreteQuote.tsx`):
 
-## Scope
+- Lead paragraph
+- `<h2 id="...">` section headings (anchored, used by TableOfContents)
+- Practical lists, tables where useful
+- `<Link to="/articles/...">` internal links to related articles
+- Australian English spelling, AUD pricing, AU standards/state references
+- Plain TSX (no MDX, no extra imports beyond `react-router-dom` `Link` when needed)
+- Length matches `readTimeMinutes` from `articles.ts` (~250 words/min)
 
-Two files only — presentation changes, no data/routing changes.
+## Files to write
 
-### 1. `src/pages/Articles.tsx`
-- Wrap content in `<LandingShell ctaHref="/signup" ctaLabel="Try PourHub free">` — removes bespoke header + footer.
-- Hero:
-  - Add eyebrow chip above h1: `<span className="eyebrow text-primary">Knowledge base</span>`
-  - Add `font-display` to h1, bump weight/tracking to match landing hero scale.
-- Category filter pills: keep functionality, restyle to match landing pill style (rounded-full, border, hover states using semantic tokens).
-- Article grid: unchanged structure, but `ArticleCard` gets a light refresh (below).
+| File | Topic | Read time |
+|---|---|---|
+| `WhatIsConcreteVariation.tsx` | What a variation is + how to price | 7 min |
+| `ChargeForVariationsAfterPour.tsx` | Charging variations after pour | 6 min |
+| `DocumentConcreteVariations.tsx` | Documenting variations properly | 6 min |
+| `RetentionMoneyConstruction.tsx` | Retention money for concreters | 8 min |
+| `ClientDisputesConcreteInvoice.tsx` | Handling disputed invoices | 7 min |
+| `RunProfitableConcretingBusiness.tsx` | Running a profitable business | 10 min |
+| `HourlyVsFixedPrice.tsx` | Hourly vs fixed-price charging | 6 min |
+| `ConcretingBusinessFailReasons.tsx` | Why concreting businesses fail | 8 min |
+| `TrackJobProfitability.tsx` | Tracking job profitability | 7 min |
+| `TrueCostUnderquoting.tsx` | True cost of underquoting | 6 min |
 
-### 2. `src/components/articles/ArticleCard.tsx`
-- Add `font-display` to the card title.
-- Replace `bg-primary/10` category chip with the `eyebrow` style for consistency.
-- Slightly stronger hover (border + subtle lift) to match landing card treatment.
+## Approach
 
-### 3. `src/components/articles/ArticleLayout.tsx` (individual article pages)
-- Replace bespoke header with the same sticky header pattern used in LandingShell (Logo + wordmark + small "All Articles" link on the right). Cannot use LandingShell directly because article pages need the "All Articles" link instead of a CTA button — so mirror its styling inline.
-- Add `font-display` to h1 and to prose `h2`/`h3` (via prose class overrides).
-- Restyle category chip in article header to `eyebrow` style.
-- Footer: simplify to match LandingShell footer (copyright left, Privacy/Terms right).
-- Bottom CTA strip: keep, but restyle heading with `font-display` and use `bg-primary` accent button matching EOFY/landing CTA section.
+Write each article directly using `code--write` (full TSX file replaces the placeholder). I'll author the copy myself rather than calling the AI gateway — keeps tone consistent and avoids brittle batch generation. Cross-link articles using the `relatedSlugs` already declared in `articles.ts`.
 
 ## Out of scope
-- Article body content (MDX/TSX article files)
-- TOC, RelatedArticles, ArticleSchema components
-- Routing, SEO metadata, data in `src/data/articles.ts`
-- Any new images
+- Changing `articles.ts` metadata or routes
+- Editing existing complete articles
+- Images or media
+- SEO schema (already handled by ArticleLayout/ArticleSchema)
