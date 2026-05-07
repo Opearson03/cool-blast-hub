@@ -259,7 +259,7 @@ const handler = async (req: Request): Promise<Response> => {
         notes: body.notes || null,
         start_time: body.start_time || null,
         status: "sent",
-        token_hash: batchTokenHash, // Same hash for all
+        token_hash: crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, ""),
         batch_id: batchId,
         batch_token_hash: batchTokenHash,
         token_expires_at: expiresAt,
