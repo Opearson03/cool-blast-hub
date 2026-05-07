@@ -322,12 +322,12 @@ const Index = () => {
                 <span className="text-primary">in minutes.</span>
               </h2>
               <p className="mt-6 text-lg text-primary-foreground/65 max-w-xl mx-auto">
-                Free to start. No credit card. Set up in under two minutes.
+                Plans from $99/month. Set up in under two minutes, cancel anytime.
               </p>
               <div className="mt-9">
                 <Link to={signupHref}>
                   <Button size="lg" className="text-base px-8 h-12 touch-target font-medium shadow-lg shadow-primary/20">
-                    Start free trial
+                    Get started
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
