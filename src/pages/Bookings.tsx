@@ -1,13 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Logo } from "@/components/ui/Logo";
 import { BookingCalendar } from "@/components/bookings/BookingCalendar";
 import { BookingForm, type BookingFormData } from "@/components/bookings/BookingForm";
 import { BookingConfirmation } from "@/components/bookings/BookingConfirmation";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { LandingShell } from "@/components/landing/LandingShell";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
 
 export default function Bookings() {
   const [selectedDate, setSelectedDate] = useState<Date>();
