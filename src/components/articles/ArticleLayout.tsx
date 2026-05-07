@@ -24,22 +24,22 @@ export function ArticleLayout({ article, children }: ArticleLayoutProps) {
       />
       <ArticleSchema article={article} />
 
-      <div className="min-h-screen bg-charcoal-dark">
-        {/* Header */}
-        <header className="border-b border-border/30 bg-charcoal-dark/95 backdrop-blur-sm sticky top-0 z-50">
-          <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Header — mirrors LandingShell chrome */}
+        <header className="sticky top-0 z-50 bg-charcoal-dark/95 backdrop-blur-md border-b border-border/30">
+          <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
             <Link to="/" className="flex items-center gap-2">
-              <Logo size="sm" className="w-8 h-8 rounded-md" />
-              <span className="text-xl font-bold text-primary-foreground">
+              <Logo size="sm" className="w-8 h-8 rounded-lg" />
+              <span className="text-lg font-display font-bold text-primary-foreground">
                 Pour<span className="text-primary">Hub</span>
               </span>
             </Link>
             <Link
               to="/articles"
-              className="text-sm text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+              className="text-sm text-muted-foreground hover:text-primary-foreground transition-colors flex items-center gap-1"
             >
               <ArrowLeft className="w-4 h-4" />
-              All Articles
+              All articles
             </Link>
           </div>
         </header>
@@ -63,20 +63,18 @@ export function ArticleLayout({ article, children }: ArticleLayoutProps) {
         {/* Article Header */}
         <div className="max-w-6xl mx-auto px-4 pt-8 pb-8">
           <div className="max-w-3xl">
-            <div className="flex items-center gap-3 text-sm text-muted-foreground mb-4">
-              <span className="bg-primary/10 text-primary px-2 py-1 rounded text-xs font-medium">
-                {article.categoryLabel}
-              </span>
-              <span className="flex items-center gap-1">
+            <div className="flex items-center gap-4 mb-4">
+              <span className="eyebrow text-primary">{article.categoryLabel}</span>
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Clock className="w-3.5 h-3.5" />
                 {article.readTimeMinutes} min read
               </span>
-              <span className="flex items-center gap-1">
+              <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <Calendar className="w-3.5 h-3.5" />
                 Updated {article.lastUpdated}
               </span>
             </div>
-            <h1 className="text-3xl sm:text-4xl font-bold text-primary-foreground leading-tight">
+            <h1 className="font-display text-4xl sm:text-5xl font-bold text-primary-foreground leading-tight">
               {article.title}
             </h1>
           </div>
@@ -89,7 +87,7 @@ export function ArticleLayout({ article, children }: ArticleLayoutProps) {
             <article
               data-article-body
               className="flex-1 max-w-3xl prose prose-invert prose-orange
-                prose-headings:text-primary-foreground prose-headings:font-bold
+                prose-headings:text-primary-foreground prose-headings:font-display prose-headings:font-bold
                 prose-h2:text-2xl prose-h2:mt-10 prose-h2:mb-4
                 prose-h3:text-xl prose-h3:mt-8 prose-h3:mb-3
                 prose-p:text-primary-foreground/80 prose-p:leading-relaxed
@@ -113,32 +111,33 @@ export function ArticleLayout({ article, children }: ArticleLayoutProps) {
           <RelatedArticles article={article} />
         </div>
 
-        {/* Subtle CTA */}
-        <div className="border-t border-border/30 bg-charcoal py-12 px-4">
+        {/* CTA strip */}
+        <div className="border-t border-border/30 bg-primary py-14 px-4 mt-auto">
           <div className="max-w-3xl mx-auto text-center">
-            <p className="text-muted-foreground mb-3">
-              PourHub helps Australian concreters manage jobs, quotes, and schedules — all in one place.
+            <h2 className="font-display text-3xl font-bold text-primary-foreground mb-3">
+              Run your concreting business on PourHub
+            </h2>
+            <p className="text-primary-foreground/90 mb-6">
+              Quotes, jobs, schedules, and dockets — all in one place.
             </p>
             <Link
-              to="/"
-              className="inline-flex items-center gap-2 text-primary hover:underline font-medium"
+              to="/signup"
+              className="inline-flex items-center gap-2 bg-charcoal-dark text-primary-foreground hover:bg-charcoal px-6 py-3 rounded-lg font-medium transition-colors"
             >
-              Learn more about PourHub →
+              Try PourHub free <ArrowLeft className="w-4 h-4 rotate-180" />
             </Link>
           </div>
         </div>
 
-        {/* Footer */}
-        <footer className="bg-charcoal-dark py-8 px-4 text-center border-t border-border/30">
-          <p className="text-muted-foreground text-sm">
-            © {new Date().getFullYear()} PourHub. Operations management for Australian concreting businesses.
-          </p>
-          <div className="flex flex-wrap justify-center items-center gap-4 text-sm mt-4">
-            <Link to="/articles" className="text-muted-foreground hover:text-primary transition-colors">Articles</Link>
-            <span className="text-muted-foreground">•</span>
-            <Link to="/privacy" className="text-muted-foreground hover:text-primary transition-colors">Privacy Policy</Link>
-            <span className="text-muted-foreground">•</span>
-            <Link to="/terms" className="text-muted-foreground hover:text-primary transition-colors">Terms & Conditions</Link>
+        {/* Footer — matches LandingShell */}
+        <footer className="bg-charcoal-dark border-t border-border/30 py-6">
+          <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-primary-foreground/70">
+            <p>© {new Date().getFullYear()} PourHub</p>
+            <div className="flex gap-4">
+              <Link to="/articles" className="hover:text-primary-foreground transition-colors">Articles</Link>
+              <Link to="/privacy" className="hover:text-primary-foreground transition-colors">Privacy</Link>
+              <Link to="/terms" className="hover:text-primary-foreground transition-colors">Terms</Link>
+            </div>
           </div>
         </footer>
       </div>
