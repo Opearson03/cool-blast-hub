@@ -52,7 +52,7 @@ export function useLandingTracker(variant: LandingVariant) {
         referrer: typeof document !== "undefined" ? document.referrer : null,
         user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
         path: typeof window !== "undefined" ? window.location.pathname + window.location.search : null,
-        metadata: metadata ?? null,
+        metadata: (metadata ?? null) as never,
       };
 
       // Fire GA4 event (best-effort)
