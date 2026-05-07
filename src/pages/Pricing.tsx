@@ -30,11 +30,11 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Do I need a credit card to start?",
-    a: "No. The Free plan is genuinely free and doesn't ask for card details. You only enter payment info when you decide to upgrade.",
+    a: "Yes — all plans are paid and start at $99/month, so we ask for card details up front. There's no lock-in and you can cancel anytime from settings.",
   },
   {
-    q: "What happens if I exceed 2 quotes a month on Free?",
-    a: "You'll be prompted to upgrade before sending the third quote. Existing quotes stay accessible — nothing gets deleted.",
+    q: "Is there a free trial?",
+    a: "We don't run a free trial — instead, every plan is month-to-month with no contract, so you can try Estimating or Pro for a single month and cancel if it's not the right fit.",
   },
   {
     q: "Can I switch between Estimating and Pro?",
@@ -80,12 +80,12 @@ const Pricing = () => {
   return (
     <>
       <SEOHead
-        title="PourHub Pricing — Free, Estimating & Pro Plans | Concreting Software Australia"
-        description="Simple pricing for PourHub. Start free, upgrade to Estimating from $99/month or Pro from $199/month. No lock-in, cancel anytime."
+        title="PourHub Pricing — Estimating & Pro Plans | Concreting Software Australia"
+        description="Simple paid pricing for PourHub. Estimating from $99/month or Pro from $199/month. No lock-in, cancel anytime."
         canonicalPath="/pricing"
         keywords="concreting software pricing, construction management software cost, concrete quoting software"
       />
-      <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Start free">
+      <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Get started">
         <div className="bg-charcoal-dark text-primary-foreground">
           {/* Hero */}
           <section className="px-4 pt-16 pb-10 sm:pt-20">
@@ -96,12 +96,12 @@ const Pricing = () => {
                 <span className="text-primary">No surprises.</span>
               </h1>
               <p className="mt-6 text-lg text-primary-foreground/70 max-w-2xl mx-auto">
-                Start free with 2 quotes a month — upgrade when you're ready. No credit card to start, cancel anytime.
+                Plans start at $99/month. Month-to-month, no lock-in, cancel anytime.
               </p>
 
               {/* Trust strip */}
               <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-primary-foreground/55 uppercase tracking-wider font-medium">
-                <span>No credit card to start</span>
+                <span>No lock-in contract</span>
                 <span className="text-primary/40">•</span>
                 <span>Cancel anytime</span>
                 <span className="text-primary/40">•</span>
@@ -277,8 +277,8 @@ const Pricing = () => {
               {[
                 {
                   icon: <CreditCard className="w-5 h-5 text-primary" />,
-                  title: "No card to start",
-                  body: "Free tier forever — no payment details required.",
+                  title: "Month-to-month",
+                  body: "No annual contracts required. Pay monthly, cancel any time.",
                 },
                 {
                   icon: <ShieldCheck className="w-5 h-5 text-primary" />,
@@ -437,12 +437,12 @@ const Pricing = () => {
           <section className="px-4 py-16 border-t border-border/20 bg-charcoal/40">
             <div className="max-w-3xl mx-auto text-center">
               <p className="text-primary-foreground/70 mb-6">
-                Free forever on the starter plan. Upgrade in 30 seconds when you're ready.
+                Pick a plan, set up in minutes, and cancel anytime if it's not for you.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link to="/signup?tier=pro">
                   <Button size="lg" className="h-12 px-7 touch-target font-medium">
-                    Start free
+                    Get started
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>
@@ -467,7 +467,7 @@ const Pricing = () => {
               <div className="mt-7 flex flex-col sm:flex-row gap-3 justify-center">
                 <Link to="/signup?tier=pro">
                   <Button size="lg" variant="secondary" className="h-12 px-7 touch-target font-medium">
-                    Start free
+                    Get started
                     <ArrowRight className="ml-2 w-5 h-5" />
                   </Button>
                 </Link>

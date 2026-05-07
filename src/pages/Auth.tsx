@@ -453,7 +453,7 @@ export default function Auth() {
   }
 
   return (
-    <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Start free">
+    <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Get started">
       <div className="bg-charcoal-dark min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 py-12">
         {cardInner}
       </div>

@@ -114,7 +114,7 @@ export default function Bookings() {
         canonicalPath="/bookings"
       />
 
-      <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Start free" secondaryHref="/" secondaryLabel="Home">
+      <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Get started" secondaryHref="/" secondaryLabel="Home">
         <div className="bg-charcoal-dark text-primary-foreground">
           <main className="container mx-auto px-4 py-12 max-w-5xl">
             {confirmation ? (
