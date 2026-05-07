@@ -6,20 +6,26 @@ import { ReactNode } from "react";
 
 interface LandingShellProps {
   children: ReactNode;
-  ctaHref: string;
+  /** When omitted, no CTA button is rendered in the header. */
+  ctaHref?: string;
   ctaLabel?: string;
   onCtaClick?: () => void;
+  /** Optional secondary text link rendered to the left of the CTA (e.g. "Sign in"). */
+  secondaryHref?: string;
+  secondaryLabel?: string;
 }
 
 /**
- * Minimal shell for ad landing pages: matches the main landing page chrome
- * (dark charcoal sticky header with PourHub wordmark, dark footer).
+ * Standard chrome for all public/marketing pages: dark charcoal sticky header with
+ * PourHub wordmark, optional CTA + secondary link, and a slim dark footer.
  */
 export function LandingShell({
   children,
   ctaHref,
   ctaLabel = "Get started",
   onCtaClick,
+  secondaryHref,
+  secondaryLabel,
 }: LandingShellProps) {
   return (
     <div className="min-h-screen flex flex-col bg-background">
@@ -31,11 +37,28 @@ export function LandingShell({
               Pour<span className="text-primary">Hub</span>
             </span>
           </Link>
-          <Button asChild size="sm" className="font-medium" onClick={onCtaClick}>
-            <Link to={ctaHref}>
-              {ctaLabel} <ArrowRight className="ml-1.5 h-4 w-4" />
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {secondaryHref && secondaryLabel && (
+              <Link
+                to={secondaryHref}
+                className="px-3 py-2 text-sm text-primary-foreground/80 hover:text-primary-foreground transition-colors"
+              >
+                {secondaryLabel}
+              </Link>
+            )}
+            {ctaHref && (
+              <Button asChild size="sm" className="font-medium" onClick={onCtaClick}>
+                <Link to={ctaHref}>
+                  {ctaLabel} <ArrowRight className="ml-1.5 h-4 w-4" />
+                </Link>
+              </Button>
+            )}
+            {!ctaHref && onCtaClick && (
+              <Button size="sm" className="font-medium" onClick={onCtaClick}>
+                {ctaLabel} <ArrowRight className="ml-1.5 h-4 w-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 

@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Building2, UserPlus } from "lucide-react";
+import { Loader2, Building2, UserPlus } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { LandingShell } from "@/components/landing/LandingShell";
 import { usePlatform } from "@/hooks/usePlatform";
 
 type AuthMode = "login" | "employee_signup";
@@ -267,35 +268,21 @@ export default function Auth() {
 
   const isNativeDevice = Capacitor.isNativePlatform();
 
-  return (
-    <div 
-      className="min-h-screen flex flex-col bg-background"
-      style={isNative ? { paddingTop: 'env(safe-area-inset-top)' } : undefined}
-    >
-      {!isNativeDevice && (
-        <div className="p-4">
-          <Link to="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors min-h-[44px]">
-            <ArrowLeft className="w-4 h-4" />
-            Back to home
-          </Link>
+  const cardInner = (
+    <Card className="w-full max-w-md rounded-2xl border-border/50 bg-card/80 backdrop-blur">
+      <CardHeader className="text-center">
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <div className="w-10 h-10 rounded-lg overflow-hidden">
+            <Logo className="w-full h-full" />
+          </div>
+          <span className="text-2xl font-display font-bold">
+            Pour<span className="text-primary">Hub</span>
+          </span>
         </div>
-      )}
-      
-      <div className="flex-1 flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <div className="w-10 h-10 rounded-lg overflow-hidden">
-                <Logo className="w-full h-full" />
-              </div>
-              <span className="text-2xl font-bold">
-                Pour<span className="text-primary">Hub</span>
-              </span>
-            </div>
-            <CardTitle>{getTitle()}</CardTitle>
-            <CardDescription>{getDescription()}</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <CardTitle className="font-display">{getTitle()}</CardTitle>
+        <CardDescription>{getDescription()}</CardDescription>
+      </CardHeader>
+      <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {authMode !== "login" && (
                 <div className="space-y-2">
@@ -448,9 +435,28 @@ export default function Auth() {
                 </button>
               </div>
             )}
-          </CardContent>
-        </Card>
+      </CardContent>
+    </Card>
+  );
+
+  if (isNativeDevice) {
+    return (
+      <div
+        className="min-h-screen flex flex-col bg-background"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="flex-1 flex items-center justify-center p-4">
+          {cardInner}
+        </div>
       </div>
-    </div>
+    );
+  }
+
+  return (
+    <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Start free">
+      <div className="bg-charcoal-dark min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 py-12">
+        {cardInner}
+      </div>
+    </LandingShell>
   );
 }

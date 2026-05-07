@@ -13,9 +13,9 @@ import {
   Users,
   MapPin,
   HardHat,
-  CheckCircle2,
 } from "lucide-react";
-import { Logo } from "@/components/ui/Logo";
+import { LandingShell } from "@/components/landing/LandingShell";
+import { SEOHead } from "@/components/seo/SEOHead";
 
 export default function SubcontractorsLanding() {
   const [email, setEmail] = useState("");
@@ -42,7 +42,7 @@ export default function SubcontractorsLanding() {
         } else {
           await supabase.auth.signOut();
           toast({
-            title: "Access Denied",
+            title: "Access denied",
             description: "This account does not have subcontractor access.",
             variant: "destructive",
           });
@@ -50,7 +50,7 @@ export default function SubcontractorsLanding() {
       }
     } catch (error: any) {
       toast({
-        title: "Login Failed",
+        title: "Login failed",
         description: error.message || "Invalid email or password",
         variant: "destructive",
       });
@@ -71,204 +71,202 @@ export default function SubcontractorsLanding() {
   const features = [
     {
       icon: ShieldCheck,
-      title: "ABN Verified Profiles",
+      title: "ABN-verified profiles",
       description: "Every subcontractor is verified against the Australian Business Register. Real trades only.",
     },
     {
       icon: Users,
-      title: "Get Discovered by Builders",
+      title: "Get discovered by builders",
       description: "Builders and concreting businesses search the directory to find verified labour for their projects.",
     },
     {
       icon: MapPin,
-      title: "Location-Based Matching",
+      title: "Location-based matching",
       description: "Set your service radius and base postcode so businesses in your area can find you.",
     },
     {
       icon: HardHat,
-      title: "Showcase Your Trade",
-      description: "List your specialisations, experience, insurance, and availability status.",
+      title: "Showcase your trade",
+      description: "List your specialisations, experience, insurance and availability status.",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Logo />
-          <span className="text-sm text-muted-foreground font-medium">Subcontractor Directory</span>
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section className="py-16 md:py-24 bg-gradient-to-br from-background via-background to-primary/5">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
-                <ShieldCheck className="h-4 w-4" />
-                ABN Verified Subcontractors
-              </div>
-              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 leading-tight">
-                Australia's Verified Concreting Subcontractor Network
-              </h1>
-              <p className="text-xl text-muted-foreground mb-6">
-                Create your verified profile, showcase your trade, and get discovered by builders and concreting businesses looking for reliable labour.
-              </p>
-              <div className="flex flex-wrap gap-2 mb-8">
-                {tradeTypes.map((trade) => (
-                  <span
-                    key={trade}
-                    className="bg-muted text-foreground px-3 py-1.5 rounded-full text-sm font-medium border"
-                  >
-                    {trade}
-                  </span>
-                ))}
-              </div>
-              <Button size="lg" className="gap-2" onClick={() => navigate("/sub-contractors/signup")}>
-                Create Your Profile <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Login Card */}
-            <Card className="max-w-md mx-auto w-full lg:ml-auto">
-              <CardHeader>
-                <CardTitle>Subcontractor Login</CardTitle>
-                <CardDescription>
-                  Already registered? Sign in to your dashboard.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="sc-email">Email</Label>
-                    <Input
-                      id="sc-email"
-                      type="email"
-                      placeholder="you@business.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="sc-password">Password</Label>
-                    <Input
-                      id="sc-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign In"
-                    )}
-                  </Button>
-                  <p className="text-center text-sm text-muted-foreground">
-                    Don't have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => navigate("/sub-contractors/signup")}
-                      className="text-primary hover:underline font-medium"
+    <>
+      <SEOHead
+        title="Concreting Subcontractor Directory | PourHub"
+        description="Australia's ABN-verified directory of concreters, steel fixers, formworkers, pump operators and labourers. Create your free profile and get discovered by builders."
+        canonicalPath="/sub-contractors"
+      />
+      <LandingShell ctaHref="/sub-contractors/signup" ctaLabel="Create profile">
+        <div className="bg-charcoal-dark text-primary-foreground">
+          {/* Hero + Login */}
+          <section className="px-4 pt-16 pb-20 sm:pt-20">
+            <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <span className="eyebrow">For subbies</span>
+                <h1 className="font-display text-4xl md:text-5xl font-bold leading-[1.05] mt-5">
+                  Australia's verified concreting<br />
+                  <span className="text-primary">subcontractor network.</span>
+                </h1>
+                <p className="mt-6 text-lg text-primary-foreground/70 max-w-xl">
+                  Create your verified profile, showcase your trade and get discovered by builders and concreting businesses looking for reliable labour.
+                </p>
+                <div className="mt-7 flex flex-wrap gap-2">
+                  {tradeTypes.map((trade) => (
+                    <span
+                      key={trade}
+                      className="rounded-full border border-border/40 bg-charcoal/60 px-3 py-1.5 text-xs text-primary-foreground/80"
                     >
-                      Create one
-                    </button>
-                  </p>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
+                      {trade}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-8">
+                  <Button size="lg" className="h-12 px-7 touch-target font-medium" onClick={() => navigate("/sub-contractors/signup")}>
+                    Create your profile
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
 
-      {/* Features */}
-      <section className="py-16 bg-card">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">Why Join PourHub?</h2>
-            <p className="text-lg text-muted-foreground">
-              Build trust with verified credentials and get found by the right businesses.
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            {features.map((feature, i) => (
-              <Card key={i}>
-                <CardContent className="pt-6">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                    <feature.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">{feature.title}</h3>
-                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+              {/* Login card */}
+              <Card className="w-full max-w-md mx-auto lg:ml-auto rounded-2xl border-border/50 bg-card/80 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="font-display">Subcontractor login</CardTitle>
+                  <CardDescription>Already registered? Sign in to your dashboard.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sc-email">Email</Label>
+                      <Input
+                        id="sc-email"
+                        type="email"
+                        placeholder="you@business.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sc-password">Password</Label>
+                      <Input
+                        id="sc-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Signing in...
+                        </>
+                      ) : (
+                        "Sign in"
+                      )}
+                    </Button>
+                    <p className="text-center text-sm text-muted-foreground">
+                      Don't have an account?{" "}
+                      <button
+                        type="button"
+                        onClick={() => navigate("/sub-contractors/signup")}
+                        className="text-primary hover:underline font-medium"
+                      >
+                        Create one
+                      </button>
+                    </p>
+                  </form>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        </div>
-      </section>
+            </div>
+          </section>
 
-      {/* How it works */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center mb-12">
-            <h2 className="text-3xl font-bold text-foreground mb-4">How It Works</h2>
-          </div>
-          <div className="grid md:grid-cols-4 gap-6 max-w-4xl mx-auto">
-            {[
-              { step: "1", title: "Create Account", desc: "Sign up with your email" },
-              { step: "2", title: "Verify ABN", desc: "Enter your ABN — we verify it instantly" },
-              { step: "3", title: "Complete Profile", desc: "Add your trade, experience & insurance" },
-              { step: "4", title: "Get Discovered", desc: "Builders find you in the directory" },
-            ].map((item) => (
-              <div key={item.step} className="text-center">
-                <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                  {item.step}
-                </div>
-                <h3 className="font-semibold text-foreground mb-1">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.desc}</p>
+          {/* Features */}
+          <section className="px-4 py-20 border-t border-border/20 bg-charcoal/40">
+            <div className="max-w-5xl mx-auto">
+              <div className="text-center mb-12">
+                <span className="eyebrow">Why join</span>
+                <h2 className="font-display text-3xl sm:text-4xl font-bold mt-4">
+                  Build trust. Get found.
+                </h2>
+                <p className="text-primary-foreground/65 mt-3 max-w-2xl mx-auto">
+                  Verified credentials and location matching that put you in front of the right businesses.
+                </p>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                {features.map((feature, i) => (
+                  <div
+                    key={i}
+                    className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur p-6"
+                  >
+                    <div className="rounded-lg border border-primary/25 bg-primary/10 p-2 inline-flex">
+                      <feature.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-display font-semibold text-lg mt-4">{feature.title}</h3>
+                    <p className="text-sm text-primary-foreground/65 mt-2">{feature.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
 
-      {/* CTA */}
-      <section className="py-16 bg-primary">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-primary-foreground mb-4">
-            Ready to Get Verified?
-          </h2>
-          <p className="text-lg text-primary-foreground/80 mb-8 max-w-2xl mx-auto">
-            Join Australia's verified concreting subcontractor network. Free to create your profile.
-          </p>
-          <Button
-            size="lg"
-            variant="secondary"
-            className="gap-2"
-            onClick={() => navigate("/sub-contractors/signup")}
-          >
-            Create Your Profile <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
-      </section>
+          {/* How it works */}
+          <section className="px-4 py-20">
+            <div className="max-w-4xl mx-auto">
+              <div className="text-center mb-12">
+                <span className="eyebrow">How it works</span>
+                <h2 className="font-display text-3xl sm:text-4xl font-bold mt-4">
+                  From signup to discovered in four steps.
+                </h2>
+              </div>
+              <div className="grid md:grid-cols-4 gap-6">
+                {[
+                  { step: "1", title: "Create account", desc: "Sign up with your email" },
+                  { step: "2", title: "Verify ABN", desc: "Enter your ABN — we verify it instantly" },
+                  { step: "3", title: "Complete profile", desc: "Add your trade, experience & insurance" },
+                  { step: "4", title: "Get discovered", desc: "Builders find you in the directory" },
+                ].map((item) => (
+                  <div key={item.step} className="text-center">
+                    <div className="w-12 h-12 bg-primary/15 border border-primary/30 text-primary rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-display font-bold">
+                      {item.step}
+                    </div>
+                    <h3 className="font-display font-semibold mb-1">{item.title}</h3>
+                    <p className="text-sm text-primary-foreground/65">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
 
-      {/* Footer */}
-      <footer className="py-8 border-t bg-card">
-        <div className="container mx-auto px-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <Logo />
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} PourHub. All rights reserved.
-          </p>
+          {/* CTA */}
+          <section className="bg-primary px-4 py-16">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="font-display text-3xl sm:text-4xl font-bold text-primary-foreground">
+                Ready to get verified?
+              </h2>
+              <p className="text-primary-foreground/85 mt-3">
+                Join Australia's verified concreting subcontractor network. Free to create your profile.
+              </p>
+              <div className="mt-7">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="h-12 px-7 touch-target font-medium"
+                  onClick={() => navigate("/sub-contractors/signup")}
+                >
+                  Create your profile
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </section>
         </div>
-      </footer>
-    </div>
+      </LandingShell>
+    </>
   );
 }

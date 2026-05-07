@@ -6,8 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { 
-  Loader2, 
+import {
+  Loader2,
   ArrowRight,
   FileText,
   ShoppingCart,
@@ -17,12 +17,10 @@ import {
   MapPin,
   Lock,
   DollarSign,
-  Award
 } from "lucide-react";
-import { Logo } from "@/components/ui/Logo";
+import { LandingShell } from "@/components/landing/LandingShell";
+import { SEOHead } from "@/components/seo/SEOHead";
 import { SupplierRegistrationDialog } from "@/components/suppliers/SupplierRegistrationDialog";
-import supplierConcretePour from "@/assets/supplier-concrete-pour.png";
-import supplierConcreteFinish from "@/assets/supplier-concrete-finish.png";
 
 export default function SuppliersLanding() {
   const [email, setEmail] = useState("");
@@ -37,11 +35,7 @@ export default function SuppliersLanding() {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
 
       if (data.session) {
@@ -54,7 +48,7 @@ export default function SuppliersLanding() {
         } else {
           await supabase.auth.signOut();
           toast({
-            title: "Access Denied",
+            title: "Access denied",
             description: "This account does not have supplier access.",
             variant: "destructive",
           });
@@ -62,7 +56,7 @@ export default function SuppliersLanding() {
       }
     } catch (error: any) {
       toast({
-        title: "Login Failed",
+        title: "Login failed",
         description: error.message || "Invalid email or password",
         variant: "destructive",
       });
@@ -85,19 +79,19 @@ export default function SuppliersLanding() {
     {
       icon: FileText,
       number: "1",
-      title: "RFQ Requests",
+      title: "RFQ requests",
       description: "Appear at the top of the supplier list when concreters request pricing.",
     },
     {
       icon: ShoppingCart,
       number: "2",
-      title: "PO Issuance",
+      title: "PO issuance",
       description: "Surfaced as preferred supplier when quotes convert to purchase orders.",
     },
     {
       icon: Repeat,
       number: "3",
-      title: "Repeat Orders",
+      title: "Repeat orders",
       description: "Become familiar and easy to reselect for future jobs.",
     },
   ];
@@ -105,22 +99,22 @@ export default function SuppliersLanding() {
   const benefits = [
     {
       icon: Target,
-      title: "Confirmed Intent Buyers",
+      title: "Confirmed-intent buyers",
       description: "Reach concreters actively quoting jobs and issuing POs — not casual browsers.",
     },
     {
       icon: Zap,
-      title: "Bypass Price-Shopping",
+      title: "Bypass price-shopping",
       description: "Default positioning reduces comparison and increases conversion speed.",
     },
     {
       icon: MapPin,
-      title: "Geographic Targeting",
+      title: "Geographic targeting",
       description: "State-based or region-based placements. Pay only for markets you service.",
     },
     {
       icon: Lock,
-      title: "Category Exclusivity",
+      title: "Category exclusivity",
       description: "Be the only sponsored supplier in your category for a state.",
     },
     {
@@ -130,219 +124,183 @@ export default function SuppliersLanding() {
     },
     {
       icon: DollarSign,
-      title: "No Commission",
+      title: "No commission",
       description: "No revenue share, no percentage of invoices. Pay for placement, not margin.",
     },
   ];
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Logo />
-          <span className="text-sm text-muted-foreground font-medium">Supplier Portal</span>
-        </div>
-      </header>
-
-      {/* Section 1: Hero + Login */}
-      <section className="py-16 md:py-24 relative overflow-hidden">
-        {/* Background image with overlay */}
-        <div className="absolute inset-0 z-0">
-          <img 
-            src={supplierConcretePour} 
-            alt="" 
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/95 to-background/80" />
-        </div>
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-medium mb-6">
-                <Award className="h-4 w-4" />
-                Preferred Supplier Placement
-              </div>
-              <h1 className="text-4xl md:text-5xl font-bold text-foreground mb-6 leading-tight">
-                Put your brand in front of concreters at the exact moment they place orders
-              </h1>
-              <p className="text-xl text-muted-foreground mb-8">
-                Supplier selection happens inside PourHub — not via Google, cold calls, or ads. Become the default option.
-              </p>
-              <Button size="lg" className="gap-2" onClick={() => setShowRegistrationDialog(true)}>
-                Register Interest <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-
-            {/* Login Card */}
-            <Card className="max-w-md mx-auto w-full lg:ml-auto">
-              <CardHeader>
-                <CardTitle>Supplier Login</CardTitle>
-                <CardDescription>
-                  Already a registered supplier? Sign in to your dashboard.
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleLogin} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="you@company.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Signing in...
-                      </>
-                    ) : (
-                      "Sign In"
-                    )}
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Section 2: How It Works */}
-      <section className="py-16 bg-card">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center mb-10">
-            <h2 className="text-3xl font-bold text-foreground mb-4">How It Works</h2>
-            <p className="text-lg text-muted-foreground mb-6">
-              PourHub is the operations platform concreters use to quote, schedule, and order materials. Your brand appears at critical moments in their workflow.
-            </p>
-            <div className="flex flex-wrap justify-center gap-2">
-              {supplierCategories.map((category, index) => (
-                <span 
-                  key={index} 
-                  className="bg-muted text-foreground px-3 py-1.5 rounded-full text-sm font-medium border"
-                >
-                  {category}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {/* Industry image banner */}
-          <div className="max-w-4xl mx-auto mb-10 rounded-xl overflow-hidden shadow-lg">
-            <img 
-              src={supplierConcreteFinish} 
-              alt="Professional concreter finishing a slab with hand tools" 
-              className="w-full h-48 md:h-64 object-cover"
-            />
-          </div>
-          
-          <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
-            {placementMoments.map((moment, index) => (
-              <Card key={index} className="text-center">
-                <CardContent className="pt-6">
-                  <div className="w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-bold">
-                    {moment.number}
-                  </div>
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <moment.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    {moment.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {moment.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Section 3: Why Choose PourHub */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center mb-10">
-            <h2 className="text-3xl font-bold text-foreground mb-4">Why PourHub</h2>
-            <p className="text-lg text-muted-foreground">
-              Better than traditional marketing. You pay for placement and access, not margin erosion.
-            </p>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
-            {benefits.map((benefit, index) => (
-              <Card key={index}>
-                <CardContent className="pt-6">
-                  <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center mb-4">
-                    <benefit.icon className="h-5 w-5 text-primary" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground mb-2">
-                    {benefit.title}
-                  </h3>
-                  <p className="text-sm text-muted-foreground">
-                    {benefit.description}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Section 4: CTA + Footer */}
-      <section className="py-16 bg-primary">
-        <div className="container mx-auto px-4">
-          <div className="max-w-2xl mx-auto text-center">
-            <h2 className="text-3xl font-bold text-primary-foreground mb-4">
-              Ready to Get Started?
-            </h2>
-            <p className="text-lg text-primary-foreground/80 mb-8">
-              Register your interest today and our team will be in touch about becoming a Preferred Supplier.
-            </p>
-            <Button 
-              size="lg" 
-              variant="secondary" 
-              className="gap-2"
-              onClick={() => setShowRegistrationDialog(true)}
-            >
-              Register Interest <ArrowRight className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="py-8 border-t bg-card">
-        <div className="container mx-auto px-4">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <Logo />
-            <p className="text-sm text-muted-foreground">
-              © {new Date().getFullYear()} PourHub. All rights reserved.
-            </p>
-          </div>
-        </div>
-      </footer>
-
-      {/* Registration Dialog */}
-      <SupplierRegistrationDialog 
-        open={showRegistrationDialog} 
-        onOpenChange={setShowRegistrationDialog} 
+    <>
+      <SEOHead
+        title="Preferred Supplier Placement | PourHub"
+        description="Put your brand in front of Australian concreters at the moment they place orders. Preferred supplier placements inside the PourHub workflow."
+        canonicalPath="/suppliers"
       />
-    </div>
+      <LandingShell ctaLabel="Register interest" onCtaClick={() => setShowRegistrationDialog(true)}>
+        <div className="bg-charcoal-dark text-primary-foreground">
+          {/* Hero + Login */}
+          <section className="px-4 pt-16 pb-20 sm:pt-20">
+            <div className="max-w-6xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
+              <div>
+                <span className="eyebrow">Preferred supplier placement</span>
+                <h1 className="font-display text-4xl md:text-5xl font-bold leading-[1.05] mt-5">
+                  Reach concreters at the<br />
+                  <span className="text-primary">moment they order.</span>
+                </h1>
+                <p className="mt-6 text-lg text-primary-foreground/70 max-w-xl">
+                  Supplier selection happens inside PourHub — not via Google, cold calls or ads. Become the default option in your category.
+                </p>
+                <div className="mt-7 flex flex-wrap gap-2">
+                  {supplierCategories.map((cat) => (
+                    <span
+                      key={cat}
+                      className="rounded-full border border-border/40 bg-charcoal/60 px-3 py-1.5 text-xs text-primary-foreground/80"
+                    >
+                      {cat}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-8">
+                  <Button size="lg" className="h-12 px-7 touch-target font-medium" onClick={() => setShowRegistrationDialog(true)}>
+                    Register interest
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+
+              {/* Login Card */}
+              <Card className="w-full max-w-md mx-auto lg:ml-auto rounded-2xl border-border/50 bg-card/80 backdrop-blur">
+                <CardHeader>
+                  <CardTitle className="font-display">Supplier login</CardTitle>
+                  <CardDescription>Already a registered supplier? Sign in to your dashboard.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleLogin} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="sup-email">Email</Label>
+                      <Input
+                        id="sup-email"
+                        type="email"
+                        placeholder="you@company.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="sup-password">Password</Label>
+                      <Input
+                        id="sup-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={isLoading}>
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Signing in...
+                        </>
+                      ) : (
+                        "Sign in"
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </div>
+          </section>
+
+          {/* Placement moments */}
+          <section className="px-4 py-20 border-t border-border/20 bg-charcoal/40">
+            <div className="max-w-5xl mx-auto">
+              <div className="text-center mb-12">
+                <span className="eyebrow">How it works</span>
+                <h2 className="font-display text-3xl sm:text-4xl font-bold mt-4">
+                  Three moments your brand appears.
+                </h2>
+                <p className="text-primary-foreground/65 mt-3 max-w-2xl mx-auto">
+                  PourHub is the operations platform concreters use to quote, schedule and order materials. You appear at the critical moments.
+                </p>
+              </div>
+              <div className="grid md:grid-cols-3 gap-6">
+                {placementMoments.map((moment, i) => (
+                  <div
+                    key={i}
+                    className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur p-6 text-center"
+                  >
+                    <div className="w-12 h-12 bg-primary/15 border border-primary/30 text-primary rounded-full flex items-center justify-center mx-auto mb-4 text-xl font-display font-bold">
+                      {moment.number}
+                    </div>
+                    <div className="rounded-lg border border-primary/25 bg-primary/10 p-2 inline-flex mb-3">
+                      <moment.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-display font-semibold text-lg">{moment.title}</h3>
+                    <p className="text-sm text-primary-foreground/65 mt-2">{moment.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Benefits */}
+          <section className="px-4 py-20">
+            <div className="max-w-5xl mx-auto">
+              <div className="text-center mb-12">
+                <span className="eyebrow">Why PourHub</span>
+                <h2 className="font-display text-3xl sm:text-4xl font-bold mt-4">
+                  Pay for placement, not margin.
+                </h2>
+              </div>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {benefits.map((benefit, i) => (
+                  <div
+                    key={i}
+                    className="rounded-2xl border border-border/40 bg-card/60 backdrop-blur p-6"
+                  >
+                    <div className="rounded-lg border border-primary/25 bg-primary/10 p-2 inline-flex">
+                      <benefit.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <h3 className="font-display font-semibold text-lg mt-4">{benefit.title}</h3>
+                    <p className="text-sm text-primary-foreground/65 mt-2">{benefit.description}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* CTA */}
+          <section className="bg-primary px-4 py-16">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="font-display text-3xl sm:text-4xl font-bold text-primary-foreground">
+                Ready to get started?
+              </h2>
+              <p className="text-primary-foreground/85 mt-3">
+                Register your interest and our team will be in touch about becoming a Preferred Supplier.
+              </p>
+              <div className="mt-7">
+                <Button
+                  size="lg"
+                  variant="secondary"
+                  className="h-12 px-7 touch-target font-medium"
+                  onClick={() => setShowRegistrationDialog(true)}
+                >
+                  Register interest
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </LandingShell>
+
+      <SupplierRegistrationDialog
+        open={showRegistrationDialog}
+        onOpenChange={setShowRegistrationDialog}
+      />
+    </>
   );
 }

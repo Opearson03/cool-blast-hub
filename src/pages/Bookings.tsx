@@ -1,13 +1,12 @@
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Logo } from "@/components/ui/Logo";
 import { BookingCalendar } from "@/components/bookings/BookingCalendar";
 import { BookingForm, type BookingFormData } from "@/components/bookings/BookingForm";
 import { BookingConfirmation } from "@/components/bookings/BookingConfirmation";
 import { SEOHead } from "@/components/seo/SEOHead";
+import { LandingShell } from "@/components/landing/LandingShell";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
 
 export default function Bookings() {
   const [selectedDate, setSelectedDate] = useState<Date>();
@@ -115,79 +114,68 @@ export default function Bookings() {
         canonicalPath="/bookings"
       />
 
-      <div className="min-h-screen bg-background">
-        {/* Header */}
-        <nav className="sticky top-0 z-50 bg-charcoal-dark/80 backdrop-blur-md border-b border-border/20">
-          <div className="max-w-6xl mx-auto flex items-center justify-between px-4 py-3">
-            <Link to="/" className="flex items-center gap-2">
-              <Logo size="sm" className="w-8 h-8 rounded-lg" />
-              <span className="text-xl font-bold text-primary-foreground">
-                Pour<span className="text-primary">Hub</span>
-              </span>
-            </Link>
-            <Link to="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-              ← Back to Home
-            </Link>
-          </div>
-        </nav>
+      <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Start free" secondaryHref="/" secondaryLabel="Home">
+        <div className="bg-charcoal-dark text-primary-foreground">
+          <main className="container mx-auto px-4 py-12 max-w-5xl">
+            {confirmation ? (
+              <BookingConfirmation
+                bookingTime={confirmation.bookingTime}
+                zoomLink={confirmation.zoomLink}
+                name={confirmation.name}
+                email={confirmation.email}
+                company={confirmation.company}
+              />
+            ) : (
+              <>
+                {/* Hero */}
+                <div className="text-center mb-12">
+                  <span className="eyebrow">Free walkthrough</span>
+                  <h1 className="font-display text-4xl md:text-5xl font-bold mt-4 leading-tight">
+                    Book a free PourHub<br />
+                    <span className="text-primary">onboarding call.</span>
+                  </h1>
+                  <p className="text-primary-foreground/70 text-lg max-w-2xl mx-auto mt-5">
+                    A quick 30-minute Zoom with our team. We'll show you how to create quotes
+                    in PourHub and help you set up your first job.
+                  </p>
+                </div>
 
-        <main className="container mx-auto px-4 py-8 max-w-5xl">
-          {confirmation ? (
-            <BookingConfirmation
-              bookingTime={confirmation.bookingTime}
-              zoomLink={confirmation.zoomLink}
-              name={confirmation.name}
-              email={confirmation.email}
-              company={confirmation.company}
-            />
-          ) : (
-            <>
-              {/* Hero */}
-              <div className="text-center mb-10">
-                <h1 className="text-3xl md:text-4xl font-bold text-foreground mb-3">
-                  Book a free PourHub onboarding call
-                </h1>
-                <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-                  Book a quick 30 minute Zoom call with our team. We'll show you how to
-                  create quotes with PourHub and help you set up your first job.
-                </p>
-              </div>
-
-              {/* Two-column layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <BookingCalendar
-                  selectedDate={selectedDate}
-                  selectedTime={selectedTime}
-                  onDateSelect={(date) => {
-                    setSelectedDate(date);
-                    setSelectedTime(undefined);
-                  }}
-                  onTimeSelect={setSelectedTime}
-                  bookedSlots={bookedSlots}
-                  timezone="Australia/Sydney"
-                />
-
-                {selectedDate && selectedTime ? (
-                  <BookingForm
+                {/* Two-column layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  <BookingCalendar
                     selectedDate={selectedDate}
                     selectedTime={selectedTime}
-                    onSubmit={handleSubmit}
-                    isSubmitting={isSubmitting}
+                    onDateSelect={(date) => {
+                      setSelectedDate(date);
+                      setSelectedTime(undefined);
+                    }}
+                    onTimeSelect={setSelectedTime}
+                    bookedSlots={bookedSlots}
+                    timezone="Australia/Sydney"
                   />
-                ) : (
-                  <div className="flex items-center justify-center rounded-lg border border-dashed bg-muted/30 p-8">
-                    <p className="text-muted-foreground text-center">
-                      {!selectedDate
-                        ? "Select a date to see available times"
-                        : "Select a time slot to continue"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </main>
-      </div>
+
+                  {selectedDate && selectedTime ? (
+                    <BookingForm
+                      selectedDate={selectedDate}
+                      selectedTime={selectedTime}
+                      onSubmit={handleSubmit}
+                      isSubmitting={isSubmitting}
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center rounded-2xl border border-dashed border-border/50 bg-card/40 backdrop-blur p-8">
+                      <p className="text-primary-foreground/60 text-center">
+                        {!selectedDate
+                          ? "Select a date to see available times"
+                          : "Select a time slot to continue"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </main>
+        </div>
+      </LandingShell>
     </>
   );
 }
