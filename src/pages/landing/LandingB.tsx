@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { ArrowRight, FileText, PenTool, Award, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
-import heroBg from "@/assets/concrete-finishing.jpg";
+import heroBg from "@/assets/lp-b-finishing.jpg";
 
 export default function LandingB() {
   const { trackCTA } = useLandingTracker("b");
