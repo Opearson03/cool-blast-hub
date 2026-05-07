@@ -23,6 +23,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import type { Tables } from "@/integrations/supabase/types";
 import { PendingDocumentsSheet } from "@/components/jobs/PendingDocumentsSheet";
+import { SiteDiarySection } from "@/components/jobs/tabs/diary/SiteDiarySection";
 
 type Document = Tables<"documents"> & { subfolder?: string };
 
