@@ -125,13 +125,13 @@ export async function recordLandingConversion(metadata?: Record<string, unknown>
   fireGtag("landing_signup_completed", { variant, ...(metadata ?? {}) });
 
   try {
-    await supabase.from("landing_page_events").insert({
+    await supabase.from("landing_page_events").insert([{
       variant,
       event_type: "signup_completed",
-      session_id,
-      path: typeof window !== "undefined" ? window.location.pathname : null,
-      metadata: metadata ?? null,
-    });
+      session_id: session_id ?? undefined,
+      path: typeof window !== "undefined" ? window.location.pathname : undefined,
+      metadata: (metadata ?? null) as never,
+    }]);
   } catch (err) {
     console.warn("[lp-tracker] conversion insert failed", err);
   }
