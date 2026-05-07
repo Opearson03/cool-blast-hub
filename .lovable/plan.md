@@ -1,40 +1,31 @@
-## Goal
-Bring `/eofy` in line with the new landing-page design language used on `/lp/a`, `/lp/b`, `/lp/c` (and matching the main `/`): shared `LandingShell` chrome, `font-display` headings, `eyebrow` chips, consistent logo size + rounded corners.
+Bring `/articles` (index) and individual article pages in line with the new landing-page design language (font-display headings, eyebrow chips, primary accents, LandingShell chrome).
 
-## Current vs target
+## Scope
 
-| Element | EOFY today | Target (new design language) |
-|---|---|---|
-| Header | Bespoke header, `Logo size="lg"` (40px) + `text-2xl` wordmark, "Sign In" outline button | Use `<LandingShell>` → sticky `bg-charcoal-dark/95` header, `Logo size="sm" w-8 h-8 rounded-lg` + `text-lg font-display` wordmark, single primary CTA |
-| Footer | Bespoke charcoal footer with 3 links | `<LandingShell>` footer (Privacy / Terms) — drop "All Plans" link or keep as third item |
-| Headings (h1/h2/h3) | `font-bold` (Inter) | `font-display font-bold` (Space Grotesk) |
-| Eyebrow chips | Custom `Badge` components (e.g. "🔥 EOFY SALE", "💰 TAX DEDUCTION", "EOFY DEAL") | Replace top-of-section chips with `<span className="eyebrow text-primary">` style; keep card-level "EOFY DEAL" / "BEST VALUE" badges as-is (they're functional pricing badges, not section eyebrows) |
-| Page background | `bg-charcoal-dark` | Keep — same as new pages |
+Two files only — presentation changes, no data/routing changes.
 
-## Changes — single file: `src/pages/EOFY.tsx`
+### 1. `src/pages/Articles.tsx`
+- Wrap content in `<LandingShell ctaHref="/signup" ctaLabel="Try PourHub free">` — removes bespoke header + footer.
+- Hero:
+  - Add eyebrow chip above h1: `<span className="eyebrow text-primary">Knowledge base</span>`
+  - Add `font-display` to h1, bump weight/tracking to match landing hero scale.
+- Category filter pills: keep functionality, restyle to match landing pill style (rounded-full, border, hover states using semantic tokens).
+- Article grid: unchanged structure, but `ArticleCard` gets a light refresh (below).
 
-1. **Wrap content in `<LandingShell>`**
-   - Import `LandingShell` from `@/components/landing/LandingShell`.
-   - `ctaHref="/signup?tier=pro&interval=annual"`, `ctaLabel="Get EOFY deal"`.
-   - Remove the bespoke `<header>` (lines 29–43) and bespoke `<footer>` (lines 237–256).
-   - Drop the outer `<div className="min-h-screen bg-charcoal-dark">` wrapper (LandingShell handles it). Apply `bg-charcoal-dark` to `<main>` content sections instead, or wrap children in a charcoal-dark container so the visual feel stays the same.
+### 2. `src/components/articles/ArticleCard.tsx`
+- Add `font-display` to the card title.
+- Replace `bg-primary/10` category chip with the `eyebrow` style for consistency.
+- Slightly stronger hover (border + subtle lift) to match landing card treatment.
 
-2. **Typography pass**
-   - Add `font-display` to every h1/h2/h3 in the file (hero h1, "Claim It as a Business Expense", "Why Go Annual?", "Don't Miss Out", card h2s).
-
-3. **Eyebrow chips**
-   - Replace the destructive Badge "🔥 EOFY SALE — LIMITED TIME" with `<span className="eyebrow text-primary">EOFY sale — limited time</span>`.
-   - Replace the "💰 TAX DEDUCTION" Badge with `<span className="eyebrow text-primary">Tax deduction</span>`.
-   - Keep the in-card `Badge`s ("EOFY DEAL", "BEST VALUE") unchanged — they're pricing-card chrome, consistent with shadcn Badge use elsewhere.
-
-4. **Sign-in link**
-   - Removed when we switch to LandingShell (which only renders the single primary CTA). Acceptable trade-off for visual consistency; users can still reach `/auth` from `/pricing` and the main nav.
+### 3. `src/components/articles/ArticleLayout.tsx` (individual article pages)
+- Replace bespoke header with the same sticky header pattern used in LandingShell (Logo + wordmark + small "All Articles" link on the right). Cannot use LandingShell directly because article pages need the "All Articles" link instead of a CTA button — so mirror its styling inline.
+- Add `font-display` to h1 and to prose `h2`/`h3` (via prose class overrides).
+- Restyle category chip in article header to `eyebrow` style.
+- Footer: simplify to match LandingShell footer (copyright left, Privacy/Terms right).
+- Bottom CTA strip: keep, but restyle heading with `font-display` and use `bg-primary` accent button matching EOFY/landing CTA section.
 
 ## Out of scope
-- Pricing data, tier feature lists, copy, tax-deduction wording.
-- Stripe / signup routing.
-- Any change to `LandingShell` itself.
-- New images or hero photos (EOFY is currently solid charcoal — leaving it that way).
-
-## Verification
-After the edit, visit `/eofy` and confirm: dark sticky header with small rounded PourHub logo + wordmark matches `/lp/c`; headings render in Space Grotesk; eyebrow chips have the same uppercase tracked styling as `/`; footer matches the ABC pages.
+- Article body content (MDX/TSX article files)
+- TOC, RelatedArticles, ArticleSchema components
+- Routing, SEO metadata, data in `src/data/articles.ts`
+- Any new images
