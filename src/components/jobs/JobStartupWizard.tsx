@@ -288,9 +288,6 @@ export function JobStartupWizard({ open, onOpenChange, job, onComplete }: JobSta
                   {job.name} • {job.job_number}
                 </DialogDescription>
               </div>
-              <Button variant="ghost" size="sm" onClick={handleSkip} className="text-muted-foreground">
-                Skip
-              </Button>
             </div>
           </DialogHeader>
 
