@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Building2, UserPlus } from "lucide-react";
+import { Loader2, Building2, UserPlus } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { LandingShell } from "@/components/landing/LandingShell";
 import { usePlatform } from "@/hooks/usePlatform";
