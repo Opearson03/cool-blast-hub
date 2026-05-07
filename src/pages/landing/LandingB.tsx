@@ -27,10 +27,10 @@ export default function LandingB() {
           <div className="absolute inset-0 bg-black/70" aria-hidden />
           <div className="container relative mx-auto px-4 max-w-5xl grid lg:grid-cols-2 gap-12 items-center text-white">
             <div>
-              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur text-white px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/20">
+              <span className="eyebrow text-white/90 inline-flex items-center gap-2 mb-6">
                 <Trophy className="h-4 w-4" /> Win more work
-              </div>
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 leading-tight">
+              </span>
+              <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 leading-tight">
                 Send quotes that <span className="text-primary">win</span>.
               </h1>
               <p className="text-xl text-white/85 mb-8">
@@ -106,7 +106,7 @@ export default function LandingB() {
         {/* Closing CTA */}
         <section className="py-20 bg-primary">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
               Win the next job.
             </h2>
             <p className="text-lg text-primary-foreground/80 mb-8">
