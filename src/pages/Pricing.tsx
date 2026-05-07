@@ -80,12 +80,12 @@ const Pricing = () => {
   return (
     <>
       <SEOHead
-        title="PourHub Pricing — Free, Estimating & Pro Plans | Concreting Software Australia"
-        description="Simple pricing for PourHub. Start free, upgrade to Estimating from $99/month or Pro from $199/month. No lock-in, cancel anytime."
+        title="PourHub Pricing — Estimating & Pro Plans | Concreting Software Australia"
+        description="Simple paid pricing for PourHub. Estimating from $99/month or Pro from $199/month. No lock-in, cancel anytime."
         canonicalPath="/pricing"
         keywords="concreting software pricing, construction management software cost, concrete quoting software"
       />
-      <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Start free">
+      <LandingShell ctaHref="/signup?tier=pro" ctaLabel="Get started">
         <div className="bg-charcoal-dark text-primary-foreground">
           {/* Hero */}
           <section className="px-4 pt-16 pb-10 sm:pt-20">
@@ -96,12 +96,12 @@ const Pricing = () => {
                 <span className="text-primary">No surprises.</span>
               </h1>
               <p className="mt-6 text-lg text-primary-foreground/70 max-w-2xl mx-auto">
-                Start free with 2 quotes a month — upgrade when you're ready. No credit card to start, cancel anytime.
+                Plans start at $99/month. Month-to-month, no lock-in, cancel anytime.
               </p>
 
               {/* Trust strip */}
               <div className="mt-7 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs sm:text-sm text-primary-foreground/55 uppercase tracking-wider font-medium">
-                <span>No credit card to start</span>
+                <span>No lock-in contract</span>
                 <span className="text-primary/40">•</span>
                 <span>Cancel anytime</span>
                 <span className="text-primary/40">•</span>
