@@ -9,7 +9,8 @@ import heroBg from "@/assets/lp-c-jobsite.jpg";
 
 export default function LandingC() {
   const { trackCTA } = useLandingTracker("c");
-  const ctaHref = "/pricing?variant=c";
+  const ctaHref = "/signup?tier=pro&interval=monthly&variant=c";
+  const ctaLabel = "Try it now — $199/mo";
 
   return (
     <>
