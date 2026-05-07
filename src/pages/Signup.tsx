@@ -8,8 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ArrowLeft, Check, AlertCircle } from "lucide-react";
+import { Loader2, Check, AlertCircle } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
+import { LandingShell } from "@/components/landing/LandingShell";
 import { SUBSCRIPTION_TIERS } from "@/lib/subscription-tiers";
 import { useAuth } from "@/contexts/AuthContext";
 
