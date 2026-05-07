@@ -26,10 +26,10 @@ export default function LandingC() {
         >
           <div className="absolute inset-0 bg-black/65" aria-hidden />
           <div className="container relative mx-auto px-4 max-w-4xl text-center text-white">
-            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur text-white px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/20">
+            <span className="eyebrow text-white/90 inline-block mb-6">
               From quote to paid
-            </div>
-            <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
+            </span>
+            <h1 className="font-display text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
               One system. <br className="md:hidden" />
               <span className="text-primary">Whole concreting business.</span>
             </h1>
@@ -91,7 +91,7 @@ export default function LandingC() {
         {/* Closing CTA */}
         <section className="py-20 bg-primary">
           <div className="container mx-auto px-4 text-center">
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
               Run the whole job from one place.
             </h2>
             <p className="text-lg text-primary-foreground/80 mb-8">
