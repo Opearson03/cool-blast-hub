@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { ArrowRight, FileText, PenTool, Award, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
+import heroBg from "@/assets/concrete-finishing.jpg";
 
 export default function LandingB() {
   const { trackCTA } = useLandingTracker("b");
@@ -17,27 +18,32 @@ export default function LandingB() {
         description="Branded PDF quotes with e-signature and a client portal. Stop losing jobs to slicker competitors — look the part on every quote."
         canonicalPath="/lp/b"
       />
-      <LandingShell ctaHref={ctaHref} onCtaClick={() => trackCTA("header")}>
-        {/* Hero */}
-        <section className="py-20 md:py-28 bg-gradient-to-br from-background via-background to-primary/5">
-          <div className="container mx-auto px-4 max-w-5xl grid lg:grid-cols-2 gap-12 items-center">
+      <LandingShell ctaHref={ctaHref} ctaLabel="See plans" onCtaClick={() => trackCTA("header")}>
+        {/* Hero with finishing background */}
+        <section
+          className="relative py-20 md:py-28 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroBg})` }}
+        >
+          <div className="absolute inset-0 bg-black/70" aria-hidden />
+          <div className="container relative mx-auto px-4 max-w-5xl grid lg:grid-cols-2 gap-12 items-center text-white">
             <div>
-              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-6">
+              <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur text-white px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/20">
                 <Trophy className="h-4 w-4" /> Win more work
               </div>
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-6 leading-tight">
                 Send quotes that <span className="text-primary">win</span>.
               </h1>
-              <p className="text-xl text-muted-foreground mb-8">
+              <p className="text-xl text-white/85 mb-8">
                 Polished PDF quotes with your logo, your colours, and one-click e-signature. Look like the most professional concreter in town — because you are.
               </p>
               <Button size="lg" asChild className="h-14 px-8 text-base" onClick={() => trackCTA("hero")}>
                 <Link to={ctaHref}>
-                  Try free for 14 days <ArrowRight className="ml-2 h-5 w-5" />
+                  See plans <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
+              <p className="text-sm text-white/70 mt-4">From $99/mo. Cancel anytime.</p>
             </div>
-            <Card className="shadow-2xl rotate-1">
+            <Card className="shadow-2xl rotate-1 text-foreground">
               <CardContent className="p-8 space-y-3">
                 <div className="h-3 w-1/3 bg-primary rounded" />
                 <div className="h-2 w-2/3 bg-muted rounded" />
@@ -108,7 +114,7 @@ export default function LandingB() {
             </p>
             <Button size="lg" variant="secondary" asChild className="h-14 px-8" onClick={() => trackCTA("footer")}>
               <Link to={ctaHref}>
-                Start free trial <ArrowRight className="ml-2 h-5 w-5" />
+                See plans <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
           </div>

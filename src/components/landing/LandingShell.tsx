@@ -18,7 +18,7 @@ interface LandingShellProps {
 export function LandingShell({
   children,
   ctaHref,
-  ctaLabel = "Start Free Trial",
+  ctaLabel = "Get started",
   onCtaClick,
 }: LandingShellProps) {
   return (

@@ -5,10 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { SEOHead } from "@/components/seo/SEOHead";
 import { ArrowRight, Clock, Zap, Calculator, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import heroBg from "@/assets/hero-concrete-pour.jpg";
 
 export default function LandingA() {
   const { trackCTA } = useLandingTracker("a");
-  const ctaHref = "/pricing?variant=a";
+  // Variant A: Try it now → straight to signup → Stripe checkout (Estimating, $99/mo)
+  const ctaHref = "/signup?tier=estimating&interval=monthly&variant=a";
+  const ctaLabel = "Try it now — $99/mo";
 
   return (
     <>
@@ -17,26 +20,30 @@ export default function LandingA() {
         description="Stop losing nights to quoting. PourHub's takeoff and pricing engine builds detailed concrete quotes in minutes — not hours."
         canonicalPath="/lp/a"
       />
-      <LandingShell ctaHref={ctaHref} onCtaClick={() => trackCTA("header")}>
-        {/* Hero */}
-        <section className="py-20 md:py-28 bg-gradient-to-br from-background via-background to-primary/10">
-          <div className="container mx-auto px-4 max-w-4xl text-center">
-            <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full text-sm font-semibold mb-6">
+      <LandingShell ctaHref={ctaHref} ctaLabel="Try it now" onCtaClick={() => trackCTA("header")}>
+        {/* Hero with concreting background */}
+        <section
+          className="relative py-20 md:py-32 bg-cover bg-center"
+          style={{ backgroundImage: `url(${heroBg})` }}
+        >
+          <div className="absolute inset-0 bg-black/65" aria-hidden />
+          <div className="container relative mx-auto px-4 max-w-4xl text-center text-white">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur text-white px-4 py-2 rounded-full text-sm font-semibold mb-6 border border-white/20">
               <Zap className="h-4 w-4" /> Built for concreters
             </div>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6 leading-tight">
               Quote a slab in <span className="text-primary">10 minutes</span>.
               <br />Not 3 hours.
             </h1>
-            <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            <p className="text-xl md:text-2xl text-white/85 mb-8 max-w-2xl mx-auto">
               Drop a plan, click your areas, get a fully-priced concrete quote ready to send. No spreadsheets. No guesswork.
             </p>
             <Button size="lg" asChild className="h-14 px-8 text-base" onClick={() => trackCTA("hero")}>
               <Link to={ctaHref}>
-                Start free trial <ArrowRight className="ml-2 h-5 w-5" />
+                {ctaLabel} <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
-            <p className="text-sm text-muted-foreground mt-4">No credit card • 14-day trial</p>
+            <p className="text-sm text-white/70 mt-4">Cancel anytime • Monthly or annual</p>
           </div>
         </section>
 
@@ -80,11 +87,11 @@ export default function LandingA() {
               Get your weekends back.
             </h2>
             <p className="text-lg text-primary-foreground/80 mb-8">
-              Try PourHub free for 14 days. Cancel anytime.
+              $99/mo. Cancel anytime. Be quoting in under 5 minutes.
             </p>
             <Button size="lg" variant="secondary" asChild className="h-14 px-8" onClick={() => trackCTA("footer")}>
               <Link to={ctaHref}>
-                Start free trial <ArrowRight className="ml-2 h-5 w-5" />
+                {ctaLabel} <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
           </div>
