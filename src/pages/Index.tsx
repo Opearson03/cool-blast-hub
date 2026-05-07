@@ -143,7 +143,7 @@ const Index = () => {
                 <div className="mt-9 flex flex-wrap items-center gap-4">
                   <Link to={signupHref}>
                     <Button size="lg" className="text-base px-7 h-12 touch-target font-medium shadow-lg shadow-primary/20">
-                      Start free trial
+                      Get started
                       <ArrowRight className="ml-2 w-5 h-5" />
                     </Button>
                   </Link>
