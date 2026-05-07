@@ -100,7 +100,7 @@ export default function LandingC() {
             </p>
             <Button size="lg" variant="secondary" asChild className="h-14 px-8" onClick={() => trackCTA("footer")}>
               <Link to={ctaHref}>
-                See plans <ArrowRight className="ml-2 h-5 w-5" />
+                {ctaLabel} <ArrowRight className="ml-2 h-5 w-5" />
               </Link>
             </Button>
           </div>
