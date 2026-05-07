@@ -112,15 +112,9 @@ export default function Signup() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-charcoal-dark">
-      <div className="p-4">
-        <Link to="/pricing" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary-foreground transition-colors">
-          <ArrowLeft className="w-4 h-4" />
-          Back to pricing
-        </Link>
-      </div>
-      
-      <div className="flex-1 flex items-center justify-center p-4">
+    <LandingShell ctaHref="/pricing" ctaLabel="Pricing" secondaryHref="/auth" secondaryLabel="Sign in">
+      <div className="bg-charcoal-dark min-h-[calc(100vh-8rem)] flex flex-col">
+        <div className="flex-1 flex items-center justify-center p-4 py-10">
         {isSubcontractor ? (
           <Card className="w-full max-w-md text-center">
             <CardHeader>
