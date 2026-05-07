@@ -340,7 +340,7 @@ export default function AdminJobDetail() {
       {/* Job Startup Wizard */}
       <JobStartupWizard
         open={isStartupOpen}
-        onOpenChange={setIsStartupOpen}
+        onOpenChange={handleStartupOpenChange}
         job={{
           id: job.id,
           name: job.name,
