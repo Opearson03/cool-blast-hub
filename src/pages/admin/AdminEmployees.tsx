@@ -389,6 +389,8 @@ export default function AdminEmployees() {
                   Team ({employees.length})
                   {pendingInvites.length > 0 ? ` • +${pendingInvites.length} pending` : ""}
                 </SelectItem>
+                <SelectItem value="crews">Crews</SelectItem>
+                <SelectItem value="chat">Chat</SelectItem>
                 <SelectItem value="timesheets">Timesheets</SelectItem>
                 <SelectItem value="leave">
                   Leave{pendingLeaveCount > 0 ? ` (${pendingLeaveCount})` : ""}
@@ -407,6 +409,11 @@ export default function AdminEmployees() {
                     +{pendingInvites.length} pending
                   </Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="crews">Crews</TabsTrigger>
+              <TabsTrigger value="chat">
+                <MessageCircle className="w-4 h-4 mr-1" />
+                Chat
               </TabsTrigger>
               <TabsTrigger value="timesheets">
                 <Clock className="w-4 h-4 mr-1" />
