@@ -1,4 +1,11 @@
 // Subscription tier configuration - Free, Estimating ($99/mo), Pro ($199/mo)
+
+// Per-seat team billing: first 2 seats free, then $5/seat/month
+export const FREE_TEAM_SEATS = 2;
+export const TEAM_SEAT_PRICE_CENTS = 500;
+export const TEAM_SEAT_PRICE_ID = "price_1TUfFSS7UIjxyz7VonfOuRBf";
+export const TEAM_SEAT_PRODUCT_ID = "prod_UTcUhHmhPAyOqh";
+
 export const SUBSCRIPTION_TIERS = {
   free: {
     name: "Free",

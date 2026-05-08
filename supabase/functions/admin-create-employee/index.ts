@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { syncSeatQuantity } from "../_shared/seat-sync.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -81,23 +82,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Employee limit check
-    const { count: empCount } = await admin
+    // Per-seat billing handles overages; no hard cap. Just record current count for proration.
+    const { count: prevEmpCount } = await admin
       .from("profiles")
       .select("id", { count: "exact", head: true })
       .eq("business_id", businessId);
-    const { data: sub } = await admin
-      .from("business_subscriptions")
-      .select("employee_limit")
-      .eq("business_id", businessId)
-      .maybeSingle();
-    const empLimit = sub?.employee_limit ?? 5;
-    if ((empCount ?? 0) >= empLimit) {
-      return new Response(
-        JSON.stringify({ error: `Employee limit reached (${empCount}/${empLimit}). Upgrade to add more.` }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
 
     // Check duplicate email
     const { data: existing } = await admin.auth.admin.listUsers();
@@ -137,8 +126,19 @@ Deno.serve(async (req) => {
     // Assign role
     await admin.from("user_roles").insert({ user_id: newUserId, role });
 
+    // Sync per-seat Stripe billing
+    const seat = await syncSeatQuantity(admin, businessId, {
+      previousCount: prevEmpCount ?? 0,
+    });
+
     return new Response(
-      JSON.stringify({ success: true, user_id: newUserId, email, temp_password: password }),
+      JSON.stringify({
+        success: true,
+        user_id: newUserId,
+        email,
+        temp_password: password,
+        seat,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {

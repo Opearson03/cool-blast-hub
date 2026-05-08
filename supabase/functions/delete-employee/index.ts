@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { syncSeatQuantity } from "../_shared/seat-sync.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -141,6 +142,14 @@ serve(async (req) => {
       }
 
       console.log("Successfully deleted employee:", employeeId);
+
+      // Sync per-seat Stripe billing (decrement at next cycle)
+      try {
+        await syncSeatQuantity(supabaseAdmin, adminProfile.business_id);
+      } catch (err) {
+        console.error("seat sync failed (non-fatal)", err);
+      }
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

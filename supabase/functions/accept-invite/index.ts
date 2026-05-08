@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.7";
+import { syncSeatQuantity } from "../_shared/seat-sync.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -174,6 +175,13 @@ serve(async (req) => {
     }
 
     console.log(`[ACCEPT-INVITE] Success inviteId=${invite.id} role=${invite.role}`);
+
+    // Sync per-seat Stripe billing for the inviting business
+    try {
+      await syncSeatQuantity(supabase, invitedBusinessId);
+    } catch (err) {
+      console.error("[ACCEPT-INVITE] seat sync failed (non-fatal)", err);
+    }
 
     return new Response(
       JSON.stringify({ success: true, role: invite.role, businessId: invitedBusinessId }),

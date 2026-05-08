@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -20,8 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, AlertTriangle, Copy } from "lucide-react";
-import { useSubscription } from "@/hooks/useSubscription";
+import { Loader2, Copy, Users, DollarSign } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface InviteEmployeeDialogProps {
@@ -29,16 +28,24 @@ interface InviteEmployeeDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+interface SeatPreview {
+  employeeCount: number;
+  freeSeats: number;
+  currentPaidSeats: number;
+  perSeatPriceCents: number;
+  nextSeatCharged: boolean;
+  nextMonthlyExtraCents: number;
+  isExempt: boolean;
+  hasActiveSubscription: boolean;
+}
+
 export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialogProps) {
   const [tab, setTab] = useState<"invite" | "create">("invite");
 
-  // Invite form
   const [email, setEmail] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<"admin" | "staff">("staff");
-  const [limitError, setLimitError] = useState<string | null>(null);
 
-  // Direct-create form
   const [cName, setCName] = useState("");
   const [cEmail, setCEmail] = useState("");
   const [cPassword, setCPassword] = useState("");
@@ -47,7 +54,6 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { checkEmployeeLimit } = useSubscription();
 
   const { data: userProfile } = useQuery({
     queryKey: ["current-user-profile"],
@@ -72,16 +78,25 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
     },
   });
 
+  const { data: seat, refetch: refetchSeat } = useQuery<SeatPreview | null>({
+    queryKey: ["seat-preview"],
+    enabled: open,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("preview-seat-cost");
+      if (error) {
+        console.error("seat preview error", error);
+        return null;
+      }
+      return data as SeatPreview;
+    },
+  });
+
+  useEffect(() => {
+    if (open) refetchSeat();
+  }, [open, refetchSeat]);
+
   const inviteMutation = useMutation({
     mutationFn: async () => {
-      setLimitError(null);
-      const limitCheck = await checkEmployeeLimit();
-      if (!limitCheck.canAdd && !limitCheck.isExempt) {
-        throw new Error(
-          `You've reached your employee limit (${limitCheck.currentCount}/${limitCheck.limit}). Upgrade your plan to add more employees.`,
-        );
-      }
-
       const { data: userData } = await supabase.auth.getUser();
       const { error } = await supabase.from("pending_invites").insert({
         email: email.toLowerCase().trim(),
@@ -105,19 +120,15 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pending-invites"] });
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["seat-preview"] });
       toast({ title: "Invite sent", description: `${fullName} can now sign up at the login page.` });
       onOpenChange(false);
       setEmail("");
       setFullName("");
       setRole("staff");
-      setLimitError(null);
     },
     onError: (error) => {
-      if (error.message.includes("employee limit")) {
-        setLimitError(error.message);
-      } else {
-        toast({ title: "Error", description: error.message, variant: "destructive" });
-      }
+      toast({ title: "Error", description: error.message, variant: "destructive" });
     },
   });
 
@@ -137,6 +148,7 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["employees"] });
+      queryClient.invalidateQueries({ queryKey: ["seat-preview"] });
       setCreatedCreds({ email: data.email, password: data.temp_password });
       toast({ title: "Employee created", description: `${cName} can sign in now.` });
     },
@@ -174,13 +186,67 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
     onOpenChange(v);
   };
 
+  const formatDollars = (cents: number) =>
+    `$${(cents / 100).toFixed(cents % 100 === 0 ? 0 : 2)}`;
+
+  const renderSeatBanner = () => {
+    if (!seat) return null;
+    if (seat.isExempt) {
+      return (
+        <Alert>
+          <Users className="h-4 w-4" />
+          <AlertDescription>
+            Unlimited team seats included on your account — no extra charge.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    if (seat.nextSeatCharged) {
+      return (
+        <Alert>
+          <DollarSign className="h-4 w-4" />
+          <AlertDescription>
+            <strong>
+              {seat.employeeCount} of {seat.freeSeats} free seats used.
+            </strong>{" "}
+            Adding this employee will add{" "}
+            <strong>{formatDollars(seat.perSeatPriceCents)}/month</strong> to your subscription
+            (prorated for the rest of this billing cycle). Your team total will be{" "}
+            {formatDollars(seat.nextMonthlyExtraCents)}/month.
+          </AlertDescription>
+        </Alert>
+      );
+    }
+    const remaining = seat.freeSeats - seat.employeeCount;
+    return (
+      <Alert>
+        <Users className="h-4 w-4" />
+        <AlertDescription>
+          <strong>
+            {seat.employeeCount} of {seat.freeSeats} free seats used.
+          </strong>{" "}
+          This employee is included in your plan — no extra charge. ({remaining - 1} free{" "}
+          {remaining - 1 === 1 ? "seat" : "seats"} remaining after this one.)
+        </AlertDescription>
+      </Alert>
+    );
+  };
+
+  const submitLabel = (base: string) => {
+    if (seat?.nextSeatCharged && !seat?.isExempt) {
+      return `${base} • +${formatDollars(seat.perSeatPriceCents)}/mo`;
+    }
+    return base;
+  };
+
   return (
     <Dialog open={open} onOpenChange={closeAndReset}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Add Employee</DialogTitle>
           <DialogDescription>
-            Invite by email or create their account directly.
+            First {seat?.freeSeats ?? 2} team members are free. Each additional seat is{" "}
+            {formatDollars(seat?.perSeatPriceCents ?? 500)}/month.
           </DialogDescription>
         </DialogHeader>
 
@@ -221,12 +287,7 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
             </TabsList>
 
             <TabsContent value="invite" className="space-y-4 mt-4">
-              {limitError && (
-                <Alert variant="destructive">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>{limitError}</AlertDescription>
-                </Alert>
-              )}
+              {renderSeatBanner()}
               <form onSubmit={handleInviteSubmit} className="space-y-4">
                 <div>
                   <Label htmlFor="fullName">Full Name *</Label>
@@ -250,13 +311,14 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
                   <Button type="button" variant="outline" onClick={() => closeAndReset(false)} className="flex-1 touch-target">Cancel</Button>
                   <Button type="submit" disabled={inviteMutation.isPending} className="flex-1 touch-target">
                     {inviteMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Send Invite
+                    {submitLabel("Send Invite")}
                   </Button>
                 </div>
               </form>
             </TabsContent>
 
             <TabsContent value="create" className="space-y-4 mt-4">
+              {renderSeatBanner()}
               <Alert>
                 <AlertDescription className="text-xs">
                   Creates the account immediately with a password you choose. Share the credentials with the employee.
@@ -289,7 +351,7 @@ export function InviteEmployeeDialog({ open, onOpenChange }: InviteEmployeeDialo
                   <Button type="button" variant="outline" onClick={() => closeAndReset(false)} className="flex-1 touch-target">Cancel</Button>
                   <Button type="submit" disabled={createMutation.isPending} className="flex-1 touch-target">
                     {createMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                    Create Account
+                    {submitLabel("Create Account")}
                   </Button>
                 </div>
               </form>

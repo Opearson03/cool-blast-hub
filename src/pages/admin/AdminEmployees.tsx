@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EmployeeDetailsSheet } from "@/components/employees/EmployeeDetailsSheet";
 import { InviteEmployeeDialog } from "@/components/employees/InviteEmployeeDialog";
+import { SeatSummaryChip } from "@/components/employees/SeatSummaryChip";
 import { LeaveRequestsList } from "@/components/leave/LeaveRequestsList";
 import { UnassignedEmployeesWidget } from "@/components/employees/UnassignedEmployeesWidget";
 import { TimesheetTable } from "@/components/timesheets/TimesheetTable";
@@ -371,10 +372,13 @@ export default function AdminEmployees() {
       <div className="space-y-4 max-w-full overflow-x-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h1 className="text-2xl font-bold">Employees</h1>
-          <Button onClick={() => setIsInviteOpen(true)} className="touch-target">
-            <Plus className="w-5 h-5 mr-2" />
-            Invite Employee
-          </Button>
+          <div className="flex items-center gap-3">
+            <SeatSummaryChip />
+            <Button onClick={() => setIsInviteOpen(true)} className="touch-target">
+              <Plus className="w-5 h-5 mr-2" />
+              Invite Employee
+            </Button>
+          </div>
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
