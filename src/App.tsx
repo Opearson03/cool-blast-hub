@@ -29,6 +29,7 @@ import EmployeeSchedule from "./pages/employee/EmployeeSchedule";
 import EmployeeContacts from "./pages/employee/EmployeeContacts";
 import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import EmployeeLeave from "./pages/employee/EmployeeLeave";
+import EmployeeChat from "./pages/employee/EmployeeChat";
 import StaffAuth from "./pages/staff/StaffAuth";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import NewQuotePage from "./pages/staff/NewQuotePage";
@@ -120,6 +121,7 @@ const AppContent = () => {
       <Route path="/employee/schedule" element={<ProtectedRoute allowedRole="staff"><EmployeeSchedule /></ProtectedRoute>} />
       <Route path="/employee/leave" element={<ProtectedRoute allowedRole="staff"><EmployeeLeave /></ProtectedRoute>} />
       <Route path="/employee/contacts" element={<ProtectedRoute allowedRole="staff"><EmployeeContacts /></ProtectedRoute>} />
+      <Route path="/employee/chat" element={<ProtectedRoute allowedRole="staff"><EmployeeChat /></ProtectedRoute>} />
       <Route path="/employee/profile" element={<ProtectedRoute allowedRole="staff"><EmployeeProfile /></ProtectedRoute>} />
       
       {/* Staff Routes - accessible via staff.pourhub.com.au or /staff path */}

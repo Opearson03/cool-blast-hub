@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Search, Phone, AlertTriangle, Award, Clock, RefreshCw, Mail, Trash2 } from "lucide-react";
+import { Plus, Search, Phone, AlertTriangle, Award, Clock, RefreshCw, Mail, Trash2, MessageCircle } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -389,6 +389,8 @@ export default function AdminEmployees() {
                   Team ({employees.length})
                   {pendingInvites.length > 0 ? ` • +${pendingInvites.length} pending` : ""}
                 </SelectItem>
+                <SelectItem value="crews">Crews</SelectItem>
+                <SelectItem value="chat">Chat</SelectItem>
                 <SelectItem value="timesheets">Timesheets</SelectItem>
                 <SelectItem value="leave">
                   Leave{pendingLeaveCount > 0 ? ` (${pendingLeaveCount})` : ""}
@@ -407,6 +409,11 @@ export default function AdminEmployees() {
                     +{pendingInvites.length} pending
                   </Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="crews">Crews</TabsTrigger>
+              <TabsTrigger value="chat">
+                <MessageCircle className="w-4 h-4 mr-1" />
+                Chat
               </TabsTrigger>
               <TabsTrigger value="timesheets">
                 <Clock className="w-4 h-4 mr-1" />
@@ -522,7 +529,15 @@ export default function AdminEmployees() {
               </div>
             )}
 
-            {/* Active Employees List */}
+            {/* KPI Strip */}
+            <TeamKpiStrip
+              clockedIn={activeTimesheets.length}
+              onLeaveToday={onLeaveTodayIds.size}
+              pendingLeave={pendingLeaveCount}
+              expiringTickets={expiringTotal}
+            />
+
+            {/* Active Employees Roster Grid */}
             {isLoading ? (
               <div className="text-center py-8 text-muted-foreground">Loading employees...</div>
             ) : filteredEmployees.length === 0 && pendingInvites.length === 0 ? (
@@ -534,106 +549,69 @@ export default function AdminEmployees() {
                 </CardContent>
               </Card>
             ) : filteredEmployees.length > 0 && (
-              <div className="space-y-3">
-                {pendingInvites.length > 0 && (
-                  <h3 className="text-sm font-medium text-muted-foreground">Active Team Members</h3>
-                )}
-                {filteredEmployees.map((employee) => {
-                  const empTickets = getTicketsForEmployee(employee.id);
-                  const expiringCount = getExpiringTicketsCount(employee.id);
-                  const role = getRole(employee.id);
-                  const initials = employee.full_name.split(" ").map(n => n[0]).join("").toUpperCase();
-
-                  return (
-                    <Card
-                      key={employee.id}
-                      className="cursor-pointer hover:border-primary/50 transition-colors"
-                      onClick={() => setSelectedEmployee(employee)}
-                    >
-                      <CardContent className="p-4">
-                        <div className="flex items-start gap-3">
-                          <Avatar className="h-10 w-10 shrink-0">
-                            <AvatarImage src={employee.avatar_url || undefined} />
-                            <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                              {initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <h3 className="font-semibold">{employee.full_name}</h3>
-                              {role && (
-                                <Badge variant={role === "admin" ? "default" : "secondary"}>
-                                  {role}
-                                </Badge>
-                              )}
-                              {empTickets.length > 0 && (
-                                <div className="flex items-center gap-1 text-sm text-muted-foreground">
-                                  <Award className="w-3 h-3" />
-                                  <span>{empTickets.length} ticket{empTickets.length !== 1 ? "s" : ""}</span>
-                                </div>
-                              )}
-                              {employee.id !== currentUserId && (
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      className="text-destructive hover:text-destructive h-7 w-7 p-0 ml-auto"
-                                      onClick={(e) => e.stopPropagation()}
-                                      disabled={deletingId === employee.id}
-                                    >
-                                      <Trash2 className="w-4 h-4" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent onClick={(e) => e.stopPropagation()}>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Remove Employee</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to remove {employee.full_name} from your team? This will delete all their data including timesheets, tickets, and leave requests. This action cannot be undone.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          handleDelete(employee.id, "employee");
-                                        }}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        Remove Employee
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              )}
-                            </div>
-
-                            {employee.position && (
-                              <p className="text-sm text-muted-foreground">{employee.position}</p>
-                            )}
-
-                            {employee.phone && (
-                              <div className="flex items-center gap-1 mt-1 text-sm text-muted-foreground">
-                                <Phone className="w-3 h-3 shrink-0" />
-                                <span>{employee.phone}</span>
-                              </div>
-                            )}
-
-                            {expiringCount > 0 && (
-                              <Badge variant="destructive" className="mt-2">
-                                <AlertTriangle className="w-3 h-3 mr-1" />
-                                {expiringCount} expiring
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
+              <TeamRosterGrid
+                employees={filteredEmployees.map((emp): RosterEmployee => {
+                  const onLeave = onLeaveTodayIds.has(emp.id);
+                  const clockedInSince = clockedInMap.get(emp.id);
+                  const status: RosterEmployee["status"] = clockedInSince
+                    ? "clocked_in"
+                    : onLeave ? "on_leave" : "off";
+                  const crewNames = crewMembersAll
+                    .filter((cm) => cm.employee_id === emp.id)
+                    .map((cm) => cm.crews?.name)
+                    .filter(Boolean) as string[];
+                  return {
+                    id: emp.id,
+                    full_name: emp.full_name,
+                    position: emp.position,
+                    phone: emp.phone,
+                    avatar_url: emp.avatar_url,
+                    role: getRole(emp.id),
+                    status,
+                    clockedInSince,
+                    crewNames,
+                    expiringTickets: getExpiringTicketsCount(emp.id),
+                  };
                 })}
-              </div>
+                onSelect={(id) => {
+                  const emp = employees.find((e) => e.id === id);
+                  if (emp) setSelectedEmployee(emp);
+                }}
+                onMessage={async (id) => {
+                  try {
+                    const channelId = await dm.mutateAsync(id);
+                    setChatChannelHint(channelId);
+                    setActiveTab("chat");
+                  } catch (e: any) {
+                    toast({ title: "Couldn't open chat", description: e.message, variant: "destructive" });
+                  }
+                }}
+              />
             )}
+          </TabsContent>
+
+          <TabsContent value="crews" className="mt-4">
+            <CrewsPanel
+              onOpenCrewChat={async (crewId) => {
+                // Find the chat channel for this crew
+                const { data, error } = await supabase
+                  .from("chat_channels")
+                  .select("id")
+                  .eq("crew_id", crewId)
+                  .eq("type", "crew")
+                  .maybeSingle();
+                if (error || !data) {
+                  toast({ title: "Crew chat unavailable", description: "Try again in a moment.", variant: "destructive" });
+                  return;
+                }
+                setChatChannelHint(data.id);
+                setActiveTab("chat");
+              }}
+            />
+          </TabsContent>
+
+          <TabsContent value="chat" className="mt-4">
+            <ChatLayout initialChannelId={chatChannelHint} />
           </TabsContent>
 
           <TabsContent value="timesheets" className="mt-4 space-y-4">
