@@ -2,7 +2,7 @@ import { ReactNode, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
-import { LayoutDashboard, CalendarDays, User, LogOut, Menu, X, Users, Calendar } from "lucide-react";
+import { LayoutDashboard, CalendarDays, User, LogOut, Menu, X, Users, Calendar, MessageCircle } from "lucide-react";
 import { Logo } from "@/components/ui/Logo";
 import { cn } from "@/lib/utils";
 import { SubscriptionGate } from "@/components/subscription/SubscriptionGate";
@@ -13,6 +13,7 @@ import { usePlatform } from "@/hooks/usePlatform";
 const navItems = [
   { href: "/employee", label: "Dashboard", icon: LayoutDashboard },
   { href: "/employee/schedule", label: "Schedule", icon: Calendar },
+  { href: "/employee/chat", label: "Chat", icon: MessageCircle },
   { href: "/employee/leave", label: "Leave", icon: CalendarDays },
   { href: "/employee/contacts", label: "Contacts", icon: Users },
   { href: "/employee/profile", label: "Profile", icon: User },
