@@ -279,6 +279,49 @@ export default function AdminEmployees() {
 
   const pendingLeaveCount = leaveRequests.filter(r => r.status === "pending").length;
 
+  // Active (clocked-in) timesheets
+  const { data: activeTimesheets = [] } = useQuery({
+    queryKey: ["active-timesheets", businessId],
+    queryFn: async () => {
+      if (!businessId) return [];
+      const { data, error } = await supabase
+        .from("timesheets")
+        .select("employee_id, clock_in")
+        .eq("business_id", businessId)
+        .eq("status", "active")
+        .is("clock_out", null);
+      if (error) throw error;
+      return data as { employee_id: string; clock_in: string }[];
+    },
+    enabled: !!businessId,
+    refetchInterval: 60000,
+  });
+  const clockedInMap = new Map(activeTimesheets.map(t => [t.employee_id, t.clock_in]));
+
+  // Crew memberships
+  const { data: crewMembersAll = [] } = useQuery({
+    queryKey: ["crew-members-with-crews", businessId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("crew_members").select("employee_id, crews(name)");
+      if (error) throw error;
+      return data as { employee_id: string; crews: { name: string } | null }[];
+    },
+    enabled: !!businessId,
+  });
+
+  const today = new Date().toISOString().slice(0, 10);
+  const onLeaveTodayIds = new Set(
+    leaveRequests
+      .filter(r => r.status === "approved" && r.start_date <= today && r.end_date >= today)
+      .map(r => r.employee_id)
+  );
+  const expiringTotal = tickets.filter(t => {
+    if (!t.expiry_date) return false;
+    const days = differenceInDays(new Date(t.expiry_date), new Date());
+    return days <= 30;
+  }).length;
+
+
   const filteredEmployees = employees.filter(
     (emp) =>
       emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
