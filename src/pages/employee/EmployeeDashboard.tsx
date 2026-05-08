@@ -262,11 +262,6 @@ export default function EmployeeDashboard() {
           </Card>
         )}
 
-        {/* Team Feed */}
-        {userId && businessId && (
-          <FeedWidget businessId={businessId} userId={userId} />
-        )}
-
         {/* Upcoming Work */}
         {upcomingPours.length > 0 && (
           <Card>
