@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { EmployeeDetailsSheet } from "@/components/employees/EmployeeDetailsSheet";
 import { InviteEmployeeDialog } from "@/components/employees/InviteEmployeeDialog";
+import { SeatSummaryChip } from "@/components/employees/SeatSummaryChip";
 import { LeaveRequestsList } from "@/components/leave/LeaveRequestsList";
 import { UnassignedEmployeesWidget } from "@/components/employees/UnassignedEmployeesWidget";
 import { TimesheetTable } from "@/components/timesheets/TimesheetTable";
