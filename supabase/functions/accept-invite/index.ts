@@ -176,6 +176,13 @@ serve(async (req) => {
 
     console.log(`[ACCEPT-INVITE] Success inviteId=${invite.id} role=${invite.role}`);
 
+    // Sync per-seat Stripe billing for the inviting business
+    try {
+      await syncSeatQuantity(supabase, invitedBusinessId);
+    } catch (err) {
+      console.error("[ACCEPT-INVITE] seat sync failed (non-fatal)", err);
+    }
+
     return new Response(
       JSON.stringify({ success: true, role: invite.role, businessId: invitedBusinessId }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
