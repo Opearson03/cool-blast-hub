@@ -260,7 +260,7 @@ function Conversation({
             })
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       <div className="p-3 border-t flex items-end gap-2">
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
