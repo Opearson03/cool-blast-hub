@@ -216,7 +216,7 @@ function Conversation({
         {channel?.type === "crew" && <Badge variant="outline" className="text-xs">Crew</Badge>}
       </div>
 
-      <ScrollArea className="flex-1" viewportRef={scrollRef as any}>
+      <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="p-4 space-y-3">
           {isLoading ? (
             <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
