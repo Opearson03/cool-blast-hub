@@ -81,11 +81,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Employee limit check (skip for admin role since they replace existing seats)
-    const { data: limit } = await admin.rpc("check_employee_limit", {
-      _business_id: businessId,
-    }).maybeSingle?.() ?? { data: null };
-    // Fallback: count manually
+    // Employee limit check
     const { count: empCount } = await admin
       .from("profiles")
       .select("id", { count: "exact", head: true })
