@@ -29,6 +29,7 @@ import EmployeeSchedule from "./pages/employee/EmployeeSchedule";
 import EmployeeContacts from "./pages/employee/EmployeeContacts";
 import EmployeeProfile from "./pages/employee/EmployeeProfile";
 import EmployeeLeave from "./pages/employee/EmployeeLeave";
+import EmployeeChat from "./pages/employee/EmployeeChat";
 import StaffAuth from "./pages/staff/StaffAuth";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import NewQuotePage from "./pages/staff/NewQuotePage";
