@@ -342,6 +342,147 @@ export type Database = {
         }
         Relationships: []
       }
+      chat_channel_members: {
+        Row: {
+          channel_id: string
+          id: string
+          joined_at: string
+          last_read_at: string
+          user_id: string
+        }
+        Insert: {
+          channel_id: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string
+          user_id: string
+        }
+        Update: {
+          channel_id?: string
+          id?: string
+          joined_at?: string
+          last_read_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_channel_members_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_channel_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_channels: {
+        Row: {
+          business_id: string
+          created_at: string
+          created_by: string | null
+          crew_id: string | null
+          id: string
+          name: string
+          type: Database["public"]["Enums"]["chat_channel_type"]
+          updated_at: string
+        }
+        Insert: {
+          business_id: string
+          created_at?: string
+          created_by?: string | null
+          crew_id?: string | null
+          id?: string
+          name: string
+          type: Database["public"]["Enums"]["chat_channel_type"]
+          updated_at?: string
+        }
+        Update: {
+          business_id?: string
+          created_at?: string
+          created_by?: string | null
+          crew_id?: string | null
+          id?: string
+          name?: string
+          type?: Database["public"]["Enums"]["chat_channel_type"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_channels_business_id_fkey"
+            columns: ["business_id"]
+            isOneToOne: false
+            referencedRelation: "businesses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_channels_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      chat_messages: {
+        Row: {
+          attachment_type: string | null
+          attachment_url: string | null
+          body: string | null
+          channel_id: string
+          created_at: string
+          deleted_at: string | null
+          edited_at: string | null
+          id: string
+          mentions: string[] | null
+          sender_id: string
+        }
+        Insert: {
+          attachment_type?: string | null
+          attachment_url?: string | null
+          body?: string | null
+          channel_id: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          mentions?: string[] | null
+          sender_id: string
+        }
+        Update: {
+          attachment_type?: string | null
+          attachment_url?: string | null
+          body?: string | null
+          channel_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          edited_at?: string | null
+          id?: string
+          mentions?: string[] | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "chat_messages_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "chat_channels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "chat_messages_sender_id_fkey"
+            columns: ["sender_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null
@@ -4038,6 +4179,7 @@ export type Database = {
       calculate_queue_position: { Args: { _user_id: string }; Returns: number }
       check_employee_limit: { Args: { _business_id: string }; Returns: Json }
       check_invite_email: { Args: { _email: string }; Returns: boolean }
+      ensure_team_channel: { Args: { _business_id: string }; Returns: string }
       generate_unique_email_alias: {
         Args: { business_name: string }
         Returns: string
@@ -4110,6 +4252,7 @@ export type Database = {
           subscription_status: string
         }[]
       }
+      get_channel_business: { Args: { _channel_id: string }; Returns: string }
       get_churn_stats: { Args: never; Returns: Json }
       get_crm_contacts: {
         Args: { _filter?: string }
@@ -4148,6 +4291,7 @@ export type Database = {
           years_experience: number
         }[]
       }
+      get_or_create_dm: { Args: { _other_user: string }; Returns: string }
       get_public_directory_profile: {
         Args: { _id: string }
         Returns: {
@@ -4282,6 +4426,10 @@ export type Database = {
         Returns: boolean
       }
       import_crm_leads: { Args: { _leads: Json }; Returns: Json }
+      is_channel_member: {
+        Args: { _channel_id: string; _user_id: string }
+        Returns: boolean
+      }
       is_pourhub_staff: { Args: { _user_id: string }; Returns: boolean }
       is_subcontractor: { Args: { _user_id: string }; Returns: boolean }
       is_supplier: { Args: { _user_id: string }; Returns: boolean }
@@ -4295,6 +4443,7 @@ export type Database = {
         }
         Returns: Json
       }
+      mark_channel_read: { Args: { _channel_id: string }; Returns: undefined }
       register_affiliate: {
         Args: { _email: string; _full_name: string; _instagram_handle?: string }
         Returns: Json
@@ -4320,6 +4469,7 @@ export type Database = {
         | "supplier"
         | "subcontractor"
       booking_status: "pending" | "contacted" | "converted" | "cancelled"
+      chat_channel_type: "team" | "crew" | "dm"
       customer_type: "retail" | "industrial"
       document_category:
         | "itp"
@@ -4488,6 +4638,7 @@ export const Constants = {
         "subcontractor",
       ],
       booking_status: ["pending", "contacted", "converted", "cancelled"],
+      chat_channel_type: ["team", "crew", "dm"],
       customer_type: ["retail", "industrial"],
       document_category: [
         "itp",

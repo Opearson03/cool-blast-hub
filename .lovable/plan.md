@@ -1,96 +1,97 @@
 ## Goal
 
-Bring back employee user accounts so businesses can manage staff, run timesheets (clock in/out + admin review), and process leave requests. The database tables (`profiles`, `timesheets`, `leave_requests`, `employee_tickets`, `pending_invites`, `crews`, `crew_members`) and most of the UI (`AdminEmployees`, `AdminCrews`, employee pages, timesheet components, leave components) are still in the codebase from a previous build — they're just commented out in `src/App.tsx`. This plan re-enables them, adds the missing onboarding plumbing, and wires everything into the admin dashboard.
+Transform the Team tab into a more useful, attractive operational hub, and add an internal chat where admins can message crews, DM individuals, or post to a company-wide channel.
 
-## Scope (confirmed)
+## 1. Team page redesign (visual roster grid)
 
-- Admin Employees page (list, invite, edit, deactivate, tickets/certifications)
-- Timesheets — employee clock in/out + admin review table + CSV export
-- Leave requests — employee submit, admin approve/decline
-- Employee mobile dashboard (dashboard, schedule, contacts, profile, leave)
-- Onboarding: **both** email invite *and* admin-creates-account-directly
-- Access: gated as **Pro only** (matches Jobs/Schedule)
+Replace the current list/tabs layout with a modern operational hub:
 
-## What's already there vs what's new
+**Top KPI strip** (4 compact cards):
+- Clocked in now (live count)
+- On leave today
+- Pending leave requests
+- Tickets expiring within 30 days
 
-**Already built — just needs re-enabling:**
-- DB schema: `profiles`, `timesheets`, `leave_requests`, `employee_tickets`, `crews`, `crew_members`, `pending_invites` with RLS
-- Pages: `AdminEmployees`, `AdminCrews`, `EmployeeDashboard`, `EmployeeSchedule`, `EmployeeContacts`, `EmployeeProfile`, `EmployeeLeave`
-- Components: `InviteEmployeeDialog`, `EmployeeDetailsSheet`, `TicketFormDialog`, `ClockInButton`, `TimesheetTable`, `EditTimesheetDialog`, `TimesheetExport`, `LeaveRequestFormDialog`, `LeaveRequestsList`, `CrewFormDialog`, `CrewMembersDialog`
-- Edge functions: `accept-invite`, `check-employee-limit`, `delete-employee`, `auto-clock-out`
+**Roster grid** (responsive cards, 2–4 columns):
+- Avatar, name, position, role badge (admin/staff)
+- Live status pill: 🟢 Clocked in (since X) · 🌴 On leave · ⚪ Off
+- Crew chip(s) the employee belongs to
+- Phone tap-to-call, expiring-ticket warning icon
+- Quick actions: Message, View profile
 
-**New / changed:**
-1. New edge function `admin-create-employee` for the direct-create flow (admin enters name + email + temp password → creates `auth.users` + `profiles` + `staff` role using service role key, with employee-limit check).
-2. New admin page section: **Timesheets** (`/admin/timesheets`) showing the existing `TimesheetTable` with date/employee filters and CSV export.
-3. New admin page section: **Leave** (`/admin/leave`) listing `LeaveRequestsList` for approve/decline.
-4. Update `InviteEmployeeDialog` to add a "Create directly" tab alongside the email invite tab.
-5. Wire all new routes into `src/App.tsx` and add nav items to `AdminLayout` sidebar (Employees, Timesheets, Leave) under a "Team" section, all `requiresPro: true`.
-6. Add a small "Today's clocked-in staff" widget to `AdminDashboard` for at-a-glance visibility.
-7. Re-enable employee routes (`/employee`, `/employee/schedule`, `/employee/leave`, `/employee/contacts`, `/employee/profile`).
-8. Update `Auth.tsx` redirect logic so users with `staff` role land on `/employee` (verify against `mem://auth/unified-login-redirection`).
+**Filters bar**: search · crew filter · status filter (clocked in / on leave / off / pending invite)
 
-## Information architecture
+**Pending invites**: collapsed accordion under the grid (keep resend / cancel)
 
-Admin sidebar (Pro-gated additions in **bold**):
+Existing sub-tabs (Timesheets, Leave) stay as secondary tabs below the roster, plus two new ones: **Crews** and **Chat**.
 
-```text
-Dashboard
-Jobs
-Quotes
-Schedule
-Contact
-— Team —
-  Employees       (NEW link, page exists)
-  Timesheets      (NEW link + page section)
-  Leave           (NEW link + page section)
-Settings
-```
+## 2. Crews management (in Team)
 
-Employee bottom nav (mobile-first, existing layout):
+Promote crew management out of `/admin/crews` and surface it as a sub-tab inside Team:
+- List crews with member avatars + supervisor flag
+- Create/edit/delete crew, manage members (reuse existing `CrewFormDialog` and `CrewMembersDialog`)
+- "Open chat" button jumps straight to that crew's channel
 
-```text
-Dashboard | Schedule | Leave | Contacts | Profile
-```
+## 3. Internal chat
 
-## Implementation steps
+A Slack-lite messaging system scoped to the business.
 
-1. **DB / backend touch-ups** (single migration if anything is missing — most likely none, just verify):
-   - Confirm `app_role` enum has `'staff'` value (it does — used by `has_role`).
-   - Verify `pending_invites` table + accept-invite flow still resolves to `business_id` + assigns `staff` role.
-   - Add a `is_active` boolean to `profiles` if we want soft-deactivate (otherwise rely on `delete-employee` edge function).
+**Channels supported**
+- `#team` — auto-created per business, all members of the business
+- One channel per crew — auto-created/synced from `crews` table
+- Direct messages — 1:1 between any two business members
 
-2. **Edge function — `admin-create-employee`**:
-   - Input: `{ full_name, email, password, position?, phone?, hourly_rate? }`
-   - Verifies caller is admin of a business, runs `check-employee-limit`, calls `supabase.auth.admin.createUser({ email, password, email_confirm: true })`, inserts `profiles` row with `business_id`, inserts `user_roles` row with `staff`.
+**Features (v1)**
+- Realtime text via Supabase Realtime
+- Image attachments (private storage bucket, signed URLs)
+- @mentions of teammates
+- Read receipts (last_read_at per member per channel)
+- Unread badges in sidebar + on the Team nav item
+- Message edit/delete by author; admins can delete any
+- Auto-scroll, day separators, typing not included in v1
 
-3. **Re-enable routes in `src/App.tsx`**:
-   - Uncomment `/admin/employees`, `/admin/crews` (optional), `/admin/equipment` (optional — leave commented unless you want it).
-   - Add `/admin/timesheets`, `/admin/leave`.
-   - Uncomment all `/employee/*` routes.
+**UI**
+- Two-pane layout inside the new "Chat" sub-tab: left = channel list (Team, Crews, Direct messages), right = active conversation
+- Mobile: channel list collapses; full-screen conversation view
+- Composer with image attach button and emoji
+- Same chat UI is exposed to employees in the mobile dashboard (`/employee/chat`)
 
-4. **New admin pages**:
-   - `src/pages/admin/AdminTimesheets.tsx` — wraps `TimesheetTable` + filter bar + `TimesheetExport`.
-   - `src/pages/admin/AdminLeave.tsx` — wraps `LeaveRequestsList` with admin actions.
+## 4. Database changes
 
-5. **`AdminLayout` nav update** — add Employees / Timesheets / Leave items with `requiresPro: true` and appropriate icons (Users, Clock, CalendarOff).
+New tables:
 
-6. **`InviteEmployeeDialog` — add "Create directly" tab** — calls the new edge function; on success closes dialog, refetches employees, toasts temp password for admin to share.
+- `chat_channels` — `id`, `business_id`, `type` ('team' | 'crew' | 'dm'), `crew_id` (nullable), `name`, timestamps
+- `chat_channel_members` — `channel_id`, `user_id`, `last_read_at`, `joined_at`
+- `chat_messages` — `id`, `channel_id`, `sender_id`, `body`, `attachment_url`, `attachment_type`, `mentions uuid[]`, `edited_at`, `deleted_at`, timestamps
 
-7. **Auth redirect** — in `Auth.tsx` after login, if user has `staff` role and no `admin` role, redirect to `/employee`.
+RLS: members of a channel can read/write; admins of the business can do anything; sender can edit/delete own messages within the business.
 
-8. **Dashboard widget** — `ClockedInTodayWidget` reading `timesheets` where `status='active'` for the business; placed below `DailyScheduleWidget`.
+Triggers / RPCs:
+- On business create → create `#team` channel and add all profiles
+- On profile insert (employee joins business) → add to `#team`
+- On crew create → create matching channel; on `crew_members` change → sync membership
+- `mark_channel_read(channel_id)` RPC updates `last_read_at`
+- `get_or_create_dm(other_user_id)` RPC returns/creates a DM channel between two business members
 
-## Notes / risks
+Storage: new private bucket `chat-attachments` with policies tied to channel membership.
 
-- `auto-clock-out` edge function exists — verify cron is still scheduled (check `supabase/config.toml` cron section); add it back if missing.
-- `delete-employee` already handles cascading; reuse it.
-- Mobile layout already in place via `AdminBottomNav` for admin and equivalent for employees; no new responsive work needed.
-- Tier gating: keep `requiresPro: true` on all three new nav items; `FullAppAccessGate` already handles the upgrade prompt.
-- All RLS policies are already in place and correct — no policy changes required.
+Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages, chat_channel_members;`
 
-## Out of scope (flag for later)
+## 5. Access & gating
 
-- Crews UI re-enable (kept commented; can re-enable in a follow-up if needed).
-- Equipment UI re-enable.
-- Payroll export integrations (Xero is purged per memory).
-- Geofencing enforcement on clock-in (lat/lng columns exist but no enforcement logic).
+- Entire Team tab (including Chat) stays Pro-only via existing `requiresPro` flag
+- Admin can post in any channel; crew chat: all members + admins can post
+- Employees see only the channels they belong to
+
+## 6. Out of scope (v1)
+
+- Threads/replies, reactions, file types beyond images, voice notes, push notifications, message search across channels, typing indicators, message pinning
+
+## Technical notes
+
+- New components under `src/components/chat/` (`ChatLayout`, `ChannelList`, `MessageList`, `MessageComposer`, `MessageBubble`, `AttachmentUploader`)
+- Hooks: `useChannels`, `useMessages(channelId)`, `useUnreadCounts`, `useSendMessage`
+- Reuse `get_team_profiles` RPC for member pickers
+- Add unread badge to `AdminLayout` nav item via lightweight subscribed counter
+- Roster grid lives in a new `src/components/employees/TeamRosterGrid.tsx`; KPI strip in `TeamKpiStrip.tsx`
+- Existing `AdminCrews` route can stay as a deep-link, but UI lives inside Team
