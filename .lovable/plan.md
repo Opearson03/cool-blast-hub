@@ -1,97 +1,150 @@
+
 ## Goal
 
-Transform the Team tab into a more useful, attractive operational hub, and add an internal chat where admins can message crews, DM individuals, or post to a company-wide channel.
+Make team invitations free for the first 2 employees. From the 3rd onward, charge $5/employee/month, billed automatically through Stripe as an extra line item on the business's existing Pro subscription. Surface the cost in the **+ Invite Employee** dialog so admins confirm before adding a paid seat.
 
-## 1. Team page redesign (visual roster grid)
+## Pricing rules
 
-Replace the current list/tabs layout with a modern operational hub:
+- Counted seats = active employees in `profiles` for the business (currently invited admin + staff).
+- Free seats: 2 (the owner counts as seat #1, so the owner + 1 more is free).
+- Paid seats: 3rd seat onward at $5 AUD / seat / month, recurring.
+- Pro plan only. Free / Estimating tier admins cannot invite team members (existing Pro gate stays).
+- Removing an employee → seat quantity decreases at the **next billing cycle** (proration disabled on decrement; Stripe just bills less next renewal).
+- Adding a seat → quantity increases immediately, prorated for the rest of the cycle.
 
-**Top KPI strip** (4 compact cards):
-- Clocked in now (live count)
-- On leave today
-- Pending leave requests
-- Tickets expiring within 30 days
+## Stripe setup (one-off)
 
-**Roster grid** (responsive cards, 2–4 columns):
-- Avatar, name, position, role badge (admin/staff)
-- Live status pill: 🟢 Clocked in (since X) · 🌴 On leave · ⚪ Off
-- Crew chip(s) the employee belongs to
-- Phone tap-to-call, expiring-ticket warning icon
-- Quick actions: Message, View profile
+Create a new metered-style **per-seat** product + recurring price in Stripe:
 
-**Filters bar**: search · crew filter · status filter (clocked in / on leave / off / pending invite)
+- Product: "PourHub Team Seat"
+- Price: $5 AUD / month, `recurring.interval = month`, `recurring.usage_type = licensed` (quantity-based, not metered).
+- Save the price ID (e.g. `price_seat_xxx`) into `src/lib/subscription-tiers.ts` as `TEAM_SEAT_PRICE_ID`.
 
-**Pending invites**: collapsed accordion under the grid (keep resend / cancel)
+This is added as a **second subscription item** on the customer's Pro subscription, with `quantity = max(0, employees - 2)`.
 
-Existing sub-tabs (Timesheets, Leave) stay as secondary tabs below the roster, plus two new ones: **Crews** and **Chat**.
+## Backend changes
 
-## 2. Crews management (in Team)
+### 1. New edge function: `update-seat-quantity`
 
-Promote crew management out of `/admin/crews` and surface it as a sub-tab inside Team:
-- List crews with member avatars + supervisor flag
-- Create/edit/delete crew, manage members (reuse existing `CrewFormDialog` and `CrewMembersDialog`)
-- "Open chat" button jumps straight to that crew's channel
+Single source of truth for syncing seat count to Stripe.
 
-## 3. Internal chat
+Inputs: none (derives from caller's business).
+Behaviour:
+1. Auth check → resolve `business_id`.
+2. Count `profiles` rows where `business_id = X` → `employeeCount`.
+3. `paidSeats = max(0, employeeCount - 2)`.
+4. Look up the business's Stripe subscription (`business_subscriptions.stripe_subscription_id`).
+5. Find existing seat item (by price ID).
+6. If `paidSeats === 0`: delete the seat item if present (no proration).
+7. Else: create or update the item to `quantity: paidSeats`.
+   - On **increase** → `proration_behavior: 'create_prorations'` (charge now).
+   - On **decrease** → `proration_behavior: 'none'` (drop at next cycle).
+8. Return `{ employeeCount, paidSeats, monthlyAmountCents }`.
 
-A Slack-lite messaging system scoped to the business.
+Used by:
+- `admin-create-employee` (after successful create) — call internally.
+- `accept-invite` flow (when a pending invite is accepted).
+- `delete-employee` (after removal).
 
-**Channels supported**
-- `#team` — auto-created per business, all members of the business
-- One channel per crew — auto-created/synced from `crews` table
-- Direct messages — 1:1 between any two business members
+### 2. New edge function: `preview-seat-cost`
 
-**Features (v1)**
-- Realtime text via Supabase Realtime
-- Image attachments (private storage bucket, signed URLs)
-- @mentions of teammates
-- Read receipts (last_read_at per member per channel)
-- Unread badges in sidebar + on the Team nav item
-- Message edit/delete by author; admins can delete any
-- Auto-scroll, day separators, typing not included in v1
+Read-only preview for the invite dialog.
 
-**UI**
-- Two-pane layout inside the new "Chat" sub-tab: left = channel list (Team, Crews, Direct messages), right = active conversation
-- Mobile: channel list collapses; full-screen conversation view
-- Composer with image attach button and emoji
-- Same chat UI is exposed to employees in the mobile dashboard (`/employee/chat`)
+Returns: `{ employeeCount, freeSeats: 2, nextSeatCharged: boolean, perSeatPriceCents: 500, projectedMonthlyExtraCents }`.
 
-## 4. Database changes
+### 3. Update `admin-create-employee/index.ts`
 
-New tables:
+- Remove the hard `employee_limit` check (no upper limit anymore — billing handles it).
+- Keep the duplicate-email and Pro-required checks.
+- After creating the auth user + profile + role, call the seat sync logic (inline or via internal call).
+- Return the new seat info in the response so the dialog can show "Seat #4 added — $5/mo added to your subscription".
 
-- `chat_channels` — `id`, `business_id`, `type` ('team' | 'crew' | 'dm'), `crew_id` (nullable), `name`, timestamps
-- `chat_channel_members` — `channel_id`, `user_id`, `last_read_at`, `joined_at`
-- `chat_messages` — `id`, `channel_id`, `sender_id`, `body`, `attachment_url`, `attachment_type`, `mentions uuid[]`, `edited_at`, `deleted_at`, timestamps
+### 4. Update `accept-invite/index.ts`
 
-RLS: members of a channel can read/write; admins of the business can do anything; sender can edit/delete own messages within the business.
+After the new profile is created, run the same seat-sync.
 
-Triggers / RPCs:
-- On business create → create `#team` channel and add all profiles
-- On profile insert (employee joins business) → add to `#team`
-- On crew create → create matching channel; on `crew_members` change → sync membership
-- `mark_channel_read(channel_id)` RPC updates `last_read_at`
-- `get_or_create_dm(other_user_id)` RPC returns/creates a DM channel between two business members
+### 5. Update `delete-employee/index.ts`
 
-Storage: new private bucket `chat-attachments` with policies tied to channel membership.
+After deletion, run seat-sync (will queue a decrement at next cycle).
 
-Realtime: `ALTER PUBLICATION supabase_realtime ADD TABLE chat_messages, chat_channel_members;`
+### 6. Update `stripe-webhook/index.ts`
 
-## 5. Access & gating
+When the Pro subscription is created/updated, leave the seat item alone (don't reset it). When the Pro sub is canceled, also delete the seat item (handled by Stripe automatically since items live under the sub).
 
-- Entire Team tab (including Chat) stays Pro-only via existing `requiresPro` flag
-- Admin can post in any channel; crew chat: all members + admins can post
-- Employees see only the channels they belong to
+### 7. Update `check_employee_limit` RPC
 
-## 6. Out of scope (v1)
+Either remove its callers or change it to always return `can_add: true` for active Pro businesses (no cap). Simplest: leave the function but only use it for non-Pro accounts.
 
-- Threads/replies, reactions, file types beyond images, voice notes, push notifications, message search across channels, typing indicators, message pinning
+## Frontend changes
 
-## Technical notes
+### `useSubscription.ts`
 
-- New components under `src/components/chat/` (`ChatLayout`, `ChannelList`, `MessageList`, `MessageComposer`, `MessageBubble`, `AttachmentUploader`)
-- Hooks: `useChannels`, `useMessages(channelId)`, `useUnreadCounts`, `useSendMessage`
-- Reuse `get_team_profiles` RPC for member pickers
-- Add unread badge to `AdminLayout` nav item via lightweight subscribed counter
-- Roster grid lives in a new `src/components/employees/TeamRosterGrid.tsx`; KPI strip in `TeamKpiStrip.tsx`
-- Existing `AdminCrews` route can stay as a deep-link, but UI lives inside Team
+Add `getSeatPreview()` helper that invokes `preview-seat-cost`.
+
+### `InviteEmployeeDialog.tsx`
+
+Top of the dialog (both "Email Invite" and "Create Directly" tabs), show a billing summary card:
+
+```
+Team seats: 3 / 2 free
+Adding this employee will add $5/month to your subscription
+(billed prorated for the rest of this cycle).
+```
+
+If still within the 2 free seats:
+
+```
+Team seats: 1 / 2 free
+This employee is included in your plan — no extra charge.
+```
+
+Add a small confirmation step: when the new seat will be charged, the submit button reads **"Add employee — +$5/mo"** and requires a single click (no extra modal — keep it one click but make the cost obvious).
+
+Remove the existing "employee limit" error / upgrade-required alert.
+
+### `AdminEmployees.tsx`
+
+Add a tiny seat-summary chip near the **+ Invite Employee** button:
+
+```
+[ 3 seats · $5/mo extra ]   [+ Invite Employee]
+```
+
+Tooltip: "First 2 seats free. Each additional seat is $5/month, billed via your subscription."
+
+### Settings → Billing (light touch)
+
+If there's an existing billing/subscription page, list the seat line item separately ("Team seats × N — $X/mo") next to the base plan. Use the existing `customer-portal` flow for management — don't build a new UI.
+
+## Edge cases
+
+- **Pro sub not active** (free/estimating/no sub): block the invite UI with the existing Pro upgrade gate. No seat fee logic runs.
+- **Demo / `subscription_exempt = true`**: skip seat-sync entirely; treat as unlimited.
+- **Race conditions on rapid invites**: the sync function reads the live count from `profiles`, so it's idempotent — safe to call multiple times.
+- **Existing teams already over 2 seats**: on the first invite/removal after deploy, the sync function will lazily create the seat item with the correct quantity. No backfill migration required.
+- **Annual Pro plans**: same item, annual billing — Stripe prorates correctly when adding mid-cycle. (Optional: charge $50/year instead of $5/month when on the annual plan — out of scope for v1; sticking with monthly seat price even for annual subscribers, which Stripe supports as a separate item with its own interval.)
+
+## Out of scope (v1)
+
+- Volume discounts beyond the 2 free seats.
+- Yearly seat pricing.
+- A dedicated billing UI inside PourHub (keep using Stripe customer portal).
+- Email notifications when a seat is added/removed.
+
+## Files touched
+
+- `supabase/functions/admin-create-employee/index.ts` — drop limit check, call seat sync.
+- `supabase/functions/accept-invite/index.ts` — call seat sync after profile insert.
+- `supabase/functions/delete-employee/index.ts` — call seat sync after removal.
+- `supabase/functions/update-seat-quantity/index.ts` — **new**, shared sync logic.
+- `supabase/functions/preview-seat-cost/index.ts` — **new**, read-only preview.
+- `supabase/functions/stripe-webhook/index.ts` — minor: keep seat item on Pro sub updates.
+- `src/lib/subscription-tiers.ts` — add `TEAM_SEAT_PRICE_ID` and `TEAM_SEAT_PRICE_CENTS = 500`, `FREE_SEATS = 2`.
+- `src/hooks/useSubscription.ts` — `getSeatPreview()`.
+- `src/components/employees/InviteEmployeeDialog.tsx` — show seat cost banner; replace limit error.
+- `src/pages/admin/AdminEmployees.tsx` — seat summary chip near Invite button.
+
+## Manual setup the user will need to do
+
+1. In Stripe (Live + Test): create the "PourHub Team Seat" product at $5 AUD / month and paste the price ID into `subscription-tiers.ts`.
+2. Confirm the existing Pro subscription's Stripe customer can have a second subscription item added (it can — standard Stripe behaviour).
