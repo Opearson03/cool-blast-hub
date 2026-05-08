@@ -92,8 +92,10 @@ export default function AdminEmployees() {
   const [businessId, setBusinessId] = useState<string | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("employees");
+  const [chatChannelHint, setChatChannelHint] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const dm = useGetOrCreateDm();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
