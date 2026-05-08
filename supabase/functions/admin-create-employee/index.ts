@@ -126,8 +126,19 @@ Deno.serve(async (req) => {
     // Assign role
     await admin.from("user_roles").insert({ user_id: newUserId, role });
 
+    // Sync per-seat Stripe billing
+    const seat = await syncSeatQuantity(admin, businessId, {
+      previousCount: prevEmpCount ?? 0,
+    });
+
     return new Response(
-      JSON.stringify({ success: true, user_id: newUserId, email, temp_password: password }),
+      JSON.stringify({
+        success: true,
+        user_id: newUserId,
+        email,
+        temp_password: password,
+        seat,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e) {
