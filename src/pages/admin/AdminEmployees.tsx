@@ -33,7 +33,15 @@ import { LeaveRequestsList } from "@/components/leave/LeaveRequestsList";
 import { UnassignedEmployeesWidget } from "@/components/employees/UnassignedEmployeesWidget";
 import { TimesheetTable } from "@/components/timesheets/TimesheetTable";
 import { TimesheetExport } from "@/components/timesheets/TimesheetExport";
+import { TeamKpiStrip } from "@/components/employees/TeamKpiStrip";
+import { TeamRosterGrid, type RosterEmployee } from "@/components/employees/TeamRosterGrid";
+import { CrewsPanel } from "@/components/crews/CrewsPanel";
+import { ChatLayout } from "@/components/chat/ChatLayout";
+import { useGetOrCreateDm } from "@/hooks/useChat";
 import { differenceInDays, isPast, formatDistanceToNow } from "date-fns";
+import {
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 
