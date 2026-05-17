@@ -29,6 +29,7 @@ export default function AdminDashboard() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        setUserId(user.id);
 
         const { data: profile } = await supabase
           .from("profiles")
