@@ -5,7 +5,7 @@ import { OnboardingWizard } from "@/components/onboarding/OnboardingWizard";
 import { SummaryCards } from "@/components/dashboard/SummaryCards";
 import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget";
 import { PendingSubbieInvitesWidget } from "@/components/dashboard/PendingSubbieInvitesWidget";
-import { TomorrowPreviewWidget } from "@/components/dashboard/TomorrowPreviewWidget";
+
 import { InboxWidget } from "@/components/dashboard/InboxWidget";
 import { FeedWidget } from "@/components/feed/FeedWidget";
 import { ActionsRequiredDialog } from "@/components/dashboard/ActionsRequiredDialog";
@@ -119,11 +119,6 @@ export default function AdminDashboard() {
             {/* Today's Schedule */}
             <DailyScheduleWidget businessId={businessId} />
             
-            {/* Pending Subbie Invites */}
-            <PendingSubbieInvitesWidget businessId={businessId} />
-            
-            {/* Tomorrow's Preview */}
-            <TomorrowPreviewWidget businessId={businessId} />
             
             {/* Inbox */}
             <InboxWidget businessId={businessId} />
