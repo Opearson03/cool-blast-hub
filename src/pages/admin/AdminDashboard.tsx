@@ -7,6 +7,7 @@ import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget"
 import { PendingSubbieInvitesWidget } from "@/components/dashboard/PendingSubbieInvitesWidget";
 import { TomorrowPreviewWidget } from "@/components/dashboard/TomorrowPreviewWidget";
 import { InboxWidget } from "@/components/dashboard/InboxWidget";
+import { FeedWidget } from "@/components/feed/FeedWidget";
 import { ActionsRequiredDialog } from "@/components/dashboard/ActionsRequiredDialog";
 import { TodayTasksDialog } from "@/components/dashboard/TodayTasksDialog";
 import { PendingResponsesDialog } from "@/components/dashboard/PendingResponsesDialog";
