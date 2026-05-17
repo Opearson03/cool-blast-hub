@@ -127,6 +127,9 @@ export default function AdminDashboard() {
             
             {/* Inbox */}
             <InboxWidget businessId={businessId} />
+
+            {/* Team Feed */}
+            {userId && <FeedWidget businessId={businessId} userId={userId} isAdmin />}
           </>
         )}
       </div>
