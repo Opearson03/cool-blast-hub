@@ -7,6 +7,7 @@ import { DailyScheduleWidget } from "@/components/dashboard/DailyScheduleWidget"
 import { PendingSubbieInvitesWidget } from "@/components/dashboard/PendingSubbieInvitesWidget";
 import { TomorrowPreviewWidget } from "@/components/dashboard/TomorrowPreviewWidget";
 import { InboxWidget } from "@/components/dashboard/InboxWidget";
+import { FeedWidget } from "@/components/feed/FeedWidget";
 import { ActionsRequiredDialog } from "@/components/dashboard/ActionsRequiredDialog";
 import { TodayTasksDialog } from "@/components/dashboard/TodayTasksDialog";
 import { PendingResponsesDialog } from "@/components/dashboard/PendingResponsesDialog";
@@ -16,6 +17,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionsDialogOpen, setActionsDialogOpen] = useState(false);
   const [todayTasksDialogOpen, setTodayTasksDialogOpen] = useState(false);
@@ -27,6 +29,7 @@ export default function AdminDashboard() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
+        setUserId(user.id);
 
         const { data: profile } = await supabase
           .from("profiles")
@@ -124,6 +127,9 @@ export default function AdminDashboard() {
             
             {/* Inbox */}
             <InboxWidget businessId={businessId} />
+
+            {/* Team Feed */}
+            {userId && <FeedWidget businessId={businessId} userId={userId} isAdmin />}
           </>
         )}
       </div>
