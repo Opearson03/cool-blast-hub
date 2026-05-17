@@ -17,6 +17,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 export default function AdminDashboard() {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [businessId, setBusinessId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionsDialogOpen, setActionsDialogOpen] = useState(false);
   const [todayTasksDialogOpen, setTodayTasksDialogOpen] = useState(false);
