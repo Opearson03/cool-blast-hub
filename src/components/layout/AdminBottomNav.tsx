@@ -17,7 +17,7 @@ const bottomNavItems: BottomNavItem[] = [
   { href: "/admin/jobs", label: "Jobs", icon: Briefcase, requiresPro: true },
   { href: "/admin/estimates", label: "Quotes", icon: FileText, requiresPro: false },
   { href: "/admin/schedule", label: "Schedule", icon: Calendar, requiresPro: true },
-  { href: "/admin/contacts", label: "Contacts", icon: Users, requiresPro: true },
+  { href: "/admin/people", label: "People", icon: Users, requiresPro: true },
 ];
 
 export function AdminBottomNav() {
