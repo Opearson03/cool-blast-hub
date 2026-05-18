@@ -23,7 +23,7 @@ import AdminPeople from "./pages/admin/AdminPeople";
 import AdminEquipment from "./pages/admin/AdminEquipment";
 import AdminEstimates from "./pages/admin/AdminEstimates";
 import AdminSettings from "./pages/admin/AdminSettings";
-import AdminContacts from "./pages/admin/AdminContacts";
+
 import EmployeeDashboard from "./pages/employee/EmployeeDashboard";
 import EmployeeSchedule from "./pages/employee/EmployeeSchedule";
 import EmployeeContacts from "./pages/employee/EmployeeContacts";
