@@ -20,6 +20,7 @@ import AdminJobDetail from "./pages/admin/AdminJobDetail";
 import AdminSchedule from "./pages/admin/AdminSchedule";
 import AdminCrews from "./pages/admin/AdminCrews";
 import AdminEmployees from "./pages/admin/AdminEmployees";
+// ... keep existing code
 import AdminEquipment from "./pages/admin/AdminEquipment";
 import AdminEstimates from "./pages/admin/AdminEstimates";
 import AdminSettings from "./pages/admin/AdminSettings";
