@@ -74,12 +74,12 @@ interface LeaveRequest {
   leave_type: string;
   start_date: string;
   end_date: string;
-  status: string;
   reason: string | null;
+  status: "pending" | "approved" | "rejected";
   review_notes: string | null;
   created_at: string;
   business_id: string;
-  profiles?: { full_name: string } | null;
+  profiles?: { full_name: string };
 }
 
 export function TeamPanel() {
