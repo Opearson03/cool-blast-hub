@@ -28,8 +28,7 @@ const navItems: NavItem[] = [
   { href: "/admin/jobs", label: "Jobs", icon: Briefcase, requiresPro: true },
   { href: "/admin/estimates", label: "Quotes", icon: FileText, requiresPro: false },
   { href: "/admin/schedule", label: "Schedule", icon: Calendar, requiresPro: true },
-  { href: "/admin/contacts", label: "Contact", icon: Users, requiresPro: true },
-  { href: "/admin/employees", label: "Team", icon: UsersRound, requiresPro: true },
+  { href: "/admin/people", label: "People", icon: UsersRound, requiresPro: true },
   { href: "/admin/settings", label: "Settings", icon: Settings, requiresPro: false },
 ];
 
