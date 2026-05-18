@@ -76,6 +76,7 @@ interface LeaveRequest {
   end_date: string;
   status: string;
   reason?: string | null;
+  review_notes?: string | null;
   created_at: string;
   business_id: string;
   profiles?: { full_name: string } | null;
