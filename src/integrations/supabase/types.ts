@@ -3510,6 +3510,42 @@ export type Database = {
           },
         ]
       }
+      supplier_brands: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          logo_url: string | null
+          name: string
+          primary_color: string | null
+          slug: string
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name: string
+          primary_color?: string | null
+          slug: string
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          logo_url?: string | null
+          name?: string
+          primary_color?: string | null
+          slug?: string
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
       supplier_contacts: {
         Row: {
           business_id: string
@@ -3667,6 +3703,157 @@ export type Database = {
           website?: string | null
         }
         Relationships: []
+      }
+      supplier_reps: {
+        Row: {
+          branch_address: string | null
+          branch_name: string | null
+          brand_id: string
+          created_at: string
+          email: string | null
+          id: string
+          is_active: boolean
+          last_verified_at: string | null
+          lat: number | null
+          lng: number | null
+          mobile: string | null
+          name: string
+          phone: string | null
+          postcodes: string[]
+          region: string | null
+          role: string | null
+          service_radius_km: number | null
+          source_url: string | null
+          state: string | null
+          updated_at: string
+        }
+        Insert: {
+          branch_address?: string | null
+          branch_name?: string | null
+          brand_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string | null
+          lat?: number | null
+          lng?: number | null
+          mobile?: string | null
+          name: string
+          phone?: string | null
+          postcodes?: string[]
+          region?: string | null
+          role?: string | null
+          service_radius_km?: number | null
+          source_url?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Update: {
+          branch_address?: string | null
+          branch_name?: string | null
+          brand_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_active?: boolean
+          last_verified_at?: string | null
+          lat?: number | null
+          lng?: number | null
+          mobile?: string | null
+          name?: string
+          phone?: string | null
+          postcodes?: string[]
+          region?: string | null
+          role?: string | null
+          service_radius_km?: number | null
+          source_url?: string | null
+          state?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_reps_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_brands"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_reps_staging: {
+        Row: {
+          branch_address: string | null
+          branch_name: string | null
+          brand_id: string
+          created_at: string
+          email: string | null
+          id: string
+          mobile: string | null
+          name: string | null
+          phone: string | null
+          postcodes: string[]
+          raw: Json | null
+          region: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role: string | null
+          source_url: string | null
+          state: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          branch_address?: string | null
+          branch_name?: string | null
+          brand_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          mobile?: string | null
+          name?: string | null
+          phone?: string | null
+          postcodes?: string[]
+          raw?: Json | null
+          region?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role?: string | null
+          source_url?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          branch_address?: string | null
+          branch_name?: string | null
+          brand_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          mobile?: string | null
+          name?: string | null
+          phone?: string | null
+          postcodes?: string[]
+          raw?: Json | null
+          region?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role?: string | null
+          source_url?: string | null
+          state?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_reps_staging_brand_id_fkey"
+            columns: ["brand_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_brands"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       swms_signoffs: {
         Row: {
