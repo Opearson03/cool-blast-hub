@@ -144,6 +144,13 @@ export function SupplierStep({
         </Button>
       </div>
 
+      <PreferredRepsBlock
+        siteAddress={siteAddress}
+        isQuote={isQuote}
+        selectedKeys={isQuote ? selectedSupplierIds.map((id) => `rep:${id}`) : (supplierId ? [`rep:${supplierId}`] : [])}
+        onPick={(rep, brand) => handlePickRep(rep, brand)}
+      />
+
       {isQuote && (
         <div className="flex items-center gap-2 text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
           <Users className="w-4 h-4 flex-shrink-0" />
