@@ -66,10 +66,15 @@ export function SupplierStep({
 
   // Pick a preferred rep: upsert into this business's supplier_contacts so the
   // rest of the wizard flow (PO/RFQ send) works identically to a saved supplier.
-  const handlePickRep = async (
-    rep: { id: string; name: string; email: string | null; phone: string | null; mobile: string | null; branch_name: string | null },
-    brand: { name: string } | undefined,
-  ) => {
+  const handlePickRep = async (rep: {
+    rep_id: string;
+    rep_name: string;
+    brand_name: string;
+    email: string | null;
+    phone: string | null;
+    mobile: string | null;
+    branch_name: string | null;
+  }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not signed in");
