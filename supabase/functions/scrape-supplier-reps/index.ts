@@ -21,6 +21,7 @@ interface ScrapedRep {
   branch_address?: string;
   state?: string;
   region?: string;
+  postcode?: string;
   postcodes?: string[];
 }
 
@@ -38,7 +39,8 @@ const repSchema = {
           phone: { type: "string", description: "Landline / branch phone." },
           mobile: { type: "string" },
           branch_name: { type: "string" },
-          branch_address: { type: "string" },
+          branch_address: { type: "string", description: "Full street address of the branch, including suburb, state and 4-digit Australian postcode." },
+          postcode: { type: "string", description: "4-digit Australian postcode of this branch. Extract from the branch address." },
           state: { type: "string", description: "Australian state code: NSW, VIC, QLD, WA, SA, TAS, NT, ACT." },
           region: { type: "string", description: "Area or city, e.g. 'Sydney Metro', 'Western Sydney'." },
         },
