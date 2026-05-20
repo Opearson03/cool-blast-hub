@@ -32,11 +32,13 @@ interface StagingRow {
   mobile: string | null;
   region: string | null;
   state: string | null;
+  postcode: string | null;
   postcodes: string[];
   branch_name: string | null;
   branch_address: string | null;
   source_url: string | null;
   status: string;
+  service_radius_km?: number | null;
 }
 
 export function SupplierDirectoryTab() {
@@ -115,10 +117,12 @@ export function SupplierDirectoryTab() {
         mobile: row.mobile,
         region: row.region,
         state: row.state,
+        postcode: row.postcode,
         postcodes: row.postcodes ?? [],
         branch_name: row.branch_name,
         branch_address: row.branch_address,
         source_url: row.source_url,
+        service_radius_km: row.service_radius_km ?? 75,
         last_verified_at: new Date().toISOString(),
       });
       if (insErr) throw insErr;
@@ -225,6 +229,11 @@ export function SupplierDirectoryTab() {
                     <span className="font-medium">{row.name || row.branch_name || "Unnamed"}</span>
                     {row.role && <Badge variant="secondary">{row.role}</Badge>}
                     {row.state && <Badge variant="outline">{row.state}</Badge>}
+                    {row.postcode ? (
+                      <Badge variant="outline" className="text-xs">📍 {row.postcode}</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="text-xs">No postcode — fix before approving</Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {[row.email, row.phone, row.mobile].filter(Boolean).join(" · ") || "No contact info"}
@@ -327,6 +336,7 @@ function EditStagingDialog({
         mobile: form.mobile,
         region: form.region,
         state: form.state,
+        postcode: form.postcode,
         postcodes: form.postcodes,
         branch_name: form.branch_name,
         branch_address: form.branch_address,
@@ -359,11 +369,14 @@ function EditStagingDialog({
           <Field label="Region" value={form.region || ""} onChange={(v) => setForm({ ...form, region: v })} />
           <Field label="Branch name" value={form.branch_name || ""} onChange={(v) => setForm({ ...form, branch_name: v })} />
           <Field label="Branch address" value={form.branch_address || ""} onChange={(v) => setForm({ ...form, branch_address: v })} />
-          <Field
-            label="Postcodes (comma-separated)"
-            value={(form.postcodes ?? []).join(", ")}
-            onChange={(v) => setForm({ ...form, postcodes: v.split(",").map((s) => s.trim()).filter(Boolean) })}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Postcode (4-digit)" value={form.postcode || ""} onChange={(v) => setForm({ ...form, postcode: v })} />
+            <Field
+              label="Postcodes served (comma-separated)"
+              value={(form.postcodes ?? []).join(", ")}
+              onChange={(v) => setForm({ ...form, postcodes: v.split(",").map((s) => s.trim()).filter(Boolean) })}
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>

@@ -66,10 +66,15 @@ export function SupplierStep({
 
   // Pick a preferred rep: upsert into this business's supplier_contacts so the
   // rest of the wizard flow (PO/RFQ send) works identically to a saved supplier.
-  const handlePickRep = async (
-    rep: { id: string; name: string; email: string | null; phone: string | null; mobile: string | null; branch_name: string | null },
-    brand: { name: string } | undefined,
-  ) => {
+  const handlePickRep = async (rep: {
+    rep_id: string;
+    rep_name: string;
+    brand_name: string;
+    email: string | null;
+    phone: string | null;
+    mobile: string | null;
+    branch_name: string | null;
+  }) => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not signed in");
@@ -97,8 +102,8 @@ export function SupplierStep({
           .from("supplier_contacts")
           .insert({
             business_id: profile.business_id,
-            name: rep.name,
-            company: brand?.name ?? rep.branch_name ?? null,
+            name: rep.rep_name,
+            company: rep.brand_name ?? rep.branch_name ?? null,
             email: rep.email,
             phone: rep.phone || rep.mobile,
             category: "concrete",
@@ -116,7 +121,7 @@ export function SupplierStep({
       } else {
         onSupplierIdChange(contactId!);
       }
-      toast({ title: "Added", description: `${rep.name}${brand ? ` (${brand.name})` : ""} selected.` });
+      toast({ title: "Added", description: `${rep.rep_name} (${rep.brand_name}) selected.` });
     } catch (e) {
       toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
     }
@@ -148,7 +153,7 @@ export function SupplierStep({
         siteAddress={siteAddress}
         isQuote={isQuote}
         selectedKeys={isQuote ? selectedSupplierIds.map((id) => `rep:${id}`) : (supplierId ? [`rep:${supplierId}`] : [])}
-        onPick={(rep, brand) => handlePickRep(rep, brand)}
+        onPick={(rep) => { void handlePickRep(rep); }}
       />
 
       {isQuote && (

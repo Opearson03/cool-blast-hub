@@ -2,41 +2,33 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Plus, Check } from "lucide-react";
+import { Sparkles, Plus, Check, MapPin } from "lucide-react";
 
-interface Brand {
-  id: string;
-  name: string;
-  slug: string;
-  logo_url: string | null;
-}
-
-interface Rep {
-  id: string;
+interface LocalRep {
   brand_id: string;
-  name: string;
-  role: string | null;
+  brand_name: string;
+  brand_logo_url: string | null;
+  rep_id: string;
+  rep_name: string;
+  rep_role: string | null;
   email: string | null;
   phone: string | null;
   mobile: string | null;
-  region: string | null;
-  state: string | null;
-  postcodes: string[];
   branch_name: string | null;
+  branch_address: string | null;
+  postcode: string | null;
+  state: string | null;
+  region: string | null;
+  distance_km: number | null;
 }
 
 interface PreferredRepsBlockProps {
   siteAddress?: string;
   isQuote: boolean;
   selectedKeys: string[]; // selected rep ids (prefixed "rep:<id>")
-  onPick: (rep: Rep, brand: Brand | undefined) => void;
+  onPick: (rep: LocalRep) => void;
 }
 
-// Australian state from address (rough heuristic)
-function extractState(addr: string): string | null {
-  const m = addr.match(/\b(NSW|VIC|QLD|WA|SA|TAS|NT|ACT)\b/i);
-  return m ? m[1].toUpperCase() : null;
-}
 function extractPostcode(addr: string): string | null {
   const m = addr.match(/\b(\d{4})\b/);
   return m ? m[1] : null;
@@ -48,109 +40,92 @@ export function PreferredRepsBlock({
   selectedKeys,
   onPick,
 }: PreferredRepsBlockProps) {
-  const state = extractState(siteAddress);
-  const postcode = extractPostcode(siteAddress);
-
-  const { data: brands = [] } = useQuery({
-    queryKey: ["supplier-brands-active"],
+  // 1. Resolve postcode: site address first, fall back to the user's business postcode
+  const { data: postcode } = useQuery({
+    queryKey: ["preferred-reps-postcode", siteAddress],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("supplier_brands")
-        .select("id, name, slug, logo_url")
-        .eq("is_active", true);
-      if (error) throw error;
-      return data as Brand[];
+      const fromSite = extractPostcode(siteAddress);
+      if (fromSite) return fromSite;
+
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth?.user) return null;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", auth.user.id)
+        .maybeSingle();
+      if (!profile?.business_id) return null;
+      const { data: biz } = await supabase
+        .from("businesses")
+        .select("address")
+        .eq("id", profile.business_id)
+        .maybeSingle();
+      return biz?.address ? extractPostcode(biz.address) : null;
     },
   });
 
   const { data: reps = [], isLoading } = useQuery({
-    queryKey: ["preferred-reps", state, postcode],
+    queryKey: ["local-supplier-reps", postcode],
+    enabled: !!postcode,
     queryFn: async () => {
-      // Try postcode-exact match first, fall back to state, fall back to all active
-      let q = supabase
-        .from("supplier_reps")
-        .select("id, brand_id, name, role, email, phone, mobile, region, state, postcodes, branch_name")
-        .eq("is_active", true)
-        .order("name");
-
-      if (postcode) q = q.contains("postcodes", [postcode]);
-      const { data, error } = await q;
+      const { data, error } = await supabase.rpc("get_local_supplier_reps", {
+        _postcode: postcode!,
+      });
       if (error) throw error;
-      if ((data ?? []).length > 0) return data as Rep[];
-
-      // Fallback: same state
-      if (state) {
-        const { data: byState } = await supabase
-          .from("supplier_reps")
-          .select("id, brand_id, name, role, email, phone, mobile, region, state, postcodes, branch_name")
-          .eq("is_active", true)
-          .eq("state", state)
-          .order("name")
-          .limit(10);
-        if ((byState ?? []).length > 0) return byState as Rep[];
-      }
-
-      // Final fallback: any active rep (limit 6)
-      const { data: any } = await supabase
-        .from("supplier_reps")
-        .select("id, brand_id, name, role, email, phone, mobile, region, state, postcodes, branch_name")
-        .eq("is_active", true)
-        .order("name")
-        .limit(6);
-      return (any ?? []) as Rep[];
+      return (data ?? []) as LocalRep[];
     },
   });
 
-  if (isLoading || reps.length === 0) return null;
+  if (!postcode || isLoading || reps.length === 0) return null;
 
-  const brandById = (id: string) => brands.find((b) => b.id === id);
   const isSelected = (id: string) => selectedKeys.includes(`rep:${id}`);
 
   return (
     <div className="space-y-2">
       <div className="flex items-center gap-2 text-sm font-medium">
         <Sparkles className="w-4 h-4 text-primary" />
-        Preferred suppliers
-        {postcode && (
-          <span className="text-xs text-muted-foreground font-normal">
-            near {postcode}{state ? ` · ${state}` : ""}
-          </span>
-        )}
+        Your local reps
+        <span className="text-xs text-muted-foreground font-normal">
+          near {postcode}
+        </span>
       </div>
       <div className="grid gap-2">
         {reps.map((rep) => {
-          const brand = brandById(rep.brand_id);
-          const selected = isSelected(rep.id);
+          const selected = isSelected(rep.rep_id);
           return (
             <div
-              key={rep.id}
+              key={rep.rep_id}
               className="flex items-center gap-3 p-3 border rounded-lg bg-card hover:bg-accent/30 transition-colors"
             >
-              {brand?.logo_url ? (
+              {rep.brand_logo_url ? (
                 <img
-                  src={brand.logo_url}
-                  alt={brand.name}
-                  className="w-8 h-8 rounded object-contain bg-muted p-1 flex-shrink-0"
+                  src={rep.brand_logo_url}
+                  alt={rep.brand_name}
+                  className="w-10 h-10 rounded object-contain bg-muted p-1 flex-shrink-0"
                 />
               ) : (
-                <div className="w-8 h-8 rounded bg-muted flex items-center justify-center text-xs flex-shrink-0">
-                  {brand?.name?.[0] ?? "?"}
+                <div className="w-10 h-10 rounded bg-muted flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                  {rep.brand_name[0]}
                 </div>
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-medium text-sm">{rep.name}</span>
-                  {brand && (
-                    <Badge variant="outline" className="text-xs h-5">
-                      {brand.name}
-                    </Badge>
+                  <span className="font-medium text-sm">{rep.rep_name}</span>
+                  <Badge variant="outline" className="text-xs h-5">
+                    {rep.brand_name}
+                  </Badge>
+                  {rep.rep_role && (
+                    <span className="text-xs text-muted-foreground">{rep.rep_role}</span>
                   )}
-                  {rep.role && (
-                    <span className="text-xs text-muted-foreground">{rep.role}</span>
+                  {rep.distance_km !== null && (
+                    <span className="text-xs text-muted-foreground inline-flex items-center gap-0.5">
+                      <MapPin className="w-3 h-3" />
+                      {rep.distance_km}km
+                    </span>
                   )}
                 </div>
                 <p className="text-xs text-muted-foreground truncate">
-                  {[rep.email, rep.phone || rep.mobile, rep.region || rep.state]
+                  {[rep.email, rep.phone || rep.mobile, rep.branch_name || rep.region || rep.state]
                     .filter(Boolean)
                     .join(" · ")}
                 </p>
@@ -158,7 +133,7 @@ export function PreferredRepsBlock({
               <Button
                 size="sm"
                 variant={selected ? "secondary" : "outline"}
-                onClick={() => onPick(rep, brand)}
+                onClick={() => onPick(rep)}
                 disabled={selected && !isQuote}
               >
                 {selected ? (
