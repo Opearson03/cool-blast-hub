@@ -102,8 +102,8 @@ export function SupplierStep({
           .from("supplier_contacts")
           .insert({
             business_id: profile.business_id,
-            name: rep.name,
-            company: brand?.name ?? rep.branch_name ?? null,
+            name: rep.rep_name,
+            company: rep.brand_name ?? rep.branch_name ?? null,
             email: rep.email,
             phone: rep.phone || rep.mobile,
             category: "concrete",
