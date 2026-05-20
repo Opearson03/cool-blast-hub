@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", userId);
-    const isStaff = (roles ?? []).some((r) => r.role === "admin" || r.role === "staff");
+    const isStaff = (roles ?? []).some((r) => r.role === "pourhub_staff" || r.role === "admin" || r.role === "staff");
     if (!isStaff) {
       return new Response(JSON.stringify({ error: "Forbidden — staff only" }), {
         status: 403,
