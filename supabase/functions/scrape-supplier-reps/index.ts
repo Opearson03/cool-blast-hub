@@ -214,6 +214,7 @@ Deno.serve(async (req) => {
             mobile: c.mobile || null,
             region: c.region || null,
             state: c.state || null,
+            postcode: c.postcode || null,
             postcodes: c.postcodes ?? [],
             branch_name: c.branch_name || null,
             branch_address: c.branch_address || null,
