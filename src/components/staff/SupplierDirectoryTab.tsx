@@ -369,11 +369,14 @@ function EditStagingDialog({
           <Field label="Region" value={form.region || ""} onChange={(v) => setForm({ ...form, region: v })} />
           <Field label="Branch name" value={form.branch_name || ""} onChange={(v) => setForm({ ...form, branch_name: v })} />
           <Field label="Branch address" value={form.branch_address || ""} onChange={(v) => setForm({ ...form, branch_address: v })} />
-          <Field
-            label="Postcodes (comma-separated)"
-            value={(form.postcodes ?? []).join(", ")}
-            onChange={(v) => setForm({ ...form, postcodes: v.split(",").map((s) => s.trim()).filter(Boolean) })}
-          />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Postcode (4-digit)" value={form.postcode || ""} onChange={(v) => setForm({ ...form, postcode: v })} />
+            <Field
+              label="Postcodes served (comma-separated)"
+              value={(form.postcodes ?? []).join(", ")}
+              onChange={(v) => setForm({ ...form, postcodes: v.split(",").map((s) => s.trim()).filter(Boolean) })}
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
