@@ -153,7 +153,7 @@ export function SupplierStep({
         siteAddress={siteAddress}
         isQuote={isQuote}
         selectedKeys={isQuote ? selectedSupplierIds.map((id) => `rep:${id}`) : (supplierId ? [`rep:${supplierId}`] : [])}
-        onPick={(rep, brand) => handlePickRep(rep, brand)}
+        onPick={(rep) => { void handlePickRep(rep); }}
       />
 
       {isQuote && (
