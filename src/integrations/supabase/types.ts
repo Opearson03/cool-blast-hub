@@ -3719,6 +3719,7 @@ export type Database = {
           mobile: string | null
           name: string
           phone: string | null
+          postcode: string | null
           postcodes: string[]
           region: string | null
           role: string | null
@@ -3741,6 +3742,7 @@ export type Database = {
           mobile?: string | null
           name: string
           phone?: string | null
+          postcode?: string | null
           postcodes?: string[]
           region?: string | null
           role?: string | null
@@ -3763,6 +3765,7 @@ export type Database = {
           mobile?: string | null
           name?: string
           phone?: string | null
+          postcode?: string | null
           postcodes?: string[]
           region?: string | null
           role?: string | null
@@ -3792,6 +3795,7 @@ export type Database = {
           mobile: string | null
           name: string | null
           phone: string | null
+          postcode: string | null
           postcodes: string[]
           raw: Json | null
           region: string | null
@@ -3813,6 +3817,7 @@ export type Database = {
           mobile?: string | null
           name?: string | null
           phone?: string | null
+          postcode?: string | null
           postcodes?: string[]
           raw?: Json | null
           region?: string | null
@@ -3834,6 +3839,7 @@ export type Database = {
           mobile?: string | null
           name?: string | null
           phone?: string | null
+          postcode?: string | null
           postcodes?: string[]
           raw?: Json | null
           region?: string | null
@@ -4476,6 +4482,26 @@ export type Database = {
           show_availability_in_directory: boolean
           trade_types: string[]
           years_experience: number
+        }[]
+      }
+      get_local_supplier_reps: {
+        Args: { _postcode: string }
+        Returns: {
+          branch_address: string
+          branch_name: string
+          brand_id: string
+          brand_logo_url: string
+          brand_name: string
+          distance_km: number
+          email: string
+          mobile: string
+          phone: string
+          postcode: string
+          region: string
+          rep_id: string
+          rep_name: string
+          rep_role: string
+          state: string
         }[]
       }
       get_or_create_dm: { Args: { _other_user: string }; Returns: string }
