@@ -57,10 +57,10 @@ export function PreferredRepsBlock({
       if (!profile?.business_id) return null;
       const { data: biz } = await supabase
         .from("businesses")
-        .select("postcode")
+        .select("address")
         .eq("id", profile.business_id)
         .maybeSingle();
-      return biz?.postcode ?? null;
+      return biz?.address ? extractPostcode(biz.address) : null;
     },
   });
 
