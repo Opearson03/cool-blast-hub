@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +17,8 @@ import {
 } from "@/components/ui/command";
 import { Plus, X, Users, Search, Check } from "lucide-react";
 import { OrderType, SupplierContact } from "./types";
+import { PreferredRepsBlock } from "./PreferredRepsBlock";
+import { useToast } from "@/hooks/use-toast";
 
 interface SupplierStepProps {
   orderType: OrderType;
@@ -33,6 +37,8 @@ interface SupplierStepProps {
   onSaveSupplierChange: (save: boolean) => void;
   // Add new
   onAddNewSupplier: () => void;
+  // Preferred reps (optional)
+  siteAddress?: string;
 }
 
 export function SupplierStep({
@@ -48,12 +54,73 @@ export function SupplierStep({
   saveSupplier,
   onSaveSupplierChange,
   onAddNewSupplier,
+  siteAddress,
 }: SupplierStepProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const isQuote = orderType === "quote";
   const selectedSuppliers = suppliers.filter(s => selectedSupplierIds.includes(s.id));
   const showManualEntry = isQuote ? selectedSupplierIds.length === 0 : !supplierId;
+
+  // Pick a preferred rep: upsert into this business's supplier_contacts so the
+  // rest of the wizard flow (PO/RFQ send) works identically to a saved supplier.
+  const handlePickRep = async (
+    rep: { id: string; name: string; email: string | null; phone: string | null; mobile: string | null; branch_name: string | null },
+    brand: { name: string } | undefined,
+  ) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not signed in");
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("business_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!profile?.business_id) throw new Error("No business");
+
+      // Dedupe: look for existing contact with same email (preferred) or name+company
+      let existing: { id: string } | null = null;
+      if (rep.email) {
+        const { data } = await supabase
+          .from("supplier_contacts")
+          .select("id")
+          .eq("business_id", profile.business_id)
+          .eq("email", rep.email)
+          .maybeSingle();
+          existing = data;
+      }
+      let contactId = existing?.id;
+      if (!contactId) {
+        const { data, error } = await supabase
+          .from("supplier_contacts")
+          .insert({
+            business_id: profile.business_id,
+            name: rep.name,
+            company: brand?.name ?? rep.branch_name ?? null,
+            email: rep.email,
+            phone: rep.phone || rep.mobile,
+            category: "concrete",
+          })
+          .select("id")
+          .single();
+        if (error) throw error;
+        contactId = data.id;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["supplier-contacts"] });
+
+      if (isQuote) {
+        if (!selectedSupplierIds.includes(contactId!)) onToggleSupplier(contactId!);
+      } else {
+        onSupplierIdChange(contactId!);
+      }
+      toast({ title: "Added", description: `${rep.name}${brand ? ` (${brand.name})` : ""} selected.` });
+    } catch (e) {
+      toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
+    }
+  };
 
   // Filter suppliers by search query
   const filteredSuppliers = suppliers.filter(s => {
