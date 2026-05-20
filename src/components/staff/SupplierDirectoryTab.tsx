@@ -117,10 +117,12 @@ export function SupplierDirectoryTab() {
         mobile: row.mobile,
         region: row.region,
         state: row.state,
+        postcode: row.postcode,
         postcodes: row.postcodes ?? [],
         branch_name: row.branch_name,
         branch_address: row.branch_address,
         source_url: row.source_url,
+        service_radius_km: row.service_radius_km ?? 75,
         last_verified_at: new Date().toISOString(),
       });
       if (insErr) throw insErr;
