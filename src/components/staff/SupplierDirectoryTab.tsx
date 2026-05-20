@@ -32,11 +32,13 @@ interface StagingRow {
   mobile: string | null;
   region: string | null;
   state: string | null;
+  postcode: string | null;
   postcodes: string[];
   branch_name: string | null;
   branch_address: string | null;
   source_url: string | null;
   status: string;
+  service_radius_km?: number | null;
 }
 
 export function SupplierDirectoryTab() {
