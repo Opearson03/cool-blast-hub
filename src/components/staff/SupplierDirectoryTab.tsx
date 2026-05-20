@@ -336,6 +336,7 @@ function EditStagingDialog({
         mobile: form.mobile,
         region: form.region,
         state: form.state,
+        postcode: form.postcode,
         postcodes: form.postcodes,
         branch_name: form.branch_name,
         branch_address: form.branch_address,
