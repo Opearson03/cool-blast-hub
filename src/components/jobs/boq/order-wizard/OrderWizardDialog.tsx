@@ -499,6 +499,7 @@ export function OrderWizardDialog({
                   saveSupplier={saveSupplier}
                   onSaveSupplierChange={setSaveSupplier}
                   onAddNewSupplier={() => setIsAddingSupplier(true)}
+                  siteAddress={siteAddress}
                 />
               )}
 
