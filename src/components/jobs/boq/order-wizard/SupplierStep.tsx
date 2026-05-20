@@ -121,7 +121,7 @@ export function SupplierStep({
       } else {
         onSupplierIdChange(contactId!);
       }
-      toast({ title: "Added", description: `${rep.name}${brand ? ` (${brand.name})` : ""} selected.` });
+      toast({ title: "Added", description: `${rep.rep_name} (${rep.brand_name}) selected.` });
     } catch (e) {
       toast({ title: "Error", description: (e as Error).message, variant: "destructive" });
     }
