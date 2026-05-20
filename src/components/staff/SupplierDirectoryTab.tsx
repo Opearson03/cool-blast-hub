@@ -229,6 +229,11 @@ export function SupplierDirectoryTab() {
                     <span className="font-medium">{row.name || row.branch_name || "Unnamed"}</span>
                     {row.role && <Badge variant="secondary">{row.role}</Badge>}
                     {row.state && <Badge variant="outline">{row.state}</Badge>}
+                    {row.postcode ? (
+                      <Badge variant="outline" className="text-xs">📍 {row.postcode}</Badge>
+                    ) : (
+                      <Badge variant="destructive" className="text-xs">No postcode — fix before approving</Badge>
+                    )}
                   </div>
                   <p className="text-xs text-muted-foreground">
                     {[row.email, row.phone, row.mobile].filter(Boolean).join(" · ") || "No contact info"}
